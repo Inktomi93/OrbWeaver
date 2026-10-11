@@ -2,7 +2,7 @@
 // not done. It drives the declared rows through the production dispatcher, proves the loader registers the
 // policy and holds the real tree clean. Its real-corpus positive control is an arm in
 // `_liveness/tooling.ts`, run by the one shared liveness runner.
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { gate } from "../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";

@@ -1,4 +1,4 @@
-import { ProviderError } from "../../../packages/inference/src/contract/errors.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("adding batch progress preserves the failing item's stack and original cause without repeating the message", () => {

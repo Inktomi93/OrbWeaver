@@ -6,9 +6,9 @@ import type {
   RuntimeAppearanceContract,
   RuntimeAppearanceContractRow,
   RuntimeAppearanceHistoricalRow,
-} from "../../_shared/appearance-matrix.ts";
-import type { ThemeEntry } from "../../_shared/theme.ts";
-import type { VariantAxis, VariantMatrixPlan } from "../../_shared/variant-matrix.ts";
+} from "../../floor/appearance/appearance-matrix.ts";
+import type { ThemeEntry } from "../../floor/appearance/theme.ts";
+import type { VariantAxis, VariantMatrixPlan } from "../../floor/variant-matrix/variant-matrix.ts";
 
 export type SnapAppearanceContract = RuntimeAppearanceContract;
 

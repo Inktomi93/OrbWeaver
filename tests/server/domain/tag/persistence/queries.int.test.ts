@@ -7,7 +7,7 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { insertJunctionRow } from "../../../../../packages/server/src/domain/tag/persistence/junctions.ts";
+import { insertJunctionRow } from "#server/domain/tag/persistence/junctions.ts";
 import {
   deleteOwnedTag,
   fetchOwnedTagIds,
@@ -18,7 +18,7 @@ import {
   setTagOrderBatch,
   toTagView,
   updateOwnedTag,
-} from "../../../../../packages/server/src/domain/tag/persistence/queries.ts";
+} from "#server/domain/tag/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";

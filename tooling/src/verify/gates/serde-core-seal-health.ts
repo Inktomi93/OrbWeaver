@@ -27,7 +27,7 @@
 // `serde-core-seal` descriptor at (pruned from public history), the parent of the conversion `1692e75291`;
 // this module did not exist there, so it is measured against the module it was carved from, `serde-core-seal` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493
 // and final `population` admits 1,554. legacy − final = ∅. final − legacy = 61 `@kit` sources — the widening to reach
 // the kit ANCHOR the paragraph above records. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

@@ -9,13 +9,8 @@ import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { EMPTY_ANALYSIS_STATE } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
-import {
-  advanceSettledWatermark,
-  selectChatGuidance,
-  selectRuleState,
-  upsertRuleState,
-} from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
+import { EMPTY_ANALYSIS_STATE } from "#server/domain/automation/contract/analysis.ts";
+import { advanceSettledWatermark, selectChatGuidance, selectRuleState, upsertRuleState } from "#server/domain/automation/persistence/rule-state.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";

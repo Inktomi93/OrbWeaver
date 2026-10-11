@@ -1,4 +1,4 @@
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { runServedProbe } from "../../../../tooling/src/stack/ops/served-probe.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

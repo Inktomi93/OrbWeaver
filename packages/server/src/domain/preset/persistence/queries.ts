@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull, notExists, or, sql } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#kit/stored-config";
+import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 
 type PresetRow = typeof presets.$inferSelect;
@@ -152,7 +152,7 @@ export async function findOwnedForkOf(db: Db, userId: UserId, sourceId: PresetId
  *  whose content does NOT descend from the stored blob (the reset verb's schema default, an imported backup
  *  file) is not this function's job at all: it goes through {@link replacePresetConfig}, because refusing
  *  the user's own explicit replacement would close the only in-place repair a corrupt preset has while
- *  buying no protection. `#kit/stored-config` carries the full reasoning + the tradeoff. */
+ *  buying no protection. `#primitives/stored-config` carries the full reasoning + the tradeoff. */
 export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patch: PresetPatch): Promise<PresetRow | undefined> {
   if (patch.config !== undefined) {
     const stored = await db

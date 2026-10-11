@@ -11,14 +11,8 @@ import type { RowMacroStamps } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import {
-  buildTurnMacroContext,
-  renderHistoryMacros,
-  renderMacros,
-  resolveGuidedActionText,
-  resolveNudgeText,
-} from "../../../../../packages/server/src/domain/chat/assembly/macros.ts";
-import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { buildTurnMacroContext, renderHistoryMacros, renderMacros, resolveGuidedActionText, resolveNudgeText } from "#server/domain/chat/assembly/macros.ts";
+import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;

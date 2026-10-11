@@ -1,4 +1,4 @@
-import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy, GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";

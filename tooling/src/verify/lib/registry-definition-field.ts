@@ -5,7 +5,7 @@
 // or `body.planned` reads exactly that field, through the one shared authored-value reader. These helpers
 // inspect a node the shared fact already delivered; they own no walk, no parser, and no binding resolver.
 
-import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node } from "ts-morph";
 import { readStaticAuthoredScalar, resolveAuthoredComposite } from "./static-authored-value.ts";

@@ -29,7 +29,9 @@ import { gate as noRawRandom } from "../../../../../tooling/src/verify/gates/no-
 import { gate as nullableColumnInequality } from "../../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { gate as openJsonColumnKeyParityHealth } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
+import { gate as packageDeepImport } from "../../../../../tooling/src/verify/gates/package-deep-import.ts";
 import { gate as packageLayout } from "../../../../../tooling/src/verify/gates/package-layout.ts";
+import { gate as packageSubpathCrossing } from "../../../../../tooling/src/verify/gates/package-subpath-crossing.ts";
 import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify/gates/playwright-css-topology.ts";
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
@@ -265,7 +267,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   {
     policy: toolingInstrumentProof,
     // A registry row naming a tool with no directory.
-    overlays: [edit("tooling/src/_shared/instruments.ts", "INSTRUMENT_TOOLS = [\n", 'INSTRUMENT_TOOLS = [\n  "livenessghost",\n')],
+    overlays: [edit("tooling/src/floor/instrument/instruments.ts", "INSTRUMENT_TOOLS = [\n", 'INSTRUMENT_TOOLS = [\n  "livenessghost",\n')],
     messageIncludes: "is not a live directory",
   },
   {
@@ -293,6 +295,18 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: 'Member: "liveness_never_emitted"',
+  },
+  {
+    policy: packageDeepImport,
+    // A probe two levels below the chat feature root climbing back to its front door: the same-module arm.
+    overlays: [add("packages/server/src/domain/chat/liveness/deep/probe.ts", 'export { chatLiveness } from "../../index.ts";\n')],
+    messageIncludes: "Use #src/domain/chat/index.ts.",
+  },
+  {
+    policy: packageSubpathCrossing,
+    // An ungranted importer reaching a tag verb through the file subpath instead of the `#domain/tag` door.
+    overlays: [add("packages/server/src/domain/chat/liveness-crossing.ts", 'export * from "#src/domain/tag/verbs/attach.ts";\n')],
+    messageIncludes: "Use #domain/tag.",
   },
   {
     policy: wireSchemaVocabOneHome,

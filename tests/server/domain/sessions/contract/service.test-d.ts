@@ -9,10 +9,10 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionToken } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
-import type { ProvisionIdentityOptions } from "../../../../../packages/server/src/domain/sessions/contract/params.ts";
-import type { CreateSessionResult } from "../../../../../packages/server/src/domain/sessions/contract/results.ts";
-import type { SessionsContext, SessionsService } from "../../../../../packages/server/src/domain/sessions/contract/service.ts";
-import type { decideProvision } from "../../../../../packages/server/src/domain/sessions/substrate/decide-provision.ts";
+import type { ProvisionIdentityOptions } from "#server/domain/sessions/contract/params.ts";
+import type { CreateSessionResult } from "#server/domain/sessions/contract/results.ts";
+import type { SessionsContext, SessionsService } from "#server/domain/sessions/contract/service.ts";
+import type { decideProvision } from "#server/domain/sessions/substrate/decide-provision.ts";
 
 test("the session-token READ seams accept only a SessionToken — a plain string is refused", () => {
   expectTypeOf<SessionsService["validate"]>().parameter(0).toEqualTypeOf<SessionToken>();

@@ -1,8 +1,8 @@
 // Runtime/tool entry conventions shared by file reachability and symbol liveness.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { ExternalConsumption } from "../contract/types.ts";
 import { declKey } from "./keys.ts";
 import { AstToolError } from "./ledger.ts";

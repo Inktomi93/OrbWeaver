@@ -7,9 +7,9 @@ import { embeddingCalls, modelStats, ownerStats, userConnections } from "@orb/db
 import type { EmbeddingCallId, EmbeddingInvocationId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { runOpenAiCompatEmbed } from "../../../../../packages/inference/src/backends/openai-compat/embed.ts";
-import { createRecordUsage } from "../../../../../packages/server/src/domain/embeddings/index.ts";
-import { applyStatsDelta, reconcileStats } from "../../../../../packages/server/src/domain/stats/index.ts";
+import { runOpenAiCompatEmbed } from "#inference/backends/openai-compat/embed.ts";
+import { createRecordUsage } from "#server/domain/embeddings/index.ts";
+import { applyStatsDelta, reconcileStats } from "#server/domain/stats/index.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../../../inference/_support.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { seedUser } from "../../../../support/factories/user.ts";

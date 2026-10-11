@@ -8,13 +8,13 @@
 // collapse); this tail assumes the bytes are already in hand and never touches the fetch.
 
 import type { UserId } from "@orb/kit/ids";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { ScrapeName, ScrapeWrite } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext } from "../contract/service.ts";
 import { findByImportHash, toDocumentView } from "../persistence/queries.ts";
 import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "../persistence/scope.ts";
-import { activeSpaceModel } from "../substrate/active-space.ts";
+import { activeSpaceModel } from "./active-space.ts";
 import { queueIngest } from "./queue-ingest.ts";
 
 const NAME_MAX = 500;

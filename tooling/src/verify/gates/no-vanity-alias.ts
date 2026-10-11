@@ -51,7 +51,7 @@
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)` cited above
 // is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
 // source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,387 and final `population` admits 3,387.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,387 and final `population` admits 3,387.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
 // (virtual) admitted by both; outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected
 // by both.

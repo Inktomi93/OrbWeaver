@@ -7,7 +7,7 @@
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { scanReferences } from "../../../../../packages/client/src/features/preset/lib/reference-scan.ts";
+import { scanReferences } from "#client/features/preset/lib/reference-scan.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const VARIABLE = {

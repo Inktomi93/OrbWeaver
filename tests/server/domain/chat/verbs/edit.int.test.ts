@@ -26,23 +26,23 @@ import {
   rpgSnapshots,
   statsCanonVersions,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
-import { sha256Hex } from "@orb/server/kit/content-hash";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { and, asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { continueVariantStatements, setVariantContentStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
-import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
-import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import { continueVariantStatements, setVariantContentStatement } from "#server/domain/chat/persistence/canon-write.ts";
+import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
+import { continuedSignatureMetadata } from "#server/domain/chat/substrate/content-signatures.ts";
+import { createEdit } from "#server/domain/chat/verbs/edit.ts";
+import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";

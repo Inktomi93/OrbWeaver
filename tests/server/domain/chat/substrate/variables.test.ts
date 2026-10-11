@@ -3,7 +3,7 @@
 // randomPick via a STUB prng (deterministic), orphan-preserve, and the merged-read mode (no randomPick).
 
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
-import { resolveChoiceVariables } from "../../../../../packages/server/src/domain/chat/substrate/variables.ts";
+import { resolveChoiceVariables } from "#server/domain/chat/substrate/variables.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Build a ChoiceBlockSpec with the schema defaults applied (multiSelect false, separator ", ", randomPick false). */

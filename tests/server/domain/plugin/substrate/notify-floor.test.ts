@@ -5,7 +5,7 @@
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createNotifyFloor, PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
+import { createNotifyFloor, PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES } from "#server/domain/plugin/substrate/notify-floor.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PLUGIN_A = castId<PluginId>("plugin_a");

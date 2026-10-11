@@ -7,9 +7,9 @@
 // its whole life, and nothing could have caught that while this file was hand-maintained. `armHelp` THROWS
 // on an unknown arm and `remainingArmHelp()` prints every arm this file did not place, so an arm added to
 // `ARMS` shows up in `--help` without an edit here.
-import { appearanceHelpBlock } from "../../_shared/appearance-flags.ts";
-import { panelPresetHelpBlock } from "../../_shared/panel-flags.ts";
-import { themeHelpBlock } from "../../_shared/theme.ts";
+import { appearanceHelpBlock } from "../../floor/appearance/appearance-flags.ts";
+import { themeHelpBlock } from "../../floor/appearance/theme.ts";
+import { panelPresetHelpBlock } from "../../floor/instrument/panel-flags.ts";
 import { SHOT_PIXEL_BUDGET } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
 import { armHelp, remainingArmHelp } from "../ops/arms/help.ts";
@@ -67,6 +67,12 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
                             tooltip no thumb can open; --tap fires none of those.
   --swipe <selector=dy>   a dispatched touch drag that scrolls a touch scroller dy px (positive = down);
                             needs a touch device like --tap. --wheel is the mouse scroll
+  --swipe-x <selector=dx> the same touch drag along X (positive dx drags the finger left, so the
+                            content scrolls right); needs a touch device like --tap
+  --long-press <selector=ms> hold a touch on the selector for ms, then lift (the long-press a context
+                            menu waits for); needs a touch device like --tap
+  --tap-at <x,y>          a touch tap at viewport CSS px x,y, for a target no selector reaches; needs a
+                            touch device like --tap
   --soft-keyboard <px>    open an on-screen keyboard px tall from here in the tape (0 closes it): headless
                             Chromium never shows one, so without it a phone drive never sees the composer
                             under a keyboard. iOS-shaped: visualViewport shrinks and fires resize while the

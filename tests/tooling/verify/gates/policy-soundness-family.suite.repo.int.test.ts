@@ -19,7 +19,7 @@ import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, Type } from "ts-morph";
 import { vi } from "vitest";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import {
   finalProbeModule,
@@ -403,12 +403,12 @@ const VOCABULARY_PROBE_FIELDS = `${HARD_TRUNK}
 
 test("policy-proof-expectations reads the actual package vocabulary and refuses an opaque effect on its source", ({ repoRoot }) => {
   const policyPath = "tooling/src/verify/gates/probe.ts";
-  const vocabularyPath = "tooling/src/_shared/project-worlds.ts";
+  const vocabularyPath = "tooling/src/floor/compiler/project-worlds.ts";
   const files = {
     [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
-    [policyPath]: finalProbeModule(VOCABULARY_PROBE_FIELDS, 'import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";\n'),
+    [policyPath]: finalProbeModule(VOCABULARY_PROBE_FIELDS, 'import { PACKAGE_NAMES } from "../../floor/compiler/project-worlds.ts";\n'),
     [vocabularyPath]: readFileSync(join(repoRoot, vocabularyPath), "utf8"),
-    "tooling/src/_shared/test-kinds.ts": readFileSync(join(repoRoot, "tooling/src/_shared/test-kinds.ts"), "utf8"),
+    "tooling/src/floor/testing/test-kinds.ts": readFileSync(join(repoRoot, "tooling/src/floor/testing/test-kinds.ts"), "utf8"),
   };
   const assertComplete = (result: ReturnType<typeof runPolicyPass>): void => {
     expect(result.toolErrors).toEqual([]);

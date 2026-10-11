@@ -21,8 +21,8 @@
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
-import { THEME_HEARTH_NAME } from "../../../../packages/server/src/domain/settings/constants.ts";
-import { SEED_THEMES } from "../../../../packages/server/src/domain/settings/seed-themes.ts";
+import { THEME_HEARTH_NAME } from "#server/domain/settings/constants.ts";
+import { SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // The colour field mapping, declared ONCE: each seed override colour field → the `--color-*` custom

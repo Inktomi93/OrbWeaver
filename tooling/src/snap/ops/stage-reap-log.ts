@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { StageReapArm, StageReapEntry, StageReapsFile, StageRow } from "../contract/stage.ts";
 import { describeStageAgePhrase, REAPS_REL, shortSha, stageIdleMs } from "../lib/stage-plan.ts";
 import { withBandsLock } from "./stage-marker.ts";

@@ -12,7 +12,7 @@ import { BUILTIN_PROVIDERS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { expect } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Deep relative, pure `.ts`: the step titles are read from their one home, never re-typed here.
-import { ADD_DIALOG_COPY } from "../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
+import { ADD_DIALOG_COPY } from "#client/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../support/node/user-settings-view.ts";

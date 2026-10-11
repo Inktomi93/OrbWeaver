@@ -12,18 +12,16 @@ import type { GenerationUsage, ResponseCache, TokenDetails, TokenUsage } from "@
 import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { z } from "zod";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ResolvedWarning } from "../../contract/resolve.ts";
-import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult } from "../../contract/roles.ts";
-import { providerErrorFromHttp } from "../kit/error-classify.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { toImageUrl } from "../kit/image-normalize.ts";
-import { responseCacheOf } from "../kit/response-cache.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet, ResolvedWarning } from "#contract";
+import { ProviderError } from "#contract";
+import { providerErrorFromHttp } from "../http/error-classify.ts";
+import { responseCacheOf } from "../http/response-cache.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 import type { MeasuredCost } from "../v4/result.ts";
 import { generationUsageOf, measuredCostOf, rawMeasuredOpenRouterCostOf } from "../v4/result.ts";
 import { generatedImageOf } from "../v4/stream.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { toImageUrl } from "../wire/image-normalize.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { imageModelFor, languageModelFor } from "./model.ts";
 

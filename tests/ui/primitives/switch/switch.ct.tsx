@@ -1,7 +1,7 @@
 // CT: the switch seal — real role="switch" semantics: pointer + keyboard toggle aria-checked,
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
-import { contrastRatio } from "@orb/tooling/_shared/wcag";
+import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";

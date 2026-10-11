@@ -7,14 +7,14 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
-import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
+import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
+import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";

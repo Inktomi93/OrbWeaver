@@ -3,10 +3,10 @@
 // twin). Owner-scoped: the persona must belong to the caller (gate first — a foreign/absent persona
 // collapses to not-found, no existence leak). Summary views only. A read: no audit.
 
-import type { PersonaContext } from "../../context.ts";
-import type { ListConnectedCharactersParams } from "../../contract/params.ts";
-import type { PersonaService } from "../../contract/service.ts";
-import { ensurePersonaOwned, listConnectedCharactersOf } from "../../persistence/queries.ts";
+import type { PersonaContext } from "#src/domain/persona/context.ts";
+import type { ListConnectedCharactersParams } from "#src/domain/persona/contract/params.ts";
+import type { PersonaService } from "#src/domain/persona/contract/service.ts";
+import { ensurePersonaOwned, listConnectedCharactersOf } from "#src/domain/persona/persistence/queries.ts";
 
 export function createListConnectedCharacters(ctx: PersonaContext): PersonaService["listConnectedCharacters"] {
   return async ({ principal, personaId }: ListConnectedCharactersParams) => {

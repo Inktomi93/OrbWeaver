@@ -30,8 +30,8 @@ export async function bootLifecycle(prefix: string, env: readonly EnvPin[]): Pro
     vi.stubEnv(key, value);
   }
   try {
-    const { createLifecycle } = await import("../../packages/server/src/entry/lifecycle.ts");
-    const { logRing } = await import("../../packages/server/src/foundation/observability/index.ts");
+    const { createLifecycle } = await import("#server/entry/lifecycle.ts");
+    const { logRing } = await import("#server/foundation/observability/index.ts");
     const before = logRing.recent().length;
     const lifecycle = createLifecycle({ listenPort: 0 });
     await lifecycle.boot();

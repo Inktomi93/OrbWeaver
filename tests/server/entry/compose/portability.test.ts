@@ -25,9 +25,9 @@ import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import type { PortabilityDeps } from "../../../../packages/server/src/entry/compose/portability.ts";
-import { buildPortabilityRegistry } from "../../../../packages/server/src/entry/compose/portability.ts";
-import { CHAT_BUNDLE_EXT } from "../../../../packages/server/src/kit/serde/chat-bundle/index.ts";
+import type { PortabilityDeps } from "#server/entry/compose/portability.ts";
+import { buildPortabilityRegistry } from "#server/entry/compose/portability.ts";
+import { CHAT_BUNDLE_EXT } from "#server/primitives/serde/chat-bundle/index.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

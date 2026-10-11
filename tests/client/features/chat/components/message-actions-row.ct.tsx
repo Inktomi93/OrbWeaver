@@ -9,12 +9,7 @@ import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import {
-  MESSAGE_ACTIONS_MENU_NAME,
-  MESSAGE_EDIT_NAME,
-  MESSAGE_FORK_NAME,
-  MESSAGE_REATTRIBUTE_NAME,
-} from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REATTRIBUTE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";

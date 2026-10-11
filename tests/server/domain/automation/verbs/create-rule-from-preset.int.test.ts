@@ -25,7 +25,7 @@ import type { AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, UserI
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { ZWSP } from "@orb/kit/macro";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
-import { sha256Hex } from "@orb/server/kit/content-hash";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type {
@@ -36,13 +36,13 @@ import type {
   AutomationTurnRequest,
   BackgroundChoice,
   SuggestionStore,
-} from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
-import type { RuleView } from "../../../../../packages/server/src/domain/automation/contract/results.ts";
-import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
-import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
-import { selectRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
-import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
+} from "#server/domain/automation/contract/ops.ts";
+import type { RuleView } from "#server/domain/automation/contract/results.ts";
+import type { AutomationService } from "#server/domain/automation/contract/service.ts";
+import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
+import { createAutomationService } from "#server/domain/automation/index.ts";
+import { selectRuleState } from "#server/domain/automation/persistence/rule-state.ts";
+import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";

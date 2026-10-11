@@ -7,7 +7,7 @@ import type { WebWeaveProps } from "@orb/ui/web-weave";
 import { WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { bakeWeaveGlow } from "../../../../packages/ui/src/art/web-weave/web-weave-glow.ts";
+import { bakeWeaveGlow } from "#ui/art/web-weave/web-weave-glow.ts";
 import { capturePixelFacts } from "./web-weave-glow-probe.ts";
 
 export interface WeaveBoxProps extends WebWeaveProps {

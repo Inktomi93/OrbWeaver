@@ -8,8 +8,8 @@ import { existsSync, writeFileSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
-import { killPidGroup } from "@orb/tooling/_shared/proc";
-import { processEnvValue } from "@orb/tooling/_shared/process-env";
+import { killPidGroup } from "@orb/tooling/floor/process/proc";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

@@ -2,8 +2,8 @@
 // key wholesale; six are real modelled options and three more are deliberately refused. What is pinned here
 // is the BELT, not the plumbing: an allowlist whose refusals are silent is the open-bag it replaced.
 
-import { anthropicExtras, anthropicUserIdDigest } from "../../../../packages/inference/src/backends/anthropic-messages/extras.ts";
-import type { ResolvedWarning } from "../../../../packages/inference/src/contract/resolve.ts";
+import { anthropicExtras, anthropicUserIdDigest } from "#inference/backends/anthropic-messages/extras.ts";
+import type { ResolvedWarning } from "#inference/contract/resolve.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";

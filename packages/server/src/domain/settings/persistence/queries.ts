@@ -7,7 +7,7 @@
 // row they are about to replace and REFUSE when an existing blob is unreadable. It lives here, not in the
 // verbs, because "may this row be overwritten?" is a property of the ROW, and because these two functions
 // are the only whole-blob writers of THIS domain's columns — guarding them is TOTAL over every present and
-// future caller, where a per-verb check is a convention the next verb forgets. `#kit/stored-config` carries
+// future caller, where a per-verb check is a convention the next verb forgets. `#primitives/stored-config` carries
 // the reasoning + the tradeoff (it moved out of this domain's `substrate/` in #1026, when `domain/preset`
 // became the second caller and a domain→domain value import was the wrong shape).
 
@@ -23,7 +23,7 @@ import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#kit/stored-config";
+import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
 

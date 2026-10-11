@@ -66,7 +66,7 @@ function fakeLocks(): { readonly request: (name: string, options: { readonly ifA
   };
 }
 
-type Channel = typeof import("../../../packages/client/src/lib/session-channel.ts");
+type Channel = typeof import("#client/lib/session-channel.ts");
 
 async function freshModule(): Promise<Channel> {
   vi.resetModules();

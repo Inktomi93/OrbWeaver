@@ -15,10 +15,10 @@ import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, UserId } from "@o
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import type { DeliveredCue, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { aggregateEconomics, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
-import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
-import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
+import type { DeliveredCue, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
+import { aggregateEconomics, runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
+import { resolveTurnNarrative } from "#server/domain/chat/engine/recover-narrative.ts";
+import type { ToolCallInput } from "#server/domain/tool-use/contract/params.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";

@@ -4,7 +4,7 @@
 // serves (`cancellationTaskFor` derives it — chat on the three generation wires, `embed` on local-light),
 // never skipped for the wire that happens not to serve chat.
 //
-// THE REASON IS THE POINT, not merely the kind. `backends/kit/abort-flatten.ts` exists because
+// THE REASON IS THE POINT, not merely the kind. `backends/http/abort-flatten.ts` exists because
 // `AbortSignal.any([caller, ours])` PROPAGATES the caller's `reason`, a signal handed to `fetch` makes that
 // reason the fetch rejection, and `classifyTransportName` decides `aborted` vs retryable-`server` by
 // matching /timeout|connection|network|overload/ over an error's name+message. So a cancellation whose reason
@@ -15,7 +15,7 @@
 // WHAT THESE PINS WOULD CATCH
 //  · Swap `flattenAbortSignal` for `AbortSignal.any` in `registry/dispatch.ts` and the two hosted wires red
 //    on BOTH the kind (`server`, retryable) and the leak assertion — the poisoned words reach the message.
-//  · Drop the `ABORT_NAME_RE` precedence in `backends/kit/error-classify.ts` (so the transient regex reads
+//  · Drop the `ABORT_NAME_RE` precedence in `backends/http/error-classify.ts` (so the transient regex reads
 //    the message first) and the same two red. Nothing else in the tree distinguishes those two orderings.
 //  · Delete `throwIfAborted` from a `local-light` task and that wire reds while the others stay green —
 //    which is the whole reason cancellation is probed per-wire instead of once.

@@ -1,6 +1,6 @@
 // Display-only correlation over evidence Snap already captured. Producers own thresholds and exit votes;
 // this module groups their immutable rows for the end card and browser-free reader.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
 import type { SnapCompositeFinding, SnapFindingEvidenceRef, SnapRunIndex } from "../contract/run-index.ts";
 import { analyzerFindingDrafts, lighthouseFindingDrafts, reactFindingDrafts } from "./run-finding-analyzers.ts";

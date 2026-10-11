@@ -21,11 +21,11 @@ import {
   redeemSignupAtomic,
   revokeInviteById,
   signupAccountAdmission,
-} from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
-import { insertJoinerPersonaStatement } from "../../../../../packages/server/src/domain/persona/persistence/joiner.ts";
-import { insertSignupUserStatement } from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
-import { insertJoinerSettingsStatement } from "../../../../../packages/server/src/domain/settings/persistence/joiner.ts";
-import { buildAuditStatementIfPrecedingWrote } from "../../../../../packages/server/src/foundation/observability/audit.ts";
+} from "#server/domain/chat/persistence/invites.ts";
+import { insertJoinerPersonaStatement } from "#server/domain/persona/persistence/joiner.ts";
+import { insertSignupUserStatement } from "#server/domain/sessions/persistence/users.ts";
+import { insertJoinerSettingsStatement } from "#server/domain/settings/persistence/joiner.ts";
+import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support.ts";

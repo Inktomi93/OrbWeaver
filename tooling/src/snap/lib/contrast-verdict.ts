@@ -1,9 +1,9 @@
 // The PURE half of `--contrast`: colour parsing, the alpha composite, and the three refusals — every
 // state where a ratio would be a number rather than evidence. Split out of ops/contrast.ts when the
 // #466 exemption pushed that file past the tooling size cap; the browser half (the in-page fact script,
-// pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (_shared/wcag.ts).
-import type { Rgb } from "../../_shared/wcag.ts";
-import { MEASURABLE_OPACITY_MIN, UI_COMPONENT_MIN_RATIO as SHARED_UI_COMPONENT_MIN_RATIO } from "../../_shared/wcag.ts";
+// pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (floor/instrument/wcag.ts).
+import type { Rgb } from "../../floor/instrument/wcag.ts";
+import { MEASURABLE_OPACITY_MIN, UI_COMPONENT_MIN_RATIO as SHARED_UI_COMPONENT_MIN_RATIO } from "../../floor/instrument/wcag.ts";
 import type { ContrastEvidence, ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen, ContrastOutcome } from "../contract/contrast.ts";
 
 export const BOLD_WEIGHT = 700;
@@ -14,7 +14,7 @@ export const BOLD_WEIGHT = 700;
  *  so this constant is the Node-side half, not a second home for the rule. */
 export const FIELD_TAGS: ReadonlySet<string> = new Set(["INPUT", "TEXTAREA"]);
 
-/** WCAG 1.4.11's non-text boundary — RE-EXPORTED from the fleet kernel (`_shared/wcag.ts`), which owns it
+/** WCAG 1.4.11's non-text boundary — RE-EXPORTED from the fleet kernel (`floor/instrument/wcag.ts`), which owns it
  *  since #624 gave design-audit the same inactive-control vocabulary. Kept as a named export here so snap's
  *  own consumers keep their import path; the VALUE has exactly one home. */
 export const UI_COMPONENT_MIN_RATIO = SHARED_UI_COMPONENT_MIN_RATIO;

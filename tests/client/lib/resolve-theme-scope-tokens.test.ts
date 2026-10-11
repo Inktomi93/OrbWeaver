@@ -10,7 +10,7 @@
 import type { Theme, ThemeOverride } from "@orb/contracts/theme";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
-import { BASE_PALETTE_VARS, dataThemeOf, isSeedThemeName, resolveThemeScopeTokens } from "../../../packages/client/src/lib/resolve-theme-scope-tokens.ts";
+import { BASE_PALETTE_VARS, dataThemeOf, isSeedThemeName, resolveThemeScopeTokens } from "#client/lib/resolve-theme-scope-tokens.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const FULL_OVERRIDE: ThemeOverride = {

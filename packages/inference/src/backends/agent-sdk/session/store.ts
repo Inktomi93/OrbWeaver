@@ -4,9 +4,8 @@
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
-import type { AgentSdkSessionTotals, SessionEntryWriter } from "../../../contract/agent.ts";
-import type { AgentSdkSessionId } from "../../../contract/identity.ts";
-import type { InferenceLog } from "../../../deps.ts";
+import type { AgentSdkSessionId, AgentSdkSessionTotals, SessionEntryWriter } from "#contract";
+import type { InferenceLog } from "#src/deps.ts";
 import type { SeedTurn } from "./frames.ts";
 import {
   buildSeedFrames,

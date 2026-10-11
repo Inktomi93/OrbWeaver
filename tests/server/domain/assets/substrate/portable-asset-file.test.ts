@@ -12,7 +12,7 @@ import {
   extractInlineAssetIds,
   hashAssetBytes,
   parsePortableAssetFilename,
-} from "../../../../../packages/server/src/domain/assets/substrate/portable-asset-file.ts";
+} from "#server/domain/assets/substrate/portable-asset-file.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const assetId = (): AssetId => mintTypeId(ID_PREFIX.asset);

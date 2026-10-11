@@ -4,7 +4,7 @@
 
 import { globalVariables } from "@orb/db";
 import { describe } from "vitest";
-import { authorGlobals, buildCelEnv } from "../../../../../packages/server/src/domain/automation/substrate/cel-env.ts";
+import { authorGlobals, buildCelEnv } from "#server/domain/automation/substrate/cel-env.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
 import { ruleFixture } from "../_support.ts";

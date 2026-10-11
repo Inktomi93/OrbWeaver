@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { ADMIN_OP_CODES } from "../../../../../packages/server/src/domain/admin/contract/errors.ts";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { auditActions, makeHarness, principal, seedUser, withBrokenAudit, withBrokenBind } from "../_support.ts";

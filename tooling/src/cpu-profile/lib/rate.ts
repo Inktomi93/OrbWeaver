@@ -1,11 +1,11 @@
 // Pure interaction-rate verdict seam shared by the retained collector and Snap's selective --perf arm.
-import type { ResultPair } from "../../_shared/artifacts.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import type { BoxLoadReader, MeasurementVerdict } from "../../_shared/load-budget.ts";
-import { judgeRateLoad } from "../../_shared/load-budget.ts";
+import type { ResultPair } from "../../floor/artifacts/artifacts.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { BrowserAccelerationEvidence } from "../../floor/browser/browser-acceleration.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import type { BoxLoadReader, MeasurementVerdict } from "../../floor/host/load-budget.ts";
+import { judgeRateLoad } from "../../floor/host/load-budget.ts";
 
 export function perfRateDisposition(acceleration: BrowserAccelerationEvidence, read?: BoxLoadReader): MeasurementVerdict {
   if (acceleration.posture !== "hardware") {

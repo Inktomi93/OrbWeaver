@@ -4,13 +4,7 @@
 // against the boolean-default neighbour, and the toolRecurseLimit default-fill tail.
 
 import { describe } from "vitest";
-import {
-  getGroupConfig,
-  getRoomOverrides,
-  getToolRecurseLimit,
-  parseChatMetadata,
-  TOOL_RECURSE_LIMIT_DEFAULT,
-} from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
+import { getGroupConfig, getRoomOverrides, getToolRecurseLimit, parseChatMetadata, TOOL_RECURSE_LIMIT_DEFAULT } from "#server/domain/chat/contract/metadata.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseChatMetadata — fault isolation", () => {

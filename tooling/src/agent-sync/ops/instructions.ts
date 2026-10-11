@@ -4,16 +4,16 @@
 //   2. `AGENTS.md` is the one always-on file: a root twin named for Claude Code is a second copy;
 //   3. every `.claude/rules/*.md` has list-form `paths:` frontmatter, and `AGENTS.md` lists it with
 //      exactly those globs (Codex has no path-scoped loading, so that list is how it finds a rule);
-//   4. no history marker, inventory count or banned word in prose (`_shared/prose-rules.ts` owns the rules);
-//   5. every relative markdown link and backticked repository path resolves (`_shared/prose-references.ts`).
+//   4. no history marker, inventory count or banned word in prose (`floor/prose/prose-rules.ts` owns the rules);
+//   5. every relative markdown link and backticked repository path resolves (`floor/prose/prose-references.ts`).
 // The docs tree has its own walk in `doc/ops/check.ts`, run from the same `--check` door. Each check takes
 // the repository root, so the tests run it on planted trees.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { docFileCount, docLayerProblems } from "#doc";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { referenceProblems } from "../../_shared/prose-references.ts";
-import { glossaryWords, lineCount, proseFindings } from "../../_shared/prose-rules.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { referenceProblems } from "../../floor/prose/prose-references.ts";
+import { glossaryWords, lineCount, proseFindings } from "../../floor/prose/prose-rules.ts";
 import type { RulePaths } from "../contract/types.ts";
 import { parseRulePaths } from "../lib/frontmatter.ts";
 

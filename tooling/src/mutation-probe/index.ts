@@ -1,7 +1,7 @@
 // mutation-probe's programmatic front door. The CLI is the operator entrypoint; tests and any future
 // calibration orchestration consume this surface rather than reaching into ops/lib files.
 
-export { mirrorCandidates, resolveMirrors } from "../_shared/test-mirror.ts";
+export { mirrorCandidates, resolveMirrors } from "../floor/testing/test-mirror.ts";
 export type { MutantPopulation, MutantReceipt, PlantableStatus, ProbeSummary, SuiteEvidence, SuiteReportRequest, SuiteVerdict } from "./contract/types.ts";
 export { MUTANT_POPULATIONS, PLANTABLE_STATUSES, SUITE_VERDICTS } from "./contract/types.ts";
 export type { SourceLocation, SourceRange } from "./lib/offsets.ts";

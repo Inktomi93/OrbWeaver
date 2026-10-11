@@ -168,8 +168,8 @@ settings response, or read `<html data-reduced-motion>`) and state which state t
 other.
 
 `--appearance '<json>'` deep-merges keys over the real settings response
-(`tooling/src/_shared/appearance.ts`); untouched keys keep the account's own value.
-`--appearance-preset <name>` loads a named profile from `tooling/src/_shared/appearance-presets.json`
+(`tooling/src/floor/appearance/appearance.ts`); untouched keys keep the account's own value.
+`--appearance-preset <name>` loads a named profile from `tooling/src/floor/appearance/appearance-presets.json`
 (that file is the one home for a new curated preset). `--appearance` composes over a preset (later
 keys win); an unknown name is `ARG ERROR`. A motion/visual verdict owes both the bare run and
 `--full-motion` / `--appearance-preset maximal`.
@@ -219,7 +219,7 @@ build; use a production build or `--file` for the network case. A bad rate refus
 `--click` is a mouse dispatch even under `--mobile`: it fires `pointerenter`/`mouseover` and can open a
 hover-only tooltip no finger could reach. `--tap <sel>` is a real touch tap (set `--mobile` at session boot) and
 fires none of those. Headless Chromium shows no on-screen keyboard, so follow a `--tap` on a field with
-`--soft-keyboard <px>` (about 340 for an iPhone) to drive the app's keyboard path; `--soft-keyboard 0` closes it. For hover-revealed targets (group-hover kebabs, row toolbars), `--force-click`
+`--soft-keyboard <px>` (about 340 for an iPhone) to drive the app's keyboard path; `--soft-keyboard 0` closes it. Touch gestures beyond a tap: `--swipe-x <sel>=<dx>` (horizontal drag), `--long-press <sel>=<ms>` (hold, then lift) and `--tap-at <x,y>` (viewport pixels); all need `--mobile`. For hover-revealed targets (group-hover kebabs, row toolbars), `--force-click`
 hovers then force-clicks; synthetic `--hover` loses `:hover` on re-render, so prefer the focus path for
 reveal-state evidence.
 

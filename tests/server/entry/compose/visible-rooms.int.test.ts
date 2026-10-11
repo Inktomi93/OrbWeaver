@@ -16,7 +16,7 @@ import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { createResolveVisibleRooms } from "../../../../packages/server/src/entry/compose/visible-rooms.ts";
+import { createResolveVisibleRooms } from "#server/entry/compose/visible-rooms.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P3
 area: plugin
+lane: wt/agent-ae4b2d1f159008c8a
 ---
 
 # Composer plugin buttons name the plugin, not its handle

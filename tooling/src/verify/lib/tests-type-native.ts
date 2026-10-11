@@ -2,8 +2,8 @@
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { isTypeWorldSource } from "@orb/tooling/_shared/project-worlds";
+import { isTypeWorldSource } from "@orb/tooling/floor/compiler/project-worlds";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { PolicyProgramMembership } from "../contract/policy-scope.ts";
 
 // tsgo's --listFilesOnly on the widest program is ~5,400 absolute paths (~0.5MB); 64MiB is generous headroom.

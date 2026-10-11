@@ -6,7 +6,7 @@
 import type { RpgActorEntry, RpgActorOp } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
-import { applyActorOps, emptyActorEntry } from "../../../../../packages/server/src/domain/rpg/substrate/actor-ops.ts";
+import { applyActorOps, emptyActorEntry } from "#server/domain/rpg/substrate/actor-ops.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const MIRA = { kind: "npc", npcKey: "mira" } as const;

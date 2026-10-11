@@ -5,10 +5,10 @@
 // Announces on BOTH planes: the host's own bank (user bus) and the ROOM's rack (chat bus, #2471).
 
 import { chatDocuments } from "@orb/db";
-import { DocumentNotFoundError } from "../../contract/errors.ts";
-import type { ChatAttachParams } from "../../contract/params.ts";
-import type { DatabankContext, DatabankService } from "../../contract/service.ts";
-import { loadOwnedMeta } from "../../persistence/queries.ts";
+import { DocumentNotFoundError } from "#src/domain/databank/contract/errors.ts";
+import type { ChatAttachParams } from "#src/domain/databank/contract/params.ts";
+import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
+import { loadOwnedMeta } from "#src/domain/databank/persistence/queries.ts";
 
 export function createAttachToChat(ctx: DatabankContext): DatabankService["attachToChat"] {
   return async ({ principal, documentId, chatId }: ChatAttachParams): Promise<void> => {

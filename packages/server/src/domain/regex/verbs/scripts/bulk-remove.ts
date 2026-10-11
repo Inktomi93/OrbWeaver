@@ -6,10 +6,10 @@
 // see is routinely raced by another device, and a whole-batch abort because one row vanished would be worse
 // than the honest count. The `affected` answer is what the caller reports.
 
-import type { RegexContext } from "../../context.ts";
-import type { BulkRemoveScriptsParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { removeScriptsBulk } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import type { BulkRemoveScriptsParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { removeScriptsBulk } from "#src/domain/regex/persistence/queries.ts";
 
 export function createBulkRemove(ctx: RegexContext): RegexService["bulkRemoveScripts"] {
   return async ({ principal, scriptIds }: BulkRemoveScriptsParams) => {

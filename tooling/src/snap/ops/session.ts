@@ -1,19 +1,19 @@
 // Browser-session lifecycle: the localStorage seeds (probe-mode/debug-token), the one launch wrapper
-// over _shared/browser, and teardown with failure-evidence traces/HARs (kept red, deleted green).
+// over floor/browser/browser, and teardown with failure-evidence traces/HARs (kept red, deleted green).
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { artifactDir, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
-import { aggregateDimension, aggregateScope, contextIndex, exactDimension, scopeV1 } from "../../_shared/artifact-scope.ts";
-import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
-import { openProbeContext, probeSessionForContext } from "../../_shared/browser-context.ts";
-import type { LocalStorageSeed, ProbeContext, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser-contract.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
-import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
-import type { DebuggingProfile } from "../../_shared/debugging-endpoint.ts";
-import { createDebuggingProfile, readDebuggingEndpoint, readDebuggingPort } from "../../_shared/debugging-endpoint.ts";
-import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
-import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { artifactDir, registerInstrumentArtifact } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateDimension, aggregateScope, contextIndex, exactDimension, scopeV1 } from "../../floor/artifacts/artifact-scope.ts";
+import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../floor/browser/browser.ts";
+import { openProbeContext, probeSessionForContext } from "../../floor/browser/browser-context.ts";
+import type { LocalStorageSeed, ProbeContext, ProbeLaunchOptions, ProbeSession } from "../../floor/browser/browser-contract.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
+import { readBrowserEnvironment } from "../../floor/browser/browser-environment.ts";
+import type { DebuggingProfile } from "../../floor/browser/debugging-endpoint.ts";
+import { createDebuggingProfile, readDebuggingEndpoint, readDebuggingPort } from "../../floor/browser/debugging-endpoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { DevToolsCascadeRuntime } from "../../floor/devtools/devtools-runtime.ts";
+import { prepareDevToolsCascadeRuntime } from "../../floor/devtools/devtools-runtime.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
@@ -39,7 +39,7 @@ const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
 const DEBUG_PROFILES = new WeakMap<ProbeSession, string>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
-// this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
+// this kills mid-run flicker during steps too). Raw string — see floor/browser/browser.ts header.
 const PROBE_CSS_SCRIPT = `document.addEventListener("DOMContentLoaded", () => {
   const style = document.createElement("style");
   style.textContent = "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}";

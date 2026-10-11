@@ -18,7 +18,7 @@
 //
 // POPULATION PORT (legacy SHA `2a7094966f`, verified byte-identical to HEAD at conversion) — AND THE HALF
 // THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/law/**`
-// `.md`, and filtered `project.getSourceFiles()`. That project is `_shared/ts-workspace.ts#harnessGlobs`,
+// `.md`, and filtered `project.getSourceFiles()`. That project is `floor/compiler/ts-workspace.ts#harnessGlobs`,
 // which globs `.ts`/`.tsx` ONLY, so **no Markdown file was ever a member and the entire core-doc arm was
 // dead code**. The conversion RESTORES it through the door the contract minted for exactly this
 // (`contract/resource-tree.ts`: the `docs` tree id exists "so those policies can ADMIT the paths whose

@@ -1,7 +1,7 @@
 // Each execution is one portable file; image blobs ride the existing assets reference registry.
 import type { PortableFile } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
-import { buildImageryCall, imageryCallImportHash } from "#kit/serde/imagery";
+import { buildImageryCall, imageryCallImportHash } from "#primitives/serde/imagery";
 import type { ImageryPortabilityContext, ImageryPortabilityService } from "../contract/portability.ts";
 import { readOwnedImageryCalls } from "../persistence/portability-read.ts";
 

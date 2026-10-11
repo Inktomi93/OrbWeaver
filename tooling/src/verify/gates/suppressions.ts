@@ -130,7 +130,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `suppressions` descriptor at (pruned from public history), the parent of the conversion `c961a5ab10`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,497 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,497
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,497
 // and final `population` admits 7,497. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
@@ -140,7 +140,7 @@
 // a package's files outside `src/` (`packages/ui/token-contract.ts`, `packages/client/vite.config.ts`), or
 // `playwright/`. Those files held live directives that no grant licensed and no gate read, and the old
 // population admitted them for no stated reason. The population is now every authored TypeScript file the gate
-// corpus loads (`of: "all"`), and the corpus (`_shared/ts-workspace.ts#harnessGlobs`) was widened in the same
+// corpus loads (`of: "all"`), and the corpus (`floor/compiler/ts-workspace.ts#harnessGlobs`) was widened in the same
 // change to load those files. `caught-failure-ownership` rejected `of: "all"` because its declared FENCE held only
 // by the corpus's accident. This policy has no fence except the captured runtime. Its intent IS "whatever the
 // repository authors", and the corpus is held to that claim by

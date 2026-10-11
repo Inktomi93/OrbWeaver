@@ -6,7 +6,7 @@ import { themeClusters } from "@orb/db";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { readThemes } from "../../../../../packages/server/src/domain/discovery/themes/retrieve.ts";
+import { readThemes } from "#server/domain/discovery/themes/retrieve.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedUser } from "../_support.ts";

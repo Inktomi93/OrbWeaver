@@ -19,7 +19,7 @@ import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
-import { NODE_ENVIRONMENTS } from "../../kit/node-environment.ts";
+import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";

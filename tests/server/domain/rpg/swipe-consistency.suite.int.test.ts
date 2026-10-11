@@ -13,15 +13,10 @@ import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { snapshotRowToState } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { insertJournalEntry, listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal.ts";
-import {
-  findSnapshotByVariant,
-  resolveSnapshotForTurn,
-  writeHandSnapshot,
-  writeStagedSnapshot,
-} from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
-import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging.ts";
+import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
+import { insertJournalEntry, listActiveJournal } from "#server/domain/rpg/persistence/journal.ts";
+import { findSnapshotByVariant, resolveSnapshotForTurn, writeHandSnapshot, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
+import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
 import { freshDb } from "../../../support/db.ts";
 import {
   actorWithWallet,

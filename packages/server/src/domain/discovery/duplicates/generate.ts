@@ -15,8 +15,8 @@
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { ComputeChatDuplicatesOptions, ComputeDuplicatesOptions } from "../contract/params.ts";

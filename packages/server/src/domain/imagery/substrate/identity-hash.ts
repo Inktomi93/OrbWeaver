@@ -10,7 +10,7 @@
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { CharacterId } from "@orb/kit/ids";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 
 export function identityHashFor(mode: PromptTemplateMode, characterId: CharacterId, contentHash: string): string {
   return sha256Hex(`${mode}:${characterId}:${contentHash}`);

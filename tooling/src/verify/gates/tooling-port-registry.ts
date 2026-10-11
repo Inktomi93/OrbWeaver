@@ -1,6 +1,6 @@
 // Policy: tooling-port-registry (docs/law/Core-Tooling-Law.md §4.4, the TREE half of arm I of
 // the retired `tooling-shared-plumbing`, #1269/#1271) — every
-// TCP port is a row in the ONE registry, `_shared/ports.ts`. A numeric literal whose VALUE is a registry port
+// TCP port is a row in the ONE registry, `floor/host/ports.ts`. A numeric literal whose VALUE is a registry port
 // (reserved or stage-band — the registry is IMPORTED, so a new reserved row widens this arm for free), or a
 // numeric literal at a PORT-NAMED position (`port`/`…Port`/`…_PORT`) carrying a number the registry never
 // declared — a hand-picked pair, pain P10 — is RED anywhere under `tooling/src/**` or `tests/e2e/support/**`
@@ -36,12 +36,12 @@
 // `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `bbdccb2d5c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 1,135.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 1,135.
 // legacy − final = 482 `tests/tooling/**` sources — never arm I's (mustPass[4]). final − legacy = ∅. Controls: inside
 // `tests/e2e/support/__cbbhr_in_actors.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
-import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "../../_shared/ports.ts";
+import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "../../floor/host/ports.ts";
 import { defineGate } from "../contract/policy.ts";
 import { portLiteralOf } from "../lib/plumbing-literals.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -54,7 +54,7 @@ const OPERATION = "port-literal";
 const MESSAGE =
   "a TCP port outside the ONE registry — a numeric literal whose value is a registry port (reserved or stage-band), or one at a port-named position carrying a number no registry row declares, is a hand-picked pair: 47 such literals across tooling, the e2e harness and the runner configs was the state this repo shipped until #1269, which is why picking a pair meant grepping and hoping (docs/law/Core-Tooling-Law.md §4.4).";
 const FIX =
-  "read the named row from _shared/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, E2E_FIXTURE_PROVIDER_PORT, CT_VITE_PORT, ENGINE_PORTS) or allocate a stage band (`stageBandPorts`); a NEW port is a new reserved row there, never a number picked at the call site. The registry itself carries the exact reviewed grant `(ports.ts, port-literal)`.";
+  "read the named row from floor/host/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, E2E_FIXTURE_PROVIDER_PORT, CT_VITE_PORT, ENGINE_PORTS) or allocate a stage band (`stageBandPorts`); a NEW port is a new reserved row there, never a number picked at the call site. The registry itself carries the exact reviewed grant `(ports.ts, port-literal)`.";
 
 export const gate = defineGate({
   id: "tooling-port-registry",
@@ -122,15 +122,17 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: { "tooling/src/_shared/ports.ts": "export const DEV_PORTS = { server: 8788, vite: 5173 };\n" },
-      expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/ports.ts, operation: port-literal" },
+      files: { "tooling/src/floor/host/ports.ts": "export const DEV_PORTS = { server: 8788, vite: 5173 };\n" },
+      expect: { count: 1, messageIncludes: "Subject: tooling/src/floor/host/ports.ts, operation: port-literal" },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the registry reds like any other site — scanned, never population-excluded, so the day it moves it reds at its new path — and is licensed by its exact grant row (`tooling-port-registry:ports`). The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
   ],
   mustPass: [
     {
       mode: "source",
-      files: { "tooling/src/snap/lib/stage-plan.ts": 'import { DEV_PORTS } from "../../_shared/ports.ts";\nexport const staged = DEV_PORTS.server + 100;\n' },
+      files: {
+        "tooling/src/snap/lib/stage-plan.ts": 'import { DEV_PORTS } from "../../floor/host/ports.ts";\nexport const staged = DEV_PORTS.server + 100;\n',
+      },
       why: "the SANCTIONED shape and the literal #1271 landing: the pair is READ from the registry and the offset is an ordinary number no port table declares — flagging this would leave no legal way to derive a port",
     },
     {

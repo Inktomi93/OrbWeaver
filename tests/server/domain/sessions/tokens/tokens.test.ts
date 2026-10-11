@@ -1,7 +1,7 @@
 import type { SessionToken } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createTokenHasher, mintSessionToken, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens.ts";
+import { createTokenHasher, mintSessionToken, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "#server/domain/sessions/tokens/tokens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // Invariant #3: the token is never stored — only its PEPPERED hash; the hasher THROWS (loud

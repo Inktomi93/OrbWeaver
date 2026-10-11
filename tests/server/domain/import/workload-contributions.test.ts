@@ -21,8 +21,8 @@ import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
-import type { ImportWorkloadDeps } from "../../../../packages/server/src/domain/import/contract/workloads.ts";
-import { createImportWorkloadContributions, isContained, readStagedFile } from "../../../../packages/server/src/domain/import/workload-contributions.ts";
+import type { ImportWorkloadDeps } from "#server/domain/import/contract/workloads.ts";
+import { createImportWorkloadContributions, isContained, readStagedFile } from "#server/domain/import/workload-contributions.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");

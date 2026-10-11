@@ -22,16 +22,16 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { parseChatJsonl } from "@orb/server/kit/serde/chat";
+import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { ChatImportContext } from "../../../../packages/server/src/domain/chat/contract/import.ts";
-import { createBulkImportChats } from "../../../../packages/server/src/domain/chat/persistence/import-write.ts";
-import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
-import type { ImportChatsResult } from "../../../../packages/server/src/domain/import/contract/results.ts";
-import { createImportChats } from "../../../../packages/server/src/domain/import/verbs/import-chats.ts";
-import { reconcileStats } from "../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
-import { bumpStatsCanonVersion } from "../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import type { ChatImportContext } from "#server/domain/chat/contract/import.ts";
+import { createBulkImportChats } from "#server/domain/chat/persistence/import-write.ts";
+import type { ImportContext } from "#server/domain/import/context.ts";
+import type { ImportChatsResult } from "#server/domain/import/contract/results.ts";
+import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
+import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../support/db.ts";
 import { seedCharacter, seedPersona, seedUser } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";

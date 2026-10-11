@@ -1,10 +1,10 @@
 // Scenario-owned typed fact batches and aggregate run-arm pairs.
 
-import { aggregateScope, factBatchId } from "../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../_shared/artifacts.ts";
-import type { BrowserPageError, ProbeSession } from "../../_shared/browser-contract.ts";
-import type { BrowserEvidenceRetentionBatch } from "../../_shared/browser-evidence-ring.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { aggregateScope, factBatchId } from "../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../floor/artifacts/artifacts.ts";
+import type { BrowserPageError, ProbeSession } from "../../floor/browser/browser-contract.ts";
+import type { BrowserEvidenceRetentionBatch } from "../../floor/browser/browser-evidence-ring.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SnapArmFactFor } from "../contract/run-facts.ts";
 import { snapArmFact, snapExitCode, snapExitState } from "../contract/run-facts.ts";
 import type { ScenarioSpec } from "../contract/scenario.ts";
@@ -48,7 +48,7 @@ export interface ScenarioFactInput {
   readonly outcomes: readonly CaptureOutcome[];
   readonly plans: readonly ShotPlan[];
   readonly reportPlan: ShotPlan;
-  readonly failedRequests: readonly import("../../_shared/browser-capture.ts").CapturedRequest[];
+  readonly failedRequests: readonly import("../../floor/browser/browser-capture.ts").CapturedRequest[];
   readonly pageErrors: readonly BrowserPageError[];
   readonly failures: SnapFailureSummary;
   readonly retention: BrowserEvidenceRetentionBatch;

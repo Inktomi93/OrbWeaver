@@ -246,9 +246,9 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
   {
     id: "content-part-seam:inference-backend-kit-history",
     policyId: "content-part-seam",
-    subject: "packages/inference/src/backends/kit/history.ts",
+    subject: "packages/inference/src/backends/wire/history.ts",
     operation: "chat-content-part-reference",
-    why: "the shared history converter every openai-shaped backend calls — it maps content parts onto its wire, which is the reason parts exist at all. Re-pointed 2026-09-20 from `packages/server/src/infra/providers/backends/kit/history.ts` (same module, new package).",
+    why: "the shared history converter every openai-shaped backend calls — it maps content parts onto its wire, which is the reason parts exist at all. Re-pointed 2026-09-20 from `packages/server/src/infra/providers/backends/wire/history.ts` (same module, new package).",
     endsWhen:
       "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
   },

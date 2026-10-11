@@ -6,7 +6,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";
+import { aadFor } from "#server/domain/credentials/persistence/aad.ts";
 import {
   clearRevokedOwned,
   deleteOwnedCredential,
@@ -14,8 +14,8 @@ import {
   insertSealed,
   setRevokedById,
   toCredentialView,
-} from "../../../../../packages/server/src/domain/credentials/persistence/queries.ts";
-import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
+} from "#server/domain/credentials/persistence/queries.ts";
+import { createSecretBox } from "#server/infra/crypto/secrets.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

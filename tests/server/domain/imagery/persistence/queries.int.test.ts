@@ -7,16 +7,12 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { generationUsageDetailsSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import {
-  findReusableGeneration,
-  insertGenerationStatement,
-  readProvenanceByAsset,
-} from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
+import { findReusableGeneration, insertGenerationStatement, readProvenanceByAsset } from "#server/domain/imagery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

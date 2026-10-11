@@ -3,10 +3,10 @@
 // the evidence a `break` recalibration rests on when its rules change.
 // Exit: 0 census printed · 2 the report could not be read · 3 bad arguments.
 import process from "node:process";
-import { print } from "../_shared/artifacts.ts";
-import { printVerdict } from "../_shared/evidence.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { print } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
+import { printVerdict } from "../floor/verdict/evidence.ts";
 import { aridCensus } from "./index.ts";
 
 /** Right-aligns counts under a 5-wide column. */

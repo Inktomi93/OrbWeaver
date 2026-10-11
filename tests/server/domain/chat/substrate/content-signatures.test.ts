@@ -1,4 +1,4 @@
-import { continuedSignatureMetadata, signaturesForContent } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
+import { continuedSignatureMetadata, signaturesForContent } from "#server/domain/chat/substrate/content-signatures.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("continuation tool offsets include the UTF-16 prefix and configured delimiter without changing provider call ids", () => {

@@ -15,9 +15,9 @@
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { describe } from "vitest";
-import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
-import { createEdit } from "../../../../packages/server/src/domain/chat/verbs/edit.ts";
-import { createFork } from "../../../../packages/server/src/domain/chat/verbs/fork.ts";
+import type { ResolveForeignInputsOp } from "#server/domain/chat/contract/foreign.ts";
+import { createEdit } from "#server/domain/chat/verbs/edit.ts";
+import { createFork } from "#server/domain/chat/verbs/fork.ts";
 import { scenario } from "../../../support/chat/index.ts";
 import { tape } from "../../../support/chat/tape.ts";
 import { expect, test } from "../../../support/fixtures.ts";

@@ -7,7 +7,7 @@ import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { finalizeScrape } from "../../../../../packages/server/src/domain/databank/substrate/scrape-canon.ts";
+import { finalizeScrape } from "#server/domain/databank/substrate/scrape-canon.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";

@@ -6,10 +6,10 @@
 // emit — the character `bulkArchive` precedent — because the library's live-freshness arm is a single
 // per-owner event (O-7 arm (a)), and N emits for one user gesture would be N refetches of the same list.
 
-import type { RegexContext } from "../../context.ts";
-import type { BulkSetScriptsEnabledParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { setScriptsEnabledBulk } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import type { BulkSetScriptsEnabledParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { setScriptsEnabledBulk } from "#src/domain/regex/persistence/queries.ts";
 
 export function createBulkSetEnabled(ctx: RegexContext): RegexService["bulkSetScriptsEnabled"] {
   return async ({ principal, scriptIds, enabled }: BulkSetScriptsEnabledParams) => {

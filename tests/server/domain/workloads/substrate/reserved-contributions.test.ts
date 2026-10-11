@@ -8,7 +8,7 @@ import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import { createReservedWorkloadContributions } from "../../../../../packages/server/src/domain/workloads/substrate/reserved-contributions.ts";
+import { createReservedWorkloadContributions } from "#server/domain/workloads/substrate/reserved-contributions.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;

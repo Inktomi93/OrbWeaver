@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { createResolveRpgParticipants } from "../../../../../packages/server/src/domain/chat/verbs/resolve-rpg-participants.ts";
+import { createResolveRpgParticipants } from "#server/domain/chat/verbs/resolve-rpg-participants.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";

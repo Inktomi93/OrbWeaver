@@ -10,7 +10,7 @@
 import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SeedDemoDeps } from "../contract/types.ts";
 import {
   REGEX_DISABLED_SCRIPT_NAME,

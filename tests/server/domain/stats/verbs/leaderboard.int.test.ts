@@ -1,7 +1,7 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { createStatsService } from "../../../../../packages/server/src/domain/stats/service.ts";
+import { createStatsService } from "#server/domain/stats/service.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedCharacterStats, seedUser } from "../_support.ts";

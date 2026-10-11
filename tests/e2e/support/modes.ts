@@ -29,8 +29,8 @@
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import process from "node:process";
-import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/_shared/ports";
-import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
+import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { devTargetAllowed } from "./target-guard.ts";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `pnpm stack up-fg`

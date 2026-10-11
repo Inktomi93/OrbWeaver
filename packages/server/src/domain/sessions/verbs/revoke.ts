@@ -1,4 +1,4 @@
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ExternalId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { Sealed } from "#infra/crypto";

@@ -8,7 +8,7 @@ import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires, automationRules } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { FireView } from "../contract/results.ts";
@@ -82,7 +82,7 @@ export async function insertFire(db: Db, row: FireInsert): Promise<void> {
  * THE STAMP RIDES `changes() > 0` and the INSERT is statement 1: SQLite's `changes()` is connection-local and
  * reports the immediately preceding statement, so the stamp lands IF AND ONLY IF the fire row did. That is the
  * invariant this seam wants stated in SQL rather than assumed. (Writes only — no SELECT ahead of them; see
- * `@orb/db/kit`'s transaction-mode note.)
+ * `@orb/db/query`'s transaction-mode note.)
  */
 export async function insertFireWithRuleStamp(db: Db, row: FireInsert, stampFiredAt: number | null): Promise<void> {
   const insert = insertFireStatement(db, row);

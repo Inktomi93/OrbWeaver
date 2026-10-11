@@ -4,8 +4,8 @@ import type { GenerationCapability, TurnsCapability } from "@orb/contracts/infer
 import type { CarryReasoning } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
-import type { DeliveredCue } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { cueReplayFor } from "../../../../../packages/server/src/domain/chat/substrate/cue-replay.ts";
+import type { DeliveredCue } from "#server/domain/chat/contract/results.ts";
+import { cueReplayFor } from "#server/domain/chat/substrate/cue-replay.ts";
 import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

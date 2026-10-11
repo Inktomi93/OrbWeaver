@@ -11,9 +11,9 @@ import type { Modality, ModelInfoApi, ModelKind } from "@orb/contracts/inference
 import { parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
-import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
-import type { FetchJsonArgs } from "../backends/kit/fetch-json.ts";
-import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { deadlineSignal } from "../backends/http/abort-flatten.ts";
+import type { FetchJsonArgs } from "../backends/http/fetch-json.ts";
+import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
 import type { EndpointModel } from "../contract/runtime.ts";

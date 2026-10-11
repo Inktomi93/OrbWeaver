@@ -1,5 +1,5 @@
 import { afterEach, describe, vi } from "vitest";
-import { __resetViewTransition, runAfterViewTransition, withViewTransition } from "../../../packages/client/src/lib/view-transition.ts";
+import { __resetViewTransition, runAfterViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {

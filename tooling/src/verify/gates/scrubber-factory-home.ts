@@ -30,7 +30,7 @@
 // `scrubber-home` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`;
 // this module did not exist there, so it is measured against the module it was carved from, `scrubber-home` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
 // and final `population` admits 61. legacy − final = 3,311 `packages/*/src` sources outside `@kit` — the parent's
 // reference scan; this carved completeness arm reads only the definition home. final − legacy = ∅. Controls: inside
 // `packages/kit/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside

@@ -11,7 +11,7 @@ import { describe } from "vitest";
 // the barrel (a consumer that could reach `foldSaveState` could re-derive a status the boundary already
 // hands it — the second truth `AutosaveSession` exists to prevent). Same import shape as the
 // `save-circuit-breaker.test.ts` sibling, which tests the family's other unexported internal.
-import { foldSaveState, hasUnsavedEdits, takeDiscard } from "../../../packages/client/src/forms/create-autosave-entity-form-model.ts";
+import { foldSaveState, hasUnsavedEdits, takeDiscard } from "#client/forms/create-autosave-entity-form-model.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 describe("hasUnsavedEdits", () => {

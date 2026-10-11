@@ -2,7 +2,7 @@
 // per-kind frontmatter, required sections, size caps, flat trees and stray files, work-item shape and
 // id uniqueness, a parked plan's wake condition, ADR id uniqueness, and generated-file freshness.
 // `pnpm check:agents` runs them (through `ops/check.ts`); the writing rules 1, 2 and 4 over the same
-// docs come from `_shared/prose-rules.ts` and are composed there, not here.
+// docs come from `floor/prose/prose-rules.ts` and are composed there, not here.
 import type { DocTree, GovernedDoc, WorkItem } from "../contract/types.ts";
 import { ADR_KIND, DATE_RE, DOC_TOOL_TREES, FIRST_RESERVED_RULING, ITEM_KINDS, ITEM_STATES, LAST_RESERVED_RULING, PLAN_KIND } from "../contract/vocab.ts";
 import { parseFrontmatter } from "./frontmatter.ts";

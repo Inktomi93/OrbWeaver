@@ -1,6 +1,6 @@
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";

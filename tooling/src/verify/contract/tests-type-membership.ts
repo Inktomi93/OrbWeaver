@@ -1,6 +1,6 @@
 // Full authored TypeScript membership, with unresolved intent exposed instead of counted as clean.
-import type { World } from "../../_shared/project-worlds.ts";
-import type { AmbientScope } from "../../_shared/type-config-intent.ts";
+import type { World } from "../../floor/compiler/project-worlds.ts";
+import type { AmbientScope } from "../../floor/compiler/type-config-intent.ts";
 
 /** Required owner present, explicit ambient scope, wrong root, closure-only, absent, or unresolved intent. */
 export const MEMBERSHIP_OUTCOMES = ["predicted", "ambient", "drift", "import-only", "unowned", "unclassified"] as const;

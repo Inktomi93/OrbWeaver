@@ -4,7 +4,7 @@
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { emitWorkloadEvent, getRecentWorkloadEvents, subscribeWorkloadWake } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
+import { emitWorkloadEvent, getRecentWorkloadEvents, subscribeWorkloadWake } from "#server/domain/workloads/engine/progress-bus.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { T0 } from "../_support.ts";
 

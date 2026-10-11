@@ -12,7 +12,7 @@
 // it off (its sources address a single human), so `sources/notifications.ts` now holds this same posture.
 
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeUserEvents } from "../../user-events-bus.ts";
+import { subscribeUserEvents } from "#src/transport/trpc/user-events-bus.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
 export const userRoomSource: RoomSourceDef<"user"> = {

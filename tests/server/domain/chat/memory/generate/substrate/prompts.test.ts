@@ -9,7 +9,7 @@ import {
   consolidationUserPrompt,
   digestSystemPrompt,
   digestUserPrompt,
-} from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/prompts.ts";
+} from "#server/domain/chat/memory/generate/substrate/prompts.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("digest prompts", () => {

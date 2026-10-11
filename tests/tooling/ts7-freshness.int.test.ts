@@ -6,7 +6,7 @@
 // WHAT WAS AND WAS NOT ALREADY PINNED. The ARGV half — that every spelling of `--incremental` / `-i` /
 // `--tsBuildInfoFile` is stripped before spawn, that malformed spellings refuse before spawn, and that
 // unrelated argv plus the checker cap survive — is pinned by
-// `tests/tooling/_shared/concurrency-profile.test.ts` (its two TS7-wrapper tests, through a `spawnSync`
+// `tests/tooling/floor/host/concurrency-profile.test.ts` (its two TS7-wrapper tests, through a `spawnSync`
 // capture preload), and is deliberately NOT re-asserted here. What had NO pin is the BEHAVIOUR that argv
 // stripping exists to buy: that a real TS7 run through this wrapper, driven with Vitest's own forced
 // incremental arguments, still answers about the CODE AS IT IS NOW.
@@ -33,8 +33,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 

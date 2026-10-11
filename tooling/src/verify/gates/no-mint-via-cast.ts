@@ -31,7 +31,7 @@
 //
 // FAMILY (`id-brand-flow`): shared readers, no private door. The cast SEAM is `lib/id-brand.ts`
 // (`createKitIdCallMatcher`, shared with `no-fake-disabled-id`); the argument's callee identity is
-// `_shared/reference-fact-call.ts` (`resolveCallableOrigin`, shared with `no-raw-id`'s Zod door); the refusal is
+// `floor/code-facts/reference-fact-call.ts` (`resolveCallableOrigin`, shared with `no-raw-id`'s Zod door); the refusal is
 // `lib/origin-verdict.ts` (`classifyOriginRefusal`, shared with both). `MODULE_GENERATORS` below is the one
 // table, and it is a generator VOCABULARY — the set of library mints this policy names — not an exemption
 // list: adding a row makes the policy flag MORE.
@@ -53,7 +53,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-mint-via-cast` descriptor at d59c504cd27d0a185f3bf1ef1b9c6bd10e88e4c8, the parent of the conversion `52b33fc581`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,132 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,324
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,324
 // and final `population` admits 3,350. legacy − final = 987 — `tooling/src/**` (986) plus the showcase file; the
 // recorded narrowing. final − legacy = 13 production server files the legacy `includes("scripts/"|"tools/")`
 // subtraction wrongly excluded — `domain/regex/verbs/scripts/*` (10) and `domain/rpg/tools/*` (3); an UNRECORDED
@@ -68,8 +68,8 @@
 // a SEAL on a `hard` ban, which is the arm where a silent narrowing costs the most.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
-import type { ModuleMemberOrigin, ReferenceOrigin } from "../../_shared/reference-fact-contract.ts";
+import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
+import type { ModuleMemberOrigin, ReferenceOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";

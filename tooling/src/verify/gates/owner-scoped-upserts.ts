@@ -36,7 +36,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `owner-scoped-upserts` descriptor at 04978142566ff3412b204f73d849f0b9bf301154, the parent of the conversion
 // `5e6b7d09df` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,367 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,367 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
@@ -71,7 +71,7 @@ const MESSAGE =
   "owner-filtered read afterwards). An owner-scoped table (table-scoping-class class (a)) resolves tenancy " +
   "through its `ownerId`, so the collision has to say so — or say who already proved the target is the " +
   "caller's. The sibling halves judge the `.where` of a read and of a write; the owner-scoped fetch they " +
-  "all pair with is packages/db/src/kit/fetch-owned.ts.";
+  "all pair with is packages/db/src/query/fetch-owned.ts.";
 
 const UNRESOLVABLE_MESSAGE =
   `an ${UNRESOLVABLE} upsert — the insert target is an identifier that traces to no table this schema ` +

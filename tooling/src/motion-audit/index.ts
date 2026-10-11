@@ -1,7 +1,7 @@
 // Retained motion evidence/verdict engine. Snap is the only rendered-instrument front door; this barrel
 // exposes pure facts used by tests and non-browser consumers, never a second parser, stage, or run path.
 
-export type { BrowserEnvironmentEvidence } from "../_shared/browser-environment.ts";
+export type { BrowserEnvironmentEvidence } from "../floor/browser/browser-environment.ts";
 export type {
   AnimationRecord,
   ApplicationMotionEvidence,

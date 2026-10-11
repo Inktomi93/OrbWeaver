@@ -6,7 +6,7 @@
 // stack; this pins that the component itself is a real, labeled, non-empty loading mark).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RoutePending } from "../../../packages/client/src/routes/route-pending.tsx";
+import { RoutePending } from "#client/routes/route-pending.tsx";
 import { ShellToSplashFixture } from "../features/app-shell/_cascade-fixtures.tsx";
 
 test("renders a visible, accessibly-named loading mark (never a blank page)", async ({ mount, page }) => {

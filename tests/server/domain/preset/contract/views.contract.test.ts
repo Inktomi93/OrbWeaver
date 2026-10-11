@@ -1,6 +1,6 @@
 import { DEFAULT_PROMPT_CONFIG, promptConfigConfig } from "@orb/contracts/preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { effectivePresetSchema, presetDetailSchema } from "../../../../../packages/server/src/domain/preset/contract/views.ts";
+import { effectivePresetSchema, presetDetailSchema } from "#server/domain/preset/contract/views.ts";
 import { makeCachePolicy } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";

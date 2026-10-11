@@ -11,7 +11,7 @@
 
 import { ACTIVE_WORKLOAD_STATUSES, SCHEDULE_CADENCES, WORKLOAD_KINDS, WORKLOAD_LANES, WORKLOAD_MODES, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { users, workloadSchedules, workloads } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";

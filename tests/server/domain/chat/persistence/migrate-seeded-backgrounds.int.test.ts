@@ -14,7 +14,7 @@ import { chats } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { migrateSeededRoomBackgrounds } from "../../../../../packages/server/src/domain/chat/persistence/migrate-seeded-backgrounds.ts";
+import { migrateSeededRoomBackgrounds } from "#server/domain/chat/persistence/migrate-seeded-backgrounds.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../_support.ts";

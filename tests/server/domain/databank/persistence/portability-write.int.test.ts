@@ -15,15 +15,11 @@ import type { Db } from "@orb/db";
 import { characterDocuments, documents, globalDocuments } from "@orb/db";
 import type { DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { parseDocumentFile } from "@orb/server/kit/serde/databank";
+import { parseDocumentFile } from "@orb/server/primitives/serde/databank";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { DatabankPortabilityContext } from "../../../../../packages/server/src/domain/databank/contract/portability.ts";
-import {
-  createExportDocument,
-  createImportDocument,
-  createListOwnedDocumentIds,
-} from "../../../../../packages/server/src/domain/databank/persistence/portability-write.ts";
+import type { DatabankPortabilityContext } from "#server/domain/databank/contract/portability.ts";
+import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#server/domain/databank/persistence/portability-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";

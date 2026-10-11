@@ -65,7 +65,7 @@ export const PORTABLE_IMPORT_ORDER = [
 // Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
 // `PortableEnvelope` died unconsumed in `c1a8f726c7` because each serde re-spelled it structurally — the
 // drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
-// consumer is `@orb/server/kit/serde/lib`, the spine every orb-native JSON serde is defined through, so a
+// consumer is `@orb/server/primitives/serde/lib`, the spine every orb-native JSON serde is defined through, so a
 // family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
 // design and are not defined through the spine.
 
@@ -81,7 +81,7 @@ export interface PortableEnvelope {
  *  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file".
  *
  *  `invalid-encoding` (#1460) is DISTINCT from `not-json`: the shared decode boundary
- *  (`@orb/server/kit/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
+ *  (`@orb/server/primitives/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
  *  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
  *  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that
  *  fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file. */

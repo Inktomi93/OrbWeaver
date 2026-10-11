@@ -1,14 +1,19 @@
 // Snap's policy projection over the shared representative-matrix planner. The carrier rows arrive from
 // the live browser bridge; this file deliberately owns no Appearance-key roster and imports no client code.
 
-import type { BackgroundCapability } from "../../_shared/appearance-matrix.ts";
-import { appearanceArmValueId, appearancePatchForAssignment, deriveAppearanceContract, representativeMatrixThemes } from "../../_shared/appearance-matrix.ts";
-import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { instrumentRefusal } from "../../_shared/page-validate.ts";
-import type { ThemeEntry } from "../../_shared/theme.ts";
-import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredRow, VariantRequiredTwin } from "../../_shared/variant-matrix.ts";
-import { planVariantMatrix, variantArtifactId } from "../../_shared/variant-matrix.ts";
+import type { BackgroundCapability } from "../../floor/appearance/appearance-matrix.ts";
+import {
+  appearanceArmValueId,
+  appearancePatchForAssignment,
+  deriveAppearanceContract,
+  representativeMatrixThemes,
+} from "../../floor/appearance/appearance-matrix.ts";
+import type { ThemeEntry } from "../../floor/appearance/theme.ts";
+import { MOBILE_DEVICE } from "../../floor/browser/browser-environment.ts";
+import { instrumentRefusal } from "../../floor/browser/page-validate.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredRow, VariantRequiredTwin } from "../../floor/variant-matrix/variant-matrix.ts";
+import { planVariantMatrix, variantArtifactId } from "../../floor/variant-matrix/variant-matrix.ts";
 import type { SnapAppearanceContract, SnapAppearanceMatrix, SnapMatrixVariant } from "../contract/matrix.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");

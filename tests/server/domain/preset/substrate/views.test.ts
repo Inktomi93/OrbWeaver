@@ -12,7 +12,7 @@ import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { presetDetailSchema, presetSummarySchema, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
-import { toPresetDetail, toPresetSummary } from "../../../../../packages/server/src/domain/preset/substrate/views.ts";
+import { toPresetDetail, toPresetSummary } from "#server/domain/preset/substrate/views.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT } from "../_support.ts";
 

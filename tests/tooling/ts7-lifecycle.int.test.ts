@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
-import { HOST_POOL_ROOT_ENV, hostPoolDir, tryAcquireHostSlot } from "@orb/tooling/_shared/host-slots";
-import { processInfo } from "@orb/tooling/_shared/platform";
-import { killPidGroup } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { TS7_POOL_NAME } from "@orb/tooling/_shared/ts7-admission";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
+import { HOST_POOL_ROOT_ENV, hostPoolDir, tryAcquireHostSlot } from "@orb/tooling/floor/host/host-slots";
+import { processInfo } from "@orb/tooling/floor/host/platform";
+import { TS7_POOL_NAME } from "@orb/tooling/floor/host/ts7-admission";
+import { killPidGroup } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 

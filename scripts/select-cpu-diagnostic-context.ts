@@ -1,7 +1,7 @@
 // Select diagnostics freeze the ordinary native shard before opt-in registrations can move its boundary.
 import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
-import { runTool, UsageError } from "@orb/tooling/_shared/run-tool";
+import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { NativeCtCase } from "../tooling/src/verify/contract/scoped-test.ts";
 import { readNativeCtCases } from "../tooling/src/verify/lib/ct-listing.ts";
 

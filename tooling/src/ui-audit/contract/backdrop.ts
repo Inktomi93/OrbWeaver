@@ -1,10 +1,10 @@
 // The resolved-backdrop primitive, split out of samples.ts (2026-09-01) to break a type-only import
 // CYCLE that `no-circular` reds: `samples-hover.ts` needs `Backdrop`, and `samples.ts` composes the hover
 // shapes into `RawSamples`, so homing `Backdrop` in the aggregator made each side import the other. This
-// file depends only on `_shared/wcag`, so both sides reach it without one. samples.ts re-exports it, so
+// file depends only on `floor/instrument/wcag`, so both sides reach it without one. samples.ts re-exports it, so
 // its existing consumers are unchanged.
 
-import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 
 /** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
  *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),

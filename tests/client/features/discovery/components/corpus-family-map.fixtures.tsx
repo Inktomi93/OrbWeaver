@@ -1,6 +1,6 @@
 import { useSelectedCorpusDestination } from "@orb/client/state";
 import type { ReactElement } from "react";
-import { CorpusFamilyMap } from "../../../../../packages/client/src/features/discovery/components/corpus-family-map.tsx";
+import { CorpusFamilyMap } from "#client/features/discovery/components/corpus-family-map.tsx";
 
 export function FamilyMapFixture({
   families,

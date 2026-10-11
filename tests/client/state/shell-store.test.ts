@@ -1,7 +1,7 @@
 // Non-rendering reads of the shell store (the reactive ones are pinned in shell-store.ct.tsx).
 
 import { describe } from "vitest";
-import { activeSectionNow, setActiveSection } from "../../../packages/client/src/state/shell-store.ts";
+import { activeSectionNow, setActiveSection } from "#client/state/shell-store.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 describe("activeSectionNow", () => {

@@ -11,9 +11,9 @@
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
-// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { INACTIVE_KIND_EXPR } from "../../../_shared/wcag.ts";
+// floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { INACTIVE_KIND_EXPR } from "../../../floor/instrument/wcag.ts";
 import { TRANSCRIPT_SURFACE_SELECTOR_JS } from "../../lib/checks-typography.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
@@ -344,7 +344,7 @@ export const WALKER_CENSUS_TEXT = `
     // Every axis "auto" (the CSS default — a bare "auto" shorthand expands to "auto auto") paints at
     // natural size and cannot squish; anything else carries an explicit length/percentage on at least
     // one axis and CAN distort (#1825).
-    var sizeTokens = sizeVal.trim().split(/\s+/);
+    var sizeTokens = sizeVal.trim().split(/s+/);
     var bgSizeMode = sizeTokens.every(function (tok) { return tok === "auto"; }) ? "auto" : "scales";
     bgCandidates.push({ el: bel, url: urlMatch[2], rect: bel.getBoundingClientRect(), sizeMode: bgSizeMode });
   }

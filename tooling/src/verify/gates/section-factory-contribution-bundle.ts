@@ -37,13 +37,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `section-factory-contribution-bundle` descriptor at e3fc21fd94f5ebf163ddc2b6aec772a515e1a543, the parent of the
 // conversion `d06010fd95` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,302 and final `population` admits 1,302. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, ParameterDeclaration, Type } from "ts-morph";
 import { Node } from "ts-morph";
-import { resolveExportedDeclarations } from "../../_shared/reference-fact.ts";
+import { resolveExportedDeclarations } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";

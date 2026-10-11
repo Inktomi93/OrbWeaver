@@ -8,9 +8,8 @@
 // caller keeps every decision about the call. These are this backend's representation rules; the caller hands
 // over one neutral shape and never learns them (D177).
 
-import type { AgentToolServer } from "../../contract/agent.ts";
-import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "../../contract/chat.ts";
-import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "../../contract/chat.ts";
+import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, AgentToolServer, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "#contract";
+import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "#contract";
 import type { AgentToolSpec } from "./index.ts";
 import { createAgentToolServer } from "./index.ts";
 

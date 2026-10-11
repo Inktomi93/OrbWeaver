@@ -13,7 +13,7 @@ import {
   noteChatOrigin,
   subscribeChatOrigin,
   useReturnedChat,
-} from "../../../packages/client/src/state/chat-return-store.ts";
+} from "#client/state/chat-return-store.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ROOM = castId<ChatId>("chat_return_store_probe");

@@ -3,7 +3,7 @@
 
 import type { AuthMode, IpCertificateSetting } from "@orb/contracts/identity";
 import { describe } from "vitest";
-import { canonicalAddress, certificateRefusal } from "../../../../../packages/server/src/domain/share/substrate/certificate-refusal.ts";
+import { canonicalAddress, certificateRefusal } from "#server/domain/share/substrate/certificate-refusal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { APP_PORT, LOCAL_SETUP_URL } from "../_support.ts";
 

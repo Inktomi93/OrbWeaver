@@ -10,13 +10,9 @@
 
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
-import {
-  __resetEffectiveConfigCache,
-  getEffectiveConfig,
-  reloadEffectiveConfig,
-} from "../../../../packages/server/src/domain/settings/effective-config/cache.ts";
-import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
-import { securityHeaders } from "../../../../packages/server/src/entry/http/security-headers.ts";
+import { __resetEffectiveConfigCache, getEffectiveConfig, reloadEffectiveConfig } from "#server/domain/settings/effective-config/cache.ts";
+import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts";
+import { securityHeaders } from "#server/entry/http/security-headers.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

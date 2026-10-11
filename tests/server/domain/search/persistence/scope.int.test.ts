@@ -4,7 +4,7 @@ import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { digestScopeCond, segmentScopeCond } from "../../../../../packages/server/src/domain/search/persistence/scope.ts";
+import { digestScopeCond, segmentScopeCond } from "#server/domain/search/persistence/scope.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";

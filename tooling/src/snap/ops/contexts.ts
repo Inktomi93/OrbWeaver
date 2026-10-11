@@ -1,16 +1,16 @@
 // --contexts N / --as: N ISOLATED, differently-authenticated browser contexts against the multi-user
 // FIXTURE stack (never the shared single-user dev pair) — host-vs-member truth in one run.
 
-import { artifactKey, routeSlug } from "../../_shared/artifact-naming.ts";
-import { artifactFile } from "../../_shared/artifact-out.ts";
-import { aggregateScope, evidenceWindowId, factBatchId } from "../../_shared/artifact-scope.ts";
-import { print } from "../../_shared/artifacts.ts";
-import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
-import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdictReceipt } from "../../_shared/evidence.ts";
+import { artifactKey, routeSlug } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateScope, evidenceWindowId, factBatchId } from "../../floor/artifacts/artifact-scope.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { buildUrl, closeProbeSessionAfterError } from "../../floor/browser/browser.ts";
+import { browserEvidenceRetention } from "../../floor/browser/browser-capture.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { printVerdictReceipt } from "../../floor/verdict/evidence.ts";
 import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import { snapExitCode, snapExitState } from "../contract/run-facts.ts";
@@ -50,7 +50,7 @@ interface FixtureUser {
 }
 
 // Log in EACH user via the real form door (POST /api/auth/login) BEFORE any browser context opens — the
-// session cookie is then seeded into its matching context (buildContext in _shared/browser.ts), so the very
+// session cookie is then seeded into its matching context (buildContext in floor/browser/browser.ts), so the very
 // first navigation is already authenticated as that user, no in-page login-form drive needed. Returns
 // null (having already printed the failing line) on the first login that doesn't mint a cookie.
 async function loginAllFixtureUsers(users: readonly FixtureUser[], target: FixtureTarget): Promise<(string | null)[] | null> {

@@ -6,8 +6,8 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { UserConnection } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
-import { runOpenAiCompatChatTurn } from "../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { detectServer } from "../../../packages/inference/src/catalog/detect.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { detectServer } from "#inference/catalog/detect.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";

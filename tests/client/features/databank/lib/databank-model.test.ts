@@ -23,8 +23,8 @@ import {
   passageCount,
   passageTally,
   showsPhaseChip,
-} from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
-import { matchesAccept } from "../../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
+} from "#client/features/databank/lib/databank-model.ts";
+import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;

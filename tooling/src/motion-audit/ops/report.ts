@@ -1,8 +1,8 @@
 // Pure legacy motion verdict retained behind Snap's unified motion arm. Human/terminal reporting moved
 // to Snap; this module now owns only the evaluation kernel consumed by the matrix verifier.
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
 import type { AuditData } from "../contract/types.ts";
 import { animationTotals } from "../lib/animations.ts";
 import { motionEvidenceGaps } from "../lib/evidence.ts";

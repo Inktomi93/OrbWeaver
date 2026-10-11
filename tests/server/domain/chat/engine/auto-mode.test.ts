@@ -7,10 +7,10 @@ import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { SpeakerCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type { TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engine/auto-mode.ts";
+import type { SpeakerCandidate } from "#server/domain/chat/contract/arbitration.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import type { TurnOutcome } from "#server/domain/chat/contract/results.ts";
+import { runAutoMode } from "#server/domain/chat/engine/auto-mode.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);

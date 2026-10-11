@@ -21,18 +21,18 @@
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
-import { readAgentDebugHandle } from "../../../lib/agent-bridge.ts";
-import type { ThemeObservableRead } from "../../../lib/appearance-carrier-manifest.ts";
-import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "../../../lib/appearance-carrier-manifest.ts";
-import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "../../../lib/bug-report-bundle.ts";
+import { readAgentDebugHandle } from "#src/lib/agent-bridge.ts";
+import type { ThemeObservableRead } from "#src/lib/appearance-carrier-manifest.ts";
+import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "#src/lib/appearance-carrier-manifest.ts";
+import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "#src/lib/bug-report-bundle.ts";
 import {
   bugReportRouteFrom,
   buildBugReportClientBundle,
   clipCapturedText,
   FLAGS_UNFILTERABLE_REASON,
   RENDERS_UNFILTERABLE_REASON,
-} from "../../../lib/bug-report-bundle.ts";
-import { consoleErrorRing } from "../../../lib/console-error-ring.ts";
+} from "#src/lib/bug-report-bundle.ts";
+import { consoleErrorRing } from "#src/lib/console-error-ring.ts";
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
  *  `agent-plugin-bridge.ts` uses for its own debug-route read. */

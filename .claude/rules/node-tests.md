@@ -9,6 +9,10 @@ paths:
 
 Read a suite's result from its own output file. `AGENTS.md` owns the piping rule.
 
+## Tests run the product
+
+Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
+
 ## Fixtures and timeouts
 
 - A `test.extend` fixture's first parameter must be object-destructured. A bare `(ctx)` parameter throws
@@ -35,7 +39,7 @@ resource and cascades failures into later tests in the same file.
 ## Suite shape
 
 - A `.test.ts` file has no DOM lib. Importing a client feature barrel from one breaks the root tsconfig
-  with unrelated DOM errors — use a `.dom.test.ts` instead (see `tooling/src/_shared/test-kinds.ts`).
+  with unrelated DOM errors — use a `.dom.test.ts` instead (see `tooling/src/floor/testing/test-kinds.ts`).
 - A red only proves a defect if the test reads the right observable. Confirm it goes green on a positive
   control before trusting the red.
 - Before blaming your change for a failure, run it three ways: full change, a half change isolating the

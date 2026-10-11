@@ -18,7 +18,7 @@
 // READ path, so leaving them off removes a confound rather than adding one.
 
 import fs from "node:fs";
-import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
+import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
 
 interface WireMsg {
   role: string;

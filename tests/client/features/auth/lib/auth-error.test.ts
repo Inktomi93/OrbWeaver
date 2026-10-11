@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 // A lib INTERNAL the front door doesn't re-export — deep-imported like the _ct-stories precedent.
-import { authErrorMessage } from "../../../../../packages/client/src/features/auth/lib/auth-error.ts";
+import { authErrorMessage } from "#client/features/auth/lib/auth-error.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("authErrorMessage", () => {

@@ -44,7 +44,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-raw-color-in-css` descriptor at (pruned from public history), the parent of the conversion
 // `db37327386` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,034 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// 7,034 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness
 // — no `scanRoot` — dispatched 7,034, and the final `population` admits 0; the subject is the declared
 // `authored-css`. legacy − final = all 7,034 harness candidates — dispatched to the legacy `run`, which read none of
 // them (its subject came off disk through `globSync("packages/{ui,client}/src/**/*.css")`); retired with that read.

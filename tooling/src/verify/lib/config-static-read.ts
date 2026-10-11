@@ -7,7 +7,7 @@
 // the caller is obliged to turn a non-empty `unresolved` into a finding. Nothing here ever guesses, and an
 // unreadable shape is never silently dropped. The ordered-evaluation approach is `dangling-refs.ts`'s
 // `evalString` precedent, widened to arrays/spreads/identifiers with a cycle fence.
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";

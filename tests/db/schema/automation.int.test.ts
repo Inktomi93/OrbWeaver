@@ -12,7 +12,7 @@ import type { ChatTriggerType } from "@orb/contracts/automation";
 import { ANALYSIS_GUIDANCE_MAX, AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { AUTOMATION_FIRE_STORAGE_OUTCOMES, automationFires, automationRuleState, automationRules, chats, globalVariables } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

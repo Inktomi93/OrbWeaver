@@ -6,7 +6,7 @@
 // script via `regexScripts.ownerId`, an attachment target via its own owner column); the chat scope is
 // MEMBERSHIP-scoped (D18) through the injected guards.
 //
-// The ENGINE is not here and never will be: `@orb/kit/regex` executes, `@orb/server/kit/regex` is the
+// The ENGINE is not here and never will be: `@orb/kit/regex` executes, `@orb/server/primitives/regex` is the
 // node:vm watchdog. This domain owns the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { RegexContext } from "./context.ts";

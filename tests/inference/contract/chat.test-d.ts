@@ -3,7 +3,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
-import type { ChatDeltaEvent, ChatDeltaSubscription } from "../../../packages/inference/src/contract/index.ts";
+import type { ChatDeltaEvent, ChatDeltaSubscription } from "#inference/contract/index.ts";
 
 type Callback = (event: ChatDeltaEvent) => void;
 

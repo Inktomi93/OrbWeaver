@@ -38,15 +38,15 @@ import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/co
 import { macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
-import { sha256Hex } from "@orb/server/kit/content-hash";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";

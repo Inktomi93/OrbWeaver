@@ -4,7 +4,7 @@
 // Claude after the tool ran; a tool error or a skipped leg is a named non-verdict, never a silent pass.
 //
 // PORTABLE BY CONSTRUCTION: Node only, plus `git` and `pnpm` on PATH. The host-wide admission pool, the
-// per-program duplicate suppression and the caps all come from tooling/src/_shared (the same doors every
+// per-program duplicate suppression and the caps all come from tooling/src/floor/host (the same doors every
 // other tool uses); nothing here needs flock, GNU stat, jq, sed or awk.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,7 +14,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-const SHARED = path.join(import.meta.dirname, "..", "..", "tooling", "src", "_shared");
+const FLOOR_HOST = path.join(import.meta.dirname, "..", "..", "tooling", "src", "floor", "host");
 const CHECKED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json", ".jsonc", ".css"]);
 const TYPED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const DEPCRUISE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"]);
@@ -200,7 +200,7 @@ function resolveSubject(root, payloadCwd, file) {
 async function loadShared() {
   try {
     const [profile, slots, ts7] = await Promise.all(
-      ["concurrency-profile.ts", "host-slots.ts", "ts7-admission.ts"].map((name) => import(pathToFileURL(path.join(SHARED, name)).href)),
+      ["concurrency-profile.ts", "host-slots.ts", "ts7-admission.ts"].map((name) => import(pathToFileURL(path.join(FLOOR_HOST, name)).href)),
     );
     return { caps: profile.readConcurrencyProfile(), tryAcquireHostSlot: slots.tryAcquireHostSlot, ts7 };
   } catch (error) {

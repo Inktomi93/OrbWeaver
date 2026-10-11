@@ -8,12 +8,12 @@
 import type { GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
 import { builtinProvider, coEmitsProseWithTools } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
-import { applyEndpointPosture } from "../../../../../packages/inference/src/capability/floor.ts";
-import { advertisedFromOpenRouter } from "../../../../../packages/inference/src/capability/sources/advertised/openrouter.ts";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { measuredRows } from "../../../../../packages/inference/src/capability/sources/measured/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
-import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
+import { applyEndpointPosture } from "#inference/capability/floor.ts";
+import { advertisedFromOpenRouter } from "#inference/capability/sources/advertised/openrouter.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { measuredRows } from "#inference/capability/sources/measured/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The OR catalog row as advertised on 2026-09-20 (`supported_parameters` verbatim). */

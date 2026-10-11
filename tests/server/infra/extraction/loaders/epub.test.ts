@@ -3,7 +3,7 @@
 // and the failure modes (missing container.xml / missing OPF). The fixture zips REAL container/OPF/XHTML.
 
 import { zipSync } from "fflate";
-import { loadEpub } from "../../../../../packages/server/src/infra/extraction/loaders/epub.ts";
+import { loadEpub } from "#server/infra/extraction/loaders/epub.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { buildEpub } from "../_fixtures.ts";
 

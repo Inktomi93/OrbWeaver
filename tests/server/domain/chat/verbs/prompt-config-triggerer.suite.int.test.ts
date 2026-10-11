@@ -6,7 +6,7 @@
 import type { AssemblePersona } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
-import type { ResolveForeignInputsOp, TurnTrigger } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import type { ResolveForeignInputsOp, TurnTrigger } from "#server/domain/chat/contract/foreign.ts";
 import { scenario, tape } from "../../../../support/chat/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedPersona } from "../_support.ts";

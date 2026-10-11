@@ -12,7 +12,7 @@
 import type { RefineryRewriteField } from "@orb/contracts/refinery";
 import { isAppendedRewrite, refineryRewriteParseSchema } from "@orb/contracts/refinery";
 import { refineryRuns, refinerySessions } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/query";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
 import type { RefineryContext } from "../context.ts";

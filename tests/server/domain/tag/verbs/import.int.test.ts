@@ -4,7 +4,7 @@
 
 import { DomainOperationError } from "@orb/kit/errors";
 import { createTagLibraryImport, createTagService } from "@orb/server/domain/tag";
-import { buildTagLibrary } from "@orb/server/kit/serde/tag";
+import { buildTagLibrary } from "@orb/server/primitives/serde/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

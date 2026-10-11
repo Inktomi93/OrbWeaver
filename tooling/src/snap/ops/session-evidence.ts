@@ -2,17 +2,17 @@
 // snapshots the existing per-page CDP Network collector, so export adds no browser or capture path.
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { artifactFilePath } from "../../_shared/artifact-naming.ts";
-import type { InstrumentArtifactMetadata } from "../../_shared/artifact-out.ts";
-import { artifactDir, artifactFile, beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
-import { aggregateDimension, aggregateScope, exactDimension, contextIndex as mintContextIndex, scopeV1 } from "../../_shared/artifact-scope.ts";
-import { print } from "../../_shared/artifacts.ts";
-import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { loadResultPairs } from "../../_shared/load-budget.ts";
+import { artifactFilePath } from "../../floor/artifacts/artifact-naming.ts";
+import type { InstrumentArtifactMetadata } from "../../floor/artifacts/artifact-out.ts";
+import { artifactDir, artifactFile, beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateDimension, aggregateScope, exactDimension, contextIndex as mintContextIndex, scopeV1 } from "../../floor/artifacts/artifact-scope.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { browserEvidenceRetention } from "../../floor/browser/browser-capture.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { loadResultPairs } from "../../floor/host/load-budget.ts";
+import { printVerdict } from "../../floor/verdict/evidence.ts";
 import type { RequestLogEntry } from "../contract/request-log.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { redactBrowserDiagnostics, redactBrowserPageError, redactCapturedConsole, redactEvidenceText } from "../lib/browser-evidence-redaction.ts";

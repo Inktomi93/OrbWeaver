@@ -2,7 +2,7 @@
 // it consumes nodes supplied by the policy walk and never opens a Project or traverses descendants.
 import type { ArrowFunction, CallExpression, FunctionDeclaration, FunctionExpression, Identifier, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { referenceResolutionServices } from "../../_shared/reference-fact.ts";
+import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 
 type FunctionNode = FunctionDeclaration | ArrowFunction | FunctionExpression | import("ts-morph").MethodDeclaration;
 

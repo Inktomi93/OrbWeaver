@@ -7,8 +7,8 @@
 // one IIFE, so this text runs in the SAME scope, immediately after `WALKER_CENSUS_INTERACTIVE`, and reads
 // its hoisted `var`s (`pointerCoarse`, `allEls`) plus CORE's `isVisible`/`isDevChrome`/`describe`. Moving
 // it earlier, or into a scope of its own, changes behavior. Raw JS in a template literal (no backticks /
-// dollar-brace — see _shared/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+// dollar-brace — see floor/browser/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -41,7 +41,7 @@ export const WALKER_CENSUS_INTERACTIVE_NAVIGABILITY = `  // \`pointerCoarse\` is
   for (var uh = 0; uh < tooltipTriggers.length; uh += 1) {
     var uel = tooltipTriggers[uh];
     if (!isVisible(uel) || isDevChrome(uel)) continue;
-    var describedIds = String(uel.getAttribute("aria-describedby") || "").trim().split(/\s+/).filter(Boolean);
+    var describedIds = String(uel.getAttribute("aria-describedby") || "").trim().split(/s+/).filter(Boolean);
     var resolvedCount = 0;
     for (var di = 0; di < describedIds.length; di += 1) {
       var target = uel.ownerDocument.getElementById(describedIds[di]);

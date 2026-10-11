@@ -9,12 +9,12 @@
 // the tuple says without touching this function.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
-import { evidenceWindowId, exactScope } from "../../_shared/artifact-scope.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { collectOrbConsoleDiagnostics } from "../../_shared/browser-diagnostics.ts";
-import { reassertOwnerDevice } from "../../_shared/browser-emulation-guard.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { EvidenceWindowId } from "../../floor/artifacts/artifact-scope.ts";
+import { evidenceWindowId, exactScope } from "../../floor/artifacts/artifact-scope.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { collectOrbConsoleDiagnostics } from "../../floor/browser/browser-diagnostics.ts";
+import { reassertOwnerDevice } from "../../floor/browser/browser-emulation-guard.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ArmPageContext } from "../contract/arms.ts";
 import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
 import type { Args, CaptureOutcome, ShotPlan } from "../contract/types.ts";

@@ -10,7 +10,7 @@
 // cli.ts reads argv" here is exactly what counts as "a read" there; `lib/tooling-import-door.ts#isToolCli`
 // is the shared cli shape.
 //
-// THE ANCHOR is the legacy one: `tooling/src/_shared/exit-contract.ts`, a file every real run loads and no
+// THE ANCHOR is the legacy one: `tooling/src/floor/cli/exit-contract.ts`, a file every real run loads and no
 // fixture loads unless it is deliberately arming this arm. The finding anchors THERE — the legacy reported
 // on the gate module's own path, and a policy that anchors a verdict on itself teaches the next lane a
 // self-anchor; the file the arm already guarded on is the honest subject. The SELF-GUARD is carried
@@ -27,8 +27,8 @@
 // `tooling-argv-front-door` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `29d09f0697` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { SyntaxKind } from "ts-morph";
@@ -37,7 +37,7 @@ import { classifyProcessMemberRead } from "../lib/process-member-origin.ts";
 import { isToolCli } from "../lib/tooling-import-door.ts";
 import { argvLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 
-const ANCHOR = "tooling/src/_shared/exit-contract.ts";
+const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
 const ARGV_MEMBER = "argv";
 
 // THE `mustFlag` ROWS CARRY NO `messageIncludes` AND MUST NOT (#1968, #2058). This module emits exactly
@@ -88,7 +88,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [ANCHOR]: "export const EXIT = { clean: 0 } as const;\n",
-        "tooling/src/_shared/niced-exec.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
+        "tooling/src/floor/process/niced-exec.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
         "tooling/src/verify/ops/config-snapshot-entry.ts": 'import process from "node:process";\nexport const p = process.argv.slice(2);\n',
       },
       expect: { count: 1, line: 1 },

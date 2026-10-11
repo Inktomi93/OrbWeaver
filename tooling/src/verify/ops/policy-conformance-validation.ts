@@ -1,5 +1,5 @@
 // Policy array validation for conformance runs, extracted from policy-conformance.ts.
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";

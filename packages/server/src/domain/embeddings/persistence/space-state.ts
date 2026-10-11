@@ -13,8 +13,8 @@ import {
   embedSpaceState,
   imageEmbeddings,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";

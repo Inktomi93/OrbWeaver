@@ -8,7 +8,7 @@
 // recorded refusal was a fault hook inside this instrument — "exactly the class of change that makes a
 // tool lie about itself" — and the recorded closer was a CDP fault injector at the probe layer.
 //
-// THAT INJECTOR IS `_shared/browser.ts`'s (`ORB_PROBE_TEST_CDP_FAULT`), and it is protocol-level: it
+// THAT INJECTOR IS `floor/browser/browser.ts`'s (`ORB_PROBE_TEST_CDP_FAULT`), and it is protocol-level: it
 // wraps the sessions a context hands out, so ops/hover.ts is unchanged and cannot see it. These arms
 // drive the REAL cli against a real page with the real protocol; only the named method is refused.
 //
@@ -21,7 +21,7 @@ import type { CliResult, RunCliOpts } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../support/ui-audit-relational.ts";
 
-/** The env key `_shared/browser.ts` reads. Spelled here rather than imported so this pin exercises the
+/** The env key `floor/browser/browser.ts` reads. Spelled here rather than imported so this pin exercises the
  *  PROTOCOL the injector publishes to a spawned process, exactly as an operator would. */
 const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
 

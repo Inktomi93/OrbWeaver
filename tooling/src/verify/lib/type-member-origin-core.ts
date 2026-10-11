@@ -2,7 +2,7 @@
 // constructors, the symbol-to-declarations lookup, the property/reference origin readers that need only
 // those primitives, and the path normalizer declaredByPackage/declaredByFile build on. No graph walk, no
 // generic/recurrence machinery — those live in the containment/recurrence/graph siblings.
-import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
+import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol } from "ts-morph";
 import { Node } from "ts-morph";
 import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";

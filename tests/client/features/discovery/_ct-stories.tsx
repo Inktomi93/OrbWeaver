@@ -39,12 +39,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 // Reach the shell's internal host, rather than restamping its registry-derived inset in a story.
-import { SectionContent } from "../../../../packages/client/src/features/app-shell/components/section-content.tsx";
-import { CorpusArtifactContext } from "../../../../packages/client/src/features/discovery/components/corpus-artifact-context.tsx";
-import { CorpusSearchDisclosure } from "../../../../packages/client/src/features/discovery/components/corpus-search-disclosure.tsx";
-import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
-import { CorpusThemeSection } from "../../../../packages/client/src/features/discovery/components/corpus-theme-section.tsx";
-import { CorpusArtifactSurface } from "../../../../packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx";
+import { SectionContent } from "#client/features/app-shell/components/section-content.tsx";
+import { CorpusArtifactContext } from "#client/features/discovery/components/corpus-artifact-context.tsx";
+import { CorpusSearchDisclosure } from "#client/features/discovery/components/corpus-search-disclosure.tsx";
+import { CorpusSearchResults } from "#client/features/discovery/components/corpus-search-results.tsx";
+import { CorpusThemeSection } from "#client/features/discovery/components/corpus-theme-section.tsx";
+import { CorpusArtifactSurface } from "#client/features/discovery/surfaces/corpus-artifact-surface.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to

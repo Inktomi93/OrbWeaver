@@ -1,5 +1,5 @@
 // The design-audit IN-PAGE FACT WALKER — a raw JS string evaluated in the probe page (see
-// _shared/browser.ts for why a string, not a function). It only GATHERS raw samples
+// floor/browser/browser.ts for why a string, not a function). It only GATHERS raw samples
 // (computed-style values, geometry, censuses); every severity/threshold verdict lives in
 // ../lib/checks-* so the decisions stay unit-testable without a browser. The few
 // walker-side predicates (nested-card shape, gradient-text shape, overshoot beziers,
@@ -29,7 +29,7 @@
 // tooling/src/ui-audit/ops/walker/IMPECCABLE-ADOPTION.md for the full 59-rule
 // triage, the divergences, and the license statement.
 
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { CENSUS_OBSERVE_CEILING_MS, CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS } from "../lib/budgets.ts";
 import { WALKER_ACCESSIBLE_NAME } from "./walker/accessible-name.ts";
 import { WALKER_CENSUS_ACCENT } from "./walker/census-accent.ts";

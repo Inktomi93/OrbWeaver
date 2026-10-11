@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-03
+updated: 2026-10-11
 priority: P3
 area: verify
+plan: test-mirror
 ---
 
 # Make the CT config mirror order-checked and retire hand copies

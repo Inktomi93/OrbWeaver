@@ -9,8 +9,8 @@ import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ArbiterCandidate, SpeakerReranker, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
+import type { ArbiterCandidate, SpeakerReranker, TranscriptLine } from "#server/domain/chat/contract/arbitration.ts";
+import { rerankPick } from "#server/domain/chat/engine/rerank-pick.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);

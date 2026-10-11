@@ -1,8 +1,8 @@
 // Split execution keeps native collection closed and event authority local to each component.
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../../../../tooling/src/verify/contract/instrument-affected.ts";
 import { collectNodeShards } from "../../../../tooling/src/verify/ops/scoped-test.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

@@ -24,7 +24,7 @@ export function interactiveTagSelector(options?: { readonly anchorRequiresHref?:
 
 const INTERACTIVE_BASE_SELECTOR = [...interactiveTagSelector(), ...INTERACTIVE_ROLES.map((role) => `[role=${role}]`), "[tabindex]"].join(",");
 
-/** Interpolated into the walker's in-page JS (the `INACTIVE_KIND_EXPR` precedent, `_shared/wcag.ts`):
+/** Interpolated into the walker's in-page JS (the `INACTIVE_KIND_EXPR` precedent, `floor/instrument/wcag.ts`):
  *  the base tap-target/aria-name/door/obscured/row-void/composite-credit selector — `ops/walker/core.ts`'s
  *  `INTERACTIVE_SELECTOR` is spelled EXACTLY ONCE, here, so it cannot drift from its siblings again. */
 export const INTERACTIVE_SELECTOR_JS = JSON.stringify(INTERACTIVE_BASE_SELECTOR);

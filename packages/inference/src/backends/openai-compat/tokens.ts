@@ -6,14 +6,12 @@ import type { TokenizeApi, WordTokens } from "@orb/contracts/inference";
 import { TOKEN_ID_KEY } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
-import { endpointTokensKey, endpointTokensPrefix } from "../../catalog/keys.ts";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { SnapshotStore } from "../../deps.ts";
-import { authHeaders, fetchJson, serverRootOf } from "../kit/fetch-json.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import { endpointTokensKey, endpointTokensPrefix } from "#catalog";
+import type { ProviderScrubSet, Resolved, ResolvedSampling, ResolvedWarning } from "#contract";
+import { ProviderError } from "#contract";
+import type { SnapshotStore } from "#src/deps.ts";
+import { authHeaders, fetchJson, serverRootOf } from "../http/fetch-json.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 
 /** One server's tokenize endpoint: where it lives under the server root, the body for one word, and the ids and
  *  pieces out of its answer. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */

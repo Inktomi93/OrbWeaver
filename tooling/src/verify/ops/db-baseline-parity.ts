@@ -29,8 +29,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { SchemaBaselineComparison } from "../contract/scoped.ts";
 import { NOTICE_MARKER } from "../contract/stage.ts";
 

@@ -13,8 +13,8 @@ import type { WeavePoint } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
-import { LOGIN_WEAVE_GEOMETRY } from "../../../../../packages/client/src/features/auth/lib/login-weave.ts";
+import type { AuthConfig } from "#client/data/auth-config.ts";
+import { LOGIN_WEAVE_GEOMETRY } from "#client/features/auth/lib/login-weave.ts";
 import { ambientCeiling, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { LoginConfigTransitionStory, LoginInviteSceneStory, LoginSceneStory } from "../_ct-stories.tsx";
 

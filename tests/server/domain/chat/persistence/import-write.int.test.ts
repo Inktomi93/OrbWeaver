@@ -20,8 +20,8 @@ import {
   ownerStats,
   statsCanonVersions,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { chunkRows, rowsPerInsert } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { chunkRows, rowsPerInsert } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
   AssetId,
@@ -39,12 +39,12 @@ import type {
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { selectOwnedAssetRefs } from "../../../../../packages/server/src/domain/assets/persistence/queries.ts";
-import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type { ChatImportContext } from "../../../../../packages/server/src/domain/chat/contract/import.ts";
-import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/index.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { selectOwnedAssetRefs } from "#server/domain/assets/persistence/queries.ts";
+import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import type { ChatImportContext } from "#server/domain/chat/contract/import.ts";
+import { createBulkImportChats } from "#server/domain/chat/persistence/import-write.ts";
+import { reconcileStats } from "#server/domain/stats/index.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { makeCharacter, seedAsset, seedCharacter, seedPersona, seedUser } from "../../../../support/factories/index.ts";

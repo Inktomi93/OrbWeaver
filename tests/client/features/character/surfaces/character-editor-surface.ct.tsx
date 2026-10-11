@@ -17,6 +17,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/browser/autosave-status-transcript.ts";
+import { expectCircle } from "../../../../support/browser/expect-circle.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
@@ -442,6 +443,9 @@ test("F2 the portrait trigger's box IS the portrait — no overflow past its own
   await expect.poll(async () => (await readTriggerBoxAtAssertion())?.height).toBeCloseTo(avatarBox?.height ?? 0, 0);
   await expect.poll(async () => (await readTriggerBoxAtAssertion())?.x).toBeCloseTo(avatarBox?.x ?? 0, 0);
   await expect.poll(async () => (await readTriggerBoxAtAssertion())?.y).toBeCloseTo(avatarBox?.y ?? 0, 0);
+  // One avatar shape outside chat rows: the portrait and the button whose ring traces it are both circles.
+  await expectCircle(trigger.locator('[data-slot="avatar-root"]'));
+  await expectCircle(trigger);
 });
 
 // F3 — twelve `intent="info"` pills were the loudest thing on the editor (UI-Density-Law §3.2 CD3:

@@ -46,14 +46,14 @@
 // blanket per-chat cancel here would re-open exactly that hole on the state plane: member B pressing Stop would
 // kill member A's in-flight round, silently, and it would look like a feature.
 //
-// REASON-FLATTENING, NOT `AbortSignal.any` (the `backends/kit/idle-timeout.ts` archetype, whose header states
+// REASON-FLATTENING, NOT `AbortSignal.any` (the `backends/http/idle-timeout.ts` archetype, whose header states
 // the bug): `.any` PROPAGATES the source signal's `reason`, and this signal is threaded onto provider requests.
-// `classifyTransportName` (`backends/kit/error-classify.ts`) decides `aborted` vs retryable-`server` by regex
+// `classifyTransportName` (`backends/http/error-classify.ts`) decides `aborted` vs retryable-`server` by regex
 // over an error's name+message, so an abort reason whose text contains "timeout"/"connection"/"network" would
 // classify a CANCELLED round as a retryable fault and `retry.ts` would RE-RUN it — the opposite of cancelling.
 // Re-aborting our own controller with no argument makes every cause a plain AbortError.
 // Every role dispatch flattens at the ONE provider seam (`infra/providers/roles/dispatch.ts::runRole`, law in
-// `backends/kit/abort-flatten.ts`), so no caller depends on this fold for classifier safety. The fold STAYS
+// `backends/http/abort-flatten.ts`), so no caller depends on this fold for classifier safety. The fold STAYS
 // regardless: this controller is the round's own cancellation SCOPE (it must exist for `cancel`), the fold is
 // how a turn abort reaches it, and flattening at both ends is free.
 //
@@ -104,7 +104,7 @@ export function createRpgFlushBarrier(
     register({ chatId, ownerUserId, turnSignal, run }): Promise<void> {
       // The round's OWN controller. The turn's signal is FOLDED IN by re-aborting this one (never
       // `AbortSignal.any`) so no chat-domain abort reason can reach the provider error classifier — see the
-      // header, and `backends/kit/idle-timeout.ts` for the archetype and the bug it was written against.
+      // header, and `backends/http/idle-timeout.ts` for the archetype and the bug it was written against.
       const controller = new AbortController();
       if (turnSignal !== undefined) {
         if (turnSignal.aborted) {

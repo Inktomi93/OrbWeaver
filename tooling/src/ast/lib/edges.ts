@@ -1,7 +1,7 @@
 // DECLARATION-GRANULAR consumption edges — the chains substrate (parallel + opt-in).
 import type { BindingElement, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { declKey, exposedNames } from "./keys.ts";
 import { resolveModule } from "./resolve.ts";
 import { KEY_SEP } from "./root.ts";

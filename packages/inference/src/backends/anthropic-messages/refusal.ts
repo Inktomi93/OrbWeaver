@@ -7,7 +7,7 @@
 // Branch on the FINISH REASON, never on `stop_details` presence: the API may refuse with no details at all.
 
 import { z } from "zod";
-import type { ChatEvent } from "../../contract/events.ts";
+import type { ChatEvent } from "#contract";
 import type { StreamDrain } from "../v4/stream.ts";
 import { ANTHROPIC_KEY } from "./model.ts";
 

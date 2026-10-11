@@ -5,8 +5,8 @@
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
-import type { CreditConnections } from "../../../../../packages/client/src/features/chat/lib/swipe-attribution.ts";
-import { generationCreditSentence, providerName } from "../../../../../packages/client/src/features/chat/lib/swipe-attribution.ts";
+import type { CreditConnections } from "#client/features/chat/lib/swipe-attribution.ts";
+import { generationCreditSentence, providerName } from "#client/features/chat/lib/swipe-attribution.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 

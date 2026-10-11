@@ -1,5 +1,5 @@
 import { Project } from "ts-morph";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as contractDerivesNotRespells } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as injectedOpCallerParam } from "../../../../tooling/src/verify/gates/injected-op-caller-param.ts";

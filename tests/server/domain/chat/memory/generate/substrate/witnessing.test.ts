@@ -1,6 +1,6 @@
 import { describe } from "vitest";
-import { spanWitnessed } from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/witnessing.ts";
-import type { WitnessInterval } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { spanWitnessed } from "#server/domain/chat/memory/generate/substrate/witnessing.ts";
+import type { WitnessInterval } from "#server/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("memory/generate/substrate/witnessing — spanWitnessed", () => {

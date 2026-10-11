@@ -10,7 +10,7 @@
 // named group (#978). Band controls are siblings, never buttons inside the disclosure button.
 //
 // The pane's voice budget (#1169/#1714) is kicker for a non-control region name, interactiveKicker for a
-// controlling region name, datum for a mono count, and gloss for prose. Names are the groups' aria-
+// controlling region name, CountText for a count, and gloss for prose. Names are the groups' aria-
 // labelledby targets. State is a Badge, never a second name in the same voice. This covers collection
 // member rows as well as bands.
 //

@@ -1,8 +1,8 @@
 import { QueryBoundary } from "@orb/client/components";
 import type { ReactElement } from "react";
-import { RpgCharacterDetail } from "../../../../packages/client/src/features/rpg/components/rpg-character-detail.tsx";
-import { RpgGameTab } from "../../../../packages/client/src/features/rpg/components/rpg-game-tab.tsx";
-import { useRpgContextState } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-context-state.ts";
+import { RpgCharacterDetail } from "#client/features/rpg/components/rpg-character-detail.tsx";
+import { RpgGameTab } from "#client/features/rpg/components/rpg-game-tab.tsx";
+import { useRpgContextState } from "#client/features/rpg/hooks/use-rpg-context-state.ts";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 

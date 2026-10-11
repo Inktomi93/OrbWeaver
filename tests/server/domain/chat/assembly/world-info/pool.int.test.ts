@@ -8,7 +8,7 @@ import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBo
 import type { Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { loadWorldInfoPool } from "../../../../../../packages/server/src/domain/chat/assembly/world-info/pool.ts";
+import { loadWorldInfoPool } from "#server/domain/chat/assembly/world-info/pool.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../../_support.ts";

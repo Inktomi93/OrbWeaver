@@ -7,7 +7,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EmbeddingConnectionSnapshot } from "#domain/embeddings";
-import { generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
+import { generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
 import type { ActiveQuerySpace, SearchContext } from "../contract/service.ts";
 import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";

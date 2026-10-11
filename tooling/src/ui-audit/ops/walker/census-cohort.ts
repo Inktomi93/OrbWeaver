@@ -20,9 +20,9 @@
 // inside one cohort is real too, but it is frequently INTENTIONAL (a selected member gains a ring), so
 // it needs the selection-idiom lens rather than this one and is deliberately out of scope here.
 //
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

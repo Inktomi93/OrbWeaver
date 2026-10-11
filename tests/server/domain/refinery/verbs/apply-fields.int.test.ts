@@ -635,7 +635,7 @@ test("a creatorNotes-only edit in the same window ALSO refuses — the fence is 
   await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
 
   // `creatorNotes` is REFINABLE (this verb writes it) and deliberately OUTSIDE the card's identity hash
-  // (re-attributing a card must not change what it is — `#kit/serde/card`, pinned in its own suite). So a
+  // (re-attributing a card must not change what it is — `#primitives/serde/card`, pinned in its own suite). So a
   // creator-notes-only edit moves nothing the hash can see: a hash-only fence waves it through and the
   // apply overwrites it, which is the #1446 defect surviving for one field in nine.
   const snapshotting = hold(SNAPSHOT_INSERT, 1);

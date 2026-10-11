@@ -15,7 +15,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `verb-naming` descriptor at 4e228d8529520aa26268b17a74e83cd6b4e468bc, the parent of the conversion `e4eafd1741`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,350 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 469 and
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 469 and
 // final `population` admits 458. legacy − final = 11 `verbs/**/index.ts` barrels — the recorded
 // `notNamed: ["index.ts"]` correction. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/verbs/__cbbhr_in_create-user.ts` (virtual) admitted by both; outside

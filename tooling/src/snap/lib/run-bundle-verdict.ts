@@ -1,7 +1,7 @@
 // Typed arm-state projection for the immutable run index. RESULT pairs are retained only as transcript
 // bytes; this module never parses them. Arm enablement and provenance come from the one live registry.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { Arm } from "../contract/arm-vocabulary.ts";
 import { ARMS } from "../contract/arm-vocabulary.ts";
 import type { SnapArmFact, SnapArmState, SnapRunResults } from "../contract/run-facts.ts";

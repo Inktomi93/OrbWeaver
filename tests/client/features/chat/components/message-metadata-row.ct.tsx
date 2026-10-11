@@ -8,7 +8,7 @@
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import type { MessageMetadataVisibility } from "#client/features/chat/components/message-metadata-row.tsx";
 import { testProviderId } from "../../../../support/inference-identities.ts";
 import { MessageMetadataRowStory } from "../_ct-stories.tsx";
 

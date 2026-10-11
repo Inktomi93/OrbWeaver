@@ -196,7 +196,7 @@ const MAX_DATABANK_BYTES_CEIL = DATABANK_UPLOAD_MAX_BYTES;
 
 // ── Prompt-cache depth floor (findings §5) ───────────────────────────────────────────────────────────────
 // HOW DEEP into a conversation the Anthropic history `cache_control` breakpoint sits, counted in ROLE
-// SWITCHES from the end (`infra/providers/backends/kit/cache-control.ts` owns the axis; within-turn tool
+// SWITCHES from the end (`infra/providers/backends/wire/cache-control.ts` owns the axis; within-turn tool
 // exchanges are transparent to it). Depth N means the newest N role groups stay OUTSIDE the cached prefix —
 // at depth 2, slots 0 and 1 stay volatile.
 //
@@ -914,7 +914,7 @@ export interface UserSettingsView {
    * WHY THE `config` ABOVE MAY NOT BE THIS USER'S (#1716) — `null` ⇒ the stored blob was read faithfully
    * (and, for a never-written account, there is nothing to fail to read: absence is not corruption);
    * a failure kind ⇒ `config` is a STAND-IN and every settings write derived from it is refused with
-   * `stored_config_unreadable` (`#kit/stored-config`, the #471 guard).
+   * `stored_config_unreadable` (`#primitives/stored-config`, the #471 guard).
    *
    * Projected from the SAME `userSettingsConfig.parseOutcome(row.config, row.schemaVersion)` call
    * `writeUserConfig` makes, so the state a settings pane renders cannot disagree with the refusal its

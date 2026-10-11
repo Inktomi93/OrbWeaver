@@ -74,7 +74,7 @@
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — scan: `SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/` then
 // `if (rel.includes("app-shell") || rel.includes("topbar")) continue`. Over the SAME 7,458 harness candidates at that
-// tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 31 and the final `population` admits 31
+// tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 31 and the final `population` admits 31
 // (the bare harness dispatch was 7,458). legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/features/auth/surfaces/__cbbhr_in_login-surface.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.

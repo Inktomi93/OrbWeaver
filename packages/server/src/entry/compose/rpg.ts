@@ -147,7 +147,7 @@ import {
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
 

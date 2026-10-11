@@ -23,7 +23,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { snapDirtyIdentity } from "../../../../tooling/src/snap/lib/run-bundle-files.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

@@ -1,7 +1,7 @@
 // The argv → DocCommand parser — PURE, and the only place a command shape is invented. Every refusal is
 // a UsageError so the cli maps it to exit 3 (misuse). Every list-taking verb reads a leading run of ids
 // or paths, so `set 12 14 17 done` is one call.
-import { UsageError } from "../../_shared/run-tool.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { DocCommand, ItemPatch, OverviewState, SectionContent } from "../contract/types.ts";
 import { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
 import { ITEM_STATES } from "../contract/vocab.ts";

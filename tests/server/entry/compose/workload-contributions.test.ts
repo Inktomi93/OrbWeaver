@@ -16,8 +16,8 @@
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import { describe } from "vitest";
-import type { WorkloadContributionsDeps } from "../../../../packages/server/src/entry/compose/workload-contributions.ts";
-import { buildWorkloadContributions } from "../../../../packages/server/src/entry/compose/workload-contributions.ts";
+import type { WorkloadContributionsDeps } from "#server/entry/compose/workload-contributions.ts";
+import { buildWorkloadContributions } from "#server/entry/compose/workload-contributions.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** Every contribution factory only CLOSES over its deps (the work happens when the engine runs a job), so a

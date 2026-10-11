@@ -8,7 +8,7 @@ import type { ChatBusEvent, PromptTransform } from "@orb/contracts/chat";
 import { PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPromptTransformRegistry } from "../../../../../packages/server/src/domain/chat/substrate/prompt-transforms.ts";
+import { createPromptTransformRegistry } from "#server/domain/chat/substrate/prompt-transforms.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_transforms");

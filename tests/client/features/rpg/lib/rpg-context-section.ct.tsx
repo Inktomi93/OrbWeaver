@@ -15,9 +15,10 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { EXTRACTION_CONTEXT_LABEL } from "../../../../../packages/client/src/features/rpg/lib/host-console-labels.ts";
-import { revealActionName } from "../../../../../packages/ui/src/lib/action-names.ts";
+import { EXTRACTION_CONTEXT_LABEL } from "#client/features/rpg/lib/host-console-labels.ts";
+import { revealActionName } from "#ui/lib/action-names.ts";
 import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
+import { expectCircle } from "../../../../support/browser/expect-circle.ts";
 import { hitBoxes, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
 import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -816,6 +817,7 @@ test("#1383 Status: every character block is a NAMED GROUP and no control name c
   // SETTLED barrier: both cards have painted their control sets before any name is read or counted.
   await expect(tab.locator('[data-slot="rpg-status-card"]')).toHaveCount(2);
 
+  await expectCircle(tab.locator('[data-slot="avatar-root"]').first());
   // HALF 1 — the boundary a reader navigates by.
   await expect(component.getByRole("group", { name: "Mira", exact: true })).toBeVisible();
   await expect(component.getByRole("group", { name: "Bryn", exact: true })).toBeVisible();
@@ -2026,6 +2028,7 @@ test("Status: expanding a participant entry TAKES OVER the panel with the charac
   // The takeover REPLACES the participant list (one place at a time — not an accordion under the row).
   const detail = component.locator('[data-slot="rpg-character-detail"]');
   await expect(detail).toBeVisible();
+  await expectCircle(detail.locator('[data-slot="rpg-character-identity"] [data-slot="avatar-root"]'));
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toHaveCount(0);
 
   // The Sheet-tab inventory of planes, all present on the character: title, level, wallet, the attribute

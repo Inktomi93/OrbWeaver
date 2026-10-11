@@ -10,10 +10,10 @@
 // themselves inline. Before this, a new arm flag meant remembering to add it here as well as to the
 // handler table, and the failure mode of forgetting was silent (an unlisted required-value flag has its
 // value counted as the positional ROUTE).
-import { APPEARANCE_VALUE_FLAGS } from "../../_shared/appearance-flags.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { PANEL_PRESET_VALUE_FLAGS } from "../../_shared/panel-flags.ts";
-import { THEME_VALUE_FLAGS } from "../../_shared/theme.ts";
+import { APPEARANCE_VALUE_FLAGS } from "../../floor/appearance/appearance-flags.ts";
+import { THEME_VALUE_FLAGS } from "../../floor/appearance/theme.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { PANEL_PRESET_VALUE_FLAGS } from "../../floor/instrument/panel-flags.ts";
 import { armFlagsOfKind, pageTargetableArmFlags } from "./arms/registry.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -28,6 +28,9 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--click",
   "--tap",
   "--swipe",
+  "--swipe-x",
+  "--long-press",
+  "--tap-at",
   "--soft-keyboard",
   "--dom-click",
   "--force-click",
@@ -96,6 +99,9 @@ export const PAGE_TARGET_FLAGS = new Set([
   "--click",
   "--tap",
   "--swipe",
+  "--swipe-x",
+  "--long-press",
+  "--tap-at",
   "--soft-keyboard",
   "--dom-click",
   "--force-click",

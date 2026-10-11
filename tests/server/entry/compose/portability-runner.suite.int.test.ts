@@ -12,7 +12,7 @@ import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { sql } from "drizzle-orm";
 import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
 import { vi } from "vitest";
-import { startPlannerMaintenance } from "../../../../packages/server/src/entry/boot/planner-maintenance.ts";
+import { startPlannerMaintenance } from "#server/entry/boot/planner-maintenance.ts";
 import { freshCountedDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { test as base, expect, OWNER_USER_ID } from "../../../support/fixtures.ts";

@@ -7,7 +7,7 @@
 // `@authored` includes every shipped workspace the predecessor harness admitted.
 import type { ClassDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";

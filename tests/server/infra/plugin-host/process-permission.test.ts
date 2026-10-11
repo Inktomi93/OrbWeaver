@@ -14,8 +14,8 @@ import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { afterEach } from "vitest";
-import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
-import { parseMessageLine, serializeMessage } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
+import { pluginBrokerExecArgv } from "#server/infra/plugin-host/process-permission.ts";
+import { parseMessageLine, serializeMessage } from "#server/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));

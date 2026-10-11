@@ -11,7 +11,7 @@ import { connectionBindings, userConnections, userSeedLedger } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { seedLocalLightConnections } from "../../../../../packages/server/src/domain/connection/persistence/local-light-seed.ts";
+import { seedLocalLightConnections } from "#server/domain/connection/persistence/local-light-seed.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

@@ -1,7 +1,7 @@
 // Native collection proves automatic runtime selection excludes tooling, while focused tests remain reachable.
 import process from "node:process";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
 import { collectNodeShards } from "../../../../tooling/src/verify/ops/scoped-test.ts";

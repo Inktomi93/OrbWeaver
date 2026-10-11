@@ -15,10 +15,9 @@ import type {
   UserDialogResult,
 } from "@anthropic-ai/claude-agent-sdk";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
-import type { AgentMcpServerSpec, AgentTurnRequest } from "../../contract/agent.ts";
-import type { AgentMcpServerHealth, ChatResult } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult } from "#contract";
+import { ProviderError } from "#contract";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { consumeTurnStream, linkAbort, sdkOutputFormatOf } from "./runner.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";

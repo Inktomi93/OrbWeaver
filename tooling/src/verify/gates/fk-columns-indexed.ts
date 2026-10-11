@@ -5,7 +5,7 @@
 // Drizzle builder identity and the table/column model for every member. The member-kind resolution this
 // policy's DECLARED LIMIT rests on (imported/local object-literal bindings, object spreads, shorthand
 // members, static computed keys, and a loud refusal for every other member kind) is the fact's own
-// `lib/schema-fact-value.ts#objectEntries` — NOT the legacy `_shared/schema-read.ts`, which this module
+// `lib/schema-fact-value.ts#objectEntries` — NOT the legacy `floor/code-facts/schema-read.ts`, which this module
 // does not import.
 // POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY ONE PATH, lossless. The legacy descriptor
 // (8fde8e47768549eb1260f2618bfa15a4d6dcaa70, the parent of the `dd1a045882` conversion) scoped with
@@ -15,7 +15,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `fk-columns-indexed` descriptor at 8fde8e47768549eb1260f2618bfa15a4d6dcaa70, the parent of the conversion
 // `dd1a045882` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,128 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,128 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 29 and final `population` admits 30. legacy − final = ∅. final − legacy =
 // {`packages/db/src/schema/index.ts`} — the schema barrel, which the legacy `isSchemaFile` excluded and
 // `DRIZZLE_SCHEMA_POPULATION` admits; the intentional one-path widening recorded at that constant. Controls: inside

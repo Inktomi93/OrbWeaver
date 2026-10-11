@@ -12,7 +12,7 @@ import {
   toBarItems,
   toGenreSeries,
   topRanked,
-} from "../../../../../packages/client/src/features/discovery/lib/corpus-charts.ts";
+} from "#client/features/discovery/lib/corpus-charts.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function point(id: string, genre: string | null): { id: string; label: string; x: number; y: number; genre: string | null } {

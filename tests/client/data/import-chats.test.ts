@@ -9,7 +9,7 @@
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { afterEach, vi } from "vitest";
-import { importChats } from "../../../packages/client/src/data/import-chats.ts";
+import { importChats } from "#client/data/import-chats.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {

@@ -11,7 +11,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { BootVeil } from "../../../../../packages/client/src/features/app-shell/components/boot-veil.tsx";
+import { BootVeil } from "#client/features/app-shell/components/boot-veil.tsx";
 
 const READY_ATTR = "data-app-ready";
 

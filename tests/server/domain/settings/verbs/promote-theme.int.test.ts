@@ -8,7 +8,7 @@
 //     would mint an un-deletable, un-editable palette (D71).
 
 import { describe } from "vitest";
-import { ensureSeedThemes } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
+import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";

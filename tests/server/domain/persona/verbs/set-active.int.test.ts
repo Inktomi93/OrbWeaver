@@ -6,7 +6,7 @@ import { can } from "@orb/server/domain/admin";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { requireAuthorOrHost, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/index.ts";
+import { requireAuthorOrHost, setParticipantActivePersona } from "#server/domain/chat/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";

@@ -125,7 +125,7 @@ export const chatReasoningPartSchema = z.object({
  *  The column was an OPEN blob (`Record<string, unknown>`) until §5.3c class 3 closed it onto
  *  {@link variantMetadataSchema}, so nothing bound its writers to its readers — the exact shape that let this
  *  key be READ by three sites while only the ST import ever WROTE it (#184; the same column already cost one
- *  nested-shape fidelity bug, `server/kit/serde/chat` §variantMetadata). The type is now the binding and this
+ *  nested-shape fidelity bug, `server/primitives/serde/chat` §variantMetadata). The type is now the binding and this
  *  constant is the key's one spelling: the live turn's writer
  *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
  *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/persistence/rebuild-from-canon.ts`
@@ -149,7 +149,7 @@ export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
  *  wearing types: ONLY a fact the NORMALIZED core cannot carry (§5.3c's own sentence). A field whose value
  *  the same `message_variants` row already stores in a COLUMN is not provenance, it is a second home for one
  *  number, and the two drift. That rule retired three fields when the producing fold landed
- *  (`backends/kit/provider-metadata.ts`): OpenRouter's `cache` receipt (every V4 wire folds
+ *  (`backends/wire/provider-metadata.ts`): OpenRouter's `cache` receipt (every V4 wire folds
  *  `prompt_tokens_details.cached_tokens` into `usage.inputTokens.cacheRead` → `cache_read_tokens`), its
  *  `upstreamGeneration` (that is `generation_id`, its own column), and the anthropic arm's
  *  `cacheReadTokens`/`cacheWriteTokens` (`cache_read_tokens`/`cache_write_tokens`). Anthropic's REAL

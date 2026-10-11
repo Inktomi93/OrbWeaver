@@ -1,5 +1,5 @@
 import type { PluginLogLevel } from "@orb/contracts/plugin";
-import type { NodeEnvironment } from "../../../kit/node-environment.ts";
+import type { NodeEnvironment } from "#primitives/node-environment";
 
 export interface PluginBrokerWatchdogArguments {
   readonly directory: string;

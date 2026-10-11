@@ -3,7 +3,7 @@
 // stories module. The CT suite imports it in its node context (the spec body), which is legal.
 //
 // CELL LAW: the full arm cross when it is small (the brief's expectation — 2-4 axes × 2-4 values), the
-// policy-neutral pairwise engine (@orb/tooling/_shared/variant-matrix) when the cross explodes (button's
+// policy-neutral pairwise engine (@orb/tooling/floor/variant-matrix/variant-matrix) when the cross explodes (button's
 // 5×13×2×3 = 390, text's ≈18k). The cap is a cell-budget call, not a coverage claim — the pairwise
 // receipt still covers every VALUE (asserted in the parity suite) and every axis PAIR.
 //
@@ -12,7 +12,7 @@
 // `undefined` (the renderer drops the prop). Axes WITH a default still enumerate only declared values:
 // the default IS one of them.
 
-import { planVariantMatrix } from "@orb/tooling/_shared/variant-matrix";
+import { planVariantMatrix } from "@orb/tooling/floor/variant-matrix/variant-matrix";
 import type { TvIntrospection, VariantArmStoryDef } from "./variant-arm-matrix.def.ts";
 
 /** Above this many full-cross cells a story switches to the pairwise plan. */

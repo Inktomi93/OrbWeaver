@@ -7,8 +7,8 @@
 // finish, error) nothing exercised directly — `index.test.ts` never reaches this file, only the two hosted
 // wires' `chat.test.ts` do, and only through the reasoning-provenance arms their own turns produce.
 
-import { drainStream } from "../../../../packages/inference/src/backends/v4/stream.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { drainStream } from "#inference/backends/v4/stream.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // The SDK's own stream-part type, DERIVED from `drainStream`'s signature — `tests/` has no `@ai-sdk/provider`

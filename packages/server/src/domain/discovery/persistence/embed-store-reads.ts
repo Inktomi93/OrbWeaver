@@ -27,7 +27,7 @@ import {
 import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
-import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
+import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import { ownedRealCharacters } from "./character-scope.ts";
 
 /**

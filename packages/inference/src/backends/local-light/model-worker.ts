@@ -13,8 +13,8 @@ import type {
   LocalLightWorkerMessage,
   LocalLightWorkerOptions,
   LocalLightWorkerValue,
-} from "../../contract/local-light-worker.ts";
-import type { InferenceLog } from "../../deps.ts";
+} from "#src/contract/local-light-worker.ts";
+import type { InferenceLog } from "#src/deps.ts";
 import type { LocalLightModelCache, ModelCacheConfig } from "./model-cache.ts";
 import { toWorkerFailure } from "./worker-cache.ts";
 

@@ -544,7 +544,7 @@ describe("the BORN private-endpoint allowlist — single-user admits its own box
       process.env[key] = value;
     }
     vi.resetModules();
-    const { layer } = await import("../../../../packages/server/src/domain/settings/effective-config/layer.ts");
+    const { layer } = await import("#server/domain/settings/effective-config/layer.ts");
     const network = await import("@orb/server/infra/network");
     // Exactly what the composition root does at boot: resolve the config with NO stored overrides (a fresh
     // db has none), then hand the guard the resolved list.

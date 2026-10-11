@@ -4,11 +4,11 @@
 // to carry moved to ../contract/harness.ts at the @orb/tooling P6 move.
 //
 // ONE LOADER: the historical `getProject` had its OWN `new Project(` and its own packages+tests fileset.
-// Under `tooling-project-home` the construction belongs to `_shared/ts-workspace.ts`, so what
+// Under `tooling-project-home` the construction belongs to `floor/compiler/ts-workspace.ts`, so what
 // survives here is the FILESET — passed as globs, which is exactly the seam `getWorkspace` exposes for it.
 // The set is deliberately NARROWER than `harnessGlobs`: these callers judge app source, and sweeping the
 // tool corpus into their walk would put the gates' own fixture strings in a baseline.
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project } from "ts-morph";
 
 let cached: Project | undefined;

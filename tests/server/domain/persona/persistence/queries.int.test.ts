@@ -9,14 +9,14 @@ import { personas } from "@orb/db";
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "../../../../../packages/server/src/domain/persona/contract/errors.ts";
+import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "#server/domain/persona/contract/errors.ts";
 import {
   detailOf,
   ensureCharacterOwned,
   ensurePersonaOwned,
   loadOwnedPersonaWithAvatar,
   loadPersonasForOwners,
-} from "../../../../../packages/server/src/domain/persona/persistence/queries.ts";
+} from "#server/domain/persona/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";

@@ -3,13 +3,13 @@
 import type { ImageryImportSource, PortableImageryCall, PortableImageryImage } from "@orb/contracts/imagery";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, imageryImportCalls } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, or, sql } from "drizzle-orm";
-import { imageryCallImportHash, imageryRowImportHash } from "#kit/serde/imagery";
+import { imageryCallImportHash, imageryRowImportHash } from "#primitives/serde/imagery";
 import type { ImageryImportOutputInput, ImageryImportWriteResult, ImageryPortabilityContext, NativeImageryImportMatch } from "../contract/portability.ts";
 import { readOwnedImageryCalls } from "./portability-read.ts";
 

@@ -2,7 +2,7 @@
 // row per numbered step; case is PRESERVED; the caller owns empty-is-error.
 
 import { describe } from "vitest";
-import { processReply } from "../../../../../packages/server/src/domain/imagery/substrate/process-reply.ts";
+import { processReply } from "#server/domain/imagery/substrate/process-reply.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const TRAILING_COMMA = /,\s*$/;

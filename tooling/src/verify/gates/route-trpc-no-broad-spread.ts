@@ -9,7 +9,7 @@
 // judges Playwright registration order through syntax and shares no production reader with this one.
 import type { CallExpression, SpreadAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 

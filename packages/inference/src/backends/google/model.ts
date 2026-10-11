@@ -2,9 +2,9 @@
 
 import type { GoogleProvider } from "@ai-sdk/google";
 import { createGoogle } from "@ai-sdk/google";
-import { ProviderError } from "../../contract/errors.ts";
-import type { GoogleCall } from "../../contract/google.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import type { GoogleCall } from "#contract";
+import { ProviderError } from "#contract";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 
 export const GOOGLE_KEY = "google";

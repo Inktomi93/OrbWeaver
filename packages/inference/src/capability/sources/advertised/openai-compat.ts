@@ -7,7 +7,7 @@
 
 import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, EFFORT_LEVELS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
-import type { EndpointModel } from "../../../contract/runtime.ts";
+import type { EndpointModel } from "#contract";
 
 type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
 

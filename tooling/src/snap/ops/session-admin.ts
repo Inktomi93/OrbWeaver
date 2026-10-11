@@ -4,10 +4,10 @@
 // by the sweep while it is under its TTL and its owner checkout exists (identify by a positive signal).
 import { existsSync } from "node:fs";
 import process from "node:process";
-import { adoptRunSlot } from "../../_shared/artifact-out.ts";
-import { abandonedRuns, print, publishRunSlot } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { adoptRunSlot } from "../../floor/artifacts/artifact-out.ts";
+import { abandonedRuns, print, publishRunSlot } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";

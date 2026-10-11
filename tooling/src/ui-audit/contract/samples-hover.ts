@@ -14,7 +14,7 @@
 // has. The check needs both states in one sample to make that call, so the census carries the rest
 // facts it read at the same instant rather than trying to join against `RawSamples.texts` (whose rows
 // are a DIFFERENT population — pixel-settled, aria-hidden-inclusive, and keyed only by selector).
-import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 // All three shapes come from the backdrop LEAF, never from samples.ts (the aggregator inline-imports
 // THIS file's shapes, so importing the aggregator here was a no-circular red): the forced glow reads
 // emit rows in the static glow census's OWN sample shapes so the checks stay unchanged.

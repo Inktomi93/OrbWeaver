@@ -48,8 +48,8 @@ import {
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgJournal, rpgSnapshots } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { and, count, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -550,7 +550,7 @@ export function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: Tur
 
 /** Commit one turn snapshot and all journal rows produced by that same staged delta in ONE pure-write batch.
  * Validation happens before the batch; one UPSERT handles both fresh and existing variants, so every batched
- * statement is a write and `@orb/db/kit`'s DEFERRED-batch invariant holds. A failure anywhere rolls the whole
+ * statement is a write and `@orb/db/query`'s DEFERRED-batch invariant holds. A failure anywhere rolls the whole
  * beat back; the post-commit read returns the canonical row identity. */
 export async function writeStagedSnapshotAndJournal(
   db: Db,

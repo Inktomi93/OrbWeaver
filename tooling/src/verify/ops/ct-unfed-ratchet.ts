@@ -56,8 +56,8 @@
 //     posture as a defect).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import type { RatchetRow } from "@orb/tooling/floor/verdict/ratchet-rows";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct (the CT reporter imports this judge; it has no CLI of its own)");
 

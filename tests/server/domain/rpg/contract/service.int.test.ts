@@ -4,8 +4,8 @@
 // nullable-array columns collapse a null (an empty-born row) to `[]` so the projected state is total.
 
 import { describe } from "vitest";
-import { snapshotRowToState } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { insertSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
+import { insertSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { emptyState, seedChat, seedGame, seedMessage, target } from "../_support.ts";

@@ -18,8 +18,8 @@
 //   1. THE PRIVATE CROSS-MODULE RESOLVER IS GONE. Legacy `resolveName` hand-rolled identifier lookup
 //      (`sf.getVariableDeclaration` plus a named-import hop through `getModuleSpecifierSourceFile`) — a
 //      private reader wearing a shared reader's clothes (§5b item 7). Identity now goes through
-//      `_shared/reference-fact.ts#resolveStableExpression` and
-//      `_shared/reference-fact-call.ts#resolveCallableDeclaration`, the shared binding readers, which are
+//      `floor/code-facts/reference-fact.ts#resolveStableExpression` and
+//      `floor/code-facts/reference-fact-call.ts#resolveCallableDeclaration`, the shared binding readers, which are
 //      STRICTLY STRONGER: they see through aliases, re-export renames and namespace members, and they
 //      REFUSE a binding that is written to (a reassigned `let` resolved silently in the legacy reader and
 //      now lands on the UNSAFE arm, which is the correct direction for this policy). That is why
@@ -87,14 +87,14 @@
 // `28d530a42b` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c2b5253308`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,432 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
 // (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { resolveStableExpression } from "../../_shared/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
+import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 

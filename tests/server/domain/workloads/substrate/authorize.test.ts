@@ -6,7 +6,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { assertKindSupportsMode, isVisibleToCaller, resolveListOwnerFilter } from "../../../../../packages/server/src/domain/workloads/substrate/authorize.ts";
+import { assertKindSupportsMode, isVisibleToCaller, resolveListOwnerFilter } from "#server/domain/workloads/substrate/authorize.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER: UserId = castId("user_owner");

@@ -4,7 +4,7 @@
 // owner-scope belts).
 
 import { describe } from "vitest";
-import { readCardDistillTargets, readOwnedCardDisplay } from "../../../../../packages/server/src/domain/discovery/persistence/card-reads.ts";
+import { readCardDistillTargets, readOwnedCardDisplay } from "#server/domain/discovery/persistence/card-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";

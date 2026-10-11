@@ -23,7 +23,7 @@ import {
   regexTierLeverCount,
   regexTierProvenance,
   regexTierRows,
-} from "../../../../../packages/client/src/features/chat/lib/regex-section-model.ts";
+} from "#client/features/chat/lib/regex-section-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A library row, spelled WHOLE against the contract (never a double cast — a fabricated row survives the

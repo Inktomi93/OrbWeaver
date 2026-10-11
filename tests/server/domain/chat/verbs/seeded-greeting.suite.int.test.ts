@@ -26,8 +26,8 @@ import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
+import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import { createEdit } from "#server/domain/chat/verbs/edit.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

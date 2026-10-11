@@ -10,7 +10,7 @@
 
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { detectServer } from "../../../packages/inference/src/catalog/detect.ts";
 import { fetchEndpointModels } from "../../../packages/inference/src/catalog/endpoint.ts";
 import { DIR, waitFor, writeRaw } from "./_kit.ts";

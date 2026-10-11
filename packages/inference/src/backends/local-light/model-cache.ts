@@ -17,11 +17,11 @@ import { embedSpaceOf, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
-import { ProviderError } from "../../contract/errors.ts";
-import type { LocalLightLoadProgress, LocalLightRerankServing } from "../../contract/local-light-worker.ts";
-import type { EmbedRequest } from "../../contract/roles.ts";
-import type { LocalLightModelSlot } from "../../contract/runtime.ts";
-import type { InferenceLog } from "../../deps.ts";
+import { ProviderError } from "#src/contract/errors.ts";
+import type { LocalLightLoadProgress, LocalLightRerankServing } from "#src/contract/local-light-worker.ts";
+import type { EmbedRequest } from "#src/contract/roles.ts";
+import type { LocalLightModelSlot } from "#src/contract/runtime.ts";
+import type { InferenceLog } from "#src/deps.ts";
 import { localLightCpuThreads } from "./cpu-budget.ts";
 import type { StHead } from "./st-head.ts";
 import { loadStHead, scoreHiddenStates } from "./st-head.ts";

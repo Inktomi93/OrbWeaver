@@ -5,11 +5,11 @@
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatStreamEvents, chats, messages } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { loadStreamReplay } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { insertChatStreamEventStatements } from "../../../../../packages/server/src/domain/chat/persistence/stream-events.ts";
+import { loadStreamReplay } from "#server/domain/chat/persistence/queries.ts";
+import { insertChatStreamEventStatements } from "#server/domain/chat/persistence/stream-events.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage } from "../_support.ts";

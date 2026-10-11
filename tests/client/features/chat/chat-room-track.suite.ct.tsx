@@ -28,7 +28,7 @@ import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";

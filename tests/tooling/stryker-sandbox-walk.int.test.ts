@@ -5,7 +5,7 @@
 // `fileUtils.findNodeModulesList` (`dist/src/utils/file-utils.js`): a bare BFS over `fs.promises.readdir`
 // rooted at `process.cwd()` (`dist/src/sandbox/sandbox.js`, under Stryker's own `// TODO: Change with
 // this.options.basePath when we have it`). It consults NO Stryker option except `tempDirName`, so
-// `ignorePatterns` — where `tooling/src/_shared/stryker-config.ts` already lists `.claude/**` — cannot
+// `ignorePatterns` — where `tooling/src/floor/testing/stryker-config.ts` already lists `.claude/**` — cannot
 // reach it. Two consequences, and the second is the worse one:
 //
 //   1. THE RACE (the symptom that surfaced). Agent worktrees are created and destroyed continuously. A

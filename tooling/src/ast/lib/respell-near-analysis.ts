@@ -1,8 +1,8 @@
 // Pure Jaccard candidate analysis for `ast respell --near`.
 
 import type { Node } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { coLocatedSemanticNodes } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { coLocatedSemanticNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { declKey } from "./keys.ts";
 import { exitToolError } from "./ledger.ts";

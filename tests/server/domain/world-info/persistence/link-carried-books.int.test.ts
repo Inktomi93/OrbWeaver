@@ -10,7 +10,7 @@ import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { createLinkCarriedBooks } from "../../../../../packages/server/src/domain/world-info/persistence/link-carried-books.ts";
+import { createLinkCarriedBooks } from "#server/domain/world-info/persistence/link-carried-books.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

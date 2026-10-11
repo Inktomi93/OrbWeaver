@@ -1,6 +1,6 @@
 // Read-time compatibility for v1 indices written before exact/aggregate/not-applicable scope carriers.
-import { instrumentLegacyScopeSchema } from "../../_shared/artifact-scope.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { instrumentLegacyScopeSchema } from "../../floor/artifacts/artifact-scope.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 

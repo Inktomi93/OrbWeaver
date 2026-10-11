@@ -1,7 +1,7 @@
 // A validating string factory preserves values only through the installed TypeID contract and the
 // exact Zod failure channel. Function names and output annotations never establish that fact.
-import { readStaticString, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableDeclaration } from "@orb/tooling/_shared/reference-fact-call";
+import { readStaticString, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";

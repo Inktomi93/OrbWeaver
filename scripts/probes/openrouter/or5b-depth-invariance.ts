@@ -33,7 +33,7 @@ const withCache = (message: OrRequestMessage) => ({
 
 /** The index the SHIPPED placer resolves for conversational `depth`: role switches from the end, with tool
  *  rows and tool-call assistant rows transparent, system rows consuming no depth. Mirrors
- *  `backends/kit/cache-control.ts:indexAtDepth` exactly — the probe must agree with the code it verifies. */
+ *  `backends/wire/cache-control.ts:indexAtDepth` exactly — the probe must agree with the code it verifies. */
 function conversationalIndex(history: OrRequestMessage[], wanted: number): number {
   let depth = 0;
   let previousRole = "";

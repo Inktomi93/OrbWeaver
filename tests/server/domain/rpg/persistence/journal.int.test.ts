@@ -9,12 +9,7 @@ import type { MessageId, MessageVariantId, RpgGameId, RpgJournalId } from "@orb/
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  deleteJournalEntry,
-  insertJournalEntry,
-  listActiveJournal,
-  listJournalByVariant,
-} from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { deleteJournalEntry, insertJournalEntry, listActiveJournal, listJournalByVariant } from "#server/domain/rpg/persistence/journal.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test, UNCLAMPED } from "../_support.ts";
 

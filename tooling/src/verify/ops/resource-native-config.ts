@@ -1,5 +1,5 @@
 // Executable configs observe the whole authored transaction; their dependency set is not just imports.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
 import type { ResourceLoad, ResourceReader, ResourceReaderOptions } from "../contract/resource.ts";
 import { NATIVE_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";

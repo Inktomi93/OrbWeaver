@@ -53,7 +53,7 @@ The allowed imports:
 - `client`: `contracts`, `kit`, `ui`. Type-only: `server` (the tRPC `AppRouter` bridge, a `devDependency`).
 
 Inside `packages/server/src/`, imports flow down only: `entry` → `transport` → `domain` → `infra` →
-`foundation` → `kit`. `.dependency-cruiser.cjs` enforces the tier order (`pnpm depcruise`). A change
+`foundation` → `primitives`. `.dependency-cruiser.cjs` enforces the tier order (`pnpm depcruise`). A change
 that needs an upward import is in the wrong place. Move the code; never force the import.
 
 ## Where code goes
@@ -61,7 +61,7 @@ that needs an upward import is in the wrong place. Move the code; never force th
 | Code | Home |
 | - | - |
 | Pure isomorphic primitives and engines: no `node:*`, no I/O, no domain | `packages/kit/` |
-| Node-only pure code (the browser imports `@orb/kit`) | `packages/server/src/kit/` |
+| Node-only pure code (the browser imports `@orb/kit`) | `packages/server/src/primitives/` |
 | Shapes that cross a boundary (server and client, domain and domain) | `packages/contracts/` |
 | External I/O adapters | `packages/server/src/infra/` |
 | Env, config, observability | `packages/server/src/foundation/` |
@@ -91,7 +91,7 @@ that needs an upward import is in the wrong place. Move the code; never force th
 ## Test layout
 
 - Tests live under `tests/<package>/` and mirror `packages/<package>/src/` path for path. The `test-layout` gate fails a test next to its source.
-- `tooling/src/_shared/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`.
+- `tooling/src/floor/testing/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`.
 
 ## No escape hatches
 

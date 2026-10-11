@@ -19,7 +19,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { migrateHandoffOfferVocabOnBoot } from "@orb/server/entry/boot";
 import { eq, sql } from "drizzle-orm";
-import { loadPendingHandoff } from "../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { loadPendingHandoff } from "#server/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

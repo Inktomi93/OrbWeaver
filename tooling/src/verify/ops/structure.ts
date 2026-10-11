@@ -48,11 +48,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import type { RunSlot } from "@orb/tooling/_shared/artifacts";
-import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
+import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { GateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { PolicyCommandRequest, PolicyInspectionPlan, PolicyRunPlan } from "../contract/policy-plan.ts";

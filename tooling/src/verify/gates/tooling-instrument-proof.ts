@@ -1,5 +1,5 @@
 // Policy: tooling-instrument-proof (docs/law/Core-Tooling-Law.md §4.5) — an instrument-classed
-// tool (INSTRUMENT_TOOLS, tooling/src/_shared/instruments.ts) owes TWO proof classes in tests/tooling/<tool>/:
+// tool (INSTRUMENT_TOOLS, tooling/src/floor/instrument/instruments.ts) owes TWO proof classes in tests/tooling/<tool>/:
 // `@instrument-proof:` (a planted DEFECT must RED) and `@instrument-absence-proof:` (a removed apparatus /
 // empty population must NOT read clean). Arms per class: (B) a member with no marker; (C) a marker in a
 // NON-member's tree; (D) a malformed bare marker. Plus (A) a member with no tooling/src/<tool>/ DIRECTORY,
@@ -45,7 +45,7 @@
 //
 // ARM F IS AN IDENTITY UPGRADE, not a port. The legacy arm keyed on the module SPECIFIER plus the local
 // binding name (`lib/symbol-reference.ts`), which #1506 had already shown to be one `import * as` from
-// silent. It now locates `tooling/src/_shared/artifacts.ts` as a PROJECT HOME and classifies each candidate
+// silent. It now locates `tooling/src/floor/artifacts/artifacts.ts` as a PROJECT HOME and classifies each candidate
 // call through `classifyProjectHomeOrigin`, so an alias, a namespace member in either spelling, and a
 // name-preserving re-export all resolve to the same canonical export — and a same-named `printResult` from
 // another module resolves to `other` rather than needing a hand-written negative. The FILE prefilter in front
@@ -93,7 +93,7 @@
 // `ce85507a5c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `7474cfee30`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,476 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,614 and final `population` admits 1,614.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,614 and final `population` admits 1,614.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `tests/tooling/__cbbhr_in__ct-stories.tsx` (virtual)
 // admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
@@ -107,11 +107,11 @@ import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-hom
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
-const REGISTRY = "tooling/src/_shared/instruments.ts";
+const REGISTRY = "tooling/src/floor/instrument/instruments.ts";
 const REGISTRY_CONST = "INSTRUMENT_TOOLS";
 const PRINT_RESULT = "printResult";
-const ARTIFACTS_HOME = { path: "tooling/src/_shared/artifacts.ts", names: [PRINT_RESULT] } as const;
-const ANCHOR = "tooling/src/_shared/exit-contract.ts";
+const ARTIFACTS_HOME = { path: "tooling/src/floor/artifacts/artifacts.ts", names: [PRINT_RESULT] } as const;
+const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
 const TESTS_PREFIX = "tests/tooling/";
 const TOOLING_SOURCE = "tooling/src/";
 const LAW = "docs/law/Core-Tooling-Law.md §4.5";
@@ -162,7 +162,7 @@ function instrumentToolOf(path: string): string | null {
     return null;
   }
   const tool = path.slice(TOOLING_SOURCE.length).split("/")[0] ?? "";
-  return tool === "" || tool === "_shared" || tool === "verify" ? null : tool;
+  return tool === "" || tool === "floor" || tool === "verify" ? null : tool;
 }
 
 const importsArtifacts = (sourceFile: SourceFile): boolean =>
@@ -170,7 +170,8 @@ const importsArtifacts = (sourceFile: SourceFile): boolean =>
     .getImportDeclarations()
     .some(
       (declaration) =>
-        declaration.getModuleSpecifierValue().endsWith("_shared/artifacts") || declaration.getModuleSpecifierValue().endsWith("_shared/artifacts.ts"),
+        declaration.getModuleSpecifierValue().endsWith("floor/artifacts/artifacts") ||
+        declaration.getModuleSpecifierValue().endsWith("floor/artifacts/artifacts.ts"),
     );
 
 /** Is this call's callee a REFERENCE expression at all — the only shape the origin reader can judge? */
@@ -435,7 +436,7 @@ export const gate = defineGate({
       // "snapx" and the spread-in instrument owed no proof pair at all.
       mode: "resource",
       files: {
-        "tooling/src/_shared/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;\n',
+        "tooling/src/floor/instrument/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;\n',
         [REGISTRY]: `import { CORE_INSTRUMENTS } from "./instrument-core.ts";\nexport const ${REGISTRY_CONST} = [...CORE_INSTRUMENTS, "snapx"] as const;\n`,
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
@@ -510,7 +511,7 @@ export const gate = defineGate({
         [REGISTRY]: `export const ${REGISTRY_CONST} = ["snapx"] as const;\n`,
         [ANCHOR]: "export const EXIT = 0;\n",
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../_shared/artifacts.ts";\nexport function run(): void { ${PRINT_RESULT}("snapx", []); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../floor/artifacts/artifacts.ts";\nexport function run(): void { ${PRINT_RESULT}("snapx", []); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -524,7 +525,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} as emit } from "../../_shared/artifacts.ts";\nexport function run(): void { emit("snapx", []); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} as emit } from "../../floor/artifacts/artifacts.ts";\nexport function run(): void { emit("snapx", []); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -538,7 +539,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import * as artifacts from "../../_shared/artifacts.ts";\nexport function run(): void { artifacts.${PRINT_RESULT}("snapx", []); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import * as artifacts from "../../floor/artifacts/artifacts.ts";\nexport function run(): void { artifacts.${PRINT_RESULT}("snapx", []); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -552,7 +553,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import * as artifacts from "../../_shared/artifacts.ts";\nexport function run(): void { artifacts["${PRINT_RESULT}"]("snapx", []); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import * as artifacts from "../../floor/artifacts/artifacts.ts";\nexport function run(): void { artifacts["${PRINT_RESULT}"]("snapx", []); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -565,9 +566,9 @@ export const gate = defineGate({
         [REGISTRY]: `export const ${REGISTRY_CONST} = ["snapx"] as const;\n`,
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
-        "tooling/src/_shared/artifacts-barrel.ts": `export { ${PRINT_RESULT} } from "./artifacts.ts";\n`,
+        "tooling/src/floor/artifacts/artifacts-barrel.ts": `export { ${PRINT_RESULT} } from "./artifacts.ts";\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../_shared/artifacts.ts";\nimport { ${PRINT_RESULT} as viaBarrel } from "../../_shared/artifacts-barrel.ts";\nexport function run(): void { void ${PRINT_RESULT}; viaBarrel("snapx", []); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../floor/artifacts/artifacts.ts";\nimport { ${PRINT_RESULT} as viaBarrel } from "../../floor/artifacts/artifacts-barrel.ts";\nexport function run(): void { void ${PRINT_RESULT}; viaBarrel("snapx", []); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -579,7 +580,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "tooling/src/_shared/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;\n',
+        "tooling/src/floor/instrument/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;\n',
         [REGISTRY]: `import { CORE_INSTRUMENTS } from "./instrument-core.ts";\nexport const ${REGISTRY_CONST} = [...CORE_INSTRUMENTS, "snapx"] as const;\n`,
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
@@ -635,7 +636,7 @@ export const gate = defineGate({
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
         "tooling/src/snapx/ops/run.ts":
-          'import { printVerdict } from "../../_shared/evidence.ts";\nexport function run(): number { return printVerdict("snapx", { verdict: 0, denominators: { scanned: { value: 1, refuseWhen: "zero" } }, pairs: [["findings", 0]] }); }\n',
+          'import { printVerdict } from "../../floor/verdict/evidence.ts";\nexport function run(): number { return printVerdict("snapx", { verdict: 0, denominators: { scanned: { value: 1, refuseWhen: "zero" } }, pairs: [["findings", 0]] }); }\n',
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -648,7 +649,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../_shared/artifacts.ts";\nexport async function run(handle: { write(text: string): Promise<void> }): Promise<string> { void ${PRINT_RESULT}; await handle.write(String(1)); return JSON.stringify({ n: Math.round(1.5) }); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../floor/artifacts/artifacts.ts";\nexport async function run(handle: { write(text: string): Promise<void> }): Promise<string> { void ${PRINT_RESULT}; await handle.write(String(1)); return JSON.stringify({ n: Math.round(1.5) }); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -660,9 +661,9 @@ export const gate = defineGate({
         [REGISTRY]: `export const ${REGISTRY_CONST} = ["snapx"] as const;\n`,
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
-        "tooling/src/_shared/elsewhere.ts": `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
+        "tooling/src/floor/artifacts/elsewhere.ts": `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
-        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../_shared/artifacts.ts";\nimport * as other from "../../_shared/elsewhere.ts";\nexport function run(): void { void ${PRINT_RESULT}; other.${PRINT_RESULT}("snapx", []); }\n`,
+        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../floor/artifacts/artifacts.ts";\nimport * as other from "../../floor/artifacts/elsewhere.ts";\nexport function run(): void { void ${PRINT_RESULT}; other.${PRINT_RESULT}("snapx", []); }\n`,
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
@@ -674,12 +675,12 @@ export const gate = defineGate({
         [REGISTRY]: `export const ${REGISTRY_CONST} = ["snapx"] as const;\n`,
         [ANCHOR]: "export const EXIT = 0;\n",
         [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
-        "tooling/src/verify/reporting.ts": `import { ${PRINT_RESULT} } from "../_shared/artifacts.ts";\nexport function shared(): void { ${PRINT_RESULT}("shared", []); }\n`,
+        "tooling/src/verify/reporting.ts": `import { ${PRINT_RESULT} } from "../floor/artifacts/artifacts.ts";\nexport function shared(): void { ${PRINT_RESULT}("shared", []); }\n`,
         "tooling/src/snapx/index.ts": "export {};\n",
         "tests/tooling/snapx/proof.test.ts":
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
-      why: "THE INSTRUMENT-TREE FENCE, pinned: `_shared` and `verify` are not instrument tools, so the shared layer's own call to the door is not an instrument bypassing it. The caller sits in `verify/` and spells the specifier `../_shared/artifacts.ts` DELIBERATELY, so the candidate prefilter admits it and the TREE fence is what acquits it — an earlier version of this row lived in `_shared/` and imported `./artifacts.ts`, which the prefilter rejects, so the joint cut of the tree fence and the registered-member fence came back CLEAN and the row proved nothing (§4.1 MUTUALLY-REDUNDANT procedure, run and recorded)",
+      why: "THE INSTRUMENT-TREE FENCE, pinned: `floor` and `verify` are not instrument tools, so the shared layer's own call to the door is not an instrument bypassing it. The caller sits in `verify/` and spells the specifier `../floor/artifacts/artifacts.ts` DELIBERATELY, so the candidate prefilter admits it and the TREE fence is what acquits it — an earlier version of this row lived in the floor and imported `./artifacts.ts`, which the prefilter rejects, so the joint cut of the tree fence and the registered-member fence came back CLEAN and the row proved nothing (§4.1 MUTUALLY-REDUNDANT procedure, run and recorded)",
     },
     {
       mode: "resource",

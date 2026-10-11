@@ -6,7 +6,7 @@
 // filtered from the embed pass).
 
 import type { CharacterHandle } from "@orb/kit/ids";
-import { cardContentHash } from "#kit/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterContext } from "../context.ts";
 import { CHARACTER_HANDLE_CONFLICT, CHARACTER_HANDLE_RESERVED, CharacterOperationError } from "../contract/errors.ts";
 import type { MintGroupCharParams } from "../contract/params.ts";

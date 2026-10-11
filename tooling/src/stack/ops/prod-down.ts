@@ -3,11 +3,11 @@
 // and why prod has no `--force`.
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { SERVER_ENTRY_REL } from "../../floor/process/server-entry.ts";
 import type { DrainOutcome, ProdRecord } from "../contract/types.ts";
 import { decideDown } from "../lib/identity.ts";
 import { spawnerForPort } from "../lib/spawners.ts";

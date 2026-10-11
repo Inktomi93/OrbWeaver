@@ -1,6 +1,6 @@
 import type { Page, Response } from "@playwright/test";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "gh workflow run contributor.yml");
 

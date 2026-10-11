@@ -1,7 +1,7 @@
 // contract-field-liveness collectors: producers / consumers / model-projection fences.
 import type { JsxAttribute, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { FieldHitClass, FieldIndexes, TemplateBracket } from "../contract/fields.ts";
 import type { ContractField, FieldReadSites, Hit } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";

@@ -3,7 +3,7 @@
 // name — the load-bearing disambiguation the header states), and generation_mode 1 maps to narratorOutput.
 
 import { describe } from "vitest";
-import { parseStGroupFile } from "../../../../../packages/server/src/domain/import/substrate/group.ts";
+import { parseStGroupFile } from "#server/domain/import/substrate/group.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function bytesOf(obj: unknown): Uint8Array {

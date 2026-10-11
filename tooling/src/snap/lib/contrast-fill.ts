@@ -23,8 +23,8 @@
 //     text subject the ring is background by construction, on a fill subject it IS the fill.
 //   · Both are separated by a FEATHER of the element's own edge pixels, which blend the two and belong to
 //     neither.
-import type { Rgb } from "../../_shared/wcag.ts";
-import { contrastRatio } from "../../_shared/wcag.ts";
+import type { Rgb } from "../../floor/instrument/wcag.ts";
+import { contrastRatio } from "../../floor/instrument/wcag.ts";
 import type { ContrastFillGeometry, ContrastFillReading, ContrastFillRegion, ContrastPixelImage } from "../contract/contrast.ts";
 
 /** Colour resolution of one bucket: 4 sRGB steps per channel. Coarse enough that an anti-aliased sweep of

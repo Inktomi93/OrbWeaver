@@ -3,7 +3,7 @@
 
 import { AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import { describe } from "vitest";
-import { selectOwnerBudget, selectOwnerBudgetView, upsertOwnerBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
+import { selectOwnerBudget, selectOwnerBudgetView, upsertOwnerBudget } from "#server/domain/automation/persistence/budgets.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedUser } from "../_support.ts";

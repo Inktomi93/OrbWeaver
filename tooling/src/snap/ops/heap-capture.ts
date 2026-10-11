@@ -3,7 +3,7 @@
 import { createWriteStream } from "node:fs";
 import { finished } from "node:stream/promises";
 import type { CDPSession, Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { HeapBrowserIdentity, HeapTargetIdentity } from "../contract/heap.ts";
 import { heapBrowserContextIdSchema, heapTargetIdSchema } from "../contract/heap.ts";
 

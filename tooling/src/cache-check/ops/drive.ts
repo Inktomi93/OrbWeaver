@@ -5,7 +5,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpLink } from "@trpc/client";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Measure, ProbeStep, RoomRun } from "../contract/plan.ts";
 import type { CallUsage, CaseRun, OrbApi, RoomCaseResult, RoomResult } from "../contract/types.ts";
 import { CASE_PLANS, REPLY_MAX_TOKENS, ROOMS } from "../lib/fixture.ts";

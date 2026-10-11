@@ -13,7 +13,7 @@ import {
   RELAY_RESTART_LIMIT,
   RELAY_STABLE_UP_MS,
   RELAY_URL_WAIT_MS,
-} from "../../../../../packages/server/src/domain/share/relay/controller.ts";
+} from "#server/domain/share/relay/controller.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

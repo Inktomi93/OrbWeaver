@@ -18,7 +18,7 @@ import {
   extractionToStateDelta,
   ghostTargetRefs,
   toStagedJournalEntry,
-} from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
+} from "#server/domain/rpg/tools/apply.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** An actor row on the state plane — `over` patches the VOLATILE half. */

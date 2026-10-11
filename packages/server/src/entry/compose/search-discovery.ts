@@ -25,7 +25,14 @@ import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { MemoryEmbedSpace } from "#domain/chat";
-import { createResolveStandingAsks, createResolveViewerVisibility } from "#domain/chat";
+import {
+  consolidationHash,
+  createResolveStandingAsks,
+  createResolveViewerVisibility,
+  requireAuthorOrHost,
+  resolveTier0Range,
+  setParticipantActivePersona,
+} from "#domain/chat";
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, distinctCorpusOwners } from "#domain/discovery";
@@ -47,8 +54,7 @@ import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import type { AuditEntry, SpanAttrs } from "#foundation/observability";
 import { superviseDetached, superviseSettled } from "#foundation/observability";
-import { consolidationHash, requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
 import { createResolvePresetUsage } from "./preset-usage.ts";

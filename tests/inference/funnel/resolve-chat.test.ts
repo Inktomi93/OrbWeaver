@@ -7,7 +7,7 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { resolveCarryReasoning, resolveChat } from "../../../packages/inference/src/funnel/resolve-chat.ts";
+import { resolveCarryReasoning, resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 function generation(overrides: Partial<GenerationCapability> = {}): GenerationCapability {

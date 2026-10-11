@@ -2,7 +2,7 @@
 // not exist in node fixtures, so these controls create real CSS transitions and a real WAAPI effect.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { AnimationRecord } from "../../../packages/client/src/lib/motion-animation-record.ts";
+import type { AnimationRecord } from "#client/lib/motion-animation-record.ts";
 import { AnimationRecordStory } from "./_motion-animation-record-ct-stories.tsx";
 
 declare global {

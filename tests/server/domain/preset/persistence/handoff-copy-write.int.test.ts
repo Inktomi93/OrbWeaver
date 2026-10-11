@@ -8,7 +8,7 @@ import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { createCopyPresetToUser, SYSTEM_DEFAULT_PRESET_ID } from "../../../../../packages/server/src/domain/preset/index.ts";
+import { createCopyPresetToUser, SYSTEM_DEFAULT_PRESET_ID } from "#server/domain/preset/index.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

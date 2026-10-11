@@ -1,9 +1,9 @@
 // In-memory run evidence for sibling Snap operations. The public CLI stays numeric; the matrix consumes
 // this receipt directly so it never has to re-open a just-written JSON artifact or trust a callback bus.
-import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
-import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
-import type { OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
+import type { SettingsShimEvidence } from "../../floor/appearance/appearance.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import type { OrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
 import type { AppearanceInvariantResult } from "./appearance-invariants.ts";
 import type { SnapRatePosture } from "./rate-posture.ts";

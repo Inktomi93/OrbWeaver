@@ -9,7 +9,7 @@ import type { RegexScriptBehavior } from "@orb/contracts/regex";
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, chats, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

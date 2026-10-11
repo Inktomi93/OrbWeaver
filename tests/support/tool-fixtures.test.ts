@@ -5,7 +5,7 @@ import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { expect, fixturePath, test } from "./tool-fixtures.ts";
 
 // The mismatch-diff contract: both codes by NAME + the stdout tail.
@@ -49,7 +49,7 @@ test("plantedTree refuses traversal and absolute keys without writing outside it
 
 test("repoRoot resolves the actual repo (workspace-safe, not cwd-derived)", ({ repoRoot }) => {
   expect(existsSync(join(repoRoot, "pnpm-workspace.yaml"))).toBe(true);
-  expect(existsSync(join(repoRoot, "tooling", "src", "_shared", "exit-contract.ts"))).toBe(true);
+  expect(existsSync(join(repoRoot, "tooling", "src", "floor", "cli", "exit-contract.ts"))).toBe(true);
 });
 
 test("runCli refuses an unknown tool loudly instead of a spawn ENOENT", async ({ runCli }) => {

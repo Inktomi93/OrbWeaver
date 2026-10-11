@@ -3,7 +3,7 @@
 // `../contract/resource-vendor.ts`).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad } from "../contract/resource.ts";
 import type { InstalledPackageId } from "../contract/resource-installed.ts";
 import type { VendorCssSurface, VendorInstalledFile } from "../contract/resource-vendor.ts";

@@ -1,12 +1,22 @@
 // Verifier policy names over the neutral native compiler-program reader. Keep scope ownership here;
-// `_shared` publishes compiler facts and reaches up to no tool.
+// `floor` publishes compiler facts and reaches up to no tool.
 
-import { compilerProgramPaths, mergeCompilerPrograms, readAvailableCompilerPrograms, readCompilerProgramGraph } from "../../_shared/compiler-programs.ts";
-import type { CompilerProgramMembership } from "../../_shared/compiler-programs-contract.ts";
+import {
+  compilerProgramPaths,
+  mergeCompilerPrograms,
+  readAvailableCompilerPrograms,
+  readCompilerProgramGraph,
+} from "../../floor/compiler/compiler-programs.ts";
+import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs-contract.ts";
 import type { PolicyPathOwnership, PolicyProgramMembership, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
 
 // biome-ignore lint/performance/noBarrelFile: compatibility front door keeps existing verifier imports stable after the neutral reader extraction.
-export { compilerConfigRoster, readCompilerConfigEntries, readCompilerPrograms, readCompilerProgramsFromInventory } from "../../_shared/compiler-programs.ts";
+export {
+  compilerConfigRoster,
+  readCompilerConfigEntries,
+  readCompilerPrograms,
+  readCompilerProgramsFromInventory,
+} from "../../floor/compiler/compiler-programs.ts";
 
 export function readPolicyProgramGraph(inventory: PolicyRepositoryInventory, rootConfigs: readonly string[]): readonly PolicyProgramMembership[] {
   return readCompilerProgramGraph(inventory, rootConfigs);

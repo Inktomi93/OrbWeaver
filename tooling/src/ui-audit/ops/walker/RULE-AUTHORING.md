@@ -218,7 +218,7 @@ A `design-audit` verdict about any one rendered element is a function of (at lea
 axes, and an instrument that only varies one of them cannot claim to have judged the other two:
 
 1. **The panel axis** — which surface/pane is actually visited. Built: the `--panels` CLI axis
-   (`tooling/src/_shared/panel-presets.json`, lane `cb-panels-arm`, task addressed by the panel-preset
+   (`tooling/src/floor/instrument/panel-presets.json`, lane `cb-panels-arm`, task addressed by the panel-preset
    program) drives the live walker across a declared set of named panels instead of whichever surface a
    scenario happens to navigate to.
 2. **The variant axis** — which `tv()` arm of a component actually renders. Built: the CT variant-arm

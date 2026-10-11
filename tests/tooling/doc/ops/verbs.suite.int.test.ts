@@ -2,7 +2,6 @@
 // writes nothing. A suite because the verbs share one planted shape and each proves a different door.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { UsageError } from "../../../../tooling/src/_shared/run-tool.ts";
 import {
   newAdr,
   newItem,
@@ -15,6 +14,7 @@ import {
   setItems,
   setStatus,
 } from "../../../../tooling/src/doc/index.ts";
+import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";

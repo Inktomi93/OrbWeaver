@@ -75,7 +75,7 @@
 // waive out of it would re-open the door the 2026-08-24 incident closed.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";

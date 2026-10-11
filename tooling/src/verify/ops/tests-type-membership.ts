@@ -3,11 +3,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot, worldOf } from "@orb/tooling/_shared/project-worlds";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
-import { ambientRootsForProgram, ambientScopeOf, programWorldOf } from "@orb/tooling/_shared/type-config-intent";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot, worldOf } from "@orb/tooling/floor/compiler/project-worlds";
+import { ambientRootsForProgram, ambientScopeOf, programWorldOf } from "@orb/tooling/floor/compiler/type-config-intent";
 import { SyntaxKind } from "ts-morph";
 import type { PolicyProgramMembership } from "../contract/policy-scope.ts";
 import type { ClosureLeak, MembershipOutcome, MembershipReport, MembershipRow, RoutingParityViolation } from "../contract/tests-type-membership.ts";

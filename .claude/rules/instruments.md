@@ -22,7 +22,7 @@ with them is `snap-driving`; reviewing their findings is `side-eye-design-review
 
 ## Teardown
 
-A teardown kills only a value the current process minted (`tooling/src/_shared/run-marker.ts`,
+A teardown kills only a value the current process minted (`tooling/src/floor/process/run-marker.ts`,
 `tooling/src/snap/ops/browser-sweep.ts`), never an inherited ambient marker. Key liveness checks on
 that identity; await child exit instead of polling `kill(pid, 0)`.
 

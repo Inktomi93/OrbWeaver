@@ -30,8 +30,9 @@
 // `--checkpoint` coincidence is a coincidence. A pin asserting the two agree was CONSIDERED AND REFUSED:
 // it would assert a property that is already false for three of the four. What a MEANING change owes is
 // both surfaces — the flag spellings and grammar codes are what `cli-truth.suite.int.test.ts` holds.
-import { GOTO_TARGET_GRAMMAR } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { GOTO_TARGET_GRAMMAR } from "../../floor/instrument/argv.ts";
 import { armFlags } from "./arms/registry.ts";
 import { OPTIONAL_NAME_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
@@ -76,6 +77,9 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--visitor": { group: "Where", summary: "send relay headers so a loopback stack serves a signed-out visitor, not its owner" },
   "--click": { group: "Reach", summary: "real Playwright click (actionability-checked); flakes on virtualized list rows" },
   "--swipe": { group: "Reach", summary: "selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap" },
+  "--swipe-x": { group: "Reach", summary: "selector=dx — a dispatched horizontal touch drag; positive dx drags the finger left; needs --mobile like --tap" },
+  "--long-press": { group: "Reach", summary: "selector=ms — hold a touch on the selector for ms, then lift; needs --mobile like --tap" },
+  "--tap-at": { group: "Reach", summary: "x,y — a touch tap at viewport pixels; needs --mobile like --tap" },
   "--soft-keyboard": {
     group: "Reach",
     summary: "px — open an iOS-shaped on-screen keyboard that shrinks visualViewport by px (0 closes); needs --mobile like --tap",
@@ -92,7 +96,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--drop-files": { group: "Reach", summary: "`selector=path[,path]` — dispatch dragenter/dragover/drop with a real DataTransfer" },
   "--goto": {
     group: "Reach",
-    // DERIVED, NEVER RE-SPELLED (#2482): the one home is `_shared/argv.ts`'s GOTO_TARGET_GRAMMAR, the same
+    // DERIVED, NEVER RE-SPELLED (#2482): the one home is `floor/instrument/argv.ts`'s GOTO_TARGET_GRAMMAR, the same
     // string `parseGotoTarget` refuses with. The hand-spelled copy this replaced promised "a dotted settings
     // address group.sub.setting", a form the parser has never accepted (and whose `settings` word retired at
     // #2447), and a lane that followed it lost the time to the section arm's unrelated refusal.

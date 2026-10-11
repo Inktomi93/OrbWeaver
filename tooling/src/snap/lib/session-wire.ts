@@ -4,7 +4,7 @@
 // null to anything off-grammar — a daemon on another protocol version, a truncated row, a torn line —
 // so nothing half-read is ever mistaken for a verdict. Split from ./session-plan.ts (the partition,
 // verdicts and refusal texts) at the tooling size cap; pinned by tests/tooling/snap/lib/session-wire.test.ts.
-import type { OrbConsoleCompleteness, OrbConsoleCompletenessSummary } from "../../_shared/browser-diagnostics.ts";
+import type { OrbConsoleCompleteness, OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";
 import type { SessionBinding, SessionEvent, SessionPageInfo, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION, SESSION_REQUEST_KINDS } from "../contract/session.ts";

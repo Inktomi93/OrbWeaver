@@ -7,8 +7,8 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 

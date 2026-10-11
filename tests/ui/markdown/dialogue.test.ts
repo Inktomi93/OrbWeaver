@@ -5,8 +5,8 @@
 // @orb/ui is not node-resolvable), like policy.test.ts.
 
 import { describe } from "vitest";
-import type { DialoguePart } from "../../../packages/ui/src/markdown/dialogue.ts";
-import { splitDialogue } from "../../../packages/ui/src/markdown/dialogue.ts";
+import type { DialoguePart } from "#ui/markdown/dialogue.ts";
+import { splitDialogue } from "#ui/markdown/dialogue.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const text = (value: string): DialoguePart => ({ text: value, atomic: false });

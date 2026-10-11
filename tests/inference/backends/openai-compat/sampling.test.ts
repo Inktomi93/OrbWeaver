@@ -4,12 +4,12 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { createOpenAiCompatBackend } from "../../../../packages/inference/src/backends/openai-compat/index.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
-import type { SummarizeRequest } from "../../../../packages/inference/src/contract/roles.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { createOpenAiCompatBackend } from "#inference/backends/openai-compat/index.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { ChatResult, OpenAiCompatChatRequest } from "#inference/contract/chat.ts";
+import type { SummarizeRequest } from "#inference/contract/roles.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
 import { fakeApiKeySecret, fakeResolved, memoryStores, memoryTokenLexicon } from "../../_support.ts";

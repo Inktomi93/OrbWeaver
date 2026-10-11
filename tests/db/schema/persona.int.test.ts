@@ -1,11 +1,11 @@
 // .int tests for schema/persona (D23 — single-owned, `ownerId` KEPT). Real libSQL :memory: via freshDb
 // (FK PRAGMA ON). Covers: insert→select round-trip (branded id survives), the typed-metadata JSON
-// round-trip through the @orb/db/kit read-seam parser, the FK-on-owner enforcement, and the
+// round-trip through the @orb/db/query read-seam parser, the FK-on-owner enforcement, and the
 // avatar SET NULL on asset delete.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import { assets, personas } from "@orb/db";
-import { isConstraintViolation, parseRecord } from "@orb/db/kit";
+import { isConstraintViolation, parseRecord } from "@orb/db/query";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -33,7 +33,7 @@ test("personas insert→select round-trips (branded id survives, metadata JSON p
   expect(rows[0]?.id).toBe(id);
   expect(rows[0]?.ownerId).toBe(ownerId);
   expect(rows[0]?.name).toBe("Aria");
-  // JSON round-trip through the @orb/db/kit read-seam parser.
+  // JSON round-trip through the @orb/db/query read-seam parser.
   expect(parseRecord(rows[0]?.metadata)).toEqual(metadata);
 });
 

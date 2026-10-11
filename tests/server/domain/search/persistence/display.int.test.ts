@@ -6,7 +6,7 @@
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { resolveCharacterDisplay, resolveChatDisplay } from "../../../../../packages/server/src/domain/search/persistence/display.ts";
+import { resolveCharacterDisplay, resolveChatDisplay } from "#server/domain/search/persistence/display.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedCharacterSummary, seedChat, seedUser } from "../_support.ts";

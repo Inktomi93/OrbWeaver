@@ -13,7 +13,7 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished, vi } from "vitest";
-import type { BackfillCard } from "../../../../../packages/server/src/domain/assets/contract/maintenance.ts";
+import type { BackfillCard } from "#server/domain/assets/contract/maintenance.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";

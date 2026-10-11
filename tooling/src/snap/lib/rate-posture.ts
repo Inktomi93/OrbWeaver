@@ -2,13 +2,13 @@
 // box or browser and thereby publish contradictory dispositions inside one evidence bundle.
 import { createHash } from "node:crypto";
 import type { Browser } from "@playwright/test";
-import type { ResultPair } from "../../_shared/artifacts.ts";
-import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
-import { readBrowserAcceleration } from "../../_shared/browser-acceleration.ts";
-import type { BoxLoad, MeasurementVerdict } from "../../_shared/load-budget.ts";
-import { judgeMeasurementLoad, loadResultPairs, readBoxLoad } from "../../_shared/load-budget.ts";
-import type { TimingCapability, TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
-import { timingCapability } from "../../_shared/timing-capability.ts";
+import type { ResultPair } from "../../floor/artifacts/artifacts.ts";
+import type { BrowserAccelerationEvidence } from "../../floor/browser/browser-acceleration.ts";
+import { readBrowserAcceleration } from "../../floor/browser/browser-acceleration.ts";
+import type { BoxLoad, MeasurementVerdict } from "../../floor/host/load-budget.ts";
+import { judgeMeasurementLoad, loadResultPairs, readBoxLoad } from "../../floor/host/load-budget.ts";
+import type { TimingCapability, TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
+import { timingCapability } from "../../floor/host/timing-capability.ts";
 import type { SnapRatePosture } from "../contract/rate-posture.ts";
 import { snapRatePostureIdSchema } from "../contract/rate-posture.ts";
 
@@ -90,7 +90,7 @@ export function ratePostureDisposition(receipt: SnapRatePosture, what: string): 
   return { ...judgeMeasurementLoad(receipt.load, what), postureId: receipt.id };
 }
 
-/** DELEGATED, never re-spelled (#1651): the `load=`/`budget-factor=` pair is `_shared/load-budget`'s to
+/** DELEGATED, never re-spelled (#1651): the `load=`/`budget-factor=` pair is `floor/host/load-budget`'s to
  *  format. This function used to build both strings itself, so when that module started stamping a PLANTED
  *  reading (`load=0.2/24(planted)`) snap's own RESULT line silently kept the un-stamped spelling — the
  *  second-home rot the one-home rule exists to prevent, caught by an assertion on the receipt rather than

@@ -7,7 +7,7 @@
 // trace, an unmounted observability middleware, requests whose traces never appeared — #409, and note
 // an EMPTY traces list is a real answer that stays clean) · EXIT.misuse on a bad subcommand/input.
 import process from "node:process";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { fireOp, renderOp, tailOp } from "./index.ts";
 
 async function main(): Promise<number> {

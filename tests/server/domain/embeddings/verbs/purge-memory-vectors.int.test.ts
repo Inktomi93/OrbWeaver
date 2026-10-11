@@ -8,9 +8,9 @@ import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserConnec
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
-import type { PinnedGeneration } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
-import { upsertChatDigest, upsertChatSegment } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
-import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import type { PinnedGeneration } from "#server/domain/embeddings/contract/service.ts";
+import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
+import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { StoreHarness } from "../_support.ts";

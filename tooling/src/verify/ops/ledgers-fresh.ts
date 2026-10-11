@@ -30,9 +30,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../contract/ledger-paths.ts";

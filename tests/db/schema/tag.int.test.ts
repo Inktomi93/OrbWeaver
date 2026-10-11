@@ -12,7 +12,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import { characters, characterTags, chats, chatTags, personas, personaTags, presets, presetTags, tags, users, worldBooks, worldBookTags } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";

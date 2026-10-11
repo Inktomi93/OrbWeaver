@@ -5,7 +5,7 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { listActiveJournal } from "../../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { listActiveJournal } from "#server/domain/rpg/persistence/journal.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, principal, seedLiteGame, test, UNCLAMPED } from "../../_support.ts";
 

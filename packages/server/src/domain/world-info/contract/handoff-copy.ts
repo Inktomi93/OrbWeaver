@@ -19,7 +19,7 @@
 // back UNEXECUTED for the caller's batch (the `handoffHealStatements` co-statement seam).
 
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
 /** db + clock + the two id minters. Purpose-built (NOT the full `WorldInfoContext`): a lore copy writes rows

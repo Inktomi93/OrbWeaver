@@ -7,8 +7,8 @@ import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characterStats, characters, chatParticipants, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, personas } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type {
   CharacterHandle,
   CharacterId,

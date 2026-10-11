@@ -398,6 +398,36 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "openai/gpt-6", modelCheck: "unchecked" });
     });
 
+    // A display name wraps between words; only an id with no break points may split inside one. At a phone
+    // width "Claude Haiku 5.5 (batch)" read as "Claude Haik / u 5.5 (batch)".
+    test(`${arm}: a model's display name wraps between words, never inside one`, async ({ mount, page }) => {
+      const label = "Claude Haiku 5.5 (batch) with a long descriptive tail";
+      await stubWith(page, catalogOf([catalogEntry("anthropic/claude-haiku-5.5-batch", label)]));
+      await mount(<ConnectionsAuthoringStory width={width} />);
+      const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+      const name = dialog.getByRole("option").getByText(label, { exact: true });
+      await expect(name).toBeVisible();
+
+      const splitWords = await name.evaluate((el) => {
+        const text = el.firstChild;
+        if (text === null) {
+          return ["no text node"];
+        }
+        const split: string[] = [];
+        for (const match of (text.textContent ?? "").matchAll(/\S+/gu)) {
+          const range = document.createRange();
+          range.setStart(text, match.index);
+          range.setEnd(text, match.index + match[0].length);
+          const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+          if (tops.size > 1) {
+            split.push(match[0]);
+          }
+        }
+        return split;
+      });
+      expect(splitWords, "words the row broke in the middle").toEqual([]);
+    });
+
     test(`${arm}: error — a failed read names its cause and retries in place`, async ({ mount, page }) => {
       let reads = 0;
       await stubWith(page, () => {

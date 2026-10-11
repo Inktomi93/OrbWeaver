@@ -18,7 +18,7 @@ import { memoryBackfillWorkloadParams } from "@orb/contracts/chat";
 import type { ReportProgress, WorkloadRunContext } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import { runUntilSettled } from "#kit/embedding-generation";
+import { runUntilSettled } from "#primitives/embedding-generation";
 import type { ChatWorkloadDeps } from "./contract/workloads.ts";
 import { MEMORY_SWEEP_STEPS } from "./contract/workloads.ts";
 

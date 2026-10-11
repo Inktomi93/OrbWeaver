@@ -18,10 +18,10 @@
 //     has to arrive AT READ TIME, at the moment somebody is about to misread it. That is what
 //     `pointerAdvisories` does for every resolver-backed reader, and what this view inventories on demand.
 
-import type { PointerResolution } from "@orb/tooling/_shared/artifact-pointer";
-import { pointerAdvisories, publishedPointers } from "@orb/tooling/_shared/artifact-pointer";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { PointerResolution } from "@orb/tooling/floor/artifacts/artifact-pointer";
+import { pointerAdvisories, publishedPointers } from "@orb/tooling/floor/artifacts/artifact-pointer";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { ShowInk } from "./show-policy.ts";
 
 export interface PointerView {

@@ -1,8 +1,8 @@
 // Structured population and limit metadata for a validated HAR. Kept separate from the CDP-to-HAR
 // serializer because this recursive inventory is a different concern and the serializer is a hard-size
 // tooling file.
-import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
-import { browserEvidenceRetentionBatchSchema } from "../../_shared/browser-evidence-ring.ts";
+import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
+import { browserEvidenceRetentionBatchSchema } from "../../floor/browser/browser-evidence-ring.ts";
 
 export interface NetworkHarWriteReceipt {
   readonly entries: number;

@@ -57,7 +57,7 @@ const SERVER_TREE = {
   "packages/server/src/domain/x.ts": "export const x = 1;\n",
   "packages/server/src/infra/x.ts": "export const x = 1;\n",
   "packages/server/src/foundation/x.ts": "export const x = 1;\n",
-  "packages/server/src/kit/x.ts": "export const x = 1;\n",
+  "packages/server/src/primitives/x.ts": "export const x = 1;\n",
 } as const;
 const SERVER_MANIFEST = { "packages/server/package.json": '{"name":"@orb/server","private":true}' } as const;
 

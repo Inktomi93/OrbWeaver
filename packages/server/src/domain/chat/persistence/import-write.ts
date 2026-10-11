@@ -22,8 +22,8 @@ import {
   messages,
   messageVariants,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";

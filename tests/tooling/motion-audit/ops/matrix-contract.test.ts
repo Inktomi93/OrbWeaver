@@ -1,4 +1,4 @@
-import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import { motionMatrixVariant, planMotionAppearanceMatrix } from "../../../../tooling/src/motion-audit/ops/matrix-contract.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

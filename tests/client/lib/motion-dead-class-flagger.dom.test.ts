@@ -5,7 +5,7 @@ import { expect, test } from "../../support/fixtures.ts";
 // throwing arm below is supplied through the real seam instead of faking `@orb/kit/dead-css` (§3).
 const tokenize = vi.fn<(selector: string) => readonly string[]>();
 
-const { definedClassTokens, motionFlaggersDrain } = await import("../../../packages/client/src/lib/motion-dead-class-flagger.ts");
+const { definedClassTokens, motionFlaggersDrain } = await import("#client/lib/motion-dead-class-flagger.ts");
 
 afterEach(() => {
   vi.unstubAllGlobals();

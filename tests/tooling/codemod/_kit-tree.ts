@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { vi } from "vitest";
 import type { CodemodContext, CodemodResult, RunCodemodOptions } from "../../../tooling/src/codemod/index.ts";
 import { runCodemod } from "../../../tooling/src/codemod/index.ts";
@@ -76,7 +76,7 @@ export async function withTree(files: Record<string, string>, fn: (h: KitTreeHar
       read: (rel) => readFileSync(join(root, rel), "utf-8"),
       async run(codemod, runOpts = {}) {
         const lines: string[] = [];
-        // The kit's output door is _shared/artifacts print (process.stdout.write) + _shared/log warn
+        // The kit's output door is floor/artifacts/artifacts print (process.stdout.write) + floor/cli/log warn
         // (process.stderr.write) since the P4 move — the capture spies the REAL sink, not console.
         const collect = (chunk: unknown): boolean => {
           lines.push(String(chunk).replace(TRAILING_NEWLINE_RE, ""));

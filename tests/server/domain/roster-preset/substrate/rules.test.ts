@@ -5,7 +5,7 @@
 
 import type { RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { groupCastRuleViews } from "../../../../../packages/server/src/domain/roster-preset/substrate/rules.ts";
+import { groupCastRuleViews } from "#server/domain/roster-preset/substrate/rules.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const P1 = castId<RosterPresetId>("roster_preset_r1");

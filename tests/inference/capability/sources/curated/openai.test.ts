@@ -1,12 +1,12 @@
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { castId } from "@orb/kit/ids";
-import { runOpenAiCompatChatTurn } from "../../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
-import type { OpenAiCompatChatRequest } from "../../../../../packages/inference/src/contract/chat.ts";
-import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { detectModelFamily } from "#inference/capability/families.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { OpenAiCompatChatRequest } from "#inference/contract/chat.ts";
+import { resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
 import { fakeResolved, memoryTokenLexicon } from "../../../_support.ts";

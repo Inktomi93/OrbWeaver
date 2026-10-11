@@ -3,8 +3,8 @@
 // excluded), following stable bindings, imported values and callable declarations to a fixpoint with no
 // hop limit. Split out at the size cap (2026-09-18); the descriptor entry point stays there. One-way: this
 // module imports nothing from `policy-descriptor-read.ts`.
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableDeclaration } from "@orb/tooling/_shared/reference-fact-call";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 

@@ -6,15 +6,10 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { describe } from "vitest";
-import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
-import {
-  buildHistoryBudget,
-  fitHistoryToWindow,
-  HISTORY_TRIM_CHUNK_FRACTION,
-  historyTurnTokens,
-} from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
+import { detectModelFamily } from "#inference/capability/families.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { buildHistoryBudget, fitHistoryToWindow, HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "#server/domain/chat/assembly/history-budget.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const turn = (content: string): { role: "user"; content: string } => ({ role: "user", content });

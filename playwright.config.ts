@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import process from "node:process";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
 import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
@@ -83,7 +83,7 @@ export default defineConfig({
   // baseline predates the e2e seed/warm-up writes this config's own globalSetup performs against the
   // stack's DB, never against this repo's working tree. Its returned teardown runs LAST, after every
   // spec and after the e2e seed's own teardown (if any), for the same reason.
-  globalSetup: ["./tooling/src/_shared/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],
+  globalSetup: ["./tooling/src/floor/testing/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],
   outputDir: "reports/e2e-results", // reports/ is gitignored
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired

@@ -27,7 +27,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import type { GatherTurnContextArgs } from "../../chat/index.ts";
+import type { GatherTurnContextArgs } from "#domain/chat";
 import type { RpgGatherResult } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";

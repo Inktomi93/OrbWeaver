@@ -4,7 +4,7 @@ import {
   parseMessageLine,
   parseParentBrokerMessage,
   serializeMessage,
-} from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
+} from "#server/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("the inherited-channel protocol rejects open operation names and bridge messages without command authority", () => {

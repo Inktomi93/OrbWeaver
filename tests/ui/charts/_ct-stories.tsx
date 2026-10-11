@@ -17,7 +17,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { useChartTheme } from "../../../packages/ui/src/charts/chart/use-chart-theme.ts";
+import { useChartTheme } from "#ui/charts/chart/use-chart-theme.ts";
 
 /** Distinguishes a RE-RENDER from a REMOUNT: the id is minted once per mounted instance, so a repaint
  *  proven with an unchanged id is the live store re-resolving, not React throwing the subtree away. */

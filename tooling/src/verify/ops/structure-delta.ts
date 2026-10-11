@@ -37,10 +37,10 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
-import { reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { reportsPath, reportsRelPath } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { RunManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, StructureReport } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
@@ -80,7 +80,7 @@ type SlotReport = Omit<StructureReport, "run" | "gates"> & {
 };
 
 /** The slot directory's segments BENEATH the artifact root — never including `"reports"` itself. The root is
- *  spelled ONCE, in `_shared/artifacts.ts#reportsPath` (#1164): a second `"reports"` literal fed to a path call
+ *  spelled ONCE, in `floor/artifacts/artifacts.ts#reportsPath` (#1164): a second `"reports"` literal fed to a path call
  *  is a second answer to "where do runs live", and the #1029 run-slot layout would never see it move. */
 const SLOT_SEGMENTS = ["runs", "structure"] as const;
 

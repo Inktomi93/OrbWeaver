@@ -43,7 +43,7 @@
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `2a7094966f` cited above
 // is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
 // source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 87 and final `population` admits 87.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 87 and final `population` admits 87.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/state/__cbbhr_in_active-chat-store.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.

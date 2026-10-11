@@ -7,8 +7,8 @@
 // families with zero understanding of what any of them are about is still an un-analysed library).
 
 import { describe } from "vitest";
-import type { CorpusAnalysisInput } from "../../../../../packages/client/src/features/discovery/lib/corpus-analysis-state.ts";
-import { deriveCorpusAnalysisState } from "../../../../../packages/client/src/features/discovery/lib/corpus-analysis-state.ts";
+import type { CorpusAnalysisInput } from "#client/features/discovery/lib/corpus-analysis-state.ts";
+import { deriveCorpusAnalysisState } from "#client/features/discovery/lib/corpus-analysis-state.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The audited instance, measured 2026-08-16: ten characters, eight visual families, nothing distilled. */

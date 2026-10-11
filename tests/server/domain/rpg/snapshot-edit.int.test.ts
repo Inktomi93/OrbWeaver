@@ -10,16 +10,11 @@
 import type { Db } from "@orb/db";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { RpgGameRow } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import {
-  commitSnapshotForVariant,
-  countSnapshots,
-  writeHandSnapshot,
-  writeStagedSnapshot,
-} from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
-import { foldTurnWriteIntoHandHead, serializeHandWrite } from "../../../../packages/server/src/domain/rpg/snapshot-edit.ts";
-import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
+import type { RpgGameRow } from "#server/domain/rpg/contract/service.ts";
+import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { commitSnapshotForVariant, countSnapshots, writeHandSnapshot, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
+import { foldTurnWriteIntoHandHead, serializeHandWrite } from "#server/domain/rpg/snapshot-edit.ts";
+import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, handTarget, seedLiteGame, seedMessage, target, test } from "./_support.ts";
 

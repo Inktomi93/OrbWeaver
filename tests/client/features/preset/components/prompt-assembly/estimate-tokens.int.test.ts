@@ -5,7 +5,7 @@
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
-import { estimateSectionTokens } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/estimate-tokens.ts";
+import { estimateSectionTokens } from "#client/features/preset/components/prompt-assembly/estimate-tokens.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 test("literal section estimates over its content", () => {

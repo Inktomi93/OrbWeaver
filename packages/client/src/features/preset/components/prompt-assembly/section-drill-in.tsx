@@ -60,8 +60,8 @@ import {
   sectionGlyphIcon,
   supportsArrangement,
   ZONE_ITEMS,
-} from "../../lib/assembly-model.ts";
-import { PRESET_NUMBER_FORMAT } from "../../lib/format-count.ts";
+} from "#src/features/preset/lib/assembly-model.ts";
+import { PRESET_NUMBER_FORMAT } from "#src/features/preset/lib/format-count.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";

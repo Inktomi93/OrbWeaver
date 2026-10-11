@@ -9,11 +9,11 @@
 // hostname+path), mime 'text/html'. A re-scrape of a CHANGED page = a new importHash = a NEW document (canon like
 // any upload; the old one stays until removed — no in-place overwrite of canon another chat may have retrieved).
 
-import { ScrapeFailedError } from "../../contract/errors.ts";
-import type { ScrapeWebParams } from "../../contract/params.ts";
-import type { UploadResult } from "../../contract/results.ts";
-import type { DatabankContext, DatabankService } from "../../contract/service.ts";
-import { finalizeScrape } from "../../substrate/scrape-canon.ts";
+import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
+import type { ScrapeWebParams } from "#src/domain/databank/contract/params.ts";
+import type { UploadResult } from "#src/domain/databank/contract/results.ts";
+import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
+import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
 
 const HTML_MIME = "text/html";
 /** #709 refuses `text/html` as a STORED asset (stored-XSS). The fetched page is UTF-8 text, so the blob is

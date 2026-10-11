@@ -13,7 +13,7 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
-import { resolveMessageRenderContext } from "../../../../../packages/client/src/features/chat/lib/message-render-context.ts";
+import { resolveMessageRenderContext } from "#client/features/chat/lib/message-render-context.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 

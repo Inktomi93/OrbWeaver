@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
 import { loadTrackedFiles } from "../../../../tooling/src/verify/ops/resource-tracked.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

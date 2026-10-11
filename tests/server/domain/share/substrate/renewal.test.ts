@@ -8,7 +8,7 @@ import {
   RENEW_AT_LIFETIME_FRACTION,
   RENEWAL_RETRY_FIRST_MS,
   RENEWAL_RETRY_MAX_MS,
-} from "../../../../../packages/server/src/domain/share/substrate/renewal.ts";
+} from "#server/domain/share/substrate/renewal.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

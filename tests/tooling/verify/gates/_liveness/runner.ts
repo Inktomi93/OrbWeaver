@@ -2,7 +2,7 @@
 // Only identical ordered overlays share a pass; report paths cannot prove input independence.
 // Affected runs keep the controls associated with their selected policies.
 
-import { processEnvValue } from "../../../../../tooling/src/_shared/process-env.ts";
+import { processEnvValue } from "../../../../../tooling/src/floor/process/process-env.ts";
 import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../../../../../tooling/src/verify/contract/instrument-affected.ts";
 import { defineGate } from "../../../../../tooling/src/verify/contract/policy.ts";
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";

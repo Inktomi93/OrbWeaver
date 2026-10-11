@@ -61,7 +61,7 @@
 // `9c7bd2dd0f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `39f71b2294`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,554 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,554, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,554, and the final
 // `population` admits 0; the subject is the declared `authored-tree:packages`. legacy − final = all 7,554 harness
 // candidates — dispatched to the legacy `run`, which read none of them (its subject came off disk through a
 // `readdirSync` recursion from `packages/`); retired with that read. final − legacy = ∅. Controls: the legacy side is

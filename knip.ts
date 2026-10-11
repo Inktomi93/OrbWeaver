@@ -85,7 +85,7 @@ export const config = {
       // These imports execute inside the captured browser runtime, not against repository-relative modules.
       ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
-    // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
+    // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
     tooling: {
       // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
@@ -95,7 +95,7 @@ export const config = {
       entry: [
         "src/*/cli.ts",
         "src/*/index.ts",
-        "src/_shared/*.ts",
+        "src/floor/*/*.ts",
         "src/verify/gates/*.ts",
         "src/verify/ops/required-live-evidence-reporter.ts",
         "src/snap/lib/budgets.ts",

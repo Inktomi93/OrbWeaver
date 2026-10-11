@@ -45,7 +45,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `ui-exports-map-complete` descriptor at (pruned from public history), the parent of the conversion
 // `1bf2127e14` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,047 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// 7,047 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness
 // — no `scanRoot` — dispatched 7,047, and the final `population` admits 0; the subject is the declared
 // `authored-tree:packages` + `package-metadata:ui`. legacy − final = all 7,047 harness candidates — dispatched to the
 // legacy `run`, which read none of them (its subject came off disk through a two-level `readdirSync` of

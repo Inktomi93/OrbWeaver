@@ -34,7 +34,7 @@
 // A LITERAL BACKTICK IN THIS STRING ENDS IT — every one inside the script (including inside its own
 // comments) is escaped `\``, and an unescaped one turns the rest of the file into code the parser reads as
 // nonsense (paid 2026-09-02 while adding the icon-ink classifier).
-import { INACTIVE_KIND_EXPR, MEASURABLE_OPACITY_MIN } from "../../_shared/wcag.ts";
+import { INACTIVE_KIND_EXPR, MEASURABLE_OPACITY_MIN } from "../../floor/instrument/wcag.ts";
 import { WALKER_PRIMITIVES, WALKER_RESOLVE } from "../../ui-audit/index.ts";
 
 export function buildContrastScript(selector: string): string {
@@ -175,7 +175,7 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
       return false;
     }
     var hasIconInk = paintedIconInk(el);
-    // ONE classifier, shared with design-audit via _shared/wcag.ts (#624 — two homes for this rule is
+    // ONE classifier, shared with design-audit via floor/instrument/wcag.ts (#624 — two homes for this rule is
     // exactly how the two instruments came to disagree about the SAME element). \`inactiveKind\` carries the
     // spelling (native/aria/inert) so the SKIPPED line can name it; \`inactive\` stays a boolean for the
     // verdict, which exempts all three kinds exactly as it always has.

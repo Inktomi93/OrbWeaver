@@ -4,8 +4,8 @@
 
 import type { Task, Wire } from "@orb/contracts/inference";
 import { WIRE_DEFS, WIRES } from "@orb/contracts/inference";
-import type { ProviderBackend } from "../../../packages/inference/src/contract/backend.ts";
-import { BACKEND_DEFS, buildBackends } from "../../../packages/inference/src/registry/backends.ts";
+import type { ProviderBackend } from "#inference/contract/backend.ts";
+import { BACKEND_DEFS, buildBackends } from "#inference/registry/backends.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeDeps } from "../_support.ts";
 

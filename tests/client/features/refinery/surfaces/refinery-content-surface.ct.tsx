@@ -30,7 +30,7 @@ import type { RefinerySessionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";

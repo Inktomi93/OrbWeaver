@@ -1,4 +1,4 @@
-import type { AppearancePrepaintEvidence, AppearancePrepaintSample } from "../../../../tooling/src/_shared/appearance-prepaint.ts";
+import type { AppearancePrepaintEvidence, AppearancePrepaintSample } from "../../../../tooling/src/floor/appearance/appearance-prepaint.ts";
 import { evaluateAppearancePrepaint } from "../../../../tooling/src/snap/ops/appearance-prepaint.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

@@ -4,7 +4,7 @@
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { AuthConfig } from "../../../packages/client/src/data/auth-config.ts";
+import type { AuthConfig } from "#client/data/auth-config.ts";
 import { ProductionRouterAliasStory, ProductionRouterOverlapStory, ProductionRouterStory, RouterTokenHandoffStory } from "./_ct-stories.tsx";
 
 const JOIN_TOKEN = "ct-join-token";

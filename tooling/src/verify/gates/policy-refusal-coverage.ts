@@ -110,7 +110,7 @@
 // module reads "not final" and the corpus reports ✓ forever. It self-anchors on its OWN path and THROWS instead.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicy, GatePolicyContext, PolicyProofArm } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import {

@@ -21,7 +21,7 @@ const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
 // `VITE_API_TARGET` env read below is ALSO the snap-stage version tripwire — a stage ref that predates this
 // line is rejected up front (a silent proxy-to-the-dev-server would defeat isolation), so keep the literal.
 
-// THE TWO FALLBACKS BELOW ARE A DOCUMENTED MIRROR OF `tooling/src/_shared/ports.ts` `DEV_PORTS`
+// THE TWO FALLBACKS BELOW ARE A DOCUMENTED MIRROR OF `tooling/src/floor/host/ports.ts` `DEV_PORTS`
 // (5173 / 8788), which is the ONE home for every port this repo's tooling binds (#1269/#1271). This file
 // CANNOT read it: `tooling` sits ABOVE the package cake, so importing `@orb/tooling` from `packages/**`
 // would be an upward import — automatically wrong (constitution §2), not a matter of taste. Duplicating the

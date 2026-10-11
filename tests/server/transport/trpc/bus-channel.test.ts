@@ -9,7 +9,7 @@
 
 import { describe, vi } from "vitest";
 // Deep-imported: the mint is internal to the transport buses and not on the trpc front door.
-import { defineBusChannel } from "../../../../packages/server/src/transport/trpc/bus-channel.ts";
+import { defineBusChannel } from "#server/transport/trpc/bus-channel.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 interface Ping {

@@ -11,8 +11,8 @@ import type { RpgActorView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } f
 import { RPG_NPC_GUIDE_FIELDS, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
-import { buildRpgMacroFeed } from "../../../../../packages/server/src/domain/rpg/chat-ops/macro-view.ts";
-import type { DeltaContext } from "../../../../../packages/server/src/domain/rpg/contract/delta.ts";
+import { buildRpgMacroFeed } from "#server/domain/rpg/chat-ops/macro-view.ts";
+import type { DeltaContext } from "#server/domain/rpg/contract/delta.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The DEFAULT sheet every actor row falls back to (a participant with no `rpg_sheets` row). */

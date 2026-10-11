@@ -99,7 +99,7 @@
 // `d16bb6872a` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,560 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,560, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,560, and the final
 // `population` admits 0; the subject is the declared `installed-package:base-ui` + `json:baseui-manifest`.
 // legacy − final = all 7,560 harness candidates — dispatched to the legacy `run`, which read none of them (its
 // subject came off disk through `readInstalledSurface`/`readManifest`); retired with that read. final − legacy = ∅.

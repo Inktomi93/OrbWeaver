@@ -7,7 +7,7 @@ import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
-import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "../../../../packages/server/src/infra/plugin-host/cpu-guard.ts";
+import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "#server/infra/plugin-host/cpu-guard.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** Guest iterations that cost SECONDS of unbounded CPU (~2.3 s per 1e8 on this runtime) — far above every

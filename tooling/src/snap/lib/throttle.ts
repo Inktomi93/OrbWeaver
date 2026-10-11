@@ -7,7 +7,7 @@
 // "settles after you click it" surface is structurally optimistic — it reports 0.000 paid and says
 // nothing about the margin. The arm that reveals the margin is CPU throttling, and it was unreachable
 // from snap: the measurement that decided #819 cost 14 chrome-devtools MCP calls against a ~8 budget.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DriveBudgets, NetworkConditions, NetworkProfileName } from "../contract/load-emulation.ts";
 import {
   NAV_TIMEOUT_MS,

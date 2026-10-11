@@ -2,9 +2,9 @@
 // (profile undefined) throws LOUD (a composition bug, never a user error); a wired ctx returns the deps.
 
 import { describe } from "vitest";
-import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
-import type { ImportProfileDeps } from "../../../../packages/server/src/domain/import/contract/service.ts";
-import { requireProfile } from "../../../../packages/server/src/domain/import/guard.ts";
+import type { ImportContext } from "#server/domain/import/context.ts";
+import type { ImportProfileDeps } from "#server/domain/import/contract/service.ts";
+import { requireProfile } from "#server/domain/import/guard.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 describe("requireProfile", () => {

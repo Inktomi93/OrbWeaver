@@ -3,8 +3,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
-import { SEMANTIC_CORPUS_RESOURCE, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { SEMANTIC_CORPUS_RESOURCE, vitestTypecheckGroupName } from "@orb/tooling/floor/testing/test-kinds";
 import base from "../../vitest.config.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";

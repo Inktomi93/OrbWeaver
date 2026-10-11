@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import { purgeAsset } from "../../../../../packages/server/src/domain/assets/substrate/purge-asset.ts";
+import { purgeAsset } from "#server/domain/assets/substrate/purge-asset.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacterAvatar } from "../_support.ts";

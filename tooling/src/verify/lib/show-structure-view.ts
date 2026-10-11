@@ -3,7 +3,7 @@
 // tooling line cap (Core-Tooling-Law.md §4.3, docs/work item 0267): this is the RENDERER half, returning
 // lines rather than writing them, so it stays testable without a spawned CLI; ops/show.ts keeps argv,
 // filtering decisions and the one write per line.
-import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
+import { formatSplit } from "@orb/tooling/floor/verdict/ratchet-rows";
 import type { GateReport, GateScanView, StructureReport, Violation } from "../contract/show-artifact.ts";
 import type { StructurePolicyReport } from "../contract/structure-report.ts";
 import { nearCapAdvisories } from "./near-cap.ts";

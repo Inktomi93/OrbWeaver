@@ -3,7 +3,7 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { createTagLibraryExport, createTagService } from "@orb/server/domain/tag";
-import { parseTagLibrary } from "@orb/server/kit/serde/tag";
+import { parseTagLibrary } from "@orb/server/primitives/serde/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

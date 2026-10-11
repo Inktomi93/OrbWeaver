@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { computeGroupHubs } from "../../../../packages/server/src/domain/discovery/substrate/hub-math.ts";
+import { computeGroupHubs } from "#server/domain/discovery/substrate/hub-math.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import {

@@ -16,7 +16,7 @@ import type { Db } from "@orb/db";
 import { characters, chats, presets, regexScripts } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { RegexContext } from "../../../../packages/server/src/domain/regex/context.ts";
+import type { RegexContext } from "#server/domain/regex/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

@@ -1,8 +1,8 @@
 // Exact-page CDP screencast controller with bounded retention and lossless cleanup errors.
 import { performance } from "node:perf_hooks";
 import type { CDPSession, Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { budget } from "../../_shared/load-budget.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { budget } from "../../floor/host/load-budget.ts";
 import type { FilmstripCaptureReceipt, FilmstripLimits } from "../contract/filmstrip.ts";
 import { FILMSTRIP_LIMITS } from "../contract/filmstrip.ts";
 import type { SnapAction } from "../contract/types.ts";
@@ -60,6 +60,9 @@ function filmstripActionLabel(action: SnapAction): string {
   }
   if (step.kind === "soft-keyboard") {
     return `soft-keyboard ${String(step.height)}px`;
+  }
+  if (step.kind === "tap-at") {
+    return `tap-at ${String(step.x)},${String(step.y)}`;
   }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;

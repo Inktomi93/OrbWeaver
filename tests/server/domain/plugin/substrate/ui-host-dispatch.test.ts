@@ -18,7 +18,7 @@ import { UI_PROXYABLE_HOST_FUNCTIONS } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import { runUiHostCall } from "../../../../../packages/server/src/domain/plugin/substrate/ui-host-dispatch.ts";
+import { runUiHostCall } from "#server/domain/plugin/substrate/ui-host-dispatch.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_ui_host_dispatch_00000001");

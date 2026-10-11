@@ -3,14 +3,14 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
-import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import type { TokenTarget } from "../../../../packages/inference/src/backends/openai-compat/tokens.ts";
-import { createTokenLexicon } from "../../../../packages/inference/src/backends/openai-compat/tokens.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import { endpointTokensKey } from "../../../../packages/inference/src/catalog/keys.ts";
-import type { ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
+import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import type { TokenTarget } from "#inference/backends/openai-compat/tokens.ts";
+import { createTokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { endpointTokensKey } from "#inference/catalog/keys.ts";
+import type { ChatResult } from "#inference/contract/chat.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
 import { fakeApiKeySecret, fakeResolved, memoryStores } from "../../_support.ts";

@@ -4,7 +4,7 @@
 // (`.claude/skills/snap-driving/reference/flags.md`, `tooling/src/verify/ops/gen/snap-flags-index.ts`) and
 // tests all consume these descriptors rather than searching unrelated prose for tokens — one flag, one
 // summary, one group, read from the SAME registry (#1329).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { armFlags } from "./arms/registry.ts";
 import { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { nonArmFlagKind, nonArmFlagMeta, nonArmFlagUniverse } from "./flags-metadata.ts";

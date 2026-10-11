@@ -17,7 +17,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportAssets } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import { parsePortableAssetFilename } from "../../../../../packages/server/src/domain/assets/substrate/portable-asset-file.ts";
+import { parsePortableAssetFilename } from "#server/domain/assets/substrate/portable-asset-file.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";

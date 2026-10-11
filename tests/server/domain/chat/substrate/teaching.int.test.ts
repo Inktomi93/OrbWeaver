@@ -16,16 +16,11 @@ import { chatInjections } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import type {
-  ChatContext,
-  ChatRpgGatherResult,
-  ChatTeachingRegistry,
-  TeachingContribution,
-} from "../../../../../packages/server/src/domain/chat/contract/context.ts";
-import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
-import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather.ts";
-import { collectTeaching } from "../../../../../packages/server/src/domain/chat/substrate/teaching.ts";
-import { createChatTeachingContributions } from "../../../../../packages/server/src/domain/chat/teaching-contribution.ts";
+import type { ChatContext, ChatRpgGatherResult, ChatTeachingRegistry, TeachingContribution } from "#server/domain/chat/contract/context.ts";
+import type { ForeignInputs } from "#server/domain/chat/contract/foreign.ts";
+import { gatherAssembleContext } from "#server/domain/chat/substrate/assemble-gather.ts";
+import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
+import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";

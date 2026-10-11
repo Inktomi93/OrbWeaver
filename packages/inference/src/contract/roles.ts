@@ -54,7 +54,7 @@ export interface EmbedRequest extends TaskRequestCommon<"embed"> {
 }
 
 /** ONE embedding as an OpenAI-dialect response spells it: `number[]` under `encoding_format:"float"`, or a
- *  base64 string of packed little-endian float32s. `backends/kit/embedding-decode` is the one reader. */
+ *  base64 string of packed little-endian float32s. `backends/wire/embedding-decode` is the one reader. */
 export type WireEmbedding = number[] | string;
 
 export interface RerankRequest extends TaskRequestCommon<"rerank"> {

@@ -2,7 +2,7 @@
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { vi } from "vitest";
 import { partitionFailedRequests } from "../../../../tooling/src/snap/ops/noise.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

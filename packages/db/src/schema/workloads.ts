@@ -54,7 +54,7 @@ import {
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
 // The default lifecycle state of a freshly-enqueued row (start() inserts a `queued` row).

@@ -13,7 +13,7 @@ import {
   loadSchedule,
   setScheduleEnabledQuery,
   updateScheduleFields,
-} from "../../../../../packages/server/src/domain/workloads/persistence/schedule-queries.ts";
+} from "#server/domain/workloads/persistence/schedule-queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser, T0 } from "../_support.ts";

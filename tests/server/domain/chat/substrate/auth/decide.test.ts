@@ -7,8 +7,8 @@ import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { describe } from "vitest";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { assertAuthorOrHost, assertHost, assertParticipant } from "../../../../../../packages/server/src/domain/chat/substrate/auth/index.ts";
+import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import { assertAuthorOrHost, assertHost, assertParticipant } from "#server/domain/chat/substrate/auth/index.ts";
 import { principal as makePrincipal } from "../../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 

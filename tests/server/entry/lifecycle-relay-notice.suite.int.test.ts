@@ -24,11 +24,11 @@ vi.stubEnv("LOG_LEVEL", "warn");
 // The boot installs the egress firewall, which blocks loopback for this test's own fetches unless allowed.
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+const { createLifecycle } = await import("#server/entry/lifecycle.ts").catch((error: unknown) => {
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });
-const { logRing } = await import("../../../packages/server/src/foundation/observability/index.ts");
+const { logRing } = await import("#server/foundation/observability/index.ts");
 
 const lifecycle = createLifecycle({ listenPort: 0 });
 let base = "";

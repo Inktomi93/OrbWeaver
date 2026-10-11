@@ -1,4 +1,4 @@
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { PRODUCT_STYLESHEETS } from "../contract/css-family.ts";
 import type { ResourceLoad, ResourceReader, ResourceTreeEntry } from "../contract/resource.ts";
 import type { AuthoredCssFile, AuthoredTreeId } from "../contract/resource-tree.ts";

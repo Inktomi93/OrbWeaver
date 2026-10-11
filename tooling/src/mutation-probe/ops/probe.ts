@@ -2,12 +2,12 @@
 // The strand guard restores the exact source without discarding unrelated Git state.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { ensureReportsDir, print, REPO_ROOT, reportsRelPath } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runGit } from "../../_shared/git.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
-import { resolveMirrors } from "../../_shared/test-mirror.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { ensureReportsDir, print, REPO_ROOT, reportsRelPath } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { runGit } from "../../floor/git/git.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
+import { resolveMirrors } from "../../floor/testing/test-mirror.ts";
 import type { MutantPopulation, MutantReceipt, ProbeSummary } from "../contract/types.ts";
 import { lineStarts, offsetRangeOf } from "../lib/offsets.ts";
 import { classifySuiteExit, readSuiteEvidence } from "../lib/outcome.ts";

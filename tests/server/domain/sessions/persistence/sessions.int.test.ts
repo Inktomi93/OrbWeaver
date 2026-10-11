@@ -13,7 +13,7 @@ import {
   revokeByTokenHash,
   selectForValidation,
   slideExpiry,
-} from "../../../../../packages/server/src/domain/sessions/persistence/sessions.ts";
+} from "#server/domain/sessions/persistence/sessions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

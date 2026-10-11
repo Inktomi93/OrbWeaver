@@ -24,8 +24,8 @@ import {
   imageEmbeddings,
   imageIndexSkips,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type {
   AssetId,
   CharacterEmbeddingId,

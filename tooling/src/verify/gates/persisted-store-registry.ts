@@ -65,7 +65,7 @@
 //      conversion ADDED, and a same-named LOCAL function is a legacy false positive this policy drops.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticString } from "../../_shared/reference-fact.ts";
+import { readStaticString } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import type { LocatedProjectHome } from "../lib/project-home-origin.ts";

@@ -17,11 +17,11 @@
 // host's own peek is withheld. This is a host-of-room posture, NOT a security relaxation.
 
 import type { RpgRevealView } from "@orb/contracts/rpg";
-import type { ReadGameParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { listSelectedAssistantBodies } from "../../persistence/reveal.ts";
-import { buildRevealView } from "../../substrate/reveal.ts";
+import type { ReadGameParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { listSelectedAssistantBodies } from "#src/domain/rpg/persistence/reveal.ts";
+import { buildRevealView } from "#src/domain/rpg/substrate/reveal.ts";
 
 /** The empty reveal — returned when M4 (`hiddenContentReveal`) is off (the host opted out of the eye). */
 const EMPTY_REVEAL: RpgRevealView = { messages: [], standingLies: [] };

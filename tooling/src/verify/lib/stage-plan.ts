@@ -1,7 +1,7 @@
 // Stage planning: how one registry row runs at a tier and selection, and the result row a stage that did not run
 // publishes. The runner (../ops/run.ts) decides with these; both are exported so a test can drive the real pair.
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier } from "../contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
