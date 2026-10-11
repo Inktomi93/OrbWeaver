@@ -4,7 +4,7 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { createExportTheme, createSettingsContext } from "@orb/server/domain/settings";
-import { parseThemeBackup } from "@orb/server/kit/serde/theme";
+import { parseThemeBackup } from "@orb/server/primitives/serde/theme";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

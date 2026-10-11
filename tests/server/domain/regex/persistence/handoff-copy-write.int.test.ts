@@ -15,7 +15,7 @@
 //     (`updateScript`) finally reach it, and the departed host's edits no longer do.
 
 import { chatRegexScripts, regexScripts } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";

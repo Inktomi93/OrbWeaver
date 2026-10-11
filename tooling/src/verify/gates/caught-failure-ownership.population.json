@@ -846,12 +846,12 @@
       "reason": "the credential probe returns revoked or unreachable with a scrubbed reason. Ends if health stops carrying the failure disposition."
     },
     {
-      "siteId": "packages/inference/src/backends/kit/error-classify.ts::safeJsonParse::catch::1",
+      "siteId": "packages/inference/src/backends/http/error-classify.ts::safeJsonParse::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "malformed provider prose fails closed to `null`, which cannot be classified as a moderation block. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null can begin authorizing a more specific classification."
     },
     {
-      "siteId": "packages/inference/src/backends/kit/retry.ts::runWithPreCommitRetry::raw::1",
+      "siteId": "packages/inference/src/backends/http/retry.ts::runWithPreCommitRetry::raw::1",
       "verdict": "deliberate-absorb",
       "reason": "the caught value is retained in lastError and either rethrown unchanged or followed by a span-recorded retry. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either terminal propagation path disappears."
     },
@@ -2006,17 +2006,17 @@
       "reason": "a best-effort variant-cache read where a miss, unreadable file, OR a rejected path-validation (unsafe owner / invalid hash throws INSIDE the .then, before any readFile) all collapse to undefined → recompute; no unvalidated path is ever read, and miss/error are indistinguishable → same recompute, so it cannot become a cross-owner read or existence oracle (path is owner-scoped). Ends if readFile runs on an unvalidated path."
     },
     {
-      "siteId": "packages/server/src/kit/serde/chat/index.ts::parseJson::catch::1",
+      "siteId": "packages/server/src/primitives/serde/chat/index.ts::parseJson::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "null flows through asTyped(…, schema) at both call sites, a typed validator that cleanly rejects it. Ends if a caller stops routing the return through asTyped."
     },
     {
-      "siteId": "packages/server/src/kit/serde/lib/index.ts::decodeObject::catch::1",
+      "siteId": "packages/server/src/primitives/serde/lib/index.ts::decodeObject::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "typed refusal — returns a PortableParse \"invalid-encoding\" reason, consumed via portableParseError for the operator-facing message. Ends if the caller stops rendering the reason."
     },
     {
-      "siteId": "packages/server/src/kit/serde/lib/index.ts::decodeObject::catch::2",
+      "siteId": "packages/server/src/primitives/serde/lib/index.ts::decodeObject::catch::2",
       "verdict": "deliberate-absorb",
       "reason": "typed refusal — returns a PortableParse \"not-json\" reason, consumed via portableParseError for the operator-facing message. Ends if the caller stops rendering the reason."
     },

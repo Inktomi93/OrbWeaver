@@ -39,7 +39,7 @@ import type {
   RpgTurnToolCallsView,
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,

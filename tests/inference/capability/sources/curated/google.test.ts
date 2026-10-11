@@ -9,7 +9,7 @@ import {
   honoursParallelControl,
   isTurnEstimated,
 } from "@orb/contracts/inference";
-import { embeddingPrompt } from "../../../../../packages/inference/src/backends/kit/embedding-input.ts";
+import { embeddingPrompt } from "../../../../../packages/inference/src/backends/wire/embedding-input.ts";
 import { curatedKind, curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

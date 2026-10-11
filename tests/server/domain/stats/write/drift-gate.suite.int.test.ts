@@ -25,8 +25,8 @@ import { generationUsageLegSchema, modelIdSchema, providerIdSchema } from "@orb/
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats, userConnections } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";

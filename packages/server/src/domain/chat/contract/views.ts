@@ -12,7 +12,7 @@
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ChatStreamGenerationId, MessageVariantId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 

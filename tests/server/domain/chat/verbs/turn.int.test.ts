@@ -20,8 +20,8 @@ import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clien
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import type { CharacterId, ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";

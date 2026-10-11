@@ -6,7 +6,7 @@
 // not the built chat service — so there is no ordering knot.
 //
 // The ENGINE is composed elsewhere and stays there: `@orb/kit/regex` executes, and the `node:vm` ReDoS
-// watchdog (`@orb/server/kit/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
+// watchdog (`@orb/server/primitives/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";

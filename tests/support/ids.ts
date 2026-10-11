@@ -1,8 +1,8 @@
 // Seeded, deterministic id generator (docs/law/Spine-Testing.md §3 — no unseeded ids under tests/). Mints
 // a REAL `prefix_<base32>` TypeID shape via `typeid-js`'s own encoder, not a `prefix_000001` placeholder:
-// a portable-file boundary (`@orb/server/kit/serde/gallery`, `.../databank`) round-trips an id through
+// a portable-file boundary (`@orb/server/primitives/serde/gallery`, `.../databank`) round-trips an id through
 // `typeIdSchema`, which validates the full TypeID shape and SILENTLY DROPS a row that fails it
-// (`rowPolicy: "drop"`, kit/serde/lib.ts) — so the old placeholder shape made every such row vanish with
+// (`rowPolicy: "drop"`, primitives/serde/lib.ts) — so the old placeholder shape made every such row vanish with
 // no error, not a thrown mismatch. The counter goes into the low 4 bytes of an otherwise-zero 16-byte
 // "uuid" (big-endian), so ordering across `next()` calls stays identical to the old zero-padded scheme.
 

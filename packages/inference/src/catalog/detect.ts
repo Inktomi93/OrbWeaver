@@ -4,8 +4,8 @@
 // its model list's owner. The answer names the built-in row that reads that server.
 
 import { z } from "zod";
-import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
-import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { deadlineSignal } from "../backends/http/abort-flatten.ts";
+import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
 import type { DetectedServer, DetectionProbe } from "../contract/runtime.ts";
 
 export interface DetectArgs {

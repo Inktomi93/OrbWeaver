@@ -9,7 +9,7 @@
 
 import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests, embedGenerations, userConnections } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

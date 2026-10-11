@@ -22,7 +22,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { parseChatJsonl } from "@orb/server/kit/serde/chat";
+import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ChatImportContext } from "../../../../packages/server/src/domain/chat/contract/import.ts";

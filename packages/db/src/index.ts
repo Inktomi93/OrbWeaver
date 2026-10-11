@@ -2,15 +2,15 @@
 // closes over `Db` + reads the schema tables; the sanctioned bulk serializer (import/export, search,
 // discovery) reads the schema rows directly. Domains import the row types off the schema tables here.
 //
-// Note: the granular subpaths also resolve (`@orb/db/schema`, `@orb/db/kit`) via the package.json
+// Note: the granular subpaths also resolve (`@orb/db/schema`, `@orb/db/query`) via the package.json
 // exports map; this top-level barrel re-exports the surface for the common single-import case.
 //
 // `./kit` is DELIBERATELY NOT re-exported here (2026-08-02). `Tier-1-DB.md` §Invariants #5 has always
-// said "`@orb/db/kit` is also their documented IMPORT PATH", but the barrel re-export made the wrong path
+// said "`@orb/db/query` is also their documented IMPORT PATH", but the barrel re-export made the wrong path
 // compile, so half the tree reached `batchMany`/`fetchOwned`/`isConstraintViolation`/`parseStringArrayColumn`
 // through `@orb/db` — which reads as "a table-ish thing from the schema barrel" and blurs the one line the
 // `own-tables-only` gate keys on (tables are OWNED, kit primitives are legal everywhere). Dropping the
-// re-export makes the documented path the ONLY path: `@orb/db/kit` for primitives, `@orb/db` for rows +
+// re-export makes the documented path the ONLY path: `@orb/db/query` for primitives, `@orb/db` for rows +
 // tables + the client.
 
 // The client + lifecycle (Db, createDb, the migration/integrity/backup/housekeeping helpers, LibSqlWrap).

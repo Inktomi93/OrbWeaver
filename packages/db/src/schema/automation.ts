@@ -52,7 +52,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
 

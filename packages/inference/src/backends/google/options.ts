@@ -6,7 +6,7 @@ import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../.
 import type { Resolved } from "../../contract/resolved.ts";
 import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
 import type { StructuredAsk } from "../../structured/plan.ts";
-import { cachePolicyContextOf } from "../kit/response-cache.ts";
+import { cachePolicyContextOf } from "../http/response-cache.ts";
 import { standardSampling } from "../v4/options.ts";
 import { GOOGLE_KEY } from "./model.ts";
 

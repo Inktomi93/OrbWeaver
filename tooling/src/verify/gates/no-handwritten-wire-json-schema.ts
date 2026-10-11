@@ -48,7 +48,7 @@ const FIX =
 // ~104 source files left `packages/server/src/infra/providers/`
 // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
 // day they moved, silently. D79's T6 seal is about the wire `schema` field, and EVERY wire is in this package now — the only live
-// writer of that field is `backends/kit/openai-body.ts`, which passes the projected `format.schema` through.
+// writer of that field is `backends/wire/openai-body.ts`, which passes the projected `format.schema` through.
 // Leaving the package out let a hand-authored JSON-Schema literal land in the one place the field is written.
 // Measured at the widening: ZERO findings.
 const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit", "@inference"], notNamed: ["*.test.*", "*.test-d.*"] } as const;
@@ -185,7 +185,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/backends/kit/wire.ts":
+        "packages/inference/src/backends/wire/openai-body.ts":
           "declare const format: { readonly name: string; readonly schema: Record<string, unknown> };\nexport const body = { json_schema: { name: format.name, schema: { ...format.schema } } };\n",
       },
       why: 'a translator SPREADING an already-projected schema carries no literal `type: "object"` member — the live wire-translation shape, and the reason the tell is the member rather than the shape of the object',

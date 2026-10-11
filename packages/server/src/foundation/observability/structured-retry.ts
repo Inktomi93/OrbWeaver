@@ -4,7 +4,7 @@
 // WHY THE CALLBACK IS BUILT HERE: `runStructuredTurn` is `@orb/inference`'s, below every server tier, so it
 // cannot call `addSpanEvent`. It reports the retry through an injected callback, and this is the one place that
 // callback is built, so the event name, its attribute shape and the lane names cannot drift across the lanes
-// that use it. It cannot live in `server/kit`, which sits below `foundation` and so cannot reach `addSpanEvent`.
+// that use it. It cannot live in `server/primitives`, which sits below `foundation` and so cannot reach `addSpanEvent`.
 //
 // TRACE VOCABULARY (`addSpanEvent`, a no-op when nothing is active): `provider.structured.retry`
 // {lane, issueCount, paths} — one per bounded second attempt. It rides the SAME `provider.*` event namespace

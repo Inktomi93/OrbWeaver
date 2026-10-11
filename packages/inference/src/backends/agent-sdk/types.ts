@@ -13,7 +13,7 @@ import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import type { ScheduleTimeout, SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import type { PlannedResponseFormat } from "../../structured/plan.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
 import type { SeededSessionDecision } from "./session/index.ts";
 

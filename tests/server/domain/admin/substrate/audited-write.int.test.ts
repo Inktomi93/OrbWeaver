@@ -9,7 +9,7 @@
 //      (that second half is what the statement ORDER buys, and reordering the batch fails it).
 
 import { users } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, ne } from "drizzle-orm";

@@ -9,11 +9,11 @@
 // composition seams is a POPULATION RECEIPT of zero, which the runtime refuses as a tool error. A gate that
 // has lost its subject now fails the run rather than emitting a finding someone can shrug at.
 //
-// IDENTITY, NOT SPELLING: the watchdog factory is the EXPORTED DECLARATION in `server/src/kit/regex`,
+// IDENTITY, NOT SPELLING: the watchdog factory is the EXPORTED DECLARATION in `server/src/primitives/regex`,
 // resolved through the shared sealed-origin reader, so an alias, a namespace member or a re-export all
 // prove the same composition while a same-named local helper does not. Legacy asked two text questions —
 // is the initializer's callee text `createRegexTest`, and does this file carry an import declaration whose
-// specifier is literally `#kit/regex` with that named import — either of which a rename or a barrel hop
+// specifier is literally `#primitives/regex` with that named import — either of which a rename or a barrel hop
 // would have answered wrongly in both directions.
 //
 // DELIBERATELY NARROW (its own mustPass row): dynamic `RegExp` construction elsewhere is not evidence that
@@ -40,12 +40,12 @@ const FACTORY = "createRegexTest";
 const SEAM_POPULATION = "world-info regex-key composition seam";
 /** The watchdog's implementation home — an absolute-path infix, because the declaration lives OUTSIDE this
  *  policy's population (`entry/compose/**`), where `ctx.relativePath` refuses by contract. */
-const REGEX_KIT_HOME = { pathInfix: "/packages/server/src/kit/regex/", exportedNames: new Set([FACTORY]) };
+const REGEX_KIT_HOME = { pathInfix: "/packages/server/src/primitives/regex/", exportedNames: new Set([FACTORY]) };
 
 const MESSAGE =
   "the canonical world-info regex-key execution seam is not composed with `createRegexTest()` from the " +
   "server regex kit — a user-authored key can then execute on the server event loop with no node:vm " +
-  "deadline. See D53 and packages/server/src/kit/regex/index.ts";
+  "deadline. See D53 and packages/server/src/primitives/regex/index.ts";
 const FIX = `compose \`${PROPERTY}: ${FACTORY}()\` from the server regex kit; never hand-roll a native \`.test\` at this boundary.`;
 
 export const gate = defineGate({
@@ -99,7 +99,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/kit/regex/index.ts":
+        "packages/server/src/primitives/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
         "packages/server/src/entry/compose/local-regex.ts":
           "export function createRegexTest(): (regex: RegExp, haystack: string) => boolean {\n  return (regex, haystack) => regex.test(haystack);\n}\n",
@@ -113,47 +113,47 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/kit/regex/index.ts":
+        "packages/server/src/primitives/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
-        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../primitives/regex/index.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
       },
       why: "the live shape: the canonical watchdog factory at the canonical property is the safe execution boundary",
     },
     {
       mode: "types",
       files: {
-        "packages/server/src/kit/regex/index.ts":
+        "packages/server/src/primitives/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
         [COMPOSE_ANCHOR]:
-          'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const chat = {\n  testRegexKey: createRegexTest(),\n  matchLabel: (regex: RegExp, haystack: string): boolean => regex.test(haystack),\n};\n',
+          'import { createRegexTest } from "../../primitives/regex/index.ts";\nexport const chat = {\n  testRegexKey: createRegexTest(),\n  matchLabel: (regex: RegExp, haystack: string): boolean => regex.test(haystack),\n};\n',
       },
       why: "THE CANONICAL-PROPERTY FENCE (`node.getName() !== PROPERTY`), which nothing exercised: a SECOND property on the same composed object, at the same anchor file, whose initializer is a bare native `.test` with no deadline — the exact shape `mustFlag[0]` reports when it sits at `testRegexKey`. Only the property NAME separates them, and this law's subject is the ONE named execution boundary, not every predicate composed beside it. Cut the name test and this row flags. NOTE what is NOT under test here: the `safe` verdict's ACQUITTING polarity (`readSealedOrigin(callee, REGEX_KIT_HOME).kind === \"sealed\"`) is deliberate on a hard security-adjacent policy — only a PROVEN sealed origin acquits, and an unreadable callee REPORTS, which `mustFlag[1]` pins. Scoping that refusal would weaken the policy, so it stays exactly as written",
     },
     {
       mode: "types",
       files: {
-        "packages/server/src/kit/regex/index.ts":
+        "packages/server/src/primitives/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
-        [COMPOSE_ANCHOR]: 'import { createRegexTest as guarded } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: guarded() };\n',
+        [COMPOSE_ANCHOR]: 'import { createRegexTest as guarded } from "../../primitives/regex/index.ts";\nexport const chat = { testRegexKey: guarded() };\n',
       },
-      why: "THE ALIAS: the same declaration under another local name is the same watchdog. The legacy reader required the callee text AND an import declaration naming `#kit/regex` with that exact named import, so this safe composition would have RED",
+      why: "THE ALIAS: the same declaration under another local name is the same watchdog. The legacy reader required the callee text AND an import declaration naming `#primitives/regex` with that exact named import, so this safe composition would have RED",
     },
     {
       mode: "types",
       files: {
-        "packages/server/src/kit/regex/index.ts":
+        "packages/server/src/primitives/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
-        "packages/server/src/kit/regex/barrel.ts": 'export { createRegexTest } from "./index.ts";\n',
-        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../kit/regex/barrel.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+        "packages/server/src/primitives/regex/barrel.ts": 'export { createRegexTest } from "./index.ts";\n',
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../primitives/regex/barrel.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
       },
       why: "a name-preserving RE-EXPORT resolves to the same canonical declaration — a barrel hop is not a different watchdog",
     },
     {
       mode: "types",
       files: {
-        "packages/server/src/kit/regex/index.ts":
+        "packages/server/src/primitives/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
-        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../primitives/regex/index.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
         [`${COMPOSE_DIR}other.ts`]: 'export const matcher = (pattern: string): RegExp => new RegExp(pattern, "u");\n',
       },
       why: "DELIBERATELY NARROW: dynamic RegExp construction outside the canonical seam is not evidence that user-authored input runs without a deadline",

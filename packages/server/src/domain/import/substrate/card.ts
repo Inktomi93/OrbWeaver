@@ -1,5 +1,5 @@
 // domain/import/substrate/card — pure bytes/string in → ParsedCard out (or null on unreadable). Composes
-// png-card-chunk (PNG tEXt/zTXt decode) + #kit/serde/card (cardFromJson). Adds import-specific bits the serde
+// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (cardFromJson). Adds import-specific bits the serde
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
 // the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
 //
@@ -13,8 +13,8 @@ import type { AssetId, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
-import { sha256Hex } from "#kit/content-hash";
-import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#kit/serde/card";
+import { sha256Hex } from "#primitives/content-hash";
+import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#primitives/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
 import type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
 

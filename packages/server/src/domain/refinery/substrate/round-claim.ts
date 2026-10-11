@@ -13,7 +13,7 @@
 // `db.transaction` is banned in product code and a compensating decrement can itself fail. This column has no
 // such duty: it means one thing, it is never read for a tally, and a stale value expires.
 //
-// THE TAKE IS ONE CONDITIONAL UPDATE, NEVER A READ-THEN-WRITE. `@orb/db/kit::batch` is the only atomic unit
+// THE TAKE IS ONE CONDITIONAL UPDATE, NEVER A READ-THEN-WRITE. `@orb/db/query::batch` is the only atomic unit
 // and it may not read before it writes, so the predicate rides the write (`inflight_until IS NULL OR
 // inflight_until < now`) and the RETURNED ROW COUNT is the verdict — the same shape the invite redeem and the
 // standalone variable CAS use. A read-then-write would reopen precisely the window this closes.

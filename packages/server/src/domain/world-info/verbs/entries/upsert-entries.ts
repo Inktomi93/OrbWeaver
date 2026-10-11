@@ -15,7 +15,7 @@ import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { WorldInfoContext } from "../../context.ts";
 import { WorldInfoNotFoundError } from "../../contract/errors.ts";
 import type { UpsertEntriesParams } from "../../contract/params.ts";

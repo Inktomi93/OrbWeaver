@@ -1,5 +1,5 @@
 import type { ModelInfoApi } from "@orb/contracts/inference";
-import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { fetchEndpointModels, probeListedModel } from "../../../packages/inference/src/catalog/endpoint.ts";
 import type { EndpointModel } from "../../../packages/inference/src/contract/runtime.ts";
 import { expect, test } from "../../support/fixtures.ts";

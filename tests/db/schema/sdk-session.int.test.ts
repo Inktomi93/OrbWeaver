@@ -7,7 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { chats, sessionEntries, userConnections } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";

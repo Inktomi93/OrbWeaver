@@ -2,7 +2,7 @@
 // SDK's: it hoists the leading system block(s), places `cacheControl` per message, forwards a mid-history
 // `system` row + its `clearAt`/`effort` under the betas the curated row enabled, and merges same-role rows
 // (a no-op after our floor). Ours: the funnel, the prompt plan, the cache PLACEMENT (the one placer,
-// `backends/kit/cache-control.ts`), the thinking/effort spelling, the shared reducer and result fold,
+// `backends/wire/cache-control.ts`), the thinking/effort spelling, the shared reducer and result fold,
 // pre-commit retry.
 //
 // AN ASSISTANT IMAGE IS DROPPED HERE, AND THE REASON IS THE WIRE, NOT THE HOOK. An earlier header claimed
@@ -31,26 +31,26 @@ import { resolveChat } from "../../funnel/resolve-chat.ts";
 import type { StructuredPlan } from "../../structured/plan.ts";
 import { requireStructuredPlan } from "../../structured/plan.ts";
 import { structuredChatResult } from "../../structured/reply.ts";
-import { effortWordOf } from "../kit/applied-effort.ts";
-import type { ExplicitCachePlan } from "../kit/cache-control.ts";
-import { automaticCachePlan, explicitCachePlan, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
-import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
-import { observeChatResult } from "../kit/generation-observation.ts";
-import { turnAbortSignal } from "../kit/idle-timeout.ts";
-import type { ProviderLogger } from "../kit/provider-log.ts";
-import { providerLogger } from "../kit/provider-log.ts";
-import { prefixBindingDropsOf } from "../kit/provider-metadata.ts";
-import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
-import { cachePolicyContextOf } from "../kit/response-cache.ts";
-import { runWithPreCommitRetry } from "../kit/retry.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
-import { emitTurnSpanEvents } from "../kit/turn-span.ts";
+import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
+import { observeChatResult } from "../http/generation-observation.ts";
+import { turnAbortSignal } from "../http/idle-timeout.ts";
+import type { ProviderLogger } from "../http/provider-log.ts";
+import { providerLogger } from "../http/provider-log.ts";
+import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
+import { cachePolicyContextOf } from "../http/response-cache.ts";
+import { runWithPreCommitRetry } from "../http/retry.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
+import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
+import { effortWordOf } from "../wire/applied-effort.ts";
+import type { ExplicitCachePlan } from "../wire/cache-control.ts";
+import { automaticCachePlan, explicitCachePlan, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
+import { prefixBindingDropsOf } from "../wire/provider-metadata.ts";
 import { anthropicExtras } from "./extras.ts";
 import type { AnthropicCall, AnthropicTransportDeps } from "./model.ts";
 import { ANTHROPIC_KEY, anthropicModelFor } from "./model.ts";

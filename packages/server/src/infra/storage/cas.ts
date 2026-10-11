@@ -28,7 +28,7 @@ import process from "node:process";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 
 export interface PutResult {
   hash: string;

@@ -16,7 +16,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
-import { batchStmt } from "@orb/db/kit";
+import { batchStmt } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

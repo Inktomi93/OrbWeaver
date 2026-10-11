@@ -6,7 +6,7 @@ import type { UserMacroDraws } from "@orb/contracts/chat";
 import { costDetailsSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";

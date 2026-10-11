@@ -24,8 +24,8 @@ import {
   personas,
   userConnections,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { Resolved } from "@orb/inference";
 import type {
   AssetId,

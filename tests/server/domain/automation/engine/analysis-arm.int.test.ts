@@ -27,7 +27,7 @@ import { ZWSP } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService } from "@orb/server/domain/automation";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
-import { sha256Hex } from "@orb/server/kit/content-hash";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { eq } from "drizzle-orm";
 import { EMPTY_ANALYSIS_STATE } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import type {

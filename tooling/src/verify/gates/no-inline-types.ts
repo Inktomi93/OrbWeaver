@@ -4,7 +4,7 @@
 //
 // THE TYPE HOMES ARE POPULATION, NOT GRANTS. Every clause of the legacy `isTypeHome` predicate names a
 // STRUCTURAL class the law itself defines — `contract/` directories, the `kit`/`contracts`/`db`/`ui`
-// packages, the client's `data|forms|state|lib` tiers, `server/src/kit`, the tooling plumbing floor, and
+// packages, the client's `data|forms|state|lib` tiers, `server/src/primitives`, the tooling plumbing floor, and
 // the test/script trees. None of them is a reviewed permission for a named file, so they convert as
 // population algebra (`notUnder`/`notNamed`), which is exactly what the exception census reserves that
 // arm for: "current test/spec population exclusions remain population algebra where they define the
@@ -44,7 +44,7 @@
 // candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
 // and final `population` admits 3,204. legacy − final = 4,059 §7.4 type homes the legacy visitor returned early on
 // through `isTypeHome` — `@kit`/`@contracts`/`@db`/`@ui`, `packages/showcase-plugins`, `tests/**`, `scripts/**`, the
-// client `data|forms|state|lib` tiers, `packages/server/src/kit`, `tooling/src/floor`, every `contract/` directory
+// client `data|forms|state|lib` tiers, `packages/server/src/primitives`, `tooling/src/floor`, every `contract/` directory
 // and `contract.ts` — now population algebra, the move the paragraph above states. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
@@ -87,7 +87,7 @@ export const gate = defineGate({
       "packages/client/src/forms/**",
       "packages/client/src/state/**",
       "packages/client/src/lib/**",
-      "packages/server/src/kit/**",
+      "packages/server/src/primitives/**",
       "tooling/src/floor/**",
       "**/contract/**",
     ],
@@ -255,9 +255,9 @@ export const gate = defineGate({
         "packages/client/src/forms/x.ts": "export type Foo = string;\n",
         "packages/client/src/state/x.ts": "export type Bar = string;\n",
         "packages/client/src/lib/x.ts": "export type Baz = string;\n",
-        "packages/server/src/kit/x.ts": "export type Qux = string;\n",
+        "packages/server/src/primitives/x.ts": "export type Qux = string;\n",
       },
-      why: "THE FOUR REMAINING STRUCTURAL TIER HOMES, one file each, in ONE row because they are one clause of one legacy predicate: the client's `forms`/`state`/`lib` tiers and `server/src/kit`. Each is falsified separately — dropping any ONE `notUnder` entry makes that file flag and reds this row, measured four times. `data/` has its own row above and `**/contract/**` and `tooling/src/_shared/**` have theirs",
+      why: "THE FOUR REMAINING STRUCTURAL TIER HOMES, one file each, in ONE row because they are one clause of one legacy predicate: the client's `forms`/`state`/`lib` tiers and `server/src/primitives`. Each is falsified separately — dropping any ONE `notUnder` entry makes that file flag and reds this row, measured four times. `data/` has its own row above and `**/contract/**` and `tooling/src/floor/**` have theirs",
     },
     {
       mode: "types",

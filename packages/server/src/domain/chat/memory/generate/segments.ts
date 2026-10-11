@@ -23,7 +23,7 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
-import { GenerationSupersededError } from "#kit/embedding-generation";
+import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "../../context.ts";
 import type { StoreSegmentParams } from "../../contract/context.ts";
 import { resolveCfg } from "../constants.ts";

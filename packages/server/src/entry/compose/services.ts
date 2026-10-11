@@ -50,7 +50,7 @@ import type { EmbedResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
-import { fetchOwned } from "@orb/db/kit";
+import { fetchOwned } from "@orb/db/query";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { BindingActor, InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";

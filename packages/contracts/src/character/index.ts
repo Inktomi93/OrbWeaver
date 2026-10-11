@@ -711,7 +711,7 @@ export interface CharacterSummary {
    * 2026-09-02, nine of ten characters with real seated chats had no stats row at all — so the Characters
    * landing's "Recently chatted" shelf could only ever show one face — and the tenth's rollup stamp
    * disagreed with her newest message by 29 days. Now it is the SAME expression `chat.listChats` orders and
-   * displays by (`@orb/db/kit` `chatRecencyExpr`), so the landing, the editor header and the context pane
+   * displays by (`@orb/db/query` `chatRecencyExpr`), so the landing, the editor header and the context pane
    * cannot print three answers.
    */
   readonly lastChattedAt: number | null;

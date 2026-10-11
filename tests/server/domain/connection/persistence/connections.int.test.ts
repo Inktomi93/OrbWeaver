@@ -9,7 +9,7 @@
 import { SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings, userConnections } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";

@@ -21,8 +21,8 @@
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
-import { sha256Hex } from "#kit/content-hash";
-import { chatContentHash, parseChatJsonl } from "#kit/serde/chat";
+import { sha256Hex } from "#primitives/content-hash";
+import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import type { ImportContext } from "../context.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";

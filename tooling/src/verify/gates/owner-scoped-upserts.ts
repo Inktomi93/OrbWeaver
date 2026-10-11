@@ -71,7 +71,7 @@ const MESSAGE =
   "owner-filtered read afterwards). An owner-scoped table (table-scoping-class class (a)) resolves tenancy " +
   "through its `ownerId`, so the collision has to say so — or say who already proved the target is the " +
   "caller's. The sibling halves judge the `.where` of a read and of a write; the owner-scoped fetch they " +
-  "all pair with is packages/db/src/kit/fetch-owned.ts.";
+  "all pair with is packages/db/src/query/fetch-owned.ts.";
 
 const UNRESOLVABLE_MESSAGE =
   `an ${UNRESOLVABLE} upsert — the insert target is an identifier that traces to no table this schema ` +

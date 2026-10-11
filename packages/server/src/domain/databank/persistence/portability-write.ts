@@ -8,15 +8,15 @@
 // this document.
 
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CanonicalDocument } from "#kit/serde/databank";
-import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "#kit/serde/databank";
-import { portableParseError } from "#kit/serde/lib";
+import type { CanonicalDocument } from "#primitives/serde/databank";
+import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "#primitives/serde/databank";
+import { portableParseError } from "#primitives/serde/lib";
 import type {
   DatabankImportOutcome,
   DatabankPortabilityContext,

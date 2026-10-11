@@ -25,7 +25,7 @@ import type { EmbeddingConnectionSnapshot, EmbeddingsService } from "../../../..
 import { WIDTH_PROBE_TEXT } from "../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { nearestCharacters } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "../../../../packages/server/src/domain/search/substrate/space.ts";
-import { GenerationSupersededError } from "../../../../packages/server/src/kit/embedding-generation/index.ts";
+import { GenerationSupersededError } from "../../../../packages/server/src/primitives/embedding-generation/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";

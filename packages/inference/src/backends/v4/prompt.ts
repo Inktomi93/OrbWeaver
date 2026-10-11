@@ -22,7 +22,7 @@ import type {
 } from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage, HistoryRole } from "../../contract/chat.ts";
-import { chatHistoryText } from "../kit/history.ts";
+import { chatHistoryText } from "../wire/history.ts";
 
 const PROMPT_JOINER = "\n\n";
 const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/su;

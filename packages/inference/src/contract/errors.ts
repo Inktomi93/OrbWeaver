@@ -3,7 +3,7 @@
 //
 // SECURITY: a `ProviderError.message` is operator-facing and MUST NOT carry key/token material — dispatch
 // constructs messages from the task/wire/provider vocabulary only; the wire-level secret scrub
-// (`backends/kit/sanitize.ts`) is a backend concern.
+// (`backends/http/sanitize.ts`) is a backend concern.
 
 import type { WireSchemaViolation } from "@orb/contracts/inference";
 import type { SummarizeResultItem } from "@orb/contracts/providers";
@@ -16,7 +16,7 @@ declare const providerScrubSet: unique symbol;
  *  scrub" UNWRITABLE BY ACCIDENT (#1599): `providerErrorFromHttp`'s message reaches a DURABLE sink (the
  *  #1373 revoke trail), and a runner that forgets the scrub set would otherwise ship an unscrubbed upstream
  *  message there with no compile-time tell. Producers: `resolvedScrubSet` and
- *  `NO_PROVIDER_SECRETS` in `backends/kit/sanitize.ts`. */
+ *  `NO_PROVIDER_SECRETS` in `backends/http/sanitize.ts`. */
 export type ProviderScrubSet = readonly string[] & { readonly [providerScrubSet]: true };
 
 /** The normalized failure kinds. A new kind is a member here + the consumers that branch on it. */

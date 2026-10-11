@@ -9,7 +9,7 @@
 // attach could leave two primaries or a crash between them zero. Do NOT split it.
 
 import { characterBooks } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import { and, eq, ne } from "drizzle-orm";
 import type { WorldInfoContext } from "../../context.ts";
 import { WorldInfoNotFoundError } from "../../contract/errors.ts";

@@ -26,7 +26,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
-import { cachePolicyContextOf, responseReplaySupportedFor } from "../../../../../packages/inference/src/backends/kit/response-cache.ts";
+import { cachePolicyContextOf, responseReplaySupportedFor } from "../../../../../packages/inference/src/backends/http/response-cache.ts";
 import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";

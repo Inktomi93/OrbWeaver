@@ -16,7 +16,7 @@ import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
-import { parseWorldBookFile } from "@orb/server/kit/serde/world-info";
+import { parseWorldBookFile } from "@orb/server/primitives/serde/world-info";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";

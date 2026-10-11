@@ -8,8 +8,8 @@
 // cross-tenant blast radius this whole seam exists to avoid.
 
 import { chatDigestSpeakers, chatDigests } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import { and, eq, inArray } from "drizzle-orm";
 import type { EmbeddingsHandoffRestampContext, HandoffRestampStatements } from "../contract/handoff-restamp.ts";
 

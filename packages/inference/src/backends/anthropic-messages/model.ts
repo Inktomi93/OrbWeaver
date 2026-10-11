@@ -8,7 +8,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 
 const V1_PATH = "/v1";

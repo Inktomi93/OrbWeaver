@@ -53,7 +53,7 @@ const MESSAGE =
   "a by-id READ of an ownerId-scoped table with NO owner predicate — this is the cross-tenant read hole: " +
   "whatever id the caller supplies comes back, whoever owns it. An owner-scoped table (table-scoping-class " +
   "class (a)) resolves tenancy through its `ownerId`, so the read has to say so. The one owner-scoped fetch " +
-  "is packages/db/src/kit/fetch-owned.ts";
+  "is packages/db/src/query/fetch-owned.ts";
 
 const FIX =
   "pick the arm that fits: (1) put the owner IN THE WHERE — `fetchOwned(db, T, id, principal.userId)` or " +

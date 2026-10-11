@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-Some correctness claims are semantic. Examples are domain invariants such as the last persona delete or fork convergence, atomicity across several writes, and the pending guard on an interactive control. A syntax detector sees only local shapes. A measured batch-boundary detector flagged mostly correct code. The tree has several commit helpers with different semantics. It also has correct unbatched multi-write shapes: writes on disjoint branches, deliberate ordering across effects, and compare-and-set loops that depend on a result. Writes behind injected ops (`deps.characters.update`, `ctx.audit`) are interface calls, so a walk of one function cannot see them. `AwaitableBatchStmt` (`packages/db/src/kit/batch.ts`) is both awaitable and batchable by design, so the type system cannot forbid a standalone await.
+Some correctness claims are semantic. Examples are domain invariants such as the last persona delete or fork convergence, atomicity across several writes, and the pending guard on an interactive control. A syntax detector sees only local shapes. A measured batch-boundary detector flagged mostly correct code. The tree has several commit helpers with different semantics. It also has correct unbatched multi-write shapes: writes on disjoint branches, deliberate ordering across effects, and compare-and-set loops that depend on a result. Writes behind injected ops (`deps.characters.update`, `ctx.audit`) are interface calls, so a walk of one function cannot see them. `AwaitableBatchStmt` (`packages/db/src/query/batch.ts`) is both awaitable and batchable by design, so the type system cannot forbid a standalone await.
 
 ## Decision
 

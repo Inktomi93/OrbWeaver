@@ -20,8 +20,8 @@ import {
   ownerStats,
   statsCanonVersions,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { chunkRows, rowsPerInsert } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { chunkRows, rowsPerInsert } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
   AssetId,

@@ -6,7 +6,7 @@
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents, chatHandoffResumptions, chats } from "@orb/db";
-import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";

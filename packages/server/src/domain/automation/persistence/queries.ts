@@ -6,7 +6,7 @@
 import type { GlobalVariableView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { globalVariables } from "@orb/db";
-import { escapeLikeTerm } from "@orb/db/kit";
+import { escapeLikeTerm } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, eq, sql } from "drizzle-orm";
 

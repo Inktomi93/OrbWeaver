@@ -80,8 +80,8 @@
 
 import type { RpgGameConfig, RpgGameFeatures } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import type { ForkGameArgs, ForkGameResult } from "../../chat/index.ts";
 import type { RpgCheckpointRow, RpgContext, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service.ts";

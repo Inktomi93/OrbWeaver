@@ -2,7 +2,7 @@
 // coalesced cold warms, and a best-effort failure held briefly before the next retry.
 
 import { z } from "zod";
-import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../packages/inference/src/backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { createMirror } from "../../../packages/inference/src/catalog/mirror.ts";
 import { expect, test } from "../../support/fixtures.ts";
 

@@ -833,7 +833,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
  *
  * The `role === "system"` drop above is a SEPARATE, still-live gate on the ROLE plane, deliberately NOT folded
  * into this one. D32 keeps `system` the injection plane, but an ST import mints system-ROLE canon rows
- * (`kit/serde/chat::roleOf` — `is_system:true`), and those rows are `standard`-kind, so the purpose policy
+ * (`primitives/serde/chat::roleOf` — `is_system:true`), and those rows are `standard`-kind, so the purpose policy
  * would now admit them into a wire history whose `CanonRow.role` is a two-arm `user|assistant` union. Two
  * planes, two gates; collapsing them would ship ST's assembly-dropped rows into every prompt.
  */

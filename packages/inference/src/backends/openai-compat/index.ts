@@ -12,8 +12,8 @@ import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.t
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import { runSideGen } from "../../roles/side-gen.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
 import { inspectOpenAiCompatEndpoint, listOpenAiCompatModels, openRouterCredits, openRouterGenerationCost, probeOpenAiCompat } from "./diagnostics.ts";
 import { runOpenAiCompatEmbed } from "./embed.ts";

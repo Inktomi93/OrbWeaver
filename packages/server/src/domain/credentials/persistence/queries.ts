@@ -6,7 +6,7 @@ import type { CredRevokedReason, ProviderMetadata } from "@orb/contracts/credent
 import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { userCredentials } from "@orb/db";
-import { fetchOwned } from "@orb/db/kit";
+import { fetchOwned } from "@orb/db/query";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";

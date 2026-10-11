@@ -13,8 +13,8 @@ import { consumeTurnStream, runChatTurn } from "../../../../packages/inference/s
 import { NO_SAVED_TOTALS } from "../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
 import { SessionCache } from "../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
-import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
-import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
+import { resolvedScrubSet } from "../../../../packages/inference/src/backends/http/sanitize.ts";
+import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/wire/image-normalize.ts";
 import type { ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";

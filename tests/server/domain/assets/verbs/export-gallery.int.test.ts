@@ -9,7 +9,7 @@ import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery } from "@orb/server/domain/assets";
-import { parseGallery } from "@orb/server/kit/serde/gallery";
+import { parseGallery } from "@orb/server/primitives/serde/gallery";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import type { AssetsContext } from "../../../../../packages/server/src/domain/assets/context.ts";

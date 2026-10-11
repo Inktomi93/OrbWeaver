@@ -1,5 +1,5 @@
 // verb: exportChatBundle (R6) — the room WHOLE, as the orb-native bundle file. The relational work (ids →
-// handles/names, ids → bundle POSITIONS) lives here, before build; the serde (`#kit/serde/chat-bundle`) stays
+// handles/names, ids → bundle POSITIONS) lives here, before build; the serde (`#primitives/serde/chat-bundle`) stays
 // pure bytes↔`PortableChat`.
 //
 // WHY BESIDE `export-chat.ts` RATHER THAN A FORMAT ARM ON IT: the ST jsonl verb resolves a chat DOWN to the
@@ -29,8 +29,8 @@ import { characters, chatGenerationObservations, chatInjections, chatParticipant
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { RpgPortableGame } from "#domain/rpg";
-import type { PortableChat, PortableChatInjection, PortableChatMessage, PortableChatVariant, PortableRpgGame } from "#kit/serde/chat-bundle";
-import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#kit/serde/chat-bundle";
+import type { PortableChat, PortableChatInjection, PortableChatMessage, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
+import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { ExportContext } from "../context.ts";
 import type { ExportChatBundleParams } from "../contract/params.ts";
 import type { ExportedFile } from "../contract/results.ts";

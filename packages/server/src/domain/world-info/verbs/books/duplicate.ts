@@ -6,7 +6,7 @@
 // the source's. Attachments are NOT copied — the duplicate is a fresh editable copy, unattached at every scope.
 
 import { worldBooks, worldEntries } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { WorldInfoContext } from "../../context.ts";
 import { WorldInfoNotFoundError } from "../../contract/errors.ts";
 import type { DuplicateBookParams } from "../../contract/params.ts";

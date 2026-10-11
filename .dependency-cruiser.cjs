@@ -112,7 +112,7 @@ module.exports = {
     {
       name: "kit-purity",
       comment:
-        "@orb/kit is the isomorphic leaf: pure primitives + engines. It MAY use isomorphic npm (zod, typeid-js, luxon, remend) but NOT any higher package — and NOT Node built-ins (the kit-no-node-builtins rule below). Node-only-pure code goes to @orb/server/kit (e.g. the node:vm regex guard). (DECISIONS-LEDGER §0.6 — the kit-purity ruling: 'zero runtime deps' = zero domain/I-O/Node deps, not zero npm.)",
+        "@orb/kit is the isomorphic leaf: pure primitives + engines. It MAY use isomorphic npm (zod, typeid-js, luxon, remend) but NOT any higher package — and NOT Node built-ins (the kit-no-node-builtins rule below). Node-only-pure code goes to @orb/server/primitives (e.g. the node:vm regex guard). (DECISIONS-LEDGER §0.6 — the kit-purity ruling: 'zero runtime deps' = zero domain/I-O/Node deps, not zero npm.)",
       severity: "error",
       from: { path: KIT },
       // NOTE: conditions WITHIN a single `to` are AND'd by dep-cruiser, so node:* (a separate concern)
@@ -122,7 +122,7 @@ module.exports = {
     {
       name: "kit-no-node-builtins",
       comment:
-        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (Core-0-Architecture-and-Structure.md §2.)",
+        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/primitives, not here. (Core-0-Architecture-and-Structure.md §2.)",
       severity: "error",
       from: { path: KIT },
       to: { dependencyTypes: ["core"] },
@@ -502,11 +502,11 @@ module.exports = {
       to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
     },
 
-    // ════════════════════ The server tier order (entry>transport>domain>infra>foundation>kit) ═══════
+    // ════════════════════ The server tier order (entry>transport>domain>infra>foundation>primitives) ═══════
     {
       name: "foundation-reaches-up-to-nothing",
       comment:
-        "foundation (env · config · observability) is read DOWN by every tier and reaches UP to none. No foundation→entry/transport/domain/infra import. It MAY import @orb/db (the /_debug probes read schema down — db is a lower package) + @orb/contracts + @orb/kit + server/kit. The killed DEFAULT_*_MODEL_ID foundation→infra edge is the canary. (Tier-2-Foundation.md invariant #2.)",
+        "foundation (env · config · observability) is read DOWN by every tier and reaches UP to none. No foundation→entry/transport/domain/infra import. It MAY import @orb/db (the /_debug probes read schema down — db is a lower package) + @orb/contracts + @orb/kit + server/primitives. The killed DEFAULT_*_MODEL_ID foundation→infra edge is the canary. (Tier-2-Foundation.md invariant #2.)",
       severity: "error",
       from: { path: `${SRV}foundation/` },
       to: { path: `${SRV}(entry|transport|domain|infra)/` },
@@ -568,11 +568,11 @@ module.exports = {
       to: { path: `${SRV}transport/(trpc|jobs)/`, pathNot: `${SRV}transport/$1/` },
     },
     {
-      name: "server-kit-reaches-up-to-nothing",
+      name: "server-primitives-reaches-up-to-nothing",
       comment:
-        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (Core-0-Architecture-and-Structure.md §2.)",
+        "@orb/server/primitives is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (Core-0-Architecture-and-Structure.md §2.)",
       severity: "error",
-      from: { path: `${SRV}kit/` },
+      from: { path: `${SRV}primitives/` },
       to: { path: `${SRV}(entry|transport|domain|infra|foundation)/` },
     },
 
@@ -698,18 +698,18 @@ module.exports = {
     {
       name: "infra-strategy-isolation",
       comment:
-        "Strategy-pattern backends stay independent: a module in `packages/inference/src/backends/<wire>/` must not import a SIBLING backend's internals. Cross-backend work goes through the role contract or the two SHARED PURE seams — `backends/kit/` (the openai-compat reducer, cache-control, retry, error-classify) and `backends/v4/` (the Vercel `LanguageModelV4` slice both hosted wires spell identically) — never a direct reach. One generic rule covers every future wire. THE TWO EXEMPT DIRS ARE DERIVED, NOT PICKED: `WIRES` (`packages/contracts/src/inference/wires.ts:10`) is the closed four-member tuple `openai-compat · anthropic-messages · agent-sdk · local-light`, and everything else under `backends/` is by construction a shared seam — a fifth wire inherits the seal for free, while a third shared seam has to be added here on purpose. RE-POINTED 2026-09-20 from `packages/server/src/infra/(providers/backends|auth/modes)/<x>/`: the providers half moved into @orb/inference, and the auth half went dead in the SAME window for an unrelated reason — `infra/auth/modes/` is five FLAT FILES (cookie-session · forward-header · local · oidc · single-user), so the `<group>/<strategy>/` shape this rule is built on has no member there and a mode has no internals to seal. THE NAME still says `infra`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and those live outside this change's fence. (Tier-3b-Providers.md invariant #2.)",
+        "Strategy-pattern backends stay independent: a module in `packages/inference/src/backends/<wire>/` must not import a SIBLING backend's internals. Cross-backend work goes through the role contract or the three SHARED PURE seams — `backends/http/` (fetch, retry, SSE, error-classify, rate limits), `backends/wire/` (request and response shapes, cache-control, history) and `backends/v4/` (the Vercel `LanguageModelV4` slice both hosted wires spell identically) — never a direct reach. One generic rule covers every future wire. THE EXEMPT DIRS ARE DERIVED, NOT PICKED: `WIRES` (`packages/contracts/src/inference/wires.ts:10`) is the closed four-member tuple `openai-compat · anthropic-messages · agent-sdk · local-light`, and everything else under `backends/` is by construction a shared seam — a fifth wire inherits the seal for free, while a new shared seam has to be added here on purpose. RE-POINTED 2026-09-20 from `packages/server/src/infra/(providers/backends|auth/modes)/<x>/`: the providers half moved into @orb/inference, and the auth half went dead in the SAME window for an unrelated reason — `infra/auth/modes/` is five FLAT FILES (cookie-session · forward-header · local · oidc · single-user), so the `<group>/<strategy>/` shape this rule is built on has no member there and a mode has no internals to seal. THE NAME still says `infra`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and those live outside this change's fence. (Tier-3b-Providers.md invariant #2.)",
       severity: "error",
       from: { path: `${INFERENCE}backends/([^/]+)/` },
       to: {
         path: `${INFERENCE}backends/([^/]+)/`,
-        pathNot: [`${INFERENCE}backends/$1/`, `${INFERENCE}backends/(kit|v4)/`],
+        pathNot: [`${INFERENCE}backends/$1/`, `${INFERENCE}backends/(http|wire|v4)/`],
       },
     },
     {
       name: "credential-firewall-openrouter-not-agent-sdk",
       comment:
-        "TRANSITIVE credential firewall (hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). `reachable: true` closes the transitive hole that the direct-edge rule above cannot: no sibling backend may reach the subscription plane through ANY chain (e.g. via a backends/kit helper). WIDENED 2026-09-20, and the widening is what makes the rule survive its own subject: openrouter is no longer a backend FAMILY — its runners collapsed into the shared `backends/openai-compat/` transport and its identity is a provider row's `dialect` — so the OpenRouter EXECUTION path is now shared with every other OpenAI-shaped provider and cannot be directory-fenced at all. Fencing the one name would have left the actual credential-leak surface (the shared transport every hosted provider runs through) open, so the `from` is every backend EXCEPT agent-sdk itself, plus the two surviving openrouter-NAMED catalog/capability modules — a superset of what the pre-extraction `backends/openrouter/` rule covered, and one that a future wire inherits for free. THE NAME still says `openrouter`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and a rename strands those citations. The threat the old rule closed was mode-2, the OpenRouter agent-sdk skin, which the same program DELETED by owner word (2026-09-19, F18: `agent-sdk` is the subscription's wire and nothing else's) — this rule is what keeps a new one from growing back through a shared seam. The planted-violation proof that it FIRES (never merely that it passes) is `tests/tooling/dependency-cruiser.int.test.ts`. (Tier-3b-Providers.md §7.1 firewall.)",
+        "TRANSITIVE credential firewall (hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). `reachable: true` closes the transitive hole that the direct-edge rule above cannot: no sibling backend may reach the subscription plane through ANY chain (e.g. via a backends/http helper). WIDENED 2026-09-20, and the widening is what makes the rule survive its own subject: openrouter is no longer a backend FAMILY — its runners collapsed into the shared `backends/openai-compat/` transport and its identity is a provider row's `dialect` — so the OpenRouter EXECUTION path is now shared with every other OpenAI-shaped provider and cannot be directory-fenced at all. Fencing the one name would have left the actual credential-leak surface (the shared transport every hosted provider runs through) open, so the `from` is every backend EXCEPT agent-sdk itself, plus the two surviving openrouter-NAMED catalog/capability modules — a superset of what the pre-extraction `backends/openrouter/` rule covered, and one that a future wire inherits for free. THE NAME still says `openrouter`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and a rename strands those citations. The threat the old rule closed was mode-2, the OpenRouter agent-sdk skin, which the same program DELETED by owner word (2026-09-19, F18: `agent-sdk` is the subscription's wire and nothing else's) — this rule is what keeps a new one from growing back through a shared seam. The planted-violation proof that it FIRES (never merely that it passes) is `tests/tooling/dependency-cruiser.int.test.ts`. (Tier-3b-Providers.md §7.1 firewall.)",
       severity: "error",
       from: {
         path: [`${INFERENCE}backends/([^/]+)/`, `${INFERENCE}(catalog|capability/sources/[^/]+)/openrouter\\.ts$`],

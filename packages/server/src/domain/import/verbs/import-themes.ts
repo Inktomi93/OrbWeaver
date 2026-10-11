@@ -13,7 +13,7 @@
 // N themes into one backup would collapse N outcomes into one bit and lose per-theme isolation: a single
 // theme the settings domain refused would take the other N-1 with it.
 
-import { buildThemeBackup } from "#kit/serde/theme";
+import { buildThemeBackup } from "#primitives/serde/theme";
 import type { ImportContext } from "../context.ts";
 import type { ImportThemesResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";

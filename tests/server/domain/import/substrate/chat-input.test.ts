@@ -8,7 +8,7 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { parseChatJsonl } from "@orb/server/kit/serde/chat";
+import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { describe } from "vitest";
 import type { CollectedChat } from "../../../../../packages/server/src/domain/import/contract/views.ts";
 import {

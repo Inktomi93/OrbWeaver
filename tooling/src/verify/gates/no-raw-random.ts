@@ -9,7 +9,7 @@
 // those spellings carries a `mustFlag` row.
 //
 // THE SUBJECT IS THE CALL, not a reference to the function — preserved from the legacy reader deliberately.
-// `prng: Math.random` (entry/compose, infra/providers/backends/kit/retry.ts, kit/macro) PASSES the ambient
+// `prng: Math.random` (entry/compose, infra/providers/backends/http/retry.ts, kit/macro) PASSES the ambient
 // generator as the injected default rather than drawing from it, and widening onto those sites is a
 // burn-down with its own decision to make, not a conversion. The limit is a `mustPass` row.
 //
@@ -51,7 +51,7 @@
 // consumption unchanged at 1 — a SEAL. `@tooling` stays declared beside it; the sibling asymmetry stated
 // above is unchanged.
 // A REPORTED BLIND SPOT THAT WAS NOT ONE, recorded so it is not re-filed: #2488 cited
-// `backends/kit/retry.ts:65` as a live violation. That is `opts.random ?? Math.random` — a REFERENCE, not a
+// `backends/http/retry.ts:65` as a live violation. That is `opts.random ?? Math.random` — a REFERENCE, not a
 // call — and it is the site named by this header's own THE SUBJECT IS THE CALL paragraph, at its
 // pre-extraction path. The limit is deliberate and pinned; widening onto it remains its own decision.
 // CURRENT 2026-09-21: the generic authored classification closes the historical showcase narrowing;
@@ -220,7 +220,7 @@ export const gate = defineGate({
         "packages/server/src/entry/compose/pass-through.ts":
           "export function wire(make: (deps: { readonly prng: () => number }) => number): number {\n  return make({ prng: Math.random });\n}\n",
       },
-      why: "DECLARED LIMIT, and the reason this policy's subject is the CALL: passing `Math.random` as an injected default is a REFERENCE, not a draw. Widening onto it would red `infra/providers/backends/kit/retry.ts` and three `kit/macro` seams at once — a burn-down with its own decision, not a conversion",
+      why: "DECLARED LIMIT, and the reason this policy's subject is the CALL: passing `Math.random` as an injected default is a REFERENCE, not a draw. Widening onto it would red `infra/providers/backends/http/retry.ts` and three `kit/macro` seams at once — a burn-down with its own decision, not a conversion",
     },
   ],
 });

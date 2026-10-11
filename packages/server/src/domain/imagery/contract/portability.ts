@@ -5,7 +5,7 @@ import type { PortableImageryCall, PortableImageryImage } from "@orb/contracts/i
 import type { PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 
 export interface ImageryPortabilityContext {

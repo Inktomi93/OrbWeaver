@@ -17,10 +17,10 @@ import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.t
 import type { SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import { runSideGen } from "../../roles/side-gen.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
-import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
+import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
 import { runAgentTurn } from "./agent-runner.ts";
 import { fetchAgentSdkModels, verifyAuth } from "./catalog.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";

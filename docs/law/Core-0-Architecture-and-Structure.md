@@ -21,11 +21,12 @@ boundaries are physics, not policy.
    a package cannot import what isn't in its declared deps — the layer cake is enforced by the module
    resolver, the earliest possible tier. dependency-cruiser is a *backstop*, not the primary boundary.
 2. **`#` intra-package, packages cross-package, zero `paths` aliases.** Native Node subpath imports
-   (`#kit`, `#domain`, …) inside a package; workspace package names across packages. **No tsconfig
+   (`#domain`, `#primitives`, …) inside a package; workspace package names across packages. **No tsconfig
    `paths`** anywhere (that was neo-tavern's `@/` shadcn tax). One resolution model, all native.
 3. **Name by role; no `_` junk drawers.** Folders are named for what they are (`foundation`, `infra`,
-   `kit`, `contract`). `kit` = pure primitives ONLY. There is **no `_shared` services drawer** —
-   cross-feature *services* are their own feature; cross-feature *primitives* are `kit`.
+   `primitives`, `contract`, `query`, `http`). Only the `@orb/kit` package is called `kit`; a package-local
+   helper folder is named by its role. There is **no `_shared` services drawer** — cross-feature *services*
+   are their own feature; cross-feature *primitives* are `@orb/kit`.
 4. **Tests are one central tree mirroring `src` 1:1.** Not colocated. The test path is a mechanical
    prefix-swap of the src path; kind is a filename suffix. More work, but agent-enforceable and the
    src tree stays clean.
@@ -79,7 +80,7 @@ flat/dir layout would force per-package exception lists. Uniform folders = one r
 **`kit` holds the pure ENGINES (not just tiny utils):** the **macro engine** (`kit/macro` — AST/parse +
 resolve a template against a `MacroContext`) and the **regex engine** (`kit/regex` — compile + apply +
 the macro-substitute hook; depends on `kit/macro`; the `node:vm` ReDoS watchdog is node-only, so it lives
-in `@orb/server/kit/regex` and is INJECTED — D53). They are pure,
+in `@orb/server/primitives/regex` and is INJECTED — D53). They are pure,
 zero-dep, cross-boundary transform engines with **multiple consumers — server assembly AND client
 render AND each other** — so they must NOT live in `chat`. Critical distinction, **engine vs data**:
 the engine is `kit`; the *data* it runs on comes from domains — the `MacroContext` *values*
@@ -116,7 +117,7 @@ packages/server/src/
 │   └── <feature>/
 ├── infra/            external adapters (I/O) — providers / auth / storage / crypto / network
 ├── foundation/       read DOWN into by all; never reaches up — env · config · observability
-└── kit/              server-only PURE primitives (zero I/O, zero domain)
+└── primitives/       server-only PURE primitives (zero I/O, zero domain, no state, no env)
 ```
 
 ---

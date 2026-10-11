@@ -7,7 +7,7 @@ import { assetKindSchema } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { PortableAssetIdentity } from "../contract/portability.ts";
 
 const PART_SEPARATOR = "__";

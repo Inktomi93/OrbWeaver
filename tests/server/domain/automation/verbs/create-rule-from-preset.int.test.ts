@@ -25,7 +25,7 @@ import type { AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, UserI
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { ZWSP } from "@orb/kit/macro";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
-import { sha256Hex } from "@orb/server/kit/content-hash";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type {

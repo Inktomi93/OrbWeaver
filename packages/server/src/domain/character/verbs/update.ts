@@ -14,7 +14,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { cardContentHash } from "#kit/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterContext } from "../context.ts";
 import {
   CHARACTER_BACKGROUND_UNAVAILABLE,

@@ -43,8 +43,8 @@ import type { WireCaptureSink } from "../../contract/backend.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResponseMap } from "../../contract/resolved.ts";
-import { redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
-import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../kit/sse.ts";
+import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../http/sse.ts";
+import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 
 const ERROR_BODY_LIMIT = 65_536;
 const REDIRECT_MIN = 300;

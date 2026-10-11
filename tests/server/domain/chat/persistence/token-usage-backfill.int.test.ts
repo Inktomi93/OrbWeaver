@@ -3,7 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { chats, messageVariants, statsCanonVersions } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

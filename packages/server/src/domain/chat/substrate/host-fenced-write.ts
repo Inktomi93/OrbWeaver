@@ -16,8 +16,8 @@
 // committed message's economics) keep their own explicit throw — they are asking a different question and
 // deliberately do not take this door.
 
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";

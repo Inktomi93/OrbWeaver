@@ -99,7 +99,7 @@ interface NonPortableRow {
  *  be added without saying what it carries, and arm A cross-checks the claim against the schema. */
 const PORTABLE_CANON_TABLES: Record<PortableKind, readonly string[]> = {
   character: ["characters"],
-  // R6 — the chat arm is now the ORB-NATIVE BUNDLE (`kit/serde/chat-bundle`), not the ST jsonl interchange, so
+  // R6 — the chat arm is now the ORB-NATIVE BUNDLE (`primitives/serde/chat-bundle`), not the ST jsonl interchange, so
   // the chat-anchored planes travel: `chat_injections`, the rpg campaign's six tables, and `chat_tags` (which
   // carried an ACCEPTED-LOSSY row here reading "Ends with the orb-native chat bundle (R6)" until this wave
   // ended it). `chats` itself carries no ownerId (membership-scoped, D18) so arm A never derives it; listed

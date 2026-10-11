@@ -4,8 +4,8 @@
 
 import type { Db } from "@orb/db";
 import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatParticipantId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";

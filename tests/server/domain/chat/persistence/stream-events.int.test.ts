@@ -5,7 +5,7 @@
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatStreamEvents, chats, messages } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { loadStreamReplay } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";

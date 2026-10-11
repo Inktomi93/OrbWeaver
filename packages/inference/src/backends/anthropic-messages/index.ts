@@ -15,12 +15,12 @@ import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.t
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import { runSideGen } from "../../roles/side-gen.ts";
-import { fetchJson } from "../kit/fetch-json.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
-import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
-import { redactSecretsFromText } from "../kit/openai-body.ts";
-import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
+import { fetchJson } from "../http/fetch-json.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
+import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
+import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { runAnthropicChatTurn } from "./chat.ts";
 import type { AnthropicTransportDeps } from "./model.ts";
 import { anthropicBaseUrl } from "./model.ts";

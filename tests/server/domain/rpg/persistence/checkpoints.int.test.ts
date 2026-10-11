@@ -4,7 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

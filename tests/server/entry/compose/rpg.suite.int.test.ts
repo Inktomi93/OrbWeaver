@@ -14,7 +14,7 @@ import { reconcileStats } from "@orb/server/domain/stats";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import { ZodError } from "zod";
-import { observeChatResult } from "../../../../packages/inference/src/backends/kit/generation-observation.ts";
+import { observeChatResult } from "../../../../packages/inference/src/backends/http/generation-observation.ts";
 import { buildRpg } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeGenerationUsage } from "../../../support/factories/generation-usage.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";

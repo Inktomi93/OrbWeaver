@@ -21,12 +21,12 @@ import {
   modelStats,
   ownerStats,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
-import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
+import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
 import type { ReconcileStatsResult } from "../contract/results.ts";
 import { ownerChatIds, retainedCharacterSeatPredicate } from "../substrate/owner-chat-scope.ts";

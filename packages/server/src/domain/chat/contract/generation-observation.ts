@@ -1,7 +1,7 @@
 import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { GenerationObservationCallback } from "@orb/inference";
 import type { ChatId, ChatTurnId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";

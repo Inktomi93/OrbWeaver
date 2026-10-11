@@ -12,7 +12,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 
 import { users } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import { admitsHandle, handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";

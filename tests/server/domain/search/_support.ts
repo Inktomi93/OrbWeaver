@@ -58,7 +58,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
-import { generationIdOf, vectorSpaceFingerprint } from "../../../../packages/server/src/kit/embedding-generation/index.ts";
+import { generationIdOf, vectorSpaceFingerprint } from "../../../../packages/server/src/primitives/embedding-generation/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

@@ -7,7 +7,7 @@
 // event's mandatory `recipientUserId` — a producer delivers to a user, it isn't the caller.
 
 import { notificationEventSchema } from "@orb/contracts/notifications";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";

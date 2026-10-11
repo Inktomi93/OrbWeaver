@@ -12,8 +12,8 @@ import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { SnapshotStore } from "../../deps.ts";
-import { authHeaders, fetchJson, serverRootOf } from "../kit/fetch-json.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import { authHeaders, fetchJson, serverRootOf } from "../http/fetch-json.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 
 /** One server's tokenize endpoint: where it lives under the server root, the body for one word, and the ids and
  *  pieces out of its answer. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */

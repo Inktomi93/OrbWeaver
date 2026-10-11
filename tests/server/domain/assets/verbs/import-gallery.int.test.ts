@@ -10,7 +10,7 @@ import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery, createImportGallery } from "@orb/server/domain/assets";
-import { buildGallery } from "@orb/server/kit/serde/gallery";
+import { buildGallery } from "@orb/server/primitives/serde/gallery";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import type { AssetsContext } from "../../../../../packages/server/src/domain/assets/context.ts";

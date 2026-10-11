@@ -29,7 +29,7 @@ import {
   tags,
   userConnections,
 } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type {
   ChatId,
   ChatParticipantId,
@@ -46,8 +46,8 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createExportRpgGame } from "@orb/server/domain/rpg";
-import type { PortableChat } from "@orb/server/kit/serde/chat-bundle";
-import { parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
+import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
+import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {

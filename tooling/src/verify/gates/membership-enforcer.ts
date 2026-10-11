@@ -34,7 +34,7 @@ const EQUALITY_OPS = new Set([
 ]);
 
 /** `fetchOwned` and `OwnedTable` are declared once, in the db package's kit. */
-const OWNED_HELPER_HOME: SealedHome = { pathInfix: "/packages/db/src/kit/", exportedNames: new Set(["fetchOwned", "OwnedTable"]) };
+const OWNED_HELPER_HOME: SealedHome = { pathInfix: "/packages/db/src/query/", exportedNames: new Set(["fetchOwned", "OwnedTable"]) };
 
 const MESSAGE =
   "the chat scope is MEMBERSHIP-scoped, not owner-scoped (D18: chats.ownerId is DROPPED; authority = " +
@@ -163,8 +163,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/db/src/kit/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
-        "packages/server/src/domain/chat/verbs/y.ts": 'import { fetchOwned } from "../../../../../db/src/kit/fetch-owned.ts";\nexport const f = fetchOwned;\n',
+        "packages/db/src/query/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
+        "packages/server/src/domain/chat/verbs/y.ts":
+          'import { fetchOwned } from "../../../../../db/src/query/fetch-owned.ts";\nexport const f = fetchOwned;\n',
       },
       expect: { count: 1, token: "fetchOwned" },
       why: "a `fetchOwned` import in domain/chat — the D18 category error, since chats are not single-owned",
@@ -172,9 +173,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/db/src/kit/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
+        "packages/db/src/query/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
         "packages/server/src/transport/trpc/routers/chat.ts":
-          'import { fetchOwned as loadMine } from "../../../../../db/src/kit/fetch-owned.ts";\nexport const f = loadMine;\n',
+          'import { fetchOwned as loadMine } from "../../../../../db/src/query/fetch-owned.ts";\nexport const f = loadMine;\n',
       },
       expect: { count: 1, token: "fetchOwned" },
       why: "AN ALIAS of the single-owned helper, in the chat ROUTER half of the scope — the seal is the declaration home, so renaming the binding is not an escape",
@@ -204,8 +205,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/db/src/kit/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
-        "packages/server/src/domain/billing/z.ts": 'import { fetchOwned } from "../../../../db/src/kit/fetch-owned.ts";\nexport const f = fetchOwned;\n',
+        "packages/db/src/query/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
+        "packages/server/src/domain/billing/z.ts": 'import { fetchOwned } from "../../../../db/src/query/fetch-owned.ts";\nexport const f = fetchOwned;\n',
         "packages/server/src/domain/chat/verbs/quiet.ts": "export const quiet = 1;\n",
       },
       why: "the same helper import OUTSIDE the chat scope — a genuinely single-owned domain is exactly who it is for, and the population excludes it",

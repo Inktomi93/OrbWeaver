@@ -10,7 +10,7 @@
 //
 // THE EXECUTION PATH IS THE REAL ONE. Every arm runs `buildBackends(deps)` → `createProviderExecutor(…)` →
 // `runTask`, so each cell crosses the same dispatch seam production does — including the abort FLATTEN
-// (`registry/dispatch.ts` → `backends/kit/abort-flatten.ts`), which a direct `backend.runChatTurn(req)` call
+// (`registry/dispatch.ts` → `backends/http/abort-flatten.ts`), which a direct `backend.runChatTurn(req)` call
 // would skip. What differs per wire is only the FIXTURE (which bytes / which SDK frames the fake transport
 // produces), because that is the one thing that genuinely cannot be shared.
 //

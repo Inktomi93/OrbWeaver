@@ -4,7 +4,7 @@
 // a POST body to another origin, and that origin's answer would decide the shared detect cache.
 
 import { createInferenceRuntime } from "@orb/inference";
-import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { detectServer } from "../../../packages/inference/src/catalog/detect.ts";
 import { fetchEndpointModels } from "../../../packages/inference/src/catalog/endpoint.ts";
 import { principal } from "../../support/factories/principal.ts";

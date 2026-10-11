@@ -8,7 +8,7 @@
 import { CRED_REVOKED_REASONS, parseProviderMetadata } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";

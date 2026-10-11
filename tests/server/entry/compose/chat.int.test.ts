@@ -2,7 +2,7 @@
 // (packages/server/src/entry/compose/chat.ts). THE gap this closes: the injection
 // `applyRegexReplace: createRegexApplyReplace()` (chat.ts) — the ONLY site that puts the real
 // node:vm-sandboxed replace onto the live `ChatContext` — had zero coverage. The watchdog's FIRING is
-// unit-covered (packages/server/src/kit/regex) and the edit verb's runOnEdit re-apply is covered with a FAKE
+// unit-covered (packages/server/src/primitives/regex) and the edit verb's runOnEdit re-apply is covered with a FAKE
 // `applyRegexReplace` (domain/chat/verbs/edit.int.test.ts) — but nothing proved the REAL composition wires the
 // real guard. `ChatComposeResult` never exposes the `ChatContext`, so the only faithful observation is
 // end-to-end: seed the host's `UserSettings.regex.scripts` (through the REAL settings verb) with the canonical

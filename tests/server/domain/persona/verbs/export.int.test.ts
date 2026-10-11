@@ -6,7 +6,7 @@ import type { PortableParse } from "@orb/contracts/portability";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
-import { parsePersonaBackup } from "@orb/server/kit/serde/persona";
+import { parsePersonaBackup } from "@orb/server/primitives/serde/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

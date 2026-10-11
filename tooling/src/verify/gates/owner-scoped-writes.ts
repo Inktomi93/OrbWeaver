@@ -64,7 +64,7 @@ const MESSAGE =
   "hole: whatever id the caller supplies gets mutated, whoever owns it (and with no `.where` at all, EVERY " +
   "owner's rows do). An owner-scoped table (table-scoping-class class (a)) resolves tenancy through its " +
   "`ownerId`, so the write has to say so — or say who already proved it. The owner-scoped read this pairs " +
-  "with is packages/db/src/kit/fetch-owned.ts.";
+  "with is packages/db/src/query/fetch-owned.ts.";
 
 const UNRESOLVABLE_MESSAGE =
   `a ${UNRESOLVABLE} write — the write target is an identifier that traces to no table this schema declares ` +

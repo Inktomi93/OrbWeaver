@@ -4,7 +4,7 @@
 // are the CARD mapper layer above it. A second declaration would be a fork that silently diverges on
 // round-trip (the import/export pipeline uses whichever is closer in the module graph).
 //
-// Today all three live in ONE file: `packages/server/src/kit/serde/card/index.ts`. The gate proves
+// Today all three live in ONE file: `packages/server/src/primitives/serde/card/index.ts`. The gate proves
 // that no other file declares any of them.
 //
 // DETECTION: syntax-tier regex on blanked text. Matches `export function <name>` or
@@ -25,10 +25,10 @@ function makeRe(name: string): RegExp {
 const SERDE_RES = SERDE_SYMBOLS.map((name) => ({ name, re: makeRe(name) }));
 
 // The ONE sanctioned home for all three declarations.
-const CANONICAL_HOME = "packages/server/src/kit/serde/card/index.ts";
+const CANONICAL_HOME = "packages/server/src/primitives/serde/card/index.ts";
 
 const MESSAGE =
-  "a SECOND declaration of a serde-core card mapper function (cardContentHash / cardFromJson / buildCardV3) — each must have exactly ONE `export function` / `export const` in the server package. The canonical home is `kit/serde/card/index.ts`.";
+  "a SECOND declaration of a serde-core card mapper function (cardContentHash / cardFromJson / buildCardV3) — each must have exactly ONE `export function` / `export const` in the server package. The canonical home is `primitives/serde/card/index.ts`.";
 
 export const gate = defineGate({
   id: "serde-core-definition-uniqueness",
@@ -41,7 +41,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use the canonical declaration from `@orb/server/kit/serde/card` instead of declaring a second. If the canonical home needs a new overload, add it there.",
+  fix: "use the canonical declaration from `@orb/server/primitives/serde/card` instead of declaring a second. If the canonical home needs a new overload, add it there.",
   create: (ctx) => ({
     visitFile: (sf) => {
       const raw = sf.getFullText();
@@ -76,7 +76,7 @@ export const gate = defineGate({
         // A SECOND declaration of cardFromJson outside the canonical home.
         "packages/server/src/domain/import/substrate/dup.ts": "export function cardFromJson(raw: unknown): unknown { return raw; }\n",
         // The canonical home must also exist so the population is nonempty.
-        "packages/server/src/kit/serde/card/index.ts":
+        "packages/server/src/primitives/serde/card/index.ts":
           "export function cardFromJson(raw: unknown, fallbackName: string): unknown { return raw; }\nexport function cardContentHash(): string { return ''; }\nexport function buildCardV3(): unknown { return {}; }\n",
       },
       expect: { count: 1, token: "cardFromJson" },
@@ -88,20 +88,20 @@ export const gate = defineGate({
       mode: "source",
       files: {
         // Only the canonical home declares the symbol — no second declaration exists.
-        "packages/server/src/kit/serde/card/index.ts":
+        "packages/server/src/primitives/serde/card/index.ts":
           "export function cardFromJson(raw: unknown, fallbackName: string): unknown { return raw; }\nexport function cardContentHash(): string { return ''; }\nexport function buildCardV3(): unknown { return {}; }\n",
         // A file that IMPORTS cardFromJson is not a declaration.
-        "packages/server/src/domain/import/substrate/user.ts": 'import { cardFromJson } from "#kit/serde/card";\nexport const x = cardFromJson;\n',
+        "packages/server/src/domain/import/substrate/user.ts": 'import { cardFromJson } from "#primitives/serde/card";\nexport const x = cardFromJson;\n',
       },
       why: "a file that imports cardFromJson is NOT a declaration — only `export function`/`export const` matches",
     },
     {
       mode: "source",
       files: {
-        "packages/server/src/kit/serde/card/index.ts":
+        "packages/server/src/primitives/serde/card/index.ts":
           "export function cardFromJson(raw: unknown, fallbackName: string): unknown { return raw; }\nexport function cardContentHash(): string { return ''; }\nexport function buildCardV3(): unknown { return {}; }\n",
         // A comment naming the function is not a declaration.
-        "packages/server/src/domain/import/substrate/comment.ts": "// Uses cardFromJson from kit/serde/card.\nexport const x = 1;\n",
+        "packages/server/src/domain/import/substrate/comment.ts": "// Uses cardFromJson from primitives/serde/card.\nexport const x = 1;\n",
       },
       why: "a comment naming cardFromJson is blanked and does not match — the comment projection excludes prose",
     },

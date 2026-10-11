@@ -31,7 +31,7 @@
 // ARM B — THE DOMINANCE ARM (#879, from the #471 settings-blob wipe). A JSON column whose `$type<T>` is a
 // type a `defineVersionedConfig(...)` OWNS carries a blob whose READ seam DEGRADES an unreadable value to
 // schema defaults; a whole-replace write built on that read persists the stand-in and destroys the real
-// blob silently and permanently. `@orb/server/kit`'s `stored-config` module (it lived at
+// blob silently and permanently. `@orb/server/primitives`'s `stored-config` module (it lived at
 // `domain/settings/substrate/stored-config.ts` until #1026 gave it a second domain caller) and its
 // `requireIntactStoredConfig(...)` are the ONE refusal seam, and until this arm its totality over future
 // writers rested on a header sentence (0 of 233 gate files referenced it). So: EVERY whole-replace writer

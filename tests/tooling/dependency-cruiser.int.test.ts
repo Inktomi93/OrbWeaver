@@ -203,7 +203,7 @@ function writeAllFixtures(): void {
   fx(`${S}/transport/trpc/routers/__dc.ts`, `import { t } from "../../../../../db/src/__dc/target.ts";\nexport const u = t;\n`);
   fx(`${S}/transport/jobs/__dc.ts`, VAL);
   fx(`${S}/transport/trpc/__dc.ts`, `import "../jobs/__dc.ts";\n`);
-  fx(`${S}/kit/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
+  fx(`${S}/primitives/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
 
   fx(`${S}/domain/__dc_feat/cross.ts`, `import "../__dc_feat2/index.ts";\n`);
   // domain-sibling-front-door (audit F9/G3): a domain reaching into a SIBLING's internals instead of its
@@ -250,11 +250,11 @@ function writeAllFixtures(): void {
   // `__dc`-prefixed one, while the execution-plane arm needs a sibling family dir.
   fx("packages/inference/src/catalog/openrouter.ts", `import "../backends/agent-sdk/__dc.ts";\n`);
   // THE TRANSITIVE ARM — what `reachable: true` is FOR, and the only arm a direct-edge fixture cannot
-  // prove: a sibling backend reaches the subscription plane through the SHARED seam `backends/kit/`, with
+  // prove: a sibling backend reaches the subscription plane through the SHARED seam `backends/http/`, with
   // no agent-sdk edge of its own anywhere in its own directory. If the widened `from` ever collapses back
   // to one directory, this fixture stops firing and the case below reds.
-  fx("packages/inference/src/backends/kit/__dc_hop.ts", `import "../agent-sdk/__dc.ts";\n`);
-  fx("packages/inference/src/backends/__dc_back/to-sub.ts", `import "../kit/__dc_hop.ts";\n`);
+  fx("packages/inference/src/backends/http/__dc_hop.ts", `import "../agent-sdk/__dc.ts";\n`);
+  fx("packages/inference/src/backends/__dc_back/to-sub.ts", `import "../http/__dc_hop.ts";\n`);
   // THE NEGATIVE CONTROL for the `pathNot`: a LIVE agent-sdk→agent-sdk edge, which the rule must not
   // report. Without an edge here the exemption would read as proven by the mere absence of one.
   fx("packages/inference/src/backends/agent-sdk/__dc_self.ts", `import "./__dc.ts";\n`);
@@ -467,10 +467,10 @@ test.each(ACTIVE_RULES)("config rule %s fires on its fixture", (rule) => {
 test("the credential firewall fires on a TRANSITIVE sibling-backend chain and exempts agent-sdk's own modules", () => {
   const firewall = allViolations.filter((violation) => violation.rule.name === "credential-firewall-openrouter-not-agent-sdk");
   const sources = firewall.map((violation) => violation.from);
-  // Reaches agent-sdk only through `backends/kit/` — no direct edge exists in `__dc_back/`.
+  // Reaches agent-sdk only through `backends/http/` — no direct edge exists in `__dc_back/`.
   expect(sources).toContain("packages/inference/src/backends/__dc_back/to-sub.ts");
   // The shared seam itself is a sibling and is policed on its own account.
-  expect(sources).toContain("packages/inference/src/backends/kit/__dc_hop.ts");
+  expect(sources).toContain("packages/inference/src/backends/http/__dc_hop.ts");
   // The surviving openrouter-NAMED plane, which is not under `backends/` at all.
   expect(sources).toContain("packages/inference/src/catalog/openrouter.ts");
   // The `pathNot` arm, proven against a LIVE agent-sdk→agent-sdk edge rather than against its absence.

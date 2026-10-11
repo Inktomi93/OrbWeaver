@@ -5,7 +5,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { createImportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
-import { buildUserSettingsBackup } from "@orb/server/kit/serde/user-settings";
+import { buildUserSettingsBackup } from "@orb/server/primitives/serde/user-settings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

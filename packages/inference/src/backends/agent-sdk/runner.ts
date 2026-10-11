@@ -39,15 +39,15 @@ import type { AnthImageBlock } from "../../contract/runtime.ts";
 import type { PlannedResponseFormat } from "../../structured/plan.ts";
 import { requireStructuredPlan } from "../../structured/plan.ts";
 import { normalizeStructuredValue } from "../../structured/reply.ts";
-import { toAnthImageBlock } from "../kit/anth-image-block.ts";
-import { classifyHttpStatus } from "../kit/error-classify.ts";
-import { observeChatResult } from "../kit/generation-observation.ts";
-import type { IdleAbort } from "../kit/idle-timeout.ts";
-import { isIdleTrip, turnAbortSignal } from "../kit/idle-timeout.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { redactSecretsFromText } from "../kit/openai-body.ts";
-import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
-import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
+import { classifyHttpStatus } from "../http/error-classify.ts";
+import { observeChatResult } from "../http/generation-observation.ts";
+import type { IdleAbort } from "../http/idle-timeout.ts";
+import { isIdleTrip, turnAbortSignal } from "../http/idle-timeout.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
+import { toAnthImageBlock } from "../wire/anth-image-block.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { redactSecretsFromText } from "../wire/openai-body.ts";
+import { agentSdkVariantMetadata } from "../wire/provider-metadata.ts";
 import type { AgentSdkLog } from "./log.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
@@ -684,7 +684,7 @@ class TurnAccumulator {
     const planned = normalize ? this.ctx.structured : undefined;
     const structuredReply = planned === undefined ? undefined : JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned));
     // The subscription's own receipts, narrowed to the closed per-provider sidecar the variant stores
-    // (`backends/kit/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
+    // (`backends/wire/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
     // the first is a per-model breakdown the stats plane already rolls up from the variant rows themselves, the
     // second is a turn-LOG canary (sub vs key) with no meaning on a stored generation.
     const providerMetadata = agentSdkVariantMetadata(this.ctx.providerId, {

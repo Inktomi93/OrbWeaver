@@ -7,9 +7,9 @@ import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFF
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
-import type { NormalizeImageBytes } from "../backends/kit/image-normalize.ts";
-import { toImageUrl } from "../backends/kit/image-normalize.ts";
-import { providerLogger } from "../backends/kit/provider-log.ts";
+import { providerLogger } from "../backends/http/provider-log.ts";
+import type { NormalizeImageBytes } from "../backends/wire/image-normalize.ts";
+import { toImageUrl } from "../backends/wire/image-normalize.ts";
 import type { ChatHistoryMessage, ChatRequest, ChatResult, GenerationObservationCallback } from "../contract/chat.ts";
 import { GenerationObservationPersistenceError } from "../contract/chat.ts";
 import { ProviderError } from "../contract/errors.ts";

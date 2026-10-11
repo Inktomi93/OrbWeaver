@@ -45,8 +45,8 @@ import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 import type { JsonValue } from "@orb/kit/json";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { ConnectionTransport } from "../../contract/resolved.ts";
-import { applyIncludeExclude } from "../kit/openai-body.ts";
 import type { OutboundMedia, WirePlan } from "../v4/prompt.ts";
+import { applyIncludeExclude } from "../wire/openai-body.ts";
 
 const REASONING_EFFORT_KEY = "reasoning_effort";
 const MAX_TOKENS_KEY = "max_tokens";

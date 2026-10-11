@@ -1140,7 +1140,7 @@ test("C3: `web_search_options` rides when declared, and the body carries nothing
 //
 // It is the recovery for an endpoint that rejects `reasoning.effort:"none"` with a 400: the runner peels the
 // upstream body off the RAW thrown error, recognises the refusal, and replays the turn ONCE with the
-// reasoning block omitted. That peel is also the reason `backends/kit/retry.ts` re-throws the ORIGINAL error
+// reasoning block omitted. That peel is also the reason `backends/http/retry.ts` re-throws the ORIGINAL error
 // rather than its classification — `providerErrorFromHttp` replaces `cause` with a scrubbed `new Error(safe)`
 // on any credential-bearing scrub set, which would destroy exactly the body this reads.
 //

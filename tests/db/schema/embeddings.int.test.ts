@@ -26,7 +26,7 @@ import {
   imageIndexSkips,
   userConnections,
 } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type {
   AssetId,
   CharacterEmbeddingId,

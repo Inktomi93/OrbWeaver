@@ -5,7 +5,7 @@
 
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { parseChatJsonl } from "@orb/server/kit/serde/chat";
+import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { describe } from "vitest";
 import type { CollectedChat } from "../../../../../packages/server/src/domain/import/contract/views.ts";
 import { createImportChats } from "../../../../../packages/server/src/domain/import/verbs/import-chats.ts";

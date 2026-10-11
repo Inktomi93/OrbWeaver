@@ -27,7 +27,7 @@ import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
 // CHECK list derived from the CONTRACT'S OWN tuple (`@orb/contracts/notifications` NOTIFICATION_TYPES),

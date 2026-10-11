@@ -302,14 +302,14 @@ const PLATFORM_MUST_FLAG: readonly GatePolicyProof[] = [
   },
   {
     mode: "types",
-    files: { "packages/server/src/kit/probe-escape/decl.ts": "export function escapeRegExp(s: string): string {\n  return s;\n}\n" },
+    files: { "packages/server/src/primitives/probe-escape/decl.ts": "export function escapeRegExp(s: string): string {\n  return s;\n}\n" },
     expect: { count: 1 },
     why: "ARM ESCAPE-MINT decl — a function DECLARATION named escapeRegExp, the kit export W4.7 deleted",
   },
   {
     mode: "types",
     files: {
-      "packages/server/src/kit/probe-escape/method.ts": "export const helpers = {\n  escapeRegExp(s: string): string {\n    return s;\n  },\n};\n",
+      "packages/server/src/primitives/probe-escape/method.ts": "export const helpers = {\n  escapeRegExp(s: string): string {\n    return s;\n  },\n};\n",
     },
     expect: { count: 1 },
     why: "BLIND SPOT CLOSED (verifier-flagged): a re-mint hiding as an object-literal METHOD — the arm handled only function declarations and variable declarations, so a helpers-bag spelling was invisible",
@@ -317,14 +317,14 @@ const PLATFORM_MUST_FLAG: readonly GatePolicyProof[] = [
   {
     mode: "types",
     files: {
-      "packages/server/src/kit/probe-escape/property.ts": "export const helpers = {\n  escapeRegex: (s: string): string => s,\n};\n",
+      "packages/server/src/primitives/probe-escape/property.ts": "export const helpers = {\n  escapeRegex: (s: string): string => s,\n};\n",
     },
     expect: { count: 1 },
     why: "the property-assignment twin of the method spelling — a function-VALUED object property is the same re-mint; the arm requires the value to be a function so a plain string property named escapeRegex never matches",
   },
   {
     mode: "types",
-    files: { "packages/server/src/kit/probe-escape/arrow.ts": "export const escapeRegex = (s: string): string => s;\n" },
+    files: { "packages/server/src/primitives/probe-escape/arrow.ts": "export const escapeRegex = (s: string): string => s;\n" },
     expect: { count: 1 },
     why: "ARM ESCAPE-MINT decl (arrow) — the `const escapeRegex = (…) =>` local re-mint form (body.ts carried its own copy); the name-binding arm covers both spellings",
   },
@@ -446,17 +446,17 @@ const PLATFORM_MUST_PASS = [
   },
   {
     files: "export const remedy = (s: string): string => RegExp.escape(s);\n",
-    at: "packages/server/src/kit/probe-ok-escape/index.ts",
+    at: "packages/server/src/primitives/probe-ok-escape/index.ts",
     why: "ARM ESCAPE-MINT's remedy — the platform RegExp.escape; the binding is not named escapeRegExp/escapeRegex",
   },
   {
     files: 'export const docs = {\n  escapeRegExp: "use RegExp.escape instead",\n};\n',
-    at: "packages/server/src/kit/probe-escape/string-prop.ts",
+    at: "packages/server/src/primitives/probe-escape/string-prop.ts",
     why: "the function-VALUED fence on the new property/method arms — a property merely NAMED escapeRegExp whose value is a string (a doc/label table) is not a re-mint and must not flag",
   },
   {
     files: "export const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/iu;\nexport const DICE = /^(\\d*)d(\\d+)([+-]\\d+)?$/iu;\n",
-    at: "packages/server/src/kit/probe-complex-regex/index.ts",
+    at: "packages/server/src/primitives/probe-complex-regex/index.ts",
     why: "DECLARED LIMIT / REGRESSION FENCE — the exact class of regexes the REMOVED char-class heuristic false-flagged (a color validator + dice notation, each enumerating ≥8 metacharacters). The name-only ESCAPE arm never touches regex literals, so these must pass; this row pins that the 27-false-positive heuristic stays gone",
   },
   {

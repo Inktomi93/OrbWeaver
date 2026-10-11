@@ -497,7 +497,7 @@ export default tseslint.config(
     // the CT_SURFACE blocks (syntactic parser, no program) — .ct.tsx/_ct-stories parse without type info,
     // so these skip test files, which is correct. (`await-thenable` was adopted once the db-layer seam was
     // fixed: the 3 standalone-run sites returning `BatchStmt` — which erases the drizzle builder's
-    // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/kit`: `BatchStmt & PromiseLike<T>`), so the
+    // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/query`: `BatchStmt & PromiseLike<T>`), so the
     // bare `await` is type-honest; `BatchStmt` stays the erased multi-table batch-INPUT type.)
     files: [...SHIPPED_SRC, ...TSDOC_SURFACE],
     plugins: { "@typescript-eslint": tseslint.plugin },

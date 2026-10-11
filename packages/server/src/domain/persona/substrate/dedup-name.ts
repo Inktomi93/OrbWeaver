@@ -4,7 +4,7 @@
 // and two folds disagree the moment a name carries a non-ASCII capital. The stored value is never folded.
 
 import type { PersonaId } from "@orb/kit/ids";
-import { foldPersonaName } from "#kit/serde/persona";
+import { foldPersonaName } from "#primitives/serde/persona";
 
 /** Index an owner's personas by their folded name — the lookup chat attribution resolves a `user_name`
  *  through. FIRST ROW WINS a folded-name collision, so the caller's ordering IS the collision rule —

@@ -21,7 +21,7 @@ import {
   messageVariants,
   ownerStats,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ChatEvent, ChatResult } from "@orb/inference";
 import { generationOf, resolveChat } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
@@ -36,8 +36,8 @@ import { beforeEach, describe, vi } from "vitest";
 import { createAgentSdkLog } from "../../../../../packages/inference/src/backends/agent-sdk/log.ts";
 import { consumeTurnStream } from "../../../../../packages/inference/src/backends/agent-sdk/runner.ts";
 import { NO_SAVED_TOTALS } from "../../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
-import { observeChatResult } from "../../../../../packages/inference/src/backends/kit/generation-observation.ts";
-import { resolvedScrubSet } from "../../../../../packages/inference/src/backends/kit/sanitize.ts";
+import { observeChatResult } from "../../../../../packages/inference/src/backends/http/generation-observation.ts";
+import { resolvedScrubSet } from "../../../../../packages/inference/src/backends/http/sanitize.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { MemoryRecallInputs } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";

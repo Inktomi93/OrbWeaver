@@ -9,8 +9,8 @@
 
 import { personas } from "@orb/db";
 import { nextFreeName } from "@orb/kit/strings";
-import { portableParseError } from "#kit/serde/lib";
-import { findDuplicatePersona, PERSONA_SCHEMA_KIND, parsePersonaBackup, personaPlacementOf } from "#kit/serde/persona";
+import { portableParseError } from "#primitives/serde/lib";
+import { findDuplicatePersona, PERSONA_SCHEMA_KIND, parsePersonaBackup, personaPlacementOf } from "#primitives/serde/persona";
 import type { PersonaContext } from "../context.ts";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { ImportPersonaParams } from "../contract/params.ts";

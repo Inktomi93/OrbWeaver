@@ -16,11 +16,11 @@ import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, List
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
-import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
-import { turnAbortSignal } from "../kit/idle-timeout.ts";
-import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
-import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
-import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
+import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
+import { turnAbortSignal } from "../http/idle-timeout.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
+import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
+import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import type { TransportDeps } from "./model.ts";
 import { languageModelFor } from "./model.ts";
 

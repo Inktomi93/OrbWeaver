@@ -18,8 +18,8 @@
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, isConstraintViolation } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
@@ -60,7 +60,7 @@ function ownedBackgroundExists(db: Db, ownerId: UserId, assetId: AssetId | undef
 
 /** The INSERT, with its id computed by a guard subquery so every precondition rides the write statement
  *  itself — the batch takes the write lock at its first statement, so a predicate evaluated here is atomic
- *  in a way no pre-SELECT can be (`@orb/db/kit::batchMany` bans a read ahead of the writes outright).
+ *  in a way no pre-SELECT can be (`@orb/db/query::batchMany` bans a read ahead of the writes outright).
  *  A guard that yields no row makes `id` NULL, which the PK's NOT NULL turns into the constraint violation
  *  the callers classify. */
 function guardedInsertStatements(
@@ -229,7 +229,7 @@ async function provenanceClaimed(db: Db, ownerId: UserId, importedFrom: string):
  *  moved answers `"stale"` and NOTHING is written.
  *
  *  THE BASIS IS NOT THE CONTENT HASH ALONE (#1560). `content_hash` is the card's IDENTITY, and identity
- *  deliberately excludes the re-attribution fields — `creatorNotes` among them (`#kit/serde/card`
+ *  deliberately excludes the re-attribution fields — `creatorNotes` among them (`#primitives/serde/card`
  *  `semanticFields`, pinned in its own suite: re-attributing a card must not change what it IS). But
  *  `creatorNotes` is also a field the refinery REWRITES, so a hash-only fence passed a creator-notes-only
  *  edit straight through and overwrote it: the exact defect, for one field in nine. The recorded exclusion

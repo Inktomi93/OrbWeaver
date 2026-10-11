@@ -20,7 +20,7 @@
 // SAME batch as the role swap (the `handoffHealStatements` co-statement seam).
 
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 /** db only — a re-key writes no vectors, mints no ids and needs no clock. */

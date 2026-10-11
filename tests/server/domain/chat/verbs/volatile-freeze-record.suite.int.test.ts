@@ -21,7 +21,7 @@ import type { MacroFreezeRecord } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";

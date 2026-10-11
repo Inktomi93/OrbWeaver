@@ -6,7 +6,7 @@
 import type { StandaloneVariableDelta } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";

@@ -19,8 +19,8 @@
 
 import type { Db } from "@orb/db";
 import { characterRegexScripts, chatRegexScripts, globalRegexScripts, presetRegexScripts } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { RegexContext } from "../../context.ts";

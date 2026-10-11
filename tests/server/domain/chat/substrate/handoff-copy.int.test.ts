@@ -48,8 +48,8 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type {
   CharacterHandle,
   CharacterId,

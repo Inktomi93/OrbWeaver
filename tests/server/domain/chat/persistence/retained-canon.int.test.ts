@@ -1,7 +1,7 @@
 import type { StatsDelta } from "@orb/contracts/stats";
 import { characters, chatParticipants, chats, ownerStats, statsCanonVersions } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import type { ChatParticipantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";

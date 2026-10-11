@@ -19,7 +19,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
-import { GenerationSupersededError } from "#kit/embedding-generation";
+import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "../../context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";

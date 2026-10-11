@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { buildWorldBookFile } from "@orb/server/kit/serde/world-info";
+import { buildWorldBookFile } from "@orb/server/primitives/serde/world-info";
 import { describe } from "vitest";
 import type { WorldInfoImportContext } from "../../../../../packages/server/src/domain/world-info/contract/import.ts";
 import { createImportStandaloneLorebook } from "../../../../../packages/server/src/domain/world-info/persistence/import-write.ts";

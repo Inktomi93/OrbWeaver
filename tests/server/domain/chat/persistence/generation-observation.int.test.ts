@@ -14,8 +14,8 @@ import {
   userConnections,
   users,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatResult } from "@orb/inference";
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { CharacterId, ChatTurnId, HandleKey, UserId } from "@orb/kit/ids";

@@ -4,7 +4,7 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { foldPersonaName } from "@orb/server/kit/serde/persona";
+import { foldPersonaName } from "@orb/server/primitives/serde/persona";
 import { indexByDedupName } from "../../../../../packages/server/src/domain/persona/substrate/dedup-name.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

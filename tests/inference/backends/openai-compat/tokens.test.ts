@@ -3,7 +3,7 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/http/sanitize.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import type { TokenTarget } from "../../../../packages/inference/src/backends/openai-compat/tokens.ts";
 import { createTokenLexicon } from "../../../../packages/inference/src/backends/openai-compat/tokens.ts";
