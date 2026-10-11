@@ -12,6 +12,7 @@ import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { CountText } from "#components";
 import type { TagGroup } from "../lib/character-list-view.ts";
 import { groupStartsOpen } from "../lib/character-list-view.ts";
 
@@ -91,11 +92,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
                     flight: the header then prints NOTHING rather than the loaded length, because a number
                     that means "of what I have" wearing the place a library count goes is exactly the defect
                     — the rows below are still perfectly readable while it lands. */}
-                {group.total === null ? null : (
-                  <Text as="span" voice="datum">
-                    {group.total}
-                  </Text>
-                )}
+                {group.total === null ? null : <CountText>{group.total}</CountText>}
               </Button>
             }
           />

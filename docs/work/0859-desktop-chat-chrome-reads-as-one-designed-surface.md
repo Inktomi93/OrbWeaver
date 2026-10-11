@@ -35,4 +35,6 @@ Fixed, each with a test that failed on the old source first:
 - Transcript top edge. Both edge bands ease in, so the cut line reads as gone (`globals.css`). Test: `message-list-surface.ct.tsx`, a framebuffer sample.
 - Flank. The column keeps a top gap under the divider (`chat-room-surface.tsx`). Pocket Arcade puts New game on its own line in the 194px frame (1.0.2, artifacts rebuilt). Frames get the thin themed scrollbar (`card-frame/index.ts`). Tests: `chat-room-surface.ct.tsx`, `pocket-arcade.suite.ct.tsx`, `sandbox-frame.ct.tsx`.
 
-Kept: the 2px ember edge atop the context pane is the content-to-context binding line, not a surface shade. The hero portrait uploader keeps `square` so its button ring traces the avatar's corner.
+Kept: the 2px ember edge atop the context pane is the content-to-context binding line, not a surface shade. The hero portrait is a circle like every avatar outside chat rows, and its button takes `shape="pill"` so the ring traces it.
+
+Side-eye round: art rooms get a short fade band and a pinned name row moves the top fade below itself. List counts share `CountText` on the title baseline. The chip keeps its word at 1280.

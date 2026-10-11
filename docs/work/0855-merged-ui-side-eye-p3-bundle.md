@@ -31,3 +31,5 @@ Each finding was re-measured on the current tree before it was touched. All four
 - Model picker. The display name used `break-all`, which split words at the end of a line. It uses `break-words`; the catalog id keeps `break-all` because it has no break points. Test: `add-model-on-key-dialog.ct.tsx`, at every width the picker is tested at.
 
 Not in this item and left alone: the other findings in the same review (the inline name field label, the wire viewer's empty settings and measure, the schema editor's name field). The name cell of a suggestion row still sits 13px in from its column header; that was named in the review but not in this item's What.
+
+Side-eye round: the rate-cap note holds the prose measure and reads "you get a card", not "this chat"; the closed rule gloss clamps to two lines on a phone and one on desktop. Test: `rules-section.ct.tsx`.

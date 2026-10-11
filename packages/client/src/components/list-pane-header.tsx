@@ -67,7 +67,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             IT KEEPS `truncate` AND THE MOBILE SHED: a 24px name in a 307px docked band ellipsises exactly
             as the 10.5px one did, and shell.css still sheds an unscoped title when the pane IS the screen. */}
         <Heading
-          // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a mono DATUM is below the
+          // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a figure is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
           className="flex min-w-0 items-baseline gap-row"

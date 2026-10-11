@@ -90,8 +90,8 @@ export interface CollectionInsight {
   readonly id: string;
   /** What the fact is about, in the library's own vocabulary ("Runs in every chat", "Used nowhere"). */
   readonly label: string;
-  /** The fact itself, already formatted by the owner ("3 books", "none", "4m ago"). The host renders it at
-   *  the `datum` voice and never computes or units it. */
+  /** The fact itself, already formatted by the owner ("3 books", "none", "4m ago"). The host renders it as
+   *  a `CountText` and never computes or units it. */
   readonly value: string;
   /** The DOOR — present ONLY when this fact is about ONE member, and then it opens that member's editor
    *  (the owner calls its own `selectCollectionMember`; the host never learns which member it was).

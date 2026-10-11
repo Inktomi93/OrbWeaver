@@ -54,5 +54,6 @@ test("instant jumps recompute the top fade after the new sticky rows render", as
       )
       .toBe(false);
     await expect(scroller).toHaveAttribute("data-fade-top", "");
+    await expect.poll(() => scroller.evaluate((element) => element.style.getPropertyValue("--mask-top-inset"))).toBe("");
   }
 });

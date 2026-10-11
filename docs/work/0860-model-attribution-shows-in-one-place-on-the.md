@@ -38,3 +38,5 @@ Correction to the Done line: a room has no model or preset of its own. The model
 Test: `tests/client/features/chat/surfaces/chat-room-surface.ct.tsx`, "the room names the model only in the per-message stamp and mounts no model or preset swap". It plants a model name outside the stamp first, to prove its probe sees one, then asserts the room has none and no model, connection or preset control. It passes on the unchanged source by design.
 
 Owner ruling: no model or preset swaps from the chat room.
+
+Side-eye round: no change to attribution; the room still names the model only in the per-message stamp.
