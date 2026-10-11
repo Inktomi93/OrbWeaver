@@ -13,8 +13,8 @@ import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution.ts";
-import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color.ts";
+import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "#client/features/chat/lib/attribution.ts";
+import { colorForCharacter } from "#client/features/chat/lib/speaker-color.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 

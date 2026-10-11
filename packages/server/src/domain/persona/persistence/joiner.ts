@@ -5,7 +5,7 @@
 import type { JoinerPersona } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 

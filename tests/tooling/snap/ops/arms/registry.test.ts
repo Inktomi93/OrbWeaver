@@ -11,7 +11,7 @@
 // @instrument-absence-proof: the leftover sweep — an arm the help template never placed still reaches
 // `--help`, and an arm whose pairs the RESULT spine never claims still reaches the RESULT line. A
 // derivation that silently omitted an arm would read as a clean, complete instrument.
-import type { ResultPair } from "../../../../../tooling/src/_shared/artifacts.ts";
+import type { ResultPair } from "../../../../../tooling/src/floor/artifacts/artifacts.ts";
 import type { Arm } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
 import { ARMS } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
 import type { ArmArgs, ArmPairInput } from "../../../../../tooling/src/snap/contract/arms.ts";

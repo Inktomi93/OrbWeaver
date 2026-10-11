@@ -6,7 +6,7 @@
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { Db } from "@orb/db";
 import { assets, characters, chats, imageryGenerations } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

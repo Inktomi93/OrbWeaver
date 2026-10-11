@@ -2,12 +2,12 @@
 // subject. Split out of `appearance-invariant-runtime.ts` when #1104's refusal pushed that file over the
 // tooling-size cap — the drive is one question ("is this row's surface up?") and the runtime owner reads as
 // one call.
-import { instrumentRefusal, navResultShape, pageArray, pageNumber, pageObject } from "@orb/tooling/_shared/page-validate";
+import { instrumentRefusal, navResultShape, pageArray, pageNumber, pageObject } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
-import { settle } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { buildNavScript } from "../../_shared/nav.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import { settle } from "../../floor/browser/browser.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { buildNavScript } from "../../floor/instrument/nav.ts";
 import { MOUNT_SETTLE_MS, STEP_SETTLE_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");

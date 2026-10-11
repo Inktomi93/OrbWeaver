@@ -19,7 +19,7 @@ import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } fr
 import { MEMORY_RECALL_REJECTS_SHOWN } from "@orb/contracts/chat";
 import type { BlockKey, ScoredBlock } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
-import type { ChatContext } from "../../context.ts";
+import type { ChatContext } from "#src/domain/chat/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";

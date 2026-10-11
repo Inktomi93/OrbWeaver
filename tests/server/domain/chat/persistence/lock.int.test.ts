@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
-import { reclaimChatLocksOnBoot, refreshLock, releaseLock, tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
+import { reclaimChatLocksOnBoot, refreshLock, releaseLock, tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat } from "../_support.ts";

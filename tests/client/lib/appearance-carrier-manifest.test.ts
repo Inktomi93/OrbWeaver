@@ -12,7 +12,7 @@ import {
   appearanceCarrierRowsFor,
   appearanceMatrixContract,
   THEME_CARRIER_OBSERVABLES,
-} from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+} from "#client/lib/appearance-carrier-manifest.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
 import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";

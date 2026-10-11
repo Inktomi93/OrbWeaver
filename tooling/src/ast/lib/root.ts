@@ -1,6 +1,6 @@
 // Shared root constants of the ast lens fleet (split from the pre-move scripts/codemods/ast.ts,
 // P4 of #393). REPO_ROOT re-derived at the move: tooling/src/ast/lib is FOUR levels deep.
-import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
+import { PACKAGE_NAMES } from "../../floor/compiler/project-worlds.ts";
 export const REPO_ROOT = new URL("../../../..", import.meta.url).pathname.replace(/\/$/u, "");
 
 export const SNIPPET_CAP = 120;

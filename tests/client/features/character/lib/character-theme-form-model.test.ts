@@ -10,7 +10,7 @@ import {
   characterThemeFormFromOverride,
   EMPTY_CHARACTER_THEME_FORM,
   overrideFromCharacterThemeForm,
-} from "../../../../../packages/client/src/features/character/lib/character-theme-form-model.ts";
+} from "#client/features/character/lib/character-theme-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // A fully-populated CARD override — every colour scalar, both slots of every bubble, and both enums the

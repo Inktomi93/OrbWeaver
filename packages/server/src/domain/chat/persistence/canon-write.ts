@@ -30,8 +30,8 @@ import type { CostDetails, NormalizedFinishReason, ProviderId, ResponseCache, To
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import type { ReasoningContentPart } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";

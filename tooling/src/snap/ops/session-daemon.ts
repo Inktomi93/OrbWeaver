@@ -1,6 +1,6 @@
 // The session DAEMON: the process
 // behind `pnpm snap --session <name>`. Entered as the cli verb `--session-daemon <name>` (argv enters in
-// cli.ts only; the client spawns it through _shared/proc.ts `spawnFullPriorityChild` — own process group,
+// cli.ts only; the client spawns it through floor/process/proc.ts `spawnFullPriorityChild` — own process group,
 // stdio a log file beside the socket). It boots the session's stage through the unchanged `configureStage`,
 // opens its OWN run slot (instrument `snap-session` — the `.inflight` marker's pid is this pid, so
 // `abandonedRuns` names it the moment it dies), holds a host CT slot for its lifetime, launches ONE browser
@@ -15,15 +15,15 @@ import { rmSync } from "node:fs";
 import { createServer } from "node:net";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
-import { beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
-import { checkoutName, openRunSlot, print, publishRunSlot } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { acquireHostSlot, ctHostSlotPool } from "../../_shared/host-slots.ts";
-import { warn } from "../../_shared/log.ts";
-import { killPidGroup } from "../../_shared/proc.ts";
-import { beginRunLease } from "../../_shared/run-marker.ts";
+import { beginInstrumentRun, finishInstrumentRun } from "../../floor/artifacts/artifact-out.ts";
+import { checkoutName, openRunSlot, print, publishRunSlot } from "../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { acquireHostSlot, ctHostSlotPool } from "../../floor/host/host-slots.ts";
+import { killPidGroup } from "../../floor/process/proc.ts";
+import { beginRunLease } from "../../floor/process/run-marker.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";

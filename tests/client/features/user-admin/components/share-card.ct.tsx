@@ -9,7 +9,7 @@ import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus }
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
+import type { AuthConfig } from "#client/data/auth-config.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";

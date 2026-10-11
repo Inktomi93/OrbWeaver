@@ -5,9 +5,9 @@
 import type { JSONObject, LanguageModelV4CallOptions } from "@ai-sdk/provider";
 import type { EndpointFeatures } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
-import { extractHttpErrorDiagnostic } from "../kit/error-classify.ts";
-import { NO_PROVIDER_SECRETS } from "../kit/sanitize.ts";
+import type { ResolvedReasoning, ResolvedWarning } from "#contract";
+import { extractHttpErrorDiagnostic } from "../http/error-classify.ts";
+import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
 import { wireEffortOf } from "../v4/options.ts";
 
 const REASONING_OFF = "none";

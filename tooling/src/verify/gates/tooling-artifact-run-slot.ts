@@ -1,6 +1,6 @@
 // Policy: tooling-artifact-run-slot (docs/law/Core-Tooling-Law.md §4.4, arm G of the retired
 // `tooling-shared-plumbing`; UNIFIED-VERIFICATION-DESIGN.md §3.3b) — a tool that FILES an artifact
-// (`artifactDir`/`artifactFile`, _shared/artifact-out.ts) anywhere under `tooling/src/<tool>/` opens a run
+// (`artifactDir`/`artifactFile`, floor/artifacts/artifact-out.ts) anywhere under `tooling/src/<tool>/` opens a run
 // slot (`withInstrumentRun`) in its `cli.ts`. An unslotted instrument writes into the shared
 // `reports/<kind>/`, where a concurrent run of the same instrument destroys its artifacts — the #1164 clobber
 // class (two side-eye lanes on one checkout both took the default `--out` name and produced a `root.png`
@@ -12,7 +12,7 @@
 // `lib/artifact-filing.ts` (`classifyFilingCall` over the two located halves of the one home).
 //
 // IDENTITY, NOT SPELLING: the legacy compared callee TEXT (`artifactFile`, `withInstrumentRun`). Both doors
-// are now judged by DECLARATION against the LOCATED `_shared/artifact-out.ts` home through
+// are now judged by DECLARATION against the LOCATED `floor/artifacts/artifact-out.ts` home through
 // `lib/project-home-origin.ts`, so an aliased import opens a slot (mustPass[1]) and a local function of the
 // door's name does not (mustFlag[2], mustPass[2]). Fail-closure runs in BOTH directions: a filer the readers
 // cannot place still FILES (its tool owes a slot, mustFlag[3]), and a slot opener the readers cannot place
@@ -35,9 +35,9 @@
 // `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `bbdccb2d5c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 1,120.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 1,120.
 // legacy − final = 497 — `tests/tooling/**` (482) and `tests/e2e/support/**` (15): arm G fenced to `tooling/src`
-// inside `visit`. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts` (virtual)
+// inside `visit`. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts` (virtual)
 // admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 
 import type { Node as MorphNode } from "ts-morph";
@@ -50,15 +50,15 @@ import { isToolCli, TOOLING_PREFIX, toolOf } from "../lib/tooling-import-door.ts
 const FILERS_RECEIPT = "artifact home: filers";
 const SLOT_RECEIPT = "artifact home: run slot";
 /** The plumbing's own home dir is not a tool with a cli — it DEFINES the filing doors. */
-const SHARED_DIR = "_shared";
+const FLOOR_DIR = "floor";
 
 const MESSAGE =
-  "an instrument that files artifacts with no run slot — a tool calling `artifactDir`/`artifactFile` (_shared/artifact-out.ts) whose cli.ts never opens `withInstrumentRun` writes into the shared reports/<kind>/, where a concurrent run of the same instrument destroys its artifacts (#1164; docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b).";
+  "an instrument that files artifacts with no run slot — a tool calling `artifactDir`/`artifactFile` (floor/artifacts/artifact-out.ts) whose cli.ts never opens `withInstrumentRun` writes into the shared reports/<kind>/, where a concurrent run of the same instrument destroys its artifacts (#1164; docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b).";
 const FIX =
-  "wrap the tool's main in `withInstrumentRun(\"<tool>\", …)` in its cli.ts (_shared/artifact-out.ts) so every artifact it files lands in that run's own slot and is published by pointer at the end.";
+  "wrap the tool's main in `withInstrumentRun(\"<tool>\", …)` in its cli.ts (floor/artifacts/artifact-out.ts) so every artifact it files lands in that run's own slot and is published by pointer at the end.";
 
 const unslotted = (tool: string, site: string): string =>
-  `${site} files an artifact, so ${tool}'s cli.ts (${TOOLING_PREFIX}${tool}/cli.ts) must open its artifact run slot (withInstrumentRun, _shared/artifact-out.ts) — an unslotted instrument writes into the shared reports/<kind>/ where a concurrent run of the same instrument destroys its artifacts (#1164; docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b).`;
+  `${site} files an artifact, so ${tool}'s cli.ts (${TOOLING_PREFIX}${tool}/cli.ts) must open its artifact run slot (withInstrumentRun, floor/artifacts/artifact-out.ts) — an unslotted instrument writes into the shared reports/<kind>/ where a concurrent run of the same instrument destroys its artifacts (#1164; docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b).`;
 
 export const gate = defineGate({
   id: "tooling-artifact-run-slot",
@@ -90,7 +90,7 @@ export const gate = defineGate({
             }
             const rel = ctx.relativePath(sourceFile);
             const tool = toolOf(rel);
-            if (tool === SHARED_DIR) {
+            if (tool === FLOOR_DIR) {
               return;
             }
             // A filer the readers cannot place still files: fail-closed, the tool owes a slot.
@@ -119,10 +119,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/unslotted/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/unslotted/ops/shoot.ts":
-          'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+          'import { artifactFile } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
       },
       expect: { count: 1, token: "artifactFile" },
       why: "the founding shape (#1164): an instrument that files artifacts with no run slot — the shared-path clobber. The finding anchors on the FILING call, the one site that always exists, and names the cli.ts that owes the slot",
@@ -130,10 +130,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/deep/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/deep/ops/shoot.ts":
-          'import { artifactFile, withInstrumentRun } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  return await withInstrumentRun("deep", async () => {\n    await artifactFile("snaps", "root", ".png");\n    return 0;\n  });\n}\n',
+          'import { artifactFile, withInstrumentRun } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  return await withInstrumentRun("deep", async () => {\n    await artifactFile("snaps", "root", ".png");\n    return 0;\n  });\n}\n',
       },
       expect: { count: 1, token: "artifactFile" },
       why: "the slot must be opened in the tool's cli.ts — the front door that owns the run — not in an ops module: a slot opened below the door can be bypassed by every other verb the cli dispatches",
@@ -141,11 +141,11 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/local/cli.ts":
           'import { shoot } from "./ops/shoot.ts";\nasync function withInstrumentRun(i: string, m: () => Promise<number>): Promise<number> {\n  void i;\n  return await m();\n}\nexport const run = withInstrumentRun("local", shoot);\n',
         "tooling/src/local/ops/shoot.ts":
-          'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+          'import { artifactFile } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
       },
       expect: { count: 1, token: "artifactFile" },
       why: "THE IDENTITY RED: a LOCAL function that merely shares the run-slot door's name opens no slot — its callee resolves to the cli's own declaration, not the home's export. The legacy text comparison called this tool slotted",
@@ -153,7 +153,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/blind/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/blind/ops/shoot.ts":
           'import { artifactFile } from "./missing.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
@@ -166,29 +166,29 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/slotted/cli.ts":
-          'import { withInstrumentRun } from "../_shared/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = withInstrumentRun("slotted", shoot);\n',
+          'import { withInstrumentRun } from "../floor/artifacts/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = withInstrumentRun("slotted", shoot);\n',
         "tooling/src/slotted/ops/shoot.ts":
-          'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+          'import { artifactFile } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
       },
       why: "the sanctioned instrument shape — files artifacts INSIDE a run slot its cli.ts opened (arm G's pass half)",
     },
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/alias/cli.ts":
-          'import { withInstrumentRun as slot } from "../_shared/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = slot("alias", shoot);\n',
+          'import { withInstrumentRun as slot } from "../floor/artifacts/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = slot("alias", shoot);\n',
         "tooling/src/alias/ops/shoot.ts":
-          'import { artifactDir } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactDir("snaps");\n  return 0;\n}\n',
+          'import { artifactDir } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactDir("snaps");\n  return 0;\n}\n',
       },
       why: "AN IMPORT ALIAS opens the same slot — the callee resolves to the home's export whatever it was spelled as (and `artifactDir` is the second filing door). The legacy text comparison called this tool unslotted",
     },
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
         "tooling/src/lookalike/cli.ts": 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n',
         "tooling/src/lookalike/ops/shoot.ts":
           'function artifactFile(k: string, o: string, e: string): string {\n  return k + o + e;\n}\nexport function shoot(): number {\n  return artifactFile("snaps", "root", ".png").length;\n}\n',
@@ -198,11 +198,11 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/artifact-out.ts": artifactOutStub(),
-        "tooling/src/_shared/artifact-index.ts":
+        "tooling/src/floor/artifacts/artifact-out.ts": artifactOutStub(),
+        "tooling/src/floor/artifacts/artifact-index.ts":
           'import { artifactFile } from "./artifact-out.ts";\nexport const index = artifactFile("index", "root", ".json");\n',
       },
-      why: "the plumbing's own `_shared` dir is not a tool with a cli — it DEFINES and composes the filing doors, and is skipped by derivation rather than by a row",
+      why: "the plumbing's own `floor` dir is not a tool with a cli — it DEFINES and composes the filing doors, and is skipped by derivation rather than by a row",
     },
   ],
 });

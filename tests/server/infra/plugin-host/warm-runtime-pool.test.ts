@@ -1,4 +1,4 @@
-import { PluginHostBusyError, WarmRuntimePool } from "../../../../packages/server/src/infra/plugin-host/warm-runtime-pool.ts";
+import { PluginHostBusyError, WarmRuntimePool } from "#server/infra/plugin-host/warm-runtime-pool.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 interface Target {

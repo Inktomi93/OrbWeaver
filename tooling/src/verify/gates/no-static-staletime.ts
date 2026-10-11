@@ -17,7 +17,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-static-staletime` descriptor at 2ee31c5d2254c7fdb8ef9ecdc68c24f69b45b44d, the parent of the conversion
 // `be629bf4ac` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,197 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 5,195 and final `population` admits 5,194. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
 // one source of an authored package outside the declared composite roots (`@showcase` is not in
 // `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
@@ -34,7 +34,7 @@
 // showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticString } from "../../_shared/reference-fact.ts";
+import { readStaticString } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { declaredByPackage, resolveContextualMemberOrigin } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";

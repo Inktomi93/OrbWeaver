@@ -1,8 +1,8 @@
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { computeBridge } from "../../../../../../packages/server/src/domain/chat/memory/recall/bridge.ts";
-import type { DigestRow, MemoryScope } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { computeBridge } from "#server/domain/chat/memory/recall/bridge.ts";
+import type { DigestRow, MemoryScope } from "#server/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const chatId = castId<ChatId>("chat_b");

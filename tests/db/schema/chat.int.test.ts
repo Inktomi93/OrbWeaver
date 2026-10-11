@@ -4,7 +4,7 @@
 // shape incl. the agent arm; both/neither/cross-shape rejected) + the (chatId,userId) UNIQUE (humans dedup,
 // characters coexist); the fork self-FK (parentChatId
 // SET NULL on parent delete — D27); invites (status enum + CHECK, token stored HASHED never raw); the
-// chats.metadata JSON round-trip via the @orb/db/kit read seam; every enum test-mirror (db column ===
+// chats.metadata JSON round-trip via the @orb/db/query read seam; every enum test-mirror (db column ===
 // canonical tuple); chat_events type CHECK over the ChatBusEvent discriminant; and the chat-children
 // CASCADE on chat delete (all ten dependents vanish).
 
@@ -36,7 +36,7 @@ import {
   pendingTurns,
   userConnections,
 } from "@orb/db";
-import { isConstraintViolation, parseRecord } from "@orb/db/kit";
+import { isConstraintViolation, parseRecord } from "@orb/db/query";
 import type {
   CharacterHandle,
   CharacterId,
@@ -172,7 +172,7 @@ test("message variant connection attribution preserves missing versus deleted an
   ).rejects.toSatisfy((error: unknown) => isConstraintViolation(error)?.kind === "check");
 });
 
-test("chats.metadata JSON round-trips through the @orb/db/kit read seam", async () => {
+test("chats.metadata JSON round-trips through the @orb/db/query read seam", async () => {
   const db = await freshDb();
   const chatId = castId<ChatId>("chat_meta");
   // A fully-typed metadata blob (group = the fully-defaulted contract default; roomOverrides + opening

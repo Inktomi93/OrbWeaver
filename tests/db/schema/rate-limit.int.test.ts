@@ -4,7 +4,7 @@
 // libSQL :memory: via freshDb.
 
 import { rateLimitBuckets } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import { eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";

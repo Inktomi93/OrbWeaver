@@ -13,7 +13,7 @@ import { characters, refinerySessions } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { REFINERY_ROUND_LEASE_MS, releaseRoundClaim, takeRoundClaim } from "../../../../../packages/server/src/domain/refinery/substrate/round-claim.ts";
+import { REFINERY_ROUND_LEASE_MS, releaseRoundClaim, takeRoundClaim } from "#server/domain/refinery/substrate/round-claim.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

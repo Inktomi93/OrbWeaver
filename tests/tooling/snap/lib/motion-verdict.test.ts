@@ -1,4 +1,4 @@
-import { timingCapability } from "../../../../tooling/src/_shared/timing-capability.ts";
+import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
 import { motionFactState, motionStatus, motionTimingPolicy } from "../../../../tooling/src/snap/lib/motion-verdict.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

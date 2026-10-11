@@ -6,12 +6,12 @@
 
 import type { DeclaredCapability, GenerationCapability } from "@orb/contracts/inference";
 import { createInferenceRuntime, ProviderError } from "@orb/inference";
-import { runOpenAiCompatChatTurn } from "../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { runOpenAiCompatRerank } from "../../../packages/inference/src/backends/openai-compat/rerank.ts";
-import { applyServerToolChoice } from "../../../packages/inference/src/capability/floor.ts";
-import type { Resolved } from "../../../packages/inference/src/contract/resolved.ts";
-import { resolveChat } from "../../../packages/inference/src/funnel/resolve-chat.ts";
-import { planStructuredFor } from "../../../packages/inference/src/structured/plan.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { runOpenAiCompatRerank } from "#inference/backends/openai-compat/rerank.ts";
+import { applyServerToolChoice } from "#inference/capability/floor.ts";
+import type { Resolved } from "#inference/contract/resolved.ts";
+import { resolveChat } from "#inference/funnel/resolve-chat.ts";
+import { planStructuredFor } from "#inference/structured/plan.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeConnection, fakeDeps, fakeResolved, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";

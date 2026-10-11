@@ -1,6 +1,6 @@
 // Policy: tooling-browser-door (docs/law/Core-Tooling-Law.md §4.4, arms B + H of the retired
 // `tooling-shared-plumbing`) — a Playwright browser is reached ONE way each: LAUNCHED by
-// `_shared/browser.ts#launchProbeSession` and ATTACHED by `attachProbeSession`, the one door onto a session
+// `floor/browser/browser.ts#launchProbeSession` and ATTACHED by `attachProbeSession`, the one door onto a session
 // daemon's browser. A `<engine>.launch(`,
 // `<engine>.connect(` or `<engine>.connectOverCDP(` anywhere else under `tooling/src/**` is a second bootstrap
 // or a second `ProbeSession` shape. Comment posture: comment-SAFE (node kinds only).
@@ -30,7 +30,7 @@
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arms B + H). No
 // private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
 import { SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -48,11 +48,11 @@ const LAUNCH_OPERATION = "browser-launch";
 const ATTACH_OPERATION = "browser-attach";
 
 const MESSAGE =
-  "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (_shared/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/law/Core-Tooling-Law.md §4.4).";
+  "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (floor/browser/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like a Playwright browser-type door whose receiver the shared readers cannot place, so whether it launches or attaches a Playwright browser CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
-  "take the session from `launchProbeSession`/`attachProbeSession`/`withProbeSession` (_shared/browser.ts) instead of reaching a browser type directly; the home itself carries the two exact reviewed grants `(browser.ts, browser-launch)` and `(browser.ts, browser-attach)`.";
+  "take the session from `launchProbeSession`/`attachProbeSession`/`withProbeSession` (floor/browser/browser.ts) instead of reaching a browser type directly; the home itself carries the two exact reviewed grants `(browser.ts, browser-launch)` and `(browser.ts, browser-attach)`.";
 
 export const gate = defineGate({
   id: "tooling-browser-door",
@@ -112,7 +112,7 @@ export const gate = defineGate({
       grant: { subject: "tooling/src/snap/ops/capture.ts", operation: "browser-launch" },
       files: { "tooling/src/snap/ops/capture.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\n' },
       expect: { count: 1, token: "chromium.launch", messageIncludes: "Subject: tooling/src/snap/ops/capture.ts, operation: browser-launch" },
-      why: "a second Playwright bootstrap outside _shared/browser.ts (arm B). The message names the LAUNCH operation, so this row proves the door resolved and the verb was classified, not fail-closed",
+      why: "a second Playwright bootstrap outside floor/browser/browser.ts (arm B). The message names the LAUNCH operation, so this row proves the door resolved and the verb was classified, not fail-closed",
     },
     {
       mode: "types",
@@ -120,7 +120,7 @@ export const gate = defineGate({
         "tooling/src/ui-audit/ops/run.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
       },
       expect: { count: 1, token: "chromium.connectOverCDP", messageIncludes: "operation: browser-attach" },
-      why: "a second CDP attach outside _shared/browser.ts — a sibling instrument reaching a session daemon's browser around attachProbeSession (arm H)",
+      why: "a second CDP attach outside floor/browser/browser.ts — a sibling instrument reaching a session daemon's browser around attachProbeSession (arm H)",
     },
     {
       mode: "types",
@@ -133,10 +133,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/browser.ts":
+        "tooling/src/floor/browser/browser.ts":
           'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\nexport const a = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
       },
-      expect: { count: 2, messageIncludes: "Subject: tooling/src/_shared/browser.ts, operation: browser-launch" },
+      expect: { count: 2, messageIncludes: "Subject: tooling/src/floor/browser/browser.ts, operation: browser-launch" },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home reds like any other site — TWO findings, one per licensed act, because a grant licenses one `(subject, operation)` and the home performs two — and is licensed by its two exact grant rows. The module witness uses synthetic authority; the family test proves both actual central rows consume exactly this",
     },
     {

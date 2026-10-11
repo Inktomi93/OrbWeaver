@@ -18,7 +18,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { beforeEach, describe } from "vitest";
-import { loadChatIdentityProducer } from "../../../../../packages/server/src/domain/chat/persistence/identity.ts";
+import { loadChatIdentityProducer } from "#server/domain/chat/persistence/identity.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedChat, seedPersona, seedUser } from "../_support.ts";

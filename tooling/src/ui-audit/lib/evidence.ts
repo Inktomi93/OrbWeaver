@@ -1,4 +1,4 @@
-// ZERO HYGIENE (#409) — design-audit's half of the fleet rule in _shared/evidence.ts (read that first).
+// ZERO HYGIENE (#409) — design-audit's half of the fleet rule in floor/verdict/evidence.ts (read that first).
 //
 // Every check family here is a fold over a sample list, so an EMPTY walk folds to zero findings and the
 // report prints "no findings — clean". That is the most dangerous zero in the fleet: a blank mount, a
@@ -9,9 +9,9 @@
 // precedent — never as an arm here, and never by deleting a comment to buy its line
 // (docs/law/Core-Tooling-Law.md §4.3).
 
-import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling/_shared/appearance";
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling/floor/appearance/appearance";
+import type { ThemeRequest } from "@orb/tooling/floor/appearance/theme";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { RawSamples, ThemeRenderInput } from "../contract/samples.ts";
 import type { RelationalSamples } from "../contract/samples-populations.ts";
 import { CENSUS_CAP_FAMILIES } from "../contract/samples-populations.ts";
@@ -171,9 +171,9 @@ export function censusCapGap(samples: RawSamples): EvidenceGap | null {
 }
 
 /** THE INSTRUMENT-ORIGIN PAGE ERROR (#1317 item 1). `session.pageErrors` carries two KINDS
- *  (`_shared/browser-contract.ts` `BrowserPageError`): `runtime` — an uncaught exception the APP threw,
+ *  (`floor/browser/browser-contract.ts` `BrowserPageError`): `runtime` — an uncaught exception the APP threw,
  *  which `checkScriptErrors` files as a `script-error` P0 — and `instrument`, which is this harness
- *  announcing that ITS OWN setup failed (`_shared/browser-capture.ts` pushes
+ *  announcing that ITS OWN setup failed (`floor/browser/browser-capture.ts` pushes
  *  `instrumentPageError("browser diagnostic setup failed: …")` from a wire-up promise with no awaiter).
  *
  *  Before this arm the two were flattened to text by `pageErrorText` and handed to `checkScriptErrors`

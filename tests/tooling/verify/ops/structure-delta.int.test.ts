@@ -23,7 +23,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { runStructureDelta } from "@orb/tooling/verify";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";

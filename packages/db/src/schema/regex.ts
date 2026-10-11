@@ -13,7 +13,7 @@
 //     also what satisfies D53's surviving "never polymorphic" clause.
 //   • BEHAVIOR LIVES IN JSON, NOT IN COLUMNS (the `world_entries.metadata` precedent). `findRegex`/
 //     `replaceString`/`placement`/the four ST flags/`substituteRegex` are fields of the typed `behavior`
-//     blob (`RegexScriptBehavior` from `@orb/contracts/regex`), read at the `@orb/db/kit` parse seam and
+//     blob (`RegexScriptBehavior` from `@orb/contracts/regex`), read at the `@orb/db/query` parse seam and
 //     never trusted raw. Only `name` and `enabled` are promoted — they are the LIST-panel hot fields
 //     (sort/filter/toggle) and the ones a picker reads without parsing a blob. The shape is still shedding
 //     ST fields, so a body change stays schema-bump-free.

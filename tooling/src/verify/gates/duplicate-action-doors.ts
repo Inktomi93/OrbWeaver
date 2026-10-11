@@ -64,11 +64,11 @@
 // is re-pointed. That is correct — a ruling names files, and a ruling that survived its files stopped being
 // about anything — but it is not obvious, so it is named here rather than discovered.
 //
-// WHERE THE ROWS ARE AUTHORED. In `tooling/src/_shared/action-door-rulings.ts`, which
+// WHERE THE ROWS ARE AUTHORED. In `tooling/src/floor/code-facts/action-door-rulings.ts`, which
 // `verify/lib/reviewed-grants.ts` maps into the central table. That placement is FORCED by an import cycle,
 // not a preference: the `ast subset-callers` lens must render the same rulings, a cross-tool import may only
 // enter through `verify/index.ts`, and that barrel reaches `ops/debt.ts` → `ast/index.ts` → the lens itself
-// (measured 2026-09-13: five `lint/suspicious/noImportCycles` errors). `_shared` is the floor both tools read
+// (measured 2026-09-13: five `lint/suspicious/noImportCycles` errors). `floor` is the floor both tools read
 // down into, and the retired `DOORS_BASELINE_REL` sat there for exactly this reason. Consumption, staleness
 // and over-broad judgment are unchanged and entirely central; THIS POLICY READS NEITHER FILE.
 //
@@ -92,7 +92,7 @@
 // same-role-and-name lens): a registry-rendered action is ONE call site behind N rendered slots (this is
 // exactly how the founding "new chat" complaint escapes tier 1 — its three doors all call one shared state
 // action), and a responsive pair is N call sites behind ONE rendered door.
-import { doorSetOperation } from "../../_shared/trpc-doors.ts";
+import { doorSetOperation } from "../../floor/code-facts/trpc-doors.ts";
 import { defineGate } from "../contract/policy.ts";
 import { actionDoorFact, MIN_DOORS, SECTION_IDS_HOME } from "../lib/action-door-fact.ts";
 import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -113,7 +113,7 @@ const UNREADABLE =
 const FIX =
   "Give the section ONE component that owns the verb and let the other affordances reach it (a shared hook, " +
   "a state action, or the existing door). If the exact door SET is ruled UX, add an exact " +
-  "ruling to tooling/src/_shared/action-door-rulings.ts naming the `<plane>::<procedure>` subject and the " +
+  "ruling to tooling/src/floor/code-facts/action-door-rulings.ts naming the `<plane>::<procedure>` subject and the " +
   "COMPLETE door set, with its `why` and `endsWhen`; verify/lib/reviewed-grants.ts maps it into the central " +
   "reviewed-grant table. The ruled unit is the SET: a door that moves, leaves, joins or is merely RENAMED " +
   "changes the operation, which is what makes the row stop matching instead of silently absorbing the change.";
@@ -217,7 +217,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.chat.forkChat.mutationOptions();\n",
       },
       expect: { count: 1, messageIncludes: "Subject: chats::chat.forkChat" },
-      why: "BOTH TanStack Query CREATION SPELLINGS are one door grammar (`_shared/trpc-doors.ts`): a pair split across `useMutation` and `mutationOptions` is still one verb wearing two doors, and a reader that knew only one spelling would report a clean half of the census",
+      why: "BOTH TanStack Query CREATION SPELLINGS are one door grammar (`floor/code-facts/trpc-doors.ts`): a pair split across `useMutation` and `mutationOptions` is still one verb wearing two doors, and a reader that knew only one spelling would report a clean half of the census",
     },
   ],
   mustPass: [

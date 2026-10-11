@@ -12,7 +12,7 @@ import {
   readMemberReference,
   resolveGlobalMemberOrigin,
   resolveStableExpression,
-} from "@orb/tooling/_shared/reference-fact";
+} from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";

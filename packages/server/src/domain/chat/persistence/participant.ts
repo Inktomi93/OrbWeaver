@@ -22,8 +22,8 @@ import { isUserBacked } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, chats, messages } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AnyColumn, SQL } from "drizzle-orm";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
@@ -166,7 +166,7 @@ export async function insertParticipants(db: Db, rows: readonly ParticipantInser
  *  floor although it was committed BEFORE the member was seated, so history-floor readers exposed a pre-join
  *  message to the new member. The claim UPDATE is the batch's first statement and is a WRITE, so the batch
  *  already holds SQLite's write lock by the time this subquery runs: no concurrent message can land between
- *  the head read and the seat insert. (Not a SELECT statement AHEAD of the writes -- `@orb/db/kit::batchMany`'s
+ *  the head read and the seat insert. (Not a SELECT statement AHEAD of the writes -- `@orb/db/query::batchMany`'s
  *  DEFERRED-snapshot rule bans that shape; this is a scalar subquery inside a write.)
  *
  *  THE OUTER REFERENCE IS QUALIFIED BY HAND, AND THAT IS THE WHOLE CORRELATION (#2244). Drizzle renders every

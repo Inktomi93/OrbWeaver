@@ -1,5 +1,5 @@
 import { PluginHostDeadlineError } from "@orb/contracts/plugin";
-import { invokeFailureKind } from "../../../../../packages/server/src/domain/plugin/substrate/failure-log.ts";
+import { invokeFailureKind } from "#server/domain/plugin/substrate/failure-log.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a rejected invocation is classified by the typed error name that crossed the sandbox", () => {

@@ -15,7 +15,7 @@
 //     a narrow viewport alone renders a fine-pointer layout no phone produces.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";

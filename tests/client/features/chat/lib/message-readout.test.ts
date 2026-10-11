@@ -3,7 +3,7 @@
 // The outcome notice (`messageOutcomeNotice`) was KILLED (#1876, owner ruling) — its tests are deleted
 // with it. What remains: the per-turn CACHE economics derivation.
 
-import { cacheTokensLabel } from "../../../../../packages/client/src/features/chat/lib/message-readout.ts";
+import { cacheTokensLabel } from "#client/features/chat/lib/message-readout.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("cache economics render only the side the backend actually reported", () => {

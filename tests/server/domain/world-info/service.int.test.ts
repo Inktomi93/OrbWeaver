@@ -11,7 +11,7 @@ import { worldBooks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
-import { WORLD_INFO_SCHEMA_KIND } from "@orb/server/kit/serde/world-info";
+import { WORLD_INFO_SCHEMA_KIND } from "@orb/server/primitives/serde/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";

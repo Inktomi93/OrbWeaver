@@ -6,8 +6,8 @@ import type { AutomationRuleId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import { insertRule, setRuleEnabledRow } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
-import { createEnabledRuleIndex } from "../../../../../packages/server/src/domain/automation/substrate/enabled-index.ts";
+import { insertRule, setRuleEnabledRow } from "#server/domain/automation/persistence/rules.ts";
+import { createEnabledRuleIndex } from "#server/domain/automation/substrate/enabled-index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, ruleFixture } from "../_support.ts";
 

@@ -1,18 +1,18 @@
 // The --json manifest: the lossless machine record beside the pixels (schemaVersion 1).
 import { writeFile } from "node:fs/promises";
-import type { AppearancePatch, SettingsShimEvidence } from "../../_shared/appearance.ts";
-import type { Viewport } from "../../_shared/argv.ts";
-import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
-import { artifactFile } from "../../_shared/artifact-out.ts";
-import { aggregateScope } from "../../_shared/artifact-scope.ts";
-import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { BrowserPageError } from "../../_shared/browser-contract.ts";
-import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
-import type { BrowserEvidenceRetentionBatch } from "../../_shared/browser-evidence-ring.ts";
-import { BROWSER_EVIDENCE_SOURCES } from "../../_shared/browser-evidence-ring.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ThemeRequest } from "../../_shared/theme.ts";
+import type { AppearancePatch, SettingsShimEvidence } from "../../floor/appearance/appearance.ts";
+import type { ThemeRequest } from "../../floor/appearance/theme.ts";
+import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
+import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateScope } from "../../floor/artifacts/artifact-scope.ts";
+import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import type { BrowserPageError } from "../../floor/browser/browser-contract.ts";
+import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
+import type { BrowserEvidenceRetentionBatch } from "../../floor/browser/browser-evidence-ring.ts";
+import { BROWSER_EVIDENCE_SOURCES } from "../../floor/browser/browser-evidence-ring.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { DiskSafeBrowserPageError, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
 import type { Args, CaptureOutcome, DriveFailure, WatchTick } from "../contract/types.ts";
@@ -341,7 +341,7 @@ export function summarizePageErrorRetention(retention: BrowserEvidenceRetentionB
  * after `BROWSER_PAGE_ERROR_CAP` (2048) page errors, and snap's CLI never threads `evidenceLimits`
  * (`ProbeLaunchOptions`) through to `buildLaunchOptions` — the harness-only override this would need is a
  * new `process.env` read at that seam, which is a NEW `lint/style/noProcessEnv` suppression at the launch
- * seam (`snap/ops/session.ts` / `_shared/browser-context.ts` carry none today) in the same class as the
+ * seam (`snap/ops/session.ts` / `floor/browser/browser-context.ts` carry none today) in the same class as the
  * already-ruled harness knob at `snap/lib/budgets.ts` (`ORB_SNAP_SELECTOR_PROOF_CAP`) — verify-side
  * exception territory this lane's owner word bans touching (v-V4 correction, 2026-09-05). (That used to be
  * phrased as a per-file COUNT BUMP in `suppressions.baseline.json`; the ratchet was deleted 2026-09-12 with

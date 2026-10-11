@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import { assetIdForHash, metadataForOwnedHash, storeBlob } from "../../../../../packages/server/src/domain/assets/persistence/queries.ts";
+import { assetIdForHash, metadataForOwnedHash, storeBlob } from "#server/domain/assets/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { pngBytes, pngBytesWithDims, seedUser } from "../_support.ts";

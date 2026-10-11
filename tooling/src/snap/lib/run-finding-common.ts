@@ -1,8 +1,8 @@
 // Shared internal shape for producer-owned evidence readers. Correlation and exit policy do not live here.
 import { readFile } from "node:fs/promises";
-import type { InstrumentEvidenceScope } from "../../_shared/artifact-scope.ts";
-import { exactScopeIdentity, notApplicableScope } from "../../_shared/artifact-scope.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { InstrumentEvidenceScope } from "../../floor/artifacts/artifact-scope.ts";
+import { exactScopeIdentity, notApplicableScope } from "../../floor/artifacts/artifact-scope.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Arm } from "../contract/arm-vocabulary.ts";
 import { ARMS } from "../contract/arm-vocabulary.ts";
 import type { SnapCompositeFinding, SnapFindingDisposition, SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";

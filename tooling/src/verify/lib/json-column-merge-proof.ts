@@ -1,7 +1,7 @@
 // This is the accepted JSON-write grammar, not a generic AST evaluator: actual same-column bases,
 // object spreads, known schema validation and field fallbacks when the client omits a member.
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-alias";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonColumnMergeProof, JsonColumnOrigin, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";

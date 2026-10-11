@@ -14,7 +14,7 @@ import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/rege
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { runRegexPipeline } from "../../../../../packages/client/src/features/regex/lib/regex-pipeline.ts";
+import { runRegexPipeline } from "#client/features/regex/lib/regex-pipeline.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A fixed edit stamp — the pipeline projection never reads it, and an ambient wall-clock read here would

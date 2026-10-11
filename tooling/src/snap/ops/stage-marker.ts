@@ -9,7 +9,7 @@
 // shared, and each row names the checkout its dir belongs to.
 //
 // THE TABLE REPLACED A SINGLE MARKER (#1276, design §3.6). `active.json` held ONE stage because there was
-// ONE band; `bands.json` holds one row per band in `_shared/ports.ts` `STAGE_BANDS`. The old file is read
+// ONE band; `bands.json` holds one row per band in `floor/host/ports.ts` `STAGE_BANDS`. The old file is read
 // ONCE by `readBands` as a legacy row and then DELETED — there is no compat shim and nothing ever writes it
 // again (`Core-Tooling-Law.md` §1: half a migration is the named rot).
 //
@@ -23,10 +23,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runGit } from "../../_shared/git.ts";
-import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
-import { pidAlive } from "../../_shared/run-retention.ts";
+import { pidAlive } from "../../floor/artifacts/run-retention.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { runGit } from "../../floor/git/git.ts";
+import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
 import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
 import {

@@ -5,7 +5,7 @@
 // that were removed.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { expectedGeneratedFiles } from "../lib/generated.ts";
 import { isGeneratedPath } from "../lib/indexes.ts";
 import { governedPaths, readDoc, root, writeDoc } from "./tree.ts";

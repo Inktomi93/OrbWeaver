@@ -2,7 +2,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { promptConfigConfig } from "@orb/contracts/preset";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
-import { requireIntactStoredConfig } from "#kit/stored-config";
+import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { OWNED_PRESET_KIND, SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";

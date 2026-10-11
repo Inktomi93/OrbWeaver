@@ -1,5 +1,5 @@
 // Browser-free readers for analyzer-owned structured evidence. They preserve producer thresholds and gaps.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SnapAnalyzerProblem, SnapAnalyzerProducer } from "../contract/analyzer.ts";
 import { isSnapAnalyzerProducer, snapAnalyzerArm } from "../contract/analyzer.ts";
 import type { SnapRunArtifact } from "../contract/run-index.ts";

@@ -2,7 +2,7 @@
 // (packages/server/src/entry/compose/chat.ts). THE gap this closes: the injection
 // `applyRegexReplace: createRegexApplyReplace()` (chat.ts) — the ONLY site that puts the real
 // node:vm-sandboxed replace onto the live `ChatContext` — had zero coverage. The watchdog's FIRING is
-// unit-covered (packages/server/src/kit/regex) and the edit verb's runOnEdit re-apply is covered with a FAKE
+// unit-covered (packages/server/src/primitives/regex) and the edit verb's runOnEdit re-apply is covered with a FAKE
 // `applyRegexReplace` (domain/chat/verbs/edit.int.test.ts) — but nothing proved the REAL composition wires the
 // real guard. `ChatComposeResult` never exposes the `ChatContext`, so the only faithful observation is
 // end-to-end: seed the host's `UserSettings.regex.scripts` (through the REAL settings verb) with the canonical
@@ -39,7 +39,7 @@ import { connectionBindings, rpgGames, userConnections } from "@orb/db";
 import type { ChatId, ConnectionBindingId, Handle, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
@@ -90,7 +90,7 @@ const REDOS_INPUT = `${"a".repeat(40)}!`;
 /** THE TRIPWIRE'S QUIET-BOX BASE, load-scaled (#2192) — and READ THE NEXT PARAGRAPH BEFORE TREATING A RED
  *  HERE AS A DEFECT. The number is unchanged; what changed is that it is no longer FLAT. The old literal
  *  `{ timeout: 10_000 }` OVERRODE the config's scaled default, so this was the one arm in the file that did
- *  not scale at all. `budget()` is the one policy (`_shared/load-budget.ts`); the `tests/server` spelling is
+ *  not scale at all. `budget()` is the one policy (`floor/host/load-budget.ts`); the `tests/server` spelling is
  *  the bare `budget`, as `infra/plugin-host/sandbox.test.ts:31` uses it.
  *
  *  THE MEASURED PAIR, AND WHY THE SCALING DOES NOT RESCUE IT (cb-v-instruments-3, 2026-09-13). This arm

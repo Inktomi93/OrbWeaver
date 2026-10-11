@@ -12,7 +12,7 @@
 // stamp matches, and a stamp that never lands is an INSTRUMENT ERROR (exit 2) naming what is missing —
 // never a default-palette measurement wearing a theme label.
 //
-// WHAT IS PREDICTABLE, AND WHY THE OTHER ARMS ARE NAMED RATHER THAN GATED (source: _shared/theme.ts):
+// WHAT IS PREDICTABLE, AND WHY THE OTHER ARMS ARE NAMED RATHER THAN GATED (source: floor/appearance/theme.ts):
 // app-shell derives `data-theme` from a SEED theme's own name (lowercased) — but ONLY for a seed that
 // owns a generated `[data-theme]` block; Hearth is the base ramp and stamps nothing. A CUSTOM theme paints
 // through <ThemeScope> and stamps no html attribute at all (D71), and `--theme none` selects "whatever
@@ -23,12 +23,12 @@
 
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { EvidenceGap } from "../../_shared/evidence.ts";
-import { printEvidenceGaps } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { budget } from "../../_shared/load-budget.ts";
+import type { SettingsShimEvidence } from "../../floor/appearance/appearance.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { budget } from "../../floor/host/load-budget.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
+import { printEvidenceGaps } from "../../floor/verdict/evidence.ts";
 import type { ThemeStampExpectation, ThemeStampReceipt } from "../contract/theme-stamp.ts";
 import type { CaptureOutcome } from "../contract/types.ts";
 
@@ -83,7 +83,7 @@ export function themeStampGap(expectation: { readonly stamp: string; readonly th
     detail:
       `<html ${STAMP_ATTRIBUTE}> ${observed === null ? "was ABSENT" : `read ${JSON.stringify(observed)}`} after ${STAMP_TIMEOUT_MS}ms, but the run asked for ` +
       `${JSON.stringify(expectation.stamp)} — everything this run would have sampled (pixels, contrast, evals) describes the DEFAULT palette, not the theme on the RESULT line (#1227). ` +
-      "A chat room whose CARD carries its own theme legitimately has no html stamp (D71): take theme arms on a non-carried surface. The mechanism is tooling/src/_shared/theme.ts.",
+      "A chat room whose CARD carries its own theme legitimately has no html stamp (D71): take theme arms on a non-carried surface. The mechanism is tooling/src/floor/appearance/theme.ts.",
   };
 }
 

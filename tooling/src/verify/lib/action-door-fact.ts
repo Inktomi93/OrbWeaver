@@ -4,7 +4,7 @@
 // can never disagree about what was measured. It is the family's canonical shared declaration.
 //
 // "WHICH VERB IS THIS SITE?" IS NOT DECIDED HERE. The creation-site grammar lives at
-// `tooling/src/_shared/trpc-doors.ts` (`mutationProcedureOf`) and is SHARED with the `ast subset-callers`
+// `tooling/src/floor/code-facts/trpc-doors.ts` (`mutationProcedureOf`) and is SHARED with the `ast subset-callers`
 // lens, which compares the PAYLOADS the doors this fact counts pass. Two spellings of "what is a door"
 // would let the census and the lens disagree; there is one.
 //
@@ -20,7 +20,7 @@
 // descriptor had.
 import type { Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
-import { mutationProcedureOf } from "../../_shared/trpc-doors.ts";
+import { mutationProcedureOf } from "../../floor/code-facts/trpc-doors.ts";
 import { defineFact } from "../contract/fact.ts";
 import { readStringValue } from "./ast-read.ts";
 import type { TupleVocabulary } from "./tuple-read.ts";

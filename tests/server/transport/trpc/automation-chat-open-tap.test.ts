@@ -9,7 +9,7 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
-import { notifyChatOpened, setChatOpenTap } from "../../../../packages/server/src/transport/trpc/automation-chat-open-tap.ts";
+import { notifyChatOpened, setChatOpenTap } from "#server/transport/trpc/automation-chat-open-tap.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_open");

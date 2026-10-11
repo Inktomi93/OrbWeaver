@@ -1,9 +1,9 @@
 // Browser-free immutable index reader: never imports Playwright or opens a browser/run slot.
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
-import { checkoutName, print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { checkoutName, print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { parseSnapRunResults, snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapPrunedRun, SnapReportQuery, SnapRunArtifact, SnapRunIndex, SnapRunListQuery } from "../contract/run-index.ts";
 import { assertArtifactReferences, assertArtifactRow } from "../lib/run-index-artifacts.ts";

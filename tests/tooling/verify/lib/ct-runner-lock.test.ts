@@ -19,12 +19,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
+import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/floor/host/host-slots";
 import { vi } from "vitest";
-import { readConcurrencyProfile } from "../../../../tooling/src/_shared/concurrency-profile.ts";
-import { CT_CACHE_DIR_ENV } from "../../../../tooling/src/_shared/ct-run-slot.ts";
-import type { RunMarkerDeps } from "../../../../tooling/src/_shared/run-marker.ts";
-import { markedPids, mintRunMarker, RUN_LEASE_ENV, RUN_MARKER_ENV, runLeaseArg, runMarkerArg } from "../../../../tooling/src/_shared/run-marker.ts";
+import { readConcurrencyProfile } from "../../../../tooling/src/floor/host/concurrency-profile.ts";
+import type { RunMarkerDeps } from "../../../../tooling/src/floor/process/run-marker.ts";
+import { markedPids, mintRunMarker, RUN_LEASE_ENV, RUN_MARKER_ENV, runLeaseArg, runMarkerArg } from "../../../../tooling/src/floor/process/run-marker.ts";
+import { CT_CACHE_DIR_ENV } from "../../../../tooling/src/floor/testing/ct-run-slot.ts";
 import { acquireCtRunnerLock, acquireCtRunnerSlots, CT_RUN_DIR_REL, ctRunnerLockPath } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
 
 import { expect, test } from "../../../support/tool-fixtures.ts";

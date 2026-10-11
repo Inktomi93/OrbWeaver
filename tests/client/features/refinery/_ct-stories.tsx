@@ -59,7 +59,7 @@ import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
-import { VersionsTabBody } from "../../../../packages/client/src/features/refinery/components/refinery-context-tabs.tsx";
+import { VersionsTabBody } from "#client/features/refinery/components/refinery-context-tabs.tsx";
 import { CtAppDataProviders, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 

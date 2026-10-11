@@ -3,7 +3,7 @@
 // The summary is bounded; the stage reader exposes the complete retained transcript.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pointerAdvisories, resolvePointer } from "@orb/tooling/_shared/artifact-pointer";
+import { pointerAdvisories, resolvePointer } from "@orb/tooling/floor/artifacts/artifact-pointer";
 import type { RunManifestView } from "../contract/show-artifact.ts";
 import type { StageResult, VerifyReport, VerifyRunResolution } from "../contract/stage.ts";
 import { VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";

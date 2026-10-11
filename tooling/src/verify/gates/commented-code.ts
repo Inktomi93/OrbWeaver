@@ -13,7 +13,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `commented-code` descriptor at 1bddbac29829048e2455766e704ae77ff2f98694, the parent of the conversion `4e228d8529`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,349 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,079
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,079
 // and final `population` admits 7,079. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `tooling/src/verify/gates/_proof/__cbbhr_out_client-vendors.ts` (virtual) rejected by both.

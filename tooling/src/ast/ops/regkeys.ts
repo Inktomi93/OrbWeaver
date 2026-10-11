@@ -1,8 +1,8 @@
 // regkeys: registry rows whose KEY LITERAL is dispatched nowhere (informational, owner-ruled).
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit, RegistryDef } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";

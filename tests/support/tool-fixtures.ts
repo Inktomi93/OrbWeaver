@@ -6,7 +6,7 @@
 //
 //   scratch      — mkdtemp dir, auto-rm'd after use (kills the hand-rolled cleanup respell).
 //   repoRoot     — the ONE root resolution (kills the per-file ROOT respell).
-//   runCli       — spawn tooling/src/<tool>/cli.ts via _shared/proc.spawnNiced (the tooling process's
+//   runCli       — spawn tooling/src/<tool>/cli.ts via floor/process/proc.spawnNiced (the tooling process's
 //                  lowered priority, the owner rule); returns { code, stdout, stderr } for `toExitWith`. Tests name TOOLS, not
 //                  paths — a tool move never sweeps test literals again.
 //   fakeBin      — a Node-backed POSIX + Windows command pair prepended to PATH for the test; auto-restored.
@@ -121,7 +121,7 @@ export const test = houseTest.extend<ToolFixtures>({
     await rm(dir, { recursive: true, force: true });
   },
   runCli: async ({}, use): Promise<void> => {
-    const { spawnNiced } = await import("@orb/tooling/_shared/proc");
+    const { spawnNiced } = await import("@orb/tooling/floor/process/proc");
     await use(async (tool, args, opts = {}) => {
       const cli = join(REPO_ROOT, "tooling", "src", tool, "cli.ts");
       if (!existsSync(cli)) {

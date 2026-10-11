@@ -30,9 +30,9 @@
 // reports any that did not come back identical (`notRestored`). That check runs on the live page every
 // run, not only in a fixture.
 import { errorMessage } from "@orb/kit/error-message";
-import { print } from "@orb/tooling/_shared/artifacts";
+import { print } from "@orb/tooling/floor/artifacts/artifacts";
 import type { CDPSession, Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { GlowShadowInput, RadialGlowInput, RawSamples } from "../contract/samples.ts";
 import type { HoverAttrGroupRow, HoverCensusRestRow, HoverContrastInput, HoverForcedReadRow, HoverGroupRow } from "../contract/samples-hover.ts";
 import type { HoverPass, HoverPassOutcome } from "../contract/types.ts";
@@ -206,7 +206,7 @@ interface ForcedReads {
  *  the class of change that makes a tool lie about itself. What IS pinned, in
  *  tests/tooling/ui-audit/ops/walker/core.int.test.ts, is the clean-run arm: `forceFailedGroups: 0` and
  *  `forceVerdict: "complete"` are asserted PRESENT, so the field cannot silently vanish or invert. Closing
- *  the failing arm needs a CDP fault injector at the probe layer (_shared/browser.ts), which would serve
+ *  the failing arm needs a CDP fault injector at the probe layer (floor/browser/browser.ts), which would serve
  *  every instrument, not just this one. */
 async function forceEveryGroup(session: HoverSession, groups: readonly HoverGroupRow[]): Promise<ForcedReads> {
   const reads = new Map<number, HoverForcedReadRow>();

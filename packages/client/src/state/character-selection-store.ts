@@ -17,8 +17,8 @@ const characterSelection = createDrillSelectionStore<CharacterId, string>("chara
 // a swap — the hand-rolled View Transition (the router's VT cannot fire on a reducer change at a constant
 // URL) and the #1795 float lifetime, since a CONTENT-scoped float is about the card being left and goes
 // with it. Calling `withViewTransition` from here directly would take only the first half. The drill
-// FACTORY stays untouched, so every other section keeps today's behavior; `prefers-reduced-motion` removes
-// the transition inside the wrapper.
+// factory swaps through the same door, so these wrappers join its transition; `prefers-reduced-motion`
+// removes the transition inside the wrapper.
 //
 // THE SELECTION HAS ONE FOCUS CLAIMANT AGAIN (#501). It used to have two — the LIST pane swapped to her
 // chats at the same moment the CONTENT editor mounted, so which one took focus had to be a DECISION carried

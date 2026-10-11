@@ -26,7 +26,7 @@ import {
   userConnections,
   users,
 } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type {
   CharacterHandle,

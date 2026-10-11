@@ -4,12 +4,12 @@
 
 import { characterRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context.ts";
-import { RegexNotFoundError } from "../../contract/errors.ts";
-import type { DetachFromCharacterParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { ensureCharacterOwned } from "../../persistence/ownership.ts";
-import { loadOwnedScript } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
+import type { DetachFromCharacterParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { ensureCharacterOwned } from "#src/domain/regex/persistence/ownership.ts";
+import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 
 export function createDetachFromCharacter(ctx: RegexContext): RegexService["detachFromCharacter"] {
   return async ({ principal, characterId, scriptId }: DetachFromCharacterParams) => {

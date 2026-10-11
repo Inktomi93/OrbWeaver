@@ -1,8 +1,8 @@
 // apisurface: exports partitioned by package-boundary consumption.
 import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
 import { dynamicImportTargetOf } from "../lib/edges.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";

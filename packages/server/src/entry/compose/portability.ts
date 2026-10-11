@@ -29,7 +29,7 @@ import type { TagContext } from "#domain/tag";
 import { createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
-import { CHAT_BUNDLE_EXT } from "#kit/serde/chat-bundle";
+import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 

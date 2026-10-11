@@ -4,12 +4,12 @@
 // speaking participant's active persona) is a Phase-5 chat/pool concern — this domain only stores the join.
 
 import { personaBooks } from "@orb/db";
-import type { WorldInfoContext } from "../../context.ts";
-import { WorldInfoNotFoundError } from "../../contract/errors.ts";
-import type { AttachToPersonaParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { ensurePersonaOwned } from "../../persistence/ownership.ts";
-import { loadOwnedBook } from "../../persistence/queries.ts";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
+import type { AttachToPersonaParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { ensurePersonaOwned } from "#src/domain/world-info/persistence/ownership.ts";
+import { loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createAttachToPersona(ctx: WorldInfoContext): WorldInfoService["attachToPersona"] {
   return async ({ principal, personaId, bookId }: AttachToPersonaParams) => {

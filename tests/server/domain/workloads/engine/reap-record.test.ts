@@ -4,8 +4,8 @@
 // that each carries the observed lease age — collapsing them back into one line is the forensics regression
 // (#560/#543) the shared leaf exists to prevent.
 
-import type { WorkloadReapReason } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
-import { MAX_BOOT_RESPAWNS, reapedMessage } from "../../../../../packages/server/src/domain/workloads/engine/reap-record.ts";
+import type { WorkloadReapReason } from "#server/domain/workloads/contract/service.ts";
+import { MAX_BOOT_RESPAWNS, reapedMessage } from "#server/domain/workloads/engine/reap-record.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const LEASE_AGE_MS = 91_000;

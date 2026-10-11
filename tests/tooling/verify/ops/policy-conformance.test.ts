@@ -2,9 +2,9 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { SyntaxKind } from "ts-morph";
-import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
+import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as verifyRegistryParity } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";

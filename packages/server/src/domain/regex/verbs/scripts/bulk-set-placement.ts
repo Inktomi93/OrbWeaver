@@ -6,7 +6,7 @@
 // lifted to kit — the server could not re-derive from a client-only helper.
 //
 // PER ROW, because the bodies differ: each script keeps its own find/replace and any authored depth scope, so
-// this reads every owned row (before the batch — never a SELECT inside it, the `db/kit/batch` DEFERRED note),
+// this reads every owned row (before the batch — never a SELECT inside it, the `db/query/batch` DEFERRED note),
 // rebuilds each behavior blob (placement replaced · flags re-derived · depth kept-or-dropped), re-PARSES it
 // through `regexScriptBehaviorSchema` so the stored blob is canonical AND the placement/depth pairing is
 // enforced, then writes them all in one owner-scoped batch. Foreign/absent ids never come back from the read,
@@ -14,10 +14,10 @@
 
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import { deriveRegexHistoryDepth, deriveRegexTierFlags } from "@orb/kit/regex";
-import type { RegexContext } from "../../context.ts";
-import type { BulkSetScriptsPlacementParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { loadOwnedScriptsByIds, setScriptsBehaviorBulk, toRow } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import type { BulkSetScriptsPlacementParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { loadOwnedScriptsByIds, setScriptsBehaviorBulk, toRow } from "#src/domain/regex/persistence/queries.ts";
 
 export function createBulkSetPlacement(ctx: RegexContext): RegexService["bulkSetScriptsPlacement"] {
   return async ({ principal, scriptIds, placement }: BulkSetScriptsPlacementParams) => {

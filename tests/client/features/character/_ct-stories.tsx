@@ -40,13 +40,13 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
 // feature's internals to mount the REAL production host (the app-shell stories do the same).
-import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
-import { CharacterHistoryTab } from "../../../../packages/client/src/features/character/components/character-history-tab.tsx";
-import { CharacterOverviewCard } from "../../../../packages/client/src/features/character/components/character-overview-card.tsx";
-import { CharacterRelationsTab } from "../../../../packages/client/src/features/character/components/character-relations-tab.tsx";
-import { CharacterRestoreBookAction } from "../../../../packages/client/src/features/character/components/character-restore-book-action.tsx";
-import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
-import { LabelsLibrarySurface } from "../../../../packages/client/src/features/tag/surfaces/labels-library-surface.tsx";
+import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { CharacterHistoryTab } from "#client/features/character/components/character-history-tab.tsx";
+import { CharacterOverviewCard } from "#client/features/character/components/character-overview-card.tsx";
+import { CharacterRelationsTab } from "#client/features/character/components/character-relations-tab.tsx";
+import { CharacterRestoreBookAction } from "#client/features/character/components/character-restore-book-action.tsx";
+import { CharacterTagsRow } from "#client/features/character/components/character-tags-row.tsx";
+import { LabelsLibrarySurface } from "#client/features/tag/surfaces/labels-library-surface.tsx";
 import {
   CtAppDataProviders,
   CtCharacterContributorSectionRegistry,

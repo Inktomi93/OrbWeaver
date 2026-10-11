@@ -39,7 +39,7 @@
 // header says why.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { classifyPackageMemberOrigin, readsAmbientGlobalPath } from "../lib/project-home-origin.ts";

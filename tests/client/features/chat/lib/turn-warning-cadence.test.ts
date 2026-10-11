@@ -5,7 +5,7 @@
 import type { ChatWarning } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createTurnWarningCadence } from "../../../../../packages/client/src/features/chat/lib/turn-warning-cadence.ts";
+import { createTurnWarningCadence } from "#client/features/chat/lib/turn-warning-cadence.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_ctcadence0000000001");

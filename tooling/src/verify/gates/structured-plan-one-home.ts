@@ -7,7 +7,7 @@
 // contracts and kit source outside the inference contract folder and outside tests.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { STRUCTURED_VEHICLES_NAME, structuredVehiclesFact } from "../lib/structured-vehicles-fact.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";

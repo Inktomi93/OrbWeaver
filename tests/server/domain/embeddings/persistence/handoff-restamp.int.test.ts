@@ -9,11 +9,11 @@
 
 import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests, embedGenerations, userConnections } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
+import { createHandoffRestampStatements } from "#server/domain/embeddings/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
 import { seedUser } from "../../../../support/factories/user.ts";

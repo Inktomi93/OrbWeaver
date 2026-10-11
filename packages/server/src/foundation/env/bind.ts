@@ -54,7 +54,7 @@
 
 import type { AuthMode, SignInTargetMode } from "@orb/contracts/identity";
 import { signInModeEnvLines } from "@orb/contracts/identity";
-import type { NodeEnvironment } from "../../kit/node-environment.ts";
+import type { NodeEnvironment } from "#primitives/node-environment";
 import { settingInstruction } from "./container.ts";
 
 /** The login mode that opens a single-user box to other devices. */

@@ -2,10 +2,10 @@
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
-import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
+import { PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { deriveTypeConfigFiles, generateTypeConfigs, readCompilerPrograms, typeConfigsDrift } from "@orb/tooling/verify";
 import { ts } from "ts-morph";
 import { expect, test } from "../../../../support/tool-fixtures.ts";

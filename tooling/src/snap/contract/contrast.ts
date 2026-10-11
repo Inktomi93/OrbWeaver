@@ -2,7 +2,7 @@
 // ops/contrast.ts when the #466 exemption pushed that file past the tooling size cap; shapes live in
 // contract/ by the five-slot template (docs/law/Core-Tooling-Law.md §2.5).
 
-import type { Rgb } from "../../_shared/wcag.ts";
+import type { Rgb } from "../../floor/instrument/wcag.ts";
 
 /** One printed CONTRAST/CONTRAST-EDGE line and whether it reddens the run. Homed HERE, not in types.ts,
  *  since #1346: the capture sheet in types.ts carries the structured reading beside these lines, and two

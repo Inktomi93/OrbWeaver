@@ -9,9 +9,9 @@ import type {
   BrowserNetworkRecord,
   BrowserNetworkResponse,
   BrowserNetworkTiming,
-} from "../../_shared/browser-contract.ts";
-import { browserEvidenceRetentionBatchSchema, retentionBatch } from "../../_shared/browser-evidence-ring.ts";
-import { networkRecordsForPages, networkRetentionForPages } from "../../_shared/browser-network.ts";
+} from "../../floor/browser/browser-contract.ts";
+import { browserEvidenceRetentionBatchSchema, retentionBatch } from "../../floor/browser/browser-evidence-ring.ts";
+import { networkRecordsForPages, networkRetentionForPages } from "../../floor/browser/browser-network.ts";
 import type { NetworkBodyInput, NetworkCookieInput, RawNetworkEvidence } from "../contract/har-redaction.ts";
 import { redactNetworkEvidence } from "./har-redaction.ts";
 import type { NetworkHarWriteReceipt } from "./network-har-receipt.ts";

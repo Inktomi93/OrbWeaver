@@ -21,7 +21,7 @@
 
 import type { Wire } from "@orb/contracts/inference";
 import { WIRE_DEFS } from "@orb/contracts/inference";
-import { BACKEND_DEFS, buildBackends } from "../../../packages/inference/src/registry/backends.ts";
+import { BACKEND_DEFS, buildBackends } from "#inference/registry/backends.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeDeps } from "../_support.ts";
 import { CLAUDE_EXECUTABLE, CONFORMANCE_TASKS, CONFORMANCE_WIRES, conformanceNeedsMissing, hasDriver, skipReasonFor } from "./_harness.ts";

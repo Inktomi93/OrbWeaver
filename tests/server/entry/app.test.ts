@@ -19,9 +19,9 @@ import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/fo
 import { versionIdentity } from "@orb/server/foundation/version";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
-import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
-import { createApp, rateLimitResponseMeta } from "../../../packages/server/src/entry/app.ts";
+import { layer } from "#server/domain/settings/effective-config/layer.ts";
+import type { AppDeps } from "#server/entry/app.ts";
+import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the

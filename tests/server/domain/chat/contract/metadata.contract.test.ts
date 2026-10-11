@@ -9,10 +9,10 @@ import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/cha
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
-import type { CreateInviteParams, RedeemInviteParams, SendParams } from "../../../../../packages/server/src/domain/chat/contract/params.ts";
-import type { CreateInviteResult, TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import type { ChatSummary } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
+import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "#server/domain/chat/contract/metadata.ts";
+import type { CreateInviteParams, RedeemInviteParams, SendParams } from "#server/domain/chat/contract/params.ts";
+import type { CreateInviteResult, TurnOutcome } from "#server/domain/chat/contract/results.ts";
+import type { ChatSummary } from "#server/domain/chat/contract/views.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseChatMetadata", () => {

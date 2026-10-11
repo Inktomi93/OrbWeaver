@@ -22,8 +22,8 @@
 
 import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
-import type { RunChatTurnOp } from "../../../packages/server/src/domain/chat/contract/context.ts";
-import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "../../../packages/server/src/domain/chat/contract/results.ts";
+import type { RunChatTurnOp } from "#server/domain/chat/contract/context.ts";
+import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { testModelId } from "../inference-identities.ts";
 
 /** The default per-turn economics a scripted `reply` reports (matches the hand-rolled chat int fakes —

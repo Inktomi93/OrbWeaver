@@ -4,8 +4,8 @@
 // backgrounds share the PNG magic; the sniff is container-blind to the acTL animation chunk).
 
 import { describe } from "vitest";
-import { AssetContentRejectedError } from "../../../../../packages/server/src/domain/assets/contract/errors.ts";
-import { assertMagicMatches } from "../../../../../packages/server/src/domain/assets/substrate/mime.ts";
+import { AssetContentRejectedError } from "#server/domain/assets/contract/errors.ts";
+import { assertMagicMatches } from "#server/domain/assets/substrate/mime.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // PNG 8-byte signature (an animated PNG carries the SAME leading bytes — the acTL chunk sits past it).

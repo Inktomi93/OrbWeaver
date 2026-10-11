@@ -22,29 +22,19 @@ import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
-import { buildWirePlan } from "../../../../../packages/inference/src/backends/v4/prompt.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
-import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
-import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
-import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
-import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type {
-  DeliveredCue,
-  HistoryMacroNames,
-  TurnMessage,
-  TurnRequest,
-  TurnStreamChunk,
-} from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "#server/domain/chat/assembly/history-budget.ts";
+import { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
+import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
+import type { ChatToolOps, RunChatTurnOp } from "#server/domain/chat/contract/context.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import type { DeliveredCue, HistoryMacroNames, TurnMessage, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
+import { runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
 // The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
 // engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
-import {
-  __spanConvertsToNothingForTest,
-  __spanToWirePartForTest,
-  buildWireHistory,
-} from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { __spanConvertsToNothingForTest, __spanToWirePartForTest, buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

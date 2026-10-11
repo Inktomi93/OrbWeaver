@@ -9,7 +9,7 @@ import {
   promptCacheDepthOf,
   promptCacheTtlOf,
   showsPromptCache,
-} from "../../../../../packages/client/src/features/credentials/lib/prompt-cache-model.ts";
+} from "#client/features/credentials/lib/prompt-cache-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function generation(explicitPromptCache: boolean | undefined): Capability {

@@ -1,14 +1,14 @@
 // Report printing: the human triage view (summary/aria/eval/contrast/map/assert/css/watch blocks), the
 // checkpoint evidence-window scoping, console selection (errors win), crop attribution, and the
 // probe-motion voiding marker. --json remains the lossless record (ops/manifest.ts).
-import { activeRunSlot } from "../../_shared/artifact-out.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { BrowserPageError, ProbeSession } from "../../_shared/browser-contract.ts";
-import { pageErrorText } from "../../_shared/browser-contract.ts";
-import type { BrowserDiagnostic } from "../../_shared/browser-diagnostics.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { activeRunSlot } from "../../floor/artifacts/artifact-out.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import type { BrowserPageError, ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { pageErrorText } from "../../floor/browser/browser-contract.ts";
+import type { BrowserDiagnostic } from "../../floor/browser/browser-diagnostics.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ContrastOutcome } from "../contract/contrast.ts";
 import type { Args, AssertionOutcome, CaptureOutcome, EvalOutcome, EvidenceRange, ReportCtx, SessionCounts, WatchTick } from "../contract/types.ts";
 import { printMapBlock } from "../lib/map-report.ts";

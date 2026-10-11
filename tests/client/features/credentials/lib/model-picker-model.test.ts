@@ -23,7 +23,7 @@ import {
   resolveRecentEntries,
   typedModelAllowed,
   typedOption,
-} from "../../../../../packages/client/src/features/credentials/lib/model-picker-model.ts";
+} from "#client/features/credentials/lib/model-picker-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function entry(id: string, name = id): ModelCatalogEntry {

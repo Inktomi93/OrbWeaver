@@ -2,7 +2,7 @@
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
-// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+// floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
 // SPLIT OUT of census-interactive.ts (#797) because that segment reached the 450-line tooling cap. The
 // ownership vocabulary (ownsPoint / the ancestor-credit shapes / the composite walk / the probe frame)
@@ -24,7 +24,7 @@
 // ring does not fit and, where no scroll can produce one, REFUSES to publish an extent rather than
 // publishing the box. A refusal is counted and printed (censusReach.frameTruncated); a fabricated 18x18
 // is not recoverable by any downstream reader.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

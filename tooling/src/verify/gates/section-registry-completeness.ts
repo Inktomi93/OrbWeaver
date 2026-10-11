@@ -27,7 +27,7 @@
 // conversion `a8fc8f34e4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
 // `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,143 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302 (the bare harness
+// `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302 (the bare harness
 // dispatch was 7,143). legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.

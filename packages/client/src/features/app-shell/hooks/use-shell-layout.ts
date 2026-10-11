@@ -26,6 +26,7 @@ import {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  useSectionBackTarget,
   useSectionHasSelection,
   useSectionListIsScreen,
   useSectionRegistry,
@@ -76,6 +77,24 @@ export interface ShellLayout {
    *  section's own selection through its declared seam. `null` in every other state (desktop, no list, or
    *  nothing selected: the roster is already the screen and there is nowhere to go back to). */
   readonly backToList: (() => void) | null;
+  /** The panel is a sheet over a desktop-shaped layout (overlay regime on a non-phone viewport), where it is
+   *  only ever overlay or collapsed. Phones are excluded: their sheets are laid out by the phone arm. */
+  readonly listIsSheet: boolean;
+  readonly contextIsSheet: boolean;
+  /** Back would only close the open details sheet (the room stays): its name must say so. */
+  readonly backClosesSheet: boolean;
+  /** The rail label of the section {@link backToList} returns to when the open member was resumed from another
+   *  section (a room opened from Home); `null` when Back returns to the active section's own list. */
+  readonly backTargetLabel: string | null;
+}
+
+/** Back undoes the last step: an open details sheet closes first; the member pops on the next press. */
+function backAction(sheetOpen: boolean, closeSheet: () => void, popMember: () => void): () => void {
+  return sheetOpen ? closeSheet : popMember;
+}
+
+function closesSheet(back: (() => void) | null, contextMode: PanelMode): boolean {
+  return back !== null && contextMode === "overlay";
 }
 
 export function useShellLayout(): ShellLayout {
@@ -150,6 +169,7 @@ export function useShellLayout(): ShellLayout {
   const nothingSelected = useSectionListIsScreen(activeSection);
   const listIsScreen = listAvailable && nothingSelected;
   const memberOpen = useSectionHasSelection(activeSection);
+  const backTarget = useSectionBackTarget(activeSection);
 
   const listMode: PanelMode = listAvailable ? resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel, listIsScreen }) : "collapsed";
   const contextMode: PanelMode = contextAvailable
@@ -254,10 +274,18 @@ export function useShellLayout(): ShellLayout {
   // (side-eye P2). It keys on an OPEN MEMBER, not on "the list is not the screen": a CONTENT-landing section
   // (Corpus Insights, D271) has no list screen with nothing open, and the lead slot must stay its list door.
   const selection = activeDef.selection;
-  const backToList = isMobile && listAvailable && selection !== undefined && memberOpen ? selection.clear : null;
+  // Back undoes the last step: a details sheet over the member closes first, the member pops on the next press.
+  const backToList =
+    isMobile && listAvailable && selection !== undefined && memberOpen
+      ? backAction(contextMode === "overlay", () => collapsePanel("context"), selection.clear)
+      : null;
 
   return {
     backToList,
+    backClosesSheet: closesSheet(backToList, contextMode),
+    listIsSheet: !isMobile && isOverlayRegime("list"),
+    contextIsSheet: !isMobile && isOverlayRegime("context"),
+    backTargetLabel: backTarget === null ? null : registry.get(backTarget).rail.label,
     activeSection,
     activeSectionLabel,
     listMode,

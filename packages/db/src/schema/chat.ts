@@ -35,7 +35,7 @@
 //
 // Timestamps are plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at
 // insert via `(unixepoch() * 1000)`; caller-set timestamps are required `integer` numbers. JSON columns
-// are `$type<T>()` + read at the `@orb/db/kit` parse-seam (`chats.metadata` lazy/fault-isolated sub-blobs;
+// are `$type<T>()` + read at the `@orb/db/query` parse-seam (`chats.metadata` lazy/fault-isolated sub-blobs;
 // `message_variants.params`/`promptSnapshot`/`metadata`). The `raw_request`/`raw_response` provider
 // envelopes are DELETED (2026-08-03): nothing ever wrote them and the wire inspector reads `promptSnapshot`.
 
@@ -106,7 +106,7 @@ import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import * as sqliteCore from "drizzle-orm/sqlite-core";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { userConnections } from "./connection.ts";
@@ -127,7 +127,7 @@ const DEFAULT_TALKATIVENESS = 0.5;
 
 // The standalone (out-of-turn) runtime-variable delta batch shape (`StandaloneVariableDelta`)
 // is one-homed in `@orb/contracts/chat` — the `$type` below imports it; typed
-// JSON, parsed at the `@orb/db/kit` read seam (`standaloneVariableDeltaSchema`), never cast.
+// JSON, parsed at the `@orb/db/query` read seam (`standaloneVariableDeltaSchema`), never cast.
 
 export const chats = sqliteTable(
   "chats",
@@ -167,7 +167,7 @@ export const chats = sqliteTable(
     // The departing host's OPT-IN property offer, co-located with the nominee it qualifies (stickler
     // 2026-08-03 §5): `nominateHostHandoff` writes it, `acceptHostHandoff` EXECUTES it and clears it in the
     // same statement that clears `pendingHostUserId` — the two are one nomination and can never outlive each
-    // other. NULL = no offer = the built D64 drop, byte-identical. Typed JSON parsed at the `@orb/db/kit`
+    // other. NULL = no offer = the built D64 drop, byte-identical. Typed JSON parsed at the `@orb/db/query`
     // read seam (`handoffOfferSchema`), never cast: a corrupt blob degrades to no-offer rather than
     // fabricating consent to copy someone's library. Scoping class: INHERITED (D18/D20) — the row is the
     // chat, whose scope is `chat_participants`; the blob names no id and grants nothing by itself.
@@ -187,10 +187,10 @@ export const chats = sqliteTable(
     compactSummary: text("compact_summary"),
     compactedAtSeq: integer("compacted_at_seq"),
     // The room-behavior blob (GroupConfig/RoomOverrides/OpeningPolicy) — typed JSON, lazy-parsed at the
-    // `@orb/db/kit` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
+    // `@orb/db/query` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
     metadata: text("metadata", { mode: "json" }).$type<ChatMetadata>(),
     // PERSISTED CANON: the per-chat ChoiceBlock variable flush — `setVariables` writes it,
-    // `getVariablePicks` reads it back. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
+    // `getVariablePicks` reads it back. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/query` read
     // seam. Nullable (no variables flushed yet).
     variableValues: text("variable_values", { mode: "json" }).$type<Record<string, string>>(),
     // WAVE MU user-macro delivery — the per-chat user-macro INPUT picks (`setUserMacroValues` writes it,

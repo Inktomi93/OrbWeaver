@@ -9,12 +9,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import {
-  bulkInsertJunctionRows,
-  deleteJunctionRow,
-  ensureTargetAccessible,
-  insertJunctionRow,
-} from "../../../../../packages/server/src/domain/tag/persistence/junctions.ts";
+import { bulkInsertJunctionRows, deleteJunctionRow, ensureTargetAccessible, insertJunctionRow } from "#server/domain/tag/persistence/junctions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";

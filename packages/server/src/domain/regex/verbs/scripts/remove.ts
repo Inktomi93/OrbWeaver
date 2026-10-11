@@ -4,11 +4,11 @@
 
 import { regexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context.ts";
-import { RegexNotFoundError } from "../../contract/errors.ts";
-import type { RemoveScriptParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { loadOwnedScript } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
+import type { RemoveScriptParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 
 export function createRemove(ctx: RegexContext): RegexService["removeScript"] {
   return async ({ principal, scriptId }: RemoveScriptParams) => {

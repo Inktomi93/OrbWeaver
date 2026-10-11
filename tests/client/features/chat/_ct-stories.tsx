@@ -63,6 +63,7 @@ import {
   CommandPaletteSourceRegistryProvider,
   cancelEditingMessage,
   chatDeletedFromList,
+  chatSectionSelection,
   chatStream,
   committedChat,
   enterSelectionMode,
@@ -75,6 +76,7 @@ import {
   requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
+  selectChatFromList,
   setMobileViewport,
   setNarrowViewport,
   startEditingMessage,
@@ -127,77 +129,78 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
-import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog.tsx";
-import { AddChatBookDialog } from "../../../../packages/client/src/features/chat/components/add-chat-book-dialog.tsx";
-import { AddChatDocumentDialog } from "../../../../packages/client/src/features/chat/components/add-chat-document-dialog.tsx";
-import { AppearanceAvatarsSection } from "../../../../packages/client/src/features/chat/components/appearance-avatars-section.tsx";
-import { AppearanceMessageDetailsSection } from "../../../../packages/client/src/features/chat/components/appearance-message-details-section.tsx";
-import { AppearanceMessageStyleSection } from "../../../../packages/client/src/features/chat/components/appearance-message-style-section.tsx";
-import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/chat/components/assembly-preview-panel.tsx";
-import { ChatMessageHandlingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-message-handling-section.tsx";
-import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx";
-import { ChatBooksSection } from "../../../../packages/client/src/features/chat/components/chat-books-section.tsx";
-import { ChatCharacterBar } from "../../../../packages/client/src/features/chat/components/chat-character-bar.tsx";
-import { DisclosureSection } from "../../../../packages/client/src/features/chat/components/chat-context-disclosure-section.tsx";
-import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
-import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
-import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
-import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
-import { ChatRecallIndicator } from "../../../../packages/client/src/features/chat/components/chat-recall-indicator.tsx";
-import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
-import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
-import { CommittedMembersTab } from "../../../../packages/client/src/features/chat/components/committed-members-tab.tsx";
-import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek.tsx";
-import { ComposerArgHintStrip } from "../../../../packages/client/src/features/chat/components/composer-arg-hint-strip.tsx";
-import { ComposerAttachmentStrip } from "../../../../packages/client/src/features/chat/components/composer-attachment-strip.tsx";
-import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
-import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
-import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row.tsx";
-import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip.tsx";
-import { CommittedGroupConfigTab, GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form.tsx";
-import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section.tsx";
-import { InjectionsManager, InjectionsSkeleton } from "../../../../packages/client/src/features/chat/components/injections-manager.tsx";
-import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog.tsx";
-import { MacroPicksSection } from "../../../../packages/client/src/features/chat/components/macro-picks-section.tsx";
-import { MemberCardViewer } from "../../../../packages/client/src/features/chat/components/member-card-viewer.tsx";
-import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel.tsx";
-import { MemoryRecallDetail } from "../../../../packages/client/src/features/chat/components/memory-recall-detail.tsx";
-import { MemorySettingsSection } from "../../../../packages/client/src/features/chat/components/memory-settings-section.tsx";
-import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row.tsx";
-import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content.tsx";
-import { MessageCostReadout } from "../../../../packages/client/src/features/chat/components/message-cost-readout.tsx";
-import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea.tsx";
-import { MessageMediaBlock } from "../../../../packages/client/src/features/chat/components/message-media-block.tsx";
-import type { MessageMetadataVisibility } from "../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
-import { MessageMetadataRow } from "../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
-import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row.tsx";
-import { MessageSelectionBar } from "../../../../packages/client/src/features/chat/components/message-selection-bar.tsx";
-import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
-import { ProseSettingsSection } from "../../../../packages/client/src/features/chat/components/prose-settings-section.tsx";
-import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block.tsx";
-import { RegexSection } from "../../../../packages/client/src/features/chat/components/regex-section.tsx";
-import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog.tsx";
-import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form.tsx";
-import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip.tsx";
-import type { ResolvedAttachment } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
-import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
-import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context.tsx";
-import { useChatListHeader } from "../../../../packages/client/src/features/chat/hooks/use-chat-list-header.tsx";
-import type { PendingAttachment } from "../../../../packages/client/src/features/chat/hooks/use-composer-attachments.ts";
-import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
-import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
-import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
-import { SWIPE_FOOT_INSIDE } from "../../../../packages/client/src/features/chat/lib/pager-chrome.ts";
-import { createWarningSurface } from "../../../../packages/client/src/features/chat/lib/turn-warning-surface.ts";
-import { warningNotice } from "../../../../packages/client/src/features/chat/lib/warning-notice.ts";
-import { enableAppearanceMessageRegistry } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
-import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
+import { SectionContextHeader, SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { CharacterGalleryDialog } from "#client/features/chat/anchors/character-gallery-dialog.tsx";
+import { AddChatBookDialog } from "#client/features/chat/components/add-chat-book-dialog.tsx";
+import { AddChatDocumentDialog } from "#client/features/chat/components/add-chat-document-dialog.tsx";
+import { AppearanceAvatarsSection } from "#client/features/chat/components/appearance-avatars-section.tsx";
+import { AppearanceMessageDetailsSection } from "#client/features/chat/components/appearance-message-details-section.tsx";
+import { AppearanceMessageStyleSection } from "#client/features/chat/components/appearance-message-style-section.tsx";
+import { AssemblyPreviewPanel } from "#client/features/chat/components/assembly-preview-panel.tsx";
+import { ChatMessageHandlingSection } from "#client/features/chat/components/chat-behavior-message-handling-section.tsx";
+import { ChatStreamingSection } from "#client/features/chat/components/chat-behavior-streaming-section.tsx";
+import { ChatBooksSection } from "#client/features/chat/components/chat-books-section.tsx";
+import { ChatCharacterBar } from "#client/features/chat/components/chat-character-bar.tsx";
+import { DisclosureSection } from "#client/features/chat/components/chat-context-disclosure-section.tsx";
+import { ChatDocumentsSection } from "#client/features/chat/components/chat-documents-section.tsx";
+import { ChatHeaderSurface } from "#client/features/chat/components/chat-header.tsx";
+import { ChatImportDialog } from "#client/features/chat/components/chat-import-dialog.tsx";
+import { ChatOptionsMenu } from "#client/features/chat/components/chat-options-menu.tsx";
+import { ChatRecallIndicator } from "#client/features/chat/components/chat-recall-indicator.tsx";
+import { ChatSummaryRow } from "#client/features/chat/components/chat-summary-row.tsx";
+import { ChatsTopbarHeader } from "#client/features/chat/components/chats-topbar-header.tsx";
+import { ChoiceSendProvider } from "#client/features/chat/components/choice-send-provider.tsx";
+import { CommittedMembersTab } from "#client/features/chat/components/committed-members-tab.tsx";
+import { CompactSummaryPeek } from "#client/features/chat/components/compact-summary-peek.tsx";
+import { ComposerArgHintStrip } from "#client/features/chat/components/composer-arg-hint-strip.tsx";
+import { ComposerAttachmentStrip } from "#client/features/chat/components/composer-attachment-strip.tsx";
+import { ActiveChatOptionsMenu } from "#client/features/chat/components/composer-chat-options.tsx";
+import { DatabankSettingsSection } from "#client/features/chat/components/databank-settings-section.tsx";
+import { GhostMessageRow } from "#client/features/chat/components/ghost-message-row.tsx";
+import { GreetingSwipeStrip } from "#client/features/chat/components/greeting-swipe-strip.tsx";
+import { CommittedGroupConfigTab, GroupConfigForm } from "#client/features/chat/components/group-config-form.tsx";
+import { ImageryTemplatesSection } from "#client/features/chat/components/imagery-templates-section.tsx";
+import { InjectionsManager, InjectionsSkeleton } from "#client/features/chat/components/injections-manager.tsx";
+import { InviteDialog } from "#client/features/chat/components/invite-dialog.tsx";
+import { MacroPicksSection } from "#client/features/chat/components/macro-picks-section.tsx";
+import { MemberCardViewer } from "#client/features/chat/components/member-card-viewer.tsx";
+import { MembersPanel } from "#client/features/chat/components/members-panel.tsx";
+import { MemoryRecallDetail } from "#client/features/chat/components/memory-recall-detail.tsx";
+import { MemorySettingsSection } from "#client/features/chat/components/memory-settings-section.tsx";
+import { MessageActionsRow } from "#client/features/chat/components/message-actions-row.tsx";
+import { MessageContent } from "#client/features/chat/components/message-content.tsx";
+import { MessageCostReadout } from "#client/features/chat/components/message-cost-readout.tsx";
+import { MessageEditTextarea } from "#client/features/chat/components/message-edit-textarea.tsx";
+import { MessageMediaBlock } from "#client/features/chat/components/message-media-block.tsx";
+import type { MessageMetadataVisibility } from "#client/features/chat/components/message-metadata-row.tsx";
+import { MessageMetadataRow } from "#client/features/chat/components/message-metadata-row.tsx";
+import { MessageRow } from "#client/features/chat/components/message-row.tsx";
+import { MessageSelectionBar } from "#client/features/chat/components/message-selection-bar.tsx";
+import { MessageToolCalls } from "#client/features/chat/components/message-tool-calls.tsx";
+import { ProseSettingsSection } from "#client/features/chat/components/prose-settings-section.tsx";
+import { ReasoningBlock } from "#client/features/chat/components/reasoning-block.tsx";
+import { RegexSection } from "#client/features/chat/components/regex-section.tsx";
+import { RewriteDialog } from "#client/features/chat/components/rewrite-dialog.tsx";
+import { RoomOverridesForm } from "#client/features/chat/components/room-overrides-form.tsx";
+import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
+import { SwipeStrip } from "#client/features/chat/components/swipe-strip.tsx";
+import type { ResolvedAttachment } from "#client/features/chat/hooks/attachment-url-context.tsx";
+import { AttachmentUrlContext } from "#client/features/chat/hooks/attachment-url-context.tsx";
+import { ChoiceSendContext } from "#client/features/chat/hooks/choice-send-context.tsx";
+import { useChatListHeader } from "#client/features/chat/hooks/use-chat-list-header.tsx";
+import type { PendingAttachment } from "#client/features/chat/hooks/use-composer-attachments.ts";
+import { speakerThemesByName } from "#client/features/chat/lib/attribution.ts";
+import { useChatsSelectionTitle } from "#client/features/chat/lib/chats-selection-title.ts";
+import type { MemberCharacterRow, MemberPersonRow } from "#client/features/chat/lib/member-rows.ts";
+import { SWIPE_FOOT_INSIDE } from "#client/features/chat/lib/pager-chrome.ts";
+import { createWarningSurface } from "#client/features/chat/lib/turn-warning-surface.ts";
+import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
+import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
+import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
 import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
+import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 
 // The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
 // mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
@@ -1640,6 +1643,61 @@ export function ChatListSurfaceStory({ activeChatId = null, width = 320, mobile 
   return (
     <CtDataProviders>
       <ChatListInner activeChatId={activeChatId} width={width} />
+    </CtDataProviders>
+  );
+}
+
+/** The Chats list wired to the real selection door, plus the phone Back's act (`chatSectionSelection.clear`). */
+export function ChatListReturnStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ChatListReturnBody />
+    </CtDataProviders>
+  );
+}
+
+function ChatListReturnBody(): ReactElement {
+  // On a phone the list pane is inert while a room is open.
+  const roomOpen = useActiveChatId() !== null;
+  return (
+    <>
+      <div style={{ height: 480, width: 320 }} inert={roomOpen}>
+        <ChatListAnchor>
+          <ChatListSurface onNewChat={(): void => undefined} onSelect={selectChatFromList} />
+        </ChatListAnchor>
+      </div>
+      <div>
+        <button onClick={(): void => chatSectionSelection.clear()} type="button">
+          leave the room
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** The returned-row focus claim: one row for chat A that can be made inert (a collapsed sheet), a field to
+ *  hold focus elsewhere, and a button that mounts a second row for A later. */
+export function ReturnedRowClaimStory(): ReactElement {
+  const [inert, setInert] = useState(false);
+  const [second, setSecond] = useState(false);
+  const chat = { ...makeChatSummary({ title: "Room A" }), id: castId<ChatId>("chat_claim_a") };
+  return (
+    <CtDataProviders>
+      <div inert={inert}>
+        <ChatSummaryRow chat={chat} onSelect={selectChat} />
+      </div>
+      <button onClick={(): void => setInert(true)} type="button">
+        make inert
+      </button>
+      <button onClick={(): void => chatSectionSelection.clear()} type="button">
+        leave the room
+      </button>
+      <input aria-label="elsewhere" />
+      {/* mousedown is default-prevented so the click leaves focus where the test put it */}
+      <button onClick={(): void => setSecond(true)} onMouseDown={(event): void => event.preventDefault()} type="button">
+        mount second list
+      </button>
+      {second ? <ChatSummaryRow chat={chat} onSelect={selectChat} /> : null}
     </CtDataProviders>
   );
 }

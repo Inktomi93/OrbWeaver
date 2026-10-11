@@ -1,5 +1,5 @@
 // Pure aggregate and reconciliation for the rated matrix's appearance evidence population.
-import { instrumentRefusal } from "../../_shared/page-validate.ts";
+import { instrumentRefusal } from "../../floor/browser/page-validate.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 
 export interface AppearanceAggregate {

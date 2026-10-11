@@ -5,9 +5,9 @@
 // discipline).
 
 import type { RpgConfigView } from "@orb/contracts/rpg";
-import type { ReadGameParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
+import type { ReadGameParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
 
 export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfigView"> {
   async function getConfigView(params: ReadGameParams): Promise<RpgConfigView> {

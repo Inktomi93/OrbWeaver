@@ -1,10 +1,10 @@
 // Artifact and terminal receipt for Snap's React development-renderer arm. Collection stays in
 // react-profile.ts; the run arm owns browser lifecycle and passes both evidence streams here.
 import { open, readFile, writeFile } from "node:fs/promises";
-import { artifactFile } from "../../_shared/artifact-out.ts";
-import { aggregateScope } from "../../_shared/artifact-scope.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { EvidenceGap } from "../../_shared/evidence.ts";
+import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateScope } from "../../floor/artifacts/artifact-scope.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { RankedReactComponent, ReactProfilePageEvidence, ReactProfileSummaryArtifact } from "../contract/react-profile.ts";
 import { REACT_PROFILE_SUMMARY_COMPONENT_LIMIT, REACT_PROFILE_SUPPORTED_MINOR, reactProfileSummaryArtifactSchema } from "../contract/react-profile.ts";
 import { REACT_PROFILE_LIMITS, rankReactComponents, summarizeReactActivity } from "./react-profile.ts";

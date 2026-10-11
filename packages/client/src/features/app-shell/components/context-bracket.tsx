@@ -33,12 +33,14 @@ export interface ContextBracketProps {
   readonly empty?: ReactNode;
   /** The tab strip's accessible name: the artifact noun the pane is about ("Chat", "Character"). */
   readonly railLabel: string;
+  /** The pane's own name, printed when a single tab leaves no strip. Absent ⇒ the rail label. */
+  readonly paneLabel?: string;
   /** The pane's own way out, rendered as the header row's trailing ×. */
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
 
-export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
+export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
   const gameTabs = view.tabs.filter((tab) => tab.strip === "game");
   const metaTabs = view.tabs.filter((tab) => tab.strip === "meta");
   const active = view.tabs.find((tab) => tab.id === view.activeTab) ?? null;
@@ -100,7 +102,7 @@ export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onD
       className="flex h-full min-h-0 flex-col gap-0 border-t-2 border-primary/55"
     >
       <Row data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
-        <ContextHeaderTabs ariaLabel={railLabel} tabs={metaTabs} activeTab={view.activeTab} />
+        <ContextHeaderTabs ariaLabel={railLabel} paneLabel={paneLabel} tabs={metaTabs} activeTab={view.activeTab} />
         {view.actions === undefined ? null : (
           <Row align="center" className="shrink-0 pe-field">
             {view.actions}

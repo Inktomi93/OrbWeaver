@@ -28,7 +28,7 @@ const OWNER = castId<Handle>("owner");
 const SOMEONE_ELSE = castId<Handle>("someone-else");
 const CHAT_OPEN = castId<ChatId>("chat_open");
 
-type Ladder = typeof import("../../../packages/client/src/data/stale-session.ts");
+type Ladder = typeof import("#client/data/stale-session.ts");
 
 interface Recorder {
   readonly assign: ReturnType<typeof vi.fn>;

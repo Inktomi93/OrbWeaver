@@ -61,12 +61,12 @@
 // the two failure classes this rule exists to catch), so the run reports NO VERDICT rather than a clean
 // pass.
 //
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts. Must run after census-collision.ts (which
 // declares `relationalAccounting`) and census-cohort.ts (which declares `excludeRelational` /
 // `withholdRelational`) — placed near the end of the composition, after census-region.ts, for the same
 // reason every other post-cohort segment is.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

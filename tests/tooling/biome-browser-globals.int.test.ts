@@ -13,8 +13,8 @@
 // local-binding body rides the SAME invocation as the nine-global body: a bare zero is never a verdict.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { describe } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";

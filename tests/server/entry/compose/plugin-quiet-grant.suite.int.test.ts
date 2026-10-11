@@ -11,7 +11,7 @@ import { assets, plugins } from "@orb/db";
 import type { AssetId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { buildPluginQuietLlm } from "../../../../packages/server/src/entry/compose/automation-plugin.ts";
+import { buildPluginQuietLlm } from "#server/entry/compose/automation-plugin.ts";
 import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 import { principal } from "../../domain/automation/_support.ts";
 

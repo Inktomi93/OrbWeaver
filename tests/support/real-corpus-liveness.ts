@@ -2,8 +2,8 @@
 // Each policy sees exactly its own ordered overlays; identical interventions may share a pass.
 // Shared failures retain their original error; restoration failure also forbids independent controls.
 import { existsSync, readFileSync } from "node:fs";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
-import { createWorkspaceResolutionCache } from "@orb/tooling/_shared/ts-workspace-resolution";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createWorkspaceResolutionCache } from "@orb/tooling/floor/compiler/ts-workspace-resolution";
 import type { GatePolicy } from "@orb/tooling/verify";
 import { resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
 import type { Project } from "ts-morph";

@@ -5,8 +5,8 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
-import { portableParseError } from "#kit/serde/lib";
-import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES, USER_SETTINGS_SCHEMA_KIND } from "#kit/serde/user-settings";
+import { portableParseError } from "#primitives/serde/lib";
+import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES, USER_SETTINGS_SCHEMA_KIND } from "#primitives/serde/user-settings";
 import type { SettingsImportOutcome } from "../contract/portability.ts";
 import type { SettingsContext } from "../contract/service.ts";
 import { readUserSettings, writeUserConfig } from "../persistence/queries.ts";

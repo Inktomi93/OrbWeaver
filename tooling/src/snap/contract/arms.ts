@@ -27,11 +27,11 @@
 // both as one `run()` would have meant either losing the request log's pre-navigation attach or giving
 // every page arm three empty hooks; the union is exhaustively dispatched, so neither can be forgotten.
 import type { Page } from "@playwright/test";
-import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
-import type { VerdictDenominator } from "../../_shared/evidence.ts";
+import type { EvidenceWindowId } from "../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import type { DevToolsCascadeRuntime } from "../../floor/devtools/devtools-runtime.ts";
+import type { VerdictDenominator } from "../../floor/verdict/evidence.ts";
 import type { Arm } from "./arm-vocabulary.ts";
 import type { SnapRatePosture } from "./rate-posture.ts";
 import type { ArmFactDataByArm, ArmFactSchemaIdByArm, SnapCurrentScope } from "./run-facts.ts";
@@ -68,7 +68,7 @@ export interface ArmFlagSpec {
  *  reads would be a declaration with no enforcement, which is the shape this registry exists to delete.
  *  §6 also sketched `trace`/`requestRing`/`quietBox`; none is an OPTIONAL arm provision on this tree (the
  *  request ring is the universal ProbeSession substrate installed by `launchSnapSession` before callers
- *  can navigate, and the load withhold is per INSTRUMENT in `_shared/load-budget.ts`). */
+ *  can navigate, and the load withhold is per INSTRUMENT in `floor/host/load-budget.ts`). */
 export interface ArmNeeds {
   /** A Chrome `--remote-debugging-port` endpoint on THIS run's browser (the Lighthouse attach). */
   readonly debuggingPort?: true;
@@ -219,7 +219,7 @@ export interface ArmRunInstance<A extends Arm = Arm> {
   readonly report: (ctx: ArmRunContext) => Promise<void>;
   readonly failures: () => ArmFailureCounts;
   /** The population this arm's accounting is over; `refuseWhen: "zero"` turns a blind read into an
-   *  exit-2 refusal (_shared/evidence.ts). */
+   *  exit-2 refusal (floor/verdict/evidence.ts). */
   readonly denominators: () => Readonly<Record<string, VerdictDenominator>>;
   readonly pairs: () => readonly ResultPair[];
   readonly facts: () => readonly ArmFactEmission<A>[];

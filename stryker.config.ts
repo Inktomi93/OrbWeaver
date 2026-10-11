@@ -1,4 +1,4 @@
-import { createStrykerConfig } from "./tooling/src/_shared/stryker-config.ts";
+import { createStrykerConfig } from "./tooling/src/floor/testing/stryker-config.ts";
 
 // Exploratory targets stay explicit here; the gate profile has a separately calibrated frozen set.
 export default createStrykerConfig({

@@ -3,8 +3,8 @@
 // can supply a deterministic observer without reaching process-global tracing state.
 
 import { EMBEDDING_FLOOR, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
-import { createLocalLightBackend } from "../../../../packages/inference/src/backends/local-light/index.ts";
-import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
+import { createLocalLightBackend } from "#inference/backends/local-light/index.ts";
+import type { InferenceLog } from "#inference/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeModelCache, fakeResolved } from "../../_support.ts";
 

@@ -1,11 +1,11 @@
 // infra/providers/backends/agent-sdk/verify — the init-frame SHAPE GUARD + the SDK error classifiers.
 // All three speak the SDK's PRIVATE vocab (SDKAssistantMessageError codes, SDKResultError subtypes, the
 // init frame), so they live in THIS backend (D8 — the SDK is the agent-sdk backend's private dep), NOT
-// in the shared `backends/kit` (which is SDK-free OpenAI-wire helpers). They map onto the SDK-free
+// in the shared `backends/http` and `backends/wire` (SDK-free OpenAI-wire helpers). They map onto the SDK-free
 // `ProviderErrorKind` vocab so the runner builds one `ProviderError` surface for every caller.
 
 import type { SDKAssistantMessageError, SDKResultError, TerminalReason } from "@anthropic-ai/claude-agent-sdk";
-import type { ProviderErrorKind } from "../../contract/errors.ts";
+import type { ProviderErrorKind } from "#contract";
 
 /** A classification result: the normalized kind + whether a retry could plausibly recover the turn. */
 interface Classification {

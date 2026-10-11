@@ -6,17 +6,17 @@
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { aggregateScope, exactScope } from "@orb/tooling/_shared/artifact-scope";
-import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
-import { browserEvidenceRetention } from "@orb/tooling/_shared/browser-capture";
-import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema, diagnosticRetentionSummary } from "@orb/tooling/_shared/browser-evidence-ring";
+import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
+import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
+import { browserEvidenceRetention } from "@orb/tooling/floor/browser/browser-capture";
+import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema, diagnosticRetentionSummary } from "@orb/tooling/floor/browser/browser-evidence-ring";
 import {
   __clearNetworkExtrasForTest,
   __networkRetentionStateForTest,
   __pushNetworkExtraForTest,
   networkRecordsForPages,
   selectNetworkBodies,
-} from "@orb/tooling/_shared/browser-network";
+} from "@orb/tooling/floor/browser/browser-network";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";

@@ -3,7 +3,7 @@
 // default-persona flag, the name-keyed identity, and the never-throws empty contract.
 
 import { describe } from "vitest";
-import { parseStPersonas } from "../../../../../packages/server/src/domain/import/substrate/persona.ts";
+import { parseStPersonas } from "#server/domain/import/substrate/persona.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseStPersonas", () => {

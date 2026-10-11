@@ -11,11 +11,11 @@
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import type { ExitCode } from "@orb/tooling/floor/cli/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import type { DevInstrumentVerdict } from "../contract/dev-instrument-absence.ts";
 import {
   chunkSources,

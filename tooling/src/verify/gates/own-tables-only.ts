@@ -55,7 +55,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `own-tables-only` descriptor at 70fbc2ea6dab4d991d96759b6cc26dbf4404b3bc, the parent of the conversion `b51daeba41`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,044
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,044
 // and final `population` admits 1,148. legacy − final = ∅. final − legacy = 104 `domain/**/persistence/**` sources —
 // now WALKED (still scoped out of every finding), exactly the change the DECLARED LIMITS paragraph records. Controls:
 // inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

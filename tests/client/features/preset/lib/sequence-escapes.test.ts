@@ -1,7 +1,7 @@
 // Unit: the chip lists' typed form of a sequence (features/preset/lib/sequence-escapes). A DRY breaker or a
 // stop sequence that is a newline must be typeable and readable, and the two directions must round-trip.
 
-import { decodeSequence, encodeSequence } from "../../../../../packages/client/src/features/preset/lib/sequence-escapes.ts";
+import { decodeSequence, encodeSequence } from "#client/features/preset/lib/sequence-escapes.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("\\n, \\t and \\\\ type a newline, a tab and a backslash; other text is literal", () => {

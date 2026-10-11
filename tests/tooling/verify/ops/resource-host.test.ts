@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";

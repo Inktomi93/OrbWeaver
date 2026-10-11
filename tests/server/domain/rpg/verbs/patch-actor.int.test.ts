@@ -14,10 +14,10 @@ import type { Db } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
-import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { resolveSnapshotForTurn } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
-import { applyLockedPatch } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
+import type { RpgGameRow } from "#server/domain/rpg/contract/service.ts";
+import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
+import { applyLockedPatch } from "#server/domain/rpg/substrate/merge.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, makeRpgService, pinExtractionMode, principal, seedChat, seedMessage, test, turnConnection } from "../_support.ts";
 

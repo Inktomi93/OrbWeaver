@@ -8,6 +8,10 @@ paths:
 
 # Browser tests (CT and e2e)
 
+## Tests run the product
+
+Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
+
 ## Running CT
 
 Run `pnpm test:ct <paths>`. Never invoke `playwright test` directly and never run the whole tree from a

@@ -26,7 +26,7 @@
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
 // `if (!SECTION_FILE_RE.test(sf.getFilePath())) continue` with lib/section-defs.ts SECTION_FILE_RE =
 // /\/features\/[^/]+\/lib\/[^/]+-section\.tsx?$/. Over the SAME 7,141 harness candidates at that tree (`git ls-tree`
-// ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 53 and the final `population` admits 1,302 (the bare harness
+// ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 53 and the final `population` admits 1,302 (the bare harness
 // dispatch was 7,141). legacy − final = ∅. final − legacy = 1,249 `@client` sources outside `*-section.{ts,tsx}`
 // files — the recorded intentional widening from the filename fence to the canonical type. Controls: inside
 // `packages/client/src/features/app-shell/lib/__cbbhr_in_appearance-background-section.tsx` (virtual) admitted by

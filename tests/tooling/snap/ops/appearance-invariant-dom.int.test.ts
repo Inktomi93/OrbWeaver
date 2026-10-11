@@ -2,7 +2,7 @@
 // the first virtualized/off-viewport sibling that happened to match the same client-owned selector.
 
 import { chromium } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/_shared/appearance-matrix.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { probeAppearanceDom } from "../../../../tooling/src/snap/ops/appearance-invariant-dom.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";

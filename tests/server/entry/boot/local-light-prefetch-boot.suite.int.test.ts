@@ -49,7 +49,7 @@ vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", CACHE_DIR);
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
 // Dynamic import AFTER the env stubs so `foundation/env` freezes the throwaway config.
-const { createLifecycle } = await import("../../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+const { createLifecycle } = await import("#server/entry/lifecycle.ts").catch((error: unknown) => {
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });

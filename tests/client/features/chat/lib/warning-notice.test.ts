@@ -10,7 +10,7 @@
 
 import type { ChatSettingsAdjustedWarning, ChatWarning, ProviderAdjustmentKind } from "@orb/contracts/chat";
 import { CHAT_WARNING_CODES, PROVIDER_ADJUSTMENT_KINDS } from "@orb/contracts/chat";
-import { warningNotice } from "../../../../../packages/client/src/features/chat/lib/warning-notice.ts";
+import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // ── Specific arms: each degrade reads honestly + names WHAT was dropped ──────────────────────────────

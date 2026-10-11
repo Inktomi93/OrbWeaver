@@ -10,7 +10,7 @@
 // read from the tool's own contract (VERIFY_VERBS), never a copy — a new verb joins this pin the day it is
 // minted, which is the only shape that would have caught #809 (a code path nobody exercised).
 import process from "node:process";
-import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import type { MembershipReport } from "@orb/tooling/verify";
 import { VERIFY_VERBS } from "@orb/tooling/verify";
 import { readPolicyRepositoryInventory } from "../../../tooling/src/verify/lib/policy-repo-inventory.ts";

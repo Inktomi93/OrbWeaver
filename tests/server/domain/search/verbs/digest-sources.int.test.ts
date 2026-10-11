@@ -3,7 +3,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { consolidationHash, resolveTier0Range } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
-import { createDigestSourceCoverage } from "../../../../../packages/server/src/domain/search/verbs/digest-sources.ts";
+import { createDigestSourceCoverage } from "#server/domain/search/verbs/digest-sources.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";

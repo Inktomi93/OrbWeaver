@@ -30,7 +30,7 @@
 // `query-boundary-reservation` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // The `1e92eb43fc` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
 // (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
 // both.

@@ -9,7 +9,7 @@ import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {

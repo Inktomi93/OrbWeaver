@@ -7,7 +7,7 @@
 import process from "node:process";
 import type { Page } from "@playwright/test";
 import { vi } from "vitest";
-import type { BrowserAccelerationEvidence } from "../../../../../tooling/src/_shared/browser-acceleration.ts";
+import type { BrowserAccelerationEvidence } from "../../../../../tooling/src/floor/browser/browser-acceleration.ts";
 import { snapRatePostureIdSchema } from "../../../../../tooling/src/snap/contract/rate-posture.ts";
 import type { SnapRatePosture } from "../../../../../tooling/src/snap/lib/rate-posture.ts";
 import { APP_SNAPSHOT_ARM, appSnapshotResultPair, capturePerfEvidence } from "../../../../../tooling/src/snap/ops/arms/perf.ts";

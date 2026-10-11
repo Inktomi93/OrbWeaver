@@ -13,7 +13,7 @@ import type { GenerationCapability, UserRoleHandling } from "@orb/contracts/infe
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
-import { MessageHandlingSection } from "../../../../../packages/client/src/features/preset/components/message-handling-section.tsx";
+import { MessageHandlingSection } from "#client/features/preset/components/message-handling-section.tsx";
 import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_msghandlingaaa";

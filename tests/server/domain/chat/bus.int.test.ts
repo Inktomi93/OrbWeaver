@@ -6,14 +6,14 @@
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents, chatHandoffResumptions, chats } from "@orb/db";
-import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import { createChatBus } from "../../../../packages/server/src/domain/chat/bus.ts";
-import { appendChatEvent } from "../../../../packages/server/src/domain/chat/persistence/events.ts";
+import { createChatBus } from "#server/domain/chat/bus.ts";
+import { appendChatEvent } from "#server/domain/chat/persistence/events.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedChat, seedUser } from "./_support.ts";

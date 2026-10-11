@@ -24,7 +24,7 @@ import {
   readThemeClusterMembers,
   readThemeClusterTimeline,
   readTier0DigestSpans,
-} from "../../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
+} from "#server/domain/discovery/persistence/embed-store-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {

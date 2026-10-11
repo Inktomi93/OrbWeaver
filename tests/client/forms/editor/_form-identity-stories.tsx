@@ -10,8 +10,8 @@
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterCreateActions } from "../../../../packages/client/src/features/character/components/character-create-actions.tsx";
-import { PresetRenameDialog } from "../../../../packages/client/src/features/preset/components/preset-rename-dialog.tsx";
+import { CharacterCreateActions } from "#client/features/character/components/character-create-actions.tsx";
+import { PresetRenameDialog } from "#client/features/preset/components/preset-rename-dialog.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The rename dialog, open on mount and seeded — the crunch's named "PresetRenameDialog" surface. */

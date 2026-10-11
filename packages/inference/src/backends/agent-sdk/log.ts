@@ -2,12 +2,10 @@
 // never prompt/RP/system-prompt content. Bound ONCE per backend (`createAgentSdkLog`) — no global logger.
 
 import type { ChatId } from "@orb/kit/ids";
-import type { ContextUsage } from "../../contract/chat.ts";
-import type { ProviderError } from "../../contract/errors.ts";
-import type { AgentSdkSessionId } from "../../contract/identity.ts";
-import type { InferenceLog } from "../../deps.ts";
-import type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../kit/provider-log.ts";
-import { providerLogger } from "../kit/provider-log.ts";
+import type { AgentSdkSessionId, ContextUsage, ProviderError } from "#contract";
+import type { InferenceLog } from "#src/deps.ts";
+import type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../http/provider-log.ts";
+import { providerLogger } from "../http/provider-log.ts";
 import type { SeededSessionDecision } from "./session/index.ts";
 
 const WIRE = "agent-sdk";

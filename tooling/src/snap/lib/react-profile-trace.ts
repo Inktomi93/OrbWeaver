@@ -4,7 +4,7 @@
 // cap (2026-09-04); the arm owns the browser lifecycle and calls start/stop, this file owns the trace.
 import { errorMessage } from "@orb/kit/error-message";
 import type { CDPSession, Page } from "@playwright/test";
-import { budget } from "../../_shared/load-budget.ts";
+import { budget } from "../../floor/host/load-budget.ts";
 import type { ReactTraceEvent, TraceCalibration } from "./react-profile-receipt.ts";
 
 const TRACE_COMPLETE_BASE_MS = 30_000;

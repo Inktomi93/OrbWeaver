@@ -12,7 +12,7 @@
 // are an automation arm executor, the analysis arm and the plugin-host membrane, all fire-and-forget on their
 // own clocks; a read-modify-write with nothing guarding the write loses one of two concurrent ops outright —
 // out of the FOLD and out of the durable log the fold is derived from, so nothing later heals it.
-// `db.transaction` is banned and a batch may not read before it writes (`@orb/db/kit::batch`'s TRANSACTION
+// `db.transaction` is banned and a batch may not read before it writes (`@orb/db/query::batch`'s TRANSACTION
 // MODE note), so the reachable shape is the predicate riding the write: rebuild from a snapshot, write it
 // only if the log still holds that snapshot, and re-derive from the winner's state when it does not.
 //

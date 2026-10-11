@@ -1,8 +1,8 @@
 // Snap React development-renderer evidence. The browser collector emits this wire shape; the arm parses
 // it here before ranking or filing any evidence.
 import { z } from "zod";
-import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
-import { evidenceWindowIdSchema } from "../../_shared/artifact-scope.ts";
+import type { EvidenceWindowId } from "../../floor/artifacts/artifact-scope.ts";
+import { evidenceWindowIdSchema } from "../../floor/artifacts/artifact-scope.ts";
 
 export const REACT_PROFILE_SUPPORTED_MINOR = "19.3";
 

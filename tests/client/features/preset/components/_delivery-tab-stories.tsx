@@ -19,7 +19,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { PresetStructureTabs } from "../../../../../packages/client/src/features/preset/components/preset-structure-tabs.tsx";
+import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_deliveryyyy");
 const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });

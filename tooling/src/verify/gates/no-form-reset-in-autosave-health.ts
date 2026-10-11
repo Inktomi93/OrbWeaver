@@ -36,7 +36,7 @@
 // `no-form-reset-in-autosave` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // The `0fd46e8696` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1.
 // legacy − final = 1,318 `@client` sources other than `forms/editor/autosave-contract.ts` — the carved arm only ever
 // judged that one file. final − legacy = ∅. Controls: inside
 // `packages/client/src/forms/editor/__cbbhr_in/autosave-contract.ts` (virtual) admitted by both; outside

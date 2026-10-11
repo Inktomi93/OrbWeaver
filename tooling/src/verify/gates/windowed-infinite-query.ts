@@ -76,13 +76,13 @@
 // `2db36f630d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `20a3dfb481`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,433 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
 // (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, ReturnStatement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { isInfiniteQueryFactoryCall } from "../lib/infinite-query-factory.ts";
@@ -110,7 +110,7 @@ function propertyOf(object: MorphNode | undefined, name: string): MorphNode | un
 }
 
 /** The options OBJECT behind an options argument — inline, or through the SHARED stable-binding reader
- *  (`_shared/reference-fact.ts`), which follows immutable const bindings and import doors and REFUSES on a
+ *  (`floor/code-facts/reference-fact.ts`), which follows immutable const bindings and import doors and REFUSES on a
  *  write, a cycle or a dynamic terminal. The legacy descriptor hand-rolled a same-file-const-only walk with
  *  `getDefinitionNodes()`; binding identity is a shared primitive (§12.3) and a gate may not own one. The
  *  consequence is a STRONGER reader: an options const imported from a sibling module is now read, where the
@@ -192,7 +192,7 @@ export const gate = defineGate({
   population: "@client",
   // `types`, NOT `syntax` (#2256, corrected 2026-09-13) — the same correction as its sibling
   // `contract-banned-shapes`, for the same reason and the same reader. This policy imports
-  // `resolveStableExpression` from `_shared/reference-fact.ts`, whose `resolveStableExpressionInternal` ->
+  // `resolveStableExpression` from `floor/code-facts/reference-fact.ts`, whose `resolveStableExpressionInternal` ->
   // `importedTarget` path calls `lexicalReferenceSymbol(current)?.getAliasedSymbol()`; following a const
   // binding through an import door is a CHECKER answer, not a syntactic one. `analysis` is data the runtime
   // dispatches on and it fixes the proof MODE (`lib/policy-validation.ts#expectedMode`), so every proof row

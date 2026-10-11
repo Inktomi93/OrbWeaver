@@ -11,9 +11,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
-import type { SeedThemeName } from "../../../../packages/client/src/state/appearance-boot-hint.ts";
-import type { PanelMode } from "../../../../packages/client/src/state/panel-resolve.ts";
+import { useState } from "react";
+import { useAppearanceRootEffects } from "#client/features/app-shell/hooks/use-appearance-root-effects.ts";
+import { RoutePending } from "#client/routes/route-pending.tsx";
+import type { SeedThemeName } from "#client/state/appearance-boot-hint.ts";
+import type { PanelMode } from "#client/state/panel-resolve.ts";
 
 /** Roughly a production list panel (346px, reports/side-eye-138/L1.log) — see the probe comment below. */
 const PANEL_PROBE_WIDTH = "346px";
@@ -305,4 +307,36 @@ export function ReadingTypographyFixture({
       </div>
     </div>
   );
+}
+
+/**
+ * The shell handing the screen to the route-pending splash (0866 F9): the REAL root-effects hook mounts and
+ * stamps the app's reduced-motion flag, and "hand over" replaces the whole shell with `RoutePending`, which
+ * sits outside it.
+ */
+export function ShellToSplashFixture({ reducedMotion }: { readonly reducedMotion: boolean }): ReactElement {
+  const [handedOver, setHandedOver] = useState(false);
+  return (
+    <>
+      <button onClick={(): void => setHandedOver(true)} type="button">
+        hand over
+      </button>
+      {handedOver ? <RoutePending /> : <ShellRootEffectsProbe reducedMotion={reducedMotion} />}
+    </>
+  );
+}
+
+function ShellRootEffectsProbe({ reducedMotion }: { readonly reducedMotion: boolean }): ReactElement {
+  useAppearanceRootEffects({
+    fontScale: 1,
+    dataTheme: null,
+    blurSurfaces: [],
+    shadowEffects: false,
+    blurStrength: 14,
+    reading: { lineHeight: 1.55, letterSpacing: 0, paragraphSpacing: 0.75, nameScale: 1, bodyScale: 1, justify: false },
+    themeColorization: false,
+    surfaceTexture: "none",
+    reducedMotion,
+  });
+  return <div className="shell-grid" data-testid="shell-probe" />;
 }

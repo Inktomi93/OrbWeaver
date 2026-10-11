@@ -1,7 +1,7 @@
 // Unit: theme-name sanitization.
 
 import { describe } from "vitest";
-import { parseThemeName } from "../../../../../packages/server/src/domain/discovery/themes/utils.ts";
+import { parseThemeName } from "#server/domain/discovery/themes/utils.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseThemeName", () => {

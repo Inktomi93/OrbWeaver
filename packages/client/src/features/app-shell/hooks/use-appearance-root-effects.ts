@@ -119,7 +119,13 @@ export function useAppearanceRootEffects(params: {
       root.removeAttribute("data-justify-body-text");
       root.removeAttribute("data-theme-colorization");
       root.removeAttribute("data-texture");
-      root.removeAttribute(REDUCED_MOTION_ATTR);
+      // The shell unmounting hands the screen to the route-pending splash, which sits outside the shell: the
+      // flag stays while the app setting is on, so the splash's shimmer honors it too.
+      if (reducedMotion) {
+        root.setAttribute(REDUCED_MOTION_ATTR, "true");
+      } else {
+        root.removeAttribute(REDUCED_MOTION_ATTR);
+      }
     };
   }, [fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture, reducedMotion]);
 }

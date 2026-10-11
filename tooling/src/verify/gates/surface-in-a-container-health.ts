@@ -43,7 +43,7 @@
 // `surface-in-a-container` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,458 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,458, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,458, and the final
 // `population` admits 0; the subject is the declared `client-feature` tree + `package-metadata:client`.
 // legacy − final = all 7,458 harness candidates — dispatched to the legacy `run`, which read none of them (its
 // subject came off disk through the parent's `SHELL_EXEMPT` directory check guarded by `ANCHOR_FEATURE`); retired

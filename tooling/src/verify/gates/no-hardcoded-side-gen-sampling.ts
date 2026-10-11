@@ -7,7 +7,7 @@
 //
 // FAMILY `no-hardcoded-side-gen-sampling` — a declared SINGLETON. Its verdict is a VOCABULARY judgement with
 // an object-level corroboration rule (`maxTokens` is a sampling knob only beside an unambiguous one), which
-// nothing else in the corpus computes. It consumes `_shared/reference-fact.ts` (static numbers, module origin)
+// nothing else in the corpus computes. It consumes `floor/code-facts/reference-fact.ts` (static numbers, module origin)
 // and `lib/property-assignment-name.ts`; a shared reader is not a family (guide §2).
 //
 // POPULATION PORT: byte-identical, legacy at `02536f2f07^` — that `scanRoot` admitted
@@ -18,13 +18,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-hardcoded-side-gen-sampling` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the
 // conversion `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,229 and final `population` admits 1,229. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticNumber, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { readStaticNumber, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
 

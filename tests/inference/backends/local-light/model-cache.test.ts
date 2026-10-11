@@ -7,8 +7,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { afterAll } from "vitest";
-import type { LocalLightModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
-import { abortableWait, createModelCache, rerankBatches } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
+import type { LocalLightModelCache } from "#inference/backends/local-light/model-cache.ts";
+import { abortableWait, createModelCache, rerankBatches } from "#inference/backends/local-light/model-cache.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CACHE_DIR = mkdtempSync(join(tmpdir(), "orb-model-cache-"));

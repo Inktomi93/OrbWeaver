@@ -3,12 +3,12 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import { closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
-import type { ChildExit, FullPriorityChild } from "@orb/tooling/_shared/proc";
-import { spawnFullPriorityChild } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { RUN_MARKER_ENV } from "@orb/tooling/_shared/run-marker";
 import { awaitDevClientReady, devMarkerPreload } from "@orb/tooling/dev";
+import { closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
+import type { ChildExit, FullPriorityChild } from "@orb/tooling/floor/process/proc";
+import { spawnFullPriorityChild } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { RUN_MARKER_ENV } from "@orb/tooling/floor/process/run-marker";
 import type { Request } from "@playwright/test";
 
 const HEALTH_PROBE_TIMEOUT_MS = 5000;
@@ -19,7 +19,7 @@ if (RUNNER_TEMP === undefined || HEALTHZ === undefined || DEV_ORIGIN === undefin
   throw new Error("Contributor CI requires RUNNER_TEMP, HEALTHZ and DEV_ORIGIN");
 }
 const preload = join(RUNNER_TEMP, "contributor-marker.mjs");
-writeFileSync(preload, devMarkerPreload(join(RUNNER_TEMP, "contributor-dev.marker"), pathToFileURL(resolve("tooling/src/_shared/run-marker.ts")).href));
+writeFileSync(preload, devMarkerPreload(join(RUNNER_TEMP, "contributor-dev.marker"), pathToFileURL(resolve("tooling/src/floor/process/run-marker.ts")).href));
 const childEnv = inheritedProcessEnv();
 childEnv["DEBUG"] = [childEnv["DEBUG"], "vite:load,vite:transform"].filter(Boolean).join(",");
 // The native dev proof owns its marker, not a surrounding tool's inherited run.

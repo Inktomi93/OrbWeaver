@@ -9,7 +9,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
+import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "#client/features/app-shell/lib/appearance-bounds.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceSizingSectionStory } from "../_ct-stories.tsx";

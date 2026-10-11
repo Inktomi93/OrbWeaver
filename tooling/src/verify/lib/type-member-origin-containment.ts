@@ -3,7 +3,7 @@
 // genericArguments/genericDescriptor), the Containment lattice, and the ConstructorSummary/TransportContext/
 // RecurrenceFrame shapes the recurrence and graph-walk siblings build on. No fixed-point iteration and no
 // per-node recurrence bookkeeping — those live in type-member-origin-recurrence.ts and -graph.ts.
-import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol, Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
 import type { Containment, GenericDeclaration, TypeIdentityOrigin } from "../contract/type-member-origin.ts";

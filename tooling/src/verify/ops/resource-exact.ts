@@ -1,6 +1,6 @@
 // Exact named-file acquisition. Fail-closed over the whole demanded id set; see the contract header for why
 // a per-id miss inside a `ready` fact would invert the consuming judgment rather than narrow it.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
 import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";

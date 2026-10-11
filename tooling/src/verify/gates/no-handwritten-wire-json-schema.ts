@@ -6,7 +6,7 @@
 // it names — the indirection the legacy same-file-only arm could not cross. Limits live in mustPass.
 //
 // FAMILY `no-handwritten-wire-json-schema` — a declared SINGLETON. D79's T6 seal is one rule about one wire
-// field; no sibling policy asks what fills it. It consumes `_shared/reference-fact.ts` (stable-binding
+// field; no sibling policy asks what fills it. It consumes `floor/code-facts/reference-fact.ts` (stable-binding
 // resolution, member-write inspection, static strings) and `lib/property-assignment-name.ts` for both key
 // tests, and sharing readers with three other modules is not a family (guide §2, §7 item 4).
 //
@@ -18,13 +18,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-handwritten-wire-json-schema` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the
 // conversion `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,654 and final `population` admits 1,654. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { inspectReferenceWrites, readStaticString, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { inspectReferenceWrites, readStaticString, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
 
@@ -48,7 +48,7 @@ const FIX =
 // ~104 source files left `packages/server/src/infra/providers/`
 // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
 // day they moved, silently. D79's T6 seal is about the wire `schema` field, and EVERY wire is in this package now — the only live
-// writer of that field is `backends/kit/openai-body.ts`, which passes the projected `format.schema` through.
+// writer of that field is `backends/wire/openai-body.ts`, which passes the projected `format.schema` through.
 // Leaving the package out let a hand-authored JSON-Schema literal land in the one place the field is written.
 // Measured at the widening: ZERO findings.
 const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit", "@inference"], notNamed: ["*.test.*", "*.test-d.*"] } as const;
@@ -185,7 +185,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/backends/kit/wire.ts":
+        "packages/inference/src/backends/wire/openai-body.ts":
           "declare const format: { readonly name: string; readonly schema: Record<string, unknown> };\nexport const body = { json_schema: { name: format.name, schema: { ...format.schema } } };\n",
       },
       why: 'a translator SPREADING an already-projected schema carries no literal `type: "object"` member — the live wire-translation shape, and the reason the tell is the member rather than the shape of the object',

@@ -62,7 +62,7 @@ import { compareSemver } from "@orb/kit/semver";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import { HostVersionUnservedError, ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load); the CAS row's

@@ -25,8 +25,8 @@
 //   · a side whose border width is 0 is SKIPPED, not failed — the page paints no boundary there, so 1.4.11
 //     has nothing to say about it. A subject with no border on ANY side is refused whole (the caller sends
 //     it back to `--contrast`, which measures ink and fill).
-import type { Rgb } from "../../_shared/wcag.ts";
-import { contrastRatio } from "../../_shared/wcag.ts";
+import type { Rgb } from "../../floor/instrument/wcag.ts";
+import { contrastRatio } from "../../floor/instrument/wcag.ts";
 import type { ContrastEdgeGeometry, ContrastEdgeReading, ContrastEdgeSide, ContrastEdgeSideReading, ContrastPixelImage } from "../contract/contrast.ts";
 import { CONTRAST_EDGE_SIDES } from "../contract/contrast.ts";
 

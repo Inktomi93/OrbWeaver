@@ -1,8 +1,8 @@
 // #1301 compile-time trust-boundary controls: arm/schema/data and identity brands must not mix.
 import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
-import type { ArtifactRef, ContextIndex, PageIndex } from "../../../../tooling/src/_shared/artifact-scope.ts";
-import { contextIndex, pageIndex } from "../../../../tooling/src/_shared/artifact-scope.ts";
+import type { ArtifactRef, ContextIndex, PageIndex } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
+import { contextIndex, pageIndex } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import type { Arm } from "../../../../tooling/src/snap/contract/arm-vocabulary.ts";
 import type { ARM_FACT_DATA_SCHEMAS, ArmFactDataByArm, ArmFactSchemaIdByArm } from "../../../../tooling/src/snap/contract/run-facts.ts";
 

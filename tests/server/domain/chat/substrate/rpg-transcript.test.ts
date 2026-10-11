@@ -7,8 +7,8 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { projectRpgTranscript, sliceCanonWindow } from "../../../../../packages/server/src/domain/chat/substrate/rpg-transcript.ts";
+import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
+import { projectRpgTranscript, sliceCanonWindow } from "#server/domain/chat/substrate/rpg-transcript.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAR_A = castId<CharacterId>("character_a");

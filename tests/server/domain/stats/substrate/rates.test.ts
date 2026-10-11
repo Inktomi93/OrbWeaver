@@ -11,7 +11,7 @@ import {
   recordedCost,
   recordedTokens,
   throughputTps,
-} from "../../../../../packages/server/src/domain/stats/substrate/rates.ts";
+} from "#server/domain/stats/substrate/rates.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("rate helpers", () => {

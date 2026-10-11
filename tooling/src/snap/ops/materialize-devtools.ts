@@ -10,7 +10,8 @@ import { basename, dirname, join } from "node:path";
 import { stdout } from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
-import { launchProbeSession, withProbeSession } from "../../_shared/browser.ts";
+import { launchProbeSession, withProbeSession } from "../../floor/browser/browser.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   DevToolsAssetEntry,
   DevToolsAssetManifest,
@@ -18,10 +19,9 @@ import type {
   DevToolsLicenseFamily,
   DevToolsLicenseFile,
   DevToolsLicenseManifest,
-} from "../../_shared/devtools-assets.ts";
-import { parseDevToolsAssetPin } from "../../_shared/devtools-assets.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { budget } from "../../_shared/load-budget.ts";
+} from "../../floor/devtools/devtools-assets.ts";
+import { parseDevToolsAssetPin } from "../../floor/devtools/devtools-assets.ts";
+import { budget } from "../../floor/host/load-budget.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
 import { literalModuleAssetPaths, pathForDevToolsRequest } from "../lib/devtools-module-assets.ts";
 import { devToolsDiscoveryProof } from "./page-validate.ts";

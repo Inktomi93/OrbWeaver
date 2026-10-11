@@ -12,16 +12,16 @@ import type { PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { PluginBelts, PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
-import { buildConfirmedActRunner } from "../../../../../packages/server/src/domain/plugin/substrate/confirmed-act.ts";
-import { createNotifyFloor } from "../../../../../packages/server/src/domain/plugin/substrate/notify-floor.ts";
+import type { PluginBelts, PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
+import { buildConfirmedActRunner } from "#server/domain/plugin/substrate/confirmed-act.ts";
+import { createNotifyFloor } from "#server/domain/plugin/substrate/notify-floor.ts";
 import {
   createPluginRateFloor,
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
-} from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
+} from "#server/domain/plugin/substrate/rate-floor.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeInertOps } from "../_support.ts";

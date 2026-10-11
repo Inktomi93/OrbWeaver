@@ -6,11 +6,11 @@
 import { writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { getWorkspace } from "../../_shared/ts-workspace.ts";
+import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { getWorkspace } from "../../floor/compiler/ts-workspace.ts";
+import { printVerdict } from "../../floor/verdict/evidence.ts";
 import type { ReviewMirrorEvidence } from "../contract/types.ts";
 import { assertReviewEvidence } from "../lib/evidence.ts";
 import { resolveReviewFocus } from "../lib/focus.ts";

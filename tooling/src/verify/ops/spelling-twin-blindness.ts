@@ -29,7 +29,7 @@
 // real temp tree, whose reported lines an in-memory pre-pass cannot stand in for. A policy whose mustFlag
 // rows are ALL resource-mode is skipped whole; one with a mix is censused on the rows that are reachable.
 
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { Project } from "ts-morph";
 import type { GateCorpus } from "../contract/gate-corpus.ts";
 import type { GatePolicy, GatePolicyProof } from "../contract/policy.ts";

@@ -10,8 +10,8 @@
 import type { AutomationSuggestionKind } from "@orb/contracts/automation";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PendingSuggestion } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
-import { AUTOMATION_SUGGESTION_TTL_MS, createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
+import type { PendingSuggestion } from "#server/domain/automation/contract/ops.ts";
+import { AUTOMATION_SUGGESTION_TTL_MS, createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;

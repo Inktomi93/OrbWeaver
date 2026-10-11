@@ -8,7 +8,7 @@
 // The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
-import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/_shared/server-entry";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
   buildProdSpawnPlan,

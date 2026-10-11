@@ -22,8 +22,8 @@
 // without classifying it here is a tsc error, not a silently unchecked field. Kinds are CONTAINER-level
 // (is this an array / an object / a boolean, and is it allowed to be absent) — per-row validation belongs
 // to the rule that reads the row, and a deep re-spelling here would be a second copy of the contract.
-import { describePageValue, instrumentRefusal, isPlainObject } from "@orb/tooling/_shared/page-validate";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { describePageValue, instrumentRefusal, isPlainObject } from "@orb/tooling/floor/browser/page-validate";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { ShellStateSnapshot } from "../contract/types.ts";
 
@@ -91,7 +91,7 @@ const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
   zIndexes: "array",
 };
 
-// `isPlainObject` / `describePageValue` / `instrumentRefusal` come from `_shared/page-validate.ts`. This
+// `isPlainObject` / `describePageValue` / `instrumentRefusal` come from `floor/browser/page-validate.ts`. This
 // file used to re-derive all three (#1317 item 3) — the "second copy of the contract that drifts" its own
 // header forbids one paragraph up, and the reason the shared primitives exist at all. The KIND TABLE
 // below stays local: it is THIS walk's contract, not a shared primitive.

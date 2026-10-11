@@ -31,7 +31,7 @@ vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 // The boot installs the egress firewall, which blocks loopback for this test's own fetches unless allowed.
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+const { createLifecycle } = await import("#server/entry/lifecycle.ts").catch((error: unknown) => {
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });

@@ -1,4 +1,4 @@
-// #1652: `InstrumentArtifactLimitReceipt` has ONE schema home (`_shared/artifact-out.ts`) — heap's
+// #1652: `InstrumentArtifactLimitReceipt` has ONE schema home (`floor/artifacts/artifact-out.ts`) — heap's
 // `heapSnapshotReceiptSchema` imports it rather than re-spelling a looser copy (a bare `z.number()`/
 // `z.string()` that silently accepted a negative `omitted` and an empty `kind`/`path` the declaration
 // reader already refuses). This file's own job is narrow: hold the heap READER to the same floor.

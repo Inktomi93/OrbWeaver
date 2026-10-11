@@ -8,7 +8,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
-import { holdsChatHostAuthority, holdsOwnerAuthority } from "../../../../../packages/server/src/domain/automation/substrate/authority.ts";
+import { holdsChatHostAuthority, holdsOwnerAuthority } from "#server/domain/automation/substrate/authority.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { ruleFixture, seedUser } from "../_support.ts";

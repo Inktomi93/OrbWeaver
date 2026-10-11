@@ -6,12 +6,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  buildParticipantsById,
-  charactersSectionVisible,
-  membersTabJustified,
-  resolveHumanParticipants,
-} from "../../../../../packages/client/src/features/chat/lib/roster.ts";
+import { buildParticipantsById, charactersSectionVisible, membersTabJustified, resolveHumanParticipants } from "#client/features/chat/lib/roster.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 

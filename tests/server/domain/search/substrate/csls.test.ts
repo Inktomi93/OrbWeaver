@@ -5,14 +5,7 @@
 // RAW distance (never concat order), and the rerank budget cap trims to the pool.
 
 import { describe } from "vitest";
-import {
-  compareCsls,
-  compareCslsBy,
-  cslsAdjust,
-  NULL_HUB_FALLBACK,
-  relevanceOf,
-  rerankPoolByScores,
-} from "../../../../../packages/server/src/domain/search/substrate/csls.ts";
+import { compareCsls, compareCslsBy, cslsAdjust, NULL_HUB_FALLBACK, relevanceOf, rerankPoolByScores } from "#server/domain/search/substrate/csls.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("cslsAdjust", () => {

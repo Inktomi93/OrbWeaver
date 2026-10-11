@@ -5,7 +5,7 @@
 // (browser package; @orb/ui is not node-resolvable), like dialogue.test.ts / policy.test.ts.
 
 import { describe } from "vitest";
-import { holdAmbiguousTail } from "../../../packages/ui/src/markdown/tail-hold.ts";
+import { holdAmbiguousTail } from "#ui/markdown/tail-hold.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** Every prefix of `message`, as a stream would commit it one character at a time. */

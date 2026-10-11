@@ -4,7 +4,7 @@
 import { RevealGate } from "@orb/ui/reveal-gate";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { hideActionName, revealActionName } from "../../../../packages/ui/src/lib/action-names.ts";
+import { hideActionName, revealActionName } from "#ui/lib/action-names.ts";
 import { ControlledHarness } from "./reveal-gate.fixtures.tsx";
 
 test("before reveal the secret is not in the DOM at all", async ({ mount, page }) => {

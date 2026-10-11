@@ -28,11 +28,11 @@
 // per-turn PROSE, and that is where the floor lands.
 
 import type { RpgTurnToolCallsView } from "@orb/contracts/rpg";
-import type { ListTurnToolCallsParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveMember } from "../../guard.ts";
-import { listTurnToolCalls as listRows } from "../../persistence/turn-tool-calls.ts";
-import { projectFailureForViewer, projectToolCallsForViewer } from "../../substrate/tool-call-visibility.ts";
+import type { ListTurnToolCallsParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveMember } from "#src/domain/rpg/guard.ts";
+import { listTurnToolCalls as listRows } from "#src/domain/rpg/persistence/turn-tool-calls.ts";
+import { projectFailureForViewer, projectToolCallsForViewer } from "#src/domain/rpg/substrate/tool-call-visibility.ts";
 
 /** The transcript window a disclosure needs, in TURNS (message slots) — deep enough to cover a scrollback
  *  session, bounded so a long game never serves its whole history for a surface most people never open.

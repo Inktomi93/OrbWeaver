@@ -35,7 +35,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `server-layout` descriptor at 1bf2127e148ff3bf775b9ff09994041c9987eafd, the parent of the conversion `8aa5bc3dd6`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,047 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no
 // `scanRoot` — dispatched 7,047, and the final `population` admits 0; the subject is the declared
 // `authored-tree:server`. legacy − final = all 7,047 harness candidates — dispatched to the legacy `run`, which read
 // none of them (its subject came off disk through `readdirSync(packages/server/src)`); retired with that read.
@@ -50,10 +50,10 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const SERVER_SOURCE = "packages/server/src";
 const SERVER_MANIFEST = "packages/server/package.json";
-const REQUIRED_TIERS = ["entry", "transport", "domain", "infra", "foundation", "kit"] as const;
+const REQUIRED_TIERS = ["entry", "transport", "domain", "infra", "foundation", "primitives"] as const;
 const LEGAL_ENTRIES = new Set<string>([...REQUIRED_TIERS, "index.ts"]);
 const MESSAGE =
-  "an illegal or missing top-level entry at packages/server/src/ — the server root is exactly entry/transport/domain/infra/foundation/kit plus index.ts (Core-0-Architecture-and-Structure.md §3).";
+  "an illegal or missing top-level entry at packages/server/src/ — the server root is exactly entry/transport/domain/infra/foundation/primitives plus index.ts (Core-0-Architecture-and-Structure.md §3).";
 
 /** ONE falsifiable fence, and the §4.1 cut proves it (cutting it kills `mustFlag[0,1]` + `mustPass[0]`).
  *  Two companions were deleted rather than left as decoration, because no fixture could ever cross them:
@@ -126,7 +126,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x.ts": "export const x = 1;\n",
         "packages/server/src/infra/x.ts": "export const x = 1;\n",
         "packages/server/src/foundation/x.ts": "export const x = 1;\n",
-        "packages/server/src/kit/x.ts": "export const x = 1;\n",
+        "packages/server/src/primitives/x.ts": "export const x = 1;\n",
         "packages/server/src/stray.ts": "export const x = 1;\n",
       },
       // The fixture supplies the COMPLETE legal root beside the stray so the count isolates the arm this
@@ -146,7 +146,7 @@ export const gate = defineGate({
         "packages/server/src/infra/x.ts": "export const x = 1;\n",
         "packages/server/src/foundation/x.ts": "export const x = 1;\n",
       },
-      expect: { count: 1, messageIncludes: '"kit" is required' },
+      expect: { count: 1, messageIncludes: '"primitives" is required' },
       why: "a named tier missing from the live tree is a structural mismatch",
     },
     {
@@ -175,7 +175,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x.ts": "export const x = 1;\n",
         "packages/server/src/infra/x.ts": "export const x = 1;\n",
         "packages/server/src/foundation/x.ts": "export const x = 1;\n",
-        "packages/server/src/kit/x.ts": "export const x = 1;\n",
+        "packages/server/src/primitives/x.ts": "export const x = 1;\n",
       },
       why: "every required tier and index.ts is present with no extra root entry",
     },

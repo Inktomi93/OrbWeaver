@@ -2,8 +2,8 @@
 // `arms`) and whether it got worse than the previous run of the same name. Pure — resolution and IO stay
 // in ops/run-report.ts, so a malformed file can never reach a display-only success through this module.
 import { basename } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { NAV_FLAG_METHOD } from "../../_shared/nav.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { NAV_FLAG_METHOD } from "../../floor/instrument/nav.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --reports");

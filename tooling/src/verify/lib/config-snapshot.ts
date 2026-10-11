@@ -5,8 +5,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type {
   ConfigSelectorSnapshot,
   ConfigSnapshot,

@@ -3,7 +3,7 @@
 import type { WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { attachableBooks } from "../../../../../packages/client/src/features/chat/lib/chat-books-model.ts";
+import { attachableBooks } from "#client/features/chat/lib/chat-books-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ASHFALL = castId<WorldBookId>("worldbook_ct_0000000000001");

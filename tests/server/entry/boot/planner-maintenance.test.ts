@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import { startPlannerMaintenance } from "../../../../packages/server/src/entry/boot/planner-maintenance.ts";
-import { getLog } from "../../../../packages/server/src/foundation/observability/index.ts";
+import { startPlannerMaintenance } from "#server/entry/boot/planner-maintenance.ts";
+import { getLog } from "#server/foundation/observability/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("daily maintenance skips overlapping ticks, cancels future work, and joins the running refresh", async () => {

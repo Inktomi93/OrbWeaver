@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { createAttachCardTagByName } from "../../../../../packages/server/src/domain/tag/verbs/attach-card-tag-by-name.ts";
+import { createAttachCardTagByName } from "#server/domain/tag/verbs/attach-card-tag-by-name.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness } from "../../tag/_support.ts";

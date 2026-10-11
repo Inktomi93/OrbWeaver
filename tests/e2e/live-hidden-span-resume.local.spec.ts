@@ -30,7 +30,7 @@
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
+import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import {

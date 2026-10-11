@@ -11,8 +11,8 @@
 // Nothing before this file drove `buildWirePlan` directly — the two hosted `chat.test.ts` suites only see
 // its OUTPUT through the SDK's own converter, several layers downstream.
 
-import { buildWirePlan, mediaFilePart } from "../../../../packages/inference/src/backends/v4/prompt.ts";
-import type { ChatHistoryMessage } from "../../../../packages/inference/src/contract/chat.ts";
+import { buildWirePlan, mediaFilePart } from "#inference/backends/v4/prompt.ts";
+import type { ChatHistoryMessage } from "#inference/contract/chat.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 function userRow(text: string): ChatHistoryMessage {

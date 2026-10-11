@@ -39,7 +39,7 @@ import type {
 import type { TagView } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { chats, Db, messages, messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type {
   BindingActor,
   ChatToolDefinition,

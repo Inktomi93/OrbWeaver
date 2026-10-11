@@ -22,12 +22,12 @@ import type { ChatId, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { DEV_PORTS } from "../../_shared/ports.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
+import { DEV_PORTS } from "../../floor/host/ports.ts";
+import { printVerdict } from "../../floor/verdict/evidence.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
 

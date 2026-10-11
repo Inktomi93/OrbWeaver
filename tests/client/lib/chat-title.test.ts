@@ -55,9 +55,10 @@ test("authoredChatName: only a name the user chose survives; look-alikes that ar
   expect(authoredChatName("Hikari - Oct 3, 2026")).toBe("Hikari - Oct 3, 2026");
 });
 
-// The one order every surface that names a room by its people uses: participants first, then the user's name.
-test("chatRoomTitle: participants lead, the user's own room name follows, a stamp or blank is no name", () => {
-  expect(chatRoomTitle("Rooftop night", ["Hikari", "Pamela"])).toBe("Hikari, Pamela \u00b7 Rooftop night");
+// The phone's room title: the user's own room name leads when there is one, the participants follow, and a
+// room without a name is told apart by its participants alone.
+test("chatRoomTitle: the user's room name leads, the participants follow, a stamp or blank is no name", () => {
+  expect(chatRoomTitle("Rooftop night", ["Hikari", "Pamela"])).toBe("Rooftop night \u00b7 Hikari, Pamela");
   expect(chatRoomTitle("Hikari \u2014 Oct 3, 2026 (5)", ["Hikari"])).toBe("Hikari");
   expect(chatRoomTitle(null, ["Hikari"])).toBe("Hikari");
   expect(chatRoomTitle("", [])).toBe(UNTITLED_CHAT_TITLE);

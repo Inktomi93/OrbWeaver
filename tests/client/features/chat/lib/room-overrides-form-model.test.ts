@@ -6,12 +6,8 @@
 // 2026-08-01: it was a second home for what `chat_injections` owns), so nothing here maps at-depth
 // directives. It exercises the pure wire/model mapping independently of the browser editor composition.
 
-import type { RoomOverridesFormValues } from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model.ts";
-import {
-  EMPTY_ROOM_OVERRIDES_FORM,
-  fromRoomOverridesForm,
-  toRoomOverridesForm,
-} from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model.ts";
+import type { RoomOverridesFormValues } from "#client/features/chat/lib/room-overrides-form-model.ts";
+import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "#client/features/chat/lib/room-overrides-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function form(overrides: Partial<RoomOverridesFormValues> = {}): RoomOverridesFormValues {

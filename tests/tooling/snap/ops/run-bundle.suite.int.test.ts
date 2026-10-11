@@ -3,17 +3,17 @@
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
-import type { InstrumentArtifactMetadata } from "@orb/tooling/_shared/artifact-out";
-import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/_shared/artifact-out";
-import type { BrowserDiagnostic } from "@orb/tooling/_shared/browser-diagnostics";
-import { summarizeOrbConsoleCompleteness } from "@orb/tooling/_shared/browser-diagnostics";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
-import { installOutputSink } from "@orb/tooling/_shared/log";
+import type { InstrumentArtifactMetadata } from "@orb/tooling/floor/artifacts/artifact-out";
+import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/floor/artifacts/artifact-out";
+import type { BrowserDiagnostic } from "@orb/tooling/floor/browser/browser-diagnostics";
+import { summarizeOrbConsoleCompleteness } from "@orb/tooling/floor/browser/browser-diagnostics";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { installOutputSink } from "@orb/tooling/floor/cli/log";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { vi } from "vitest";
-import type { InstrumentEvidenceScope } from "../../../../tooling/src/_shared/artifact-scope.ts";
-import { aggregateScope, artifactRef, exactScope, factBatchId, scopeMatches } from "../../../../tooling/src/_shared/artifact-scope.ts";
+import type { InstrumentEvidenceScope } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
+import { aggregateScope, artifactRef, exactScope, factBatchId, scopeMatches } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import { FILMSTRIP_LIMITS } from "../../../../tooling/src/snap/contract/filmstrip.ts";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapRunArtifact } from "../../../../tooling/src/snap/contract/run-index.ts";

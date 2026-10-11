@@ -5,7 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import process, { env } from "node:process";
-import { pnpmInvocation } from "@orb/tooling/_shared/platform";
+import { pnpmInvocation } from "@orb/tooling/floor/host/platform";
 import { parse } from "yaml";
 
 const WORKSPACE_FILE = "pnpm-workspace.yaml";

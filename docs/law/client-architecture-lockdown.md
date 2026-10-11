@@ -209,7 +209,7 @@ Every mechanism below is gated, floored, or tested — never merely documented:
   denominator, an unreadable sheet, or an unsettled `motion-dead-class-flagger` drain as an instrument
   error. Matrix cells compare identities, so a same-count replacement cannot pass.
 
-- One policy-neutral planner (`tooling/src/_shared/variant-matrix.ts`) feeds Snap's and the design audit's
+- One policy-neutral planner (`tooling/src/floor/variant-matrix/variant-matrix.ts`) feeds Snap's and the design audit's
   appearance-invariant verdicts. Snap's `--matrix --motion <selector>` reuses the retained pure
   planner/verdict engine in `tooling/src/motion-audit` without a second parser or browser path. The
   R1–R7 invariant policy has one home: `packages/client/src/lib/appearance-invariant-manifest.ts`.

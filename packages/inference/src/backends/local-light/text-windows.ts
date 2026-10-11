@@ -2,7 +2,7 @@
 import type { LocalTextEncoding } from "@orb/contracts/inference";
 import { estimateTokens, safeTokenWindow, splitToTokenBudget } from "@orb/kit/tokens";
 import { l2Normalize, mean } from "@orb/kit/vector-math";
-import { ProviderError } from "../../contract/errors.ts";
+import { ProviderError } from "#src/contract/errors.ts";
 
 const SPECIAL_TOKEN_RESERVE = 2;
 

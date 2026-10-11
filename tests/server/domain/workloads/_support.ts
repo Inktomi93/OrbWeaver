@@ -14,25 +14,21 @@ import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
-import { isAdmin, isOwner, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
-import { createAssetsWorkloadContributions } from "../../../../packages/server/src/domain/assets/workload-contributions.ts";
-import { createChatWorkloadContributions } from "../../../../packages/server/src/domain/chat/workload-contributions.ts";
-import { createConnectionWorkloadContributions } from "../../../../packages/server/src/domain/connection/workload-contributions.ts";
-import { createDatabankWorkloadContributions } from "../../../../packages/server/src/domain/databank/workload-contributions.ts";
-import { createDiscoveryWorkloadContributions } from "../../../../packages/server/src/domain/discovery/workload-contributions.ts";
-import { createEmbeddingsWorkloadContributions } from "../../../../packages/server/src/domain/embeddings/workload-contributions.ts";
-import { createImportWorkloadContributions } from "../../../../packages/server/src/domain/import/workload-contributions.ts";
-import { createStatsWorkloadContributions } from "../../../../packages/server/src/domain/stats/workload-contributions.ts";
-import type {
-  AnyWorkloadContribution,
-  WorkloadContribution,
-  WorkloadContributions,
-} from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
-import type { WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
-import type { WorkloadRunnableRow } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
-import { loadWorkload } from "../../../../packages/server/src/domain/workloads/persistence/queries.ts";
-import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
-import { createReservedWorkloadContributions } from "../../../../packages/server/src/domain/workloads/substrate/reserved-contributions.ts";
+import { isAdmin, isOwner, requireOwner } from "#server/domain/admin/guard.ts";
+import { createAssetsWorkloadContributions } from "#server/domain/assets/workload-contributions.ts";
+import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
+import { createConnectionWorkloadContributions } from "#server/domain/connection/workload-contributions.ts";
+import { createDatabankWorkloadContributions } from "#server/domain/databank/workload-contributions.ts";
+import { createDiscoveryWorkloadContributions } from "#server/domain/discovery/workload-contributions.ts";
+import { createEmbeddingsWorkloadContributions } from "#server/domain/embeddings/workload-contributions.ts";
+import { createImportWorkloadContributions } from "#server/domain/import/workload-contributions.ts";
+import { createStatsWorkloadContributions } from "#server/domain/stats/workload-contributions.ts";
+import type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
+import type { WorkloadRunnerDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
+import type { WorkloadRunnableRow } from "#server/domain/workloads/contract/workload-row.ts";
+import { loadWorkload } from "#server/domain/workloads/persistence/queries.ts";
+import { createWorkloadService } from "#server/domain/workloads/service.ts";
+import { createReservedWorkloadContributions } from "#server/domain/workloads/substrate/reserved-contributions.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 /** A fixed instant — every timestamp in a test pins to this (no ambient clock; test-determinism §3). */

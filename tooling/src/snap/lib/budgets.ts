@@ -1,7 +1,7 @@
 // The drive/settle wall-clock budgets — ceilings, not sleeps (a warm surface returns fast).
 //
 // Every CEILING here is `budget(<X>_BASE_MS)` (#1266, closing #1232's last four census rows): the literal
-// is the QUIET-BOX value, and the one load policy (_shared/load-budget.ts) stretches it by the box's
+// is the QUIET-BOX value, and the one load policy (floor/host/load-budget.ts) stretches it by the box's
 // per-core contention. A quiet run is byte-identical to the old fixed number (factor 1); only a saturated
 // one moves. The bases were NOT re-tuned in that conversion — a ceiling here is a VERDICT input (a step
 // that overruns is a real finding), so widening one to be safe would weaken the finding it exists to make.
@@ -10,7 +10,7 @@
 // The `*_SETTLE_MS` / `*_REVEAL_MS` values below are deliberately NOT budgets and not scaled: they are
 // SLEEPS the run always pays in full, so stretching them under load would spend real time to buy nothing.
 import process from "node:process";
-import { budget } from "../../_shared/load-budget.ts";
+import { budget } from "../../floor/host/load-budget.ts";
 
 // The BASE consts are exported (not just their derived ceilings) so a load-scaling pin can drive the
 // SAME numbers this module actually uses through an injected reader (T14/T15)
@@ -71,7 +71,7 @@ const DESIGN_AUDIT_SELECTOR_PROOF_CAP = 64;
  *  run), so a caller sets it in the CHILD's environment, never mid-process. A non-numeric or non-positive
  *  value falls back to the shipped cap rather than silently disabling the proof. */
 const SELECTOR_PROOF_CAP_ENV = "ORB_SNAP_SELECTOR_PROOF_CAP";
-// biome-ignore lint/style/noProcessEnv: ORB_SNAP_SELECTOR_PROOF_CAP is an ambient TOOLING knob (the harness override that makes the proof cap's truncation reachable in a test), the same class as _shared/load-budget.ts's ORB_BUDGET_CEILING_MS — not app config, and the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake, so it cannot be imported down here.
+// biome-ignore lint/style/noProcessEnv: ORB_SNAP_SELECTOR_PROOF_CAP is an ambient TOOLING knob (the harness override that makes the proof cap's truncation reachable in a test), the same class as floor/host/load-budget.ts's ORB_BUDGET_CEILING_MS — not app config, and the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake, so it cannot be imported down here.
 const SELECTOR_PROOF_CAP_OVERRIDE = Number(process.env[SELECTOR_PROOF_CAP_ENV]);
 
 /** The proof cap in force for THIS process. */

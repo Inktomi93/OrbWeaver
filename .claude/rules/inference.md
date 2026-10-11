@@ -29,7 +29,7 @@ its own. A vendor's schema subset or ceiling is a mode row in
 - Wire vocabulary differs per backend. Read each backend's own wire key or schema; never assume
   one backend's field name holds for another.
 - Audit a vendor SDK's own default retry config, not only the wrapper code
-  (`packages/inference/src/backends/kit/retry.ts`). An unset retry config can leave a silent
+  (`packages/inference/src/backends/http/retry.ts`). An unset retry config can leave a silent
   long-running retry loop active.
 - `openai-compat/body.ts`: scrub secret literals from a response you display from a
   user-controlled endpoint, not just the outbound request; test against an endpoint that echoes

@@ -7,13 +7,13 @@
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";

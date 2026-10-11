@@ -15,7 +15,6 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
-import { installOutputSink } from "../../../tooling/src/_shared/log.ts";
 import type {
   ApiSurfaceEntry,
   ChainCandidate,
@@ -76,6 +75,7 @@ import {
 import { respellNearCandidatesFor } from "../../../tooling/src/ast/lib/respell-near-analysis.ts";
 import { assignabilityChecker, respellHitsFor } from "../../../tooling/src/ast/lib/respell-shapes.ts";
 import { REPO_ROOT as AST_REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
+import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
@@ -688,7 +688,7 @@ export const sibling = 2;
 describe("ast testonly lens (declared test seams)", () => {
   test("same-file shorthand registry values are real uses without crediting shadows or re-export pass-throughs", () => {
     const project = projectOf({
-      "packages/server/src/kit/post-process.ts": `
+      "packages/server/src/primitives/post-process.ts": `
 export function shorthandTestOnly(value: string): string { return value; }
 export function shorthandOrphan(value: string): string { return value; }
 export function unusedTestOnly(value: string): string { return value; }
@@ -699,15 +699,15 @@ const RECEIVE_TRANSFORMS = { shorthandTestOnly, shorthandOrphan };
 export function run(value: string): string { return RECEIVE_TRANSFORMS.shorthandTestOnly(value); }
 export function unrelated(): { shadowedTestOnly: string } { const shadowedTestOnly = "shadow"; return { shadowedTestOnly }; }
 `,
-      "packages/server/src/kit/index.ts": 'export { reExportOnly } from "./post-process";',
-      "tests/server/kit/post-process.test.ts": `
-import { reExportOnly } from "../../../packages/server/src/kit";
-import { shadowedTestOnly, shorthandTestOnly, unusedTestOnly } from "../../../packages/server/src/kit/post-process";
+      "packages/server/src/primitives/index.ts": 'export { reExportOnly } from "./post-process";',
+      "tests/server/primitives/post-process.test.ts": `
+import { reExportOnly } from "../../../packages/server/src/primitives";
+import { shadowedTestOnly, shorthandTestOnly, unusedTestOnly } from "../../../packages/server/src/primitives/post-process";
 export const controls = [reExportOnly, shadowedTestOnly, shorthandTestOnly, unusedTestOnly];
 `,
     });
     const live = buildLiveness(project);
-    const source = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/kit/post-process.ts`);
+    const source = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/primitives/post-process.ts`);
     const classOf = (name: string): string => testOnlyClassOf(source, name, source.getFunctionOrThrow(name), live);
 
     expect(classOf("shorthandTestOnly")).toBe("alive");
@@ -725,13 +725,13 @@ export const controls = [reExportOnly, shadowedTestOnly, shorthandTestOnly, unus
     expect(apiByName.get("trulyUnused")).toBe("unused");
 
     const swallowedProject = projectOf({
-      "packages/server/src/kit/transforms.ts": `
+      "packages/server/src/primitives/transforms.ts": `
 export function liveInRegistry(value: string): string { return value; }
 export function swallowedOnly(value: string): string { return value; }
 const TRANSFORMS = { liveInRegistry };
 export function run(value: string): string { return TRANSFORMS.liveInRegistry(value); }
 `,
-      "packages/server/src/kit/pipeline.ts": `
+      "packages/server/src/primitives/pipeline.ts": `
 import * as transforms from "./transforms";
 export const pipeline = register(transforms);
 `,
@@ -2093,7 +2093,7 @@ export const cardSchema = z.object({
   neverProduced: z.string(),
 });
 `,
-      "packages/server/src/kit/serde/card/index.ts": `
+      "packages/server/src/primitives/serde/card/index.ts": `
 import { WIRE_KEY } from "@orb/contracts/character";
 export const emit = (refs: string[], stamp: number): Record<string, unknown> => {
   const out: Record<string, unknown> = { [WIRE_KEY]: refs };

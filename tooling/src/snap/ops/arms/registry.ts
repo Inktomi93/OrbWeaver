@@ -7,11 +7,11 @@
 // modules; those modules import the arm TYPES. Putting both in one file would make `contract/arms.ts` a
 // value module in a cycle with every arm — the types stay import-cycle-free where they are, and this file
 // is the composition root, which is exactly the ops/contract split the tool template already draws.
-import type { ArtifactRef } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { VerdictDenominator } from "../../../_shared/evidence.ts";
+import type { ArtifactRef } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import type { VerdictDenominator } from "../../../floor/verdict/evidence.ts";
 import { ARMS } from "../../contract/arm-vocabulary.ts";
 import type {
   Arm,

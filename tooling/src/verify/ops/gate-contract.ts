@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { inspectGateContract } from "../lib/gate-contract.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm gate:contract");

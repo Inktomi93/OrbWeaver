@@ -1,4 +1,4 @@
-import { resolveClaudeExecutable } from "../../../../packages/inference/src/backends/agent-sdk/executable.ts";
+import { resolveClaudeExecutable } from "#inference/backends/agent-sdk/executable.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("the registered Agent SDK runtime resolves from the installed package", () => {

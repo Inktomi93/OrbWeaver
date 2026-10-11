@@ -2,7 +2,7 @@
 // today). `due [glob…]` is the SOFT tier: docs whose cited code changed after their review date, one
 // line each with the fixing command, exit 0 always — a warning, never a verdict.
 import { globSync } from "node:fs";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DueDoc } from "../lib/due.ts";
 import { changesFromLog, describedDoc, dueDocs, earliestUpdated } from "../lib/due.ts";
 import { withFields } from "../lib/frontmatter-write.ts";

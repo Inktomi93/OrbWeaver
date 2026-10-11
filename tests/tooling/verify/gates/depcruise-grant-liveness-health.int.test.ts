@@ -18,7 +18,7 @@
 // weakening the check the arm used to trip.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { PACKAGE_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-config.ts";
 import { classifyRegex, gate as sibling } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";

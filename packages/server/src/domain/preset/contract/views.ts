@@ -38,7 +38,7 @@ export interface PresetSummary {
    *
    * IT IS THE READ-TIME TWIN OF THE WRITE REFUSAL, and that is the whole point of putting it on the wire.
    * Since #1026 a config write derived from this read is refused with `stored_config_unreadable`
-   * (`#kit/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
+   * (`#primitives/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
    * got a generic save failure — the refusal was correct and completely invisible until it was too late.
    * It is projected from the SAME `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` call the
    * guard makes (`../substrate/views.ts`), so the state the editor renders cannot disagree with the refusal

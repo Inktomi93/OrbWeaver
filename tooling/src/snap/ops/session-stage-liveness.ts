@@ -1,6 +1,6 @@
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { listeningPids } from "../../floor/host/platform.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { writeRow } from "./session-registry.ts";
 import { stageBindingAlive } from "./stage-census.ts";

@@ -1,5 +1,5 @@
 // THE READER CRASHED ON A FILE ITS OWN WRITER PUT THERE. `reports/runs/snap/` holds one DIRECTORY per
-// run slot and, beside them, the retention ring's `.pruned.jsonl` ledger (`_shared/run-retention.ts`).
+// run slot and, beside them, the retention ring's `.pruned.jsonl` ledger (`floor/artifacts/run-retention.ts`).
 // `localSnapRunIndexPaths` read every `readdir` entry as a slot and statted `<entry>/run.json`, which over
 // the ledger raises ENOTDIR rather than ENOENT — so `pnpm snap --reports` exited 2 with TOOL ERROR on
 // every checkout whose ring had ever fired. Found 2026-09-04 by the #1315 fold's floor; the repair is

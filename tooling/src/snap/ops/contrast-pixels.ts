@@ -4,10 +4,10 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
-import type { Viewport } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { ringBackdrop } from "../../_shared/pixel-backdrop.ts";
-import type { Rgb } from "../../_shared/wcag.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
+import { ringBackdrop } from "../../floor/instrument/pixel-backdrop.ts";
+import type { Rgb } from "../../floor/instrument/wcag.ts";
 import type { ContrastBox, ContrastMeasured } from "../contract/contrast.ts";
 import { parseRgbString } from "../lib/contrast-verdict.ts";
 

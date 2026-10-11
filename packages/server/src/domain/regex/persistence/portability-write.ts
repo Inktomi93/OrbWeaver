@@ -9,14 +9,14 @@
 
 import type { PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
-import { portableParseError } from "#kit/serde/lib";
-import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#kit/serde/regex";
+import { portableParseError } from "#primitives/serde/lib";
+import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
 import type {
   ExportCardScripts,
   ExportedRegexScriptFile,

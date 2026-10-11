@@ -1,5 +1,5 @@
 // Page/context target validation shared by the parser's cross-flag validation pass.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

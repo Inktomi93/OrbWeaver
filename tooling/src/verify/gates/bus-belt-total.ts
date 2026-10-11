@@ -38,7 +38,7 @@
 // `bus-definition-belts` descriptor at 3208f7340c6bb3a5a123e33c9ba7016cf0935643, the parent of the conversion
 // `55b0040f2c`; this module did not exist there, so it is measured against the module it was carved from,
 // `bus-definition-belts` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,230 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,230 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // harness dispatch (no `scanRoot`) admits 7,230 and final `population` admits 2,908. legacy − final = 4,322 harness
 // sources outside `@contracts`/`@client`/`@server` (db, kit, ui, showcase, tests, tooling, scripts) — the
 // whole-project `run` walked them; the subject's three homes are the roots the narrowing above names. final − legacy

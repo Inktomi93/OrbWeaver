@@ -13,9 +13,9 @@ import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import type { ReferenceCount, ReferenceSite } from "#src/features/preset/lib/reference-scan.ts";
+import { scanReferences } from "#src/features/preset/lib/reference-scan.ts";
 import { selectPresetSection } from "#state";
-import type { ReferenceCount, ReferenceSite } from "../../lib/reference-scan.ts";
-import { scanReferences } from "../../lib/reference-scan.ts";
 
 export function DataReadout({ config }: { readonly config: PromptConfig }): ReactElement {
   const counts = scanReferences(config);

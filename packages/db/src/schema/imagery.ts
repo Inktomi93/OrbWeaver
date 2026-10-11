@@ -27,7 +27,7 @@ import type { CostDetails, ProviderId, ResponseCache, TokenDetails } from "@orb/
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";

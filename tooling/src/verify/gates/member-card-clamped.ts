@@ -7,7 +7,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `member-card-clamped` descriptor at a2a93cac726442da889b41f089610914f5dc692f, the parent of the conversion
 // `9c04cd7182` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,353 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness
+// 7,353 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy harness
 // dispatch (no `scanRoot`) admits 7,353 and final `population` admits 7,353. legacy − final = ∅. final − legacy = ∅.
 // Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
@@ -76,7 +76,7 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   // No scanRoot in the legacy shape: absence there means admit-all over the shared harness workspace —
-  // `_shared/ts-workspace.ts#harnessGlobs`, whose first glob is `packages/*/src/**`, a WILDCARD over every
+  // `floor/compiler/ts-workspace.ts#harnessGlobs`, whose first glob is `packages/*/src/**`, a WILDCARD over every
   // workspace package. The old `@authored` classification excluded showcase and silently narrowed this
   // policy until #1980 added the explicit root. The shipped-package decision now admits showcase and
   // default-content through `@authored`; this descriptor keeps the same generic package reach with one ref.

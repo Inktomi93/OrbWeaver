@@ -5,12 +5,12 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runGit } from "../../_shared/git.ts";
-import type { RunNicedSyncResult } from "../../_shared/proc.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
-import { inheritedProcessEnv } from "../../_shared/process-env.ts";
+import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { runGit } from "../../floor/git/git.ts";
+import type { RunNicedSyncResult } from "../../floor/process/proc.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { CommitOutcome, DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";

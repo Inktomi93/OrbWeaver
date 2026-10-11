@@ -1,6 +1,6 @@
-import { advertisedFromGoogle } from "../../../../../packages/inference/src/capability/sources/advertised/google.ts";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { advertisedFromGoogle } from "#inference/capability/sources/advertised/google.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testProviderId } from "../../../../support/inference-identities.ts";
 

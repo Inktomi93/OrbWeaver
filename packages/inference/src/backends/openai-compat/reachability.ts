@@ -5,11 +5,11 @@
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import { ProviderError } from "../../contract/errors.ts";
-import type { Reachability } from "../../contract/runtime.ts";
-import { deadlineSignal } from "../kit/abort-flatten.ts";
-import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../kit/fetch-json.ts";
-import { NO_PROVIDER_SECRETS } from "../kit/sanitize.ts";
+import type { Reachability } from "#contract";
+import { ProviderError } from "#contract";
+import { deadlineSignal } from "../http/abort-flatten.ts";
+import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
+import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
 
 const PROBE_TTL_MS = 10_000;
 const WAKE_POLL_MS = 1000;

@@ -271,7 +271,7 @@ describe("rpg flush barrier", () => {
   });
 
   // THE CLASSIFIER GUARD. `AbortSignal.any` PROPAGATES the source's `reason`, and this signal is handed to
-  // provider requests; `classifyTransportName` (backends/kit/error-classify.ts) regexes an error's name+message
+  // provider requests; `classifyTransportName` (backends/http/error-classify.ts) regexes an error's name+message
   // for /timeout|connection|network|overload/ and returns retryable-`server`, which `retry.ts` RE-RUNS. So a
   // chat-domain abort reason carrying the word "timeout" would turn a cancelled round into a re-billed one.
   // The barrier re-aborts its own controller instead, flattening every cause to a plain AbortError.

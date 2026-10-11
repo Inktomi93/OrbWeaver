@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PersonaContext } from "../../../../packages/server/src/domain/persona/context.ts";
+import type { PersonaContext } from "#server/domain/persona/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

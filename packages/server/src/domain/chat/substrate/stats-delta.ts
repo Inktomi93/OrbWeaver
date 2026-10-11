@@ -13,7 +13,7 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { RetainedChatRekeys, StatsDelta } from "@orb/contracts/stats";
 import { variantUsageLegDelta } from "@orb/contracts/stats";
 import type { messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type { ChatContext } from "../contract/context.ts";

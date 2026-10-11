@@ -4,7 +4,7 @@ This audit distinguishes provider prefix reuse, app-authored prefix controls, ro
 
 ## Implementation boundary
 
-The pure policy resolver is `packages/inference/src/funnel/resolve-cache.ts`. The canonical inputs and readback are `packages/contracts/src/inference/cache-policy.ts`; execution and editors use that same plan. `backends/kit/cache-control.ts` remains the sole conversational role-switch depth and N/N+2 placement home. Backends translate the plan into their own protocol without moving authored system text, changing roles, discarding dynamic lore or altering signed tool/reasoning replay.
+The pure policy resolver is `packages/inference/src/funnel/resolve-cache.ts`. The canonical inputs and readback are `packages/contracts/src/inference/cache-policy.ts`; execution and editors use that same plan. `backends/wire/cache-control.ts` remains the sole conversational role-switch depth and N/N+2 placement home. Backends translate the plan into their own protocol without moving authored system text, changing roles, discarding dynamic lore or altering signed tool/reasoning replay.
 
 Installed adapters inspected: `@ai-sdk/anthropic` 4.0.71, `@ai-sdk/google` 4.0.87, `@ai-sdk/openai-compatible` 3.0.62, `@openrouter/ai-sdk-provider` 3.1.0 and `ai` 7.0.127. The OpenRouter adapter is not `@openrouter/sdk`. No dependency or transport migration is included.
 

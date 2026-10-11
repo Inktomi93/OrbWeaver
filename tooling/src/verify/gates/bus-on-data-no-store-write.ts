@@ -34,7 +34,7 @@
 // `bus-onData-no-store-write` descriptor at 879e5b65226d9333a5d49c3dfc9139c55b3bf2ae, the parent of the conversion
 // `d5c8b278e3`; this file name did not exist there, because that conversion RENAMED the camelCase legacy module
 // `bus-onData-no-store-write` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// Over the SAME 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// Over the SAME 7,006 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 11 and final `population` admits 11. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/data/bus/__cbbhr_in_apply-chat-bus-event.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.

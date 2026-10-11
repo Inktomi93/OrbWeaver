@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { buildInitialParticipantRows, loadParticipants } from "../../../../../packages/server/src/domain/chat/persistence/participants-read.ts";
+import { buildInitialParticipantRows, loadParticipants } from "#server/domain/chat/persistence/participants-read.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support.ts";

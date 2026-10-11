@@ -20,7 +20,7 @@
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, sql } from "drizzle-orm";

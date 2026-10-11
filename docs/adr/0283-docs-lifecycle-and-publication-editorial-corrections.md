@@ -21,7 +21,7 @@ An ADR retains its D number and records a contested or expensive-to-reverse deci
 
 The owner-approved current-tree publication scrub permits a bounded editorial exception. Remove private identities and apply the supplied neutral replacements without changing a decision's technical meaning. This exception covers the recorded privacy inventory and the exact neutral spans for ADRs 0018, 0044, 0047 and 0049. Preserve their identifiers, authority, requirements and neutral attribution. Record the changed spans and review their semantic equivalence. Other ADR body edits remain prohibited. Git history rewriting and publication remain separate operations.
 
-pnpm check:agents checks documentation structure, required sections, size limits, indexes, paths and writing rules. The canonical rules remain in tooling/src/doc/lib/rules.ts and tooling/src/\_shared/prose-rules.ts; prose style remains in .claude/rules/writing.md.
+pnpm check:agents checks documentation structure, required sections, size limits, indexes, paths and writing rules. The canonical rules remain in tooling/src/doc/lib/rules.ts and tooling/src/\floor/prose/prose-rules.ts; prose style remains in .claude/rules/writing.md.
 
 Every cited path, symbol, heading and decision identifier must resolve. pnpm doc due reports source drift as a warning, not a failed gate. Keep only the updated review date for freshness; use pnpm doc review rather than adding hashes or commit pins.
 

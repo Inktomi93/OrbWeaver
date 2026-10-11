@@ -1,6 +1,6 @@
-import { splitPageSuffix } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { aliasRefusal, instrumentFamilyRosterErrors } from "../../_shared/instrument-argv.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { splitPageSuffix } from "../../floor/instrument/argv.ts";
+import { aliasRefusal, instrumentFamilyRosterErrors } from "../../floor/instrument/instrument-argv.ts";
 import { validateFlagValue, validateSelectorFlagValue } from "../lib/flag-values.ts";
 import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";

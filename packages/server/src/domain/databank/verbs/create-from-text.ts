@@ -6,7 +6,7 @@
 // (`queued`, or `not-queued` when the queue refused the build — the canon still lands; `substrate/queue-ingest`).
 
 import type { UserId } from "@orb/kit/ids";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { CreateFromTextParams } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";

@@ -4,7 +4,7 @@
 // hand a credential field to build. Pure read + serde, no write, no audit.
 
 import type { UserId } from "@orb/kit/ids";
-import { buildUserSettingsBackup, projectShareSafe } from "#kit/serde/user-settings";
+import { buildUserSettingsBackup, projectShareSafe } from "#primitives/serde/user-settings";
 import type { SettingsPortableFile } from "../contract/portability.ts";
 import type { SettingsContext } from "../contract/service.ts";
 import { readUserSettings } from "../persistence/queries.ts";

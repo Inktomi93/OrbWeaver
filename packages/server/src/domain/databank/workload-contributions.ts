@@ -9,7 +9,7 @@ import type { IngestRunResult } from "@orb/contracts/databank";
 import type { ReportProgress, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
 import { databankIngestWorkloadParams, databankReindexWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import { runUntilSettled } from "#kit/embedding-generation";
+import { runUntilSettled } from "#primitives/embedding-generation";
 import type { DatabankWorkloadDeps } from "./contract/service.ts";
 
 type DatabankContributions = readonly [WorkloadContribution<"databank-ingest">, WorkloadContribution<"databank-reindex">];

@@ -2,8 +2,8 @@
 // states no single-shot capture can see. The block printer lives with its report siblings.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import { settle } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { settle } from "../../floor/browser/browser.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, WatchTick } from "../contract/types.ts";
 import { PNG_EXT_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { captureEvals } from "./arms/eval.ts";

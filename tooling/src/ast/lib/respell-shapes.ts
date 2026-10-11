@@ -2,8 +2,8 @@
 
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { coLocatedSemanticNodes } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { coLocatedSemanticNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
 import { declKey } from "./keys.ts";

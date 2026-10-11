@@ -2,7 +2,7 @@
 // CLS pooling → Dense (+ activation) → LayerNorm → Dense(1), read from the repo's module directories. The modules
 // are a few hundred KB of f32, so plain arithmetic here costs nothing next to the encoder pass.
 
-import { ProviderError } from "../../contract/errors.ts";
+import { ProviderError } from "#src/contract/errors.ts";
 
 /** Reads one file of the model repo (`<module>/<name>`), from the local cache or the Hub. */
 type RepoFileReader = (file: string) => Promise<Uint8Array>;

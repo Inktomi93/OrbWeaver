@@ -8,11 +8,7 @@ import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  carriedBackgroundAvailable,
-  guardedChatId,
-  ownedBackgroundAvailable,
-} from "../../../../../packages/server/src/domain/chat/persistence/background-write.ts";
+import { carriedBackgroundAvailable, guardedChatId, ownedBackgroundAvailable } from "#server/domain/chat/persistence/background-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedUser } from "../_support.ts";

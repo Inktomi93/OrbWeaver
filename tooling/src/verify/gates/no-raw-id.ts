@@ -14,7 +14,7 @@
 // alone, beside 21 `stale ordinary waiver` alarms proving it used to bite): zod 4.4.3 `index.d.cts:1,3` is
 // `import * as z from "./v4/classic/external.cjs";` then `export { z };`, and the shared reader refused that
 // NAMESPACE-forwarding re-export. The refusal was narrowed at its own home in the same commit
-// (`_shared/reference-fact-module.ts#republishedImport`, whose spec carries the renaming counterfactuals), so the
+// (`floor/code-facts/reference-fact-module.ts#republishedImport`, whose spec carries the renaming counterfactuals), so the
 // door now resolves `project ms=zod ex=z mp=[string]` and the swap is both safe and barrel-proof: 21 → 21,
 // zero lost sites. The proof harness cannot see any of this — `ops/policy-conformance.ts` runs `types` rows
 // on an in-memory project with NO `node_modules`, so a bare specifier lands `external-door` and the
@@ -30,7 +30,7 @@
 // CallExpression, so that arm could never reach a verdict. It is a dead arm removed, not a class dropped —
 // the bare-`string` TYPE position is `brand-in-name-position`'s subject, the family sibling that owns it.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "an intentional WIDENING" is REFUTED. What
-// the legacy pass loaded was `_shared/ts-workspace.ts#harnessGlobs` (`packages/*/src`, `tests`, `tooling/src`,
+// the legacy pass loaded was `floor/compiler/ts-workspace.ts#harnessGlobs` (`packages/*/src`, `tests`, `tooling/src`,
 // `scripts`), and over those candidates at `5550ec4706^` legacy − final = {`packages/showcase-plugins/src/index.ts`},
 // final − legacy = ∅: a one-file NARROWING.
 //
@@ -45,7 +45,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-raw-id` descriptor at 52b33fc581708a8f782f6e811cbac3be55bc77c0, the parent of the conversion `5550ec4706` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,133 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no
 // `scanRoot`) admits 7,133 and final `population` admits 7,132. legacy − final =
 // {`packages/showcase-plugins/src/index.ts`} — the one source of an authored package outside the declared composite
 // roots (`@showcase` is not in `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING.
@@ -58,8 +58,8 @@
 // showcase and default-content are now judged with the rest of the shipped source tree.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
-import type { ModuleMemberOrigin } from "../../_shared/reference-fact-contract.ts";
+import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
+import type { ModuleMemberOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";

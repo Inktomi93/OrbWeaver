@@ -3,9 +3,9 @@
 import { statSync } from "node:fs";
 import { extname, isAbsolute, join, resolve, sep } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { processEnvValue } from "@orb/tooling/_shared/process-env";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import type { StageCommand, StageCommandOptions } from "../contract/stage.ts";
 import { REGISTRY } from "./registry.ts";
 

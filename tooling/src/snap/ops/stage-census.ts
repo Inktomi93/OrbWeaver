@@ -13,12 +13,12 @@
 // exactly those rows. Probing all ten would put ten curl pairs (and, for dirty stages, ten node children)
 // in the critical section of a lock every sibling lane is waiting on.
 import process from "node:process";
-import { print } from "../../_shared/artifacts.ts";
-import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { PortOwner } from "../../_shared/platform.ts";
-import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
-import { STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { readConcurrencyProfile } from "../../floor/host/concurrency-profile.ts";
+import type { PortOwner } from "../../floor/host/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
+import { STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
 import type { StageAllocation, StageAuthMode, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
 import { allocateStageBand, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";

@@ -2,7 +2,7 @@
 // plus the run-level AGGREGATION over them. The contract (§3.3): 0 clean · 1 violations · 2 tool error ·
 // 3 misuse; a signal-kill (null) is ALWAYS a tool error (2), never a verdict. Split out of lib/registry.ts
 // and ops/run.ts at the @orb/tooling P6 move (size cap §4.3); the adapters are unchanged.
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { StageResult } from "../contract/stage.ts";
 
 const EXIT_CLEAN = EXIT.clean;

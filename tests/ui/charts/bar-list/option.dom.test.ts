@@ -11,9 +11,9 @@
 // NOTE ON WIDTHS: `measureChartLabelPx` has no canvas in this (node) lane, so it uses its documented
 // per-character fallback. These assertions are therefore about the DERIVATION (widest label wins, the
 // share/floor/ceiling rules hold), never about a pixel count a browser would agree with.
-import type { BarListLayout } from "../../../../packages/ui/src/charts/bar-list/option.ts";
-import { buildBarListOption, categoryLabelBudgetPx, valueGutterPx } from "../../../../packages/ui/src/charts/bar-list/option.ts";
-import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
+import type { BarListLayout } from "#ui/charts/bar-list/option.ts";
+import { buildBarListOption, categoryLabelBudgetPx, valueGutterPx } from "#ui/charts/bar-list/option.ts";
+import type { ChartColors } from "#ui/charts/chart/use-chart-theme.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const ITEMS = [

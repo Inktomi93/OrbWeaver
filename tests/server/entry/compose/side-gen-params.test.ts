@@ -12,7 +12,7 @@ import type { PresetService } from "@orb/server/domain/preset";
 import { PresetNotFoundError } from "@orb/server/domain/preset";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { buildSideGenParams } from "../../../../packages/server/src/entry/compose/side-gen-params.ts";
+import { buildSideGenParams } from "#server/entry/compose/side-gen-params.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { presetDetail, presetWithPromptStructure, utilityPresetResolver } from "../../../support/utility-preset.ts";
 

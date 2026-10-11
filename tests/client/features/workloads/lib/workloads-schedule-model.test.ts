@@ -8,7 +8,7 @@ import {
   scheduleFormValuesFromRow,
   scheduleParamsToRunValues,
   workloadKindBulkSchedulable,
-} from "../../../../../packages/client/src/features/workloads/lib/workloads-schedule-model.ts";
+} from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("workloadKindBulkSchedulable: sweep kinds yes; create-kinds (needs target) and maintenance kinds no", () => {

@@ -64,8 +64,8 @@
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context.ts";

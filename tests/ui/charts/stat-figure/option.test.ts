@@ -6,8 +6,8 @@
 // §11.3: the builder takes a CONCRETE resolved color (never `TOKENS[...].value`) — <StatFigure>
 // resolves the DTCG token to a live computed value via `useChartTheme` and passes it in, because the
 // sparkline is a canvas ECharts line that can't resolve `var()`. This pins the pass-through.
-import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
-import { buildSparklineOption } from "../../../../packages/ui/src/charts/stat-figure/option.ts";
+import type { ChartColors } from "#ui/charts/chart/use-chart-theme.ts";
+import { buildSparklineOption } from "#ui/charts/stat-figure/option.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const COLORS: ChartColors = {

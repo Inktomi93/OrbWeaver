@@ -4,10 +4,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execGit } from "../../_shared/git.ts";
-import { processEnvValue, withProcessEnv } from "../../_shared/process-env.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
+import { execGit } from "../../floor/git/git.ts";
+import { processEnvValue, withProcessEnv } from "../../floor/process/process-env.ts";
 import type { CacheCheckOptions, EnvFile } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");

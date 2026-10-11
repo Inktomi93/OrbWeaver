@@ -54,7 +54,9 @@ function preservesFailureValue(node: Node, errorBinding: Node): boolean {
     return false;
   }
   const callee = unwrapExpression(value.getExpression());
-  return ambientIdentifier(callee, "String", new Set()) || importedName(callee, new Set(["@orb/kit/error-message", "#kit/error-message"])) === "errorMessage";
+  return (
+    ambientIdentifier(callee, "String", new Set()) || importedName(callee, new Set(["@orb/kit/error-message", "#primitives/error-message"])) === "errorMessage"
+  );
 }
 
 /** One PROPERTY of a candidate outcome object. A failure-NAMED key is only failure-VALUED when its value

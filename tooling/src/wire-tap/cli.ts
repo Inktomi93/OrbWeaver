@@ -12,7 +12,7 @@
 //
 // Exit: 0 clean · 1 stream error / non-OK harvest · EXIT.misuse on a bad subcommand/flag.
 import process from "node:process";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { capturesOp, sseOp, trpcOp } from "./index.ts";
 
 async function main(): Promise<number> {

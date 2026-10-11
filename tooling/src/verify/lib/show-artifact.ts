@@ -1,10 +1,10 @@
 // `check:show`'s artifact reader and consumability refusals. Reader-view shapes live in
 // `contract/show-artifact.ts`; this module owns I/O and decisions, while `show-policy.ts` owns FINAL rendering.
 import { readFileSync } from "node:fs";
-import type { PointerResolution } from "@orb/tooling/_shared/artifact-pointer";
-import { formatRunProvenance, resolvePointer } from "@orb/tooling/_shared/artifact-pointer";
-import { reportsPath } from "@orb/tooling/_shared/artifacts";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { PointerResolution } from "@orb/tooling/floor/artifacts/artifact-pointer";
+import { formatRunProvenance, resolvePointer } from "@orb/tooling/floor/artifacts/artifact-pointer";
+import { reportsPath } from "@orb/tooling/floor/artifacts/artifacts";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { GateReport, PopulationAlarmView, RunManifestView, StructureReport } from "../contract/show-artifact.ts";
 import type { FinalPolicyRow } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";

@@ -6,8 +6,8 @@ import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PresetDetail } from "../../packages/server/src/domain/preset/contract/views.ts";
-import { buildSideGenParams } from "../../packages/server/src/entry/compose/side-gen-params.ts";
+import type { PresetDetail } from "#server/domain/preset/contract/views.ts";
+import { buildSideGenParams } from "#server/entry/compose/side-gen-params.ts";
 
 export const CUSTOM_SYSTEM_TEMPLATE = "CUSTOM PRESET SYSTEM TEMPLATE — never a background prompt";
 

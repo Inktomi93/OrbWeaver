@@ -29,10 +29,10 @@ import type {
   AutomationTurnRequest,
   AutomationTurnResult,
   DispatchFrame,
-} from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
-import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { selectGlobalVariable } from "../../../../../packages/server/src/domain/automation/persistence/queries.ts";
-import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
+} from "#server/domain/automation/contract/ops.ts";
+import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
+import { selectGlobalVariable } from "#server/domain/automation/persistence/queries.ts";
+import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";

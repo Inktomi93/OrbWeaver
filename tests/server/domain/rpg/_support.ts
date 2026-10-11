@@ -11,7 +11,7 @@ import type { RpgActorEntry, RpgBusEvent, RpgExtraction, RpgExtractionMode, RpgG
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,
@@ -29,8 +29,8 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
-import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
-import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
+import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
+import type { HandSnapshotTarget, TurnSnapshotTarget } from "#server/domain/rpg/contract/params.ts";
 import type {
   RpgContext,
   RpgParticipantActor,
@@ -39,9 +39,9 @@ import type {
   RpgResolveParticipants,
   RpgRunToolRound,
   RpgStateDelta,
-} from "../../../../packages/server/src/domain/rpg/index.ts";
-import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index.ts";
-import { buildActorRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply.ts";
+} from "#server/domain/rpg/index.ts";
+import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
+import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
 import { makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 

@@ -10,8 +10,8 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { ChatLiveEvent } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
-import { publishChatEvent, subscribeAllChatEvents, subscribeChatEvents } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
+import type { ChatLiveEvent } from "#server/transport/trpc/chat-events-bus.ts";
+import { publishChatEvent, subscribeAllChatEvents, subscribeChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT_A = castId<ChatId>("chat_a");

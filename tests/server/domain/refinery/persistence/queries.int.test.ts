@@ -12,12 +12,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
-import {
-  latestRunRowOf,
-  latestVerdictsOf,
-  loadOwnedSessionRow,
-  sessionViewOf,
-} from "../../../../../packages/server/src/domain/refinery/persistence/queries.ts";
+import { latestRunRowOf, latestVerdictsOf, loadOwnedSessionRow, sessionViewOf } from "#server/domain/refinery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";

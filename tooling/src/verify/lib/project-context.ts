@@ -3,7 +3,7 @@
 // Phase F (2026-09-14): the legacy dispatcher died; these two survived it because they describe the
 // WORKSPACE, not the descriptor runtime.
 import { posix } from "node:path";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { ProjectContext } from "../contract/project-context.ts";
 
 /** repo-relative posix path for an absolute path under `root`. */

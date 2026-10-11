@@ -4,7 +4,7 @@
 // account-state block must therefore never classify as it: the token still works once the account clears,
 // and a revoke would force the user to paste it again.
 
-import { classifyAssistantError } from "../../../../packages/inference/src/backends/agent-sdk/verify.ts";
+import { classifyAssistantError } from "#inference/backends/agent-sdk/verify.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("account-state blocks are non-retryable and never strike out the stored token", () => {

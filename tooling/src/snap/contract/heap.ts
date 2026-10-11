@@ -4,8 +4,8 @@
 import type { Branded } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
-import { artifactLimitReceiptSchema } from "../../_shared/artifact-out.ts";
+import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
+import { artifactLimitReceiptSchema } from "../../floor/artifacts/artifact-out.ts";
 import type { SnapAnalyzerProblem } from "./analyzer.ts";
 import { SNAP_ANALYZER_PROBLEM_KINDS } from "./analyzer.ts";
 
@@ -200,7 +200,7 @@ const heapProblemSchema: z.ZodType<SnapAnalyzerProblem> = z.object({
   threshold: z.string(),
   detail: z.string(),
 });
-// #1652: the limit-receipt shape's ONE home is `_shared/artifact-out.ts` — imported, never re-spelled.
+// #1652: the limit-receipt shape's ONE home is `floor/artifacts/artifact-out.ts` — imported, never re-spelled.
 const heapIdentitySchema: z.ZodType<HeapSnapshotIdentity> = z.object({
   label: z.string(),
   rawPath: z.string(),

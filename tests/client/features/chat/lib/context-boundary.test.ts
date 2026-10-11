@@ -5,7 +5,7 @@
 
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveContextBoundaryMessageId } from "../../../../../packages/client/src/features/chat/lib/context-boundary.ts";
+import { resolveContextBoundaryMessageId } from "#client/features/chat/lib/context-boundary.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeMessageView } from "../fixtures.ts";
 

@@ -1,7 +1,7 @@
 // Every decision the dev supervisor makes before it spawns anything, pure over an env record: the pins a
 // host export wins over, the run dir, the port pair, the leader env and the log paths.
 import { isAbsolute, join, resolve } from "node:path";
-import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
+import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type { DevPinKey, DevPins, PinSource, StackContext, StackLogs } from "../contract/types.ts";
 import { DEV_PIN_KEYS } from "../contract/types.ts";
 import { parseEnvText } from "./env-file.ts";

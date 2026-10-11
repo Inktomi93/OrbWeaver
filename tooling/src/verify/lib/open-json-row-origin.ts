@@ -4,7 +4,7 @@
 // element callbacks and union/intersection types until a live schema table can be proved or refused.
 import type { BindingElement, Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { readStaticString, resolveGlobalMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { readStaticString, resolveGlobalMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import type { OpenJsonColumn } from "./open-json-vocabulary.ts";
 import { isOpenBag, unwrap } from "./open-json-vocabulary.ts";
 

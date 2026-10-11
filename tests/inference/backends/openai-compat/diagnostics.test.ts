@@ -2,9 +2,9 @@
 // classifier with the behavior the provider runtime actually calls: auth refusals revoke, every other
 // failure is unreachable, and no upstream prose may carry configured credential literals to the result.
 
-import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { inspectOpenAiCompatEndpoint, probeOpenAiCompat } from "../../../../packages/inference/src/backends/openai-compat/diagnostics.ts";
-import type { OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { inspectOpenAiCompatEndpoint, probeOpenAiCompat } from "#inference/backends/openai-compat/diagnostics.ts";
+import type { OpenAiCompatChatRequest } from "#inference/contract/chat.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeResolved, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";

@@ -23,7 +23,7 @@ import {
   loadStreamReplay,
   loadSwipeStatRows,
   loadTurnOrigin,
-} from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+} from "#server/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { addVariant, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support.ts";

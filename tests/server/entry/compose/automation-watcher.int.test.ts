@@ -14,7 +14,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AutomationOps } from "@orb/server/domain/automation";
 import { beforeEach } from "vitest";
-import { createAutomationOps } from "../../../../packages/server/src/entry/compose/automation-watcher.ts";
+import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedMessage } from "../../domain/chat/_support.ts";

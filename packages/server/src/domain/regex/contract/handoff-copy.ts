@@ -28,7 +28,7 @@
 // verbatim).
 
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 
 /** db + clock + the id minter. Purpose-built (NOT the full `RegexContext`): a handoff copy writes rows and

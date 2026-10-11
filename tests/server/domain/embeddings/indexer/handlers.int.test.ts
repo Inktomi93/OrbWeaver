@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
+import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {

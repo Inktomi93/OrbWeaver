@@ -1,8 +1,8 @@
 // Harness-induced noise, named and fenced OUT of the verdict but never dropped: the sandboxed-frame
 // tracing error, vite's cold-stage dep-optimizer aborts, and the file:// unique-origin note a CDP
 // attach provokes. One partition, every snap path judges alike.
-import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { isDevToolsFrontendProtocolNoise } from "../lib/devtools-frontend-noise.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

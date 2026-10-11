@@ -7,7 +7,7 @@ import type { GroupConfigInput } from "@orb/contracts/chat";
 import { RosterPresetCharacterNotFoundError, RosterPresetPersonaNotFoundError } from "@orb/server/domain/roster-preset";
 import { describe } from "vitest";
 import { ZodError } from "zod";
-import { ensureAnchorOwned, ensureMembersOwned, parsedGroupConfig } from "../../../../../packages/server/src/domain/roster-preset/substrate/authored-input.ts";
+import { ensureAnchorOwned, ensureMembersOwned, parsedGroupConfig } from "#server/domain/roster-preset/substrate/authored-input.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { seedPersona } from "../../../../support/factories/persona.ts";

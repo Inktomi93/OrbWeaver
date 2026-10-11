@@ -1,9 +1,9 @@
 // A run's hold on the stage it reads: a holder entry on the band row, re-stamped on a heartbeat and keyed to
 // the stage identity it bound, so it never outlives that stage or stamps the next one on the band.
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { warn } from "../../_shared/log.ts";
-import { processStartTicks } from "../../_shared/platform.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { processStartTicks } from "../../floor/host/platform.ts";
 import type { StageHolder, StageRow } from "../contract/stage.ts";
 import { readBands, withBandsLock, writeRow } from "./stage-marker.ts";
 

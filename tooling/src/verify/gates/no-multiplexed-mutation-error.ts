@@ -20,7 +20,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-multiplexed-mutation-error` descriptor at 2ee31c5d2254c7fdb8ef9ecdc68c24f69b45b44d, the parent of the
 // conversion `be629bf4ac` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,197 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,311 and final `population` admits 1,311. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
@@ -30,7 +30,7 @@
 // `no-static-staletime` also imports; `no-inline-optimistic-in-surface` joins through `lib/project-home-origin.ts`.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { declaredByFile, declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";

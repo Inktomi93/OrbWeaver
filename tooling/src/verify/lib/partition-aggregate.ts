@@ -1,7 +1,7 @@
 import { globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { z } from "zod";
 import { APPLICATION_PARTITIONS } from "../contract/application-partitions.ts";
 import type { ApplicationPartitionInput, StageResult, Tier, VerifyReport } from "../contract/stage.ts";

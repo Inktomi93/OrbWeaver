@@ -29,8 +29,8 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { CardWriteBasis } from "#domain/character";
-import type { CardIdentityField } from "#kit/serde/card";
-import { cardContentHash } from "#kit/serde/card";
+import type { CardIdentityField } from "#primitives/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { RefineryContext } from "../context.ts";
 import { RefinerySessionCompletedError } from "../contract/errors.ts";
 import type { RefineryService } from "../contract/service.ts";
@@ -56,7 +56,7 @@ type UnwitnessedRefinableField = Exclude<RefinableField, CardIdentityField>;
  *  THE `satisfies` IS THE ENFORCER, not decoration: a tenth refinable field added outside the identity set
  *  widens {@link UnwitnessedRefinableField}, and this literal stops compiling until it (and
  *  `CardWriteBasis`, which the write predicate reads) carries it. That is the only reason the exclusion set
- *  is a tuple rather than an object literal in `#kit/serde/card`.
+ *  is a tuple rather than an object literal in `#primitives/serde/card`.
  *
  *  The hash itself is recomputed from the SAME projection the character row stores, so it equals
  *  `characters.content_hash` exactly; a flag/handle-only edit does not move it and correctly does not fence

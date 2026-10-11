@@ -1,10 +1,10 @@
 // AN E2E/SNAP/CT STACK IS NOT THE STACK. Several other things in this repo spawn a server or a vite on this
 // box; `/healthz` carries `harness:true` for a Playwright-owned stack — we never adopt one and never kill
 // one out from under a running battery. This census is what lets `status` NAME a foreign listener.
-import { CT_VITE_PORT, DEV_PORTS, E2E_FIXTURE_PROVIDER_PORT, E2E_PORTS, FIXTURE_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
+import { CT_VITE_PORT, DEV_PORTS, E2E_FIXTURE_PROVIDER_PORT, E2E_PORTS, FIXTURE_PORTS, STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
 import type { StackSpawner } from "../contract/types.ts";
 
-/** Every port below comes from the ONE registry (`tooling/src/_shared/ports.ts`) — this census names the
+/** Every port below comes from the ONE registry (`tooling/src/floor/host/ports.ts`) — this census names the
  *  SPAWNER and its discriminator; it does not decide a number. PROD deliberately shares the dev SERVER
  *  port: they are two ways to serve the same app on this box and must never run at once —
  *  `classifyInstance` turns that into a loud refusal instead of a race. The ten stage bands are listed

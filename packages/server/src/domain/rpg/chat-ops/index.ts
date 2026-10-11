@@ -15,7 +15,7 @@
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
-import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "../../chat/index.ts";
+import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "#domain/chat";
 import type { RpgContext } from "../contract/service.ts";
 import { planLiteGameBirth } from "../game-mint.ts";
 import { findGameByChat } from "../persistence/games.ts";

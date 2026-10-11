@@ -5,7 +5,7 @@
 // the route guard's, upstream — never this helper's.)
 
 import { describe } from "vitest";
-import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "../../../../../packages/client/src/features/auth/lib/sso-redirect.ts";
+import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "#client/features/auth/lib/sso-redirect.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("shouldAutoRedirectToSso (A9)", () => {

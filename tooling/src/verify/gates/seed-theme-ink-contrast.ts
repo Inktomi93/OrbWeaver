@@ -104,12 +104,12 @@
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — `INK_SOURCES = ["packages/ui/src/", "packages/client/src/"]`, `file.getFilePath().includes(`/${root}`)`.
-// Over the SAME 7,556 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// Over the SAME 7,556 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it
 // admits 1,685 and the final `population` admits 1,685 (the bare harness dispatch was 7,556). legacy − final = ∅.
 // final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by
 // both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 
-import { NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
+import { NORMAL_MIN_RATIO } from "../../floor/instrument/wcag.ts";
 import { THEME } from "../contract/css-family.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";

@@ -9,8 +9,8 @@
 // the loop) with zero coverage `tsc` doesn't already give. Removed 2026-07-10.
 
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
-import type { SourceKind, SourceLens } from "../../../../../packages/server/src/domain/embeddings/contract/params.ts";
-import { SOURCE_KINDS, SOURCE_LENSES, TEXT_LENSES } from "../../../../../packages/server/src/domain/embeddings/contract/params.ts";
+import type { SourceKind, SourceLens } from "#server/domain/embeddings/contract/params.ts";
+import { SOURCE_KINDS, SOURCE_LENSES, TEXT_LENSES } from "#server/domain/embeddings/contract/params.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("SOURCE_KINDS is exactly [card, avatar, chat-block, document] (the producer-class axis)", () => {

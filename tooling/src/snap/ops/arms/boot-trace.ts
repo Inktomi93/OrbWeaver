@@ -1,16 +1,16 @@
 // Pre-navigation Chromium trace + DevTools/Lighthouse insight analyzer. The trace starts in prepare,
 // before capture calls page.goto, and stops at a bounded post-load presentation boundary in afterNavigation.
 import { writeFile } from "node:fs/promises";
-import type { InstrumentArtifactMetadata } from "../../../_shared/artifact-out.ts";
-import { artifactFile, registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
-import { exactScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { printEvidenceGaps } from "../../../_shared/evidence.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
 import type { ActiveBootTrace, BootTraceReceipt } from "../../../cpu-profile/index.ts";
 import { BOOT_TRACE_INSIGHTS, beginBootTrace } from "../../../cpu-profile/index.ts";
+import type { InstrumentArtifactMetadata } from "../../../floor/artifacts/artifact-out.ts";
+import { artifactFile, registerInstrumentArtifact } from "../../../floor/artifacts/artifact-out.ts";
+import { exactScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { Args } from "../../contract/types.ts";
 

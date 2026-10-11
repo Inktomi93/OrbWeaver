@@ -1,7 +1,7 @@
 // The new-room persona notice: said only when something other than the default decided who you play.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { newRoomPersonaNotice } from "../../../packages/client/src/data/new-room-persona-notice.ts";
+import { newRoomPersonaNotice } from "#client/data/new-room-persona-notice.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const MARA = mintTypeId(ID_PREFIX.persona);

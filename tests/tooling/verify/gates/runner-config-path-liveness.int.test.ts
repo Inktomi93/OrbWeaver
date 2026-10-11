@@ -22,7 +22,7 @@
 //      `pnpm check:structure`.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";

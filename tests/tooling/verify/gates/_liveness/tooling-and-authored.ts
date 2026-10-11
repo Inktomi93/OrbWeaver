@@ -173,7 +173,7 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       {
         kind: "neutralise",
-        path: "tooling/src/_shared/test-kinds.ts",
+        path: "tooling/src/floor/testing/test-kinds.ts",
         source:
           'const RUNTIME_BY_FAMILY = {\n  unit: "vitest",\n  integration: "vitest",\n  contract: "vitest",\n  type: "vitest-typecheck",\n  component: "vitest",\n  e2e: "playwright-e2e",\n} as const;\n',
       },
@@ -205,7 +205,7 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       add("tooling/src/livenessunslotted/cli.ts", 'import { shoot } from "./ops/shoot.ts";\nexport const run = shoot;\n'),
       add(
         "tooling/src/livenessunslotted/ops/shoot.ts",
-        'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+        'import { artifactFile } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
       ),
     ],
     messageIncludes: "must open its artifact run slot",

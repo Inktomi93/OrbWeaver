@@ -21,12 +21,12 @@
 // reserved for a landing the instrument could not read (a non-finite rect, an unusable DPR), for a
 // transform mid-animation, which has no rest landing yet, and for an sr-only answer that could not be read.
 //
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string, not
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string, not
 // a function; the one interpolation is a deliberate tooling constant, the `INACTIVE_KIND_EXPR` precedent).
 // Provenance + attribution: ops/walker.ts. Must run after census-collision.ts (`relationalAccounting`) and
 // census-cohort.ts (`excludeRelational`/`withholdRelational`), so it is placed with the other post-cohort
 // segments at the end of the composition.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");

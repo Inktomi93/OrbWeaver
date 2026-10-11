@@ -6,7 +6,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-argv-front-door:shared-entrypoint",
     policyId: "tooling-argv-front-door",
-    subject: "tooling/src/_shared/entrypoint.ts",
+    subject: "tooling/src/floor/cli/entrypoint.ts",
     operation: "process-argv-read",
     why: "reads argv[1] — the ENTRY IDENTITY ('was this module the program?'), never the operator's flags; it is the one home for that question (Core-Tooling-Law §4.9).",
     endsWhen: "the direct-invocation refusal moves or stops asking it — the row is then consumed zero times and reds at its dead subject.",
@@ -22,7 +22,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-argv-front-door:niced-exec",
     policyId: "tooling-argv-front-door",
-    subject: "tooling/src/_shared/niced-exec.ts",
+    subject: "tooling/src/floor/process/niced-exec.ts",
     operation: "process-argv-read",
     why: "it has no cli.ts shape: its whole job is passing an arbitrary caller's `cmd args…` through to a real spawn, so ITS argv IS the operator's request, not a second front door narrowing one.",
     endsWhen: "niced-exec.ts stops reading its own argv or is retired — the row is then consumed zero times and reds.",
@@ -47,7 +47,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-artifact-path-home:artifacts",
     policyId: "tooling-artifact-path-home",
-    subject: "tooling/src/_shared/artifacts.ts",
+    subject: "tooling/src/floor/artifacts/artifacts.ts",
     operation: "reports-path-literal",
     why: "THE artifact root home: `reportsPath`/`reportsRelPath`/`ensureReportsDir` are the one spelling of `reports/…` in the repo, and the run-slot layout (#1029/#1164) is built on them (Core-Tooling-Law.md §4.4, arm C of the retired plumbing gate).",
     endsWhen:
@@ -56,7 +56,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-browser-door:browser-attach",
     policyId: "tooling-browser-door",
-    subject: "tooling/src/_shared/browser.ts",
+    subject: "tooling/src/floor/browser/browser.ts",
     operation: "browser-attach",
     why: "`attachProbeSession` IS the one door onto a stateful session daemon's browser: the `connectOverCDP` here is the attach every consumer rides, shape-identical to a launched session (arm H of the retired plumbing gate).",
     endsWhen: "the attach moves out of browser.ts or the daemon stops exposing a debugging endpoint — the row is then consumed zero times and reds.",
@@ -64,7 +64,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-browser-door:browser-launch",
     policyId: "tooling-browser-door",
-    subject: "tooling/src/_shared/browser.ts",
+    subject: "tooling/src/floor/browser/browser.ts",
     operation: "browser-launch",
     why: "`launchProbeSession` IS the one Playwright bootstrap: the `chromium.launch` here carries the marked args/env and the run-marker every instrument's browser must wear (arm B of the retired plumbing gate).",
     endsWhen: "the launch moves out of browser.ts — the row is then consumed zero times and reds at its dead subject.",
@@ -72,7 +72,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-child-process-door:proc",
     policyId: "tooling-child-process-door",
-    subject: "tooling/src/_shared/proc.ts",
+    subject: "tooling/src/floor/process/proc.ts",
     operation: "child-process-import",
     why: "THE subprocess home: proc.ts is where `node:child_process` is imported so every tooling spawn rides TOOLING_PRIORITY (10, every OS) (`spawnNiced`/`runNicedSync`/`spawnNicedChild`); the two full-priority doors are defined here too (arm F of the retired plumbing gate).",
     endsWhen: "the subprocess home moves — the row is then consumed zero times and reds at its dead subject, which is the legacy HOMES stale sweep.",
@@ -80,7 +80,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-child-process-door:niced-exec",
     policyId: "tooling-child-process-door",
-    subject: "tooling/src/_shared/niced-exec.ts",
+    subject: "tooling/src/floor/process/niced-exec.ts",
     operation: "full-priority-spawn",
     why: 'this file IS the `nice` replacement: it lowers its own priority first, so calling `spawnFullPriorityChild` here means only "no further wrapping" — the real command still inherits the lowered priority, exactly as it would under `nice`.',
     endsWhen: "niced-exec.ts stops being the launcher for package.json scripts and the win32 sync doors — the row is then consumed zero times and reds.",
@@ -120,7 +120,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-child-process-door:platform-open-url",
     policyId: "tooling-child-process-door",
-    subject: "tooling/src/_shared/platform.ts",
+    subject: "tooling/src/floor/host/platform.ts",
     operation: "full-priority-spawn",
     why: "`openUrl`'s default-browser opener: the browser it starts inherits the opener's priority for its whole life, so a niced opener would hand the lowered priority to the browser a person uses the app in.",
     endsWhen: "`openUrl` is deleted or stops spawning an opener — the row is then consumed zero times and reds.",
@@ -144,7 +144,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-port-registry:ports",
     policyId: "tooling-port-registry",
-    subject: "tooling/src/_shared/ports.ts",
+    subject: "tooling/src/floor/host/ports.ts",
     operation: "port-literal",
     why: "THE port registry — the one home every reserved row and stage band is declared in, and the table the policy imports to know what a port number even is (the legacy PORT_HOME row).",
     endsWhen: "the registry moves, or stops declaring ports — which is the day it stopped being the registry; the row is then consumed zero times and reds.",
@@ -152,7 +152,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-process-exit-home:run-tool",
     policyId: "tooling-process-exit-home",
-    subject: "tooling/src/_shared/run-tool.ts",
+    subject: "tooling/src/floor/cli/run-tool.ts",
     operation: "process-exit",
     why: "THE exit-honesty runner: the crash path's hard exit lives here and nowhere else — every verdict path sets `process.exitCode` and lets the loop drain (arm D of the retired plumbing gate).",
     endsWhen: "the runner's hard exit moves — the row is then consumed zero times and reds at its dead subject, which is the legacy HOMES stale sweep.",
@@ -201,7 +201,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
   {
     id: "tooling-project-home:ts-workspace",
     policyId: "tooling-project-home",
-    subject: "tooling/src/_shared/ts-workspace.ts",
+    subject: "tooling/src/floor/compiler/ts-workspace.ts",
     operation: "ts-morph-project-construction",
     why: "THE ts-morph loader (`getWorkspace`): the one home the shared workspace is loaded from, once, so every gate walks one project (Core-Tooling-Law.md §2.4/§4.4, arm A of the retired plumbing gate).",
     endsWhen: "the loader moves — the row is then consumed zero times and reds at its dead subject, which is the legacy HOMES stale sweep.",

@@ -71,7 +71,7 @@
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — scan: `FEATURE_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/(surfaces|anchors)\/[^/]+\.tsx$/`
 // then `if (SHELL_EXEMPT.has(feature)) continue` with SHELL_EXEMPT = {app-shell}. Over the SAME 7,458 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 43 and the final
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 43 and the final
 // `population` admits 43 (the bare harness dispatch was 7,458). legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/features/auth/anchors/__cbbhr_in_login-shell-anchor.tsx` (virtual) admitted by both;
 // outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.

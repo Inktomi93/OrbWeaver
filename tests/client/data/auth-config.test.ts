@@ -8,7 +8,7 @@
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { afterEach, vi } from "vitest";
-import type { AuthConfig } from "../../../packages/client/src/data/auth-config.ts";
+import type { AuthConfig } from "#client/data/auth-config.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { reimportBudget } from "../../support/reimport-budget.ts";
 
@@ -38,11 +38,11 @@ const CONFIG: AuthConfig = {
   share: { state: "off", url: null },
 };
 
-type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config.ts").fetchAuthConfig;
+type FetchAuthConfig = typeof import("#client/data/auth-config.ts").fetchAuthConfig;
 
 async function freshFetchAuthConfig(): Promise<FetchAuthConfig> {
   vi.resetModules();
-  const mod = await import("../../../packages/client/src/data/auth-config.ts");
+  const mod = await import("#client/data/auth-config.ts");
   return mod.fetchAuthConfig;
 }
 
@@ -94,7 +94,7 @@ test("fetchLiveShare reads fresh each call, and parses only the share fields", a
     return Promise.resolve(new Response(JSON.stringify({ ...CONFIG, share }), { status: 200 }));
   });
   vi.resetModules();
-  const { fetchLiveShare } = await import("../../../packages/client/src/data/auth-config.ts");
+  const { fetchLiveShare } = await import("#client/data/auth-config.ts");
   await expect(fetchLiveShare()).resolves.toEqual(shares[0]);
   await expect(fetchLiveShare()).resolves.toEqual(shares[1]);
   expect(calls).toBe(2);
@@ -102,7 +102,7 @@ test("fetchLiveShare reads fresh each call, and parses only the share fields", a
 
 test("fetchLiveShare throws on a non-ok response or a malformed share, so no link is built on it", async () => {
   vi.resetModules();
-  const { fetchLiveShare } = await import("../../../packages/client/src/data/auth-config.ts");
+  const { fetchLiveShare } = await import("#client/data/auth-config.ts");
   vi.stubGlobal("fetch", () => Promise.resolve(new Response("nope", { status: 502 })));
   await expect(fetchLiveShare()).rejects.toThrow("HTTP 502");
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ ...CONFIG, share: { state: "up" } }), { status: 200 })));

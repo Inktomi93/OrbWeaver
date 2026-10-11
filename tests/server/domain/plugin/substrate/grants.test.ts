@@ -11,7 +11,7 @@ import {
   pendingWidenedNetHosts,
   ungrantableCapabilities,
   widenedNetHosts,
-} from "../../../../../packages/server/src/domain/plugin/substrate/grants.ts";
+} from "#server/domain/plugin/substrate/grants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("ungrantableCapabilities", () => {

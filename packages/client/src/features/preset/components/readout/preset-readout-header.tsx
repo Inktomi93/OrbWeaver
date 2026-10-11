@@ -13,8 +13,8 @@
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { PRESET_EDITOR_VIEWS } from "#src/features/preset/lib/preset-nav.ts";
 import { usePresetEditorView, useSelectedPresetId } from "#state";
-import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav.ts";
 
 /** THE NO-SELECTION ARM'S OWN NAME (side-eye F-25). With no preset open, the panel below does not project a
  *  view at all — it is `PresetReadout`'s ACTIVE PRESET / EFFECTIVE GENERATION / CAPABILITY arm — while this

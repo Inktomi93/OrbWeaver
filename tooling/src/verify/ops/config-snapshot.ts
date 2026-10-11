@@ -7,9 +7,9 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { ConfigArray } from "@eslint/config-array";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type {
   ConfigSelectorSnapshot,
   ConfigSnapshot,

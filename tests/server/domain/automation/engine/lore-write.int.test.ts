@@ -9,8 +9,8 @@ import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import type { AutomationOps } from "@orb/server/domain/automation";
 import { describe } from "vitest";
-import { applyRuleLoreWrite } from "../../../../../packages/server/src/domain/automation/engine/lore-write.ts";
-import { listRuleEntryTitles } from "../../../../../packages/server/src/domain/automation/persistence/canon-reads.ts";
+import { applyRuleLoreWrite } from "#server/domain/automation/engine/lore-write.ts";
+import { listRuleEntryTitles } from "#server/domain/automation/persistence/canon-reads.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { ruleFixture, seedUser } from "../_support.ts";
 

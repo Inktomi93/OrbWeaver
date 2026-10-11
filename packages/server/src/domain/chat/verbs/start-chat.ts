@@ -36,8 +36,8 @@
 import type { DurableChatBusEvent, MessageView, OpeningPolicy, ParticipantView } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "../context.ts";

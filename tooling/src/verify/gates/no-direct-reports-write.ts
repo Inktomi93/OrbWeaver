@@ -8,7 +8,7 @@
 //
 // FAMILY `no-direct-reports-write` — a declared SINGLETON. Its subject is ONE instrument-substrate hazard
 // (§3.7's published `latest` pointer) at ONE call shape, and no sibling policy judges a write target. The
-// machinery is shared rather than private: `_shared/reference-fact.ts` (member identity, binding stability,
+// machinery is shared rather than private: `floor/code-facts/reference-fact.ts` (member identity, binding stability,
 // member-write inspection), `lib/template-static-text.ts` for the authored path, and
 // `lib/property-assignment-name.ts` for the option key. A shared hazard TOPIC is not a family (guide §2).
 //
@@ -18,13 +18,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-direct-reports-write` descriptor at 2325062f91fac612856a95c68027bd8735eb040c, the parent of the conversion
 // `4561cb18c4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 2,780 and final `population` admits 2,780. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { inspectReferenceWrites, readMemberReference, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { inspectReferenceWrites, readMemberReference, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
 import { readStaticTextOf } from "../lib/template-static-text.ts";

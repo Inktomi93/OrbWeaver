@@ -28,6 +28,7 @@ import {
   ChromeRegistryProvider,
   dockListPanel,
   NO_SELECTION_TITLE,
+  resumeChat,
   selectCharacter,
   selectChat,
   selectCollectionMember,
@@ -47,28 +48,28 @@ import { Toaster } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
-import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
-import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section.tsx";
-import { AppearanceSizingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-sizing-section.tsx";
-import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel.tsx";
-import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
-import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
-import { SectionContent } from "../../../../packages/client/src/features/app-shell/components/section-content.tsx";
-import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
-import { useShellLayout } from "../../../../packages/client/src/features/app-shell/hooks/use-shell-layout.ts";
+import { AppearanceBackgroundSection } from "#client/features/app-shell/components/appearance-background-section.tsx";
+import { AppearanceEffectsSection } from "#client/features/app-shell/components/appearance-effects-section.tsx";
+import { AppearanceReadingSection } from "#client/features/app-shell/components/appearance-reading-section.tsx";
+import { AppearanceSizingSection } from "#client/features/app-shell/components/appearance-sizing-section.tsx";
+import { ContextTabsPanel } from "#client/features/app-shell/components/context-tabs-panel.tsx";
+import { CustomThemeStyle } from "#client/features/app-shell/components/custom-theme-style.tsx";
+import { Rail } from "#client/features/app-shell/components/rail.tsx";
+import { SectionContent } from "#client/features/app-shell/components/section-content.tsx";
+import { SectionContextHeader, SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { useShellLayout } from "#client/features/app-shell/hooks/use-shell-layout.ts";
 // The chats topbar identity passenger, reached the same way the Rail leaf is (a story may reach a feature
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
 // context is the one `CtDataProviders` mounts — the `tests/client/features/chat` stories reach it this way.
-import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
-import { useChatStyle } from "../../../../packages/client/src/features/chat/hooks/use-chat-style.ts";
-import { useMessageAppearance } from "../../../../packages/client/src/features/chat/hooks/use-message-appearance.ts";
+import { ChatHeaderSurface } from "#client/features/chat/components/chat-header.tsx";
+import { useChatStyle } from "#client/features/chat/hooks/use-chat-style.ts";
+import { useMessageAppearance } from "#client/features/chat/hooks/use-message-appearance.ts";
 // THE ROOM'S ONE TRACK, the production string (#213 — features/chat/lib/chat-track.ts). Reached the same
 // way `ChatHeaderSurface` is: the shell's centred-child FLIP counter is keyed on the `.orb-chat-track`
 // marker this const carries, so a story that re-spelled the class would prove the spelling, not the rule.
-import { CHAT_TRACK } from "../../../../packages/client/src/features/chat/lib/chat-track.ts";
-import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
-import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
+import { CHAT_TRACK } from "#client/features/chat/lib/chat-track.ts";
+import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
+import { openModal, setActiveSection, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
 import {
   CtDataProviders,
   CtFakeModalRegistry,
@@ -409,6 +410,35 @@ export function AppShellMobileRuleStory({ section }: { readonly section: Section
       >
         <LandOn section={section} />
         <button type="button" onClick={(): void => openMemberIn(section)}>
+          open a member
+        </button>
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The phone's room Back, end to end over the REAL chats selection seam: a chats section with a list, a room
+ *  and a details pane, landing on `section`. "resume from here" is the Home tiles' act (`resumeChat`), which
+ *  records the section it was fired from. */
+export function AppShellPhoneBackStory({ section }: { readonly section: SectionId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            list: <p>chats list pane</p>,
+            content: <p>chats content pane</p>,
+            context: <p>chats context pane</p>,
+            selectionTitle: useChatsStoryTitle,
+          },
+        }}
+      >
+        <LandOn section={section} />
+        <button type="button" onClick={(): void => resumeChat(mintTypeId(ID_PREFIX.chat))}>
+          resume from here
+        </button>
+        <button type="button" onClick={(): void => openMemberIn("chats")}>
           open a member
         </button>
         <AppShell />
@@ -1083,6 +1113,8 @@ const CTX_TRACKERS_TAB: ResolvedContextTab = resolvedTab({ id: "trackers", label
 const CTX_ICONLESS_TAB: ResolvedContextTab = resolvedTab({ id: "iconless", label: "Iconless", node: <div>iconless</div> });
 
 export interface ContextTabStripStoryProps {
+  /** The pane's own name for a single-tab header; absent ⇒ the rail label. */
+  readonly paneLabel?: string;
   /** The container width (px) the rail's tracks resolve against. */
   readonly width: number;
   /** The container HEIGHT (px) — the pane the column fills. @defaultValue 480 */
@@ -1110,6 +1142,7 @@ export function ContextTabStripStory({
   withDismiss = false,
   opaqueSettings = false,
   singleTab = false,
+  paneLabel,
 }: ContextTabStripStoryProps): ReactElement {
   const [dismissed, setDismissed] = useState(0);
   const tabs: ResolvedContextTab[] = CTX_STRIP_TABS.slice(0, singleTab ? 1 : undefined).map((tab) =>
@@ -1126,6 +1159,7 @@ export function ContextTabStripStory({
       <ContextTabsPanel
         tabs={tabs}
         railLabel="Chat"
+        {...(paneLabel === undefined ? {} : { paneLabel })}
         {...(withBand ? { header: <p data-testid="ctx-band-content">Example — Midnight Run</p> } : {})}
         {...(withDismiss ? { dismissLabel: "Close Chats details", onDismiss: (): void => setDismissed((n) => n + 1) } : {})}
       />

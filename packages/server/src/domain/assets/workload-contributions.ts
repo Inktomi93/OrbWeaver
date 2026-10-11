@@ -14,7 +14,7 @@ import type { MaintenanceResult } from "@orb/contracts/workloads";
 import { emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
-import { isAborted } from "#kit/abort";
+import { isAborted } from "#primitives/abort";
 import type { AssetsWorkloadDeps } from "./contract/service.ts";
 import { loadAvatarBackfillCandidates } from "./persistence/maintenance.ts";
 

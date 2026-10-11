@@ -9,7 +9,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { buildBulkTagResult } from "../../../../../packages/server/src/domain/character/substrate/bulk-tag-result.ts";
+import { buildBulkTagResult } from "#server/domain/character/substrate/bulk-tag-result.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const A = castId<CharacterId>("character_bulktagresult00a");

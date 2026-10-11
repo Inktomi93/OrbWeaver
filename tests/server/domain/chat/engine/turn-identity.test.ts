@@ -6,7 +6,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveTurnIdentity } from "../../../../../packages/server/src/domain/chat/engine/turn-identity.ts";
+import { resolveTurnIdentity } from "#server/domain/chat/engine/turn-identity.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CALLER = castId<UserId>("user_caller");

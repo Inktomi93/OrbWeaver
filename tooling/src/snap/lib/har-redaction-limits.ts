@@ -1,5 +1,5 @@
 // Policy normalization is separate so the disk-safety door stays below the tooling file cap.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { NetworkEvidenceLimits } from "../contract/har-redaction.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

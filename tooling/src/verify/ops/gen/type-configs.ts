@@ -3,8 +3,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { PluginAuthorWorld } from "@orb/plugin-toolchain";
 import { PLUGIN_AUTHOR_WORLDS } from "@orb/plugin-toolchain";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { TypeConfigIntentInput } from "@orb/tooling/_shared/type-config-intent";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import type { TypeConfigIntentInput } from "@orb/tooling/floor/compiler/type-config-intent";
 import {
   ambientRootsForProgram,
   BROWSER_LIB_ADDITIONS,
@@ -17,7 +17,7 @@ import {
   TYPE_CONFIG_INTENT_INPUT,
   TYPE_WORLD_TEMPLATE_PATHS,
   worldTemplateFor,
-} from "@orb/tooling/_shared/type-config-intent";
+} from "@orb/tooling/floor/compiler/type-config-intent";
 import { ts } from "ts-morph";
 
 refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts baseline type-configs");

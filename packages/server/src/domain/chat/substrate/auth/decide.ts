@@ -15,7 +15,7 @@
 import type { Can, ChatAction, ParticipantRole, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../../contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "#src/domain/chat/contract/errors.ts";
 
 /**
  * Present-membership gate (`requireParticipant`'s leak-free DATA half). A `loadMemberChat` MISS (`undefined` —

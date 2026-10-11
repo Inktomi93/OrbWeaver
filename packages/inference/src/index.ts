@@ -27,8 +27,8 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { fetchAnthropicModels } from "./backends/anthropic-messages/index.ts";
-import { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/kit/response-cache.ts";
-import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
+import { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
+import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/http/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
@@ -73,10 +73,9 @@ import { createRoleClientsFor } from "./roles/role-clients.ts";
 
 export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
-export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
-export { providerErrorFromHttp } from "./backends/kit/error-classify.ts";
-export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/kit/response-cache.ts";
-export { resolvedScrubSet } from "./backends/kit/sanitize.ts";
+export { providerErrorFromHttp } from "./backends/http/error-classify.ts";
+export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
+export { resolvedScrubSet } from "./backends/http/sanitize.ts";
 export type {
   LocalLightBackend,
   LocalLightModelCache,
@@ -89,6 +88,7 @@ export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, LOCAL_LIGHT_MODEL_SLOTS } fr
 // The space TAG derivation + the HTTP error classifier are test-visible seams: the embeddings suites derive the
 // tag the way compose does, and the transport suites build a classified `ProviderError` the way a runner does.
 export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
+export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/wire/cache-control.ts";
 export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";

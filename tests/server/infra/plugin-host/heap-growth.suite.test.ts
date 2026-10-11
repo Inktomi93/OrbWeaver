@@ -4,8 +4,8 @@
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { createLocalPluginHost } from "@orb/server/infra/plugin-host";
-import { PLUGIN_WASM_MEMORY_INITIAL_BYTES } from "../../../../packages/server/src/infra/plugin-host/budgets.ts";
-import { __readGuestMemoryBytesForTest } from "../../../../packages/server/src/infra/plugin-host/module.ts";
+import { PLUGIN_WASM_MEMORY_INITIAL_BYTES } from "#server/infra/plugin-host/budgets.ts";
+import { __readGuestMemoryBytesForTest } from "#server/infra/plugin-host/module.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const GROWTH_MEBIBYTES = 24;

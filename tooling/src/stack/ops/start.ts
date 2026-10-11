@@ -20,7 +20,7 @@
 //
 // PORTABILITY IS THE CONTRACT, so nothing here may reach for a POSIX-ism:
 //   • every spawn is `shell: false` with an argv array (no shell string, no quoting, no injection door);
-//   • node is `process.execPath`, pnpm is resolved per platform (`_shared/platform.ts` `pnpmInvocation`);
+//   • node is `process.execPath`, pnpm is resolved per platform (`floor/host/platform.ts` `pnpmInvocation`);
 //   • this launcher stays in the FOREGROUND, so the terminal IS the supervisor and there is no pidfile, no
 //     port probe and no process table to read;
 //   • paths are composed with node:path, and the server spawn is the SHARED `buildProdSpawnPlan`.
@@ -35,14 +35,14 @@ import { hostname, networkInterfaces } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { httpOk } from "../../_shared/http-probe.ts";
-import { warn } from "../../_shared/log.ts";
-import { isWsl2, openUrl, pnpmInvocation } from "../../_shared/platform.ts";
-import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
-import { buildShowcaseArtifacts, showcaseArtifactsAreCurrent } from "../../_shared/showcase-artifacts.ts";
+import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { buildShowcaseArtifacts, showcaseArtifactsAreCurrent } from "../../floor/artifacts/showcase-artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { isWsl2, openUrl, pnpmInvocation } from "../../floor/host/platform.ts";
+import { httpOk } from "../../floor/http/http-probe.ts";
+import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import type { SetupMachine, SetupResult, StartInvocation, StartSpawn } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { healthzUrl } from "../lib/stack-plan.ts";

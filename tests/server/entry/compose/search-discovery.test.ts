@@ -26,9 +26,9 @@ import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { DomainEventBus } from "../../../../packages/server/src/entry/compose/event-bus.ts";
-import type { SearchDiscoveryComposeDeps } from "../../../../packages/server/src/entry/compose/search-discovery.ts";
-import { buildSearchDiscovery } from "../../../../packages/server/src/entry/compose/search-discovery.ts";
+import type { DomainEventBus } from "#server/entry/compose/event-bus.ts";
+import type { SearchDiscoveryComposeDeps } from "#server/entry/compose/search-discovery.ts";
+import { buildSearchDiscovery } from "#server/entry/compose/search-discovery.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // @orb-waive no-test-fabrication(unknown): never dereferenced — every op this pin drives is stubbed or spied before it can reach db. Ends when this deliberate test boundary can be expressed without a fabricated typed value.

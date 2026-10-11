@@ -8,8 +8,8 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { FaceSourceChat } from "../../../../../packages/client/src/features/chat/lib/recent-faces.ts";
-import { recentFaces } from "../../../../../packages/client/src/features/chat/lib/recent-faces.ts";
+import type { FaceSourceChat } from "#client/features/chat/lib/recent-faces.ts";
+import { recentFaces } from "#client/features/chat/lib/recent-faces.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function seat(id: string, name: string, avatarHash: string | null = null): FaceSourceChat["participantPortraits"][number] {

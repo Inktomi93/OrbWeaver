@@ -1,4 +1,4 @@
-import { print } from "../../_shared/artifacts.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
 
 // Diagnostics + diff rendering (the preview surface).
 // ── §15 ─ Diagnostics + diff rendering ───────────────────────────────────────

@@ -9,7 +9,7 @@
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { ImportContext } from "../context.ts";
 import type { ImportOrphanCharacterInput } from "../contract/params.ts";
 import type { ImportOrphanCharacterResult } from "../contract/results.ts";

@@ -8,9 +8,9 @@
 // with a warning: a timing LEDGER must never be able to fail a verification run.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
-import { ensureReportsDir, reportsPath } from "@orb/tooling/_shared/artifacts";
-import { runGit } from "@orb/tooling/_shared/git";
-import { warn } from "@orb/tooling/_shared/log";
+import { ensureReportsDir, reportsPath } from "@orb/tooling/floor/artifacts/artifacts";
+import { warn } from "@orb/tooling/floor/cli/log";
+import { runGit } from "@orb/tooling/floor/git/git";
 import type { RunHistoryEntry, SlowdownAdvisory } from "../contract/history.ts";
 import type { VerifyReport } from "../contract/stage.ts";
 

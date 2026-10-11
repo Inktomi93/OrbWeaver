@@ -30,9 +30,9 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
-import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
-import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
+import { MODAL_SLOT_IDS } from "#client/state/modal-slot-ids.ts";
+import type { SectionId } from "#client/state/section-ids.ts";
+import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/floor/appearance/appearance-presets.json" with { type: "json" };
 import { COMMAND_CHIP_NAME } from "../../../../support/browser/command-chip-name.ts";
 import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";
@@ -51,6 +51,7 @@ import {
   AppShellMobileRuleStory,
   AppShellNamedListBandStory,
   AppShellOnSectionStory,
+  AppShellPhoneBackStory,
   AppShellStory,
   AppShellToastOverlayStory,
   AppShellTrackDoorsStory,
@@ -2204,6 +2205,47 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
   await expect.poll(() => input.evaluate((el) => el.clientWidth)).toBeGreaterThanOrEqual(96);
 });
 
+// 0873: with a long cast AND a long room name the title group is squeezed to its floor at 1280 with both panes
+// docked. The participants used to be left ~57px against a 120px name; neither half may collapse to a stub.
+const TOPBAR_LONG_ROOM = {
+  ...TOPBAR_IDENTITY_ROOM,
+  title: "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers",
+  participants: TOPBAR_IDENTITY_ROOM.participants.map((participant) =>
+    participant.kind === "character" ? { ...participant, displayName: `${participant.displayName} the Magnificent of Vael` } : participant,
+  ),
+} satisfies TrpcFixtureOutput<"chat.getChat">;
+
+test("0873: at 1280 with BOTH panes docked a long cast and a long room name each keep a floor and a half", async ({ mount, page }) => {
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_LONG_ROOM });
+  await seatNotificationBell(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
+  await settledTopbarIdentity(page, shell, "docked", false);
+
+  const title = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
+  const subtitle = page.locator(".shell-topbar-subtitle");
+  await expect(subtitle).toHaveText(TOPBAR_LONG_ROOM.title);
+  // The floor is the title floor in the title group's own font.
+  const floorPx = await title.evaluate((element) => {
+    // `ch` resolves in the font of the box that declares the floor: the title group.
+    const group = element.closest(".shell-topbar-title-group") ?? element;
+    const probe = document.createElement("span");
+    probe.style.width = "var(--dimension-shell-title-floor)";
+    probe.style.flex = "none";
+    group.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a CSS-token width probe, constant once the fonts are in
+  expect(floorPx).toBeGreaterThan(0);
+  // The row's tight budget, as a real account's trailing furniture makes it: the title group gets a little over
+  // three floors, which is where the two halves have to share it.
+  await page.addStyleTag({ content: `.shell-topbar-title-group { max-width: ${String(floorPx * 3.3)}px; }` });
+  await expect.poll(() => title.evaluate((element) => element.clientWidth)).toBeGreaterThanOrEqual(floorPx * 1.5 - 1);
+  await expect.poll(() => subtitle.evaluate((element) => element.clientWidth)).toBeGreaterThanOrEqual(floorPx * 1.5 - 1);
+});
+
 test("0851: with the context pane COLLAPSED the topbar still names the participants, chips and all", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
@@ -2347,6 +2389,8 @@ test.describe("the phone chat topbar keeps the members and memory chips (coarse 
       await expect(members).toBeVisible();
       await expect(memory).toBeVisible();
       await expect(title).toBeVisible();
+      // 0873: the room's own name leads the phone title, so same-cast rooms read apart in the few characters it gets.
+      await expect(title).toHaveText(/^Example — The Ashen Spire · Aria, Bolt, Cass$/u);
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const boxes = await Promise.all([members.boundingBox(), memory.boundingBox(), title.boundingBox()]);
       const [membersBox, memoryBox, titleBox] = boxes;
@@ -4633,7 +4677,7 @@ test("#176 full motion: the section swap captures the CONTENT pane only — the 
     names.filter((name) => name.includes("(root)")),
     `the document root must not be captured, or its frozen snapshot paints the old chrome over the new — got ${names.join(", ")}`,
   ).toEqual([]);
-  expect(names, "the content pane must be the captured region — the swap still has to animate").toContain("::view-transition-group(orb-section-content)");
+  expect(names, "the content pane must be the captured region — the swap still has to animate").toContain("::view-transition-new(orb-section-content)");
 });
 
 // ── RED-FIRST (#170): a per-chat background paints INSIDE its room and nowhere else ──────────────────
@@ -6580,6 +6624,168 @@ test("ONE-SHELL @320: an open chat room hides the tab bar and gives its row to t
   await shell.getByRole("button", { name: "Back to Chats" }).click();
   await expect(tabBar).toBeVisible();
   await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+});
+
+// 0863: Back undoes the last step. With the details sheet over a room, the first Back closes the sheet and
+// the room stays; the second Back leaves the room.
+for (const viewport of [MOBILE_NARROW, MOBILE]) {
+  test(`phone Back @${viewport.width}: an open details sheet closes first, then the room`, async ({ mount, page }) => {
+    await page.setViewportSize(viewport);
+    const shell = await mount(<AppShellPhoneBackStory section="chats" />);
+    const grid = page.locator(".shell-grid");
+    const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+
+    await shell.getByRole("button", { name: "open a member" }).click();
+    await expect(grid).toHaveAttribute("data-room-screen", "true");
+    await shell.getByRole("button", { name: "Show details" }).click();
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+
+    // With the sheet open the chevron only closes it, and says so.
+    await shell.getByRole("button", { name: "Close details" }).click();
+    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(grid).toHaveAttribute("data-room-screen", "true");
+
+    await shell.getByRole("button", { name: "Back to Chats" }).click();
+    await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+    await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+  });
+}
+
+// 0863: a room resumed from Home returns to Home, and the chevron names it.
+test("phone Back @390: a room opened from Home returns to Home", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellPhoneBackStory section="home" />);
+  const grid = page.locator(".shell-grid");
+  await expect(grid).toHaveAttribute("data-section", "home");
+
+  await shell.getByRole("button", { name: "resume from here" }).click();
+  await expect(grid).toHaveAttribute("data-section", "chats");
+  await expect(grid).toHaveAttribute("data-room-screen", "true");
+
+  await shell.getByRole("button", { name: "Back to Home" }).click();
+  await expect(grid).toHaveAttribute("data-section", "home");
+  await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+});
+
+// …and a room opened inside Chats still returns to the Chats list, not to wherever the last resume began.
+test("phone Back @390: a room opened inside Chats, after one resumed from Home, returns to the Chats list", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellPhoneBackStory section="home" />);
+  const grid = page.locator(".shell-grid");
+
+  await shell.getByRole("button", { name: "resume from here" }).click();
+  await shell.getByRole("button", { name: "Back to Home" }).click();
+  await expect(grid).toHaveAttribute("data-section", "home");
+  await shell.getByRole("button", { name: "Chats" }).first().click();
+  await expect(grid).toHaveAttribute("data-section", "chats");
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await shell.getByRole("button", { name: "Back to Chats" }).click();
+  await expect(grid).toHaveAttribute("data-section", "chats");
+  await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+});
+
+// 0866 F2: a section swap crossfades the content pane at a fixed scale. The UA's default group morph
+// (width/height/transform) and the image sizing scaled each snapshot to the other section's pane width, so the
+// content lunged or shrank whenever the two panes differed; the group snaps instead and the images stay 1:1.
+test("0866: a content swap crossfades without morphing the group or scaling the snapshots", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  // The story lands itself on a section through the same transition door; settle that one first, or this
+  // transition would skip it (or be skipped by it).
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
+  await expect.poll(() => page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === "running").length)).toBe(0);
+  const probe = await page.evaluate(async () => {
+    const content = document.querySelector<HTMLElement>(".shell-content");
+    if (content === null) {
+      throw new Error("expected the content pane");
+    }
+    const transition = document.startViewTransition(() => {
+      content.style.flex = "0 0 60%";
+    });
+    await transition.ready;
+    const pseudos = document.getAnimations().flatMap((animation) => {
+      const pseudo = (animation.effect as KeyframeEffect | null)?.pseudoElement;
+      return pseudo === null || pseudo === undefined ? [] : [pseudo];
+    });
+    const image = getComputedStyle(document.documentElement, "::view-transition-new(orb-section-content)");
+    const result = {
+      groupMorphs: pseudos.some((pseudo) => pseudo.startsWith("::view-transition-group(orb-section-content)")),
+      imageFit: image.objectFit,
+      imageAnchor: image.objectPosition,
+      oldReappears: false,
+    };
+    // The outgoing page fades out and must STAY out until the incoming one finishes: sample its opacity every
+    // frame to the end of the transition, and flag any return after it was gone.
+    const old = getComputedStyle(document.documentElement, "::view-transition-old(orb-section-content)");
+    let finished = false;
+    const done = (): void => {
+      finished = true;
+    };
+    transition.finished.then(done, done);
+    const opacities: number[] = [];
+    while (!finished) {
+      // Once the transition ends its pseudo-elements are gone and read as the default opacity 1.
+      opacities.push(document.documentElement.matches(":active-view-transition") ? Number.parseFloat(old.opacity) : 0);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    const fadedAt = opacities.findIndex((opacity) => opacity < 0.05);
+    result.oldReappears = fadedAt >= 0 && opacities.slice(fadedAt).some((opacity) => opacity > 0.5);
+    return result;
+  });
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read inside the transition's own `ready` barrier, then settled
+  expect(probe.groupMorphs).toBe(false);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled read
+  expect(probe.imageFit).toBe("none");
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled read
+  expect(probe.imageAnchor).toBe("0px 0px");
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): sampled to the transition's end, then settled
+  expect(probe.oldReappears).toBe(false);
+});
+
+// 0866 F5: at an overlay width the closing sheet only slides. Its box kept the full-height inset while it exited
+// and jumped up over the topbar in the first frame, with the sheet still on screen.
+test("0866: a closing overlay sheet keeps its box below the topbar for the whole exit", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 900, height: 800 });
+  const shell = await mount(<AppShellTrackDoorsStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  await shell.getByRole("button", { name: "Show details" }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await expect.poll(() => contextPanel.evaluate((panel) => panel.getAnimations().length)).toBe(0);
+  const openTop = (await contextPanel.boundingBox())?.y ?? Number.NaN;
+  expect(openTop).toBeGreaterThan(0);
+
+  // Sample the pane's top edge once per frame for a fixed run of frames (longer than the 220ms exit), keeping only
+  // the frames where any part of it is still on screen.
+  await page.evaluate(() => {
+    const panel = document.querySelector('.shell-panel[data-panel-side="context"]');
+    const samples: number[] = [];
+    Reflect.set(globalThis, "__sheetExit", samples);
+    let frames = 0;
+    const tick = (): void => {
+      const box = panel?.getBoundingClientRect();
+      if (box !== undefined && box.left < window.innerWidth) {
+        samples.push(Math.round(box.top));
+      }
+      frames += 1;
+      if (frames < 45) {
+        requestAnimationFrame(tick);
+      } else {
+        Reflect.set(globalThis, "__sheetExitDone", true);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+  await shell.getByRole("button", { name: "Hide details" }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect.poll(() => page.evaluate(() => Reflect.get(globalThis, "__sheetExitDone") === true)).toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate((top) => {
+        const samples = Reflect.get(globalThis, "__sheetExit") as number[];
+        return samples.length > 3 && samples.every((sample) => sample === top);
+      }, Math.round(openTop)),
+    )
+    .toBe(true);
 });
 
 test("ONE-SHELL @320: another section's pushed detail keeps the tab bar", async ({ mount, page }) => {

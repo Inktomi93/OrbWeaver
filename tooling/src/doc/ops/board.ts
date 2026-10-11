@@ -1,7 +1,7 @@
 // The read verbs over the items: `overview` (the column view, every state named with its count so an
 // empty column is a fact and not an omission) and `drift` (the orchestrator nag over resolved git facts,
 // the plans' lifecycle included).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DriftFacts, OverviewFilter, PlanState, WorkItem } from "../contract/types.ts";
 import { PLAN_KIND } from "../contract/vocab.ts";
 import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../lib/drift.ts";

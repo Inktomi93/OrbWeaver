@@ -5,8 +5,8 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { describe } from "vitest";
-import type { StageEstimateSubject } from "../../../../../packages/server/src/domain/refinery/contract/prompts.ts";
-import { outputEstimateOf, stageBudgetMisfitOf } from "../../../../../packages/server/src/domain/refinery/substrate/output-budget.ts";
+import type { StageEstimateSubject } from "#server/domain/refinery/contract/prompts.ts";
+import { outputEstimateOf, stageBudgetMisfitOf } from "#server/domain/refinery/substrate/output-budget.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD: CharacterCard = {

@@ -22,7 +22,7 @@
 // ran concurrently"). Both writes used to go to the ONE fixed `reports/check-structure.json`, and that path
 // is precisely what concurrent runs clobber — measured live, a complete 248-gate verdict was replaced by a
 // SIBLING run's in-flight stub inside 30s, which is this manifest's own tell firing for the wrong run. So
-// the run writes into its private slot (`reports/runs/structure/<runId>/`, `_shared/artifacts.ts`) and
+// the run writes into its private slot (`reports/runs/structure/<runId>/`, `floor/artifacts/artifacts.ts`) and
 // publishes `reports/check-structure.json` as a symlink into it at COMPLETION ONLY.
 //
 // The ruling survives — its INPUT changed. The stub still exists, still says `complete: false`, and is

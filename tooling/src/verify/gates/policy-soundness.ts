@@ -16,7 +16,7 @@
 //   E3 an I/O or dynamic-loading door in a final module — §12.3 bans filesystem reads outright and the
 //      closed ResourceHost vocabulary is the only door. The closed set (#2111 D1, each member its own row):
 //      the `fs` / `node:fs` / `fs/promises` / `node:fs/promises` / `fs-extra` / `child_process` /
-//      `node:child_process` specifiers, `_shared/proc.ts` (the subprocess home, judged by IMPORT ORIGIN),
+//      `node:child_process` specifiers, `floor/process/proc.ts` (the subprocess home, judged by IMPORT ORIGIN),
 //      a value-position `import(…)`, a `require(…)` call, and `process.binding(…)`. All at ZERO on the tree.
 //   E4 a resource door read that does not go through `lib/resource-declaration.ts` `readyResourceValue`
 //      (#2019). A declared resource is acquired and asserted READY in the population phase, and a non-ready
@@ -86,7 +86,7 @@
 // have one.
 import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
@@ -130,7 +130,7 @@ const FORBIDDEN_IO_SPECIFIERS: ReadonlySet<string> = new Set([
   "node:child_process",
 ]);
 /** E3's one door judged by IMPORT ORIGIN: the repo's subprocess home. A same-named module elsewhere is not it. */
-const PROC_HOME = "/tooling/src/_shared/proc.ts";
+const PROC_HOME = "/tooling/src/floor/process/proc.ts";
 const PROC_BASENAME = "proc.ts";
 const REQUIRE = "require";
 const PROCESS = "process";
@@ -161,7 +161,7 @@ const RESOURCE_MESSAGE =
   "handed to something else — stop: the closed host may not leave the call site. A shared reader takes the NARROWED VALUE and the caller reads its own door (#2148).";
 const FS_MESSAGE =
   "a final policy opens an I/O or dynamic-loading door — §3 bans every filesystem read and subprocess in a gate module (`fs`, `fs/promises`, " +
-  "`fs-extra`, `child_process`, `_shared/proc.ts`, a value-position `import()`, `require()`, `process.binding()`); declare the read through the closed " +
+  "`fs-extra`, `child_process`, `floor/process/proc.ts`, a value-position `import()`, `require()`, `process.binding()`); declare the read through the closed " +
   "ResourceHost vocabulary (contract/resource-declaration.ts) or STOP the conversion (a read no kind serves is a refusal, not a private door).";
 const GRAMMAR_MESSAGE =
   "a final policy PARSES a retired marker grammar — a regex, a `new RegExp` or a membership test naming a `RETIRED_MARKER_OPENERS` spelling " +
@@ -672,19 +672,19 @@ export const gate = defineGate({
       files: familyFixture(
         finalProbeModule(
           `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
-          'import { runNicedSync } from "../../_shared/proc.ts";\n',
+          'import { runNicedSync } from "../../floor/process/proc.ts";\n',
         ),
-        { "tooling/src/_shared/proc.ts": "export const runNicedSync = 1;\n" },
+        { "tooling/src/floor/process/proc.ts": "export const runNicedSync = 1;\n" },
       ),
       expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
-      why: "E3 MEMBER `_shared/proc.ts` — the subprocess home, judged by IMPORT ORIGIN: the planted target makes the specifier resolve to the real home suffix",
+      why: "E3 MEMBER `floor/process/proc.ts` — the subprocess home, judged by IMPORT ORIGIN: the planted target makes the specifier resolve to the real home suffix",
     },
     {
       mode: "types",
       files: familyFixture(
         finalProbeModule(
           `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
-          'import { runNicedSync } from "../../_shared/proc.ts";\n',
+          'import { runNicedSync } from "../../floor/process/proc.ts";\n',
         ),
       ),
       expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },

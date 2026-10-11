@@ -16,8 +16,9 @@
 // IT IS STILL NOT A PERFORMANCE BUDGET. Past the ceiling the stage's process group dies (and, since #1848,
 // its escaped browsers with it), and the classifier scores that a tool error. The load stretch on top —
 // `budget()`, `tooling-clock-budget` — is the runner's, applied where the clock is consumed.
-import { readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { readStageBudgets } from "@orb/tooling/floor/host/concurrency-profile";
 import type { StageDef } from "../contract/stage.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify");

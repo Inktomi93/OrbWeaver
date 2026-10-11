@@ -8,7 +8,7 @@
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import { withDerivedTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags.ts";
+import { withDerivedTierFlags } from "#client/features/regex/lib/derive-tier-flags.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Exactly what an ST card carrying BOTH tier flags lifts into: stored as imported (deliberately — see the

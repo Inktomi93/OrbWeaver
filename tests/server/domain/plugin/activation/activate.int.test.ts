@@ -12,12 +12,12 @@ import type { PluginHandlerRef, PluginHostOps, PluginHostPort, PluginInvokeHandl
 import { PluginCrashedError } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { afterEach } from "vitest";
-import { createActivate } from "../../../../../packages/server/src/domain/plugin/activation/activate.ts";
-import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
-import type { PluginRegistry } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
-import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
-import { createPluginLifecycleLanes } from "../../../../../packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts";
-import { __terminateManagedPluginBrokerForTest } from "../../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
+import { createActivate } from "#server/domain/plugin/activation/activate.ts";
+import { createCrashPolicy } from "#server/domain/plugin/activation/crash-policy.ts";
+import type { PluginRegistry } from "#server/domain/plugin/contract/service.ts";
+import { getById } from "#server/domain/plugin/persistence/plugins.ts";
+import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
+import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

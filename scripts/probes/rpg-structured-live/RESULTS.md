@@ -84,7 +84,7 @@ Run `d0mxzn5b` used production composition on `7bad0df1cc`, with `dirtyProduct: 
 
 The completed command exited 0; that is not provider acceptance. No send completed and neither resync rebuilt state. The report now refuses passes from empty-panel invariants after a recorded send failure or `resync.ok: false`. Re-reading the same failed rows changed each send consumer from 1/8 to 0/8; successful stored consumers retain their checks.
 
-Native `sendError` preserves the provider's quota refusal: `generate_content_free_tier_requests`, daily limit 20, model `gemini-3.8-flash`, "Please retry in 9h57m9.100872315s." Resync records status 429. Custom errors reach production as status-bearing `ProviderError` with empty text (`packages/inference/src/backends/kit/error-classify.ts:316`); this probe's reply digest does not retain their raw error bodies. The Smart probe's same-endpoint raw replies separately preserve 503 and 429 refusals. Neither is counted as a pass.
+Native `sendError` preserves the provider's quota refusal: `generate_content_free_tier_requests`, daily limit 20, model `gemini-3.8-flash`, "Please retry in 9h57m9.100872315s." Resync records status 429. Custom errors reach production as status-bearing `ProviderError` with empty text (`packages/inference/src/backends/http/error-classify.ts:316`); this probe's reply digest does not retain their raw error bodies. The Smart probe's same-endpoint raw replies separately preserve 503 and 429 refusals. Neither is counted as a pass.
 
 ```sh
 LOG_LEVEL=info RPG_LIVE_RESULTS=/tmp/h-inference-rpg-gemini.jsonl pnpm exec node scripts/probes/rpg-structured-live/run.ts gemini-3.8-flash custom-gemini-3.8-flash-compat

@@ -4,7 +4,7 @@
 // asserted here is the CLAIM the grouping makes about the data: which pairs collapse, which must not, and
 // that a collapsed pair never also appears as its own row.
 
-import { groupIdenticalArt } from "../../../../../packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts";
+import { groupIdenticalArt } from "#client/features/discovery/lib/corpus-duplicate-groups.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function pair(a: string, b: string, similarity: number): { characterIdA: string; nameA: string; characterIdB: string; nameB: string; similarity: number } {

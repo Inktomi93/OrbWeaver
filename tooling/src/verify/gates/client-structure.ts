@@ -21,7 +21,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `client-structure` descriptor at 530b6705a73e829158782f26b382377f10e0a828, the parent of the conversion `f01f0b92a4`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,354 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no
 // `scanRoot` — dispatched 7,354, and the final `population` admits 32; the subject is the declared
 // `client-feature` + `server-domain` trees. legacy − final = 7,322 harness sources the legacy walk never read as
 // TypeScript (it listed the feature tree with `readdirSync` and read `surfaces/**/*.tsx` bytes with `readFileSync`).

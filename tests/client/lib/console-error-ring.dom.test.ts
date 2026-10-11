@@ -10,7 +10,7 @@
 import { beforeEach, describe } from "vitest";
 // A RELATIVE import, not the `#lib` barrel: this ring is deliberately NOT re-exported there (it is a dev
 // instrument the bridge installs — the `motion-flaggers.ts` rule), and the barrel is what a prod bundle pulls.
-import { __resetConsoleErrors, consoleErrorRing, recordConsoleError } from "../../../packages/client/src/lib/console-error-ring.ts";
+import { __resetConsoleErrors, consoleErrorRing, recordConsoleError } from "#client/lib/console-error-ring.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** 2020-01-01. The stamp assertions below are about the ring's CLOCK CHOICE, not about "now": an epoch stamp

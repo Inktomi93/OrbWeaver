@@ -5,13 +5,7 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import {
-  evictFieldIndex,
-  FIELD_INDEX_TTL_MS,
-  getOrBuildFieldIndex,
-  queryFields,
-  suggestFields,
-} from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
+import { evictFieldIndex, FIELD_INDEX_TTL_MS, getOrBuildFieldIndex, queryFields, suggestFields } from "#server/domain/search/substrate/field-index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 interface CardDoc {

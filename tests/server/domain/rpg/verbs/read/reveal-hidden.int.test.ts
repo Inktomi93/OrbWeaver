@@ -8,7 +8,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findGameByChat, updateGame } from "../../../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { findGameByChat, updateGame } from "#server/domain/rpg/persistence/games.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, liteConfig, principal, seedLiteGame, seedMessage, seedUser, test } from "../../_support.ts";
 

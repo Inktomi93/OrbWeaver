@@ -23,7 +23,7 @@
 //      stamp `updatedAt`, and this file holds no bus/emit op at all — so a card-state write can NEVER re-index
 //      the character or invalidate a canon view (D148 clause d, the opposite of `create`/`update`). Inertness of
 //      the stored value (a nested `depth_prompt` staying inert data, never a promoted column) is the serde tier's
-//      wall (`kit/serde/card`), unchanged by this write — the value lands in the residual bag verbatim.
+//      wall (`primitives/serde/card`), unchanged by this write — the value lands in the residual bag verbatim.
 
 import { pluginCardStateKey } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";

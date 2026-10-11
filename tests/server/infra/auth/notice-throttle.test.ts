@@ -1,7 +1,7 @@
 // infra/auth/notice-throttle — one security line per key per hour, with a bounded key map. The relayed-fallback
 // and public-http notices both ride it; their suites pin what each one logs.
 
-import { createKeyedNoticeThrottle } from "../../../../packages/server/src/infra/auth/notice-throttle.ts";
+import { createKeyedNoticeThrottle } from "#server/infra/auth/notice-throttle.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;

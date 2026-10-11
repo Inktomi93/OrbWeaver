@@ -41,7 +41,7 @@
 // path filter — channels: homeFile `/packages/server/src/infra/providers/contract/resolve.ts` + emitScope
 // `/packages/server/src/infra/providers/`; homeFile `/packages/contracts/src/chat/bus.ts` + emitScope
 // `/packages/server/src/domain/chat/`. Over the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`) it admits 238 and the final `population` admits 1,585 (the bare harness
+// `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 238 and the final `population` admits 1,585 (the bare harness
 // dispatch was 7,144). legacy − final = ∅. final − legacy = 1,347 — every `@contracts` source but the chat bus home
 // (104) and every `@server` source outside `infra/providers` and `domain/chat` (1,243): the two channel emit scopes
 // stay inside the reader, so the population is a superset of what it judges. Controls: inside: the real shared member
@@ -62,7 +62,7 @@
 // a fixture under the OLD directory now admits zero paths and refuses for empty population, which proves nothing.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";

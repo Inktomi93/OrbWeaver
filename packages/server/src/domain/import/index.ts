@@ -1,6 +1,6 @@
 // domain/import — FRONT DOOR: the only legal external import; re-exports the public surface.
 
-export { cardContentHash } from "#kit/serde/card";
+export { cardContentHash } from "#primitives/serde/card";
 export type { ImportContext } from "./context.ts";
 export type { ImportCardErrorCode, ProfileImportLimitErrorCode } from "./contract/errors.ts";
 export { ImportCardError, ImportInfraFailureError, ProfileImportLimitError } from "./contract/errors.ts";

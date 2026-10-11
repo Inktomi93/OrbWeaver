@@ -26,7 +26,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
 export const userCredentials = sqliteTable(

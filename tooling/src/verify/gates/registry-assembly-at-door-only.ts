@@ -37,7 +37,7 @@
 // conversion `493fdbedae` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `c2b5253308` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,263 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,313 and final `population` admits 1,308.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,313 and final `population` admits 1,308.
 // legacy − final = 5 — `packages/client/src/main.tsx` and the four `compose/` modules: the door, moved from the
 // visitor into the population. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

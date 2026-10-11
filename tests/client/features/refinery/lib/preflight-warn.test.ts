@@ -12,7 +12,7 @@
 import type { RefineryStage } from "@orb/contracts/refinery";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { preflightViewOf, stageWarnOf, warnScopeOf } from "../../../../../packages/client/src/features/refinery/lib/preflight-warn.ts";
+import { preflightViewOf, stageWarnOf, warnScopeOf } from "#client/features/refinery/lib/preflight-warn.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CONTEXT_TOKENS = 8000;

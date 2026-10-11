@@ -11,12 +11,12 @@
 //
 // The remedy is the one our own law already required: `@orb/kit/safe-color` is the single colour
 // clamp ("never re-derive a color regex" — UI-Primitives-and-Reuse.md §13.9), it is ColorJS-backed
-// (standards CSS Color parsing + CSS gamut mapping), and `tooling/src/_shared/theme.ts` already
+// (standards CSS Color parsing + CSS gamut mapping), and `tooling/src/floor/appearance/theme.ts` already
 // reaches it. Colour-space blindness was never the right way to avoid false positives on the
 // sanctioned effects — `checkRadialGlow` already takes a `sanctioned` flag, and a carrier allowlist
 // is the exemption mechanism. Being blind to OKLCH also meant being blind to an UNSANCTIONED glow.
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
-import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 
 /** Colour FUNCTION heads we accept. `color-mix()` and OKLCH's relative form nest parentheses, so the
  *  span is closed by balanced-paren scanning, never by `[^)]*` (which stops at the inner `)` and

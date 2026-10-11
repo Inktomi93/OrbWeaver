@@ -11,7 +11,7 @@
 // this door is a second REACH, never a second spelling, and the selector rules (ambiguity, nonempty,
 // duplicate, kebab-case) come from that module's `buildSelector` rather than being re-decided here.
 import { parseArgs } from "node:util";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { PolicySelector } from "../contract/policy-plan.ts";
 import { buildSelector, CHECK_FLAG, FAIL_ON_WARNINGS_FLAG, FAMILY_FLAG, isSelectionRefusal, refuseDuplicateOptions } from "./policy-command.ts";
 

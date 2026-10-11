@@ -15,7 +15,7 @@ import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
 import { ChromeRegistryProvider, closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
-import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
+import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 

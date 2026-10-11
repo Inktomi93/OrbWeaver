@@ -13,7 +13,7 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters, chatParticipants, chats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type {
   AssetId,
   CharacterHandle,
@@ -27,11 +27,11 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
-import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
-import { bumpStatsCanonVersion } from "../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import type { BulkImportLorebook, HasPrimaryBook } from "../../../../packages/server/src/domain/world-info/index.ts";
-import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "../../../../packages/server/src/domain/world-info/index.ts";
+import type { CharacterContext } from "#server/domain/character/context.ts";
+import type { AttachCardTagOp, DetachCardTagOp } from "#server/domain/character/contract/service.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import type { BulkImportLorebook, HasPrimaryBook } from "#server/domain/world-info/index.ts";
+import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

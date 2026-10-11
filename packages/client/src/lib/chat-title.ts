@@ -38,10 +38,9 @@ export function deriveChatTitle(title: string | null, participantNames: readonly
   return participantNames.length > 0 ? participantNames.join(", ") : UNTITLED_CHAT_TITLE;
 }
 
-/** The ONE order every surface that names a room by its people uses: the participants first, then the user's own
- *  name for the room when they set one. The topbar header, the phone screen title and the chat list row all
- *  read it, so a row named X opens a room whose header says X. A room with no characters leads with the name
- *  alone (or the untitled word when it has neither). */
+/** The phone screen title: the user's own name for the room leads when they set one, then the participants, so
+ *  two rooms with the same cast read apart on a narrow row (the chat list row leads the same way). A room
+ *  without a name is told by its participants; one with no characters by its name alone (or the untitled word). */
 export function chatRoomTitle(title: string | null, participantNames: readonly string[]): string {
   const roomName = authoredChatName(title);
   if (participantNames.length === 0) {
@@ -49,5 +48,5 @@ export function chatRoomTitle(title: string | null, participantNames: readonly s
   }
   const participants = participantNames.join(", ");
   // A name that merely repeats the people ("Aveline" in a room with Aveline) adds nothing to print twice.
-  return roomName === null || roomName.toLowerCase() === participants.toLowerCase() ? participants : `${participants} \u00b7 ${roomName}`;
+  return roomName === null || roomName.toLowerCase() === participants.toLowerCase() ? participants : `${roomName} \u00b7 ${participants}`;
 }

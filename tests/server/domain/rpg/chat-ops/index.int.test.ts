@@ -2,11 +2,11 @@
 // the mode-blind preset knob read, the send-path snapshot commit, the abort clear, and the always-null seat
 // read. The gather + flush have their own mirrors (`./gather`, `./flush`).
 
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { ChatTurnId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { findSnapshotByVariant } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { emptyState, expect, makeRpgService, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support.ts";
 

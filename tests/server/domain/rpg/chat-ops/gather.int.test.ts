@@ -13,9 +13,9 @@ import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { MERGE_SEPARATOR } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
-import { shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
-import { convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { MERGE_SEPARATOR } from "#server/domain/chat/assembly/role-squash.ts";
+import { shape } from "#server/domain/chat/assembly/shape.ts";
+import { convertsToEmptyWireRow } from "#server/domain/chat/substrate/wire-history.ts";
 import { freshDb } from "../../../../support/db.ts";
 import type { RpgHarness } from "../_support.ts";
 import {

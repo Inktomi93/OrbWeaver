@@ -22,7 +22,7 @@
 // value, >1 scope selector, or >1 tier are all misuse (exit 3), never a silent-ignore.
 //
 // CHRONOLOGICAL STAGE TRANSCRIPT: a stage's stdout and stderr are captured INTERLEAVED, in arrival order
-// (`_shared/proc.ts` spawnNicedTranscript), so the END of reports/verify/<stage>.log — and the
+// (`floor/process/proc.ts` spawnNicedTranscript), so the END of reports/verify/<stage>.log — and the
 // failureExcerpt cut from it — is the END OF THE RUN. Concatenating whole streams instead (the pre-#259
 // `stdout + stderr`) put the tail of STDERR last: for `tests:node` that was pnpm's `$ …` banner plus node
 // ExperimentalWarnings, while playwright's CT verdict sat mid-file — a real CT failure read as a silent
@@ -36,16 +36,16 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import type { RunSlot } from "@orb/tooling/_shared/artifacts";
-import { checkoutName, openRunSlot, publishRunSlot, runFile } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { execGit, GIT_READ_PREFIX } from "@orb/tooling/_shared/git";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import { processEnvValue } from "@orb/tooling/_shared/process-env";
-import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/_shared/run-marker";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
+import { checkoutName, openRunSlot, publishRunSlot, runFile } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { execGit, GIT_READ_PREFIX } from "@orb/tooling/floor/git/git";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";

@@ -8,7 +8,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { readForgottenGemCandidates } from "../../../../../packages/server/src/domain/discovery/persistence/message-reads.ts";
+import { readForgottenGemCandidates } from "#server/domain/discovery/persistence/message-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";

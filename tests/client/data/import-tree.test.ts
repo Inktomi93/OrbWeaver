@@ -8,7 +8,7 @@
 // the dom-less node typecheck:graph program (the 2026-06-28 dom-lib incident).
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { afterEach, vi } from "vitest";
-import { importTree, relativePathOf, reviewTreePersonas } from "../../../packages/client/src/data/import-tree.ts";
+import { importTree, relativePathOf, reviewTreePersonas } from "#client/data/import-tree.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {

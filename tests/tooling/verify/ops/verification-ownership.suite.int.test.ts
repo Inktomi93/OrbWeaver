@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import YAML from "yaml";
 import { z } from "zod";
 import { applicationPartitionKeys } from "../../../../tooling/src/verify/lib/application-partitions.ts";

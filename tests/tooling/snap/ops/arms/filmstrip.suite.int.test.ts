@@ -3,8 +3,8 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import sharp from "sharp";
 import { vi } from "vitest";
 import type { FilmstripLimits } from "../../../../../tooling/src/snap/contract/filmstrip.ts";

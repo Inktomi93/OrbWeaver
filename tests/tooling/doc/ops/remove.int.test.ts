@@ -38,7 +38,7 @@ test("remove deletes items, an ADR, a law doc and a finished plan's folder nothi
 test("remove refuses while anything cites the doc, and a target that is not a governed doc, writing nothing", async ({ plantedTree }) => {
   const root = await plantedTree({ "packages/kit/src/x.ts": "// The shape follows D1.\nexport const x = 1;\n" });
   // A citer outside docs/ is found through the repository's file list, so the planted tree is one.
-  const { execFixtureGit } = await import("../../../../tooling/src/_shared/git-fixture.ts");
+  const { execFixtureGit } = await import("../../../../tooling/src/floor/git/git-fixture.ts");
   execFixtureGit(root, ["init", "-q", "-b", "main"]);
   execFixtureGit(root, ["add", "-A"]);
   newItem({ title: "Needed", kind: "work", ...OPEN }, root, TODAY);

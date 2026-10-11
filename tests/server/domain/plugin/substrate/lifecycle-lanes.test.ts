@@ -1,6 +1,6 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPluginLifecycleLanes } from "../../../../../packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts";
+import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("serializes one plugin while allowing a different plugin to proceed", async () => {

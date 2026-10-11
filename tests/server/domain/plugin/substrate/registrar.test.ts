@@ -10,8 +10,8 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
-import { createPromptTransformRegistry } from "../../../../../packages/server/src/domain/chat/substrate/prompt-transforms.ts";
-import { buildPluginPromptTransform, capFactContent } from "../../../../../packages/server/src/domain/plugin/substrate/registrar.ts";
+import { createPromptTransformRegistry } from "#server/domain/chat/substrate/prompt-transforms.ts";
+import { buildPluginPromptTransform, capFactContent } from "#server/domain/plugin/substrate/registrar.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_reg000000000000000000000");

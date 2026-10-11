@@ -1,7 +1,7 @@
 // The typed console-annotation parser (#1372), moved out of run-finding-browser.ts to hold the 450-line
 // cap: the app's fixed console-line grammar and the finding drafts it produces from browser diagnostics.
-import { exactScope } from "../../_shared/artifact-scope.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { exactScope } from "../../floor/artifacts/artifact-scope.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
 import type { SnapFindingDisposition, SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
 import { isDevToolsFrontendProtocolNoise } from "./devtools-frontend-noise.ts";

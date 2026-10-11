@@ -1,7 +1,7 @@
 // The baseline door writes the same bytes as @orb/ui tokens:build. No second token emitter or census.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { generateArtifacts } from "@orb/ui/tokens-build";
 import { THEME, UI_PACKAGE_ROOT } from "../../contract/css-family.ts";
 

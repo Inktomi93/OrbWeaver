@@ -15,8 +15,8 @@
 import type { StandaloneVariableDelta } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { foldVarOps } from "@orb/kit/macro";

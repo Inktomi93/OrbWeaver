@@ -8,7 +8,7 @@
 // Card content rides FLAT on the row (D28): the typed promotions `depthPrompt` (the shared `{depth, role?}`
 // directive + note), `extensions` (residual `data.extensions.*` vendor keys), `residualData` (the
 // residual TOP-LEVEL `data.*` keys, `extensions`'s sibling), and `refinery` (derived pipeline signals) are
-// JSON columns read through the `@orb/db/kit` parse-seam. `greetings` is an ALWAYS-A-LIST column (default
+// JSON columns read through the `@orb/db/query` parse-seam. `greetings` is an ALWAYS-A-LIST column (default
 // `[]`, never null — the parseStringArray asymmetry). `importHash` (the card import identity, re-import
 // dedup) is DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
 //

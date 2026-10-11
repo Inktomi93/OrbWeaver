@@ -4,7 +4,7 @@
 
 import { join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONTAINER_MARKER_FILES } from "../../foundation/env/container.ts";
+import { CONTAINER_MARKER_FILES } from "#src/foundation/env/container.ts";
 
 // This file sits at `packages/server/src/infra/plugin-host/`. Its fifth parent holds `packages/` and `node_modules/`
 // in the repository and in the image (`/app`), beside the data dir, which is never granted.

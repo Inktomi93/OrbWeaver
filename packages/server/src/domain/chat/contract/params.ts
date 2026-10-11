@@ -370,7 +370,7 @@ export interface EditMessageParams extends MessageScopedParams, ViewerClockParam
 export interface ApplyProseRewriteParams extends MessageScopedParams {
   /** The variant the audit READ. Must still be the slot's selected one, else `rewrite_superseded`. */
   readonly variantId: MessageVariantId;
-  /** sha256-hex of that variant's content as the audit read it (`@orb/server/kit/content-hash`). */
+  /** sha256-hex of that variant's content as the audit read it (`@orb/server/primitives/content-hash`). */
   readonly expectedContentHash: string;
   /** The full corrected reply — already `neutralizeMacros`'d by the producer (§2 law 7). */
   readonly content: string;

@@ -4,7 +4,7 @@
 
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CHAT_ROLE_TARGET, effectiveTarget, targetFromValue, targetValue } from "../../../../../packages/client/src/features/preset/lib/capability-target.ts";
+import { CHAT_ROLE_TARGET, effectiveTarget, targetFromValue, targetValue } from "#client/features/preset/lib/capability-target.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ROW = castId<UserConnectionId>("user_connection_ctswitch001");

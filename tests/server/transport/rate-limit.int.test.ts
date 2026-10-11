@@ -6,7 +6,7 @@
 
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { describe } from "vitest";
-import { createRateLimiter } from "../../../packages/server/src/transport/rate-limit.ts";
+import { createRateLimiter } from "#server/transport/rate-limit.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 

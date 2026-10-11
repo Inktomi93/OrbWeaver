@@ -1,8 +1,8 @@
 // Recursive authored scalar/object/tuple facts built on the one stable-binding resolver.
 
-import { inspectReferenceWrites, readStaticNumber, readStaticString, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
-import { invokedMemberThroughAliases, unprovenReferenceUse } from "@orb/tooling/_shared/reference-fact-writes";
+import { inspectReferenceWrites, readStaticNumber, readStaticString, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
+import { invokedMemberThroughAliases, unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import type { Identifier, Node as MorphNode, SpreadElement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { StaticAuthoredObjectValue, StaticAuthoredProperty, StaticAuthoredScalar, StaticAuthoredValue } from "../contract/static-authored-value.ts";

@@ -44,16 +44,16 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId, viewerTimeZone } from "#lib";
-import { useSelectedPresetTemplateId } from "#state";
-import { openSectionInPrompt } from "../../lib/preset-nav.ts";
-import type { TemplateRow } from "../../lib/template-rows.ts";
+import { openSectionInPrompt } from "#src/features/preset/lib/preset-nav.ts";
+import type { TemplateRow } from "#src/features/preset/lib/template-rows.ts";
 import {
   inspectedTemplateRow,
   TEMPLATE_KIND_DELIVERY,
   TEMPLATE_KIND_FIRE_TIME,
   TEMPLATE_KIND_UNBOUND_GLOSS,
   templatePreview,
-} from "../../lib/template-rows.ts";
+} from "#src/features/preset/lib/template-rows.ts";
+import { useSelectedPresetTemplateId } from "#state";
 import { MacroText } from "../macro-text.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
 import { DatumRow } from "./readout-parts.tsx";

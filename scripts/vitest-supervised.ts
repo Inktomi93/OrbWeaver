@@ -7,14 +7,14 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve as pathResolve, relative } from "node:path";
 import process from "node:process";
-import type { RunAlias } from "@orb/tooling/_shared/artifacts";
-import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
-import { readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
-import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
-import { listProcesses, processDiagnostics, processTreeCpuMs } from "@orb/tooling/_shared/platform";
-import { signalOfExitCode } from "@orb/tooling/_shared/proc-signals";
-import { processEnvValue, testProcessEnv } from "@orb/tooling/_shared/process-env";
-import { nicedCommand } from "@orb/tooling/_shared/process-priority";
+import type { RunAlias } from "@orb/tooling/floor/artifacts/artifacts";
+import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/floor/artifacts/artifacts";
+import { readStageBudgets } from "@orb/tooling/floor/host/concurrency-profile";
+import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/floor/host/load-budget";
+import { listProcesses, processDiagnostics, processTreeCpuMs } from "@orb/tooling/floor/host/platform";
+import { signalOfExitCode } from "@orb/tooling/floor/process/proc-signals";
+import { processEnvValue, testProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { nicedCommand } from "@orb/tooling/floor/process/process-priority";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -152,7 +152,7 @@ function readReport(path: string): VitestJsonReport | null {
     return null;
   }
 }
-/** THIS invocation's private artifact slot (#1029, `_shared/artifacts.ts`). Every shard report, the merged
+/** THIS invocation's private artifact slot (#1029, `floor/artifacts/artifacts.ts`). Every shard report, the merged
  *  report and every wedge dump land under `reports/runs/test/<runId>/`; `reports/test-report.json` and
  *  `reports/test-shards/` are `latest` symlinks published at the END of the run. Two `pnpm test` runs on one
  *  checkout therefore cannot overwrite each other's verdict — before this, both wrote the same three paths

@@ -14,10 +14,10 @@ import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import { CONNECTION_ROLE_LABELS } from "#lib";
+import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "#src/features/preset/lib/capability-target.ts";
+import { chatCapabilityOf } from "#src/features/preset/lib/chat-capability.ts";
+import { mirostatSkipped } from "#src/features/preset/lib/effective-knobs.ts";
 import { setPresetReadoutTarget, usePresetReadoutTarget } from "#state";
-import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "../../lib/capability-target.ts";
-import { chatCapabilityOf } from "../../lib/chat-capability.ts";
-import { mirostatSkipped } from "../../lib/effective-knobs.ts";
 import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
 
 type ConnectionRow = inferOutput<Trpc["connection"]["list"]>[number];

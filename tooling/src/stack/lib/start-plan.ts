@@ -8,7 +8,7 @@
 import { SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
-import { MAX_TCP_PORT } from "../../_shared/ports.ts";
+import { MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type {
   AnswerParse,
   DistVerdict,

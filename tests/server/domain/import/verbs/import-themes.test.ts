@@ -11,7 +11,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CollectedTheme, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
 import { createImportService } from "@orb/server/domain/import";
-import { stThemeFromJson } from "@orb/server/kit/serde/theme";
+import { stThemeFromJson } from "@orb/server/primitives/serde/theme";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 

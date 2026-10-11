@@ -77,6 +77,7 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
         // that is about the section itself (Corpus, Analytics); a section about ONE artifact overrides it
         // at the mint (`railLabel: "Chat"`).
         railFallback={definition.rail.label}
+        paneLabel={`${definition.rail.label} details`}
         {...(dismissLabel === undefined ? {} : { dismissLabel })}
         {...(onDismiss === undefined ? {} : { onDismiss })}
       />
@@ -102,11 +103,12 @@ interface ResolvedTabsHostProps {
   readonly useResolved: () => ResolvedContextTabs | null;
   readonly empty: ReactNode;
   readonly railFallback: string;
+  readonly paneLabel: string;
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
 
-function ResolvedTabsHost({ useResolved, empty, railFallback, dismissLabel, onDismiss }: ResolvedTabsHostProps): ReactElement {
+function ResolvedTabsHost({ useResolved, empty, railFallback, paneLabel, dismissLabel, onDismiss }: ResolvedTabsHostProps): ReactElement {
   const resolved = useResolved();
   return (
     <ContextTabsPanel
@@ -114,6 +116,7 @@ function ResolvedTabsHost({ useResolved, empty, railFallback, dismissLabel, onDi
       actions={resolved?.actions}
       header={resolved?.header}
       railLabel={resolved?.railLabel ?? railFallback}
+      paneLabel={paneLabel}
       empty={empty}
       {...(dismissLabel === undefined ? {} : { dismissLabel })}
       {...(onDismiss === undefined ? {} : { onDismiss })}

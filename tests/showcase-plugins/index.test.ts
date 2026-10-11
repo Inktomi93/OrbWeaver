@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ManifestInvalidError, parseBundle } from "@orb/server/domain/plugin";
 import { createShowcaseBundleReader, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { zipSync } from "fflate";
 import { expect, test } from "../support/tool-fixtures.ts";

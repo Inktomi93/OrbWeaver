@@ -16,8 +16,8 @@
 // client-side change and is deliberately NOT done here. The exemption's printed detail names the proxy so
 // a reader of the verdict is never told a stronger claim than the instrument can compute.
 import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
-import type { EvidenceGap } from "../../_shared/evidence.ts";
-import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
+import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
 import {
   BLOCKING_BUDGET_MS,

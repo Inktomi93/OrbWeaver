@@ -9,8 +9,8 @@
 // withholds and forces exit 2. The injected readings are planted controls in every direction.
 import process from "node:process";
 import { vi } from "vitest";
-import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
 import { perfRateDisposition, perfRateExit, perfRatePair } from "../../../../tooling/src/cpu-profile/lib/rate.ts";
+import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HARDWARE = {

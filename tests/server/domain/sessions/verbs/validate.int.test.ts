@@ -6,7 +6,7 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import { SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens.ts";
+import { SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "#server/domain/sessions/tokens/tokens.ts";
 import type { Clock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
