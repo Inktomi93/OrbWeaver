@@ -16,14 +16,19 @@
 // for both roles (owner ruling, as Moonlit paints both), and identity art paints only where there IS art.
 
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import { afterEach, vi } from "vitest";
 import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
-import { MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
+import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
 function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {
   return { kind, avatarHash, showInChatAvatars: true, ...extra };
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 test("the skin table covers exactly the chatStyle vocabulary", () => {
   expect(Object.keys(MESSAGE_ROW_SKINS).sort()).toEqual(THEME_CHAT_STYLES.toSorted());
@@ -173,7 +178,7 @@ test("owned renderer artwork uses the same geometry and respects identity-art ad
   expect(whisper?.headerBand?.style.backgroundImage).toContain(art);
   expect(whisper?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
   expect(requests).toEqual([
-    ["portrait", 400],
+    ["portrait", 192],
     ["banner", 800],
   ]);
   expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, kind: null })).toBeNull();
@@ -188,4 +193,22 @@ test("hush's stripe paints for every kind (chrome, not portrait art — not hide
   for (const kind of ["character", "persona", null] as const) {
     expect(hush.bubbleDecoration?.(decoArgs(kind, null))?.style?.borderLeftColor).toBe("var(--color-speaker)");
   }
+});
+
+// Art asks for device pixels: echo's 12rem pane is 192 CSS px and ripple's welded portrait 180, and the server
+// snaps each ask up to the portrait ladder (200, 400, 600, 864).
+test("echo and ripple portraits request their CSS box times the pixel ratio", () => {
+  const echoWidth = (): string | undefined => {
+    const url = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "x"))?.art?.style.backgroundImage;
+    return url?.match(/w=(\d+)/u)?.[1];
+  };
+  const rippleWidth = (): string | undefined => avatarPortraitSrcProp("x").src?.match(/w=(\d+)/u)?.[1];
+  const asked: Record<number, readonly [string, string]> = { 1: ["192", "180"], 2: ["384", "360"], 3: ["576", "540"] };
+  for (const [ratio, [echo, ripple]] of Object.entries(asked)) {
+    vi.stubGlobal("devicePixelRatio", Number(ratio));
+    expect([echoWidth(), rippleWidth()], `DPR ${ratio}`).toEqual([echo, ripple]);
+  }
+  // A 4x display asks no more than the 3x the ladder tops out at.
+  vi.stubGlobal("devicePixelRatio", 4);
+  expect(echoWidth()).toBe("576");
 });

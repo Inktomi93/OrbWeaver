@@ -76,7 +76,9 @@ for (const width of [1440, 360]) {
       expect(Math.abs(menu.x + menu.width / 2 - (tools.x + tools.width / 2))).toBeLessThan(1);
       expect(Math.abs((menu.y + tools.y + tools.height) / 2 - inputMid)).toBeLessThan(1);
       expect(menu.x + menu.width).toBeLessThan(input.x);
-      expect(Math.abs(send.y + send.height / 2 - inputMid), "Send message").toBeLessThan(1);
+      // Send rides the row's bottom edge, level with the lower door; the old pin put it at the row's centre,
+      // which left it floating mid-height beside a long draft (see the long-draft check below).
+      expect(Math.abs(send.y + send.height - (tools.y + tools.height)), "Send message").toBeLessThan(1);
       expect(send.x).toBeGreaterThan(input.x + input.width - 1);
       const you = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
       const them = await component.getByRole("group", { name: "Their reply", exact: true }).boundingBox();
@@ -89,6 +91,13 @@ for (const width of [1440, 360]) {
       await message.fill("First line\nSecond line\nThird line");
       await expect(message).toHaveValue("First line\nSecond line\nThird line");
       expect((await message.boundingBox())?.height ?? 0).toBeGreaterThan(input.height);
+      await message.fill(Array.from({ length: 12 }, (_unused, index) => `Line ${String(index + 1)}`).join("\n"));
+      const grown = await message.boundingBox();
+      const grownSend = await boxOf("Send message");
+      if (grown === null) {
+        throw new Error("the grown message input has no layout box");
+      }
+      expect(Math.abs(grownSend.y + grownSend.height - (grown.y + grown.height)), "Send sits by the last line of a long draft").toBeLessThan(1);
     });
   });
 }
@@ -512,8 +521,9 @@ async function expectExplicitCoarseRows(component: Locator): Promise<void> {
   }
   expect(yours.y).toBe(theirs.y);
   expect(chat.y).toBeGreaterThanOrEqual(yours.y + yours.height);
-  // Send shares the input row with the stacked tool column: the two centre on one line.
-  expect(Math.abs(send.y + send.height / 2 - (chat.y + chat.height / 2))).toBeLessThan(1);
+  // Send shares the input row with the stacked tool column and rides the row's bottom edge, level with the
+  // lower door (a long draft takes it to the draft's last line, pinned in the two-row composer test).
+  expect(Math.abs(send.y + send.height - (chat.y + chat.height))).toBeLessThan(1);
   expect(send.x).toBeGreaterThan(chat.x);
   // Whatever the fit produces, the FINAL row reaches the composer's right edge: the terminal Send home is
   // right-anchored on a wrapped line exactly as it is on a full one (the auto margins, not a grid column).

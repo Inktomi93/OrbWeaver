@@ -188,7 +188,19 @@ function hushDecoration(): BubbleDecoration {
   return { style: STRIPE_LEFT };
 }
 
-const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
+// Art asks for device pixels, never the CSS box: a CSS-sized ask is soft on every dense display. The server
+// snaps the ask up its portrait ladder. 3x is the ceiling phones ship and where the ladder tops out.
+const MAX_ART_PIXEL_RATIO = 3;
+// biome-ignore lint/style/noMagicNumbers: CSS px of `--immersive-echo-art-width` (12rem) and `--immersive-ripple-portrait-width` (11.25rem); the request is sized from them.
+const ECHO_PORTRAIT_CSS_WIDTH = 192;
+const RIPPLE_PORTRAIT_CSS_WIDTH = 180;
+
+function artRequestWidth(cssWidth: number): number {
+  // Read through Reflect: the node-side test program has no DOM lib, so `globalThis.devicePixelRatio` is untyped there.
+  const reported: unknown = Reflect.get(globalThis, "devicePixelRatio");
+  const ratio = Math.min(Math.max(typeof reported === "number" ? reported : 1, 1), MAX_ART_PIXEL_RATIO);
+  return Math.ceil(cssWidth * ratio);
+}
 
 // The full art reservation is additive to the prose measure when the row has room.
 // On narrow rows the art shares that row's budget, leaving room for header and pager targets.
@@ -222,9 +234,8 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   if (args.kind === null || !args.showInChatAvatars) {
     return null;
   }
-  const portraitUrl =
-    args.imageUrlFor?.("portrait", ECHO_PORTRAIT_REQUEST_WIDTH) ??
-    (args.avatarHash === null ? null : blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH));
+  const requestWidth = artRequestWidth(ECHO_PORTRAIT_CSS_WIDTH);
+  const portraitUrl = args.imageUrlFor?.("portrait", requestWidth) ?? (args.avatarHash === null ? null : blobPortraitUrl(args.avatarHash, requestWidth));
   // No portrait image: a clean card. A giant letter tile beside the row's own letter chip said nothing.
   if (portraitUrl === null) {
     return null;
@@ -414,8 +425,6 @@ export function avatarSrcProp(avatarHash: string | null): { src?: string } {
   return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
 }
 
-const RIPPLE_PORTRAIT_REQUEST_WIDTH = 200;
-
 export function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null ? {} : { src: blobPortraitUrl(avatarHash, RIPPLE_PORTRAIT_REQUEST_WIDTH) };
+  return avatarHash === null ? {} : { src: blobPortraitUrl(avatarHash, artRequestWidth(RIPPLE_PORTRAIT_CSS_WIDTH)) };
 }

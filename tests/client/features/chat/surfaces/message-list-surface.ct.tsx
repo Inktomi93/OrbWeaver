@@ -32,6 +32,7 @@ import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { viewImageActionName } from "../../../../../packages/client/src/lib/row-qualifiers.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
@@ -323,6 +324,118 @@ for (const width of [320, 430]) {
           );
         await testInfo.attach("mobile-avatar-edges", { body: await component.screenshot(), contentType: "image/png" });
         await expect.poll(geometry).toEqual([true, true]);
+      });
+    }
+  });
+}
+
+test.describe("a newly opened chat lands at the bottom", () => {
+  test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
+  for (const chatStyle of THEME_CHAT_STYLES) {
+    test(`${chatStyle}: scrollTop equals its max once the transcript settles`, async ({ mount, page }) => {
+      const character = castId<CharacterId>("character_ct_open");
+      const rows = Array.from({ length: 10 }, (_unused, index) =>
+        makeMessageView({
+          id: castId<MessageId>(`msg_open_${index}`),
+          role: index % 2 === 0 ? "user" : "assistant",
+          characterId: index % 2 === 0 ? null : character,
+          content: "The lantern lights the winding path beyond the old gate. ".repeat(4 + index * 3),
+          seq: index + 1,
+        }),
+      );
+      await routeTrpc(page, {
+        ...CHAT_AMBIENT_ROUTES,
+        ...ROSTER_STUB,
+        "settings.getUserSettings": () => ({
+          userId: "user_ct_viewer",
+          schemaVersion: 1,
+          configUnreadable: null,
+          updatedAt: 0,
+          config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+        }),
+        "chat.listMessages": () => makeMessagesPage(rows, [{ kind: "character", id: character, name: "Mira", avatarHash: null }]),
+      });
+      await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+      const component = await mount(<MessageListSurfaceStory />);
+      const scrollport = component.locator('[data-slot="message-list-scroll"]');
+      await expect(component.locator('[data-slot="message-row"]').last()).toBeVisible();
+      await expect.poll(() => scrollport.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThan(1);
+      // Stays there: a late measure must not leave the last row's foot below the fold.
+      await scrollport.evaluate(async () => {
+        for (let frame = 0; frame < 45; frame += 1) {
+          await new Promise(requestAnimationFrame);
+        }
+      });
+      await expect.poll(() => scrollport.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThan(1);
+    });
+  }
+});
+
+async function expectArtViewerRoundTrip(page: Page, control: Locator, speaker: string, touch: boolean): Promise<void> {
+  const dialog = page.getByRole("dialog");
+  await (touch ? control.tap() : control.click());
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: speaker, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(control).toBeFocused();
+}
+
+for (const viewport of [
+  { label: "phone", size: { width: 390, height: 780 }, touch: true },
+  { label: "desktop", size: { width: 1280, height: 800 }, touch: false },
+]) {
+  test.describe(`tapping a speaker's art opens it full size, ${viewport.label}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch });
+    for (const chatStyle of THEME_CHAT_STYLES.filter((style) => style !== "document")) {
+      test(`${chatStyle}: every art control opens the viewer, Escape closes it and focus returns to the control`, async ({ mount, page }) => {
+        const character = castId<CharacterId>("character_ct_view");
+        const persona = castId<PersonaId>("persona_ct_view");
+        const avatarHash = "ab".repeat(32);
+        const identities: ChatIdentity[] = [
+          { kind: "character", id: character, name: "Mira", avatarHash },
+          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash },
+        ];
+        await routeTrpc(page, {
+          ...CHAT_AMBIENT_ROUTES,
+          ...ROSTER_STUB,
+          "settings.getUserSettings": () => ({
+            userId: "user_ct_viewer",
+            schemaVersion: 1,
+            configUnreadable: null,
+            updatedAt: 0,
+            config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+          }),
+          "chat.listMessages": () =>
+            makeMessagesPage(
+              [
+                { ...USER_VIEW, personaId: persona },
+                { ...AI_VIEW, characterId: character },
+              ],
+              identities,
+            ),
+        });
+        await page.route("**/api/blob/**", (route) =>
+          route.fulfill({
+            contentType: "image/svg+xml",
+            path: new URL("../../../../../packages/client/public/illustrations/chat-style-portrait.svg", import.meta.url).pathname,
+          }),
+        );
+        await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+        const component = await mount(<MessageListSurfaceStory />);
+        // The art controls sit beside the header bar, which reaches across echo's pane: hover only lands if the
+        // row's own action stays the top-most target there (Playwright refuses a covered point).
+        await component.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).last().hover();
+        for (const speaker of ["Mira", "Traveler"]) {
+          const controls = component.getByRole("button", { name: viewImageActionName(speaker), exact: true });
+          await expect(controls.first()).toBeVisible();
+          const count = await controls.count();
+          // The chip, plus echo's tile or whisper's band; ripple's weld replaces the chip with its portrait.
+          expect(count, `${speaker} art controls`).toBe(chatStyle === "echo" || chatStyle === "whisper" ? 2 : 1);
+          for (let index = 0; index < count; index += 1) {
+            await expectArtViewerRoundTrip(page, controls.nth(index), speaker, viewport.touch);
+          }
+        }
       });
     }
   });

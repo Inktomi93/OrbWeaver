@@ -258,7 +258,15 @@ export {
   resolveThemeScopeTokens,
   type SeedThemeName,
 } from "./resolve-theme-scope-tokens.ts";
-export { chatWithActionName, duplicateActionName, renameActionName, rowActionSubject, rowActionsName, rowQualifiers } from "./row-qualifiers.ts";
+export {
+  chatWithActionName,
+  duplicateActionName,
+  renameActionName,
+  rowActionSubject,
+  rowActionsName,
+  rowQualifiers,
+  viewImageActionName,
+} from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";

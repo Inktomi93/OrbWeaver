@@ -226,7 +226,8 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             />
           </Stack>
           {messageInput}
-          <Row aria-label="Send controls" className="shrink-0" gap="field" role="group">
+          {/* Bottom-aligned, so a long draft's Send sits by its last line instead of floating mid-height. */}
+          <Row aria-label="Send controls" className="shrink-0 self-end" gap="field" role="group">
             {sendControl}
           </Row>
         </Row>

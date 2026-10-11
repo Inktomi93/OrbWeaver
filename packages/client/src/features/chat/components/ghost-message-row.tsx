@@ -42,6 +42,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
+import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
@@ -49,8 +50,9 @@ import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { avatarTreatmentFor, columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
+import { renderRowAvatar } from "./message-row-avatar.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
-import { renderRowAvatar, themedColumnContent } from "./message-row-parts.tsx";
+import { themedColumnContent } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
@@ -207,6 +209,7 @@ export function GhostMessageRow({
   stickyAttribution = false,
 }: GhostMessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
+  const viewArt = useArtViewer();
   const rawText = useGhostText(chatId);
   const rawReasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
@@ -251,6 +254,7 @@ export function GhostMessageRow({
           gutterRail: gutterRailFor(skin, "assistant"),
           // The live turn is always the assistant side, which never mirrors.
           mirrored: false,
+          viewArt,
         });
   // #1728 arm B — THE GHOST TAKES THE SETTLED ROW'S PLACEMENT, for the reason this file already states
   // about the header two blocks down: a live turn laid out one way that relaid out at commit is a visible

@@ -289,9 +289,11 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
 
       <GalleryLightbox
         image={lightboxItem === undefined ? null : { hash: lightboxItem.hash, name: galleryImageName(lightboxIndex + 1, lightboxItem.createdAt) }}
-        characterName={characterName}
+        removal={{
+          characterName,
+          onRemove: (): Promise<void> => (lightboxItem === undefined ? Promise.resolve() : removeItem(lightboxItem.galleryItemId)),
+        }}
         onClose={(): void => setLightboxId(null)}
-        onRemove={(): Promise<void> => (lightboxItem === undefined ? Promise.resolve() : removeItem(lightboxItem.galleryItemId))}
         finalFocus={focus.lightboxFinalFocus}
         onSettled={focus.onLightboxSettled}
       />

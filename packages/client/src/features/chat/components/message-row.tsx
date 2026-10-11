@@ -25,6 +25,7 @@ import {
   useSelectionActive,
 } from "#state";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "../../../lib/appearance-message-registry.ts";
+import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
@@ -37,10 +38,10 @@ import { actionsRevealFor, avatarTreatmentFor, columnClassFor, gutterRailFor, he
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
+import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
 import {
-  renderRowAvatar,
   renderRowBubble,
   renderRowReasoning,
   renderRowSwipe,
@@ -180,6 +181,7 @@ export function MessageRow({
   toolRenderers,
 }: MessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
+  const viewArt = useArtViewer();
   useEffect(() => {
     if (!appearanceMessageRegistryEnabled()) {
       return;
@@ -299,6 +301,7 @@ export function MessageRow({
     alignToInsideHeader: skin.headerPlacement === "inside",
     gutterRail,
     mirrored,
+    viewArt,
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
@@ -404,6 +407,7 @@ export function MessageRow({
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
                   editing,
+                  artView: artViewFor(viewArt, attribution),
                 })}
               </>,
             )}

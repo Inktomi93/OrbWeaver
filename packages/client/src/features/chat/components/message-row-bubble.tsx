@@ -3,6 +3,7 @@
 // bubble slot calls with already-resolved data.
 
 import type { MessageRole } from "@orb/kit/message-role";
+import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
@@ -21,6 +22,59 @@ function withoutBubblePadding(className: string): string {
     .join(" ");
 }
 
+/** A speaker's art as the tap target that opens it full size: `open` receives the button so focus can return to it. */
+export interface ArtView {
+  readonly label: string;
+  readonly open: (opener: HTMLElement) => void;
+}
+
+// Fills the art it sits in, so the whole tile is the control. The ghost-fill hover is dropped: a tint over the
+// art itself would read as a smudge, and the press scale already answers a tap.
+function artViewButton(view: ArtView): ReactElement {
+  return (
+    <Button
+      aria-label={view.label}
+      className="absolute inset-0 hover:bg-transparent active:bg-transparent"
+      intent="ghost"
+      onClick={(event): void => view.open(event.currentTarget)}
+      size="media"
+    />
+  );
+}
+
+// aria-hidden only while the art is decorative: a hidden subtree must not hold a focusable control.
+function whisperBand(headerBand: NonNullable<BubbleDecoration["headerBand"]>, view: ArtView | null): ReactElement {
+  return (
+    <Stack
+      aria-hidden={view === null ? "true" : undefined}
+      data-slot="message-band"
+      className={cn("relative rounded-t-card", headerBand.className)}
+      style={headerBand.style}
+    >
+      {view === null ? null : artViewButton(view)}
+    </Stack>
+  );
+}
+
+// The pane's width, a portrait's height (Moonlit's fixed mobile height on a phone), never past the card's own
+// foot; cover-cropped from its centre. Inert unless it is the tap target for the full-size view.
+function echoArtTile(art: NonNullable<BubbleDecoration["art"]>, view: ArtView | null): ReactElement {
+  return (
+    <Stack
+      aria-hidden={view === null ? "true" : undefined}
+      data-slot="message-echo-art"
+      className={cn(
+        "absolute top-0 aspect-(--aspect-portrait) max-h-full bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
+        view === null && "pointer-events-none",
+        art.side === "left" ? "left-0 rounded-tl-card" : "right-0 rounded-tr-card",
+      )}
+      style={art.style}
+    >
+      {view === null ? null : artViewButton(view)}
+    </Stack>
+  );
+}
+
 export function renderSingleBubble(args: {
   readonly role: MessageRole;
   /** #288 — the speaker/timestamp/actions header, when this skin renders it INSIDE its container. It
@@ -36,13 +90,15 @@ export function renderSingleBubble(args: {
   readonly weldedAvatar: ReactElement | null;
   /** The row sits mirrored, so the welded portrait sits on the trailing side. */
   readonly mirrored: boolean;
+  /** Opens the decoration's art full size; null where the row has no art to open or no viewer to open it in. */
+  readonly artView: ArtView | null;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
   const bubbleStyle = args.decoration?.style;
   if (headerBand !== undefined) {
     return (
       <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
-        <Stack aria-hidden="true" data-slot="message-band" className={cn("rounded-t-card", headerBand.className)} style={headerBand.style} />
+        {whisperBand(headerBand, args.artView)}
         <Stack gap="row" className="px-block py-row">
           {args.header}
           {args.content}
@@ -55,19 +111,7 @@ export function renderSingleBubble(args: {
     const art = args.decoration?.art;
     return (
       <Stack gap="row" data-slot="message-bubble" className={cn(args.bubbleClassName, art !== undefined && "relative")} style={bubbleStyle}>
-        {art === undefined ? null : (
-          <Stack
-            aria-hidden="true"
-            data-slot="message-echo-art"
-            // The pane's width, a portrait's height (Moonlit's fixed mobile height on a phone), never past the
-            // card's own foot; cover-cropped from its centre.
-            className={cn(
-              "pointer-events-none absolute top-0 aspect-(--aspect-portrait) max-h-full bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
-              art.side === "left" ? "left-0 rounded-tl-card" : "right-0 rounded-tr-card",
-            )}
-            style={art.style}
-          />
-        )}
+        {art === undefined ? null : echoArtTile(art, args.artView)}
         {args.header}
         {args.content}
         {args.footer}
