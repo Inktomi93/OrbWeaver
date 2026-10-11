@@ -113,7 +113,7 @@ import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-i
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
-import { publishNotification } from "../../transport/trpc/index.ts";
+import { publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";

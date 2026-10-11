@@ -40,7 +40,7 @@ import type { RpgExtractionMode, RpgFoldFallbackReason, RpgRecordedToolCall } fr
 import { markLockSuppressions, recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import { generationOf } from "@orb/inference";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
-import type { RpgTurnContext } from "../../chat/index.ts";
+import type { RpgTurnContext } from "#domain/chat";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
 import type { RpgFlushOutcome } from "../contract/trace.ts";

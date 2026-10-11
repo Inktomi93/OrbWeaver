@@ -7,16 +7,22 @@ import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk"
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { ZodRawShape } from "zod";
-import type { AgentToolServer, AgentTurnRequest } from "../../contract/agent.ts";
-import type { ProviderBackend } from "../../contract/backend.ts";
-import type { ChatRequest, ChatResult } from "../../contract/chat.ts";
-import type { ListModelsRequest, VerifyAuthRequest } from "../../contract/diagnostics.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
-import type { SpawnIdentity } from "../../contract/runtime.ts";
-import type { InferenceDeps } from "../../deps.ts";
-import { runSideGen } from "../../roles/side-gen.ts";
+import type {
+  AgentToolServer,
+  AgentTurnRequest,
+  ChatRequest,
+  ChatResult,
+  ListModelsRequest,
+  ProviderBackend,
+  Resolved,
+  SpawnIdentity,
+  StructuredRequest,
+  SummarizeRequest,
+  VerifyAuthRequest,
+} from "#contract";
+import { ProviderError } from "#contract";
+import { runSideGen } from "#roles";
+import type { InferenceDeps } from "#src/deps.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";

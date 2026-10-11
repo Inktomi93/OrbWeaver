@@ -6,10 +6,8 @@ import type { EmbedResult, EmbedUsage, ImageEmbedResult } from "@orb/contracts/p
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
-import { ProviderError } from "../../contract/errors.ts";
-import type { GoogleBackendDeps } from "../../contract/google.ts";
-import type { EmbedRequest, ImageEmbedRequest } from "../../contract/roles.ts";
-import { embedRequestTimeoutMs } from "../../contract/roles.ts";
+import type { EmbedRequest, GoogleBackendDeps, ImageEmbedRequest } from "#contract";
+import { embedRequestTimeoutMs, ProviderError } from "#contract";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";

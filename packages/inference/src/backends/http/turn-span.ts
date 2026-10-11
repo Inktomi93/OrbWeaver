@@ -15,8 +15,7 @@
 // operator surface with a different retention and a different audience than the wire-capture ring, and the
 // D19/D16 payload rules that keep prompt bytes off the bus apply to it for the same reason.
 
-import type { ChatResult } from "../../contract/chat.ts";
-import type { AddSpanEvent } from "../../contract/runtime.ts";
+import type { AddSpanEvent, ChatResult } from "#contract";
 
 /** One turn's cache placement, as the two hosted wires already count it for their own receipts. */
 export interface TurnCacheSpan {

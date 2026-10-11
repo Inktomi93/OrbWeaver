@@ -4,10 +4,10 @@
 // a re-attach is a silent no-op (INSERT OR IGNORE, no phantom audit).
 
 import { globalDocuments } from "@orb/db";
-import { DocumentNotFoundError } from "../../contract/errors.ts";
-import type { GlobalAttachParams } from "../../contract/params.ts";
-import type { DatabankContext, DatabankService } from "../../contract/service.ts";
-import { loadOwnedMeta } from "../../persistence/queries.ts";
+import { DocumentNotFoundError } from "#src/domain/databank/contract/errors.ts";
+import type { GlobalAttachParams } from "#src/domain/databank/contract/params.ts";
+import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
+import { loadOwnedMeta } from "#src/domain/databank/persistence/queries.ts";
 
 export function createAttachGlobal(ctx: DatabankContext): DatabankService["attachGlobal"] {
   return async ({ principal, documentId }: GlobalAttachParams): Promise<void> => {

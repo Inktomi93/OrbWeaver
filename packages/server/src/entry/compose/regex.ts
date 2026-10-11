@@ -16,7 +16,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can } from "#domain/admin";
-import { parseChatMetadata } from "#domain/chat";
+import { parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -39,8 +39,7 @@ import {
   createResolveRegexSources,
 } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
-import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";

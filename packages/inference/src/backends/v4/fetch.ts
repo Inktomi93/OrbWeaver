@@ -39,10 +39,8 @@
 
 import type { Wire } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
-import type { WireCaptureSink } from "../../contract/backend.ts";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ResponseMap } from "../../contract/resolved.ts";
+import type { ProviderScrubSet, ResponseMap, WireCaptureSink } from "#contract";
+import { ProviderError } from "#contract";
 import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../http/sse.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 

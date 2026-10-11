@@ -20,7 +20,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { ChatContext } from "../../context.ts";
+import type { ChatContext } from "#src/domain/chat/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryEmbedSpace, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";

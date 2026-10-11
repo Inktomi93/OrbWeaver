@@ -536,6 +536,14 @@ module.exports = {
       to: { path: DB, pathNot: `${DB}client/backup-names\\.ts$`, reachable: true },
     },
     {
+      name: "local-light-worker-no-door",
+      comment:
+        "The local-light model Worker is spawned per model load and holds its whole module graph for the model's life, so its graph stays a set of leaves. An @orb/inference front door (`index.ts`) re-exports the whole contract, funnel or backend surface and multiplies the Worker's parse cost and heap on small hardware; import the leaf module instead. (docs/law/Core-0-Architecture-and-Structure.md §1.)",
+      severity: "error",
+      from: { path: `${INFERENCE}backends/local-light/model-worker\\.ts$` },
+      to: { path: [`${INFERENCE}index\\.ts$`, `${INFERENCE}.*/index\\.ts$`], reachable: true },
+    },
+    {
       name: "domain-below-drivers",
       comment:
         "domain (business logic) is below the drivers + entry. A domain must not import transport/ or entry/ — drivers call DOWN into domain front doors, never the reverse. (Core-0-Architecture-and-Structure.md §3.)",

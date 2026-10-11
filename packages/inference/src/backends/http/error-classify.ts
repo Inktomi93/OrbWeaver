@@ -10,8 +10,8 @@
 
 import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { ProviderErrorKind, ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError, SCHEMA_REJECTED_DETAIL } from "../../contract/errors.ts";
+import type { ProviderErrorKind, ProviderScrubSet } from "#contract";
+import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
 import type { ProviderLogger } from "./provider-log.ts";

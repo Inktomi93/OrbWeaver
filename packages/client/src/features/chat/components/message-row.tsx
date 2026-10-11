@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { Fragment, useEffect } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
+import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
 import {
   toggleMessageSelected,
   useIsEditingMessage,
@@ -24,7 +25,6 @@ import {
   useMessageEditReservedInlineSize,
   useSelectionActive,
 } from "#state";
-import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "../../../lib/appearance-message-registry.ts";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";

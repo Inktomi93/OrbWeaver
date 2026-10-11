@@ -49,7 +49,7 @@
 // tightening and is deliberately NOT taken here: it would silently disable capture on a running deployment
 // that has it on today, which is a posture flip the operator owns. The warning names the exact fix instead.
 
-import type { NodeEnvironment } from "../../primitives/node-environment/index.ts";
+import type { NodeEnvironment } from "#primitives/node-environment";
 
 /** The raw env values the OWNER-FALLBACK credential rule reads — passed in so this file never touches
  *  `process.env` (the `BindPostureInput` shape). `authFallback` is a LAUNCH-time value, never a `.env` key

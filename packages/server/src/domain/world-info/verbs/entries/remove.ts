@@ -8,11 +8,11 @@
 
 import { worldBooks, worldEntries } from "@orb/db";
 import { and, eq, inArray } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context.ts";
-import { WorldInfoNotFoundError } from "../../contract/errors.ts";
-import type { RemoveEntryParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { listChatIdsForBook } from "../../persistence/queries.ts";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
+import type { RemoveEntryParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { listChatIdsForBook } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeEntry"] {
   return async ({ principal, entryId }: RemoveEntryParams) => {

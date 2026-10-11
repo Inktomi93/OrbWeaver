@@ -22,7 +22,7 @@ import type {
 import { connectionTransportSchema, isBeltOwnedBodyKey, requirementMet, taskDef } from "@orb/contracts/inference";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
-import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
+import { ROLE_ROWS_ORDERED } from "#src/lib/connection-roles.ts";
 import { grouped } from "./connection-fact-model.ts";
 import { fieldText, parsePastedObject } from "./pasted-fields.ts";
 

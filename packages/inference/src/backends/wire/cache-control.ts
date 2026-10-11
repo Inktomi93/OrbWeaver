@@ -4,9 +4,9 @@ import type { CachePolicy, GenerationCapability, PromptCacheTtl } from "@orb/con
 import { cacheMinTokensOf } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { estimateTokens } from "@orb/kit/tokens";
-import { detectModelFamily } from "../../capability/families.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
+import { detectModelFamily } from "#capability";
+import type { Resolved } from "#contract";
+import { resolveCachePolicy } from "#funnel";
 import type { ProviderLogger } from "../http/provider-log.ts";
 import { cachePolicyContextOf } from "../http/response-cache.ts";
 

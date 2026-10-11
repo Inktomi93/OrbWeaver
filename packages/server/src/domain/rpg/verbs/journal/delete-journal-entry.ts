@@ -2,10 +2,10 @@
 // game-scoped (a foreign game's entry id → leak-free NOT-FOUND, the cross-tenant IDOR belt).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { DeleteJournalEntryParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { deleteJournalEntry as deleteJournalEntryRow } from "../../persistence/journal.ts";
+import type { DeleteJournalEntryParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { deleteJournalEntry as deleteJournalEntryRow } from "#src/domain/rpg/persistence/journal.ts";
 
 export function createDeleteJournalEntry(ctx: RpgContext): Pick<RpgService, "deleteJournalEntry"> {
   async function deleteJournalEntry(params: DeleteJournalEntryParams): Promise<void> {

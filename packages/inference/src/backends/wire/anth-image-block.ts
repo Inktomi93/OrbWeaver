@@ -5,9 +5,8 @@
 // package does not depend on that SDK (the agent-sdk wire brings its own), and the shape is four fields.
 
 import type { ImageInput } from "@orb/contracts/role-clients";
-import { ProviderError } from "../../contract/errors.ts";
-import type { AnthImageBlock, AnthImageMediaType } from "../../contract/runtime.ts";
-import { ANTH_IMAGE_MEDIA_TYPES } from "../../contract/runtime.ts";
+import type { AnthImageBlock, AnthImageMediaType } from "#contract";
+import { ANTH_IMAGE_MEDIA_TYPES, ProviderError } from "#contract";
 import type { NormalizeImageBytes } from "./image-normalize.ts";
 
 const BASE64 = "base64";

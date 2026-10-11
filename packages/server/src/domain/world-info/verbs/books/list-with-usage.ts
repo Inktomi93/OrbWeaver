@@ -10,10 +10,10 @@
 // was the first); the queued REGROSTER small (regex "attached by" rosters) would be the third. Three
 // instances is when a shared substrate earns its keep — flag it there, do not generalize off two.
 
-import type { WorldInfoContext } from "../../context.ts";
-import type { ListBooksParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { listOwnedBooksWithUsage } from "../../persistence/queries.ts";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import type { ListBooksParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { listOwnedBooksWithUsage } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createListWithUsage(ctx: WorldInfoContext): WorldInfoService["listBooksWithUsage"] {
   return ({ principal }: ListBooksParams) => listOwnedBooksWithUsage(ctx.db, principal.userId);

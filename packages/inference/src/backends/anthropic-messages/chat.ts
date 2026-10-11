@@ -19,18 +19,23 @@ import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4P
 import type { GenerationCapability, ReasoningOffMode } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
-import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
-import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { AddSpanEvent } from "../../contract/runtime.ts";
-import type { InferenceLog } from "../../deps.ts";
-import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
-import { resolveChat } from "../../funnel/resolve-chat.ts";
-import type { StructuredPlan } from "../../structured/plan.ts";
-import { requireStructuredPlan } from "../../structured/plan.ts";
-import { structuredChatResult } from "../../structured/reply.ts";
+import type {
+  AddSpanEvent,
+  AnthropicChatRequest,
+  ChatEvent,
+  ChatHistoryMessage,
+  ChatResult,
+  RateLimitSnapshot,
+  Resolved,
+  ResolvedChatKnobs,
+  ResolvedReasoning,
+  ResolvedWarning,
+} from "#contract";
+import { ProviderError } from "#contract";
+import { resolveCachePolicy, resolveChat } from "#funnel";
+import type { InferenceLog } from "#src/deps.ts";
+import type { StructuredPlan } from "#structured";
+import { requireStructuredPlan, structuredChatResult } from "#structured";
 import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";

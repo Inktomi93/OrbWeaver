@@ -13,7 +13,8 @@
     "./schema": "./src/schema/index.ts"
   },
   "imports": {
-    "#*": "./src/*/index.ts"
+    "#*": "./src/*/index.ts",
+    "#src/*": "./src/*"
   },
   "dependencies": {
     "@orb/kit": "workspace:*",

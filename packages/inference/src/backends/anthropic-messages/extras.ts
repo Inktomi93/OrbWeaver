@@ -33,8 +33,7 @@ import { createHash } from "node:crypto";
 import type { JSONObject } from "@ai-sdk/provider";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
+import type { Resolved, ResolvedWarning } from "#contract";
 
 /** The keys a connection's `extras` may carry on this wire, each validated against the 4.0.71 dist's own
  *  `anthropicLanguageModelOptions` shape (`index.d.ts:245-392`). Open enums stay `z.string()` where the dist

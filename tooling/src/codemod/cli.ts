@@ -6,6 +6,7 @@
 //   pnpm codemod recipes|recipe <id>   # recipes          pnpm codemod search <t>  # grep helpers+recipes
 //   pnpm codemod migrate-macro-blocks [--dry-run] <file...>   # the §12A seed migration (idempotent)
 //   pnpm codemod relocate <plan.json> [--apply]                # move files by plan; re-spell every citation
+//   pnpm codemod deep-imports [--apply]                        # ../../ in packages -> #src/<path> or the module's front door
 //
 // Output overflow: long outputs spill to /tmp with the path banner at head AND tail
 // (`--max-output-lines=N`, parsed here / NEO_CODEMOD_MAX_LINES). Exit: 0 clean · EXIT.misuse on a bad
@@ -13,7 +14,7 @@
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
-import { migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers } from "./index.ts";
+import { deepImportsOp, migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers } from "./index.ts";
 
 /** The ONE flag this tier owns (the kit's output-spill knob). */
 const MAX_LINES_FLAG = "--max-output-lines=";
@@ -60,6 +61,10 @@ function main(): number {
   }
   if (sub === "relocate") {
     relocateOp(tail);
+    return EXIT.clean;
+  }
+  if (sub === "deep-imports") {
+    deepImportsOp(tail);
     return EXIT.clean;
   }
   refuseUnknownFlags(tail, sub);

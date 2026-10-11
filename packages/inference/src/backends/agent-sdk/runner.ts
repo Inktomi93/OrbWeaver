@@ -25,20 +25,24 @@ import type {
 import type { ChatUsage } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
-import type { AgentSdkSessionTotals } from "../../contract/agent.ts";
-import type { AgentSdkChatRequest, ChatResult, ContextUsage, ResponseFormat, ToolCallInput } from "../../contract/chat.ts";
-import { normalizeFinishReason } from "../../contract/chat.ts";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
-import type { AgentSdkSessionId } from "../../contract/identity.ts";
-import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
-import type { ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { AnthImageBlock } from "../../contract/runtime.ts";
-import type { PlannedResponseFormat } from "../../structured/plan.ts";
-import { requireStructuredPlan } from "../../structured/plan.ts";
-import { normalizeStructuredValue } from "../../structured/reply.ts";
+import type {
+  AgentSdkChatRequest,
+  AgentSdkSessionId,
+  AgentSdkSessionTotals,
+  AnthImageBlock,
+  ChatEvent,
+  ChatResult,
+  ContextUsage,
+  ProviderScrubSet,
+  RateLimitSnapshot,
+  Resolved,
+  ResolvedWarning,
+  ResponseFormat,
+  ToolCallInput,
+} from "#contract";
+import { agentSdkSessionIdSchema, normalizeFinishReason, ProviderError } from "#contract";
+import type { PlannedResponseFormat } from "#structured";
+import { normalizeStructuredValue, requireStructuredPlan } from "#structured";
 import { classifyHttpStatus } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import type { IdleAbort } from "../http/idle-timeout.ts";

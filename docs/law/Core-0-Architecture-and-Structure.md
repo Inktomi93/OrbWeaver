@@ -23,6 +23,9 @@ boundaries are physics, not policy.
 2. **`#` intra-package, packages cross-package, zero `paths` aliases.** Native Node subpath imports
    (`#domain`, `#primitives`, …) inside a package; workspace package names across packages. **No tsconfig
    `paths`** anywhere (that was neo-tavern's `@/` shadcn tax). One resolution model, all native.
+   Another module is entered only through its front door, `#<module>`. `#src/<path>` names a file in the
+   importer's own module and never crosses into another one. A parent-relative import climbs at most one
+   directory (`package-deep-import`, `package-subpath-crossing`).
 3. **Name by role; no `_` junk drawers.** Folders are named for what they are (`foundation`, `infra`,
    `primitives`, `contract`, `query`, `http`). Only the `@orb/kit` package is called `kit`; a package-local
    helper folder is named by its role. There is **no `_shared` services drawer** — cross-feature *services*
@@ -66,8 +69,9 @@ the raw libs, so an app→raw-primitive import fails to resolve (physics). Full 
 `UI-Primitives-and-Reuse.md` + `UI-Architecture-and-Layout.md`.
 
 **Every importable module is a DIRECTORY with `index.ts`** (front-door = folder; internal files stay flat
-and relative-imported). `kit`/`contracts`/`db`/`server`/`client` share ONE resolution map —
-`exports: { ".": "./src/index.ts", "./*": "./src/*/index.ts" }`, `imports: { "#*": "./src/*/index.ts" }` —
+and are imported by a one-level relative path or by `#src/<path>`). `kit`/`contracts`/`db`/`server`/`client`
+share ONE resolution map — `exports: { ".": "./src/index.ts", "./*": "./src/*/index.ts" }`,
+`imports: { "#*": "./src/*/index.ts", "#src/*": "./src/*" }` —
 that works at any depth and never needs editing: a module grows from one file to many with no change to
 its import path or the map. (`ui` is the deliberate exception: an explicit per-primitive `exports` map —
 the sealed surface is the export list itself; consumers import `@orb/ui/<primitive>` only.)
@@ -233,6 +237,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | **Every union dispatch is a mapped-type Record or `assertNever` — a new member fails `tsc`** | `tsc` itself — compile-time by construction, no gate file (house label: `exhaustive-dispatch`; §7.5 spine) |
 | **`persistence/` is queries only — no `fetch`/`http`/`node:*` I/O** | `persistence-no-io` |
 | **`persistence/` holds no module-scope `Map`/`Set` (in-memory state lives in a named subsystem)** | `persistence-no-in-memory-state` |
+| **A parent-relative import climbs at most one directory; another module is entered through its front door** | `package-deep-import` · `package-subpath-crossing` |
 
 When these hold, **the structure is the documentation**: a new feature is "copy the template,"
 finding anything is a path derivation, and "where does this go?" has exactly one answer.

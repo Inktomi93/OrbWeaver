@@ -21,6 +21,7 @@ export type {
   AgentMcpServerSpec,
   AgentMcpSseServer,
   AgentMcpStdioServer,
+  AgentSdkSessionTotals,
   AgentToolServer,
   AgentTurnRequest,
   SessionEntryWriter,
@@ -45,6 +46,7 @@ export type {
   ForcedToolRoundInput,
   GenerationObservationCallback,
   GenerationObservationSource,
+  GoogleChatRequest,
   HistoryRole,
   OpenAiCompatChatRequest,
   ReasoningContentPart,
@@ -58,6 +60,7 @@ export type {
 export {
   AGENT_CONTINUATION_PROMPT_STUB,
   AGENT_PROMPT_TAIL_JOINER,
+  deltaSubscriptionOf,
   GenerationObservationPersistenceError,
   HISTORY_ROLES,
   normalizeFinishReason,
@@ -72,10 +75,12 @@ export type {
   VerifyAuthRequest,
 } from "./diagnostics.ts";
 export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
-export { assertNever, PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
+export { assertNever, PROVIDER_ERROR_KINDS, ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
+export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";
+export type { LocalLightLoadProgress } from "./local-light-worker.ts";
 export type {
   ResolvedChatKnobs,
   ResolvedEmbedKnobs,
@@ -104,7 +109,19 @@ export type {
   WireEmbedding,
 } from "./roles.ts";
 export { embedRequestTimeoutMs } from "./roles.ts";
-export type { SideGenSampling } from "./side-gen.ts";
+export type {
+  AddSpanEvent,
+  AnthImageBlock,
+  AnthImageMediaType,
+  EndpointModel,
+  LocalLightModelSlot,
+  ModelFamily,
+  Reachability,
+  ScheduleTimeout,
+  SpawnIdentity,
+} from "./runtime.ts";
+export { ANTH_IMAGE_MEDIA_TYPES, LOCAL_LIGHT_MODEL_SLOTS } from "./runtime.ts";
+export type { ChatPosture, SideGenSampling } from "./side-gen.ts";
 export { postureOfTask } from "./side-gen.ts";
 export type { StructuredRetrySummary, StructuredTurnArgs } from "./structured-turn.ts";
 export { StructuredOutputError } from "./structured-turn.ts";

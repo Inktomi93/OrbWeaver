@@ -23,12 +23,12 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context.ts";
-import { RegexNotFoundError } from "../../contract/errors.ts";
-import type { ApplyScopeOrderParams, RegexAttachScopeRef } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { ensureCharacterOwned, ensurePresetOwned } from "../../persistence/ownership.ts";
-import { loadOwnedScriptsByIds } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
+import type { ApplyScopeOrderParams, RegexAttachScopeRef } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { ensureCharacterOwned, ensurePresetOwned } from "#src/domain/regex/persistence/ownership.ts";
+import { loadOwnedScriptsByIds } from "#src/domain/regex/persistence/queries.ts";
 
 /** The GLOBAL arm's ownership gate: every ordered id must be one the caller OWNS before any position write.
  *  `global_regex_scripts` carries no owner column (its scope is the script's), so — exactly as the single

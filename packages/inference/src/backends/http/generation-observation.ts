@@ -1,5 +1,5 @@
 // The durable observer runs outside provider retry and receives no credential-bearing resolved object.
-import type { ChatRequest, ChatResult } from "../../contract/chat.ts";
+import type { ChatRequest, ChatResult } from "#contract";
 
 /** Preserve a normalized completed result before callers can refuse or reshape it. */
 export async function observeChatResult(req: ChatRequest, result: ChatResult): Promise<void> {

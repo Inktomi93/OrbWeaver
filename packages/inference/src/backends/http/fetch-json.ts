@@ -22,8 +22,8 @@
 //     collapse, hard cap), each of which can bite a known literal in half, so the by-value belt reads
 //     INTACT text and the cap applies to already-scrubbed bytes.
 
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
+import type { ProviderScrubSet } from "#contract";
+import { ProviderError } from "#contract";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import { classifyHttpStatus } from "./error-classify.ts";
 import { sanitizeApiError } from "./sanitize.ts";

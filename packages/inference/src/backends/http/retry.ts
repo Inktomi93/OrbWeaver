@@ -15,11 +15,10 @@
 // unreadable from a trace: a succeed-on-attempt-3 turn looks merely slow, and the thrown error cannot
 // distinguish "a delta had already streamed" from "attempts exhausted".
 
-import { ProviderError } from "../../contract/errors.ts";
-
 /** The span-event seam — the package never imports the tracer; the composition root hands the request span's
  *  `addSpanEvent` in through the backend deps, and a test that passes none gets a silent no-op. */
-import type { AddSpanEvent } from "../../contract/runtime.ts";
+import type { AddSpanEvent } from "#contract";
+import { ProviderError } from "#contract";
 
 const NO_SPAN_EVENT: AddSpanEvent = () => undefined;
 

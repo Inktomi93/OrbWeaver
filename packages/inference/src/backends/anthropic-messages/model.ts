@@ -5,9 +5,8 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV4 } from "@ai-sdk/provider";
 import type { ChatId } from "@orb/kit/ids";
-import type { WireCaptureSink } from "../../contract/backend.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { Resolved } from "../../contract/resolved.ts";
+import type { Resolved, WireCaptureSink } from "#contract";
+import { ProviderError } from "#contract";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 

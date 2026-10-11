@@ -5,13 +5,13 @@
 
 import { RPG_GAME_MODES } from "@orb/contracts/rpg";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import { RpgModeUnbuiltError } from "../../contract/errors.ts";
-import type { CreateGameParams } from "../../contract/params.ts";
-import type { CreateGameResult } from "../../contract/results.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { mintLiteGame } from "../../game-mint.ts";
-import { assertHostRole } from "../../guard.ts";
-import { findGameByChat } from "../../persistence/games.ts";
+import { RpgModeUnbuiltError } from "#src/domain/rpg/contract/errors.ts";
+import type { CreateGameParams } from "#src/domain/rpg/contract/params.ts";
+import type { CreateGameResult } from "#src/domain/rpg/contract/results.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { mintLiteGame } from "#src/domain/rpg/game-mint.ts";
+import { assertHostRole } from "#src/domain/rpg/guard.ts";
+import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 
 export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"> {
   async function createGame(params: CreateGameParams): Promise<CreateGameResult> {

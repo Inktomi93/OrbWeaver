@@ -13,18 +13,21 @@ import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
-import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { RateLimitSnapshot } from "../../contract/events.ts";
-import type { ResolvedChatKnobs, ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { AddSpanEvent } from "../../contract/runtime.ts";
-import type { InferenceLog } from "../../deps.ts";
-import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
-import { resolveChat, templateThinkingFor } from "../../funnel/resolve-chat.ts";
-import type { StructuredPlan } from "../../structured/plan.ts";
-import { requireStructuredPlan } from "../../structured/plan.ts";
-import { structuredChatResult } from "../../structured/reply.ts";
+import type {
+  AddSpanEvent,
+  ChatHistoryMessage,
+  ChatResult,
+  OpenAiCompatChatRequest,
+  RateLimitSnapshot,
+  Resolved,
+  ResolvedChatKnobs,
+  ResolvedWarning,
+} from "#contract";
+import { ProviderError } from "#contract";
+import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
+import type { InferenceLog } from "#src/deps.ts";
+import type { StructuredPlan } from "#structured";
+import { requireStructuredPlan, structuredChatResult } from "#structured";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";

@@ -19,8 +19,8 @@
 // is the honest arm: the disagreement is deterministic, so a retry re-buys the identical refusal with the
 // caller's money (see the `invalid` member's own doc in `contract/errors.ts`).
 
-import type { WireEmbedding } from "../../contract/index.ts";
-import { ProviderError } from "../../contract/index.ts";
+import type { WireEmbedding } from "#contract";
+import { ProviderError } from "#contract";
 
 const BASE64 = "base64";
 const BYTES_PER_FLOAT32 = 4;

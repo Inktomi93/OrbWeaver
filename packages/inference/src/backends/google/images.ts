@@ -1,10 +1,8 @@
 import type { LanguageModelV4GenerateResult } from "@ai-sdk/provider";
 import type { GenerationUsage } from "@orb/contracts/inference";
 import { acceptsImageEdit } from "@orb/contracts/inference";
-import { ProviderError } from "../../contract/errors.ts";
-import type { GoogleBackendDeps } from "../../contract/google.ts";
-import type { ResolvedWarning } from "../../contract/resolve.ts";
-import type { ImageGenerateRequest, ImageGenerateResult } from "../../contract/roles.ts";
+import type { GoogleBackendDeps, ImageGenerateRequest, ImageGenerateResult, ResolvedWarning } from "#contract";
+import { ProviderError } from "#contract";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { mediaFilePart } from "../v4/prompt.ts";

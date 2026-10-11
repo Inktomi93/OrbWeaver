@@ -28,7 +28,7 @@ import type { CharacterService } from "#domain/character";
 import { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
 import type { RefineryService, RefineryWorkloadDeps } from "#domain/refinery";
 import { createRefineryService } from "#domain/refinery";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import { minter } from "./minter.ts";
 
 export interface RefineryComposeDeps {

@@ -56,6 +56,7 @@ export { createCodemodProject, DEFAULT_GLOBS } from "./lib/project.ts";
 export { runCodemod } from "./lib/run.ts";
 export { findCallSites, findExportedDeclaration, findReferencesByName, listExports, renameExportedSymbol } from "./lib/symbols.ts";
 export { applyTextReplacements, replacementsForNodes } from "./lib/text.ts";
+export { deepImportsOp, planDeepImports } from "./ops/deep-imports.ts";
 export { MANIFEST } from "./ops/manifest.ts";
 export { migrateMacroBlocks, migrateMacroBlocksOp } from "./ops/migrate-macro-blocks.ts";
 export { printHelp, printList, printRecipe, printRecipes, RECIPES, searchHelpers } from "./ops/recipes.ts";

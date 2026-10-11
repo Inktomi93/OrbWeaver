@@ -11,7 +11,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 // 1 token; a local `length/4` undercounts those ~4× and would let a CJK transcript silently overflow the
 // summarizer — the exact truncation this guard exists to prevent. Never re-roll the estimate here.
 import { estimateTokens, safeTokenWindow, splitToTokenBudget } from "@orb/kit/tokens";
-import type { MsgRow, SegmentChunk, SummarizerBudget } from "../../types.ts";
+import type { MsgRow, SegmentChunk, SummarizerBudget } from "#src/domain/chat/memory/types.ts";
 import { renderRowLine, renderTranscript } from "./transcript.ts";
 
 /** The baseline tokens reserved for the digest OUTPUT + the prompt scaffold (the system prompt is subtracted

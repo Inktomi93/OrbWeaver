@@ -2,7 +2,7 @@
 // (topic anchor · significance-filtered facts · keywords). PURE — no I/O, no state. Robust to a sloppy model:
 // a missing keywords line → no keywords; a missing anchor → the first non-empty line (or "").
 
-import type { ParsedDigest } from "../../types.ts";
+import type { ParsedDigest } from "#src/domain/chat/memory/types.ts";
 
 /** The keywords MARKER — matched ANYWHERE on a line, not just at its start (#330 P5). A sloppy model often
  *  appends `Keywords: …` inline after the final fact sentence ("… behind the painting. Keywords: ledger, …")

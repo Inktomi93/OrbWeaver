@@ -1,7 +1,7 @@
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import { l2Normalize } from "@orb/kit/vector-math";
-import { ProviderError } from "../../contract/errors.ts";
-import type { EmbedRequest } from "../../contract/roles.ts";
+import type { EmbedRequest } from "#contract";
+import { ProviderError } from "#contract";
 
 /** Cookbook instructions (Qwen3-VL-Embedding, asymmetric retrieval). */
 export const DOC_INSTRUCTION = "Represent the user's input.";

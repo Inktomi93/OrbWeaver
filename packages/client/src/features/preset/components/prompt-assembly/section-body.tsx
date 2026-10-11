@@ -26,8 +26,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import { isPlainMarkerSection, isTemplatedMarkerSection } from "#src/features/preset/lib/assembly-model.ts";
 import { openConfigTo } from "#state";
-import { isPlainMarkerSection, isTemplatedMarkerSection } from "../../lib/assembly-model.ts";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy.ts";
 

@@ -206,6 +206,11 @@ function writeAllFixtures(): void {
   fx(`${S}/primitives/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
 
   fx(`${S}/domain/__dc_feat/cross.ts`, `import "../__dc_feat2/index.ts";\n`);
+  // The `#src/` subpath spelling of the same crossings: the boundary rules judge the resolved path, so a file
+  // subpath cannot step past a front door or up a tier where a relative path could not.
+  fx(`${S}/domain/__dc_feat2/internal-src.ts`, VAL);
+  fx(`${S}/domain/__dc_feat/cross-src.ts`, `import "#src/domain/__dc_feat2/internal-src.ts";\n`);
+  fx(`${S}/foundation/__dc/up-src.ts`, `import "#src/domain/__dc_feat/index.ts";\n`);
   // domain-sibling-front-door (audit F9/G3): a domain reaching into a SIBLING's internals instead of its
   // index. TYPE-ONLY on purpose — type-only is exempt from domain-no-cross-feature but NOT from this rule
   // (the front-door law is a shape rule; an injected-op shape must come through the front door too), so
@@ -244,6 +249,11 @@ function writeAllFixtures(): void {
   fx(`${S}/domain/__dc_feat/usebackend.ts`, `import "../../../../inference/src/backends/__dc_back/i.ts";\n`);
   fx("packages/inference/src/backends/__dc_back/cross.ts", `import "../__dc_back2/i.ts";\n`);
   fx("packages/inference/src/backends/agent-sdk/__dc.ts", VAL);
+  // local-light-worker-no-door: the model Worker reaching an @orb/inference door through one leaf hop.
+  fx("packages/inference/src/__dc_lldoor/index.ts", VAL);
+  fx("packages/inference/src/backends/local-light/__dc_hop.ts", `import "../../__dc_lldoor/index.ts";\n`);
+  fx("packages/inference/src/backends/local-light/model-worker.ts", `import "./__dc_hop.ts";\n`);
+  fx("packages/inference/src/backends/__dc_back/src-hop.ts", `import "#src/backends/agent-sdk/__dc.ts";\n`);
   // The firewall's `from` is EVERY backend except agent-sdk itself, PLUS the surviving openrouter-NAMED
   // plane (catalog + capability sources) — openrouter is a provider row on the shared openai-compat
   // transport now, so the named-plane fixture has to be one of those real module names rather than a
@@ -436,6 +446,13 @@ test("the not-to-test selector covers every registered authored test kind and re
   const matcher = new RegExp(TEST_FILES_PATTERN, "u");
   expect(TEST_KIND_SUFFIXES.every((suffix) => matcher.test(`subject${suffix}`))).toBe(true);
   expect(matcher.test("subject.test.js")).toBe(false);
+});
+
+test("a #src/-spelled crossing is judged by its resolved path: feature isolation, tier order and backend isolation all fire", () => {
+  const from = (rule: string): readonly string[] => allViolations.filter((violation) => violation.rule.name === rule).map((violation) => violation.from);
+  expect(from("domain-no-cross-feature")).toContain("packages/server/src/domain/__dc_feat/cross-src.ts");
+  expect(from("foundation-reaches-up-to-nothing")).toContain("packages/server/src/foundation/__dc/up-src.ts");
+  expect(from("infra-strategy-isolation")).toContain("packages/inference/src/backends/__dc_back/src-hop.ts");
 });
 
 test("the native graph rejects a planted registered test import and passes the unsupported control", () => {

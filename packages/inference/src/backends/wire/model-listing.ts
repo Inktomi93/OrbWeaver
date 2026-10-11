@@ -6,7 +6,7 @@
 
 import type { ModelCatalogEntry, ModelKind, ModelListing } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
+import type { ProviderScrubSet } from "#contract";
 import { sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "./openai-body.ts";
 

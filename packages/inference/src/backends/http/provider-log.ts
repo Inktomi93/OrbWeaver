@@ -3,7 +3,7 @@
 // never prompt/RP/system-prompt content. A FACTORY over the injected `InferenceLog` (no `getLog()` global:
 // the package never imports the server's logger).
 
-import type { InferenceLog } from "../../deps.ts";
+import type { InferenceLog } from "#src/deps.ts";
 
 const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];

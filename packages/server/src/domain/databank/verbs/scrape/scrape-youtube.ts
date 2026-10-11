@@ -9,11 +9,11 @@
 // Stamps: origin 'youtube', sourceUrl = the canonical watch URL, name = the video id (timedtext carries no title).
 
 import { decodeXmlText } from "@orb/kit/strings";
-import { ScrapeFailedError } from "../../contract/errors.ts";
-import type { ScrapeYoutubeParams } from "../../contract/params.ts";
-import type { UploadResult } from "../../contract/results.ts";
-import type { DatabankContext, DatabankService } from "../../contract/service.ts";
-import { finalizeScrape } from "../../substrate/scrape-canon.ts";
+import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
+import type { ScrapeYoutubeParams } from "#src/domain/databank/contract/params.ts";
+import type { UploadResult } from "#src/domain/databank/contract/results.ts";
+import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
+import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
 
 const PLAIN_MIME = "text/plain";
 const TIMEDTEXT_ORIGIN = "https://www.youtube.com/api/timedtext";

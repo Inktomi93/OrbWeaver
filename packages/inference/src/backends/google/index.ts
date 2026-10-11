@@ -1,11 +1,18 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import { fetchGoogleModels, listGoogleModels } from "../../catalog/google.ts";
-import type { ChatRequest, ChatResult, GoogleChatRequest } from "../../contract/chat.ts";
-import type { ListModelsRequest, ProbeRequest } from "../../contract/diagnostics.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { GoogleBackend, GoogleBackendDeps } from "../../contract/google.ts";
-import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
-import { runSideGen } from "../../roles/side-gen.ts";
+import { fetchGoogleModels, listGoogleModels } from "#catalog";
+import type {
+  ChatRequest,
+  ChatResult,
+  GoogleBackend,
+  GoogleBackendDeps,
+  GoogleChatRequest,
+  ListModelsRequest,
+  ProbeRequest,
+  StructuredRequest,
+  SummarizeRequest,
+} from "#contract";
+import { ProviderError } from "#contract";
+import { runSideGen } from "#roles";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { scrubbedReason } from "../wire/model-listing.ts";

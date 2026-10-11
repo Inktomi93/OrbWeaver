@@ -21,10 +21,8 @@ import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ChatResult } from "../../contract/chat.ts";
-import { normalizeFinishReason } from "../../contract/chat.ts";
-import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
-import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
+import type { ChatEvent, ChatResult, RateLimitSnapshot, ResolvedSampling, ResolvedWarning } from "#contract";
+import { normalizeFinishReason } from "#contract";
 import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
 import type { StreamDrain } from "./stream.ts";
 

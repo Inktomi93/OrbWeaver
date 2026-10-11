@@ -83,7 +83,7 @@ import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
-import type { ForkGameArgs, ForkGameResult } from "../../chat/index.ts";
+import type { ForkGameArgs, ForkGameResult } from "#domain/chat";
 import type { RpgCheckpointRow, RpgContext, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service.ts";
 import { listCheckpoints } from "../persistence/checkpoints.ts";
 import { findGameByChat } from "../persistence/games.ts";

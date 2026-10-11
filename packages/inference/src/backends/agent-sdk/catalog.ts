@@ -8,10 +8,8 @@ import type { AccountInfo, ModelInfo, Query } from "@anthropic-ai/claude-agent-s
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import type { VerifyAuthRequest } from "../../contract/diagnostics.ts";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { SpawnIdentity } from "../../contract/runtime.ts";
+import type { ProviderScrubSet, SpawnIdentity, VerifyAuthRequest } from "#contract";
+import { ProviderError } from "#contract";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import type { AgentSdkLog } from "./log.ts";

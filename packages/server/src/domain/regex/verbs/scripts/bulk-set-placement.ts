@@ -14,10 +14,10 @@
 
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import { deriveRegexHistoryDepth, deriveRegexTierFlags } from "@orb/kit/regex";
-import type { RegexContext } from "../../context.ts";
-import type { BulkSetScriptsPlacementParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { loadOwnedScriptsByIds, setScriptsBehaviorBulk, toRow } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import type { BulkSetScriptsPlacementParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { loadOwnedScriptsByIds, setScriptsBehaviorBulk, toRow } from "#src/domain/regex/persistence/queries.ts";
 
 export function createBulkSetPlacement(ctx: RegexContext): RegexService["bulkSetScriptsPlacement"] {
   return async ({ principal, scriptIds, placement }: BulkSetScriptsPlacementParams) => {

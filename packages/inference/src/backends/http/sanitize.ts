@@ -46,8 +46,7 @@
 // unrelated occurrence of those digits. Over-redaction inside a credential-named subtree is deliberate:
 // the key name declares the semantics, exactly as it does for a custom auth header.
 
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import type { ConnectionTransport } from "../../contract/resolved.ts";
+import type { ConnectionTransport, ProviderScrubSet } from "#contract";
 import { secretHeaderValues } from "../wire/openai-body.ts";
 
 const DEFAULT_SANITIZE_MAX_LEN = 500;

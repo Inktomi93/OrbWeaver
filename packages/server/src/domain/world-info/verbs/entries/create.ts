@@ -5,11 +5,11 @@
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import { resolveEntryScope } from "@orb/kit/world-info";
-import type { WorldInfoContext } from "../../context.ts";
-import { WorldInfoNotFoundError } from "../../contract/errors.ts";
-import type { CreateEntryParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { listChatIdsForBook, loadOwnedBook } from "../../persistence/queries.ts";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
+import type { CreateEntryParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { listChatIdsForBook, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEntry"] {
   return async ({ principal, bookId, input }: CreateEntryParams) => {

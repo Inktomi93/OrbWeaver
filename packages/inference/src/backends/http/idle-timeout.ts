@@ -10,7 +10,7 @@
 // The caller-signal fold lives in `./abort-flatten.ts` (the reason-flattening law's one home) — this file
 // composes it with the idle timer; it does not re-implement it.
 
-import type { ScheduleTimeout } from "../../contract/runtime.ts";
+import type { ScheduleTimeout } from "#contract";
 import { foldAbortInto } from "./abort-flatten.ts";
 
 /** Max time a streaming HTTP call may go WITHOUT a received chunk before the socket is treated as stalled

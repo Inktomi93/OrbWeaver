@@ -13,11 +13,9 @@ import type { CachePolicy, Dialect, EffortLevel, ImageDetail } from "@orb/contra
 import type { ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { wrapLanguageModel } from "ai";
-import type { WireCaptureSink } from "../../contract/backend.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
+import type { Resolved, ResolvedWarning, WireCaptureSink } from "#contract";
+import { ProviderError } from "#contract";
+import { resolveCachePolicy } from "#funnel";
 import { authHeaders, openAiPath } from "../http/fetch-json.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheHeaders } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";

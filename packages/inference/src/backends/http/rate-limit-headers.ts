@@ -13,7 +13,7 @@
 // `resetsAt` is that axis's reset; `status` is `allowed` (the response WAS served) and `allowed_warning` from
 // `RATE_LIMIT_WARN_UTILIZATION` up — the canary threshold the wires emit a `rate_limit` event at.
 
-import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
+import type { ChatEvent, RateLimitSnapshot } from "#contract";
 
 const ANTHROPIC_RE = /^anthropic-ratelimit-(?<axis>[a-z-]+)-(?<field>limit|remaining|reset)$/u;
 const OPENAI_RE = /^x-ratelimit-(?<field>limit|remaining|reset)-(?<axis>[a-z-]+)$/u;

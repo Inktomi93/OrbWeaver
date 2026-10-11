@@ -58,7 +58,7 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "../../chat/index.ts";
+import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "#domain/chat";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,

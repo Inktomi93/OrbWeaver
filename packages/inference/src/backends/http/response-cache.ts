@@ -4,8 +4,7 @@ import type { CachePolicy, CachePolicyContext, Dialect, ResponseCache, Task } fr
 import { PROMPT_CACHE_RETENTIONS, responseCacheSchema } from "@orb/contracts/inference";
 import type { ResponseCacheControl } from "@orb/contracts/preset";
 import { RESPONSE_CACHE_TTL_BOUNDS } from "@orb/contracts/preset";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import type { Resolved } from "../../contract/resolved.ts";
+import type { ProviderScrubSet, Resolved } from "#contract";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 
 const CACHE_ENABLED_HEADER = "x-openrouter-cache";

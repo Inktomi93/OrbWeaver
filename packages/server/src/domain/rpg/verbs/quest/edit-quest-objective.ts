@@ -3,10 +3,10 @@
 // so a stale panel cannot re-assert every sibling objective it happened to render.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { EditQuestObjectiveParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { writeHandState } from "../../snapshot-edit.ts";
+import type { EditQuestObjectiveParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { writeHandState } from "#src/domain/rpg/snapshot-edit.ts";
 
 export function createEditQuestObjective(ctx: RpgContext): Pick<RpgService, "editQuestObjective"> {
   async function editQuestObjective(params: EditQuestObjectiveParams): Promise<void> {
