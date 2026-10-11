@@ -22,9 +22,12 @@ export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leadi
 
 /** The content column's own sizing class for this skin's placement (#1728 arm B): `flex-1` is the flex
  *  arm's "take the rest", and `@4xl:col-start-2` is the grid arm's "be the CENTRED rail" — the column must
- *  be placed explicitly there because a system row has no chip to auto-place before it. */
-export function columnClassFor(skin: RowSkin): string {
-  return skin.columnPlacement === "anchored" ? "min-w-0 flex-1" : "min-w-0 flex-1 @4xl:col-start-2";
+ *  be placed explicitly there because a system row has no chip to auto-place before it. A MIRRORED row
+ *  packs its content to the column's trailing edge, so a phone-capped bubble sits flush against its chip
+ *  and the cap's gap falls on the far side. */
+export function columnClassFor(skin: RowSkin, mirrored = false): string {
+  const placement = skin.columnPlacement === "anchored" ? "min-w-0 flex-1" : "min-w-0 flex-1 @4xl:col-start-2";
+  return mirrored ? `${placement} items-end` : placement;
 }
 
 /** The row body's own placement classes (#1728 arm B): nothing for `anchored`, which stays the flex line it

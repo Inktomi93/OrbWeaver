@@ -651,6 +651,37 @@ for (const { chatStyle, share } of [
   });
 }
 
+// …and in a MIRRORED user row the capped box sits flush against its own trailing chip, the cap's gap on the
+// far side. A start-aligned box left the gap between the message and its own identity (verifier: a 99-char
+// bubble at 0..264 with its chip at 336..360).
+for (const chatStyle of ["bubble", "echo", "tide"] as const) {
+  for (const [length, content] of [
+    ["short", "Hi there."],
+    ["long", PHONE_CAP_BODY],
+  ] as const) {
+    test(`${chatStyle}: at a phone width a ${length} user message sits flush against its trailing chip`, async ({ mount }) => {
+      const component = await mount(
+        <MessageRowStory
+          chatStyle={chatStyle}
+          messageRole="user"
+          personaId={ALEX_PERSONA_ID}
+          personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+          width={360}
+          content={content}
+        />,
+      );
+      const gapToChip = async (): Promise<number> => {
+        const bubble = await component.locator(BUBBLE).last().boundingBox();
+        const chip = await component.locator(`${ROW_BODY} > ${AVATAR}`).boundingBox();
+        return (chip?.x ?? 0) - ((bubble?.x ?? 0) + (bubble?.width ?? 0));
+      };
+      // The row body's own gap at a phone width is `spacing.field`; nothing else may sit between the two.
+      await expect.poll(gapToChip).toBeGreaterThanOrEqual(-0.5);
+      await expect.poll(gapToChip).toBeLessThanOrEqual(SNAPPED_LENGTH_BASE_PX["spacing.field"] + 0.5);
+    });
+  }
+}
+
 test("ripple: at a phone width the welded portrait narrows to its phone width", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="ripple" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} width={360} content={PHONE_CAP_BODY} />,

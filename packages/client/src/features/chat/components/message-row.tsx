@@ -288,7 +288,7 @@ export function MessageRow({
   // twice; the two placement facts are single-homed beside the skin table that decides them.
   const gutterRail = gutterRailFor(skin, role);
   const mirrored = rowMirrored(skin, role);
-  const columnClass = columnClassFor(skin);
+  const columnClass = columnClassFor(skin, mirrored);
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,
