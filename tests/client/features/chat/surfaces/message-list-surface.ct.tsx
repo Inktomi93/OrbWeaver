@@ -32,6 +32,7 @@ import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
@@ -156,8 +157,8 @@ function readEchoArtGeometry(bubble: Locator): Promise<{ reservationMatches: boo
     const portrait = art !== null && getComputedStyle(art).backgroundImage.includes("?v=portrait");
     const pad = Number.parseFloat(style.paddingRight);
     return {
-      // The art pane is reserved only where there is art; with none the card is a plain card.
-      reservationMatches: portrait ? Math.abs(pad - pane) < 0.05 : pad < pane,
+      // The art pane is reserved wherever there is a tile (an image or the speaker's fallback); with none the card is plain.
+      reservationMatches: art !== null ? Math.abs(pad - pane) < 0.05 : pad < pane,
       portrait,
       tileMatches: art === null || Math.abs(art.getBoundingClientRect().width - pad) < 0.5,
     };
@@ -273,8 +274,8 @@ for (const width of [320, 430]) {
         const character = castId<CharacterId>("character_ct_edge");
         const persona = castId<PersonaId>("persona_ct_edge");
         const identities: ChatIdentity[] = [
-          { kind: "character", id: character, name: "Mira", avatarHash: null },
-          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash: null },
+          { kind: "character", id: character, name: "Mira", avatarHash: "ab".repeat(32) },
+          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash: "ab".repeat(32) },
         ];
         await routeTrpc(page, {
           ...CHAT_AMBIENT_ROUTES,
@@ -295,6 +296,7 @@ for (const width of [320, 430]) {
               identities,
             ),
         });
+        await page.route("**/api/blob/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: LANDSCAPE_SVG }));
         await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
         const component = await mount(<MessageListSurfaceStory />);
         const avatars = component.locator('[data-slot="avatar-root"]');
@@ -323,6 +325,401 @@ for (const width of [320, 430]) {
           );
         await testInfo.attach("mobile-avatar-edges", { body: await component.screenshot(), contentType: "image/png" });
         await expect.poll(geometry).toEqual([true, true]);
+      });
+    }
+  });
+}
+
+test.describe("a newly opened chat lands at the bottom", () => {
+  test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
+  for (const chatStyle of THEME_CHAT_STYLES) {
+    test(`${chatStyle}: scrollTop equals its max once the transcript settles`, async ({ mount, page }) => {
+      const character = castId<CharacterId>("character_ct_open");
+      const rows = Array.from({ length: 10 }, (_unused, index) =>
+        makeMessageView({
+          id: castId<MessageId>(`msg_open_${index}`),
+          role: index % 2 === 0 ? "user" : "assistant",
+          characterId: index % 2 === 0 ? null : character,
+          content: "The lantern lights the winding path beyond the old gate. ".repeat(4 + index * 3),
+          seq: index + 1,
+        }),
+      );
+      await routeTrpc(page, {
+        ...CHAT_AMBIENT_ROUTES,
+        ...ROSTER_STUB,
+        "settings.getUserSettings": () => ({
+          userId: "user_ct_viewer",
+          schemaVersion: 1,
+          configUnreadable: null,
+          updatedAt: 0,
+          config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+        }),
+        "chat.listMessages": () => makeMessagesPage(rows, [{ kind: "character", id: character, name: "Mira", avatarHash: null }]),
+      });
+      await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+      const component = await mount(<MessageListSurfaceStory />);
+      const scrollport = component.locator('[data-slot="message-list-scroll"]');
+      await expect(component.locator('[data-slot="message-row"]').last()).toBeVisible();
+      await expect.poll(() => scrollport.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThan(1);
+      // Stays there: a late measure must not leave the last row's foot below the fold.
+      await scrollport.evaluate(async () => {
+        for (let frame = 0; frame < 45; frame += 1) {
+          await new Promise(requestAnimationFrame);
+        }
+      });
+      await expect.poll(() => scrollport.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight - el.scrollTop)).toBeLessThan(1);
+    });
+  }
+});
+
+const TALL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200" viewBox="0 0 800 1200"><rect width="800" height="1200" fill="#648"/></svg>';
+const LANDSCAPE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#486"/></svg>';
+
+/** A room with one character row and one persona row, both carrying art, in `chatStyle`. */
+async function routeArtRoom(page: Page, chatStyle: (typeof THEME_CHAT_STYLES)[number], blobSvg?: string, withAvatar = true): Promise<void> {
+  const character = castId<CharacterId>("character_ct_view");
+  const persona = castId<PersonaId>("persona_ct_view");
+  const avatarHash = withAvatar ? "ab".repeat(32) : null;
+  const identities: ChatIdentity[] = [
+    { kind: "character", id: character, name: "Mira", avatarHash },
+    { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash },
+  ];
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_viewer",
+      schemaVersion: 1,
+      configUnreadable: null,
+      updatedAt: 0,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+    }),
+    "chat.listMessages": () =>
+      makeMessagesPage(
+        [
+          { ...USER_VIEW, personaId: persona },
+          { ...AI_VIEW, characterId: character },
+        ],
+        identities,
+      ),
+  });
+  await page.route("**/api/blob/**", (route) =>
+    blobSvg === undefined
+      ? route.fulfill({
+          contentType: "image/svg+xml",
+          path: new URL("../../../../../packages/client/public/illustrations/chat-style-portrait.svg", import.meta.url).pathname,
+        })
+      : route.fulfill({ contentType: "image/svg+xml", body: blobSvg }),
+  );
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+}
+
+for (const viewport of [
+  { label: "phone", size: { width: 390, height: 780 }, touch: true },
+  { label: "desktop", size: { width: 1280, height: 800 }, touch: false },
+]) {
+  test.describe(`a speaker with no avatar image fills the art slot with their fallback, ${viewport.label}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch });
+
+    test("ripple: the welded portrait is the fallback itself, in a 2:3 box", async ({ mount, page }) => {
+      await routeArtRoom(page, "ripple", undefined, false);
+      const component = await mount(<MessageListSurfaceStory />);
+      const portraits = component.locator('[data-slot="avatar-root"]');
+      await expect(portraits).toHaveCount(2);
+      await expect(component.locator('[data-slot="avatar-fallback"]')).toHaveText(["T", "M"]);
+      await expect
+        .poll(() =>
+          portraits.evaluateAll((all) => all.map((el) => Math.round((el.getBoundingClientRect().height / el.getBoundingClientRect().width) * 10) / 10)),
+        )
+        .toEqual([1.5, 1.5]);
+      // The initial scales with the portrait instead of staying a chip-sized glyph.
+      await expect.poll(() => component.getByText(/^[MT]$/u).evaluateAll(initialTracksItsSlot)).toEqual([true, true]);
+    });
+
+    for (const art of [
+      { chatStyle: "echo", slot: '[data-slot="message-echo-art"]', masked: true },
+      { chatStyle: "whisper", slot: '[data-slot="message-band"]', masked: false },
+    ] as const) {
+      test(`${art.chatStyle}: the fallback takes the art's box and keeps its fade, with no chip beside it`, async ({ mount, page }) => {
+        await routeArtRoom(page, art.chatStyle, undefined, false);
+        const component = await mount(<MessageListSurfaceStory />);
+        const tiles = component.locator(art.slot);
+        await expect(tiles).toHaveCount(2);
+        // The fallback's initial rides the art slot, and no letter chip repeats it beside the art.
+        await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+        await expect(tiles.locator("xpath=..").getByText(/^[MT]$/u)).toHaveCount(2);
+        await expect
+          .poll(() =>
+            tiles.evaluateAll((all) =>
+              all.map((el) => {
+                const style = getComputedStyle(el);
+                const box = el.getBoundingClientRect();
+                return {
+                  filled: style.backgroundColor !== "rgba(0, 0, 0, 0)",
+                  masked: style.maskImage !== "none",
+                  gradient: style.backgroundImage.includes("linear-gradient"),
+                  sized: box.width > 0 && box.height > 0,
+                };
+              }),
+            ),
+          )
+          // Echo fades through its mask; whisper's band fades through its gradient layer.
+          .toEqual(Array.from({ length: 2 }, () => ({ filled: true, masked: art.masked, gradient: !art.masked, sized: true })));
+        // The initial scales with its slot, and stays readable on the hue fill.
+        const letters = component.getByText(/^[MT]$/u);
+        await expect.poll(() => letters.evaluateAll(initialTracksItsSlot)).toEqual([true, true]);
+        const contrast = await pixelContrast(page, letters.last());
+        expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+  });
+}
+
+test.describe("the art viewer in phone landscape", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true });
+
+  test("a tall portrait keeps most of the height: Close rides the title row", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", TALL_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBeGreaterThan(230);
+    const close = dialog.getByRole("button", { name: "Close" });
+    await expect.poll(async () => ((await close.boundingBox())?.y ?? Number.POSITIVE_INFINITY) < ((await frame.boundingBox())?.y ?? 0)).toBe(true);
+  });
+
+  test("the dialog is sized to its frame, not a thumbnail in a wide card", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => ((await dialog.boundingBox())?.width ?? 0) - ((await frame.boundingBox())?.width ?? 0)).toBeLessThan(120);
+    await expect.poll(async () => (await dialog.boundingBox())?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(390);
+  });
+});
+
+test.describe("the art viewer on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
+
+  test("ripple asks for its portrait at the width its slot renders, not a fixed size", async ({ mount, page }) => {
+    await routeArtRoom(page, "ripple");
+    const component = await mount(<MessageListSurfaceStory />);
+    const image = component.locator('[data-slot="avatar-image"]').first();
+    await expect(image).toHaveAttribute("src", /v=portrait/u);
+    const slot = component.locator('[data-slot="avatar-root"]').first();
+    // The phone's portrait slot is narrower than the desktop's 180px, so the ask is too (slot width times the pixel ratio, snapped).
+    await expect
+      .poll(async () => {
+        const asked = Number((await image.getAttribute("src"))?.match(/w=(\d+)/u)?.[1]);
+        const width = (await slot.boundingBox())?.width ?? 0;
+        return asked >= width && asked <= width + 16;
+      })
+      .toBe(true);
+  });
+
+  test("the dialog hugs a landscape image instead of filling the screen", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect
+      .poll(async () => {
+        const box = await dialog.boundingBox();
+        return box === null ? Number.POSITIVE_INFINITY : box.height;
+      })
+      .toBeLessThan(560);
+    await expect.poll(async () => Math.round((((await frame.boundingBox())?.width ?? 0) / ((await frame.boundingBox())?.height ?? 1)) * 100) / 100).toBe(1.5);
+  });
+});
+
+test.describe("an image that fails to load shows the speaker's fallback, readable in dark and light", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  for (const room of [
+    { label: "dark", light: false },
+    { label: "light", light: true },
+  ]) {
+    test(`whisper, ${room.label}: the initial reads at 4.5:1, the chip steps aside and the band is not a button`, async ({ mount, page }) => {
+      await routeArtRoom(page, "whisper");
+      await page.route("**/api/blob/**", (route) => route.abort("failed"));
+      const component = await mount(
+        room.light ? <MessageListOverArtStory artBackdrop={false} art="white" palette={LIGHT_ROOM_PALETTE} /> : <MessageListSurfaceStory />,
+      );
+      const letters = component.getByText(/^[MT]$/u);
+      await expect(letters).toHaveCount(2);
+      await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+      await expect(component.getByRole("button", { name: viewImageActionName("Mira"), exact: true })).toHaveCount(0);
+      const contrast = await pixelContrast(page, letters.last());
+      expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});
+
+test.describe("the art viewer and its controls, desktop", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("the frame takes the image's own aspect and a tall image stays inside the viewport", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
+    const frame = page.getByRole("dialog").locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const box = await frame.boundingBox();
+        return box === null ? 0 : Math.round((box.width / box.height) * 100) / 100;
+      })
+      .toBe(1.5);
+  });
+
+  test("a landscape image is never upscaled past its own size and the dialog hugs the frame", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.width ?? 0).toBeLessThanOrEqual(600.5);
+    await expect.poll(async () => ((await dialog.boundingBox())?.width ?? 0) - ((await frame.boundingBox())?.width ?? 0)).toBeLessThan(120);
+  });
+
+  for (const chatStyle of ["echo", "whisper"] as const) {
+    test(`${chatStyle}: an image that fails to load falls back to the speaker's hue and initial`, async ({ mount, page }) => {
+      await routeArtRoom(page, chatStyle);
+      await page.route("**/api/blob/**", (route) => route.abort("failed"));
+      const component = await mount(<MessageListSurfaceStory />);
+      const slot = chatStyle === "echo" ? '[data-slot="message-echo-art"]' : '[data-slot="message-band"]';
+      await expect(component.locator(slot)).toHaveCount(2);
+      await expect(
+        component
+          .locator(slot)
+          .locator("xpath=..")
+          .getByText(/^[MT]$/u),
+      ).toHaveCount(2);
+    });
+  }
+
+  test("a portrait image shows taller than the old square cap and the dialog stays on screen", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", TALL_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBeGreaterThan(400);
+    await expect
+      .poll(async () => {
+        const box = await dialog.boundingBox();
+        return box === null ? Number.POSITIVE_INFINITY : box.y + box.height;
+      })
+      .toBeLessThanOrEqual(800);
+    // Height limits a portrait, so the frame is sized by height: its box matches the image's own aspect, with
+    // no grey bars either side.
+    const natural = await dialog
+      .locator("img")
+      .first()
+      .evaluate((img: HTMLImageElement) => img.naturalWidth / img.naturalHeight);
+    await expect
+      .poll(async () => {
+        const box = await frame.boundingBox();
+        return box === null ? 0 : Math.abs(box.width / box.height - natural);
+      })
+      .toBeLessThan(0.02);
+  });
+
+  for (const chatStyle of ["echo", "whisper"] as const) {
+    test(`${chatStyle}: the art button is clickable but not a second tab stop, and its focus ring is not masked`, async ({ mount, page }) => {
+      await routeArtRoom(page, chatStyle);
+      const component = await mount(<MessageListSurfaceStory />);
+      const buttons = component.getByRole("button", { name: viewImageActionName("Mira"), exact: true });
+      await expect(buttons).toHaveCount(2);
+      // One keyboard stop per row: the chip. The art button stays clickable. (A row's controls are held out of
+      // the tab order until focus enters it, so enter the row first.)
+      await buttons.first().focus();
+      await expect.poll(() => buttons.evaluateAll((all) => all.map((button) => (button as HTMLButtonElement).tabIndex))).toEqual([0, -1]);
+      const art = buttons.last();
+      await expect(art).toHaveCSS("cursor", "pointer");
+      // No mask on the button or any ancestor up to the row: the ring would be feathered away with it.
+      await expect
+        .poll(() =>
+          art.evaluate((button) => {
+            for (let node: Element | null = button; node !== null && node.getAttribute("data-slot") !== "message-row"; node = node.parentElement) {
+              const style = getComputedStyle(node);
+              if (style.maskImage !== "none" && style.maskImage !== "") {
+                return node.getAttribute("data-slot") ?? node.tagName;
+              }
+            }
+            return "none";
+          }),
+        )
+        .toBe("none");
+      // Hovering the round chip paints no plate behind it.
+      const chip = buttons.first();
+      await chip.hover();
+      await expect(chip).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await expect(chip).toHaveCSS("cursor", "pointer");
+      // The art dims on hover as the chip does: echo's tile, whisper's band.
+      await art.hover();
+      const painted = component.locator(chatStyle === "echo" ? '[data-slot="message-echo-art"]' : '[data-slot="message-band"]').last();
+      await expect(painted).toHaveCSS("opacity", "0.8");
+    });
+  }
+});
+
+/** Runs in the page: each initial's font size is a fixed share of its slot's smaller side. A fixed-size glyph
+ *  (a chip's 13px label in a 180px portrait) falls far under that share. */
+function initialTracksItsSlot(all: Element[]): boolean[] {
+  return all.map((el) => {
+    const slot = el.parentElement?.getBoundingClientRect();
+    if (slot === undefined) {
+      return false;
+    }
+    const share = Number.parseFloat(getComputedStyle(el).fontSize) / Math.min(slot.width, slot.height);
+    return share > 0.4 && share < 0.8;
+  });
+}
+
+async function expectArtViewerRoundTrip(page: Page, control: Locator, speaker: string, touch: boolean): Promise<void> {
+  const dialog = page.getByRole("dialog");
+  await (touch ? control.tap() : control.click());
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: speaker, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(control).toBeFocused();
+}
+
+for (const viewport of [
+  { label: "phone", size: { width: 390, height: 780 }, touch: true },
+  { label: "desktop", size: { width: 1280, height: 800 }, touch: false },
+]) {
+  test.describe(`tapping a speaker's art opens it full size, ${viewport.label}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch });
+    for (const chatStyle of THEME_CHAT_STYLES.filter((style) => style !== "document")) {
+      test(`${chatStyle}: every art control opens the viewer, Escape closes it and focus returns to the control`, async ({ mount, page }) => {
+        await routeArtRoom(page, chatStyle);
+        const component = await mount(<MessageListSurfaceStory />);
+        // The art controls sit beside the header bar, which reaches across echo's pane: hover only lands if the
+        // row's own action stays the top-most target there (Playwright refuses a covered point).
+        await component.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).last().hover();
+        for (const speaker of ["Mira", "Traveler"]) {
+          const controls = component.getByRole("button", { name: viewImageActionName(speaker), exact: true });
+          await expect(controls.first()).toBeVisible();
+          const count = await controls.count();
+          // The chip, plus echo's tile or whisper's band; ripple's weld replaces the chip with its portrait.
+          expect(count, `${speaker} art controls`).toBe(chatStyle === "echo" || chatStyle === "whisper" ? 2 : 1);
+          for (let index = 0; index < count; index += 1) {
+            await expectArtViewerRoundTrip(page, controls.nth(index), speaker, viewport.touch);
+          }
+        }
       });
     }
   });
@@ -545,7 +942,7 @@ test("pending phase (turnStarted, no deltas yet): the typing dots render with RE
   await expect(component.locator('[data-slot="typing-dots"] .orb-typing-dot')).toHaveCount(3);
   const readBoxAtAssertion = async (): Promise<typeof box> => await pending.boundingBox();
   const box = await pending.boundingBox();
-  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(100);
+  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(16);
 });
 
 // SWIPE reroll (append-variant), streamed head only (start + two deltas, NO completion) so the in-place

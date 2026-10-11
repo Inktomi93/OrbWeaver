@@ -618,10 +618,17 @@ test("a user row mirrors it — avatar AFTER the content column (§B.1 own-messa
 // The identity is the gutter chip, or ripple's welded portrait.
 const MIRRORED_USER_STYLES: ReadonlySet<string> = new Set(["bubble", "echo", "tide"]);
 for (const chatStyle of THEME_CHAT_STYLES) {
-  test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount }) => {
+  test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount, page }) => {
+    await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
     test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(
-      <MessageRowStory chatStyle={chatStyle} messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} width={720} />,
+      <MessageRowStory
+        chatStyle={chatStyle}
+        messageRole="user"
+        personaId={ALEX_PERSONA_ID}
+        personas={[{ id: ALEX_PERSONA_ID, name: "Alex", avatarHash: "hash_alex" }]}
+        width={720}
+      />,
     );
     const avatar = component.locator(AVATAR).first();
     await expect(avatar).toBeVisible();
@@ -664,13 +671,14 @@ for (const chatStyle of ["bubble", "echo", "tide"] as const) {
     ["short", "Hi there."],
     ["long", PHONE_CAP_BODY],
   ] as const) {
-    test(`${chatStyle}: at a phone width a ${length} user message sits flush against its trailing chip`, async ({ mount }) => {
+    test(`${chatStyle}: at a phone width a ${length} user message sits flush against its trailing chip`, async ({ mount, page }) => {
+      await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
       const component = await mount(
         <MessageRowStory
           chatStyle={chatStyle}
           messageRole="user"
           personaId={ALEX_PERSONA_ID}
-          personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+          personas={[{ id: ALEX_PERSONA_ID, name: "Alex", avatarHash: "hash_alex" }]}
           width={360}
           content={content}
         />,
@@ -792,7 +800,8 @@ test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floors, n
 // These mount the real DOM and assert against the RESOLVED `--immersive-*`/`--color-speaker` custom
 // properties (never a hardcoded px/hex literal — the golden rule), same as `theme-scope.ct.tsx`.
 
-test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({ mount }) => {
+test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({ mount, page }) => {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
   const component = await mount(<MessageRowStory chatStyle="whisper" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const band = component.locator('[data-slot="message-band"]');
   await expect(band).toBeVisible();
@@ -1049,12 +1058,15 @@ test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entit
   await expectInBand(fallback);
 });
 
-test("whisper (no avatar): no banner, only the speaker stripe", async ({ mount }) => {
+test("whisper (no avatar): the band is the speaker's fallback, under the speaker stripe", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="whisper" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   await expect(component.locator(BUBBLE)).toBeVisible();
-  await expect(component.locator(BAND)).toHaveCount(0);
+  await expect(component.locator(BAND)).toHaveCount(1);
+  await expect(component.locator(BAND)).toHaveText("A");
+  // The art slot is the fallback, so no chip repeats it beside the band.
+  await expect(component.locator(AVATAR)).toHaveCount(0);
   await expect(component.locator(BUBBLE)).not.toHaveCSS("border-top-width", "0px");
 });
 
@@ -2271,7 +2283,7 @@ test("#106 CONTROL: with no background photo the same row is byte-identically ba
 });
 
 // ── THE SWIPE FOOT: the message's own last line, per chat style (owner ruling, SillyTavern's inline swipe) ──
-// ‹ sits at the container's leading edge and the count beside › at its trailing edge, as the message's own
+// ‹ n / m › sit together at the container's trailing corner, as the message's own
 // foot rather than a separate card under it. Each style decides where that foot lives (`RowSkin.swipeFoot`):
 // inside the container for the seven single-container styles, under the train for tide. The count is the
 // position and nothing else.
@@ -2344,6 +2356,10 @@ for (const chatStyle of THEME_CHAT_STYLES) {
       const next = await foot.getByRole("button", { name: VARIANT_NEXT_NAME }).boundingBox();
       const counter = await foot.locator(SWIPE_COUNTER_SLOT).boundingBox();
       const footBox = await foot.boundingBox();
+      const cardCorner = await component
+        .locator(BUBBLE)
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(el).paddingLeft));
       if (prev === null || next === null || counter === null || footBox === null) {
         return { rendered: false };
       }
@@ -2356,10 +2372,13 @@ for (const chatStyle of THEME_CHAT_STYLES) {
         rendered: true,
         onTrain:
           chatStyle !== "tide" || (widest !== undefined && Math.abs(footBox.x - widest.left) < 1 && Math.abs(footBox.x + footBox.width - widest.right) < 1),
-        // ‹ and › sit on the container's reading inset, the same inset the header bar's actions sit on.
-        leading: Math.abs(prev.x - container.contentLeft) < 1,
-        trailing: Math.abs(next.x + next.width - container.contentRight) < 1,
-        matchesHeader: Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
+        // ‹ n / m › are one group: the arrows hug the count, and › ends on the container's reading inset, the
+        // same inset the header bar's actions end on.
+        grouped: counter.x - (prev.x + prev.width) < prev.width && next.x - (counter.x + counter.width) < next.width,
+        // › ends on the container's reading inset, the same inset the header bar's actions end on. Echo's group
+        // ends instead at the card's own corner, one card inset in from the art side's edge.
+        trailing: Math.abs(next.x + next.width - (chatStyle === "echo" ? cardCorner : container.contentRight)) < 1,
+        matchesHeader: chatStyle === "echo" || Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
         countBesideNext: counter.x > prev.x + prev.width && counter.x + counter.width <= next.x + 0.5,
         // One glyph line, not a card: the foot is as tall as its chevrons.
         oneLine: Math.abs(footBox.height - next.height) < 0.5,
@@ -2367,13 +2386,47 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     };
     await expect
       .poll(footLaw)
-      .toEqual({ rendered: true, onTrain: true, leading: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
+      .toEqual({ rendered: true, onTrain: true, grouped: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
     // Echo's foot rides the card's fill across the art pane; every other inside foot sits on its container.
     const fill = await foot.evaluate((el) => getComputedStyle(el).backgroundColor);
     // @orb-waive ct-no-oneshot-live-read-assert(expect): the foot law above polled the row to its settled layout; its fill is a static class.
     expect(parseOklchOrTransparent(fill)).toEqual(chatStyle === "echo" ? parseOklch(await cssVar(foot, "--color-ai-bubble")) : TRANSPARENT);
   });
 }
+
+// The foot is the card's bottom-right CORNER: beside ripple's tall portrait a one-line reply still has its
+// swipe group at the card's foot, not floating under the text.
+test("ripple: a one-line reply's swipe group sits at the card's bottom corner beside the tall portrait", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      showSwipes={true}
+      lastRow={true}
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+      width={720}
+      content="Short."
+    />,
+  );
+  const foot = component.locator(SWIPE_STRIP);
+  await expect(foot).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const card = await component.locator(BUBBLE).boundingBox();
+      const group = await foot.locator("xpath=..").boundingBox();
+      const pad = await foot.evaluate((el) => {
+        let node: Element | null = el.parentElement;
+        while (node !== null && Number.parseFloat(getComputedStyle(node).paddingBottom) === 0) {
+          node = node.parentElement;
+        }
+        return node === null ? 0 : Number.parseFloat(getComputedStyle(node).paddingBottom);
+      });
+      return card === null || group === null ? Number.NaN : Math.round(card.y + card.height - pad - (group.y + group.height));
+    })
+    .toBeLessThanOrEqual(1);
+});
 
 test("over a wallpaper the bubble foot rides the bubble's own fill, and its count stays legible", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
@@ -3337,7 +3390,7 @@ for (const chatStyle of ["flat", "hush", "document"] as const) {
 }
 
 // ── IDENTITY ART ONLY WHERE THERE IS ART ──────────────────────────────────────────────────────────────
-test("ripple without portrait art keeps the chip, so a short row is not padded to a portrait's height", async ({ mount }) => {
+test("ripple without portrait art welds the speaker's fallback as its 2:3 portrait", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="ripple"
@@ -3349,19 +3402,18 @@ test("ripple without portrait art keeps the chip, so a short row is not padded t
     />,
   );
   await expect(component.locator(ROW)).toBeVisible();
-  // The chip, not the 2:3 portrait: square, and the row hugs one line of text.
+  await expect(component.locator(`${AVATAR} ${FALLBACK}`)).toHaveText("A");
   await expect
     .poll(() =>
       component
         .locator(AVATAR)
         .first()
-        .evaluate((el) => Math.round(el.getBoundingClientRect().height)),
+        .evaluate((el) => Math.round((el.getBoundingClientRect().height / el.getBoundingClientRect().width) * 10) / 10),
     )
-    .toBeLessThanOrEqual(48);
-  await expect.poll(() => component.locator(ROW).evaluate((el) => el.getBoundingClientRect().height)).toBeLessThan(100);
+    .toBe(1.5);
 });
 
-test("echo without portrait art paints no art pane and no letter tile", async ({ mount }) => {
+test("echo without portrait art fills the art pane with the speaker's fallback and drops the chip", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="echo"
@@ -3372,8 +3424,9 @@ test("echo without portrait art paints no art pane and no letter tile", async ({
     />,
   );
   await expect(component.locator(BUBBLE)).toBeVisible();
-  await expect(component.locator('[data-slot="message-echo-art"]')).toHaveCount(0);
-  await expect(component.locator(BUBBLE)).not.toHaveCSS("padding-right", /^1[0-9]{2}/);
+  await expect(component.locator('[data-slot="message-echo-art"]')).toHaveCount(1);
+  await expect(component.locator('[data-slot="message-echo-art"]').locator("xpath=..").getByText("A", { exact: true })).toHaveCount(1);
+  await expect(component.locator(AVATAR)).toHaveCount(0);
 });
 
 test("echo's art on a phone is Moonlit's fixed mobile height in its pane, not a corner thumbnail", async ({ mount }) => {
