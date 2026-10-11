@@ -15,6 +15,11 @@ type StepAction =
   // A touch DRAG (`Input.dispatchTouchEvent` start/move/end) that scrolls a touch scroller by `dy` CSS px.
   // Chromium's `Input.synthesizeScrollGesture` does not scroll in the headless build; this does.
   | { kind: "swipe"; selector: string; dy: number }
+  // The same drag along X (`dx` > 0 drags the finger left, so the content scrolls right), a touch HOLD of
+  // `ms` on a selector (the long-press a context menu waits for), and a touch tap at viewport pixels `x,y`.
+  | { kind: "swipe-x"; selector: string; dx: number }
+  | { kind: "long-press"; selector: string; ms: number }
+  | { kind: "tap-at"; x: number; y: number }
   // An iOS-shaped ON-SCREEN KEYBOARD of `height` CSS px (0 closes it). Headless Chromium never shows one,
   // so without this every phone drive measured the composer with a permanent keyboard inset of 0. It
   // shrinks `visualViewport.height` and fires its `resize` while the layout viewport stays full height,

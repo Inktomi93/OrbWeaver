@@ -39,28 +39,47 @@ async function runWheelStep(page: Page, step: Extract<Step, { readonly kind: "wh
 const SWIPE_MOVES = 10;
 const SWIPE_MOVE_GAP_MS = 16;
 
-// A finger dragged up by `dy` scrolls the content under it down by `dy`. The session is created per swipe
-// and detached after it: a touch sequence leaves no emulation behind to keep alive.
-async function runSwipeStep(page: Page, step: Extract<Step, { readonly kind: "swipe" }>): Promise<void> {
-  const loc = page.locator(step.selector).first();
+// One touch sequence from the centre of the selector's box. The session is created per gesture and detached
+// after it: a touch sequence leaves no emulation behind to keep alive. `drag` moves the finger by that many
+// px (null = no movement); `holdMs` is the pause before the finger lifts.
+async function runTouchGesture(
+  page: Page,
+  flag: string,
+  selector: string,
+  gesture: { readonly drag: { readonly dx: number; readonly dy: number } | null; readonly holdMs: number },
+): Promise<void> {
+  const loc = page.locator(selector).first();
   await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
   const box = await loc.boundingBox();
   if (box === null) {
-    throw new Error(`--swipe target ${step.selector} has no box to touch`);
+    throw new Error(`${flag} target ${selector} has no box to touch`);
   }
-  const x = box.x + box.width / 2;
+  const startX = box.x + box.width / 2;
   const startY = box.y + box.height / 2;
   const cdp = await page.context().newCDPSession(page);
   try {
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: startY }] });
-    for (let move = 1; move <= SWIPE_MOVES; move += 1) {
-      await settle(page, SWIPE_MOVE_GAP_MS);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: startY - (step.dy * move) / SWIPE_MOVES }] });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y: startY }] });
+    if (gesture.drag !== null) {
+      for (let move = 1; move <= SWIPE_MOVES; move += 1) {
+        await settle(page, SWIPE_MOVE_GAP_MS);
+        const x = startX + (gesture.drag.dx * move) / SWIPE_MOVES;
+        const y = startY + (gesture.drag.dy * move) / SWIPE_MOVES;
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+      }
+    }
+    if (gesture.holdMs > 0) {
+      await settle(page, gesture.holdMs);
     }
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   } finally {
     await cdp.detach();
   }
+}
+
+// A finger dragged up by `dy` scrolls the content under it down by `dy`; `swipe-x` drags along X the same way.
+async function runSwipeStep(page: Page, step: Extract<Step, { readonly kind: "swipe" | "swipe-x" }>): Promise<void> {
+  const drag = step.kind === "swipe" ? { dx: 0, dy: -step.dy } : { dx: -step.dx, dy: 0 };
+  await runTouchGesture(page, `--${step.kind}`, step.selector, { drag, holdMs: 0 });
 }
 
 // The keyboard is an OWN-PROPERTY getter on the page's one `visualViewport`, shadowing the prototype's, so
@@ -100,7 +119,10 @@ async function runSoftKeyboardStep(page: Page, step: Extract<Step, { readonly ki
 
 async function runLocatedStep(
   page: Page,
-  step: Exclude<Step, { readonly kind: "motion-click" | "pause" | "wheel" | "wheelburst" | "keyboard" | "swipe" | "soft-keyboard" }>,
+  step: Exclude<
+    Step,
+    { readonly kind: "motion-click" | "pause" | "wheel" | "wheelburst" | "keyboard" | "swipe" | "swipe-x" | "long-press" | "tap-at" | "soft-keyboard" }
+  >,
 ): Promise<FileActionReceipt | null> {
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
@@ -166,8 +188,17 @@ async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null
     await runWheelStep(page, step);
     return null;
   }
-  if (step.kind === "swipe") {
+  if (step.kind === "swipe" || step.kind === "swipe-x") {
     await runSwipeStep(page, step);
+    return null;
+  }
+  if (step.kind === "long-press") {
+    await runTouchGesture(page, "--long-press", step.selector, { drag: null, holdMs: step.ms });
+    return null;
+  }
+  if (step.kind === "tap-at") {
+    // Playwright's touchscreen, like `locator.tap()`, needs `hasTouch`; the parse-time refusal is the door.
+    await page.touchscreen.tap(step.x, step.y);
     return null;
   }
   if (step.kind === "soft-keyboard") {

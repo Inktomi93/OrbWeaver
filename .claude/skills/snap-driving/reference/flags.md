@@ -62,6 +62,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--hover [@N] <value>` | synthetic hover (loses :hover on any list re-render) |
 | `--idle` | bounded network-idle settle instead of the default fixed mount settle |
 | `--key [@N] <value>` | Key or selector=Key — the bare form walks focus without re-focusing; the selector form focuses then presses |
+| `--long-press [@N] <value>` | selector=ms — hold a touch on the selector for ms, then lift; needs --mobile like --tap |
 | `--open-character [@N] <value>` | Characters section + select by id or name |
 | `--open-chat [@N] <value>` | open a room by id, exact title, latest, or current |
 | `--pages <value>` | N tabs in ONE browser context (shared cookies, independent DOM) |
@@ -73,7 +74,9 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--soft-keyboard [@N] <value>` | px — open an iOS-shaped on-screen keyboard that shrinks visualViewport by px (0 closes); needs --mobile like --tap |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
 | `--swipe [@N] <value>` | selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap |
+| `--swipe-x [@N] <value>` | selector=dx — a dispatched horizontal touch drag; positive dx drags the finger left; needs --mobile like --tap |
 | `--tap [@N] <value>` | a REAL touch tap without mouseover; use --mobile at session boot or another touch device |
+| `--tap-at [@N] <value>` | x,y — a touch tap at viewport pixels; needs --mobile like --tap |
 | `--upload [@N] <value>` | `selector=path[,path]` — choose file(s) through an input or a trigger's filechooser |
 | `--wait-for [@N] <value>` | selector or text=phrase — wait for a selector to become visible, or for rendered text |
 | `--watch <value>` | per-tick screenshot and re-run of every --eval over a total window (page 0 only) |

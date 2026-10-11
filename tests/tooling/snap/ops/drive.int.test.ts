@@ -432,6 +432,82 @@ test("--swipe scrolls a touch scroller by dispatched touch events, and refuses w
   expect(parseSnapArgs(["/", "--swipe", "#list=400"]).errors.join("\n")).toContain("--swipe needs a touch-capable context");
 });
 
+// --swipe-x / --long-press / --tap-at ride the same touch path as --swipe, so the fixture records what a
+// finger would produce: the strip's scrollLeft, the hold between touchstart and touchend, and the click a
+// coordinate tap lands on a button that is positioned at known pixels.
+const GESTURE_DOCUMENT = `<!doctype html><html lang="en" data-app-ready="settled"><body style="margin:0">
+<div id="strip" style="width:300px;height:80px;overflow-x:auto;overflow-y:hidden"><div style="width:3000px;height:60px;background:linear-gradient(90deg,#fff,#00f)"></div></div>
+<div id="held" style="position:absolute;left:0;top:120px;width:200px;height:80px"></div>
+<button id="spot" style="position:absolute;left:50px;top:240px;width:100px;height:60px">spot</button>
+<script>
+  window.__hold = null;
+  window.__spotTaps = 0;
+  var startedAt = 0;
+  var held = document.getElementById("held");
+  held.addEventListener("touchstart", function (event) { startedAt = event.timeStamp; });
+  held.addEventListener("touchend", function (event) { window.__hold = event.timeStamp - startedAt; });
+  document.getElementById("spot").addEventListener("click", function () { window.__spotTaps += 1; });
+</script></body></html>`;
+
+interface GestureReading {
+  readonly stepFailures: number;
+  readonly scrollLeft: number;
+  readonly holdMs: number | null;
+  readonly spotTaps: number;
+}
+
+async function driveGestureFixture(argv: readonly string[]): Promise<GestureReading> {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(GESTURE_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
+    await page.goto(base);
+    const args = parseSnapArgs([...argv, "--mobile", "--base", base, "--no-shot", "--no-deadcss", "--no-failure-evidence"]);
+    expect(args.errors, "the fixture argv must parse cleanly or the drive below measures nothing").toEqual([]);
+    const failures = await driveActions({ page, actions: args.actions });
+    return {
+      stepFailures: failures.stepFailures,
+      scrollLeft: Number(await page.evaluate("document.getElementById('strip').scrollLeft")),
+      holdMs: (await page.evaluate("window.__hold")) as number | null,
+      spotTaps: Number(await page.evaluate("window.__spotTaps")),
+    };
+  } finally {
+    await browser.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+test("--swipe-x drags a horizontal scroller sideways, and refuses without a touch device", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const reading = await driveGestureFixture(["/", "--swipe-x", "#strip=400"]);
+  expect(reading.stepFailures).toBe(0);
+  expect(reading.scrollLeft, "a positive dx drags the finger left, so the content scrolls right").toBeGreaterThan(100);
+  expect(parseSnapArgs(["/", "--swipe-x", "#strip=400"]).errors.join("\n")).toContain("--swipe-x needs a touch-capable context");
+  expect(parseSnapArgs(["/", "--swipe-x", "#strip", "--mobile"]).errors.join("\n")).toContain("--swipe-x expects selector=dx");
+});
+
+test("--long-press holds the finger down for the asked duration, and refuses without a touch device", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const reading = await driveGestureFixture(["/", "--long-press", "#held=700"]);
+  expect(reading.stepFailures).toBe(0);
+  expect(reading.holdMs, "touchstart and touchend must both fire on the target").not.toBeNull();
+  expect(reading.holdMs ?? 0).toBeGreaterThanOrEqual(650);
+  expect(parseSnapArgs(["/", "--long-press", "#held=700"]).errors.join("\n")).toContain("--long-press needs a touch-capable context");
+  expect(parseSnapArgs(["/", "--long-press", "#held=0", "--mobile"]).errors.join("\n")).toContain("--long-press expects selector=ms");
+});
+
+test("--tap-at taps a viewport coordinate, and refuses without a touch device", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const reading = await driveGestureFixture(["/", "--tap-at", "100,270"]);
+  expect(reading.stepFailures).toBe(0);
+  expect(reading.spotTaps, "a touch at the button's pixels must click it").toBe(1);
+  expect(parseSnapArgs(["/", "--tap-at", "100,270"]).errors.join("\n")).toContain("--tap-at needs a touch-capable context");
+  expect(parseSnapArgs(["/", "--tap-at", "100", "--mobile"]).errors.join("\n")).toContain("--tap-at expects x,y");
+});
+
 // --soft-keyboard: headless Chromium never raises an on-screen keyboard, so a --mobile drive that focused the
 // composer read visualViewport.height === innerHeight and the app's keyboard inset stayed 0 (measured on a
 // staged chat room). The page below records what visualViewport resize AND scroll listeners see, the two
