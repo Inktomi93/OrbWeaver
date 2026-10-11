@@ -487,7 +487,7 @@ test("showInChatAvatars=true (default) renders the attribution avatar", async ({
 // initials-only = the bug. (The <img> never actually loads in CT — asserting the element + its src is
 // the load-independent proof the PORTRAIT path was chosen, not the fallback.)
 const AVATAR_IMAGE = '[data-slot="avatar-image"]';
-const BLOB_HASH_ALICE_RE = /\/api\/blob\/hash_alice$/u;
+const BLOB_HASH_ALICE_RE = /\/api\/blob\/hash_alice(\?w=\d+)?$/u;
 // `@orb/ui`'s Avatar (Base UI) only mounts the `avatar-image` element once the image STATUS is "loaded"
 // (AvatarImage returns null otherwise); a 404 in the CT harness would never load, so the blob route is
 // fulfilled with a real 1×1 PNG. That makes the assertion load-independent proof the PORTRAIT path was

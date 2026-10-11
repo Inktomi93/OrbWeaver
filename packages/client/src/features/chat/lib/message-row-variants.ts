@@ -5,7 +5,7 @@
 // `mask-image` (that would also fade the text painted on top).
 
 import type { VariantKind } from "@orb/contracts/assets";
-import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
+import { blobBannerUrl, blobIconUrl, blobPortraitUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { CSSProperties } from "react";
@@ -194,6 +194,8 @@ const MAX_ART_PIXEL_RATIO = 3;
 // biome-ignore lint/style/noMagicNumbers: CSS px of `--immersive-echo-art-width` (12rem) and `--immersive-ripple-portrait-width` (11.25rem); the request is sized from them.
 const ECHO_PORTRAIT_CSS_WIDTH = 192;
 const RIPPLE_PORTRAIT_CSS_WIDTH = 180;
+// CSS px of the `spacing.avatar-*` steps the chat chip uses.
+const AVATAR_CSS_WIDTH = { sm: 24, md: 32, lg: 40 } as const;
 
 function artRequestWidth(cssWidth: number): number {
   // Read through Reflect: the node-side test program has no DOM lib, so `globalThis.devicePixelRatio` is untyped there.
@@ -421,8 +423,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
 // The avatar-chip src props live beside the other per-skin asset-URL shaping (Echo portrait, Whisper
 // banner) — one home for "which blob variant does this rendering slot request".
 // exactOptionalPropertyTypes idiom: omit `src` rather than pass undefined.
-export function avatarSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
+export function avatarSrcProp(avatarHash: string | null, size: keyof typeof AVATAR_CSS_WIDTH): { src?: string } {
+  return avatarHash === null ? {} : { src: blobIconUrl(avatarHash, artRequestWidth(AVATAR_CSS_WIDTH[size])) };
 }
 
 export function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {

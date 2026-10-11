@@ -139,6 +139,20 @@ describe("portrait crop (width + height + fit:'cover')", () => {
     expect(info.width / info.height).toBeCloseTo(2 / 3, 5);
   });
 
+  test("a box larger than the source shrinks to fit the source and keeps the 2:3 crop", async () => {
+    // A square 512 source asked for the 864x1296 rung: refusing to enlarge must not hand back the square.
+    const square = new Uint8Array(
+      await sharp({ create: { width: 512, height: 512, channels: 3, background: { r: 10, g: 20, b: 30 } } })
+        .png()
+        .toBuffer(),
+    );
+    const out = await adapter.transform(square, { width: 864, height: 1296, fit: "cover", position: "attention" });
+    const info = await adapter.probe(out);
+    expect(info.width).toBeLessThanOrEqual(512);
+    expect(info.height).toBeLessThanOrEqual(512);
+    expect(info.width / info.height).toBeCloseTo(2 / 3, 2);
+  });
+
   test("the width-only path still preserves the source aspect (no crop leak into the icon ladder)", async () => {
     const out = await adapter.transform(pngSource, { width: VARIANT_WIDTH });
     const info = await adapter.probe(out);

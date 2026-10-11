@@ -79,7 +79,7 @@ export function renderRowAvatar(args: {
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
       {...(target === null && chipClass !== "" ? { className: chipClass } : {})}
-      {...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("icon") })}
+      {...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash, args.avatarSize) : { src: args.imageUrlFor("icon") })}
     >
       {initialsFor(args.attribution.name)}
     </Avatar>
@@ -118,7 +118,7 @@ function viewable(target: ViewTarget | null, className: string, avatar: ReactEle
   return (
     <Button
       aria-label={viewImageActionName(target.name)}
-      className={className}
+      className={cn(className, "cursor-pointer hover:bg-transparent hover:opacity-80 active:bg-transparent") ?? ""}
       intent="ghost"
       onClick={(event): void => target.open({ hash: target.hash, name: target.name }, event.currentTarget)}
       size="media"

@@ -9,10 +9,9 @@ export interface ArtToView {
   readonly name: string;
 }
 
+// @orb-waive no-inline-types(OpenArtViewer): the context's value type, local to the one feature that provides and reads it.
 /** Opens the viewer on `art`; `opener` is the control focus returns to when it closes. */
-export interface OpenArtViewer {
-  (art: ArtToView, opener: HTMLElement): void;
-}
+export type OpenArtViewer = (art: ArtToView, opener: HTMLElement) => void;
 
 export const ArtViewerContext = createContext<OpenArtViewer | null>(null);
 

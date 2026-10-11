@@ -371,6 +371,117 @@ test.describe("a newly opened chat lands at the bottom", () => {
   }
 });
 
+const LANDSCAPE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#486"/></svg>';
+
+/** A room with one character row and one persona row, both carrying art, in `chatStyle`. */
+async function routeArtRoom(page: Page, chatStyle: (typeof THEME_CHAT_STYLES)[number], blobSvg?: string): Promise<void> {
+  const character = castId<CharacterId>("character_ct_view");
+  const persona = castId<PersonaId>("persona_ct_view");
+  const avatarHash = "ab".repeat(32);
+  const identities: ChatIdentity[] = [
+    { kind: "character", id: character, name: "Mira", avatarHash },
+    { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash },
+  ];
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_viewer",
+      schemaVersion: 1,
+      configUnreadable: null,
+      updatedAt: 0,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
+    }),
+    "chat.listMessages": () =>
+      makeMessagesPage(
+        [
+          { ...USER_VIEW, personaId: persona },
+          { ...AI_VIEW, characterId: character },
+        ],
+        identities,
+      ),
+  });
+  await page.route("**/api/blob/**", (route) =>
+    blobSvg === undefined
+      ? route.fulfill({
+          contentType: "image/svg+xml",
+          path: new URL("../../../../../packages/client/public/illustrations/chat-style-portrait.svg", import.meta.url).pathname,
+        })
+      : route.fulfill({ contentType: "image/svg+xml", body: blobSvg }),
+  );
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+}
+
+test.describe("the art viewer and its controls, desktop", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("the frame takes the image's own aspect and a tall image stays inside the viewport", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
+    const frame = page.getByRole("dialog").locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const box = await frame.boundingBox();
+        return box === null ? 0 : Math.round((box.width / box.height) * 100) / 100;
+      })
+      .toBe(1.5);
+  });
+
+  test("a portrait image shows taller than the old square cap and the dialog stays on screen", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat");
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBeGreaterThan(400);
+    await expect
+      .poll(async () => {
+        const box = await dialog.boundingBox();
+        return box === null ? Number.POSITIVE_INFINITY : box.y + box.height;
+      })
+      .toBeLessThanOrEqual(800);
+  });
+
+  for (const chatStyle of ["echo", "whisper"] as const) {
+    test(`${chatStyle}: the art button is clickable but not a second tab stop, and its focus ring is not masked`, async ({ mount, page }) => {
+      await routeArtRoom(page, chatStyle);
+      const component = await mount(<MessageListSurfaceStory />);
+      const buttons = component.getByRole("button", { name: viewImageActionName("Mira"), exact: true });
+      await expect(buttons).toHaveCount(2);
+      // One keyboard stop per row: the chip. The art button stays clickable. (A row's controls are held out of
+      // the tab order until focus enters it, so enter the row first.)
+      await buttons.first().focus();
+      await expect.poll(() => buttons.evaluateAll((all) => all.map((button) => (button as HTMLButtonElement).tabIndex))).toEqual([0, -1]);
+      const art = buttons.last();
+      await expect(art).toHaveCSS("cursor", "pointer");
+      // No mask on the button or any ancestor up to the row: the ring would be feathered away with it.
+      await expect
+        .poll(() =>
+          art.evaluate((button) => {
+            for (let node: Element | null = button; node !== null && node.getAttribute("data-slot") !== "message-row"; node = node.parentElement) {
+              const style = getComputedStyle(node);
+              if (style.maskImage !== "none" && style.maskImage !== "") {
+                return node.getAttribute("data-slot") ?? node.tagName;
+              }
+            }
+            return "none";
+          }),
+        )
+        .toBe("none");
+      // Hovering the round chip paints no plate behind it.
+      const chip = buttons.first();
+      await chip.hover();
+      await expect(chip).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await expect(chip).toHaveCSS("cursor", "pointer");
+    });
+  }
+});
+
 async function expectArtViewerRoundTrip(page: Page, control: Locator, speaker: string, touch: boolean): Promise<void> {
   const dialog = page.getByRole("dialog");
   await (touch ? control.tap() : control.click());
@@ -389,39 +500,7 @@ for (const viewport of [
     test.use({ viewport: viewport.size, hasTouch: viewport.touch });
     for (const chatStyle of THEME_CHAT_STYLES.filter((style) => style !== "document")) {
       test(`${chatStyle}: every art control opens the viewer, Escape closes it and focus returns to the control`, async ({ mount, page }) => {
-        const character = castId<CharacterId>("character_ct_view");
-        const persona = castId<PersonaId>("persona_ct_view");
-        const avatarHash = "ab".repeat(32);
-        const identities: ChatIdentity[] = [
-          { kind: "character", id: character, name: "Mira", avatarHash },
-          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash },
-        ];
-        await routeTrpc(page, {
-          ...CHAT_AMBIENT_ROUTES,
-          ...ROSTER_STUB,
-          "settings.getUserSettings": () => ({
-            userId: "user_ct_viewer",
-            schemaVersion: 1,
-            configUnreadable: null,
-            updatedAt: 0,
-            config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
-          }),
-          "chat.listMessages": () =>
-            makeMessagesPage(
-              [
-                { ...USER_VIEW, personaId: persona },
-                { ...AI_VIEW, characterId: character },
-              ],
-              identities,
-            ),
-        });
-        await page.route("**/api/blob/**", (route) =>
-          route.fulfill({
-            contentType: "image/svg+xml",
-            path: new URL("../../../../../packages/client/public/illustrations/chat-style-portrait.svg", import.meta.url).pathname,
-          }),
-        );
-        await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+        await routeArtRoom(page, chatStyle);
         const component = await mount(<MessageListSurfaceStory />);
         // The art controls sit beside the header bar, which reaches across echo's pane: hover only lands if the
         // row's own action stays the top-most target there (Playwright refuses a covered point).

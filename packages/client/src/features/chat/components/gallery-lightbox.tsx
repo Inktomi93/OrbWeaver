@@ -11,7 +11,7 @@ import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 
 /** The one image the lightbox shows. `name` is the grid cell's own name, so both say the same thing. */
@@ -35,9 +35,31 @@ interface GalleryLightboxProps {
   readonly onSettled: (open: boolean) => void;
 }
 
+// The image's own width over height, read once it has loaded; the frame is square until then.
+function useImageAspect(hash: string | null): number {
+  const [loaded, setLoaded] = useState<{ readonly hash: string; readonly aspect: number } | null>(null);
+  useEffect(() => {
+    if (hash === null) {
+      return;
+    }
+    const probe = new Image();
+    probe.onload = (): void => {
+      if (probe.naturalWidth > 0 && probe.naturalHeight > 0) {
+        setLoaded({ hash, aspect: probe.naturalWidth / probe.naturalHeight });
+      }
+    };
+    probe.src = blobUrl(hash);
+    return (): void => {
+      probe.onload = null;
+    };
+  }, [hash]);
+  return loaded !== null && loaded.hash === hash ? loaded.aspect : 1;
+}
+
 export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled }: GalleryLightboxProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const aspect = useImageAspect(image === null ? null : image.hash);
   return (
     <Dialog
       open={image !== null}
@@ -52,8 +74,9 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
         {image === null ? null : (
           <Stack gap="block" className="min-h-0">
             <DialogTitle>{image.name}</DialogTitle>
-            <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={1} fit="contain" className="max-h-96" />
+            {/* The frame follows the image's own aspect: as wide as the dialog, as tall as the viewport leaves it. */}
+            <Stack align="center" justify="center" className="relative min-h-0 flex-1">
+              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="max-h-full" />
             </Stack>
             <Row justify={removal === undefined ? "end" : "between"} align="center" gap="row" className="shrink-0">
               {removal === undefined ? null : (

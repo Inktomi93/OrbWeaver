@@ -29,13 +29,15 @@ export interface ArtView {
 }
 
 // Fills the art it sits in, so the whole tile is the control. The ghost-fill hover is dropped: a tint over the
-// art itself would read as a smudge, and the press scale already answers a tap.
-function artViewButton(view: ArtView): ReactElement {
+// art itself would read as a smudge, and the press scale already answers a tap. It is not a tab stop: the
+// speaker's chip beside it opens the same image, so keyboard readers get one stop per row.
+function artViewButton(view: ArtView, rounding = ""): ReactElement {
   return (
     <Button
       aria-label={view.label}
-      className="absolute inset-0 hover:bg-transparent active:bg-transparent"
+      className={cn("absolute inset-0 cursor-pointer hover:bg-transparent active:bg-transparent", rounding) ?? ""}
       intent="ghost"
+      tabIndex={-1}
       onClick={(event): void => view.open(event.currentTarget)}
       size="media"
     />
@@ -58,19 +60,22 @@ function whisperBand(headerBand: NonNullable<BubbleDecoration["headerBand"]>, vi
 
 // The pane's width, a portrait's height (Moonlit's fixed mobile height on a phone), never past the card's own
 // foot; cover-cropped from its centre. Inert unless it is the tap target for the full-size view.
+// The feathered mask sits on the inner tile only, so the button over it is an unmasked layer and its focus ring shows.
 function echoArtTile(art: NonNullable<BubbleDecoration["art"]>, view: ArtView | null): ReactElement {
+  const rounding = art.side === "left" ? "rounded-tl-card" : "rounded-tr-card";
+  const { width, ...paint } = art.style;
   return (
     <Stack
       aria-hidden={view === null ? "true" : undefined}
-      data-slot="message-echo-art"
       className={cn(
-        "absolute top-0 aspect-(--aspect-portrait) max-h-full bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
+        "absolute top-0 aspect-(--aspect-portrait) max-h-full @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
         view === null && "pointer-events-none",
-        art.side === "left" ? "left-0 rounded-tl-card" : "right-0 rounded-tr-card",
+        art.side === "left" ? "left-0" : "right-0",
       )}
-      style={art.style}
+      style={{ width }}
     >
-      {view === null ? null : artViewButton(view)}
+      <Stack data-slot="message-echo-art" className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", rounding)} style={paint} />
+      {view === null ? null : artViewButton(view, rounding)}
     </Stack>
   );
 }
