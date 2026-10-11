@@ -3,6 +3,7 @@
 // The owner's own case: an orb "Nate" already exists, the ST profile carries a DIFFERENT "Nate", and the
 // per-collision choice decides whether the chats land on the existing persona or on a numbered copy.
 
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { Db } from "@orb/db";
 import { chats, messages, personas } from "@orb/db";
 import type {
@@ -114,12 +115,7 @@ async function seedOwnerWithOrbNate(): Promise<{ db: Db; ownerId: UserId; charac
 }
 
 /** Persona wave, then chat wave — the order `runProfileDirImport` guarantees. */
-async function runProfile(args: {
-  db: Db;
-  ownerId: UserId;
-  characterId: CharacterId;
-  collisions?: Readonly<Record<string, "merge" | "keep-both">>;
-}): Promise<void> {
+async function runProfile(args: { db: Db; ownerId: UserId; characterId: CharacterId; collisions?: PersonaCollisionChoices }): Promise<void> {
   const { db, ownerId, characterId, collisions } = args;
   const ctx = runContext(db, ownerId);
   await createImportPersonas(ctx)({
