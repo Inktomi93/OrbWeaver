@@ -232,3 +232,13 @@ export const BUILTIN_PROVIDER_ROWS = [
     metered: false,
   },
 ] as const satisfies readonly ProviderDefInput[];
+
+// A typical Server URL per built-in endpoint row, shown as the field placeholder. Static pane metadata kept out of
+// the persisted provider row, so plugin and admin rows carry none.
+export const BUILTIN_EXAMPLE_BASE_URLS: Readonly<Record<string, string>> = {
+  vllm: "http://localhost:8000",
+  "lm-studio": "http://localhost:1234",
+  ollama: "http://localhost:11434",
+  "llama-cpp": "http://localhost:8080",
+  koboldcpp: "http://localhost:5001",
+};

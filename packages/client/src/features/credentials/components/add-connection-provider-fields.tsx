@@ -4,7 +4,7 @@
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ProviderDef } from "@orb/contracts/inference";
-import { providerDisplayLabel } from "@orb/contracts/inference";
+import { exampleBaseUrl, providerDisplayLabel } from "@orb/contracts/inference";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -111,7 +111,7 @@ export function ProviderFields({
             <field.TextField
               label="Server URL"
               description={`The OpenAI-compatible base URL your ${providerLabel} server answers on. Ollama usually listens on port 11434, LM Studio on 1234, vLLM on 8000. We add /v1 unless the URL already names a version, like /v1 or /v4.`}
-              placeholder="http://host:port"
+              placeholder={exampleBaseUrl(provider.id) ?? "http://host:port"}
               autoComplete="off"
             />
           )}

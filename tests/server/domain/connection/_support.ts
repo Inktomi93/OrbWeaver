@@ -110,6 +110,8 @@ export interface ConnectionHarness {
   readonly emittedUserEvents: { readonly userId: UserId; readonly event: UserBusEvent }[];
   /** Every `recordProbeOutcome` the probe verb handed the credentials domain. */
   readonly probeRecords: Parameters<ConnectionContext["recordProbeOutcome"]>[0][];
+  /** Every `relabelCredential` the update verb handed the credentials domain. */
+  readonly credentialRelabels: Parameters<ConnectionContext["relabelCredential"]>[0][];
   readonly requests: RecordedRequest[];
   readonly advance: (ms: number) => void;
 }
@@ -237,6 +239,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const embedSpaceChanges: UserId[] = [];
   const emittedUserEvents: { readonly userId: UserId; readonly event: UserBusEvent }[] = [];
   const probeRecords: Parameters<ConnectionContext["recordProbeOutcome"]>[0][] = [];
+  const credentialRelabels: Parameters<ConnectionContext["relabelCredential"]>[0][] = [];
   const requests: RecordedRequest[] = [];
   const now = (): number => clock.now();
   const ports = createConnectionPorts({ db, now });
@@ -297,6 +300,10 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
       return Promise.resolve();
     },
     credentialOwned: (ownerId, credentialId) => Promise.resolve(options.credentialOwned?.(ownerId, credentialId) ?? true),
+    relabelCredential: (args) => {
+      credentialRelabels.push(args);
+      return Promise.resolve();
+    },
     ruleOwnedBy: () => Promise.resolve(options.ruleOwned ?? true),
     pluginGrantTasksOf: () => Promise.resolve(options.pluginOwned === false ? null : (options.pluginGrantTasks ?? ["summarize"])),
     endpointAdmission: async (baseUrl) => await (options.admission ?? defaultAdmission)(baseUrl),
@@ -326,6 +333,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     },
     emittedUserEvents,
     probeRecords,
+    credentialRelabels,
     requests,
     advance: (ms: number): void => {
       clock.advance(ms);

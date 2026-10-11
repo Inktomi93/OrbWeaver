@@ -13,6 +13,7 @@ import { createMarkRevokedByUser } from "./verbs/mark-revoked-by-user.ts";
 import { createMaybeRevokeOnAuthFailed } from "./verbs/maybe-revoke-on-auth-failed.ts";
 import { createProbeKeyDecrypt } from "./verbs/probe-key-decrypt.ts";
 import { createRecordProbeOutcome } from "./verbs/record-probe-outcome.ts";
+import { createRelabel } from "./verbs/relabel.ts";
 import { createRemove } from "./verbs/remove.ts";
 import { createReplace } from "./verbs/replace.ts";
 import { createResolve } from "./verbs/resolve.ts";
@@ -25,6 +26,7 @@ export function createCredentialsService(ctx: CredentialContext): CredentialsSer
     recordProbeOutcome: createRecordProbeOutcome(ctx),
     add: createAdd(ctx),
     replace: createReplace(ctx),
+    relabel: createRelabel(ctx),
     remove: createRemove(ctx),
     list: createList(ctx),
     storageStatus: createStorageStatus(ctx),

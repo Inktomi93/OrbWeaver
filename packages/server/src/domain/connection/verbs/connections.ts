@@ -270,6 +270,23 @@ function createUpdate(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): Con
   };
 }
 
+/** A key this connection alone uses carries the connection's name on its card, so a rename moves it too. A key
+ *  other connections share is named for none of them and stays. */
+async function keyFollowsRename(
+  ctx: ConnectionContext,
+  principal: UpdateConnectionParams["principal"],
+  rows: { readonly before: UserConnection; readonly after: UserConnection },
+): Promise<void> {
+  const { before, after } = rows;
+  if (after.credentialId === null || after.label === before.label) {
+    return;
+  }
+  const sharers = (await listOwnedConnections(ctx.db, principal.userId)).filter((other) => other.credentialId === after.credentialId && other.id !== after.id);
+  if (sharers.length === 0) {
+    await ctx.relabelCredential({ principal, credentialId: after.credentialId, from: before.label, to: after.label });
+  }
+}
+
 async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams, backsVector: boolean): Promise<ConnectionView> {
   const ownerId = params.principal.userId;
   const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
@@ -287,6 +304,7 @@ async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams,
     now,
   );
   const saved = await requireOwnedRow(ctx, ownerId, row.id);
+  await keyFollowsRename(ctx, params.principal, { before: row, after: saved });
   // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
   await ctx.runtime.catalogs.invalidateEndpoint(saved);
   ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });

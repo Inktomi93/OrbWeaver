@@ -184,6 +184,40 @@ describe("setBinding", () => {
     });
   });
 
+  test("a text-only Ollama embedder offers embed but not imageEmbed, and refuses the image binding; stated image input offers it", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, {
+      routes: [
+        { match: "/api/show", json: { capabilities: ["embedding"], ["model_info"]: { "general.architecture": "bert", "bert.embedding_length": 384 } } },
+        ...OLLAMA_HOUSE_EMBEDDER_ROUTES,
+      ],
+    });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
+      allowBackground: true,
+    });
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id });
+
+    const tasks = (await h.svc.get({ principal: owner.principal, connectionId: row.id })).tasks;
+    expect(tasks).toContain("embed");
+    expect(tasks).not.toContain("imageEmbed");
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "imageEmbed", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+    });
+
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: row.id,
+      patch: { declared: { kind: "embedding", embedding: { dims: 384, input: ["text", "image"] } } },
+    });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: row.id })).tasks).toContain("imageEmbed");
+  });
+
   // The list answered but the one read that says what the model is did not: still the unreachable refusal.
   test("binding an Ollama embedder whose /api/show answers too late refuses as unreachable, not as a chat model", async () => {
     const db = await freshDb();
