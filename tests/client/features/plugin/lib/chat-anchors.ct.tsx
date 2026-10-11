@@ -504,24 +504,27 @@ test("a pointer that turns coarse mid-session leaves exactly one host for the fr
   // The device flips from a fine pointer to a coarse one (a detached keyboard, a tablet undocked).
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
-  await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the flip must reach the page").toBe(true);
+  try {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the flip must reach the page").toBe(true);
 
-  // Both hosts follow the flip together: the inline flank stands down and the header icon takes over.
-  const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
-  await expect(page.locator("iframe")).toHaveCount(0);
-  await expect(trigger).toBeVisible();
+    // Both hosts follow the flip together: the inline flank stands down and the header icon takes over.
+    const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
+    await expect(page.locator("iframe")).toHaveCount(0);
+    await expect(trigger).toBeVisible();
 
-  // The header slot is keyed by section, so a round trip remounts it while the room stays alive.
-  await page.getByRole("button", { name: "Hop to config" }).click();
-  await page.getByRole("button", { name: "Hop to chats" }).click();
-  await expect(trigger).toBeVisible();
-  await trigger.click();
-  await expect(page.getByRole("group", { name: `${PLUGIN_NAME} — Board` })).toHaveCount(1);
-  await expect(page.locator("iframe")).toHaveCount(1);
-  // Every mint belongs to a mount that is, or was, the only one: the live count is the sheet's alone.
-  expect(routed.mints()).toBeGreaterThan(0);
-  // CDP touch emulation outlives the test that set it.
-  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+    // The header slot is keyed by section, so a round trip remounts it while the room stays alive.
+    await page.getByRole("button", { name: "Hop to config" }).click();
+    await page.getByRole("button", { name: "Hop to chats" }).click();
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    await expect(page.getByRole("group", { name: `${PLUGIN_NAME} — Board` })).toHaveCount(1);
+    await expect(page.locator("iframe")).toHaveCount(1);
+    // Every mint belongs to a mount that is, or was, the only one: the live count is the sheet's alone.
+    expect(routed.mints()).toBeGreaterThan(0);
+  } finally {
+    // CDP touch emulation outlives the test that set it.
+    await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+  }
 });
 
 test("with both side panels docked on a mid-width desktop the transcript keeps its reading floor, the flank lives in the sheet, and widening hands it back with one frame throughout", async ({
