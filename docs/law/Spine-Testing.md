@@ -305,7 +305,7 @@ A test proves what ships. Helpers, stories and fixtures must follow a product ch
 - **Seed through real builders.** Write rows through the production verb or a factory in `tests/support/factories`. Never mint a state production cannot produce.
 - **Mount the real door.** CT harnesses and stories build every registry from the production list, in production order: config sections, tool renderers, chat surfaces, home tiles, chrome widgets, slash commands and palette sources. Stories mount the real surface and stub only the network edge. A story never re-implements product wiring.
 - **Snapshot the product.** Build an aria or text snapshot from what production renders, never from a hand-listed roster.
-- **Smoke the running app.** e2e specs drive the real stack on a copy of the owner's container data for the core flows.
+- **Smoke the running app.** e2e specs drive the real stack headless for the core flows. They run on a committed synthetic corpus written by the seed tool, so CI needs no private data. A local run may point at a copy of the owner's data; that copy is never committed.
 - **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review.
 - **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
 
