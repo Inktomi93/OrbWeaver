@@ -151,6 +151,34 @@ describe("createBulkImportPersonas", () => {
     expect(rows.map((r) => r.name).toSorted()).toEqual(["Eve", "Eve 3", "eve 2"]);
   });
 
+  test("keep-both lands the name the review previews when the folder also adds 'Nate 2'", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createBulkImportPersonas(importCtx(db));
+    await op({ ownerId: owner.id, personas: [persona("Nate")] });
+
+    await op({
+      ownerId: owner.id,
+      personas: [persona("Nate 2"), { ...persona("Nate"), description: "other" }],
+      collisions: { nate: "keep-both" },
+    });
+
+    const rows = await db.select({ name: personas.name }).from(personas).where(eq(personas.ownerId, owner.id));
+    expect(rows.map((r) => r.name).toSorted()).toEqual(["Nate", "Nate 2", "Nate 3"]);
+  });
+
+  test("a name is trimmed before it is minted: ' Eve ' keeps both as 'Eve 2', not 'Eve  2'", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createBulkImportPersonas(importCtx(db));
+    await op({ ownerId: owner.id, personas: [persona("Eve")] });
+
+    await op({ ownerId: owner.id, personas: [{ ...persona(" Eve "), description: "other" }], collisions: { eve: "keep-both" } });
+
+    const rows = await db.select({ name: personas.name }).from(personas).where(eq(personas.ownerId, owner.id));
+    expect(rows.map((r) => r.name).toSorted()).toEqual(["Eve", "Eve 2"]);
+  });
+
   test("a persona named like an Object.prototype member still merges by default", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

@@ -84,7 +84,7 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
 
     const mint = (identity: PersonaIdentity, pi: (typeof input)[number]): PersonaId => {
       const personaId = ctx.newPersonaId();
-      const name = mintPersonaName(pi.name, takenNames);
+      const name = mintPersonaName(pi.name.trim(), takenNames);
       takenNames.add(foldPersonaName(name));
       const landed: PersonaCandidate = { ...identity, id: personaId, name };
       candidates.push(landed);

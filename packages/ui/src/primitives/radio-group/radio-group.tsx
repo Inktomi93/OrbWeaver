@@ -28,39 +28,33 @@ export interface RadioGroupItemProps extends RadioRootProps {
 }
 
 // Base UI parks the group's tab stop on the item the user last interacted with and never re-reads it when a
-// controlled `value` changes from OUTSIDE (a "set all" button), so Tab would land on the unchecked radio. An
-// outside change while focus is elsewhere remounts the group, which seats the tab stop on the checked item.
-// A change the user made through the radios, or made while focus is inside the group, never remounts.
-export function RadioGroup({ className, value, onValueChange, onFocus, onBlur, ...rest }: RadioGroupProps): ReactElement {
+// controlled `value` changes from OUTSIDE (a "set all" button), so Tab would land on the unchecked radio.
+// `anchor` is the value the tab stop is seated on: the value at mount or remount, or the user's last pick. An
+// outside change to a different value, decided while focus is not inside the group, remounts the group, which
+// seats the tab stop on the checked item. Focus is read at decision time, so no flag can go stale.
+export function RadioGroup({ className, value, onValueChange, ...rest }: RadioGroupProps): ReactElement {
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const [mountKey, setMountKey] = useState(0);
   const [seenValue, setSeenValue] = useState(value);
-  const [pickedValue, setPickedValue] = useState<unknown>(undefined);
-  const [focusInside, setFocusInside] = useState(false);
+  const [anchor, setAnchor] = useState(value);
   if (seenValue !== value) {
     setSeenValue(value);
-    if (pickedValue !== value && !focusInside) {
+    // Reads the document's focus during render on purpose: it is the only source that cannot go stale.
+    if (value !== anchor && !(root?.contains(document.activeElement) ?? false)) {
       setMountKey(mountKey + 1);
+      setAnchor(value);
     }
   }
   return (
     <BaseRadioGroup
       key={mountKey}
+      ref={setRoot}
       className={cn(slots.root(), className)}
       data-slot="radio-group-root"
       value={value}
       onValueChange={(next, details): void => {
-        setPickedValue(next);
+        setAnchor(next);
         onValueChange?.(next, details);
-      }}
-      onFocus={(event): void => {
-        setFocusInside(true);
-        onFocus?.(event);
-      }}
-      onBlur={(event): void => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setFocusInside(false);
-        }
-        onBlur?.(event);
       }}
       {...rest}
     />

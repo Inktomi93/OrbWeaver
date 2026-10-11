@@ -16,6 +16,9 @@ export function ExternallyControlledRadioGroup(): ReactElement {
         <RadioGroupItem value="merge">Merge</RadioGroupItem>
         <RadioGroupItem value="keep">Keep both</RadioGroupItem>
       </RadioGroup>
+      <button type="button" onClick={(): void => setValue("merge")}>
+        Merge all
+      </button>
     </>
   );
 }

@@ -31,7 +31,7 @@ describe("reviewImport", () => {
     });
 
     expect(collisions).toEqual([
-      { key: "nate", name: "NATE ", existingDescription: "orb Nate", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "NATE  2" },
+      { key: "nate", name: "NATE ", existingDescription: "orb Nate", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "NATE 2" },
     ]);
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(2);
   });
@@ -87,6 +87,33 @@ describe("reviewImport", () => {
     expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([
       ["nate", "Nate 2"],
       ["eve", "Eve 3"],
+    ]);
+  });
+
+  test("keepBothName counts a folder persona the write adds whatever the owner picks, so the preview is the written name", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
+
+    // "Nate 2" clashes with nothing owned, so the write adds it first; the copy of "Nate" is then "Nate 3".
+    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate 2", "new"), incoming("Nate", "B")] });
+
+    expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([["nate", "Nate 3"]]);
+  });
+
+  test("a folder persona that only exists under keep-both does not move a later preview", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
+    await seedPersona(db, { ownerId: owner, name: "Eve", description: "B" });
+
+    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Eve", "x"), incoming("Nate", "y")] });
+
+    expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([
+      ["eve", "Eve 2"],
+      ["nate", "Nate 2"],
     ]);
   });
 
