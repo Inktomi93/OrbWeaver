@@ -24,3 +24,5 @@ The app-shell title CTs at 1280, 390 and 430 pass with the real chrome widgets m
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling 2026-10-11: top nav bar buttons carry no text. The squeeze came from the command palette chip (Ctrl+K jump, 115px), not the icon-only bug button; the chip becomes an icon button with its name and shortcut in the accessible name and tooltip, and tests pinning the visible word are updated to the ruling.
