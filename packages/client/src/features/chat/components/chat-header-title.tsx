@@ -36,7 +36,7 @@ function ParticipantsText({ label }: { readonly label: string }): ReactElement {
 function DateText({ createdAt }: { readonly createdAt: number }): ReactElement {
   return (
     <Text as="span" voice="quiet" className="shell-topbar-date shrink-0 whitespace-nowrap">
-      {timeLib.formatDate(createdAt)}
+      {`\u00b7 ${timeLib.formatDate(createdAt)}`}
     </Text>
   );
 }
@@ -135,8 +135,9 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
     );
   };
 
-  // The participants and the date keep their places while the name's slot becomes the field, so the chips
-  // beside the title do not move as the editor opens.
+  // The participants keep their place while the name's slot becomes the field, and the group keeps its width,
+  // so the chips beside the title do not move as the editor opens. The date steps aside first: the field gets
+  // the room it needs.
   return (
     <TitleGroup {...(editWidth === undefined ? {} : { width: editWidth })}>
       <ParticipantsText label={label} />
@@ -167,7 +168,6 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
           }
         }}
       />
-      <DateText createdAt={createdAt} />
     </TitleGroup>
   );
 }

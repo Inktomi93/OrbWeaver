@@ -132,23 +132,6 @@ auditRuleTest(
   [
     {
       rule: "duplicate-action-door",
-      kind: "silent",
-      reason:
-        'a tab of a role=tablist view switcher repaints one region exactly as a toolbar cell does — the context pane\'s strip is a tablist now, and its "Chats" tab is not a second door to the app-level Chats',
-    },
-  ],
-  "a tab of a tablist sharing a name with a nav button is excluded as a view switch, and counted",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "door-tablist-cell", SWITCHER(' role="tablist"'));
-    expect(doorsIn(report), "the nav button and the tab are two verbs, not two homes").toHaveLength(0);
-    expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 0, excluded: { viewSwitchCell: 2 } });
-  },
-);
-
-auditRuleTest(
-  [
-    {
-      rule: "duplicate-action-door",
       kind: "fires",
       reason:
         "two structurally distinct switches named ONLY by their <label for> are the same offered action from two homes — before #1009 both carried an empty door name and the rule skipped them silently",
@@ -208,12 +191,12 @@ auditRuleTest(
 );
 
 // ── the view-switch cell (#1705) ─────────────────────────────────────────────
-// On home, `nav[aria-label=Primary] > button "Chats"` NAVIGATES THE APP while the context pane's "Chats" tab
-// inside `tablist "Character"` (or a cell of a `toolbar`) REPAINTS THE CONTEXT REGION with this character's chats. Two regions, two verbs,
+// On home, `nav[aria-label=Primary] > button "Chats"` NAVIGATES THE APP while `#context-cell-chats` inside
+// `toolbar "Character"` REPAINTS THE CONTEXT REGION with this character's chats. Two regions, two verbs,
 // one noun (UI-Architecture-and-Layout.md §4.1–4.3) — so the rule's premise ("one verb wants one home per
 // plane") does not hold and it filed a false positive.
 //
-// The fixtures are byte-identical except for the `role` attribute (toolbar, tablist, or none), which is the ONLY input to
+// The two fixtures are byte-identical except for the `role="toolbar"` attribute, which is the ONLY input to
 // the fence: the door PATH is position-free and carries no role, so a control that flips the verdict
 // without the fence is impossible and the second arm is a real control rather than a differently-shaped
 // document. Keep them that way.

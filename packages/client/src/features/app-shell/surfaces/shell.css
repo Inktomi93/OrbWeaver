@@ -1254,27 +1254,37 @@
  * its own overflow, so the title can never paint over the chips beside it; the chips are `shrink-0`, so only
  * text gives. Inside the group the participants lead and the user's room name keeps a real floor of its own
  * (a name the user chose is never drawn at 0px); the name yields to the participants first. Below 56rem of
- * content column the creation date goes, the avatar goes (a group's faces live in the cast row), and the chips
- * collapse to their glyphs (their accessible names already carry the count). */
+ * content column the avatar goes (a group's faces live in the cast row), the chips collapse to their glyphs
+ * (their accessible names already carry the count) and the ⌘K chip drops its word; below 72rem the creation
+ * date goes, first, before the name is ever squeezed. */
 .shell-topbar-title-group {
   min-width: var(--dimension-shell-title-floor);
   overflow: hidden;
 }
 .shell-topbar-title-group:has(.shell-topbar-subtitle) {
-  min-width: calc(var(--dimension-shell-title-floor) * 2);
+  min-width: calc(var(--dimension-shell-title-floor) * 3);
 }
+/* The room name's floor is twice the title's: a name the user chose is never drawn as a stub, and the date (below)
+ * is gone before the name ever sits at it. */
 .shell-topbar-identity .shell-topbar-subtitle {
   flex-shrink: 8;
-  min-width: var(--dimension-shell-title-floor);
+  min-width: calc(var(--dimension-shell-title-floor) * 2);
 }
+/* The rename field is the name's slot: at least as wide as its content or a sensible minimum, the group caps it. */
 .shell-topbar-rename {
-  flex: 1 1 0;
-  min-width: var(--dimension-shell-title-floor);
+  flex: 1 0 auto;
+  min-width: calc(var(--dimension-shell-title-floor) * 2);
+  field-sizing: content;
+}
+@container shell-main (max-width: 72rem) {
+  .shell-topbar-identity .shell-topbar-date {
+    display: none;
+  }
 }
 @container shell-main (max-width: 56rem) {
-  .shell-topbar-identity .shell-topbar-date,
   .shell-topbar-identity .shell-chat-header-avatar,
-  .shell-topbar-identity .shell-chat-chip-count {
+  .shell-topbar-identity .shell-chat-chip-count,
+  .shell-topbar:has(.shell-chat-member-chip) .shell-topbar-jump-label {
     display: none;
   }
 }
@@ -1698,10 +1708,10 @@
   }
 
   /* ONE EXIT FROM THE SHEET (#878 F16, side-eye 2026-08-30). With the context sheet OPEN at 430 the topbar's
-   * context toggle (y≈23) and the band's own `X` (y≈80) are two dismisses for one action, 45px apart. The
-   * band's is the right one by the 2026-08-06 P2 ruling the bracket already follows — "the close sits where
-   * the thing it closes is", which is why the X rides INSIDE the band's top-right corner rather than in a
-   * chrome row of its own. So the topbar's copy stands down WHILE THE SHEET IS OPEN, and only here: keyed on
+   * context toggle (y≈23) and the pane's own `X` are two dismisses for one action. The pane's is the right one
+   * by the 2026-08-06 P2 ruling the bracket already follows — "the close sits where the thing it closes is",
+   * which is why the X sits at the trailing end of the pane's own header row rather than in a chrome row of
+   * the shell's. So the topbar's copy stands down WHILE THE SHEET IS OPEN, and only here: keyed on
    * the mode, inside the phone arm, because with the sheet COLLAPSED this button is the only phone door onto
    * it (`context-toggle.tsx` says so, and #846's own note calls it the sheet's one door). Not a width-keyed
    * removal, not a deletion — a state-keyed shed, the same shape as the identity yield above. */

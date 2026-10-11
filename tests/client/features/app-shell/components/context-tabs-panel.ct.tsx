@@ -216,10 +216,13 @@ test("the header's active bar belongs to header tabs only: no bar while a state 
   await expect(indicator).toBeHidden();
 });
 
-test("one view is not a strip: a single resolved tab leaves just the header with its close ×, and the panel names itself", async ({ mount }) => {
+test("one view is not a strip: a single resolved tab leaves a header that NAMES the view beside its close ×, and the panel names itself", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={291} singleTab={true} withDismiss={true} />);
   await expect(component.getByRole("tablist")).toHaveCount(0);
   await expect(component.getByRole("tab")).toHaveCount(0);
+  // The header is never blank: the lone tab's label is its title, in the tabs' own type.
+  const heading = component.locator('[data-slot="context-bracket-header"] [data-slot="context-header-title"]');
+  await expect(heading).toHaveText("Members");
   await expect(component.locator('[data-slot="context-bracket-header"]').getByRole("button", { name: "Close Chats details" })).toBeVisible();
   await expect(component.getByRole("region", { name: "Members" })).toBeVisible();
 });

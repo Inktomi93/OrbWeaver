@@ -183,7 +183,7 @@ export function ChatSummaryRow({
   className,
   titleStep = "default",
 }: ChatSummaryRowProps): ReactElement {
-  const { title, subtitle, when } = chatSummaryRowView(chat, "participants-first");
+  const { title, subtitle, when } = chatSummaryRowView(chat);
   const rowName = actionName ?? chatRowActionName(title, timeLib.formatRelativeCompact(when));
   const markers = rowMarkers({ chat, interactive: onToggleStar !== undefined });
   // The trailing cluster is now CONTROLS ONLY (the markers moved to the title line), so every one of its

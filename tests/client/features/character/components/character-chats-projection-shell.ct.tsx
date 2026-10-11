@@ -110,7 +110,7 @@ test("the rows are exactly her projection, in server order", async ({ mount, pag
   await expect(component.getByText("Winter court")).toBeVisible();
   // Her two rows (INCLUDING the room she left — departed seats are history), the room she was never in
   // excluded, and the server's recency order preserved (D4).
-  await expect(component.locator(ROW_TITLE)).toHaveText(["Aveline \u00b7 Winter court", "Aveline, Sola \u00b7 The Gilded Ember"]);
+  await expect(component.locator(ROW_TITLE)).toHaveText(["Winter court", "The Gilded Ember"]);
 });
 
 test("D3 the projection INHERITS the shared row upgrade: a multi-seat room stacks, a 1:1 does not", async ({ mount, page }) => {

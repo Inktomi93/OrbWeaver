@@ -2150,8 +2150,9 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
   await expect
     .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
     .toBe(true);
-  // The date went first; the chips never paint over text.
+  // The date went first (and the ⌘K chip dropped its word); the chips never paint over text.
   await expect(page.locator(".shell-topbar-date")).toBeHidden();
+  await expect(page.locator(".shell-topbar-jump-label")).toBeHidden();
   const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
   const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
   if (groupBox === null || membersBox === null) {
@@ -2173,7 +2174,10 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
     )
     .toBe(true);
   await page.mouse.click(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
-  await expect(page.getByRole("textbox", { name: "Chat name" })).toBeVisible();
+  const input = page.getByRole("textbox", { name: "Chat name" });
+  await expect(input).toBeVisible();
+  // The rename field is a usable width at this column (it was 60px), not the room-name stub.
+  await expect.poll(() => input.evaluate((el) => el.clientWidth)).toBeGreaterThanOrEqual(96);
 });
 
 test("0851: with the context pane COLLAPSED the topbar still names the participants, chips and all", async ({ mount, page }) => {

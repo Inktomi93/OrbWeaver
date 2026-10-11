@@ -377,3 +377,21 @@ test("0852: opening the rename box does not move the chips beside the title", as
     })
     .toBe(true);
 });
+
+test("0852: the date is quiet metadata set off from the room name by a middle dot", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes("Rooftop night"));
+  const component = await mount(<ChatHeaderStory />);
+  await expect(component.locator(".shell-topbar-subtitle")).toHaveText("Rooftop night");
+  await expect(component.locator(".shell-topbar-date")).toHaveText(/^\u00b7 \S/u);
+});
+
+test("0852: the rename box is wide enough to type a name — its floor, never a stub", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes(STAMPED_TITLE));
+  const component = await mount(<ChatHeaderStory />);
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  const input = component.getByRole("textbox", { name: "Chat name" });
+  await expect(input).toBeVisible();
+  await expect.poll(() => input.evaluate((el) => el.clientWidth >= Number.parseFloat(getComputedStyle(el).minWidth) - 1 && el.clientWidth >= 80)).toBe(true);
+  // The date steps aside while editing, so the field gets the room.
+  await expect(component.locator(".shell-topbar-date")).toHaveCount(0);
+});

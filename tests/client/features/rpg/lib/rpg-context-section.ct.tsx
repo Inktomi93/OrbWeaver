@@ -3704,8 +3704,7 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
 // Journal were all unusable, and opening the weather picker painted its chips entirely outside the strip.
 //
 // The pane is composed for the phone now instead of hidden into it: the satellite orbs (whose numbers are
-// tracker rows in Status) stand down at a coarse pointer, each rail's kicker sheds its selection half while
-// keeping the group's name (#102 variant A — the band's floating echo used to be dropped whole here), and
+// tracker rows in Status) stand down at a coarse pointer, the header strip scrolls inside its row, and
 // the game cells stay ONE scrollable row. This fences the BUDGET, not the pixel — the assertion is the share of
 // the pane the reading surface gets, so it survives a token retune of the band's padding.
 //
