@@ -223,11 +223,16 @@ export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId
   }
 }
 
+/** Does `ownerId` own `personaId`? Absent and foreign both answer `false`, so the answer leaks nothing. */
+export async function isPersonaOwned(db: Db, ownerId: UserId, personaId: PersonaId): Promise<boolean> {
+  const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(LIMIT_ONE);
+  return rows[0]?.ownerId === ownerId;
+}
+
 /** Gate: the persona must belong to the caller. A foreign/absent persona collapses to
  *  {@link PersonaNotFoundError} (no existence leak). */
 export async function ensurePersonaOwned(db: Db, ownerId: UserId, personaId: PersonaId): Promise<void> {
-  const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(LIMIT_ONE);
-  if (rows[0]?.ownerId !== ownerId) {
+  if (!(await isPersonaOwned(db, ownerId, personaId))) {
     throw new PersonaNotFoundError(personaId);
   }
 }

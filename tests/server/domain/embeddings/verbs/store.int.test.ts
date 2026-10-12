@@ -324,7 +324,7 @@ describe("store — image lenses (image_embeddings)", () => {
     });
 
     expect(result.outcome).toBe("written");
-    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG }, { signal: undefined });
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG });
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.lens).toBe("image-raw");
@@ -375,14 +375,11 @@ describe("store — image lenses (image_embeddings)", () => {
       ownerId: owner,
     });
 
-    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith(
-      {
-        kind: "multimodal",
-        allowTextFallback: true,
-        input: { image: IMG, text: TEST_CAPTION },
-      },
-      { signal: undefined },
-    );
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({
+      kind: "multimodal",
+      allowTextFallback: true,
+      input: { image: IMG, text: TEST_CAPTION },
+    });
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     // Both lenses coexist for one asset in one space (the unique key is (assetId, model, lens)).
     expect(rows).toHaveLength(2);

@@ -115,30 +115,8 @@ async function drive(intercept?: HarnessOptions["intercept"], admission?: Harnes
       promoted.push(ownerId);
     },
     roleClientsFor: roleClients,
-    // A named row resolves as if it were bound (the change preview asks that); embedding still runs through the bound role.
-    resolveEmbeddingConnection: async (_ownerId, task, connectionId, opts) => {
-      const rc = await roleClients();
-      const resolved =
-        connectionId === undefined
-          ? await rc.resolved(task)
-          : await h.runtime.resolve({ task, principal, connectionId, cachedFacts: opts?.cachedFacts }).then(
-              ({ resolved: row }) => ({ model: row.model, connectionId: row.connectionId, providerId: row.providerId, capability: row.capability }),
-              () => null,
-            );
-      return resolved === null
-        ? null
-        : {
-            ...resolved,
-            api: "test",
-            wire: "test",
-            baseUrl: null,
-            features: {},
-            extras: null,
-            transport: null,
-            embed: rc.embed,
-            imageEmbed: rc.imageEmbed,
-          };
-    },
+    // Compose's own resolve over the real runtime: a named row resolves and embeds through that row.
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, createHostPrincipalResolver(createLoadUserById({ db }))),
   };
   return { db, h, principal, userId, builtIn, svc: createEmbeddingsService(ctx), ctx, key, credentialId, moved, promoted };
 }

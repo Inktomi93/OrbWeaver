@@ -41,13 +41,16 @@ import type { EmbeddingsIndexerContext, EmbeddingsService } from "#server/domain
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
+import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeCharacter } from "../../../support/factories/character.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
+import { makeEmbeddingRuntime } from "../../../support/inference-runtime.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
@@ -271,28 +274,21 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     roleClientsFor: () => Promise.resolve(roleClients),
     withStableEmbeddingBinding: (_ownerId, read) => read(),
     resolveUtilityPresetParams: () => Promise.resolve(undefined),
-    resolveEmbeddingConnection: async (_ownerId, task) => {
-      const resolved = await roleClients.resolved(task);
-      const dtype = embedDtype.current;
-      const capability =
-        task === "embed" && dtype !== undefined && resolved !== null && resolved.capability.kind === "embedding"
-          ? { ...resolved.capability, embedding: { ...resolved.capability.embedding, dtype } }
-          : resolved?.capability;
-      return resolved === null || capability === undefined
-        ? null
-        : {
-            ...resolved,
-            capability,
-            api: "test",
-            wire: "test",
-            baseUrl: null,
-            features: {},
-            extras: null,
-            transport: null,
-            embed: roleClients.embed,
-            imageEmbed: roleClients.imageEmbed,
-          };
-    },
+    // Compose's own resolve over the scripted encoders, with the owner's dtype (`embedDtypeAs`) on the bound view.
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(
+      makeEmbeddingRuntime({
+        embed: (input, opts) => roleClients.embed(input, opts),
+        imageEmbed: (input) => roleClients.imageEmbed(input),
+        resolved: async (task) => {
+          const resolved = await roleClients.resolved(task);
+          const dtype = embedDtype.current;
+          return task === "embed" && dtype !== undefined && resolved !== null && resolved.capability.kind === "embedding"
+            ? { ...resolved, capability: { ...resolved.capability, embedding: { ...resolved.capability.embedding, dtype } } }
+            : resolved;
+        },
+      }),
+      (userId) => Promise.resolve(makePrincipal(userId)),
+    ),
     // The entity OWNER reads (the funder of every sweep) — the harness's seeded rows all belong to whoever the
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
