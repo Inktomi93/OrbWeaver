@@ -19,8 +19,10 @@ import {
 } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { and, eq, isNull } from "drizzle-orm";
 import type {
   ChatContext,
@@ -31,8 +33,6 @@ import type {
   SummarizeOp,
 } from "#server/domain/chat/contract/context.ts";
 import type { MemoryScope } from "#server/domain/chat/memory/types.ts";
-import { loadPresentHostUserId } from "#server/domain/chat/persistence/reactions.ts";
-import { createMemoryEmbeddingOps } from "#server/entry/compose/memory-embedding-ops.ts";
 import type { StoreHarness } from "../../embeddings/_support.ts";
 import { makeStoreHarness, SUMMARIZER_MODEL, seedVectorConnection } from "../../embeddings/_support.ts";
 import { makeChatContext, seedMessage } from "../_support.ts";
@@ -339,7 +339,7 @@ export async function realMemoryWiring(
   const ctx = makeChatContext(db, {
     summarize: fakeSummarize().op,
     // The vector seam compose wires: the host's real space, the owner-coherence guard and the generation-scoped prune.
-    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: async (chatId) => (await loadPresentHostUserId(db, chatId)) ?? null }),
+    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId) }),
     ...overrides,
   });
   return { ctx, embeddings, resolved };

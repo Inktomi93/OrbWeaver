@@ -101,12 +101,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D: readonly ReviewedGateGra
     "#server/domain/chat/assembly/macros.ts",
     "#server/domain/chat/persistence/identity.ts",
   ],
-  "tests/server/domain/chat/memory/_support.ts": [
-    "#server/domain/chat/contract/context.ts",
-    "#server/domain/chat/memory/types.ts",
-    "#server/domain/chat/persistence/reactions.ts",
-    "#server/entry/compose/memory-embedding-ops.ts",
-  ],
+  "tests/server/domain/chat/memory/_support.ts": ["#server/domain/chat/contract/context.ts", "#server/domain/chat/memory/types.ts"],
   "tests/server/domain/chat/memory/constants.test.ts": ["#server/domain/chat/memory/constants.ts"],
   "tests/server/domain/chat/memory/generate/digests.int.test.ts": [
     "#server/domain/chat/contract/context.ts",

@@ -477,7 +477,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
   const personaOwned = createPersonaOwned(db);
   const { resolveMemoryEmbedSpace, embeddingsPruneBlocks } = createMemoryEmbeddingOps({
     embeddings: createEmbeddingsService(makeStoreHarness(db).ctx),
-    resolveChatHostUserId: async (chatId) => (await loadPresentHostUserId(db, chatId)) ?? null,
+    resolveChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
   });
   const memoryVectorOps = { resolveMemoryEmbedSpace, embeddingsPruneBlocks };
   const base: ChatContext = {
