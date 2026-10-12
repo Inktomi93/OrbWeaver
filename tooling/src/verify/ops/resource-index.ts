@@ -3,14 +3,13 @@
 
 import { resolve } from "node:path";
 import process from "node:process";
-import { runGit } from "@orb/tooling/floor/git/git";
+import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt } from "../contract/resource.ts";
 import type { CandidateIndexDelta, CandidateIndexTextFile } from "../contract/resource-index.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
-import { GIT_READ_PREFIX } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 

@@ -84,13 +84,12 @@ export function workingChangeClassification(root: string): ChangedPathClassifica
 /** Current authored files beneath a folder scope: tracked plus Git's exclude-standard untracked view.
  * This is the same population a working change can contain and deliberately excludes ignored caches,
  * generated scratch trees, and node_modules without teaching this resolver their names. */
-function authoredPathsUnder(prefix: string, root: string): readonly string[] {
+export function authoredPathsUnder(prefix: string, root: string, includeIndexOnly = false): readonly string[] {
   const paths = [...gitLsFiles(root, ["--", prefix]), ...gitLsFiles(root, ["--others", "--exclude-standard", "--", prefix])];
-  return classifyExplicitPaths(paths, root).existingPaths.toSorted();
+  return includeIndexOnly ? [...new Set(paths)].toSorted() : classifyExplicitPaths(paths, root).existingPaths.toSorted();
 }
 
-/** The inner loop leaves the legacy folder to CI's legacy jobs: a Git-derived change drops its legacy paths. An
- *  explicit `--file` claim keeps them, because the caller named them. */
+/** Runtime and compiler views omit legacy; the structure view retains its filename admission subjects. */
 function withoutLegacy(classification: ChangedPathClassification): ChangedPathClassification {
   return {
     entries: classification.entries.filter((entry) => !isLegacyTestPath(entry.path)),
@@ -102,16 +101,23 @@ function withoutLegacy(classification: ChangedPathClassification): ChangedPathCl
 
 /** Resolve a `changed`/`file` selection from explicit paths (or git when none given). */
 function resolveChanged(kind: "changed" | "file", explicit: readonly string[], root: string): Selection {
-  return explicit.length > 0
-    ? classifiedSelection({ kind, labelWord: kind, classification: classifyExplicitPaths(explicit, root), gitRef: undefined }, root)
-    : classifiedSelection({ kind, labelWord: kind, classification: withoutLegacy(workingChangeClassification(root)), gitRef: "HEAD" }, root);
+  const classification = explicit.length > 0 ? classifyExplicitPaths(explicit, root) : workingChangeClassification(root);
+  return classifiedSelection(
+    {
+      kind,
+      labelWord: kind,
+      classification: withoutLegacy(classification),
+      structurePaths: classification.paths,
+      gitRef: explicit.length > 0 ? undefined : "HEAD",
+    },
+    root,
+  );
 }
 
-// The commit gate's selection. No vitest `--changed` ref: that selector reads the working tree, so the related-test
-// lane takes the staged files as explicit subjects instead.
 function resolveStaged(root: string): Selection {
+  const classification = gitStagedPathClassification(root);
   return classifiedSelection(
-    { kind: "staged", labelWord: "staged", classification: withoutLegacy(gitStagedPathClassification(root)), gitRef: undefined },
+    { kind: "staged", labelWord: "staged", classification: withoutLegacy(classification), structurePaths: classification.paths, gitRef: undefined },
     root,
   );
 }
@@ -121,11 +127,12 @@ interface ClassifiedSelectionInput {
   readonly labelWord: string;
   readonly classification: ChangedPathClassification;
   readonly gitRef: string | undefined;
+  readonly structurePaths: readonly string[];
 }
 
-function classifiedSelection({ kind, labelWord, classification, gitRef }: ClassifiedSelectionInput, root: string): Selection {
+function classifiedSelection({ kind, labelWord, classification, gitRef, structurePaths }: ClassifiedSelectionInput, root: string): Selection {
   const { paths, existingPaths } = classification;
-  const label = `${labelWord} (${paths.length} file${paths.length === 1 ? "" : "s"})`;
+  const label = `${labelWord} (${structurePaths.length} file${structurePaths.length === 1 ? "" : "s"})`;
   return {
     kind,
     label,
@@ -133,7 +140,7 @@ function classifiedSelection({ kind, labelWord, classification, gitRef }: Classi
     existingPaths,
     runtimeSubjects: existingPaths,
     ...deriveViews(classification.entries, existingPaths, root),
-    checkScopeArgv: [...SCOPED_CLI, "--changed", ...paths],
+    checkScopeArgv: [...SCOPED_CLI, "--changed", ...structurePaths],
     gitRef,
   };
 }
@@ -179,9 +186,10 @@ function resolvePackage(name: string, root: string): Selection {
 /** Resolve a `--scope <folder-glob>` selection. */
 function resolveScope(glob: string, root: string): Selection {
   const prefix = glob.replace(SCOPE_GLOB_TAIL_RE, "").replace(TRAILING_SLASH_RE, "");
-  const paths: readonly string[] = [prefix];
-  const runtimeSubjects = authoredPathsUnder(prefix, root);
-  if (runtimeSubjects.length === 0) {
+  const paths: readonly string[] = isLegacyTestPath(prefix) ? [] : [prefix];
+  const authoredSubjects = authoredPathsUnder(prefix, root, true);
+  const runtimeSubjects = classifyExplicitPaths(authoredSubjects, root).existingPaths.filter((path) => !isLegacyTestPath(path));
+  if (authoredSubjects.length === 0) {
     throw new Error(`scope selected zero authored paths: ${glob}`);
   }
   const typecheck = planTypecheckPrograms(
@@ -195,7 +203,7 @@ function resolveScope(glob: string, root: string): Selection {
     paths,
     existingPaths: paths,
     runtimeSubjects,
-    eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
+    eslintPaths: !isLegacyTestPath(prefix) && ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
     depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
     docsPaths: DOCS_MD_RE.test(`${prefix}/x.md`) ? [prefix] : [],
     tsconfigs: typecheck.programs,

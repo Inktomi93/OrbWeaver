@@ -59,6 +59,9 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
     nativeConfig: (): never => {
       throw new Error("native config requires an explicit fixture");
     },
+    gitPathHistory: (): never => {
+      throw new Error("Git history requires an explicit fixture");
+    },
     trackedFiles: () => fact("tracked-files", ["z.ts", "a.ts"], { repoPaths: ["z.ts", "a.ts"], executablePaths: [] }),
     candidateIndexDelta: () => fact("candidate-index-delta", [], { files: [] }),
     json: (id) => fact(`json:${id}`, [JSON_RESOURCE_PATHS[id]], { id, path: JSON_RESOURCE_PATHS[id], value: {} }),

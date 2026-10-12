@@ -11,6 +11,7 @@ import type { ResourceFact, ResourceLoad, ResourceReceipt, TrackedFileModeOverla
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { LedgerFacts, LedgerId } from "../contract/resource-document.ts";
 import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
+import type { GitPathHistoryResourceId } from "../contract/resource-git-history.ts";
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
 import type { InstalledPackageFacts, InstalledPackageRequest, InstalledPackageTextOverlay } from "../contract/resource-installed.ts";
 import { installedPackageRequestIdentity } from "../contract/resource-installed.ts";
@@ -24,6 +25,7 @@ import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
 import { loadDocumentIndex, loadLedger } from "./resource-document.ts";
 import { loadExactFiles } from "./resource-exact.ts";
+import { loadGitPathHistoryResource } from "./resource-git-history.ts";
 import { loadCandidateIndexDelta } from "./resource-index.ts";
 import { loadInstalledPackage } from "./resource-installed.ts";
 import { loadJsonResource } from "./resource-json.ts";
@@ -210,6 +212,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     nativeConfig: keyed<ConfigSnapshotRunner, ConfigSnapshot>("native-config", (id) =>
       loadNativeConfig(reader, invocationOptions, id),
     ) as ResourceHost["nativeConfig"],
+    gitPathHistory: keyed("git-path-history", (id: GitPathHistoryResourceId) => loadGitPathHistoryResource(root, id, options.gitHistoryFixtureFoundation)),
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root, trackedFileModeOverlays)),
     candidateIndexDelta: demanded("candidate-index-delta", (paths) => loadCandidateIndexDelta(root, paths)),
     json: keyed<JsonResourceId, JsonResourceFacts>("json", (id) => loadJsonResource(reader, id)),

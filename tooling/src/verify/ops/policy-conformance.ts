@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
-import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -195,6 +195,13 @@ function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Exam
     const overlay = Object.fromEntries(Object.entries(proof.files).filter(([path]) => !NON_AUTHORED_SEGMENT_RE.test(path)));
     const resourceOptions: Omit<ResourceHostOptions, "root"> = {
       overlay,
+      ...(policy.resources.some(({ kind }) => kind === "git-path-history")
+        ? (() => {
+            configureFixtureGitIdentity(root);
+            execFixtureGit(root, ["commit", "--quiet", "--allow-empty", "-m", "fixture foundation"]);
+            return { gitHistoryFixtureFoundation: captureFixtureGitHistoryFoundation(root) };
+          })()
+        : {}),
       parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }),
     };
     yield* runPasses({ policy, root, project, resourceOptions }, grantSets);

@@ -24,6 +24,7 @@ import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { GATE_RESOURCE_REQUEST_KINDS, isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
 import { LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
+import { GIT_PATH_HISTORY_DEFINITIONS } from "../contract/resource-git-history.ts";
 import { INSTALLED_PACKAGE_IDS, INSTALLED_PACKAGE_MODES } from "../contract/resource-installed.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
@@ -103,6 +104,8 @@ function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string,
     ids = JSON_RESOURCE_PATHS;
   } else if (kind === "mirror-index") {
     ids = MIRROR_FAMILY_DEFINITIONS;
+  } else if (kind === "git-path-history") {
+    ids = GIT_PATH_HISTORY_DEFINITIONS;
   } else if (kind === "ledger") {
     ids = LEDGER_DEFINITIONS;
   } else if (kind === "exact-file") {
