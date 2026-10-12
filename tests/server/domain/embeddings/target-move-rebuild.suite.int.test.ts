@@ -10,22 +10,26 @@ import type { EmbedResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, userCredentials } from "@orb/db";
-import type { Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, createEmbeddingsWorkloadContributions } from "@orb/server/domain/embeddings";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { logger } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import type { MemoryEmbedSpace } from "#server/domain/chat/contract/memory.ts";
 import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
 import { createDatabankWorkloadContributions } from "#server/domain/databank/workload-contributions.ts";
+import { distinctCorpusOwners } from "#server/domain/discovery/index.ts";
 import type { EmbeddingsContext } from "#server/domain/embeddings/context.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsService } from "#server/domain/embeddings/contract/service.ts";
 import { WIDTH_PROBE_TEXT } from "#server/domain/embeddings/substrate/generation.ts";
 import { nearestCharacters } from "#server/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
+import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
+import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
+import { createVacuousMemoryReceipt, createVectorSweepOps } from "#server/entry/compose/vector-sweep-ops.ts";
 import { GenerationSupersededError } from "#server/primitives/embedding-generation/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
@@ -365,6 +369,15 @@ async function completeScope(d: Drive, scope: "memory" | "documents"): Promise<v
 }
 
 const NO_DOCUMENTS = { documents: 0, chunksUpserted: 0, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] };
+
+/** The sweeps' completion ops as compose wires them; memory is on for the owner, so no vacuous receipt. */
+function sweepOps(d: Drive): ReturnType<typeof createVectorSweepOps> {
+  return createVectorSweepOps({
+    embeddings: d.svc,
+    listCorpusOwners: () => distinctCorpusOwners(d.db),
+    vacuousMemoryReceipt: createVacuousMemoryReceipt({ isMemoryEnabled: () => Promise.resolve(true), embeddings: d.svc }),
+  });
+}
 const NO_MEMORY = { segments: { scanned: 0, changed: 0 }, segmentsSkippedOverWindow: 0, digests: { scanned: 0, changed: 0 }, failed: 0 };
 
 /** The owner's databank pass as the worker runs it, the real receipts and completion behind a reindex that `during` hooks. */
@@ -377,15 +390,8 @@ async function runDatabankPass(d: Drive, during: () => Promise<void>): Promise<v
         return NO_DOCUMENTS;
       },
     },
-    beginDocumentVectorSweep: async (scope) => {
-      const generation = scope === null ? null : await d.svc.resolveGeneration(scope, "embed");
-      return generation === null || scope === null ? [] : [{ ownerId: scope, generation }];
-    },
-    purgeDocumentVectors: async (receipts) => {
-      for (const receipt of receipts) {
-        await d.svc.purgeDocumentVectors(receipt);
-      }
-    },
+    beginDocumentVectorSweep: sweepOps(d).beginDocumentVectorSweep,
+    purgeDocumentVectors: sweepOps(d).purgeDocumentVectors,
     targetSnapshot: d.svc.targetSnapshot,
   });
   await reindex.run(
@@ -410,14 +416,7 @@ async function runMemorySweep(d: Drive, plan: (pinned: MemoryEmbedSpace) => Prom
     },
     estimateMemoryBackfill: () => Promise.resolve(0),
     backfillGroupCharacters: () => Promise.resolve({ scanned: 0, changed: 0 }),
-    purgeMemoryVectors: async (spaces) => {
-      for (const space of spaces) {
-        await d.svc.purgeMemoryVectors({
-          ownerId: space.ownerId,
-          generation: { id: space.generationId, task: "embed", via: "embed", epoch: space.generationEpoch, space: space.model },
-        });
-      }
-    },
+    purgeMemoryVectors: sweepOps(d).purgeMemoryVectors,
     isMemoryEnabled: () => Promise.resolve(true),
     targetSnapshot: d.svc.targetSnapshot,
   });
@@ -1067,27 +1066,12 @@ function keyRefusingServer(url: string): Promise<Response> | null {
     : null;
 }
 
-function isTextEmbed(resolved: Resolved): resolved is Resolved<"embed"> {
-  return resolved.task === "embed";
-}
-
-/** The embeddings service over the bound role's full resolve, as the composition root builds it: its wire, its
- *  features, and an embed that carries the caller's abort signal to the request. */
+/** The embeddings service over compose's own connection resolve: the bound role's wire, its features, and an
+ *  embed that carries the caller's abort signal to the request. */
 function wiredService(d: Drive): EmbeddingsService {
   return createEmbeddingsService({
     ...d.ctx,
-    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
-      const resolved = await d.h.runtime.resolve({ task, principal: d.principal, ...(connectionId === undefined ? {} : { connectionId }) }).then(
-        (outcome) => outcome.resolved,
-        () => null,
-      );
-      if (resolved === null || !isTextEmbed(resolved)) {
-        return null;
-      }
-      const embed: EmbeddingConnectionSnapshot["embed"] = (input, opts) =>
-        d.h.runtime.executor.embed({ connection: resolved, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
-      return { ...resolved, api: resolved.api ?? "none", embed, imageEmbed: () => Promise.reject(new Error("no image embed in this fixture")) };
-    },
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(d.h.runtime, createHostPrincipalResolver(createLoadUserById({ db: d.db }))),
   });
 }
 

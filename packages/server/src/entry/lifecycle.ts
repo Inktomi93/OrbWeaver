@@ -16,8 +16,7 @@ import type { AuthMode, Principal } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, optimizeDb, preCloseHousekeeping } from "@orb/db";
-import type { ChatId, ChatTurnId, Handle, SessionToken, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { Configuration } from "openid-client";
@@ -106,7 +105,7 @@ import {
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
 import type { ServicesResult } from "./compose/index.ts";
-import { createServices } from "./compose/index.ts";
+import { createMemoryRecallInspector, createRpgTraceInspector, createServices } from "./compose/index.ts";
 import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, SignupRouteDeps } from "./http/index.ts";
 import { createRateLimitGate } from "./rate-limit-gate.ts";
 
@@ -921,33 +920,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       presence: built.presence,
       sockets: built.sockets,
       // R-OBS: the flight recorder's READ half, present only when `createServices` built one (tracing on).
-      // The foundation port speaks RAW query strings (it may not import a kit brand into its filter), so the
-      // brand is applied HERE, at the entry seam — exactly what `app.ts` already does for the socket counter's
-      // `userId`. Foundation still learns no rpg type: `recent` returns `object[]`.
-      ...(built.rpgTrace === undefined
-        ? {}
-        : {
-            rpgTrace: {
-              recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }): readonly object[] =>
-                built.rpgTrace?.recent({
-                  ...(filter.chatId === undefined ? {} : { chatId: filter.chatId }),
-                  ...(filter.turnId === undefined ? {} : { turnId: castId<ChatTurnId>(filter.turnId) }),
-                  ...(filter.limit === undefined ? {} : { limit: filter.limit }),
-                }) ?? [],
-            },
-          }),
+      ...(built.rpgTrace === undefined ? {} : { rpgTrace: createRpgTraceInspector(built.rpgTrace) }),
       // #412: compose's wire-capture request-sink decision, published as `enabled` on the captures probe.
       wireCapture: built.wireCaptureOn,
-      // #250: the memory-recall ring's read half. Unconditional (the recorder always exists); the brand is
-      // applied HERE at the entry seam, same as the rpg recorder above — foundation's port speaks raw query
-      // strings and learns no chat type (`recent` returns `object[]`).
-      memoryRecall: {
-        recent: (filter: { chatId?: ChatId; limit?: number }): readonly object[] =>
-          built.recallRecorder.recent({
-            ...(filter.chatId === undefined ? {} : { chatId: filter.chatId }),
-            ...(filter.limit === undefined ? {} : { limit: filter.limit }),
-          }),
-      },
+      // #250: the memory-recall ring's read half. Unconditional: the recorder always exists.
+      memoryRecall: createMemoryRecallInspector(built.recallRecorder),
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,

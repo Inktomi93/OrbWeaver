@@ -6,7 +6,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { modelLatencyKey, readLatency, readModelLatencies } from "#server/domain/stats/persistence/latency.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshCountedDb, freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";
 
@@ -122,38 +122,17 @@ describe("readLatency", () => {
     expect(latency.avgGenMs).toBe(222);
   });
 
-  // The #1477 husk arm added an owner-chat-membership subquery to this read. The plan pin is extended to
-  // the POST-fix shape on purpose: the subquery must not cost the owner-indexed entry point (a `SCAN c`
-  // here would mean the dashboard's per-model read degraded to a full character sweep). Measured after the
-  // change — every step is an indexed SEARCH, zero SCAN:
-  //   SEARCH c USING INDEX characters_owner_idx (owner_id=?) / SEARCH m USING INDEX messages_character_idx
-  //   (character_id=?) / LIST SUBQUERY 1 → SEARCH c2 characters_owner_idx, SEARCH cp
-  //   chat_participants_character_idx, SEARCH ch sqlite_autoindex_chats_1 / SEARCH v
-  //   sqlite_autoindex_message_variants_1.
-  // `not.toContain("SCAN c")` covers the subquery's `c2` alias too (substring), which is deliberate.
+  // The plan pin explains the statement `readLatency` actually issues, recorded off a counted db, so a change to the
+  // read is a change to what is pinned. Every step must be an indexed SEARCH from the owner's character set: a
+  // `SCAN c` would mean the dashboard's per-model read degraded to a full character sweep, and the owner-chat
+  // subquery's `c2` alias is covered by the same substring on purpose.
   test("the model/provider latency plan starts from the owner's indexed character set", async () => {
-    const planDb = await freshDb();
-    const plan = await planDb.all<{ detail: string }>(
-      sql.raw(`
-      EXPLAIN QUERY PLAN
-      SELECT v.ttft_ms
-      FROM message_variants v
-      JOIN messages m ON m.selected_variant_id = v.id
-      JOIN characters c ON c.id = m.character_id
-      WHERE c.owner_id = 'user_plan'
-        AND m.role = 'assistant'
-        AND m.chat_id IN (
-          SELECT DISTINCT cp.chat_id FROM chat_participants cp
-          JOIN characters c2 ON c2.id = cp.character_id
-          JOIN chats ch ON ch.id = cp.chat_id
-          WHERE c2.owner_id = 'user_plan' AND cp.kind = 'character' AND ch.started_at IS NOT NULL
-        )
-        AND v.model = 'model-a'
-        AND v.provider = 'provider-a'
-      ORDER BY m.rowid DESC
-      LIMIT 100
-    `),
-    );
+    const { db: planDb, queries } = await freshCountedDb();
+    await readLatency(planDb, "user_plan", { kind: "model", model: "model-a", provider: "provider-a" });
+    const [statement] = queries.statements();
+    expect(queries.count()).toBe(1);
+
+    const plan = await planDb.all<{ detail: string }>(sql.raw(`EXPLAIN QUERY PLAN ${statement ?? ""}`));
     const details = plan.map((row) => row.detail).join("\n");
 
     expect(details).toContain("characters_owner_idx");

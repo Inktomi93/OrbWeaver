@@ -16,6 +16,7 @@ import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/
 import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { Hono } from "hono";
 import { describe } from "vitest";
+import { createRpgTraceInspector } from "#server/entry/compose/debug-inspectors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const TOKEN = "debug-secret-token";
@@ -71,9 +72,8 @@ describe("/api/_debug/rpg/traces", () => {
 
   test("the REAL recorder serves real events end to end — the shape a host actually reads", async () => {
     // Every case above drives a STUB, which proves the route and proves nothing about the thing behind it.
-    // This one wires the actual ring (`domain/rpg/trace.ts`) exactly as `lifecycle.ts` does — including the
-    // brand cast the entry seam applies to the raw query string — so the route's JSON is the recorder's own.
-    // RPG-TRACE-DEAD was precisely a route with nothing behind it; that gap closes here.
+    // This one wires the actual ring (`domain/rpg/trace.ts`) through the entry seam's own inspector, so the
+    // route's JSON is the recorder's own. A route with nothing behind it is the gap this closes.
     const recorder = createRpgTraceRecorder({ now: () => 1_700_000_000_000 });
     recorder.sink({ phase: "mount", chatId: castId<ChatId>("chat_live"), toolNames: ["update_scene"] });
     recorder.sink({
@@ -84,16 +84,7 @@ describe("/api/_debug/rpg/traces", () => {
       calls: [{ name: "update_scene", args: '{"weather":{"type":"indoors"}}', verdict: "dropped", issues: ["weather.type: Invalid option"] }],
     });
 
-    const inspector: RpgTraceInspector = {
-      recent: (filter): readonly object[] =>
-        recorder.recent({
-          ...(filter.chatId === undefined ? {} : { chatId: castId<ChatId>(filter.chatId) }),
-          ...(filter.turnId === undefined ? {} : { turnId: castId<ChatTurnId>(filter.turnId) }),
-          ...(filter.limit === undefined ? {} : { limit: filter.limit }),
-        }),
-    };
-
-    const res = await appWith(inspector).fetch(authed("/api/_debug/rpg/traces?turnId=chat_turn_live"));
+    const res = await appWith(createRpgTraceInspector(recorder)).fetch(authed("/api/_debug/rpg/traces?turnId=chat_turn_live"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { count: number; events: { seq: number; event: Record<string, unknown> }[] };
     // The turn filter excluded the id-less mount, and the surviving record carries the raw args + the verdict

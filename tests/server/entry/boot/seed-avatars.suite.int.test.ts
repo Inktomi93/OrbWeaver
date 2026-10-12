@@ -18,18 +18,19 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import { readSeedAvatar } from "@orb/default-content";
-import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { describe, onTestFinished } from "vitest";
+import { createSeedAvatarOps } from "#server/entry/compose/seed-avatar-ops.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharacterHarness, principal, realLorebookImport, seedUser } from "../../domain/character/_support.ts";
 
-/** Build the real character seeder wired with the REAL bundled-avatar `storeAvatar`/`seedGallery` closures
- *  (the exact composition the entry root builds), over shared real character + assets services on one db. */
+/** Build the real character seeder wired with compose's own bundled-avatar ops, over shared real character +
+ *  assets services on one db. */
 async function makeSeededHarness(): Promise<{
   readonly owner: UserId;
   readonly actor: Principal;
@@ -49,37 +50,7 @@ async function makeSeededHarness(): Promise<{
     characters,
     attachCardTag: (): Promise<boolean> => Promise.resolve(true),
     markWelcomeAssistant: (): Promise<void> => Promise.resolve(),
-    storeAvatar: async (p, handle): Promise<AssetId | null> => {
-      const art = await readSeedAvatar(handle);
-      if (art === null) {
-        return null;
-      }
-      const stored = await assets.store({
-        principal: p,
-        bytes: art.bytes,
-        kind: "avatar",
-        mime: art.mime,
-        enforceMagic: true,
-      });
-      return stored.assetId;
-    },
-    seedGallery: async (p, characterId, handle): Promise<void> => {
-      const avatarArt = await readSeedAvatar(handle);
-      if (avatarArt !== null) {
-        const a = await assets.store({
-          principal: p,
-          bytes: avatarArt.bytes,
-          kind: "avatar",
-          mime: avatarArt.mime,
-          enforceMagic: true,
-        });
-        await assets.addToGallery({
-          principal: p,
-          assetId: a.assetId,
-          subjectCharacterId: characterId,
-        });
-      }
-    },
+    ...createSeedAvatarOps(assets).character,
   });
 
   return {
