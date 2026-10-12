@@ -51,7 +51,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { consolidationHash, createResolveViewerVisibility, resolveTier0Range } from "@orb/server/domain/chat";
+import { consolidationHash, createResolveViewerVisibility, loadPresentHostUserId, resolveTier0Range } from "@orb/server/domain/chat";
 import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
@@ -61,7 +61,7 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
@@ -168,12 +168,9 @@ function ownerOf<T extends { ownerId: UserId | null }>(rows: readonly T[], subje
 }
 
 async function chatOwner(db: Db, chatId: ChatId, model: string): Promise<UserId> {
-  const hosts = await db
-    .select({ ownerId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
-  if (hosts[0]?.ownerId !== undefined && hosts[0]?.ownerId !== null) {
-    return hosts[0].ownerId;
+  const host = await loadPresentHostUserId(db, chatId);
+  if (host !== null) {
+    return host;
   }
   const digestOwners = await db
     .select({ ownerId: characters.ownerId })

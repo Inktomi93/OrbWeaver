@@ -342,18 +342,16 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     const encoder = makeStoreHarness(db);
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
     encoder.roleClients.embed.mockRejectedValue(rejected);
-    // The verb binds its bundle through the funder-keyed `roleClientsFor` seam (@orb/inference §7.5-1b), so
-    // the double is the shared scripted bundle with ONE callable replaced: `withActiveQuerySpace` must still
-    // answer a space (it runs first) and the rejection must land on the `embed` call itself.
+    // The query embeds through the owner's bound connection (the one their memory space was minted under), so the
+    // rejection is planted on that connection's encoder above; the funder-keyed role bundle stays the plain
+    // scripted one and never sees the key.
     // @orb-waive no-test-fabrication(unknown): the SearchContext double carries only the fields this path
     // reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const searchCtx = {
       db,
-      roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients({ embed: (): Promise<never> => Promise.reject(rejected) })),
+      roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients()),
       now: () => FROZEN_AT,
       resolveActiveDocumentIds: () => Promise.resolve([]),
-      // The owner's bound encoder, the one their memory space was minted under, rejecting the key: the query
-      // embeds through the space's own connection.
       resolveEmbeddingConnection: encoder.ctx.resolveEmbeddingConnection,
     } as unknown as SearchContext;
     const digests = createDigests(searchCtx);

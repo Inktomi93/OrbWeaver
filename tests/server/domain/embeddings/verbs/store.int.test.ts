@@ -314,6 +314,7 @@ describe("store — image lenses (image_embeddings)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
 
+    const { signal } = new AbortController();
     const result = await svc.store({
       kind: "avatar",
       lens: "image-raw",
@@ -321,10 +322,13 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       model: IMAGE_EMBED_MODEL,
       ownerId: owner,
+      signal,
     });
 
     expect(result.outcome).toBe("written");
-    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG });
+    // The pass's abort reaches the encoder, so an aborted sweep stops waiting on a loading model.
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG }, { signal });
+    expect(h.roleClients.imageEmbed.mock.calls[0]?.[1]?.signal).toBe(signal);
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.lens).toBe("image-raw");
@@ -363,6 +367,7 @@ describe("store — image lenses (image_embeddings)", () => {
         now: h.ctx.now(),
       }),
     ).toBe(1);
+    const { signal } = new AbortController();
     await svc.store({
       kind: "avatar",
       lens: "image-captioned",
@@ -373,13 +378,18 @@ describe("store — image lenses (image_embeddings)", () => {
       analysisRevision: 1,
       model: IMAGE_EMBED_MODEL,
       ownerId: owner,
+      signal,
     });
 
-    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({
-      kind: "multimodal",
-      allowTextFallback: true,
-      input: { image: IMG, text: TEST_CAPTION },
-    });
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith(
+      {
+        kind: "multimodal",
+        allowTextFallback: true,
+        input: { image: IMG, text: TEST_CAPTION },
+      },
+      { signal },
+    );
+    expect(h.roleClients.imageEmbed.mock.calls.at(-1)?.[1]?.signal).toBe(signal);
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     // Both lenses coexist for one asset in one space (the unique key is (assetId, model, lens)).
     expect(rows).toHaveLength(2);

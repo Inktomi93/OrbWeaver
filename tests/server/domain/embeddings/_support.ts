@@ -34,6 +34,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
@@ -123,9 +124,12 @@ export function fakeVector(dim: number = EMBED_DIM, seed = 1): Float32Array<Arra
   return v;
 }
 
+// The scripted image encoder sits at the provider edge, so it also records the request's abort signal.
+type ScriptedImageEmbed = (req: ImageEmbedInput, opts?: { readonly signal?: AbortSignal | undefined }) => ReturnType<RoleClients["imageEmbed"]>;
+
 export interface FakeRoleClients extends RoleClients {
   readonly embed: Mock<RoleClients["embed"]>;
-  readonly imageEmbed: Mock<RoleClients["imageEmbed"]>;
+  readonly imageEmbed: Mock<ScriptedImageEmbed>;
   readonly rerank: Mock<RoleClients["rerank"]>;
   readonly summarize: Mock<RoleClients["summarize"]>;
   readonly structured: Mock<RoleClients["structured"]>;
@@ -148,7 +152,7 @@ export function makeRoleClients(vision = true, imageArm: FakeImageArm = "joint")
       usage: { promptTokens: null, totalTokens: null },
     }),
   );
-  const imageEmbed: Mock<RoleClients["imageEmbed"]> = vi.fn<RoleClients["imageEmbed"]>((req: ImageEmbedInput) =>
+  const imageEmbed: Mock<ScriptedImageEmbed> = vi.fn<ScriptedImageEmbed>((req: ImageEmbedInput) =>
     Promise.resolve({
       vectors: [fakeVector(EMBED_DIM, req.kind === "multimodal" ? 3 : 2)],
       model: IMAGE_EMBED_MODEL,
@@ -280,7 +284,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
       makeEmbeddingRuntime(
         {
           embed: (input, opts) => roleClients.embed(input, opts),
-          imageEmbed: (input) => roleClients.imageEmbed(input),
+          imageEmbed: (input, opts) => roleClients.imageEmbed(input, opts),
           resolved: async (task) => {
             const resolved = await roleClients.resolved(task);
             const dtype = embedDtype.current;
@@ -297,6 +301,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
+    loadChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
     // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
     onTargetGenerationMoved: () => undefined,
     onTargetPromoted: () => undefined,

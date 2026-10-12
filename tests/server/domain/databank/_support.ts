@@ -14,6 +14,7 @@ import type { Db } from "@orb/db";
 import { assets, chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
@@ -184,6 +185,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     enqueueReindex,
     ensureChatHost: options.ensureChatHost ?? (() => Promise.resolve()),
     ensureChatMember: options.ensureChatMember ?? (() => Promise.resolve()),
+    resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
     searchDocuments: options.searchDocuments ?? (() => Promise.resolve([])),
     resolveVisibleRooms:
       options.resolveVisibleRooms ??

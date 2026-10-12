@@ -9,7 +9,7 @@
 // @orb-waive-file platform-spellings(store): baselined when the gate widened; burn-down item 906.
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { chatDigests, chatSegments, embedGenerations } from "@orb/db";
+import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
 import type { CharacterId, ChatId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
@@ -328,9 +328,18 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.failed).toBe(0);
     // The shared group bucket (keyed by the minted synthetic-char id) built both blocks — the write the bug
     // report said silently vanished now lands.
-    expect(minted).toHaveLength(1);
-    const groupBlocks = store.digests.filter((d) => d.key.scopedCharacterId === minted[0] && d.key.tier === 0).map((d) => d.key.blockIdx);
+    const [groupId] = minted;
+    if (minted.length !== 1 || groupId === undefined) {
+      throw new Error("the sweep must mint exactly one group character");
+    }
+    const groupBlocks = store.digests.filter((d) => d.key.scopedCharacterId === groupId && d.key.tier === 0).map((d) => d.key.blockIdx);
     expect(groupBlocks).toEqual([0, 1]);
+    // The minted bucket is the host-owned hidden synthetic row, so it never surfaces as a card or embeds.
+    const [groupRow] = await db.select({ ownerId: characters.ownerId, synthetic: characters.synthetic }).from(characters).where(eq(characters.id, groupId));
+    expect(groupRow).toEqual({ ownerId: host, synthetic: true });
+    // A second sweep finds the same row rather than minting another.
+    await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS }, cfg);
+    expect(new Set(minted)).toEqual(new Set([groupId]));
   });
 
   test("PER-CHAT ISOLATION is NOT a silent skip: a poisoned chat is COUNTED in `failed`, the rest still process (#41)", async () => {

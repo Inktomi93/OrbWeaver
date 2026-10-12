@@ -30,6 +30,7 @@ export type { PluginHostSeamDeps } from "./contract/port.ts";
 export { getPluginQuickJS } from "./module.ts";
 export { createLocalPluginHost } from "./port.ts";
 export { formatPluginBrokerArguments } from "./process-argv.ts";
+export { pluginBrokerExecArgv } from "./process-permission.ts";
 export { createPluginHost } from "./process-runtime.ts";
 export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
 export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";

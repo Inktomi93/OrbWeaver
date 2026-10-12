@@ -7,23 +7,14 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import {
-  characters,
-  chatDigestSpeakers,
-  chatDigests,
-  chatParticipants,
-  chatSegments,
-  embedGenerations,
-  embedGenerationTargets,
-  userConnections,
-} from "@orb/db";
+import { characters, chatDigestSpeakers, chatDigests, chatSegments, embedGenerations, embedGenerationTargets, userConnections } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type {
   ChatContext,
   EmbeddingsStoreOp,
@@ -106,12 +97,8 @@ export async function completeMemorySpace(db: Db, ownerId: UserId): Promise<void
 }
 
 async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<MemorySpace> {
-  const hosts = await db
-    .select({ ownerId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
-  const ownerId = knownOwnerId ?? (hosts[0]?.ownerId as UserId | null | undefined);
-  if (ownerId === undefined || ownerId === null) {
+  const ownerId = knownOwnerId ?? (await loadPresentHostUserId(db, chatId));
+  if (ownerId === null) {
     // D18: there is no `chats.ownerId` — the present human HOST participant is the authority, and that is
     // what the generation's owner is derived from. A fixture chat with no host must say whose generation it
     // is: pass `ownerId` (what `seedSegment`'s callers do; `seedDigest` can also fall back to the scoped
