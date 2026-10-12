@@ -60,6 +60,7 @@ async function routeAppearance(page: Page, appearance: AppearanceSettings, arm: 
   // routeTrpc's null fulfil the pipelines behind them ran INERT.
   await routeTrpc(page, {
     "persona.list": [],
+    "plugin.listCommands": [],
     "settings.getUserSettings": userSettingsView({ appearance }, { userId: castId<UserId>(`user_ct_appearance_carrier_${arm}`) }),
     ...CHAT_AND_INBOX_READS_EMPTY,
   });

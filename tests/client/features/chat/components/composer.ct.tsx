@@ -1572,9 +1572,24 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
 
 // Utilities and input keep the same two-row organization at every production width, without buying
 // compactness by shrinking any touch target.
-const PHONE_ROOM_STUB: TrpcRoutes<"chat.getChat"> = {
+const PHONE_ROOM_READS: TrpcRoutes<"character.get" | "chat.previewContextFit"> = {
+  "character.get": ({ characterId }) => makeCharacterDetail({ id: characterId, name: "Aria", avatarHash: null, greetings: [] }),
+  "chat.previewContextFit": () => ({
+    boundaryMessageId: null,
+    usedTokens: 120,
+    ceilingTokens: 32_768,
+    ceilingEstimated: false,
+    limit: null,
+    reserveOutputTokens: 2048,
+    droppedCount: 0,
+    compactSummary: null,
+  }),
+};
+
+const PHONE_ROOM_STUB: TrpcRoutes<"chat.getChat" | "character.get" | "chat.previewContextFit"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
+  ...PHONE_ROOM_READS,
   "chat.getChat": () => makeChatDetail({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, identities: [] }),
 };
 
@@ -1693,9 +1708,10 @@ test.describe("the desktop composer keeps the same two-row organization", () => 
 // 48px control row that a solo room did not. Dropping the fifth control takes `Their reply` to 150px and the
 // homes to 348px + gaps — under the bar, one row. So this asserts BOTH halves: exactly one door in the home,
 // and the row count the removal bought.
-const GROUP_PHONE_STUB: TrpcRoutes<"chat.getChat"> = {
+const GROUP_PHONE_STUB: TrpcRoutes<"chat.getChat" | "character.get" | "chat.previewContextFit"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
+  ...PHONE_ROOM_READS,
   "chat.getChat": () =>
     makeChatDetail({
       title: "Council",
@@ -1745,17 +1761,6 @@ for (const viewport of [
     test("captures the rendered action groups and menu organization", async ({ mount, page }, testInfo) => {
       await routeTrpc(page, {
         ...GROUP_PHONE_STUB,
-        "character.get": ({ characterId }) => makeCharacterDetail({ id: characterId, name: "Aria", avatarHash: null, greetings: [] }),
-        "chat.previewContextFit": () => ({
-          boundaryMessageId: null,
-          usedTokens: 120,
-          ceilingTokens: 32_768,
-          ceilingEstimated: false,
-          limit: null,
-          reserveOutputTokens: 2048,
-          droppedCount: 0,
-          compactSummary: null,
-        }),
         "chat.getChat": () =>
           makeChatDetail({
             ...CHAT_ROOM_DETAIL,

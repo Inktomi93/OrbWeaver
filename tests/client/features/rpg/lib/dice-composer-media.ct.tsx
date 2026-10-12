@@ -15,7 +15,7 @@ import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 import { RpgDiceComposerStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import { FIRST_SESSION_USER, firstSessionTracker } from "../first-session-fixtures.ts";
-import { makeRpgGameView } from "../fixtures.ts";
+import { makeRpgGameView, makeRpgTrackerView } from "../fixtures.ts";
 
 const CHIPS = '[data-slot="chat-control-chips"]';
 const MENU_POPUP = '[data-slot="menu-popup"]';
@@ -85,7 +85,9 @@ function routeRoom(
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_dice_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     // The engaged room's game-aware chrome suspends on getGame; a plain chat never asks for it (no unfed read).
     ...(engaged ? { "rpg.getGame": (): RpgGameView => gameView(ruleset) } : {}),
-    ...(attributes === undefined ? {} : { "rpg.getTrackerView": () => firstSessionTracker(attributes) }),
+    ...(attributes === undefined && !engaged
+      ? {}
+      : { "rpg.getTrackerView": () => (attributes === undefined ? makeRpgTrackerView() : firstSessionTracker(attributes)) }),
     "rpg.rollDice":
       heldRoll ??
       (() =>

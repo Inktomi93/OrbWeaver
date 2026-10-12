@@ -189,6 +189,7 @@ test("the app shell is navigable by name", async ({ mount, page }) => {
   await routeTrpc(page, {
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "character.count": 0,
+    "plugin.listCommands": [],
     ...VIEWER_IDENTITY_ROUTES,
     ...CHAT_AND_INBOX_READS_EMPTY,
   });

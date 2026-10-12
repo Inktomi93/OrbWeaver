@@ -15,6 +15,7 @@ test("unrevealed phone content starts no request and revealed editors retain the
     "character.get": makeCharacterDetail({ name: "Measured character" }),
     "notifications.list": { items: [], nextCursor: null },
     "persona.list": [],
+    "plugin.listCommands": [],
     "settings.getUserSettings": userSettingsView(),
   });
   const component = await mount(<SectionContentDeferredStory />);
@@ -81,6 +82,7 @@ test("phone finder defers CONTENT requests until selection while desktop renders
     "character.get": makeCharacterDetail({ name: "Measured character" }),
     "notifications.list": { items: [], nextCursor: null },
     "persona.list": [],
+    "plugin.listCommands": [],
     "settings.getUserSettings": userSettingsView(),
   });
   const component = await mount(<AppShellContentFetchStory />);
@@ -101,6 +103,7 @@ test("desktop CONTENT starts its read on unselected library arrival", async ({ m
     "character.get": makeCharacterDetail({ name: "Measured character" }),
     "notifications.list": { items: [], nextCursor: null },
     "persona.list": [],
+    "plugin.listCommands": [],
     "settings.getUserSettings": userSettingsView(),
   });
   const component = await mount(<AppShellContentFetchStory />);

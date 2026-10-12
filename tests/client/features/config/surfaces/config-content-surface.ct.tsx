@@ -134,6 +134,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   // Multi-user's sign-in panel suspends on the boot-fixed mode; unfed, the whole section renders its error state.
   "share.signInMode": signInModeView("single-user"),
   "persona.list": [],
+  "plugin.listCommands": [],
   "credentials.list": [],
   "workloads.list": [],
   "workloads.listSchedules": [],

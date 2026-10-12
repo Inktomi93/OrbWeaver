@@ -106,6 +106,7 @@ function stub(page: Page): Promise<TrpcRecorder> {
     // baselined: an empty list is a real view for every one of them, and the unfed-read ratchet is right
     // that a `null` would leave those pipelines inert inside a mount that does render them.
     "notifications.list": () => ({ items: [], nextCursor: null }),
+    "plugin.listCommands": [],
     "chat.listChats": () => makeChatListPage(),
     "databank.list": () => makeDocumentListPage(),
     "databank.bankHealth": () => ({
