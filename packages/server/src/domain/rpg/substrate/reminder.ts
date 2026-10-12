@@ -15,7 +15,7 @@
 // NO tool-update guidance here (owner ruling): the character turn is ALWAYS tool-less prose — state
 // is captured by a DEDICATED post-commit round (`runToolRound`), so this reminder never asks the
 // character turn to call a tool. The "call every applicable tool" checklist now lives in the TOOL ROUND's own
-// prompt (`toolRoundSystem`, entry/compose/rpg.ts), where the tools actually fire. This reminder injects the
+// prompt (`toolRoundSystem`, tools/rounds/prompts.ts), where the tools actually fire. This reminder injects the
 // tracked state as FLAVOR the character reacts off — steering, not writing.
 //
 // TWO SURFACES, ONE VOCABULARY (the live-turn drop): a tracker's MEANING is taught once per turn

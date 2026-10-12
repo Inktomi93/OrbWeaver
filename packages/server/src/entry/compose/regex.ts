@@ -11,12 +11,9 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chats } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
-import { loadPresentHostUserId, parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
+import { createResolveRoomDisplayPolicy, requireHost, requireParticipant } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -24,7 +21,6 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
-  RegexContext,
   RegexService,
   ResolveRegexSources,
 } from "#domain/regex";
@@ -42,32 +38,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { publishUserEvent } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
-import { createResolveVisibleRooms } from "./visible-rooms.ts";
-
-const LIMIT_ONE = 1;
-
-/**
- * The D121-E display-tier room policy (owner ruling 2026-08-02) — "does this room broadcast the HOST's
- * display scripts, and who is its host". Built HERE rather than inside `domain/regex` because both halves
- * are CHAT's data (the roster's host seat + the `chatMetadata.hostDisplayScripts` flag), and regex reads
- * neither the roster nor chat metadata — the same one-directional posture as its injected guards.
- *
- * A hostless room (an archived orphan whose host left) broadcasts NOTHING: there is no one whose scripts a
- * viewer could be reading, so the room silently falls back to the per-user default.
- */
-function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayPolicy"] {
-  return async (chatId: ChatId) => {
-    const [row] = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
-    // The fault-isolated parse seam — a corrupt sibling sub-blob must never take the toggle down with it.
-    const enabled = parseChatMetadata(row?.metadata).hostDisplayScripts === true;
-    if (!enabled) {
-      // Short-circuit: while the option is OFF nobody needs to know who the host is, and the verb returns
-      // `[]` regardless — so the roster read never happens on the default path.
-      return { enabled: false, hostUserId: null };
-    }
-    return { enabled: true, hostUserId: await loadPresentHostUserId(db, chatId) };
-  };
-}
+import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
 // @orb-waive no-inline-package-interface(RegexComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the regex seam needs from the composition root. */
@@ -111,10 +82,10 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     audit,
     requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
-    resolveRoomDisplayPolicy: makeResolveRoomDisplayPolicy(db),
+    resolveRoomDisplayPolicy: createResolveRoomDisplayPolicy({ db }),
     // The SHARED leak-safe reverse-room read — regex's original, promoted to `compose/visible-rooms.ts`
     // when databank and preset became its second and third consumers (#276/#279).
-    resolveVisibleRooms: createResolveVisibleRooms(db),
+    resolveVisibleRooms: createVisibleRoomsReader(db),
     emitUserEvent: publishUserEvent,
     // #1733 — the ROOM plane. Both arms live at the composition root for the same reason the guards do: the
     // fan is chat's bus and the reach is SQL over chat's junction, and regex may import neither.

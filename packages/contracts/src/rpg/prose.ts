@@ -906,7 +906,7 @@ For example, a three-line sign is enough:
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
   // The host's ONE click over a character CARD, not a turn: the round reads the card + the room's opening
   // line and writes what the character walked in with. Everything it says to the model used to be a source
-  // constant — the system header and the four user-turn labels in `entry/compose/rpg.ts`, the IDENTITY clause
+  // constant — the system header and the four user-turn labels in `domain/rpg/tools/rounds/prompts.ts`, the IDENTITY clause
   // and the invent-nothing doctrine inline in `extraction-prompt.ts` — while its two PLANE fragments
   // (inventory/quests) were already slots. That split is the disease: one prompt, half of it host-editable.
   //

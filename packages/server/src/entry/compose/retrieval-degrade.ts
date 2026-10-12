@@ -24,6 +24,7 @@ import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "#domain/s
 /** True for the two refusals that describe the owner's SPACE rather than this query — the ordinary states
  *  (mid-move, or no embedder bound) a turn must survive. `SearchError` carries its code from
  *  `DomainOperationError`, so this is an identity test on a typed error, never a message match. */
+// @orb-waive compose-wiring-only(isSpaceRefusal): baselined when the gate landed; burn-down item 964.
 function isSpaceRefusal(err: unknown): boolean {
   return err instanceof SearchError && (err.code === SEARCH_SPACE_REINDEXING || err.code === SEARCH_NO_SPACE);
 }
@@ -35,6 +36,7 @@ function isSpaceRefusal(err: unknown): boolean {
  *  `run` comes FIRST so `T` infers from the retrieval's own return type rather than from an untyped `[]`.
  *  `onIndexUnavailable` is called BEFORE the fallback resolves, so a caller that keys its own trace off the
  *  report (recall's slice `note`) sees it in the same tick. */
+// @orb-waive compose-wiring-only(withRetrievalDegrade): baselined when the gate landed; burn-down item 964.
 export async function withRetrievalDegrade<T>(
   run: () => Promise<T>,
   degraded: { readonly empty: T; readonly onIndexUnavailable: (() => void) | undefined },

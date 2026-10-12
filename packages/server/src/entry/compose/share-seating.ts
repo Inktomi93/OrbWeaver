@@ -22,6 +22,7 @@ export function createEnableShareSeating(deps: {
   readonly sessions: Pick<SessionsService, "getOwnerUserId">;
   readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
 }): ShareServiceDeps["enableSeating"] {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async () => {
     const effective = deps.seating();
     const off = SEATING_KEYS.filter((key) => !effective[key]);

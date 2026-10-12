@@ -34,6 +34,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterOwned, createCharacterService, createLinkCharacterAvatars } from "@orb/server/domain/character";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "@orb/server/domain/chat";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
@@ -44,7 +45,6 @@ import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/context.ts";
-import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "#server/entry/compose/co-participant-assets.ts";
 import { createGalleryCharacterOps } from "#server/entry/compose/gallery-character-ops.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 
@@ -106,8 +106,8 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     // The gallery owner-only gate: the same character-owned read compose wires.
     assertCharacterOwned: createCharacterOwned(db),
     // The production queries themselves, so a change to a shipped predicate is what these suites test.
-    loadCoParticipantOwner: createLoadCoParticipantOwner(db),
-    loadChatAssetRefs: createLoadChatAssetRefs(db),
+    loadCoParticipantOwner: createLoadCoParticipantOwner({ db }),
+    loadChatAssetRefs: createLoadChatAssetRefs({ db }),
   };
   return {
     ctx,

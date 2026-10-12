@@ -31,7 +31,7 @@ import {
   createFanDatabankDocumentRooms,
   createFanDatabankMemberRooms,
 } from "./room-reach.ts";
-import { createResolveVisibleRooms } from "./visible-rooms.ts";
+import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
 // @orb-waive no-inline-package-interface(DatabankComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
@@ -105,6 +105,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, deps.emitChatEventLive),
     captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive).databank,
     assetsStore: deps.assetsStore,
+    // @orb-waive compose-wiring-only(loadAssetBytes): baselined when the gate landed; burn-down item 964.
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await deps.loadAssetBytes(assetId)) ?? undefined,
     embeddingsStore: embeddings.store,
     pruneDocumentChunks: embeddings.pruneDocumentChunks,
@@ -123,6 +124,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // of this bank's chunks are embedded where they need to be". Counting against the last-complete space
     // would report a bank as fully embedded while a reindex is still moving it, which is the one answer the
     // databank surface must not give. During a transition "0 of N" is the truth and the progress signal.
+    // @orb-waive compose-wiring-only(getActiveEmbedSpace): baselined when the gate landed; burn-down item 964.
     getActiveEmbedSpace: async (ownerId) => {
       const space = await (await deps.roleClientsFor(ownerId)).resolved("embed");
       return space === null ? null : { model: embedSpaceOf(space.model, embedDtypeOf(space.capability)) };
@@ -145,7 +147,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // The SHARED leak-safe reverse-room read (#276) — the same factory regex's roster and the preset
     // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"
     // roster names PRESENT rooms only.
-    resolveVisibleRooms: createResolveVisibleRooms(db),
+    resolveVisibleRooms: createVisibleRoomsReader(db),
   };
   const databank = createDatabankService(databankCtx);
   const databankIngest: DatabankIngest = createDatabankIngest(databankCtx);

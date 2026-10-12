@@ -135,6 +135,7 @@ export function createEnqueueImportIndex(workloads: Pick<WorkloadService, "start
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function createSettleImportMemory(workloads: Pick<WorkloadService, "start">, now: () => number): SettleImportMemory {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async ({ ownerId, from, memoryChatIds }: { readonly ownerId: UserId; readonly from: number; readonly memoryChatIds: readonly ChatId[] }) => {
     if (memoryChatIds.length === 0) {
       return null;
@@ -227,6 +228,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     // it is one gesture. Semantics + the misuse note: `transport/trpc/user-events-bus.ts`. #23's
     // `emitLibraryChanged` deliberately stays OUTSIDE these scopes — it fires after the runner returns, from
     // the workload contribution's settle step, and it is the belt that covers a run which wrote canon.
+    // @orb-waive compose-wiring-only(runProfileDirImport): baselined when the gate landed; burn-down item 964.
     runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal, personaCollisions }) =>
       await withQuietBulkFanout(async () => {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
@@ -273,6 +275,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           ...(reportPath !== undefined ? { reportPath } : {}),
         };
       }),
+    // @orb-waive compose-wiring-only(runBundleImport): baselined when the gate landed; burn-down item 964.
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
       await withQuietBulkFanout(async () => {
         const from = now();
@@ -296,6 +299,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
         };
       }),
+    // @orb-waive compose-wiring-only(runStagedDirImport): baselined when the gate landed; burn-down item 964.
     runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
       await withQuietBulkFanout(async () => {
         const from = now();

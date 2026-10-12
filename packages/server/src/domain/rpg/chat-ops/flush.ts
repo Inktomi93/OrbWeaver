@@ -320,7 +320,7 @@ async function foldIntoShadowingHandRow(
  *  would predictably fail (`rpg.extraction.*`/`rpg.toolround.failed`) and, on hosted creds, cost real spend for
  *  a structurally-impossible write. The verdict is derived from the SAME connection the round would use (the
  *  character turn's `turnConnection`, F1) — never a re-resolve of the host's global default. The header law
- *  ("a game whose model has no writer capability never reaches here", compose/rpg.ts) is now ENFORCED here. */
+ *  ("a game whose model has no writer capability never reaches here", tools/rounds/) is now ENFORCED here. */
 async function flushWritableTurn(
   ctx: RpgContext,
   game: RpgGameRow,

@@ -30,6 +30,7 @@ const GIF_MIME = "image/gif";
  *  tracking-pixel/exfil vector) and classifies as `image` (the attachment machinery never mints external
  *  refs, so the arm is defensive). `isPresentParticipant(userId, chatId)` checks whether the asset's owner
  *  is a present member of the referencing chat. */
+// @orb-waive compose-wiring-only(resolveImageRefToUrl): baselined when the gate landed; burn-down item 964.
 export async function resolveImageRefToUrl(
   assets: ImageRefAssets,
   isPresentParticipant: (userId: UserId, chatId: ChatId) => Promise<boolean>,
@@ -75,6 +76,7 @@ export async function resolveImageRefToUrl(
   return { url: `data:${meta.mime};base64,${Buffer.from(bytes).toString("base64")}`, media: "image" };
 }
 
+// @orb-waive compose-wiring-only(isMotion): baselined when the gate landed; burn-down item 964.
 async function isMotion(assets: ImageRefAssets, mime: string, bytes: Uint8Array): Promise<boolean> {
   if (mime.startsWith(VIDEO_MIME_PREFIX)) {
     return true;

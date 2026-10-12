@@ -44,7 +44,8 @@ import { createNotificationsService } from "#domain/notifications";
 import type { JoinerPersonaStatementOp, PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
 import { createJoinerPersonaStatement, createPersonaService, createResolvePersonasForParticipants } from "#domain/persona";
 import type { PresetContext, PresetService } from "#domain/preset";
-import { createPresetService } from "#domain/preset";
+import { createPresetService, createResolvePresetUsage } from "#domain/preset";
+import { listGmPresetChatIds } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { createDigestSources, createSearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
@@ -58,10 +59,9 @@ import { superviseDetached, superviseSettled } from "#foundation/observability";
 import { publishUserEvent } from "#transport/trpc";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
-import { createResolvePresetUsage } from "./preset-usage.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 import { createVacuousMemoryReceipt } from "./vector-sweep-ops.ts";
-import { createResolveVisibleRooms } from "./visible-rooms.ts";
+import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
 /** The embed-space sweep enqueues' own trace root, for both scopes. One name so the debug surface and any future
  *  filter agree; the enqueues share it and are told apart by the `workloadKind` attribute and the request id. */
@@ -159,6 +159,7 @@ export interface SearchDiscoveryComposeResult {
 
 /** The seed pointers after `deletedId` is gone. A deleted default moves to the last-played persona, else
  *  `newest`; a deleted last-played moves to the default, else `newest`. PURE. */
+// @orb-waive compose-wiring-only(nextSeedsAfterPersonaDelete): baselined when the gate landed; burn-down item 964.
 function nextSeedsAfterPersonaDelete(
   stored: { readonly defaultPersonaId: PersonaId | null; readonly currentPersonaId: PersonaId | null },
   deletedId: PersonaId,
@@ -174,18 +175,24 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const { db, now, audit, roleClientsFor, eventBus, character, assets, settings } = deps;
   // The two OWNER reads the vector substrate needs to pick a space: a card's owner (`characters.ownerId`, a
   // plain column read — the character front door is Principal-scoped and a sweep has none) and an asset's.
+  // @orb-waive compose-wiring-only(loadCharacterOwner): baselined when the gate landed; burn-down item 964.
   const loadCharacterOwner = async (characterId: Parameters<typeof character.loadCardText>[0]): Promise<UserId | null> => {
     // @orb-waive owner-scoped-reads(charactersTable): a trusted system consumer (D20) — the embeddings indexer and corpus sweep read a card's owner to choose whose vector space the write lands in; no Principal or caller-supplied id reaches it. Ends if a user-facing door calls this op.
     const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
     return rows[0]?.ownerId ?? null;
   };
+  // @orb-waive compose-wiring-only(loadAssetOwner): baselined when the gate landed; burn-down item 964.
   const loadAssetOwner = async (assetId: Parameters<typeof assets.assetCasRefById>[0]): Promise<UserId | null> =>
     (await assets.assetCasRefById(assetId))?.ownerId ?? null;
 
   const embeddings = createEmbeddingsService({
+    // @orb-waive compose-wiring-only(precomputedEmbedding): baselined when the gate landed; burn-down item 964.
     precomputedEmbedding: (hash, space, kind, connection) => (connection.wire === "local-light" ? findSeedEmbedding(hash, space, kind) : null),
+    // @orb-waive compose-wiring-only(loadAssetKind): baselined when the gate landed; burn-down item 964.
     loadAssetKind: async (assetId) => (await assets.assetCasRefById(assetId))?.kind ?? null,
+    // @orb-waive compose-wiring-only(loadAssetMime): baselined when the gate landed; burn-down item 964.
     loadAssetMime: async (assetId) => (await assets.assetCasRefById(assetId))?.mime ?? null,
+    // @orb-waive compose-wiring-only(loadAssetHash): baselined when the gate landed; burn-down item 964.
     loadAssetHash: async (assetId) => (await assets.assetCasRefById(assetId))?.hash ?? null,
     db,
     roleClientsFor,
@@ -199,8 +206,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newChatSegmentId: minter(ID_PREFIX.chatSegment),
     newDocumentChunkId: minter(ID_PREFIX.documentChunk),
     listCharacterIds: character.listEmbeddableCharacterIds,
+    // @orb-waive compose-wiring-only(loadCardText): baselined when the gate landed; burn-down item 964.
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     listImageAssetIds: assets.listImageAssetIds,
+    // @orb-waive compose-wiring-only(loadAssetBytes): baselined when the gate landed; burn-down item 964.
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
     loadAssetOwner,
@@ -220,11 +229,13 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const indexer = createEmbeddingsIndexer({
     indexAsset: embeddings.indexAsset,
     store: embeddings.store,
+    // @orb-waive compose-wiring-only(loadCardText): baselined when the gate landed; burn-down item 964.
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadCharacterOwner,
     roleClientsFor,
   });
   // The subscription stays live so an admin save can enable indexing without rebuilding composition.
+  // @orb-waive compose-wiring-only(event): baselined when the gate landed; burn-down item 964.
   eventBus.subscribe((event: DomainEvent): Promise<void> => {
     if (deps.getEffectiveConfig().corpusAutoindex !== true) {
       return Promise.resolve();
@@ -285,6 +296,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     },
     // Owner invariant "never NO current persona while you own one": after remove deletes deletedId,
     // re-point the global seed pointers if either named it, runs through the settings section-patch verb.
+    // @orb-waive compose-wiring-only(repointSeedsAfterPersonaDelete): baselined when the gate landed; burn-down item 964.
     repointSeedsAfterPersonaDelete: async (ownerId, deletedId) => {
       const seeds = (await settings.loadUserSettings(ownerId)).seeds;
       const stored = {
@@ -315,6 +327,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       });
       return next;
     },
+    // @orb-waive compose-wiring-only(captureSeatsForDelete): baselined when the gate landed; burn-down item 964.
     captureSeatsForDelete: async (ownerId, personaId) => {
       const seats = await db
         .select({ chatId: chatParticipantsTable.chatId })
@@ -337,13 +350,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     audit,
     emitUserEvent: publishUserEvent,
     resolveChatCapability: deps.resolveChatCapability,
-    // The CONTEXT panel's backward-bindings read (#279). Assembled here rather than passed in because every
-    // input is already on this seam's own deps (`db` + settings) plus the SHARED room filter — and none of
-    // the three belongs to `domain/preset`.
+    // The CONTEXT panel's backward-bindings read (#279): preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
-      db,
       loadUserSettings: deps.settings.loadUserSettings,
-      resolveVisibleRooms: createResolveVisibleRooms(db),
+      listGmPresetChatIds: (presetId) => listGmPresetChatIds(db, presetId),
+      resolveVisibleRooms: createVisibleRoomsReader(db),
     }),
   };
   // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
@@ -430,6 +441,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   // An owner's memory sweep: a memory-backfill run, or for a memory-off owner (refused at admission, and it
   // would derive nothing) the vacuous receipt recorded directly.
+  // @orb-waive compose-wiring-only(enqueueOwnerMemory): baselined when the gate landed; burn-down item 964.
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
@@ -455,6 +467,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // than conflicting, so two triggers for one move (the text and picture targets, boot and a write) queue one set.
   // Each enqueue runs in its own root span, and any enqueue failure is logged there, never thrown at the write
   // that triggered it.
+  // @orb-waive compose-wiring-only(embedSweeps): baselined when the gate landed; burn-down item 964.
   const embedSweeps = (scope: UserId | null, embedderChanged = scope === null): readonly EmbedSweep[] => {
     if (!embedderChanged && deps.getEffectiveConfig().corpusAutoindex !== true) {
       return [];
@@ -498,6 +511,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const enqueueEmbedReindex = async (scope: UserId | null): Promise<void> => {
     await Promise.all(embedSweeps(scope).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
   };
+  // @orb-waive compose-wiring-only(detachEmbedReindex): baselined when the gate landed; burn-down item 964.
   const detachEmbedReindex = (scope: UserId | null): void => {
     for (const s of embedSweeps(scope)) {
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
@@ -505,12 +519,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   };
   // An owner's target moved (`onTargetGenerationMoved`): their sweeps, forced. Their generations are theirs alone,
   // so nobody else's index is touched, and the jobs are theirs to read under Jobs.
+  // @orb-waive compose-wiring-only(detachRepointReindex): baselined when the gate landed; burn-down item 964.
   const detachRepointReindex = (ownerId: UserId): void => {
     for (const s of embedSweeps(ownerId, true)) {
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
   };
 
+  // @orb-waive compose-wiring-only(detachStaleSpaceReindex): baselined when the gate landed; burn-down item 964.
   const detachStaleSpaceReindex = (): void => {
     superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
       for (const ownerId of await embeddings.staleGenerationOwners()) {
@@ -520,6 +536,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   };
 
   let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex === true;
+  // @orb-waive compose-wiring-only(refreshAutoindex): baselined when the gate landed; burn-down item 964.
   const refreshAutoindex = (): void => {
     const enabled = deps.getEffectiveConfig().corpusAutoindex === true;
     const starts = enabled && !autoindexEnabled;

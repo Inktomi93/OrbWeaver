@@ -8,6 +8,7 @@ import type { InferenceRuntime, Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
 
+// @orb-waive compose-wiring-only(isResolvedTask): baselined when the gate landed; burn-down item 964.
 function isResolvedTask<T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> {
   return candidate.task === task;
 }
@@ -25,6 +26,7 @@ export function createResolveEmbeddingConnection(
   principalOf: (userId: UserId) => Promise<Principal>,
 ): ResolveEmbeddingConnection {
   // The funnel turns the caller's knobs into the wire's: dimensions, input type and instruction.
+  // @orb-waive compose-wiring-only(executeEmbed): baselined when the gate landed; burn-down item 964.
   const executeEmbed = (
     encoderConnection: Resolved<"embed">,
     input: string | readonly string[],
@@ -43,6 +45,7 @@ export function createResolveEmbeddingConnection(
       ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
     });
   };
+  // @orb-waive compose-wiring-only(snapshotOf): baselined when the gate landed; burn-down item 964.
   const snapshotOf = (generationConnection: Resolved): EmbeddingConnectionSnapshot => ({
     connectionId: generationConnection.connectionId,
     providerId: generationConnection.providerId,
@@ -67,6 +70,7 @@ export function createResolveEmbeddingConnection(
       return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
     },
   });
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (ownerId, task, connectionId, opts) => {
     const principal = await principalOf(ownerId);
     let outcome: Awaited<ReturnType<typeof runtime.resolve>>;

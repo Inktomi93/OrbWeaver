@@ -4,7 +4,7 @@
 // verb's own suite stubs the op; this is the arm that runs the REAL join, end to end through
 // `buildRegex().regex.listScriptUsage`.
 //
-// THE FILTER ITSELF IS NO LONGER REGEX'S (2026-08-19): it moved to `compose/visible-rooms.ts` when databank
+// THE FILTER ITSELF IS NO LONGER REGEX'S (2026-08-19): it moved to `domain/chat/verbs/resolve-visible-rooms.ts` when databank
 // and preset became its second and third consumers, and that file has its own suite for the engine's
 // properties. This file stays as the WIRING proof — that regex's roster is still fed by it, unchanged.
 //

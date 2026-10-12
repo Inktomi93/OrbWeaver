@@ -250,6 +250,7 @@ async function resolveHeaderOrFallbackPrincipal(
  * fail-closed-DENY the owner's own privileged turn.
  */
 // @orb-waive one-principal-mint-population(Principal): the canonical row-to-Principal mapper; ends never (this is the ONE home for the fallback/bridge mint)
+// @orb-waive compose-wiring-only(principalFromRow): baselined when the gate landed; burn-down item 964.
 function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {
   return {
     userId,
@@ -274,15 +275,6 @@ function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): P
  */
 export function createHostPrincipalResolver(sessions: Pick<SessionsService, "loadUserById">): (userId: UserId) => Promise<Principal> {
   return async (userId: UserId): Promise<Principal> => principalFromRow(userId, await sessions.loadUserById(userId));
-}
-
-/**
- * The disabled-account containment read every non-request consumer asks (roster assembly, inherited books,
- * an automation author's standing authority). Read fresh per call, and FAIL-CLOSED: a missing row answers
- * `false`, never "assume enabled".
- */
-export function createResolveUserEnabled(sessions: Pick<SessionsService, "loadUserById">): (userId: UserId) => Promise<boolean> {
-  return async (userId: UserId): Promise<boolean> => (await sessions.loadUserById(userId))?.enabled === true;
 }
 
 /**

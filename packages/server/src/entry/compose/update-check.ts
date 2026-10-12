@@ -91,6 +91,7 @@ export interface UpstreamProbeDeps {
  *  429 when the unauthenticated budget for this IP is spent — telling someone "try again later" is useful;
  *  telling them "unreachable" would send them to look at their network. A 404 on the release lookup means
  *  no stable release exists yet, which is its own answer. */
+// @orb-waive compose-wiring-only(statusReason): baselined when the gate landed; burn-down item 964.
 function statusReason(channel: ReleaseChannel, status: number): string {
   if (status === RATE_LIMITED || status === TOO_MANY_REQUESTS) {
     return "GitHub is rate-limiting this box's anonymous requests — try again in a few minutes";
@@ -106,6 +107,7 @@ export function createUpstreamProbes(deps: UpstreamProbeDeps): UpstreamProbes {
   const fetchImpl = deps.fetchImpl ?? safeFetch;
   const answers = new Map<ReleaseChannel, { readonly at: number; readonly result: UpstreamProbeResult<Upstream> }>();
 
+  // @orb-waive compose-wiring-only(probe): baselined when the gate landed; burn-down item 964.
   async function probe<T extends Upstream>(channel: ReleaseChannel, parse: (body: string) => UpstreamProbeResult<T>): Promise<UpstreamProbeResult<T>> {
     const kept = answers.get(channel);
     if (kept !== undefined && deps.now() - kept.at < ANSWER_TTL_MS) {
@@ -119,6 +121,7 @@ export function createUpstreamProbes(deps: UpstreamProbeDeps): UpstreamProbes {
     return result;
   }
 
+  // @orb-waive compose-wiring-only(fetchUpstream): baselined when the gate landed; burn-down item 964.
   async function fetchUpstream<T extends Upstream>(channel: ReleaseChannel, parse: (body: string) => UpstreamProbeResult<T>): Promise<UpstreamProbeResult<T>> {
     let res: SafeFetchResult;
     try {
@@ -164,6 +167,7 @@ export function createUpstreamProbes(deps: UpstreamProbeDeps): UpstreamProbes {
 
 /** Parse the commit payload into main's head, or a named reason. Exported for the spec: this is the arm that
  *  turns a foreign shape into either a comparison input or an honest refusal. */
+// @orb-waive compose-wiring-only(parseMainHead): baselined when the gate landed; burn-down item 964.
 export function parseMainHead(body: string): UpstreamProbeResult<UpstreamOf<"main">> {
   // A non-JSON or reshaped payload becomes a named refusal — the ONLY alternative is pretending to know the
   // upstream head, which is the exact failure this whole check exists to avoid.
@@ -180,6 +184,7 @@ export function parseMainHead(body: string): UpstreamProbeResult<UpstreamOf<"mai
 
 /** Parse the release payload into the latest stable version, or a named reason. A tag that is not
  *  `v<major>.<minor>.<patch>` is refused rather than compared: ordering a foreign tag would be a guess. */
+// @orb-waive compose-wiring-only(parseLatestRelease): baselined when the gate landed; burn-down item 964.
 export function parseLatestRelease(body: string): UpstreamProbeResult<UpstreamOf<"stable">> {
   let parsed: z.infer<typeof releasePayload>;
   // Same posture as the commit parse: a reshaped payload is a named refusal, never a guessed version.

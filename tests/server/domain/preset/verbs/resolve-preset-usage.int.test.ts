@@ -1,30 +1,43 @@
-// entry/compose/preset-usage — the BACKWARD-BINDINGS resolver behind `preset.listUsage` (#279).
+// domain/preset/verbs/resolve-preset-usage — the BACKWARD-BINDINGS resolver behind `preset.listUsage` (#279).
 //
-// It exists at the composition root because its two facts belong to two other domains: settings' active
+// Its two facts belong to two other domains, wired here the way compose wires them: settings' active
 // pick and rpg's `gmPresetId`, with the room half gated by chat's membership. These pins are about the
 // SHAPE of that answer, which is the finding the issue's premise got wrong: a chat carries no preset, so
 // "which chats use this preset" is (a) a SETTING for ordinary rooms and (b) the rpg GM redirect for the one
 // per-room binding that exists. There is no role/connection arm to test because no connection references a
 // preset.
+// @subject packages/server/src/domain/preset/substrate/active-pick.ts
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { ChatId, Handle, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { createResolveVisibleRooms } from "@orb/server/domain/chat";
+import type { ResolvePresetUsageOp } from "@orb/server/domain/preset";
+import { createResolvePresetUsage, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { listGmPresetChatIds } from "@orb/server/domain/rpg";
+import { selectHandlesByIds } from "@orb/server/domain/sessions";
+import type { SettingsService } from "@orb/server/domain/settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { SettingsService } from "#server/domain/settings/index.ts";
-import { createResolvePresetUsage } from "#server/entry/compose/preset-usage.ts";
-import { createResolveVisibleRooms } from "#server/entry/compose/visible-rooms.ts";
-import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
-import { seedPreset } from "../../domain/preset/_support.ts";
-import { principal, seedUser } from "../../domain/regex/_support.ts";
-import { seedGame } from "../../domain/rpg/_support.ts";
+import { seedChat, seedParticipant } from "../../chat/_support.ts";
+import { principal, seedUser } from "../../regex/_support.ts";
+import { seedGame } from "../../rpg/_support.ts";
+import { seedPreset } from "../_support.ts";
 
 const NOW = 1_700_000_000_000;
+
+/** The production rule wired the way compose wires it: rpg's GM-voice read and chat's room filter. */
+function usageResolver(db: Db, loadUserSettings: SettingsService["loadUserSettings"]): ResolvePresetUsageOp {
+  return createResolvePresetUsage({
+    loadUserSettings,
+    listGmPresetChatIds: (presetId) => listGmPresetChatIds(db, presetId),
+    resolveVisibleRooms: createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds)),
+  });
+}
 const PRESET = castId<PresetId>("preset_gmvoice");
 
 /** The settings read the resolver takes its active pick from — the REAL default settings with one seed
@@ -41,15 +54,11 @@ async function seedGmGame(db: Awaited<ReturnType<typeof freshDb>>, chatId: ChatI
   await db.update(rpgGames).set({ gmPresetId: presetId }).where(eq(rpgGames.id, id));
 }
 
-describe("compose/preset-usage — a preset's backward bindings", () => {
+describe("preset/resolve-preset-usage — a preset's backward bindings", () => {
   test("the ACTIVE PICK is a setting, reported as one", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const resolve = createResolvePresetUsage({
-      db,
-      loadUserSettings: settingsWithDefault(PRESET),
-      resolveVisibleRooms: createResolveVisibleRooms(db),
-    });
+    const resolve = usageResolver(db, settingsWithDefault(PRESET));
 
     expect(await resolve(principal(owner), PRESET)).toEqual({ isUserDefault: true, gmRooms: [] });
   });
@@ -65,11 +74,7 @@ describe("compose/preset-usage — a preset's backward bindings", () => {
     await seedGmGame(db, seated, "seated", PRESET);
     await seedGmGame(db, kicked, "kicked", PRESET);
 
-    const resolve = createResolvePresetUsage({
-      db,
-      loadUserSettings: settingsWithDefault(null),
-      resolveVisibleRooms: createResolveVisibleRooms(db),
-    });
+    const resolve = usageResolver(db, settingsWithDefault(null));
     const usage = await resolve(principal(owner), PRESET);
 
     expect(usage.isUserDefault).toBe(false);
@@ -90,11 +95,7 @@ describe("compose/preset-usage — a preset's backward bindings", () => {
   test("the BUILT-IN under NO explicit pick IS the active pick (the null pick's third reader)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const resolve = createResolvePresetUsage({
-      db,
-      loadUserSettings: settingsWithDefault(null),
-      resolveVisibleRooms: createResolveVisibleRooms(db),
-    });
+    const resolve = usageResolver(db, settingsWithDefault(null));
 
     expect(await resolve(principal(owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: true, gmRooms: [] });
   });
@@ -102,11 +103,7 @@ describe("compose/preset-usage — a preset's backward bindings", () => {
   test("an EXPLICIT pick elsewhere leaves the built-in un-active — the null arm is not a blanket exemption", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const resolve = createResolvePresetUsage({
-      db,
-      loadUserSettings: settingsWithDefault(PRESET),
-      resolveVisibleRooms: createResolveVisibleRooms(db),
-    });
+    const resolve = usageResolver(db, settingsWithDefault(PRESET));
 
     expect(await resolve(principal(owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: false, gmRooms: [] });
     // …and the preset that IS picked still reports itself, so the new arm did not move the ordinary answer.
@@ -122,11 +119,7 @@ describe("compose/preset-usage — a preset's backward bindings", () => {
     await seedPreset(db, { id: other, ownerId: null, name: "Another voice" });
     await seedGmGame(db, room, "other", other);
 
-    const resolve = createResolvePresetUsage({
-      db,
-      loadUserSettings: settingsWithDefault(null),
-      resolveVisibleRooms: createResolveVisibleRooms(db),
-    });
+    const resolve = usageResolver(db, settingsWithDefault(null));
 
     expect(await resolve(principal(owner), PRESET)).toEqual({ isUserDefault: false, gmRooms: [] });
   });

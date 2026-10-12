@@ -3,6 +3,7 @@
 // sheets (a sheetless participant actor renders the default sheet), the resolved snapshot's volatile, `trackersReadOnly`
 // passed through. The verb's member-gate + the swipe-consistency are covered by their own suites; this pins the
 // projection is byte-shared (no drift between the panel and the steering injection).
+// @subject packages/server/src/domain/rpg/substrate/actor-carrier.ts
 
 import type { RpgActorEntry, RpgSheet, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";

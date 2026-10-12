@@ -18,6 +18,7 @@ export function createSeedAvatarOps(assets: Pick<AssetsService, "store" | "addTo
   readonly persona: Pick<DefaultPersonaSeederDeps, "storeAvatar">;
 } {
   // `enforceMagic`: the shipped bytes pass the same sniff an upload does.
+  // @orb-waive compose-wiring-only(storeSeedAvatar): baselined when the gate landed; burn-down item 964.
   const storeSeedAvatar = async (principal: Principal, handle: CharacterHandle): Promise<AssetId | null> => {
     const art = await readSeedAvatar(handle);
     if (art === null) {
@@ -29,6 +30,7 @@ export function createSeedAvatarOps(assets: Pick<AssetsService, "store" | "addTo
   return {
     character: {
       storeAvatar: storeSeedAvatar,
+      // @orb-waive compose-wiring-only(seedGallery): baselined when the gate landed; burn-down item 964.
       seedGallery: async (principal, characterId, handle): Promise<void> => {
         const assetId = await storeSeedAvatar(principal, handle);
         if (assetId !== null) {

@@ -11,17 +11,20 @@ import type { ImportReport } from "#domain/import";
 // The reasons live in `@orb/contracts/import` — the one home the browser planner also reads, so what the
 // picker leaves out before upload and what this report names agree. A name absent from both maps renders
 // bare, so a new ST plane shows up instead of being swallowed.
+// @orb-waive compose-wiring-only(unhandledReason): baselined when the gate landed; burn-down item 964.
 function unhandledReason(name: string): string | undefined {
   return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
 }
 
 /** One "not imported" line: the plane name + its one-line reason when known, else bare. */
+// @orb-waive compose-wiring-only(unhandledLine): baselined when the gate landed; burn-down item 964.
 function unhandledLine(name: string): string {
   const reason = unhandledReason(name);
   return reason === undefined ? `\`${name}\`` : `\`${name}\` — ${reason}`;
 }
 
 /** One report section: a heading + its lines, or a "None." placeholder so the reader sees it was checked. */
+// @orb-waive compose-wiring-only(section): baselined when the gate landed; burn-down item 964.
 function section(title: string, lines: readonly string[]): string {
   const body = lines.length > 0 ? lines.map((l) => `- ${l}`).join("\n") : "_None._";
   return `## ${title}\n\n${body}\n`;
@@ -34,6 +37,7 @@ function section(title: string, lines: readonly string[]): string {
  *  the reassuring "everything mapped" line rather than nothing at all — the operator has to be able to tell
  *  "landed whole" apart from "was never looked at". A preset that carried its own regex scripts (the ST
  *  presetManager extension field) gets the lift accounting appended to its head line. */
+// @orb-waive compose-wiring-only(presetNoteLines): baselined when the gate landed; burn-down item 964.
 function presetNoteLines(report: ImportReport): string[] {
   const base = noteLines(report.presetNotes);
   return base.map((line, i) => {
@@ -48,11 +52,13 @@ function presetNoteLines(report: ImportReport): string[] {
 }
 
 /** The collision suffix an import took, as the report says it. */
+// @orb-waive compose-wiring-only(renamedSuffix): baselined when the gate landed; burn-down item 964.
 function renamedSuffix(renamedFrom: string | null): string {
   return renamedFrom === null ? "" : ` — imported under a new name; you already have a different \`${renamedFrom}\``;
 }
 
 /** The shared renderer for a per-entity lossiness note (presets + themes carry the identical shape). */
+// @orb-waive compose-wiring-only(noteLines): baselined when the gate landed; burn-down item 964.
 function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes"]): string[] {
   return notes.map((note) => {
     const head = `\`${note.name}\` (from \`${note.sourceFile}\`)${renamedSuffix(note.renamedFrom)}`;
@@ -66,6 +72,7 @@ function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes
 
 /** One line per standalone world book the run landed: where it landed, and the SillyTavern activation
  *  fields its entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
+// @orb-waive compose-wiring-only(worldLines): baselined when the gate landed; burn-down item 964.
 function worldLines(report: ImportReport): string[] {
   return report.worldNotes.map((note) => {
     const landed = note.created ? "new" : "already in your library";
@@ -80,6 +87,7 @@ function worldLines(report: ImportReport): string[] {
 /** The regex-plane accounting (the silent-gap sweep, 2026-08-15): every plane renders its count EVEN AT
  *  ZERO, so "read and empty" is distinguishable from "never looked at" — this exact plane used to vanish
  *  with no line at all (measured: 15 real preset-scoped scripts silently ignored on the 2026-08-15 run). */
+// @orb-waive compose-wiring-only(regexLines): baselined when the gate landed; burn-down item 964.
 function regexLines(report: ImportReport): string[] {
   const lines = [
     `Card-carried scripts (\`data.extensions.regex_scripts\`): ${report.cardRegexScriptsLifted + report.cardRegexScriptsReused} attached (${report.cardRegexScriptsLifted} new library rows, ${report.cardRegexScriptsReused} matched existing)`,
@@ -96,6 +104,7 @@ function regexLines(report: ImportReport): string[] {
 }
 
 /** The world NAME-LINK accounting (card `extensions.world` primary + `charLore` auxiliaries). */
+// @orb-waive compose-wiring-only(worldLinkLines): baselined when the gate landed; burn-down item 964.
 function worldLinkLines(report: ImportReport): string[] {
   const lines = [`Book links attached by name: ${report.worldLinksAttached}`];
   for (const miss of report.worldLinksMissing) {
@@ -111,6 +120,7 @@ function worldLinkLines(report: ImportReport): string[] {
  *  counterparts (`domain/databank`; the assets gallery) and the write waves are a NAMED FOLLOW-UP: the real
  *  corpus carries zero files in both, so mappers today would be proven against nothing. The count line is
  *  the guarantee that a future profile carrying data shows LOUDLY instead of vanishing under `user/`. */
+// @orb-waive compose-wiring-only(userPlaneLines): baselined when the gate landed; burn-down item 964.
 function userPlaneLines(report: ImportReport): string[] {
   const disposition = (count: number, plane: string, home: string): string =>
     count === 0
@@ -124,6 +134,7 @@ function userPlaneLines(report: ImportReport): string[] {
 
 /** The DRY-RUN banner + per-wave census. A rehearsal writes nothing, so every write count below it is zero by
  *  construction — which reads exactly like a profile carrying none of those planes unless the report says so. */
+// @orb-waive compose-wiring-only(dryRunLines): baselined when the gate landed; burn-down item 964.
 function dryRunLines(report: ImportReport): string[] {
   const census = report.dryRunWouldImport;
   if (census === null) {
@@ -146,6 +157,7 @@ function dryRunLines(report: ImportReport): string[] {
 }
 
 /** Render the import report as Markdown. `generatedAt` is epoch-ms (the run clock) → an ISO stamp header. */
+// @orb-waive compose-wiring-only(formatImportReport): baselined when the gate landed; burn-down item 964.
 function formatImportReport(report: ImportReport, generatedAt: number): string {
   return [
     "# SillyTavern import report",

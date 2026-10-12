@@ -262,7 +262,7 @@ export interface RpgToolCallDisclosure {
  *  The DURABLE row stores this sentence with the vehicle's own error appended (`<summary>: upstream 502 …`),
  *  which is what the host reads; every other viewer reads the summary BARE, because the tail is a provider
  *  diagnostic (endpoints, model ids, whatever the backend chose to put in an error body) and this read is
- *  MEMBER-gated. Composed at `entry/compose/rpg.ts` and projected in `domain/rpg/substrate/tool-call-visibility.ts`.
+ *  MEMBER-gated. Composed at `domain/rpg/tools/rounds/` and projected in `domain/rpg/substrate/tool-call-visibility.ts`.
  *  NOT A MARKER (#2064): this is the per-turn disclosure's reason line, never a model prompt — and it sits in
  *  a file `no-hardcoded-model-prose` judges under neither arm (not a seam, not a catalog), so the retired
  *  private `PROSE-OK:` opener it used to wear addressed nothing. Kept as the prose it always was; a `@orb-waive`

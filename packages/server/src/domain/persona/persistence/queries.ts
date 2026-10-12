@@ -45,6 +45,32 @@ export async function loadOwnedPersonaWithAvatar(db: Db, ownerId: UserId, person
   return rows[0];
 }
 
+/** One owned persona's display pair, or undefined when not found / not `ownerId`'s. */
+export async function loadOwnedPersonaPublic(
+  db: Db,
+  ownerId: UserId,
+  personaId: PersonaId,
+): Promise<{ readonly name: string; readonly avatarAssetId: AssetId | null } | undefined> {
+  const rows = await db
+    .select({ name: personas.name, avatarAssetId: personas.avatarAssetId })
+    .from(personas)
+    .where(and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** The ids of `ownerId`'s personas connected to `characterId`, at most `limit` of them (an ambiguity probe
+ *  reads two). Owner-scoped in the WHERE through the persona join. */
+export async function loadOwnedConnectedPersonaIds(db: Db, ownerId: UserId, characterId: CharacterId, limit: number): Promise<PersonaId[]> {
+  const rows = await db
+    .select({ personaId: characterPersonas.personaId })
+    .from(characterPersonas)
+    .innerJoin(personas, eq(personas.id, characterPersonas.personaId))
+    .where(and(eq(characterPersonas.characterId, characterId), eq(personas.ownerId, ownerId)))
+    .limit(limit);
+  return rows.map((row) => row.personaId);
+}
+
 /** The PARTICIPANTS read (the multi-human widening — `contract/ops.ts`): the rows among `personaIds` whose owner
  *  is in `ownerIds`. The consent gate is part of the WHERE (`ownerId IN (…)`), never a post-filter — same
  *  discipline as every owner-scoped read here, only the predicate is a SET (the room's present humans)

@@ -111,6 +111,7 @@ function oneFile(produce: (ownerId: UserId) => Promise<{ readonly filename: stri
 }
 
 /** Map the error thrown by a domain import verb to a `{ok:false}` outcome (the never-throw contract). */
+// @orb-waive compose-wiring-only(errorOutcome): baselined when the gate landed; burn-down item 964.
 function errorOutcome(err: unknown): PortableImportOutcome {
   return { ok: false, error: err instanceof Error ? err.message : String(err) };
 }
@@ -149,6 +150,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     dir: "tags/",
     ext: ".json",
     exportAll: tagExportAll,
+    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
     importFile: async (ownerId, file) => {
       try {
         const { created } = await importTags(ownerId, file.bytes);
@@ -223,11 +225,13 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     kind: "regex",
     dir: "regex/",
     ext: ".json",
+    // @orb-waive compose-wiring-only(exportAll): baselined when the gate landed; burn-down item 964.
     async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
       for (const file of await deps.exportRegexScripts({ ownerId })) {
         yield file;
       }
     },
+    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
     importFile: async (ownerId, file) => {
       try {
         const { created } = await deps.importRegexScript({ ownerId, bytes: file.bytes });
@@ -248,6 +252,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     kind: "databank",
     dir: "databank/",
     ext: ".json",
+    // @orb-waive compose-wiring-only(exportAll): baselined when the gate landed; burn-down item 964.
     async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
       for (const documentId of await listOwnedDocumentIds({ ownerId })) {
         const file = await exportDocument({ ownerId, documentId });
@@ -256,6 +261,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
         }
       }
     },
+    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
     importFile: async (ownerId, file) => {
       try {
         const outcome = await importDocument({ ownerId, bytes: file.bytes });
@@ -279,6 +285,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     exportAll: personaExportAll,
     // Pure wiring: the parse, the refusal copy and the idempotent-merge all live in `persona/verbs/import`
     // (the ONE import path the single-entity door also calls).
+    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
     importFile: async (ownerId, file) => {
       try {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
@@ -304,6 +311,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     dir: "characters/",
     ext: ".png",
     exportAll: characterExportAll,
+    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
     importFile: async (ownerId, file) => {
       try {
         const service = await buildOwnerImport(deps, ownerId);
@@ -349,6 +357,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     exportAll: chatExportAll,
     // Pure wiring: the format routing, the handle derivation, both parses and every refusal copy live in
     // `import/verbs/import-chat-file` + `import-chat-bundle` (the ONE path `POST /api/import/chat` also calls).
+    // @orb-waive compose-wiring-only(importFile): baselined when the gate landed; burn-down item 964.
     importFile: async (ownerId, file) => {
       try {
         const service = await buildOwnerImport(deps, ownerId);

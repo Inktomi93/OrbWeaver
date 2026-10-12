@@ -1,4 +1,5 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+// @subject packages/server/src/domain/rpg/tools/rounds/populate.ts
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — populate-from-character (the real round and its slotted prose) and the host handoff of a gmPresetId.

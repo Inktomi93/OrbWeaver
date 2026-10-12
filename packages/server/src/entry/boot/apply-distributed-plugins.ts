@@ -42,6 +42,7 @@ export function createDistributedPluginApplier(deps: DistributedPluginApplierDep
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();
 
+  // @orb-waive compose-wiring-only(run): baselined when the gate landed; burn-down item 964.
   async function run(principal: Principal): Promise<void> {
     if (await deps.isApplied(principal)) {
       return;
@@ -57,6 +58,7 @@ export function createDistributedPluginApplier(deps: DistributedPluginApplierDep
   }
 
   return {
+    // @orb-waive compose-wiring-only(ensureApplied): baselined when the gate landed; burn-down item 964.
     ensureApplied: (principal: Principal): Promise<void> => {
       if (settled.has(principal.userId)) {
         return Promise.resolve();

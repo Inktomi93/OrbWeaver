@@ -23,4 +23,7 @@ The gate holds with planted controls; no compose module runs a query or carries 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The gate is `compose-wiring-only` (`tooling/src/verify/gates/compose-wiring-only.ts`); its header defines a rule. `pnpm check:structure --check compose-wiring-only` reports one finding per handed-out function or helper, so the counts below are functions, not decisions.
+
+- Work set on the gate's first run: 254 findings in 37 files. By file: rpg 51, chat 41, automation-plugin 25, search-discovery 19, services 18, room-reach 10, portability 9, assets-character 8, imagery 6, memory-embedding-ops 5, update-check 5, vector-sweep-ops 5, embedding-connection 4, portability-runner 4, session-entries 4, side-gen-params 4, materialize-background 3, admin 2, automation-watcher 2, co-participant-assets 2, databank 2, gallery-character-ops 2, inline-reply-image 2, plugin-chat-reads 2, preset-usage 2, refinery 2, resolve-image-ref 2, retrieval-degrade 2, seed-avatar-ops 2, visible-rooms 2, and 1 each in chat-tools, debug-inspectors, emit-chat-changed, event-bus, regex, roster-preset and share-seating.
+- Leg 1 moved the named sites and `rpg.ts`, then widened the subject to every `entry/**` function compose reaches, which added 63 findings in `entry/auth`, `entry/boot` and `entry/import`. The 246 findings that remain carry `@orb-waive compose-wiring-only(...)` markers that name this item, and the `compose-wiring-only` row in `tooling/src/verify/lib/waiver-budget.ts` holds them shrink-only. This item lands when that row reaches zero.

@@ -79,6 +79,55 @@ export async function loadPresentVisibilityRows(
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
+/** The user ids of a room's PRESENT human seats (`kind='human'`, `leftSeq IS NULL`); a seat with no user is skipped. */
+export async function loadPresentHumanUserIds(db: Db, chatId: ChatId): Promise<UserId[]> {
+  const rows = await db
+    .select({ userId: chatParticipants.userId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), isNull(chatParticipants.leftSeq)));
+  return rows.flatMap((row) => (row.userId === null ? [] : [row.userId]));
+}
+
+/** A room's PRESENT character seats (`kind='character'`, `leftSeq IS NULL`) as `{ characterId, participantId }`
+ *  pairs; a departed seat is absent, so a re-add lands fresh. */
+export async function loadPresentCharacterSeats(
+  db: Db,
+  chatId: ChatId,
+): Promise<{ readonly characterId: CharacterId; readonly participantId: ChatParticipantId }[]> {
+  const rows = await db
+    .select({ characterId: chatParticipants.characterId, participantId: chatParticipants.id })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
+  return rows.flatMap((row) => (row.characterId === null ? [] : [{ characterId: row.characterId, participantId: row.participantId }]));
+}
+
+/** Is `characterId` a PRESENT character seat (`kind='character'`, `leftSeq IS NULL`) of `chatId`? */
+export async function isCharacterSeated(db: Db, chatId: ChatId, characterId: CharacterId): Promise<boolean> {
+  const rows = await db
+    .select({ id: chatParticipants.id })
+    .from(chatParticipants)
+    .where(
+      and(
+        eq(chatParticipants.chatId, chatId),
+        eq(chatParticipants.kind, "character"),
+        eq(chatParticipants.characterId, characterId),
+        isNull(chatParticipants.leftSeq),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+/** Is `userId` a PRESENT member (`leftSeq IS NULL`) of `chatId`, in any role? A gone chat reads false. */
+export async function isPresentParticipant(db: Db, chatId: ChatId, userId: UserId): Promise<boolean> {
+  const rows = await db
+    .select({ id: chatParticipants.id })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.userId, userId), eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
 /** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only
  *  (`leftSeq IS NULL` — Part III §1); `includePast` returns the full history (kicked/left rows) for the host
  *  audit + `from-join`/`full` visibility resolution. Ordered by join order (`joinSeq`, then row id). */

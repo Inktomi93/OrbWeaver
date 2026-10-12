@@ -99,7 +99,7 @@ describe("createDefaultPersonaSeeder", () => {
     expect(list).toHaveLength(1);
     // NOT "You": the literal second-person pronoun as a persona NAME is what made models write vocatives
     // like "Goodnight, You." — and it collided with the no-persona display fallback, which is itself "You"
-    // (owner ruling 2026-07-27, `entry/compose/rpg.ts` PLAYER_SEMANTIC_REF docstring).
+    // (owner ruling 2026-07-27, `domain/rpg/tools/rounds/prompts.ts` PLAYER_SEMANTIC_REF docstring).
     expect(list[0]?.name).toBe("Traveler");
     expect(list[0]?.avatarAssetId).not.toBeNull();
     // The seeded id is handed to markSeeded (so the root can point seeds.defaultPersonaId at it).

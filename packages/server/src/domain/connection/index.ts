@@ -30,6 +30,8 @@ export {
 export type { ConnectionPorts, ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
+// The agent-sdk prompt-cache lineage writes (D8), injected into the inference runtime at the composition root.
+export { createSessionEntryWriter } from "./persistence/session-entries.ts";
 export { createConnectionService } from "./service.ts";
 export { toResolvedView } from "./substrate/resolved-view.ts";
 export { createConnectionWorkloadContributions } from "./workload-contributions.ts";

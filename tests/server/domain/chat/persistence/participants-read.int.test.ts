@@ -9,8 +9,15 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { buildInitialParticipantRows, loadParticipants } from "#server/domain/chat/persistence/participants-read.ts";
-import { seedChat, seedParticipant, seedUser } from "../_support.ts";
+import {
+  buildInitialParticipantRows,
+  isCharacterSeated,
+  isPresentParticipant,
+  loadParticipants,
+  loadPresentCharacterSeats,
+  loadPresentHumanUserIds,
+} from "#server/domain/chat/persistence/participants-read.ts";
+import { seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -99,5 +106,35 @@ describe("buildInitialParticipantRows (pure)", () => {
       }),
     ]);
     expect(rows.every((r) => r.joinSeq === 0 && r.joinedAt === FROZEN_AT_MS)).toBe(true);
+  });
+});
+
+describe("present-seat reads — a departed seat never answers", () => {
+  test("isPresentParticipant admits a present member in any role and refuses a departed or foreign user", async () => {
+    const chatId = await seedChat(db, "p1");
+    const member = await seedUser(db, castId<Handle>("member_p1"));
+    const departed = await seedUser(db, castId<Handle>("departed_p1"));
+    const stranger = await seedUser(db, castId<Handle>("stranger_p1"));
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "d", userId: departed, role: "member", leftSeq: 2 });
+
+    expect(await isPresentParticipant(db, chatId, member)).toBe(true);
+    expect(await isPresentParticipant(db, chatId, departed)).toBe(false);
+    expect(await isPresentParticipant(db, chatId, stranger)).toBe(false);
+  });
+
+  test("character-seat reads see only present character seats", async () => {
+    const chatId = await seedChat(db, "c1");
+    const owner = await seedUser(db, castId<Handle>("owner_c1"));
+    const seated = await seedCharacter(db, owner, "seated_c1");
+    const left = await seedCharacter(db, owner, "left_c1");
+    await seedParticipant(db, { chatId, key: "o", userId: owner, role: "host" });
+    await seedParticipant(db, { chatId, key: "s", characterId: seated, joinSeq: 1 });
+    await seedParticipant(db, { chatId, key: "l", characterId: left, joinSeq: 2, leftSeq: 4 });
+
+    expect(await isCharacterSeated(db, chatId, seated)).toBe(true);
+    expect(await isCharacterSeated(db, chatId, left)).toBe(false);
+    expect(await loadPresentCharacterSeats(db, chatId)).toEqual([{ characterId: seated, participantId: castId<ChatParticipantId>("chat_participant_s") }]);
+    expect(await loadPresentHumanUserIds(db, chatId)).toEqual([owner]);
   });
 });

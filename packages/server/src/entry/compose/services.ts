@@ -63,9 +63,16 @@ import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import type { ChatContext, ChatUserMacroDefs, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
-import { createChatBus, createMemoryRecallRecorder, createResolveViewerVisibility, loadPresentHostUserId, requireParticipant } from "#domain/chat";
+import {
+  createChatBus,
+  createMemoryRecallRecorder,
+  createResolveViewerVisibility,
+  isCharacterSeated,
+  loadPresentHostUserId,
+  requireParticipant,
+} from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
-import { createConnectionPorts, createConnectionService } from "#domain/connection";
+import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
@@ -79,7 +86,7 @@ import type { ImportCardScripts } from "#domain/regex";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
-import { createSessionsService } from "#domain/sessions";
+import { createResolveUserEnabled, createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import { createJoinerSettingsStatement, createSettingsContext, createSettingsService, listSeededItemKeys, recordSeededItemKeys } from "#domain/settings";
 import type { CertificateController, RelayController } from "#domain/share";
@@ -117,7 +124,7 @@ import { publishPrivateEndpointAllowlist, resolvedEndpointAdmission } from "#inf
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import type { PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishChatEvent, publishUserEvent, silenceRoomEntityFan } from "#transport/trpc";
-import { createHostPrincipalResolver, createResolveUserEnabled } from "../auth/index.ts";
+import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
@@ -133,7 +140,7 @@ import { createEffectiveConfigWiring } from "./effective-config.ts";
 import { createResolveEmbeddingConnection } from "./embedding-connection.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
-import { buildImagery, createCharacterSeated } from "./imagery.ts";
+import { buildImagery } from "./imagery.ts";
 import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
@@ -146,7 +153,6 @@ import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
 import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
-import { createSessionEntryWriter } from "./session-entries.ts";
 import { createEnableShareSeating } from "./share-seating.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
 import { createUpstreamProbes } from "./update-check.ts";
@@ -436,6 +442,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // the workloads SERVICE is built mid-graph and needs it as its params validator — so the service holds this
   // late-bound thunk, derefed per verb call, exactly like portability's `getPortabilityRegistry`.
   let workloadContributions: WorkloadContributions | null = null;
+  // @orb-waive compose-wiring-only(getWorkloadContributions): baselined when the gate landed; burn-down item 964.
   const getWorkloadContributions = (): WorkloadContributions => {
     if (workloadContributions === null) {
       throw new Error("compose: workload contributions derefed before the registry was assembled");
@@ -477,6 +484,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // late-bound holder because the registry exists only once the runtime does — a genuine construction cycle,
   // closed one line after `createInferenceRuntime` returns.
   let runtimeHolder: InferenceRuntime | null = null;
+  // @orb-waive compose-wiring-only(runtimeRef): baselined when the gate landed; burn-down item 964.
   const runtimeRef = (): InferenceRuntime => {
     if (runtimeHolder === null) {
       throw new Error("compose: inference runtime derefed before it was built");
@@ -509,9 +517,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     addSpanEvent,
     securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
     env: {
+      // @orb-waive compose-wiring-only(claudeExecutable): baselined when the gate landed; burn-down item 964.
       get claudeExecutable(): string | undefined {
         return resolveClaudeExecutable() ?? undefined;
       },
+      // @orb-waive compose-wiring-only(hostEnvAllowlist): baselined when the gate landed; burn-down item 964.
       hostEnvAllowlist: (): Readonly<Record<string, string>> =>
         Object.fromEntries(Object.entries(processEnvSnapshot()).flatMap(([k, v]) => (v === undefined ? [] : [[k, v] as const]))),
     },
@@ -533,7 +543,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
       // D8 `session_entries` write path (issue #71) — the sealed backend never touches @orb/db itself.
-      sessionWriter: createSessionEntryWriter(db),
+      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry)),
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
@@ -579,9 +589,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newBindingId: minter(ID_PREFIX.connectionBinding),
     runtime,
     audit,
+    // @orb-waive compose-wiring-only(credentialOwned): baselined when the gate landed; burn-down item 964.
     credentialOwned: async (ownerId, credentialId) => (await fetchOwned(db, userCredentials, credentialId, ownerId)) !== undefined,
     relabelCredential: credentials.relabel,
+    // @orb-waive compose-wiring-only(ruleOwnedBy): baselined when the gate landed; burn-down item 964.
     ruleOwnedBy: async (ruleId, userId) => (await fetchOwned(db, automationRules, ruleId, userId)) !== undefined,
+    // @orb-waive compose-wiring-only(pluginGrantTasksOf): baselined when the gate landed; burn-down item 964.
     pluginGrantTasksOf: async (pluginId, userId) => {
       const row = await fetchOwned(db, plugins, pluginId, userId);
       return row === undefined ? null : pluginGrantTasks(row.manifest.capabilities);
@@ -600,6 +613,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const tagCtx: TagContext = {
     db,
     newTagId: minter(ID_PREFIX.tag),
+    // @orb-waive compose-wiring-only(readAttachedEntity): baselined when the gate landed; burn-down item 964.
     readAttachedEntity: async (caller, target) => {
       // biome-ignore-start lint/suspicious/noUnnecessaryConditions: Biome loses imported branded target unions; the compiler checks this exhaustive dispatch.
       switch (target.targetType) {
@@ -629,6 +643,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // assembly, a genuine cycle) and threaded into persona's write and
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
+  // @orb-waive compose-wiring-only(emitChatEventChecked): baselined when the gate landed; burn-down item 964.
   const emitChatEventChecked: ChatComposeInput["emitChatEventChecked"] = async (event, claimStatement) => {
     const logged = claimStatement === undefined ? await chatBus.emit(event) : await chatBus.emitAfterClaim(event, claimStatement);
     // `false` ⇒ another retry owned the claim: converged success with nothing to fan. `null` ⇒ the durable
@@ -667,6 +682,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // BULK QUIET MODE applies to exactly ONE of the lane's two members (`transport/trpc/quiet-fanout.ts`,
   // design §5 / fork F-B), and {@link QUIET_COALESCABLE} above is the belt that keeps that a DECISION rather
   // than an accident.
+  // @orb-waive compose-wiring-only(emitChatEventLive): baselined when the gate landed; burn-down item 964.
   const emitChatEventLive = (event: LiveOnlyChatBusEvent): void => {
     const publish = (): void => {
       publishChatEvent({ seq: null, event });
@@ -812,7 +828,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     roleClientsFor,
     // D298: a room picture runs as the present host, loaded with its real role.
     resolveChatHostUserId,
-    isCharacterSeated: createCharacterSeated(db),
+    isCharacterSeated: (chatId, characterId) => isCharacterSeated(db, chatId, characterId),
     resolveHostPrincipal: resolveFunderPrincipal,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
@@ -850,6 +866,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
   // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
   let rpgOpsHolder: NonNullable<ChatContext["rpg"]> | null = null;
+  // @orb-waive compose-wiring-only(rpgOps): baselined when the gate landed; burn-down item 964.
   const rpgOps = (): NonNullable<ChatContext["rpg"]> => {
     if (rpgOpsHolder === null) {
       throw new Error("rpg ops accessed before the rpg seam composed (compose-order bug)");
@@ -952,6 +969,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // turns: `search.documents` runs once per turn whether or not the room has documents, so an owner whose
     // vector space was mid-move could not send a message at all. `null` is databank's own ruled empty — the
     // byte-identical no-op an absent op produces — so a degraded gather assembles exactly like a bankless one.
+    // @orb-waive compose-wiring-only(gatherDatabank): baselined when the gate landed; burn-down item 964.
     gatherDatabank: (args, events) =>
       withRetrievalDegrade(async () => await databank.gatherRetrieval(args), { empty: null, onIndexUnavailable: events?.onIndexUnavailable }),
     rpg: rpgOpsDelegate,
@@ -978,6 +996,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // import): it returns the preset for an owned row OR the shared system default, and throws `PresetNotFoundError`
   // for a preset the user can't read — the exact "foreign preset" the strip drops. Any OTHER error is a genuine
   // fault and RETHROWS (never swallowed into a false "not owned").
+  // @orb-waive compose-wiring-only(resolvePresetOwned): baselined when the gate landed; burn-down item 964.
   const resolvePresetOwned = async (presetId: PresetId, userId: UserId): Promise<boolean> => {
     try {
       await preset.get({ userId, id: presetId });
@@ -1066,6 +1085,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // which mints `importedFrom` from the plugin's OWN verified identity + the card's content hash — never from
   // guest-authored card content, which is unspoofable-or-bust the whole reason it lives at contracts
   // (`pluginImportedFrom`, `@orb/contracts/character`).
+  // @orb-waive compose-wiring-only(runInstallerCharacterImport): baselined when the gate landed; burn-down item 964.
   const runInstallerCharacterImport = async (
     installerUserId: UserId,
     bytes: Uint8Array,
@@ -1286,6 +1306,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The ONE user seed (D263) boot + the app first-request hook share: the manifest's items, gated by the
   // account's seed ledger. Built here, after the roster presets it creates and the two seeders it drives.
   const contentSeeder = createUserContentSeeder({
+    // @orb-waive compose-wiring-only(enabled): baselined when the gate landed; burn-down item 964.
     enabled: (): boolean => env.SEED_CONTENT === "on",
     manifest: SEED_MANIFEST,
     now,
@@ -1300,6 +1321,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await personaSeeder.ensureSeeded(principal);
       return (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded;
     },
+    // @orb-waive compose-wiring-only(findCharacter): baselined when the gate landed; burn-down item 964.
     findCharacter: async (principal, handle) => (await character.findByHandle({ ownerId: principal.userId, handle }))?.characterId ?? null,
     createRosterPreset: async (principal, roster): Promise<void> => {
       await rosterPreset.create({
@@ -1335,6 +1357,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await services.plugin.upgrade({ caller, pluginId, bundle });
     },
     // The version the SHIPPED bundle declares, straight off its own manifest — never re-spelled here.
+    // @orb-waive compose-wiring-only(bundledVersion): baselined when the gate landed; burn-down item 964.
     bundledVersion: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
     // ONE read per pass: it is both the install half's collision check and the upgrade half's subject list.
     // The seeder filters it down to the showcase slugs itself (a user's OWN plugins are none of its business).

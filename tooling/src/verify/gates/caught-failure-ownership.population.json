@@ -1606,7 +1606,7 @@
       "reason": "FAIL-CLOSED — the comment block above states the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence."
     },
     {
-      "siteId": "packages/server/src/entry/compose/chat.ts::buildChatService.resolveUserPublics::catch::1",
+      "siteId": "packages/server/src/domain/persona/verbs/resolve-user-publics.ts::createResolveUserPublics::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the only source of `displayName`/`handle`."
     },
@@ -1616,7 +1616,7 @@
       "reason": "propagated — the rejection reaches `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the caller; never swallowed. Ends if `pump.fail` stops being read by the drain."
     },
     {
-      "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::createChatChangedEmitter::catch::1",
+      "siteId": "packages/server/src/domain/chat/verbs/emit-chat-changed.ts::createEmitChatChanged::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "best-effort — documented below: a failed roster read fans only the pre-captured extras; the rest heals on the next client reconnect (this is a live- notification fan-out, not the durable write itself). Ends if a client stops reconnect-healing."
     },
@@ -1631,12 +1631,12 @@
       "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
     },
     {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::buildRunToolRound::err::1",
+      "siteId": "packages/server/src/domain/rpg/tools/rounds/tool-round.ts::buildRunToolRound::err::1",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the structured arm's twin: a CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed by failedToolRoundDelta. Ends if its warn log is removed."
     },
     {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::safeJson::catch::1",
+      "siteId": "packages/server/src/domain/rpg/tools/rounds/round-log.ts::safeJson::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the docstring states the contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this stops feeding a schema-validated read."
     },
