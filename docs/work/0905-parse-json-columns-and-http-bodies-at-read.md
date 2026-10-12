@@ -24,3 +24,5 @@ No @orb-waive marker naming this item remains; every listed column and response 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The auth me schema exists: authMeSchema and AuthMe in @orb/contracts/identity (item 888 lane, 0225b5232e); the server types its response with it and the e2e whoami parses it. Still owed here: the client parse in packages/client/src/data/auth-bootstrap.ts.
