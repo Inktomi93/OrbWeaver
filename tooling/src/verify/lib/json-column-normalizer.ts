@@ -21,7 +21,7 @@ export function jsonColumnPropertyValue(property: MorphNode | undefined): MorphN
 const ZOD_PACKAGE = "/node_modules/zod/";
 // `default` fills only an undefined key, and a stored row is the schema's own output, so its keys are present.
 const VALIDATORS = ["int", "min", "max", "nonnegative", "positive", "finite", "optional", "nullable", "default", "readonly", "strict", "strip"] as const;
-const CONSTRUCTORS = ["object", "strictObject", "looseObject", "array", "record", "union", "enum", "literal", "number", "string", "boolean"] as const;
+const CONSTRUCTORS = ["object", "strictObject", "looseObject", "array", "record", "union", "enum", "literal", "number", "int", "string", "boolean"] as const;
 
 function zodMethod(node: MorphNode, name: string): boolean {
   const member = staticMemberAccess(node);

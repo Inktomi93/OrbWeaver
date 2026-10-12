@@ -21,6 +21,7 @@ export declare function object<const Shape extends Record<string, ZodType>>(shap
 export declare function looseObject<const Shape extends Record<string, ZodType>>(shape: Shape): ZodType<ObjectOutput<Shape>>;
 export declare function array<T>(schema: ZodType<T>): ZodType<T[]>;
 export declare function number(): ZodType<number>;
+export declare function int(): ZodType<number>;
 export declare function string(): ZodType<string, string>;
 export declare function literal<const Value extends string | number | boolean>(value: Value): ZodType<Value>;
 export declare const NEVER: never;
@@ -36,7 +37,7 @@ const SELECTION = `
 /// <reference lib="es2022" />
 import * as z from "zod";
 export const fields = z.array(z.enum(["description", "greetings"])).refine((items) => new Set(items).size === items.length);
-export const indexes = z.array(z.number().int().min(0)).refine((items) => new Set(items).size === items.length);
+export const indexes = z.array(z.int().min(0)).refine((items) => new Set(items).size === items.length);
 export const refinerySelectionSchema = z.object({ fields, greetingIndexes: indexes.optional() });
 export const refinerySelectionPatchSchema = z.object({ fields: fields.optional(), greetingIndexes: indexes.nullable().optional() });
 export type Selection = { fields: ("description" | "greetings")[]; greetingIndexes?: number[] | undefined };
