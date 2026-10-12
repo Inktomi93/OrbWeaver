@@ -175,7 +175,9 @@ export interface RefineryContentStoryProps {
  */
 export function RefineryContentStory({ sessionId, viewBackRunId }: RefineryContentStoryProps): ReactElement {
   useState((): null => {
-    selectRefinerySession(sessionId);
+    // `swap: false` writes the store NOW. The default select goes through the view-transition door, which
+    // applies it on a later frame, so the surface first painted the landing arm and read the roster and library.
+    selectRefinerySession(sessionId, { swap: false });
     setRefineryViewedRun(null);
     return null;
   });

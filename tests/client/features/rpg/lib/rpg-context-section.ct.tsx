@@ -20,6 +20,7 @@ import { revealActionName } from "#ui/lib/action-names.ts";
 import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
 import { expectCircle } from "../../../../support/browser/expect-circle.ts";
 import { hitBoxes, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "../../../../support/node/chat-settings-sections-reads-empty.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
 import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -310,6 +311,9 @@ const CHAT_PANEL_AMBIENT_ROUTES: TrpcRoutes<
   | "chat.previewAssembly"
   | "settings.getUserSettings"
   | "chat.getShapeTrace"
+  | "automation.listRules"
+  | "plugin.list"
+  | "plugin.listSurfaces"
 > = {
   // The chat context BAND's preset chip (#860): the non-game arms of this file (the Game DOOR on a plain
   // chat) render chat's own band, which resolves the viewer's active preset against the library. Empty is
@@ -329,6 +333,8 @@ const CHAT_PANEL_AMBIENT_ROUTES: TrpcRoutes<
   // this file counts cells and measures rail geometry: a populated feed would add script rows to a band
   // these tests take boxes in.
   ...REGEX_READS_EMPTY,
+  // The door's own "This chat" sections (Rules, Plugin panels), mounted for real by the harness.
+  ...CHAT_SETTINGS_SECTIONS_READS_EMPTY,
   // This room's attached lorebooks. NOT in the #649 census the ledger carried: this row is UNBUDGETED and
   // the ratchet REDS it, measured on the UNMODIFIED source at HEAD in this lane's before-run, so it is a
   // pre-existing red rather than one this feed introduced. Empty is honest for a room with no books.
