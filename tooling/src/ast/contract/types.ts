@@ -12,6 +12,12 @@ export interface LivenessOptions {
   readonly edges: boolean;
 }
 
+/** `pnpm ast antipatterns`' reading of one structure pass: no verdict (a killed, refused or incomplete pass),
+ *  or the hits by class with the count of unwaived hits and authority alarms that fail the run. */
+export type AntipatternVerdict =
+  | { readonly kind: "no-verdict"; readonly reason: string }
+  | { readonly kind: "verdict"; readonly lines: readonly string[]; readonly failing: number; readonly populationFiles: number };
+
 /** ONE orphan candidate — its export NAME plus the ORIGIN declaration node (the identity everything keys
  *  on, and the node a reader of leading comments needs). `starSuppressed` = the declaring file is the
  *  target of an `export *` somewhere, so a namespace consumer we cannot cheaply name MIGHT reach it: the

@@ -6,6 +6,7 @@
 // Load-bearing here, and different from the card arm in exactly one way that matters: `chat_tags` is a
 // per-TAGGER overlay (D30 — `ownerId` is part of its PK), so "already attached" means already attached BY
 // THIS USER, and a co-member's identical label is a different row this verb must leave alone.
+// @subject packages/server/src/domain/tag/verbs/attach-chat-tag-by-name.ts
 
 import { chatTags, tags } from "@orb/db";
 import { createTagService } from "@orb/server/domain/tag";

@@ -43,6 +43,7 @@ export function manualTargetsOf(selection: RefinerySelection, card: ManualCard):
  *  but not the only reason this stays exported. */
 export function manualTextOf(
   card: {
+    // @orb-waive contract-structural-copy(description): baselined when the gate widened; burn-down item 904.
     description: string | null;
     personality: string | null;
     scenario: string | null;

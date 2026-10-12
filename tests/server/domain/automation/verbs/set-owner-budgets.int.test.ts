@@ -3,6 +3,7 @@
 // The row is BORN on the first set and patched thereafter.
 // ZERO is a real, useful value and is pinned as such: "stop all of my library rules" without disabling each
 // one, and a verb that treated 0 as "unset" would silently ignore the strongest thing a host can ask for.
+// @subject packages/server/src/domain/automation/verbs/set-owner-budgets.ts
 
 import { AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import { DomainOperationError } from "@orb/kit/errors";

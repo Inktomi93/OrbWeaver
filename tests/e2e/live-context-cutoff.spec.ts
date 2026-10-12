@@ -22,7 +22,19 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
-import { deleteChat, getUserSettings, listCanon, listCharacters, previewContextFit, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc.ts";
+import {
+  createPreset,
+  deleteChat,
+  getUserSettings,
+  listCanon,
+  listCharacters,
+  previewContextFit,
+  removePreset,
+  sendTurn,
+  setPresetMaxContextTokens,
+  startChat,
+  updateSettingsSection,
+} from "./support/trpc.ts";
 
 const TINY_CEILING = 200; // maxContextTokens small enough that only the newest turn survives the fit
 // This spec exercises the FIT divider (a stale canon stamp must not resurrect it). Under the #9 owner ruling the
@@ -66,22 +78,10 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
 
     // ── P2: point the user's default preset at a tiny ceiling → the line appears WITH NO MODEL TURN. ──
     const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
-    const tinyPreset = await trpcMutation("preset.create", {
-      name: "e2e-tiny-context",
-      kind: "chat",
-    });
+    const tinyPreset = await createPreset("e2e-tiny-context");
     try {
-      // preset.update takes the FULL config (promptConfigSchema) — a `patch` key is silently stripped by
-      // the input schema (integration find, 2026-07-24). Read the created preset's config, merge the knob.
-      const created = await trpcQuery("preset.get", { id: tinyPreset.id });
-      await trpcMutation("preset.update", {
-        id: tinyPreset.id,
-        config: { ...created.config, params: { ...created.config.params, maxContextTokens: TINY_CEILING } },
-      });
-      await trpcMutation("settings.updateUserSettingsSection", {
-        section: "seeds",
-        patch: { defaultPresetId: tinyPreset.id },
-      });
+      await setPresetMaxContextTokens(tinyPreset.id, TINY_CEILING);
+      await updateSettingsSection("seeds", { defaultPresetId: tinyPreset.id });
 
       // The API preview now reports a REAL mid-transcript boundary under the preset ceiling…
       await expect.poll(async () => (await previewContextFit(chatId)).boundaryMessageId, { timeout: 15_000, intervals: [200, 500, 1000] }).not.toBeNull();
@@ -105,11 +105,8 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
       expect(dividerIsPrecedingSibling).toBe(true);
     } finally {
       // Restore the prior default preset (null = clear back to the system default) + remove the throwaway.
-      await trpcMutation("settings.updateUserSettingsSection", {
-        section: "seeds",
-        patch: { defaultPresetId: priorDefaultPresetId ?? null },
-      });
-      await trpcMutation("preset.remove", { id: tinyPreset.id });
+      await updateSettingsSection("seeds", { defaultPresetId: priorDefaultPresetId ?? null });
+      await removePreset(tinyPreset.id);
     }
   } finally {
     await deleteChat(chatId);

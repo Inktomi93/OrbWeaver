@@ -5,7 +5,10 @@
 //   • a mismatched card is never STORED — the hash verdict is knowable from the bytes, so rejecting it
 //     costs no row and no blob (an indexed-then-rejected card is GC's problem an hour later).
 //   • `dryRun` writes nothing AND forecasts the real link/mismatch split (the params contract's promise).
+// @subject packages/server/src/domain/assets/verbs/backfill-avatars.ts
 
+// @orb-waive-file no-loose-id-cast(avatar): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(characterId): baselined when the gate widened; burn-down item 906.
 import { createHash } from "node:crypto";
 import { assets, characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";

@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(seedUser): baselined when the gate widened; burn-down item 906.
 import type { CorpusSource } from "@orb/contracts/search";
 import { chatSegments, embedGenerations, messages } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

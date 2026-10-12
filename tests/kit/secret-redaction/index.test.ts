@@ -16,6 +16,7 @@
 // belt even when the by-value belt is broken — a green that says nothing about the code under test (the
 // #1760 instrument-lie). Every credential here is shaped like neither.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "@orb/kit/secret-redaction";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

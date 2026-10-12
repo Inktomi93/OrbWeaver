@@ -13,6 +13,12 @@
 // the existing `refusal` event beside the `filter` finish; the Anthropic rate-limit headers become
 // `rateLimit`, and the `msg_…` id is the row's `generationId`.
 
+// @orb-waive-file no-test-fabrication(readonly Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ knob: string }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly format: { readonly type: string; readonly schema: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly type: string; readonly budget_tokens: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ role?: string }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ ttl?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { GenerationCapability, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -85,6 +91,7 @@ function deps(fetchImpl: typeof fetch, lines: LogLine[] = []): Parameters<typeof
 function assistantRowOf(recorded: RecordedRequest): Record<string, unknown> {
   const messages = recorded.body["messages"];
   const row = Array.isArray(messages) ? messages.find((m: unknown) => (m as { role?: string }).role === "assistant") : undefined;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return (row ?? {}) as Record<string, unknown>;
 }
 
@@ -164,6 +171,7 @@ test("A3/B2: an SDK-dropped sampler knob becomes a warning event and leaves the 
   expect(codes).toContain("sdk_unsupported_setting");
   const sampling = lines.find((line) => line.fields["event"] === "provider.sampling");
   expect(sampling).toBeDefined();
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const applied = sampling?.fields["applied"] as Record<string, unknown>;
   const dropped = sampling?.fields["dropped"] as { knob: string }[];
   expect(applied["frequencyPenalty"]).toBeUndefined();
@@ -687,10 +695,12 @@ test("tool input streams eagerly on the direct wire (the SDK default the extras 
  *  the `cache_control` marker set aside (it is not prompt bytes) and reported as the block index it rode on. */
 function cachedBlocks(recorded: RecordedRequest | undefined): { readonly blocks: readonly string[]; readonly marked: readonly number[] } {
   const body = recorded?.body ?? {};
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const turns = [{ role: "system", content: body["system"] }, ...(Array.isArray(body["messages"]) ? (body["messages"] as Record<string, unknown>[]) : [])];
   const blocks: string[] = [];
   const marked: number[] = [];
   for (const turn of turns) {
+    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     for (const block of Array.isArray(turn["content"]) ? (turn["content"] as Record<string, unknown>[]) : []) {
       const { cache_control: marker, ...bytes } = block;
       if (marker !== undefined) {
@@ -742,6 +752,7 @@ test("a group round keeps the block the previous call marked: same bytes, same e
   expect(n.marked).toEqual([0, 2]);
   expect(next.blocks.slice(0, deepest + 1)).toEqual(n.blocks.slice(0, deepest + 1));
   // The run is still ONE assistant turn on the wire, made of two blocks, and the marker moved to the newest one.
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = kai?.body["messages"] as Record<string, unknown>[];
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
   expect(messages[1]?.["content"]).toEqual([
@@ -767,6 +778,7 @@ test("SDK pin: adjacent same-role rows group into one message and each row's mar
     }),
     anthropicTextStream("ok"),
   );
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = body?.body["messages"] as Record<string, unknown>[];
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
   expect(messages[1]?.["content"]).toEqual([
@@ -792,6 +804,7 @@ interface WireMarker {
 function markersInPrefixOrder(recorded: RecordedRequest | undefined): readonly WireMarker[] {
   const body = recorded?.body ?? {};
   const found: WireMarker[] = [];
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const blocksOf = (value: unknown): readonly Record<string, unknown>[] => (Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
   for (const [index, tool] of blocksOf(body["tools"]).entries()) {
     if (tool["cache_control"] !== undefined) {
@@ -916,6 +929,7 @@ test("the TTL order check reds on a 5m marker ahead of a 1h one (the rule the on
 test("prompt cache: with the system block off, the system carries no marker and the tools and history keep theirs", async () => {
   const { body } = await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, cacheSystem: false }), anthropicTextStream("ok"));
   expect(markersInPrefixOrder(body).map(({ at }) => at)).toEqual(["tool:1", "message:3", "message:5"]);
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const system = body?.body["system"] as Record<string, unknown>[];
   expect(system).toEqual([{ type: "text", text: "You are a helpful assistant." }]);
 });
@@ -957,6 +971,7 @@ test("a response format rides output_config.format with the SDK pinned to it —
   expect(format.type).toBe("json_schema");
   // The anthropic-format scrub rode: the author's floor is clamped to the subset's 1 and relayed as the note. The
   // SDK's own `sanitizeJsonSchema` would strip that `minItems: 1` too; the planned schema is put back after it.
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((format.schema["properties"] as Record<string, unknown>)["tags"]).toEqual({
     type: "array",
     items: { type: "string" },

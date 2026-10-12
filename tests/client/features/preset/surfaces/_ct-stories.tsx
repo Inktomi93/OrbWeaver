@@ -8,6 +8,7 @@
 // re-renders the editor with a new preset id) so the CT proves switching A→B rekeys the boundary's Session
 // and seeds from B's row (never A's surviving frozen seed).
 
+// @orb-waive-file testid-typed-only-stories("list-band"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";

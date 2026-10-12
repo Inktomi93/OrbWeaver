@@ -1,5 +1,8 @@
+// @orb-waive-file no-test-fabrication(ImportResult): baselined when the gate widened to value casts; burn-down item 906.
+
 // Bounded ingress smoke: real multipart import, an embedded book, deduplication and reload.
 import type { CardImportResult } from "@orb/contracts/import";
+import { cardImportResultSchema } from "@orb/contracts/import";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
@@ -21,7 +24,7 @@ async function importCard(page: Page): Promise<CardImportResult> {
   await dialog.getByLabel(FILE_LABEL, { exact: true }).setInputFiles({ name: "smoke-archivist.json", mimeType: "application/json", buffer: Buffer.from(CARD) });
   const response = await uploaded;
   expect(response.ok()).toBe(true);
-  const result = (await response.json()) as CardImportResult;
+  const result = cardImportResultSchema.parse(await response.json());
   expect(result.failed).toEqual([]);
   expect(result.imported).toHaveLength(1);
   await expect(dialog).toHaveCount(0);
@@ -56,7 +59,9 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     });
     books = await host.query("worldInfo.listForCharacter", { characterId: imported.characterId });
     expect(books.map((book) => book.role)).toEqual(["primary"]);
-    const entries = await host.query("worldInfo.listEntries", { bookId: books[0]?.id });
+    const [primary] = books;
+    expect(primary).toBeDefined();
+    const entries = primary === undefined ? [] : await host.query("worldInfo.listEntries", { bookId: primary.id });
     expect(entries.map((entry) => entry.content)).toEqual([BOOK_CONTENT]);
     const again = await importCard(page);
     expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false, importHash: imported.importHash }]);

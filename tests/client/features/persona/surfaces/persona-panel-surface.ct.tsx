@@ -367,6 +367,7 @@ test("no raw {{macro}} renders in the visible rows", async ({ mount, page }) => 
   // The pin's tooltip names {{user}} on purpose; its always-mounted description is not row text, so it is cut out.
   const visibleText = (): Promise<string> =>
     page.getByRole("dialog").evaluate((dialog) => {
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const copy = dialog.cloneNode(true) as HTMLElement;
       for (const hint of copy.querySelectorAll('[data-slot="tooltip-description"]')) {
         hint.remove();

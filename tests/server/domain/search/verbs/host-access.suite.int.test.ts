@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(seedUser): baselined when the gate widened; burn-down item 906.
 import { chatDigests, chatParticipants, chatSegments, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

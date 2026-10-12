@@ -7,13 +7,13 @@
 // avatar SET NULL on asset delete (the character survives).
 
 import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
-import type { Db } from "@orb/db";
 import { assets, characterPersonas, characterSnapshots, characters, personas } from "@orb/db";
 import { isConstraintViolation, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/query";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
@@ -22,22 +22,10 @@ const DEPTH_PROMPT_DEPTH = 4;
 const REFINERY_SCORE = 8.5;
 const REFINERY_SOUL_SCORE = 9;
 
-async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
-  const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(`card-${id}`),
-    ownerId,
-    contentHash: "hash-of-semantic-fields",
-    name: "Test Card",
-  });
-  return characterId;
-}
-
 test("characters insert→select round-trips (branded id + always-a-list defaults)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_a", handle: castId<Handle>("char-owner-a") });
-  const id = await seedCharacter(db, ownerId, "character_roundtrip");
+  const { id } = await seedCharacter(db, { id: castId<CharacterId>("character_roundtrip"), ownerId, name: "Test Card" });
 
   const rows = await db.select().from(characters).where(eq(characters.id, id));
   expect(rows).toHaveLength(1);
@@ -84,11 +72,10 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
     },
   };
   // A complete typed regex script (defaults filled via the contract schema, so it round-trips intact).
-  await db.insert(characters).values({
+  await seedCharacter(db, {
     id,
     handle: castId<CharacterHandle>("card-content"),
     ownerId,
-    contentHash: "hash-b",
     name: "Greeter",
     greetings: [{ text: "Hello there" }, { text: "Hi again" }],
     extensions: { vendorKey: 42 },
@@ -119,7 +106,7 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
 test("character_snapshots stores ONE opaque card blob and round-trips", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_c", handle: castId<Handle>("char-owner-c") });
-  const characterId = await seedCharacter(db, ownerId, "character_snap");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_snap"), ownerId });
   const card: CharacterCard = {
     name: "Aria",
     description: "calm",
@@ -159,7 +146,7 @@ test("character_snapshots stores ONE opaque card blob and round-trips", async ()
 test("deleting a character CASCADEs its snapshots and persona junctions", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_d", handle: castId<Handle>("char-owner-d") });
-  const characterId = await seedCharacter(db, ownerId, "character_cascade");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cascade"), ownerId });
 
   const personaId = castId<PersonaId>("persona_for_cascade");
   await db.insert(personas).values({
@@ -192,20 +179,18 @@ test("deleting a character CASCADEs its snapshots and persona junctions", async 
 test("unique(ownerId, handle) rejects a duplicate handle for the same owner", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_handle", handle: castId<Handle>("char-owner-handle") });
-  await db.insert(characters).values({
+  await seedCharacter(db, {
     id: castId<CharacterId>("character_handle_1"),
     handle: castId<CharacterHandle>("dup-handle"),
     ownerId,
-    contentHash: "hash-h1",
     name: "First",
   });
   let caught: unknown;
   try {
-    await db.insert(characters).values({
+    await seedCharacter(db, {
       id: castId<CharacterId>("character_handle_2"),
       handle: castId<CharacterHandle>("dup-handle"),
       ownerId,
-      contentHash: "hash-h2",
       name: "Second",
     });
   } catch (err) {
@@ -219,19 +204,17 @@ test("unique(ownerId, handle) allows the same handle for a DIFFERENT owner", asy
   const db = await freshDb();
   const ownerA = await seedUser(db, { id: "user_char_hA", handle: castId<Handle>("char-owner-hA") });
   const ownerB = await seedUser(db, { id: "user_char_hB", handle: castId<Handle>("char-owner-hB") });
-  await db.insert(characters).values({
+  await seedCharacter(db, {
     id: castId<CharacterId>("character_hA"),
     handle: castId<CharacterHandle>("shared-handle"),
     ownerId: ownerA,
-    contentHash: "hash-hA",
     name: "A",
   });
   // Different owner, same handle — a distinct per-owner namespace, no collision.
-  await db.insert(characters).values({
+  await seedCharacter(db, {
     id: castId<CharacterId>("character_hB"),
     handle: castId<CharacterHandle>("shared-handle"),
     ownerId: ownerB,
-    contentHash: "hash-hB",
     name: "B",
   });
 
@@ -257,11 +240,10 @@ test("avatar_asset_id is SET NULL when its asset is deleted (character survives)
     hash: "f".repeat(64),
   });
   const id = castId<CharacterId>("character_with_avatar");
-  await db.insert(characters).values({
+  await seedCharacter(db, {
     id,
     handle: castId<CharacterHandle>("card-avatar"),
     ownerId,
-    contentHash: "hash-avatar",
     name: "Pic",
     avatarAssetId: assetId,
   });

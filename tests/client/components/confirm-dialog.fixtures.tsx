@@ -1,6 +1,7 @@
 // CT harness (not a spec — Playwright CT needs mounted components in their own module, and biome
 // forbids exporting a component from a `.ct.tsx`). Exercises the controlled entry shape: caller owns
 // `open`/`onOpenChange`, no default trigger renders.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { ConfirmDialog } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";

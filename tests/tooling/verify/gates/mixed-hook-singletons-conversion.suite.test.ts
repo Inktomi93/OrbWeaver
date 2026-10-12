@@ -12,6 +12,7 @@
 // IT RUNS ON A REAL TMPDIR, not on a virtual in-memory root, because `tooling-instrument-proof` resolves
 // its members against the filesystem. Under a synthetic root every registry row would read DEAD and the
 // run would report a catch explosion that is an artifact of the harness.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { Project } from "ts-morph";

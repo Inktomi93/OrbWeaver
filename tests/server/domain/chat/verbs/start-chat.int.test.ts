@@ -10,6 +10,7 @@
 // coverage retired with it. Group config/roster tuning/greeting edits are proved against the real room by
 // their own post-create verbs (`setGroupConfig`/`setSeatKnobs`/`editMessage`/`setSeededGreeting`).
 
+// @orb-waive-file no-loose-id-cast("not-a-chat-event"): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";

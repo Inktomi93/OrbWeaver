@@ -1,5 +1,6 @@
 // verb: detachFromPreset — remove a preset attachment. Idempotent (`{detached:false}` on an absent row),
 // and both ends still gated so a stranger can never detach through a script they do not own.
+// @subject packages/server/src/domain/regex/verbs/attachments/detach-from-preset.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

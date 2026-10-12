@@ -20,6 +20,7 @@
 // spelling, so it now carries the shared `@orb-waive test-determinism(performance.timeOrigin)` marker
 // instead of a bracket dodge.
 
+// @orb-waive-file platform-spellings(ALLOWED_GLOBALS): baselined when the gate widened; burn-down item 906.
 import { estimateTokens } from "@orb/kit/tokens";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { getPluginQuickJS, installRealm, LogRing } from "@orb/server/infra/plugin-host";

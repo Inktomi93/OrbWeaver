@@ -22,11 +22,12 @@
 // absence assertion (`not.toContain(<the hidden truth>)`) passed on a stream that delivered nothing. Values
 // that feed an assertion are read through `requireSatisfied`, which refuses every other verdict by name.
 
+// @orb-waive-file no-test-fabrication(ChatFrame): the socket frame is parsed JSON of a known shape; there is no frame schema to parse it with.
 import type { StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
+import type { StreamValue } from "../../support/browser/trpc-wire.ts";
 
-/** One collected room value — the durable `seq` cursor carried INSIDE the frame + the yielded event. */
-export type StreamValue = Pick<StreamFrameFor<"chat">, "seq" | "event">;
+export type { StreamValue } from "../../support/browser/trpc-wire.ts";
 
 /** One frame off the socket before it is known to be this room's: every `chat` field may be absent. */
 type ChatFrame = { readonly channel: string } & Partial<Omit<StreamFrameFor<"chat">, "channel">>;

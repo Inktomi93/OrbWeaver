@@ -50,6 +50,7 @@ const ANALYZE_RUN = mintTypeId(ID_PREFIX.refineryRun);
  *  "this verdict is about a rewrite the canvas is not showing". */
 const ORPHANED_REWRITE = mintTypeId(ID_PREFIX.refineryRun);
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 // PROSE-LENGTH on both sides (over `accept-review`'s 200-char inline-diff threshold) so the description
 // block renders the side-by-side PAIR and the after pane carries the whole rewrite verbatim — an

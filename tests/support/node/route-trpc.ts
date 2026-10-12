@@ -35,6 +35,10 @@
 // as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
 // PRODUCES, so either works as a route value or as a function's return.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(TrpcInput<P>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(TrpcInput<P> | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(TrpcInput<P>[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Branded } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
@@ -422,9 +426,11 @@ export function trpcHold(): TrpcHoldMarker {
   // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
   let onRequest!: () => void;
   let release!: (data: unknown) => void;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const requested = new Promise<void>((resolve) => {
     onRequest = resolve;
   });
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const released = new Promise<unknown>((resolve) => {
     release = resolve;
   });

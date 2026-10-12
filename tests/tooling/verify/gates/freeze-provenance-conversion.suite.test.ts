@@ -13,10 +13,12 @@
 //      suppressing (the assertion a `mustPass` row cannot make);
 //   3. §4.5 REFUSAL — the health policy withholds rather than inventing a verdict when its declared fact
 //      cannot be read, and stays silent when its real-tree anchor is absent.
+// @orb-waive-file platform-spellings(hits): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as freezeProvenance } from "../../../../tooling/src/verify/gates/freeze-provenance-write-pairing.ts";
 import { gate as freezeProvenanceHealth } from "../../../../tooling/src/verify/gates/freeze-provenance-write-pairing-health.ts";
+import { DRIZZLE_DB_FIXTURE } from "../../../../tooling/src/verify/lib/freeze-provenance.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -28,7 +30,7 @@ const FILLER_PATH = "packages/server/src/domain/chat/persistence/filler.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, source] of Object.entries(files)) {
+  for (const [path, source] of Object.entries({ ...DRIZZLE_DB_FIXTURE, ...files })) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
   return project;

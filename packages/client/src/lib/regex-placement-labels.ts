@@ -133,6 +133,7 @@ function patternWhole(findRegex: string): string {
  * projection keeps `patternHead`, because its dialog line has no `truncate` to do the job.
  */
 export function regexRowScent(
+  // @orb-waive contract-structural-copy(enabled): baselined when the gate widened; burn-down item 904.
   script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
   formatRelative: (epochMs: number) => string,
 ): string {

@@ -9,6 +9,9 @@
 // inflated `assistantTurns` and no swipe ever counted (F1); gen-time was never stamped (F2); and
 // `maxContextTokens` was dropped on the live path (F6). If any of those regress, `toEqual` drifts.
 
+// @orb-waive-file no-loose-id-cast(REPLY): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(receiptTurn): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(thinkingTurn): baselined when the gate widened; burn-down item 906.
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -605,14 +608,14 @@ describe("engine stats — a reasoning continue keeps the row's reasoning window
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
       now: () => t,
-      runChatTurn: ((request: Parameters<RunChatTurn>[0]) => {
+      runChatTurn: (request: Parameters<RunChatTurn>[0]) => {
         const next = queue[idx];
         idx += 1;
         if (next === undefined) {
           throw new Error("engine-stats: no scripted turn");
         }
         return next(request);
-      }) as never,
+      },
       applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
         deltas.push(delta);
       },

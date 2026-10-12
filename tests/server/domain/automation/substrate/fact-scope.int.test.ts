@@ -2,6 +2,8 @@
 // the owner-global rule gate share this ONE answer). Pins: a chat-scoped fact is fail-closed (never this
 // module's business), a genuine owner passes, a stranger and a forged/absent id both fail-closed to false.
 
+// @orb-waive-file no-loose-id-cast("character.updated"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast("world-info.updated"): baselined when the gate widened; burn-down item 906.
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";

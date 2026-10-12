@@ -23,7 +23,7 @@ import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
-import type { TrpcOutput } from "./support/trpc.ts";
+import type { TrpcInput, TrpcOutput } from "./support/trpc.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
 const REPLY_POLL_TIMEOUT_MS = 60_000;
@@ -36,19 +36,21 @@ const OK = 200;
 // ── Wire shapes: derived from the router, never declared. ─────────────────────────────────────────────
 type MessagesPage = TrpcOutput<"chat.listMessages">;
 type MemberCard = TrpcOutput<"chat.getMemberCard">;
+type CharacterInput = TrpcInput<"character.create">["input"];
+type CardVisibility = NonNullable<TrpcInput<"chat.setGroupConfig">["config"]["memberCardVisibility"]>;
 type PersonaRow = TrpcOutput<"persona.create">;
 
 /** The seeded member's `users.id` — read through the owner-only admin surface (the host IS the box owner in
  *  this mode), because `/api/auth/me` deliberately returns handle+role, not the id the D16 write needs. */
 async function memberUserId(host: ActorClient): Promise<string> {
-  const users = await host.query("admin.listUsers", {});
+  const users = await host.query("admin.listUsers");
   const row = users.find((u) => u.handle.toLowerCase() === LOCAL_MEMBER.handle);
   expect(row, `the seeded "${LOCAL_MEMBER.handle}" account must exist (global-setup ran the multi-user seed)`).toBeDefined();
   return row?.id ?? "";
 }
 
 /** Mint a spec-owned character, removing any residue from a crashed prior run (idempotent). */
-async function freshCharacter(host: ActorClient, handle: CharacterHandle, input: Record<string, unknown>): Promise<CharacterId> {
+async function freshCharacter(host: ActorClient, handle: CharacterHandle, input: Omit<CharacterInput, "handle">): Promise<CharacterId> {
   const prior = await host.query("character.list", {});
   const stale = prior.items.find((c) => c.handle === handle);
   if (stale !== undefined) {
@@ -60,7 +62,7 @@ async function freshCharacter(host: ActorClient, handle: CharacterHandle, input:
 
 /** Re-pin the room's D22 level. The group config is a whole-object write, so the two other required knobs
  *  ride along at their defaults — this helper keeps the four tier arms below to one readable line each. */
-async function setCardVisibility(host: ActorClient, chatId: ChatId, level: string): Promise<void> {
+async function setCardVisibility(host: ActorClient, chatId: ChatId, level: CardVisibility): Promise<void> {
   await host.mutation("chat.setGroupConfig", { chatId, config: { output: "per-speaker", policy: "natural", memberCardVisibility: level } });
 }
 
@@ -311,7 +313,7 @@ function personaRowLabels(preview: TrpcOutput<"chat.previewAssembly">): readonly
 
 // Probe cleanup must retain one persona under each actor's own authority, including a fresh or crashed harness.
 async function createProbePersona(actor: ActorClient, name: string, description: string): Promise<PersonaRow> {
-  const owned = await actor.query("persona.list", {});
+  const owned = await actor.query("persona.list");
   if (owned.every((p) => p.name === name)) {
     await actor.mutation("persona.create", { input: { name: "D122 fixture baseline", description: "" } });
   }
@@ -420,6 +422,7 @@ async function pollForReply(host: ActorClient, chatId: ChatId): Promise<Messages
     const page = await host.query("chat.listMessages", { chatId });
     reply = [...page.messages].reverse().find((m) => m.role === "assistant" && m.content.includes(FIXTURE_COVER_MARKER));
     if (reply === undefined) {
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((resolve) => setTimeout(resolve, REPLY_POLL_INTERVAL_MS));
     }
   }
@@ -443,7 +446,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     greetings: [{ text: GREETING }],
   });
   const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
-  const owned = await member.query("persona.list", {});
+  const owned = await member.query("persona.list");
   for (const stale of owned.filter((p) => p.name === MEMBER_PERSONA_NAME)) {
     await member.mutation("persona.remove", { personaId: stale.id });
   }
@@ -470,6 +473,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
       until: (values) => values.some((v) => JSON.stringify(v).includes(FIXTURE_COVER_MARKER)),
       timeoutMs: REPLY_POLL_TIMEOUT_MS,
     });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, PRESENCE_SETTLE_MS));
 
     // The MEMBER fires the turn. The anchor is deliberately UNSET, so the only way their persona can reach

@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as verifyRegistryParity } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
@@ -75,6 +76,7 @@ function manifest(extraScripts: Readonly<Record<string, string>>): string {
   if (healthy === undefined) {
     throw new Error("verify-registry-parity has no healthy root-manifest proof");
   }
+  // @orb-waive no-test-fabrication({ name: string; scripts: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
   const base = JSON.parse(healthy.files["package.json"]) as { name: string; scripts: Record<string, string> };
   return JSON.stringify({ ...base, scripts: { ...base.scripts, ...extraScripts } });
 }
@@ -126,6 +128,7 @@ test("verify-registry-parity: the twin's silence is a READ, not an empty denomin
 });
 
 test("verify-registry-parity: deleting verify cannot hide missing stages or root runtime dependencies", ({ scratch }) => {
+  // @orb-waive no-test-fabrication({ name: string; scripts: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
   const base = JSON.parse(manifest({})) as { name: string; scripts: Record<string, string> };
   const stage = REGISTRY.find((entry) => entry.argv[0] === "pnpm" && typeof entry.argv[1] === "string")?.argv[1];
   if (stage === undefined) {

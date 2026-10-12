@@ -17,6 +17,7 @@ import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/
 import { castId } from "@orb/kit/ids";
 import { characterDetailRow, characterPolicySweep, chatConfigRow, rpgGameForChat } from "@orb/server/foundation/observability/debug";
 import { freshDb } from "../../../../../support/db.ts";
+import { makeCharacter } from "../../../../../support/factories/character.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_config_probe");
@@ -36,15 +37,16 @@ async function seedCharacter(
   forbidExternalMedia: boolean | null,
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${suffix}`);
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(`handle-${suffix}`),
-    ownerId: OWNER,
-    name: `Character ${suffix}`,
-    contentHash: `hash-${suffix}`,
-    trustHtml,
-    forbidExternalMedia,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(`handle-${suffix}`),
+      ownerId: OWNER,
+      name: `Character ${suffix}`,
+      trustHtml,
+      forbidExternalMedia,
+    }),
+  );
   return id;
 }
 
@@ -132,16 +134,17 @@ test("the sweep carries ownerId + handle — the SAME handle under two owners is
   await db.insert(users).values({ id: second, handle: castId<Handle>("configprobe2"), handleKey: handleKey(castId<Handle>("configprobe2")) });
 
   await seedCharacter(db, "shared", null, null);
-  await db.insert(characters).values({
-    id: castId<CharacterId>("character_shared_two"),
-    // Deliberately the SAME handle as the first owner's card — the unique index permits it across owners.
-    handle: castId<CharacterHandle>("handle-shared"),
-    ownerId: second,
-    name: "Character shared",
-    contentHash: "hash-shared-2",
-    trustHtml: null,
-    forbidExternalMedia: null,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id: castId<CharacterId>("character_shared_two"),
+      // Deliberately the SAME handle as the first owner's card — the unique index permits it across owners.
+      handle: castId<CharacterHandle>("handle-shared"),
+      ownerId: second,
+      name: "Character shared",
+      trustHtml: null,
+      forbidExternalMedia: null,
+    }),
+  );
 
   const sweep = await characterPolicySweep(db, OPEN_FLOOR);
   const shared = sweep.filter((r) => r.handle === "handle-shared");

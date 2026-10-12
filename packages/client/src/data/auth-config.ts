@@ -78,6 +78,7 @@ export function fetchAuthConfig(): Promise<AuthConfig> {
       if (!res.ok) {
         throw new Error(`/api/auth/config: HTTP ${res.status}`);
       }
+      // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
       return res.json() as Promise<AuthConfig>;
     })
     .catch((err: unknown) => {

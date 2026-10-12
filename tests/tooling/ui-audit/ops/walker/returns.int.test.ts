@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
+
 // Complete-denominator control for the capped relational sample return (#984).
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";

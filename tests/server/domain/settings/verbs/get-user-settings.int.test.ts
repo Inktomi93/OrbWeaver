@@ -1,5 +1,6 @@
 // verb: getUserSettings — a never-touched account reads the parsed defaults with `updatedAt: 0` and NO
 // row written (the read/write asymmetry); a written account reads back its stored config.
+// @subject packages/server/src/domain/settings/verbs/get-user-settings.ts
 
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { userSettings } from "@orb/db";

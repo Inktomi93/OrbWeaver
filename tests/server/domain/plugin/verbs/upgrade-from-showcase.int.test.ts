@@ -9,6 +9,7 @@
 //     own source (the takeover this domain refuses);
 //   - #615's wall is UNCHANGED because the bytes go through the same `upgrade`: a bundle that WIDENS declared
 //     reach lands the row disabled + pendingReconsent rather than quietly gaining authority.
+// @subject packages/server/src/domain/plugin/verbs/upgrade-from-showcase.ts
 
 import { pluginKv } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

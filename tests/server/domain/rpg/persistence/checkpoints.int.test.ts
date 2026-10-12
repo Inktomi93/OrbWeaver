@@ -27,6 +27,7 @@ describe("create + list", () => {
     const snap = await insertSnapshot(db, {
       id: snapshotId("s1"),
       gameId,
+      // @orb-waive no-loose-id-cast(`message_${chatId}_1`): baselined when the gate widened; burn-down item 906.
       messageId: `message_${chatId}_1` as never,
       variantId,
       location: "camp",
@@ -51,6 +52,7 @@ describe("restore", () => {
     const base = await insertSnapshot(db, {
       id: snapshotId("s1"),
       gameId,
+      // @orb-waive no-loose-id-cast(`message_${chatId}_1`): baselined when the gate widened; burn-down item 906.
       messageId: `message_${chatId}_1` as never,
       variantId: first.variantId,
       location: "camp",
@@ -96,6 +98,7 @@ describe("the RESTRICT belt", () => {
     const snap = await insertSnapshot(db, {
       id: snapshotId("s1"),
       gameId,
+      // @orb-waive no-loose-id-cast(`message_${chatId}_1`): baselined when the gate widened; burn-down item 906.
       messageId: `message_${chatId}_1` as never,
       variantId,
       location: "camp",

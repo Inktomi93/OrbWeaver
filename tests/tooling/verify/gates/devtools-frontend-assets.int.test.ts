@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+
 // The `devtools-frontend-assets` family test (#1584). Everything a PROOF ROW can express now lives in the
 // module's own `mustFlag`/`mustPass`/`mustRefuse` rows and runs on the static bar through
 // `structure:policy-conformance`; this file carries only what a row structurally cannot.
@@ -8,6 +10,7 @@
 // nothing forever — silent-because-dead reading exactly like silent-because-clean. The two arms below are a
 // virtual OVERLAY on the real root: the clean one asserts the live verdict and the receipt census, the
 // broken one asserts the policy REPORTS on the real subject.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";

@@ -64,12 +64,12 @@ import type {
   RpgSnapshotState,
 } from "@orb/contracts/rpg";
 import {
-  RPG_TOOL_CALL_VERDICTS,
   rpgCheckpointTriggerSchema,
   rpgGameConfigSchema,
   rpgGameModeSchema,
   rpgGameStatusSchema,
   rpgJournalTypeSchema,
+  rpgRecordedToolCallSchema,
   rpgSheetSchema,
   rpgSnapshotStateSchema,
 } from "@orb/contracts/rpg";
@@ -87,6 +87,7 @@ export const CHAT_BUNDLE_EXT = ".orb.json";
 
 // ── the canonical shape (POSITIONAL refs, NAME-level re-links) ────────────────────────────────────────────
 
+// @orb-waive contract-structural-copy(PortableChatVariant): baselined when the gate widened; burn-down item 904.
 /** One swipe of a message, with the orb-only economics + `variableDelta` the ST arm cannot carry. */
 export interface PortableChatVariant {
   readonly idx: number;
@@ -121,6 +122,7 @@ export interface PortableChatMessage {
   readonly variants: readonly PortableChatVariant[];
 }
 
+// @orb-waive contract-structural-copy(PortableChatInjection): baselined when the gate widened; burn-down item 904.
 /** One `chat_injections` row — the per-chat prose plane that replaced the room-override author's-note twin
  *  (owner ruling 2026-08-01) and that the ST arm can only carry ONE of, one-way. */
 export interface PortableChatInjection {
@@ -281,9 +283,7 @@ const wireInjectionSchema = z.object({
 // precedent) — and `satisfies` pins it to the contract so a field change fails tsc here rather than silently
 // dropping data from a restore.
 const wireRecordedToolCallSchema = z.object({
-  name: z.string(),
-  args: z.string(),
-  verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
+  ...rpgRecordedToolCallSchema.shape,
   issues: z
     .array(z.string())
     .catch([])

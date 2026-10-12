@@ -50,6 +50,7 @@ export interface ShareStartFailure {
   readonly message: string;
 }
 
+// @orb-waive no-inline-wire-interface(ShareFactsView): baselined when the gate widened; burn-down item 904.
 /** The facts the rows read: the boot-fixed sign-in mode, the two seating settings and the last start refusal. */
 export interface ShareFactsView {
   readonly mode: AuthMode;
@@ -58,6 +59,7 @@ export interface ShareFactsView {
   readonly refusal: ShareStartRefusal | null;
 }
 
+// @orb-waive no-inline-wire-interface(PreconditionRow): baselined when the gate widened; burn-down item 904.
 export interface PreconditionRow {
   readonly id: SharePrecondition;
   readonly verdict: PreconditionVerdict;
@@ -234,6 +236,7 @@ export interface IpCertificateFormValues {
 /** A fresh offer: no address, and the ports it suggests, 8443 for https and 8080 for the port-80 check. */
 export const IP_CERTIFICATE_FORM_DEFAULTS: IpCertificateFormValues = { address: "", httpsPort: 8443, challengePort: 8080 };
 
+// @orb-waive no-inline-wire-interface(IpCertificateRefusalView): baselined when the gate widened; burn-down item 904.
 /** The coded refusal off a failed `share.enableIpCertificate`, with the server's sentence naming the fix. */
 export interface IpCertificateRefusalView {
   readonly code: IpCertificateRefusal;

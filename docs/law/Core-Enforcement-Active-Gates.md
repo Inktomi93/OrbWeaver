@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(358 registered gates)
+(367 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -103,6 +103,7 @@ in its own module header, never restated here.
 | `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
 | `contract-banned-shapes` | — | hard/error | @contracts | a ledger-REJECTED contract shape has… |
 | `contract-derives-not-respells` | — | reviewed-grant/error | @server,@contracts,@db | a domain contract/ re-spells a shape… |
+| `contract-structural-copy` | contract-derives-not-respells | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
 | `contract-verb-presence` | — | reviewed-grant/error | @server,@tests\* | a \*Service interface declares a verb… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
@@ -166,6 +167,7 @@ in its own module header, never restated here.
 | `injected-op-caller-param` | — | ordinary/error | @server,@kit | a cross-domain op takes an entity id… |
 | `injected-op-caller-param-health` | injected-op-caller-param | hard/error | @server,@kit,@db | either the injected-op-caller-param… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
+| `json-column-read-parsed` | open-json-column-key-parity | ordinary/error | @server\* | typed JSON column read by cast — the… |
 | `json-column-write-parity` | — | reviewed-grant/error | @db,@server,@contracts\* | WHOLE-RECORD REPLACE of a JSON column… |
 | `json-column-write-parity-health` | json-column-write-parity | hard/error | @db,@server,@contracts\* | DERIVED NOTHING — no text(..., {… |
 | `knob-wire-coverage` | — | reviewed-grant/error | @contracts,@server,@client,@ui | a declared knob is wired to nothing —… |
@@ -213,13 +215,14 @@ in its own module header, never restated here.
 | `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
 | `no-inline-invalidate-outside-seam` | tanstack-query-origin | reviewed-grant/error | @client | an inline invalidateQueries call… |
 | `no-inline-optimistic-in-surface` | tanstack-query-origin | ordinary/error | @authored\* | Optimistic-mutation plumbing… |
-| `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling\* | exported type/zod-schema outside a… |
+| `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests\* | exported type/zod-schema outside a… |
 | `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
+| `no-inline-wire-interface` | no-inline-types | ordinary/error | @server,@inference,@client\* | exported wire-named interface outside… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
 | `no-legacy-react-api` | react-origin | ordinary/error | @authored | a legacy React API: cloneElement,… |
-| `no-loose-id-cast` | id-brand-flow | ordinary/error | @product | a cast bypasses branded-id type… |
+| `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
 | `no-manual-autosave-flush` | — | ordinary/error | @client\* | this features/\*\* function body calls… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
 | `no-manual-memo-compiler-health` | — | hard/error | @tooling\* | the installed React Compiler no… |
@@ -276,7 +279,7 @@ in its own module header, never restated here.
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |
 | `persistence-no-in-memory-state` | — | ordinary/error | @authored\* | an ambient Map/Set/WeakMap/WeakSet is… |
 | `placeholder-copy-registry` | registry-definitions | ordinary/error | @client | a SectionDefinition's placeholder is… |
-| `platform-spellings` | — | ordinary/error | @product | a superseded pre-node-26 spelling —… |
+| `platform-spellings` | — | ordinary/error | @product,@tests | a superseded pre-node-26 spelling —… |
 | `playwright-css-topology` | css-home-topology | hard/error | @client,@tests | Playwright CT must derive the ordered… |
 | `playwright-lane-outside-fast-check` | — | hard/error | @tooling | browser-mode test suffixes (.ct.tsx,… |
 | `plugin-dump-guard` | — | hard/error | @server\* | a QuickJS membrane ctx.dump can… |
@@ -346,16 +349,20 @@ in its own module header, never restated here.
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
 | `test-executable-mode` | tooling-os-neutral | hard/error | @tests | an executable Git mode on a test… |
 | `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
+| `test-file-size` | component-size | reviewed-grant/error | @tests | a test-tree file exceeds 1000 lines —… |
 | `test-fixture-imports` | — | ordinary/error | @authored\* | a test/it/expect binding bypasses the… |
+| `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
 | `test-no-stubs` | — | hard/error | @tests | stub test contains no assertions… |
 | `test-presence-client` | mirror-index | hard/error | @client,@ui\* | client data/forms/state primitive has… |
+| `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
 | `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
 | `testid-typed-only` | — | ordinary/error | @client | freeform data-testid string — use the… |
+| `testid-typed-only-stories` | testid-typed-only | ordinary/error | @tests\* | freeform data-testid string in a CT… |
 | `tests-package-subpath` | — | hard/error | @tests | a test reaches into a package's… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
 | `tokens-contract` | — | hard/error | none | the token vault violates the pinned… |
@@ -378,6 +385,7 @@ in its own module header, never restated here.
 | `tooling-runner-config-literals` | plumbing-literals | hard/error | none | a runner-config literal outside its… |
 | `tooling-size` | — | hard/error | @tooling\* | a @orb/tooling source file exceeds… |
 | `tooling-slot-template` | — | hard/error | @tooling | a @orb/tooling tree entry violates… |
+| `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
 | `tsconfig-entry-liveness` | grant-liveness | reviewed-grant/error | none | a FILE-EXACT include/exclude entry in… |
 | `tsconfig-entry-liveness-health` | grant-liveness | hard/error | none | the tsconfig roster parsed but ZERO… |
@@ -403,6 +411,7 @@ in its own module header, never restated here.
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
 | `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |
 | `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
+| `wire-json-parsed-at-consumer` | — | ordinary/error | @client | a response body is cast instead of… |
 | `wire-schema-vocab-one-home` | — | reviewed-grant/error | @server,@kit,@inference\* | a JSON-Schema wire keyword vocabulary… |
 | `z-index-tier-health` | ui-z-index-tier | hard/error | @client,@ui | the reviewed z-index home set or… |
 | `z-index-tier-permission` | ui-z-index-tier | reviewed-grant/error | @client,@ui | reviewed z-index implementation home… |
@@ -430,6 +439,8 @@ is the separate dead-code/dead-export/dead-dependency lane, live in `pnpm check`
 
 Scans `packages/**` (TS + TSX + CSS) for structural duplication the per-file rules can't see.
 On-demand, not pre-commit: `pnpm cpd` / `pnpm cpd:report`. Gate: 2% duplication threshold.
+`pnpm cpd:tests` (`jscpd.tests.json`) scans `tests/` alone with the same settings and holds its duplicated share at
+the measured ratchet in that config (Spine-Testing.md §10).
 
 ## Layer 6 — Stryker (`stryker.config.js` + `stryker.gate.config.js`) — mutation testing
 

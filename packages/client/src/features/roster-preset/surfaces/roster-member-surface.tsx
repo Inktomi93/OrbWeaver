@@ -32,6 +32,7 @@ import { rosterRuleKnobGloss, rulesetLine } from "../lib/roster-copy.ts";
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
 function memberInputsOf(view: RosterPresetView): {
+  // @orb-waive contract-structural-copy(kind): baselined when the gate widened; burn-down item 904.
   kind: "character";
   characterId: CharacterId;
   position: number;

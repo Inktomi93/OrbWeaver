@@ -3,6 +3,7 @@
 // lifted to another owner or sealed under another provider id WON'T decrypt — the GCM tag mismatch becomes the
 // typed config error), the metadata `auth` discriminator → secret KIND, and the revoked/missing/foreign →
 // no-credential floor with no silent fallback. Real db + real SecretBox.
+// @subject packages/server/src/domain/credentials/verbs/resolve.ts
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";

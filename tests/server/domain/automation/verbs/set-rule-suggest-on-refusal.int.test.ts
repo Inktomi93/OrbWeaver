@@ -11,6 +11,7 @@
 //     folded into the PUT, toggling it would have cost a host the saved-cast lineage
 //     (D170) they never touched. Without this assertion nothing in the tree
 //     would notice that regression.
+// @subject packages/server/src/domain/automation/verbs/set-rule-suggest-on-refusal.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "../../../../support/fixtures.ts";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(SVGPathElement): baselined when the gate widened to value casts; burn-down item 906.
+
 // <Icon> CT (ui-package-design §6.1 icons seal) — the lucide glyph renders at the named type-scale
 // px const, decorative by default, accessible when labelled, and the three appearance axes
 // (weight / fill / partialFill) land as RENDERED SVG, asserted on computed values and real geometry
@@ -87,6 +89,7 @@ test("nonScalingStroke keeps the rendered px weight identical at xs and lg", asy
 test("fill=none is the default and paints nothing", async ({ mount }) => {
   const component = await mount(<StarIconStory />);
   await expect(component).toHaveAttribute("fill", "none");
+  // @orb-waive no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(async () => await component.evaluate((el) => getComputedStyle(el.querySelector("path") as Element).fill)).toBe("none");
   await expect(component.locator("defs")).toHaveCount(0);
 });
@@ -95,6 +98,7 @@ test("fill=solid rides lucide's own fill pass-through down to the path, in curre
   const component = await mount(<StarIconStory fill="solid" />);
   await expect(component).toHaveAttribute("fill", "currentColor");
   const { pathFill, svgColor } = await component.evaluate((el) => ({
+    // @orb-waive no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
     pathFill: getComputedStyle(el.querySelector("path") as Element).fill,
     svgColor: getComputedStyle(el).color,
   }));

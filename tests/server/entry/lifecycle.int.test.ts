@@ -4,6 +4,7 @@
 // box: healthz reports 503 and the listener stops accepting. env is stubbed BEFORE the dynamic import so
 // `foundation/env` parses the throwaway config (it is frozen at module load).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";

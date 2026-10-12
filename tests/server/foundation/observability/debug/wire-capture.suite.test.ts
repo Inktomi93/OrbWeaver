@@ -14,6 +14,7 @@
 // `tests/server/foundation/env/index.test.ts` uses, extended to reimport the observability barrel (which
 // transitively reimports env) rather than env alone.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

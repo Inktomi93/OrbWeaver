@@ -96,7 +96,7 @@ function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): Roster
 test("a solo room converts to a group: the character bar and Group-behavior section appear live while Members remains available", async ({ page }) => {
   const characters = await mintCharacters(2);
   const title = `e2e-group-convert-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: [characters.characterIds[0] ?? ""], title });
+  const chat = await startGroupChat({ characterIds: characters.characterIds.slice(0, 1), title });
   try {
     await openChatByTitle(page, title);
     await openDetailPanel(page);

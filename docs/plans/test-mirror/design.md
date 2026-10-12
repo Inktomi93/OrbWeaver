@@ -25,9 +25,9 @@ Do the steps in order. A later step may run in parallel only where its row says 
 
 ### Live state
 
-- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel. Item 899 first half (law rewrite, reach gate, waiver budget), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
+- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel. Item 899 (law rewrite, reach gate, waiver budget, and the gates for Spine-Testing section 10), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
 - In flight: item 900 core (gate extensions, baselines, catalog, `pnpm ast antipatterns`), reworked after a refuted review.
-- Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), item 899 second half (section 10 gates), items 914, 915, 920 and 921.
+- Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), items 914, 915, 920 and 921.
 - Next: item 890 (move copied logic to its owning layer, starting with the four widest server harnesses), item 888, item 892, item 894, item 901, item 902, then item 898 after item 887.
 
 ### Rules that hold during the work
@@ -35,7 +35,7 @@ Do the steps in order. A later step may run in parallel only where its row says 
 - Do not add a new per-file mirror test beyond what the current gate forces. Prefer a feature suite.
 - Do not mass-move test files. Folding happens when a lane touches an area.
 - Mutation testing is out of scope.
-- The persona-resolution suite's test code stays untouched; its comments may change (owner, 2026-10-11).
+- The persona-resolution suite's test code stays untouched; its comments may change (owner ruling).
 
 ### Burn down the waivers
 
@@ -49,6 +49,19 @@ The law is the specification. Where a gate enforces less than the law text says,
 - Gate extensions, in this order: widen `no-inline-domain-interface` to server, inference and client with a wire-name rule; add a structural copy rule to `contract-derives-not-respells`; add a JSON-column parse-on-read sibling to the open-json-column family; add a test-local contract-copy sibling to `no-test-fabrication`; add a `trpc-input-declarations` sibling; add one client rule that `.json()` results are parsed.
 - Production gates that skip tests, cheapest first: `no-vanity-alias`, `zod-modern-spellings`, `zod-error-issues-home`, `zod-export-membership`, Biome `noEmptyPattern` and `noBarrelFile`, then `tsdoc/syntax`; then baseline `no-inline-types` with a test home rule, `no-loose-id-cast` after its multi-line token fix, and `platform-spellings`.
 - Every package declares its internal cake with pinned dependency-cruiser rules: inference first, then tooling, kit and contracts, then default-content, showcase-plugins and plugin-toolchain.
+
+### How a gate is raised
+
+Owner rulings for every gate change in this plan.
+
+- **Reuse the tuned detectors.** `pnpm ast` already judges column writes by receiver type (`tooling/src/ast/lib/columns.ts`), row reads by type including destructuring (`column-reads.ts`), and structural copies by checker assignability (`respell-shapes.ts`). A gate needs the same judgement, so it imports that detector rather than a second spelling. Verify may not import ast, so a shared detector moves to a floor home that both import, and the ast verb's output must not change. Tooling may import `@orb/kit`.
+- **Judge by type and declaration, never by name.** A write is a drizzle write builder, a parse is a call that reaches a zod parse, and a row is a select result. A method name, a callee name or a type-name suffix is a heuristic that hides false negatives.
+- **Fix a false positive in the gate.** A waiver marks real debt under a burn-down item that can clear it. A waiver on a site the gate should not flag is a gate defect, and so is a deleted waiver that hid a real finding.
+- **Prove each spelling.** Every caught spelling gets a planted failing control and every accepted shape a passing control, shown red first.
+- **Baseline at the measured count.** The lane that widens a gate does not fix the findings it surfaces. It writes each existing hit as a waiver naming its burn-down item, and the burn-down item fixes them. The policy's budget row in `tooling/src/verify/lib/waiver-budget.ts` equals the measured count of a complete run. A row only falls. A rise means a new finding to fix, never a row to raise (gate-runtime-standardization section 5).
+- **Red is expected.** A stricter gate turns main red until its debt burns down. Never weaken a gate, add a waiver or loosen a test to get green. A lane whose own work is green commits through a red that lies outside its work with `LEFTHOOK_EXCLUDE=check`, and the message names the red and the owed check. A red in the lane's own files is fixed.
+- **Lanes run focused checks only.** A lane runs `structure --check <gate>` without `--application`, single test files and scoped typecheck. The application-scope structure run and `pnpm ast antipatterns` run once, at merge, by the orchestrator.
+- **Survey before editing.** A lane writes down its whole work set first, found with codegraph, `pnpm ast` and ast-grep in both TS and TSX with scanned counts. rg is a second method for a negative claim, never the first search.
 
 ### Contract enforcement fixes
 
@@ -114,7 +127,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 
 **894, seeders.** Local seeders in `tests/db/schema` with a fake content hash; raw settings and preset mutations in two live specs where `trpc.ts` helpers exist.
 
-**899 second half, gates for Spine-Testing §10.** The design and false-positive classes are in the inference-tooling-gates report: the reach gate, the @subject header, an advisory clone census, a hand-shape detector, extending no-test-fabrication to non-literal casts and test-mock-doctrine to spies on internal modules.
+**899 second half, gates for Spine-Testing §10.** The gates are `test-hand-shape`, `test-production-clone`, `test-file-size`, the value-cast check in `no-test-fabrication`, the spy check in `test-mock-doctrine` and the `cpd:tests` ratchet. Their baselined findings name items 888, 890 and 906; the spies and the oversized files still need a burn-down item.
 
 ## Rejected
 

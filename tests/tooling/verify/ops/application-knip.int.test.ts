@@ -1,4 +1,5 @@
 // The composed native argv must keep application issues and imported tooling reach, not just a selected config name.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { existsSync, lstatSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { devNull } from "node:os";
 import { join } from "node:path";

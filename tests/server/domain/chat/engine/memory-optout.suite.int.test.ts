@@ -8,6 +8,7 @@
 // `mode:"off"` (no summarizer call, no digest rows) — while an enabled turn still builds. Drives the REAL
 // engine + REAL `generateDigests`/`generateSegments` (not fixture twins).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";

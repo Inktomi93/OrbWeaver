@@ -105,6 +105,7 @@ export type OidcExchange = (config: Configuration, callbackUrl: URL, tx: OidcTra
  *  already uses for discovery. */
 export type OidcCodeGrant = typeof authorizationCodeGrant;
 
+// @orb-waive contract-structural-copy(ForwardJwtClaims): baselined when the gate widened; burn-down item 904.
 export interface ForwardJwtClaims {
   handle: Handle | undefined;
   externalId: ExternalId | null;

@@ -1,8 +1,8 @@
 // The auth bootstrap seam — the client's only pre-tRPC session read (sessions.me is an authed procedure
 // that 401s logged-out, so the client can't discover auth state through tRPC). Lives in data/ beside
 // `auth-config.ts`: HTTP-route egress gets ONE data/ fetch fn each (fetch-fn-in-features gate) — features
-// import the fns, never hand-write `fetch`. Response shape is a structural mirror of
-// entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
+// import the fns, never hand-write `fetch`. The `/api/auth/me` response is
+// `AuthMe` from `@orb/contracts/identity` (the endpoint lives outside AppRouter).
 
 import type {
   PendingJoinConfirmRequest,
@@ -19,7 +19,7 @@ import {
   signedOutInvitePreviewSchema,
   signupResultSchema,
 } from "@orb/contracts/chat";
-import type { UserRole } from "@orb/contracts/identity";
+import type { AuthMe } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -27,13 +27,6 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { postSessionMessage, sessionDocument } from "#lib";
 import { clearJoinStash } from "./session-resume.ts";
-
-/** The `/api/auth/me` wire shape — THIS request's seam-resolved identity (public; never a 401). */
-export interface AuthMe {
-  readonly authenticated: boolean;
-  readonly handle: Handle | null;
-  readonly role: UserRole | null;
-}
 
 export const AUTH_ME_KEY = ["auth", "me"] as const;
 
@@ -51,6 +44,7 @@ async function getJson<T>(url: string): Promise<T> {
   if (!res.ok) {
     throw new Error(`${url}: HTTP ${res.status}`);
   }
+  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
   return (await res.json()) as T;
 }
 

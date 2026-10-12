@@ -11,6 +11,7 @@ import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
 /** The owner's characters' assistant replies per (character, UTC quarter-hour), ascending by bucket. */
 export async function readMomentumBuckets(db: Db, ownerId: string): Promise<MomentumBucket[]> {
+  // @orb-waive contract-structural-copy(characterId): baselined when the gate widened; burn-down item 904.
   const rows = await db.all<{ characterId: CharacterId; name: string; bucketStart: number; replies: number }>(sql`
     SELECT m.character_id AS characterId, MIN(c.name) AS name,
            ${calendarBucketStartSql(sql`m.created_at`)} AS bucketStart, COUNT(*) AS replies

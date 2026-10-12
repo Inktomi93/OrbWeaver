@@ -1,7 +1,9 @@
 // verbs/quest/delete-quest — deleteQuest (docs/plans/rpg/design.md). Removes a quest from the current resolved
 // snapshot's array and CLEARS its `quests.<id>` lock (the symmetric grammar — no ghost lock). Not-found on a
 // missing id. Asserted at the resolved snapshot.
+// @subject packages/server/src/domain/rpg/verbs/quest/delete-quest.ts
 
+// @orb-waive-file no-loose-id-cast("q_ghost"): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

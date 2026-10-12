@@ -43,6 +43,7 @@ import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlit
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
 
+// @orb-waive no-vanity-alias(PROVIDER_FALLBACK): baselined when the gate widened; burn-down item 906.
 // The `(unknown)` provider sentinel — see header. Mirrors `@orb/kit/stats-tally.modelKey`'s null-coalesce
 // and the read-side model/latency keys; all three MUST stay aligned (invariant #5).
 const PROVIDER_FALLBACK = MODEL_PROVIDER_UNKNOWN;

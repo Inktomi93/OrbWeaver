@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";

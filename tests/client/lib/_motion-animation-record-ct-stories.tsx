@@ -1,6 +1,10 @@
 // Real-browser story for motion-animation-record.ct.tsx. Kept outside the test module because
 // Playwright CT mounts importable stories, not locally declared components.
 
+// @orb-waive-file testid-typed-only-stories("application-transition"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("concurrent-transition"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("library-transition"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("waapi-animation"): baselined when the gate widened; burn-down item 906.
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { activeAnimations, installAnimationLifecycleRecorder } from "#client/lib/motion-animation-record.ts";

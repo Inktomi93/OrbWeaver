@@ -1,4 +1,5 @@
 // verbs: markAllRead · dismiss — recipient-scoping (a user can't touch another's inbox) + idempotence.
+// @subject packages/server/src/domain/notifications/verbs/read.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

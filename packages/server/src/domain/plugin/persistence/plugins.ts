@@ -61,11 +61,15 @@ export function toPluginView(row: PluginRow, showcaseSlugs: ReadonlySet<string>)
     sourceCommit: row.sourceCommit,
     updateSource: updateSourceFor(row, showcaseSlugs),
     grantedCapabilities: row.grantedCapabilities,
+    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     declaredCapabilities: row.manifest.capabilities,
+    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     netHosts: row.manifest.netHosts ?? null,
     reconsentPending: row.pendingReconsent,
     widenedNetHosts: row.widenedNetHosts,
+    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     builtAgainst: row.manifest.builtAgainst ?? null,
+    // @orb-waive json-column-read-parsed(manifest): baselined when the gate widened; burn-down item 905.
     description: row.manifest.description,
     lastError: row.lastError,
     installedAt: row.installedAt,

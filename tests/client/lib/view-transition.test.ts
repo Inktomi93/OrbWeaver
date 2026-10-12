@@ -49,6 +49,7 @@ describe("withViewTransition", () => {
 
   test("defers follow-up work until this task's visual transition has finished", async () => {
     let finish: (() => void) | undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const finished = new Promise<void>((resolve) => {
       finish = resolve;
     });
@@ -79,6 +80,7 @@ describe("withViewTransition", () => {
     const firstFinished = new Promise<void>((_, reject) => {
       skipFirst = (): void => reject(abort);
     });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const secondFinished = new Promise<void>((resolve) => {
       finishSecond = resolve;
     });
@@ -99,6 +101,7 @@ describe("withViewTransition", () => {
     withViewTransition(() => undefined);
     runAfterViewTransition(effect);
     // The first transition's destination hold must be over before a second one can supersede it.
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 20));
     withViewTransition(() => undefined);
     // Starting the second transition is what skips the first.

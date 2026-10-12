@@ -527,5 +527,8 @@ patchedDependencies:
   ts-morph@28.0.0: patches/ts-morph@28.0.0.patch
   # TRACE enables the runner diagnostic: inspect bounds Vitest resolved-config cycles without changing execution.
   '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch
+  # cmdk's group sort looked a group up by its heading text but keyed it by its internal id, so groups never
+  # reordered and the best match could sit under a lower group. The patch keys the lookup by the group id.
+  cmdk@1.1.1: patches/cmdk@1.1.1.patch
 
 nodeOptions: "--max-old-space-size=16384"

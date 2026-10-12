@@ -7,6 +7,24 @@
 // component that executes post-mount in the real browser context, never at the `.ct.tsx` call site —
 // the same "build the branded shape inside the story" precedent `MessageRowStory` sets for `Map`s).
 
+// @orb-waive-file testid-typed-only-stories("active-section"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("archived-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("bulk-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("bulk-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("chatted-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("content-region"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("context-region"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-fake-detail-section"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("deep-link"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("deleted-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("duplicated-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("gallery-target"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("list-band"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("refinery-session"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("replace-selection-clear"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("selected-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("starred-id"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("started-chat"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import {

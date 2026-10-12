@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
 import { seedCharacter as seedCharacterRow } from "../../../../support/factories/character.ts";
 // persistence/queries — owner-scoped reads + the avatar LEFT JOIN + the card parse-seam. Load-bearing: the
 // ownership predicate lives in the WHERE (a non-owner read returns undefined, never another user's row);

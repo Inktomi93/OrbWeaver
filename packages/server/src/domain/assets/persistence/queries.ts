@@ -33,6 +33,7 @@ interface AssetMetadataRow {
   readonly size: number;
 }
 
+// @orb-waive contract-structural-copy(AssetCasRef): baselined when the gate widened; burn-down item 904.
 interface AssetCasRef {
   readonly kind: AssetKind;
   readonly ownerId: UserId;

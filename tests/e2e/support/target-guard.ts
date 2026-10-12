@@ -16,6 +16,7 @@
 // `E2E_ALLOW_DEV_TARGET=1` is the ONE deliberate override (an operator-supervised live drive against their
 // own configured stack); it waives BOTH arms, because "I accept a non-harness target" is one decision.
 
+// @orb-waive-file no-test-fabrication({ readonly harness?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { DEV_PORTS } from "@orb/tooling/floor/host/ports";
 import type { ModeProject } from "./modes.ts";
 

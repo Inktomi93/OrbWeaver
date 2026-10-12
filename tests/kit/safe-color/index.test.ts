@@ -2,6 +2,7 @@
 // vector rejects OUTRIGHT (never sanitized). Both the ui render clamps and the contracts wire
 // clamp ride this one function — these pins are the shared security floor.
 
+// @orb-waive-file no-test-fabrication({ dependencies?: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";

@@ -1,4 +1,5 @@
 // verb: pruneUnusedTags — deletes only zero-usage tags; returns the removed count.
+// @subject packages/server/src/domain/tag/verbs/prune.ts
 
 import { characterTags } from "@orb/db";
 import { createTagService } from "@orb/server/domain/tag";

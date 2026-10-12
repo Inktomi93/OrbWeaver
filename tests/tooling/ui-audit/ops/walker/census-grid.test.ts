@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(CensusRow): baselined when the gate widened to value casts; burn-down item 906.
+
 // LAW 4's POPULATION GATE, EXECUTED (#1156) — the arms the CLI cannot reach.
 //
 // `off-grid-text` judged SCREEN-READER-ONLY text: the predicate that names it lived inside

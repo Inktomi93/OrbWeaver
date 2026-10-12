@@ -39,6 +39,7 @@ function buildPatch(
   params: UpdatePresetParams,
   now: number,
 ): {
+  // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
   name?: string;
   kind?: string;
   config?: PromptConfig;

@@ -1,7 +1,9 @@
 // verb: listGallery — gallery v2 (§1.3). Owner-scoped via the asset join (no stamped owner column),
 // optional subject and room filters, keyset paging by (createdAt, galleryItemId) in both date orders. Also
 // covers the character SET NULL FK: deleting the subject character nulls `subjectCharacterId`.
+// @subject packages/server/src/domain/assets/verbs/list-gallery.ts
 
+// @orb-waive-file platform-spellings(items): baselined when the gate widened; burn-down item 906.
 import type { GalleryCursor, GalleryItemView, GallerySort } from "@orb/contracts/assets";
 import { ASSET_LIST_LIMIT_MAX, GALLERY_SORTS } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";

@@ -1,9 +1,9 @@
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 // verb: generatePicture — the P5 free-mode orchestrator. Proves against a real libSQL
 // db: a returned base64 image is decoded, stored as a `kind:"generated"` asset (via the injected CAS write),
 // a matching `imagery_generations` provenance row is written (store-THEN-provenance), one economics delta is
 // recorded, and the `GeneratedPicture` carries a D44 media block. The infra executor + role resolver + CAS
 // write are stubs (imagery declares their port; the composition root binds the real infra).
+// @subject packages/server/src/domain/imagery/verbs/generate-picture.ts
 
 import type { Db } from "@orb/db";
 import { assets, characters, chats, galleryItems, imageryGenerations } from "@orb/db";
@@ -18,6 +18,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
 import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner, seedOwner } from "../_support.ts";

@@ -39,6 +39,7 @@ interface ConvergedPresetInsert extends PresetInsert {
   forkedFrom: PresetId;
 }
 
+// @orb-waive contract-structural-copy(PresetPatch): baselined when the gate widened; burn-down item 904.
 /** A partial patch over an owned row — only the present keys are written; `updatedAt` is always bumped. */
 interface PresetPatch {
   name?: string;

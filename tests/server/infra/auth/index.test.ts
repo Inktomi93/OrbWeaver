@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import type { RelayedFallbackNotice } from "@orb/server/infra/auth";
 import { resolve } from "@orb/server/infra/auth";
 import { describe, vi } from "vitest";

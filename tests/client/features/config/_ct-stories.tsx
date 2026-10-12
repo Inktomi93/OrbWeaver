@@ -17,6 +17,9 @@
 // of its own. Their old home, `tests/client/features/settings/_ct-stories.tsx`, reached `ConfigHostStory`
 // across a directory; here it is a local function.
 
+// @orb-waive-file testid-typed-only-stories("looks-narrow-host"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("looks-tail"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("scrolling-host"): baselined when the gate widened; burn-down item 906.
 import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";

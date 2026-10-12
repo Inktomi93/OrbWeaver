@@ -9,6 +9,7 @@
 // `@orb/contracts/discovery` (D34 one-home) and this test pins `duplicate_chat_pairs.relation.enumValues`
 // to that imported tuple. `relation` lives ONLY on the chat table (characters have no fork lineage, D28).
 
+// @orb-waive-file no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
 import { RELATIONS } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import {
@@ -46,6 +47,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { makeCharacter, seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
@@ -56,18 +58,6 @@ const DIM = 1024;
 const MODEL = "qwen3-vl";
 function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
-}
-
-async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
-  const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(`card-${id}`),
-    ownerId,
-    contentHash: "hash-card",
-    name: "Card",
-  });
-  return characterId;
 }
 
 async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId: UserId): Promise<ChatDigestId> {
@@ -107,7 +97,7 @@ async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId:
     .onConflictDoNothing();
   await db
     .insert(characters)
-    .values({ id: groupChar, handle: castId<CharacterHandle>("group"), ownerId, contentHash: "hash-card", name: "Group" })
+    .values(makeCharacter({ id: groupChar, handle: castId<CharacterHandle>("group"), ownerId, name: "Group" }))
     .onConflictDoNothing();
   await db.insert(chatDigests).values({
     id: digestId,
@@ -158,8 +148,8 @@ test("relation lives ONLY on duplicate_chat_pairs and derives the contracts RELA
 test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/similarity reals, no ownerId)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dcp", handle: castId<Handle>("h-user_dcp") });
-  const a = await seedCharacter(db, ownerId, "character_aaa");
-  const b = await seedCharacter(db, ownerId, "character_bbb");
+  const { id: a } = await seedCharacter(db, { id: castId<CharacterId>("character_aaa"), ownerId });
+  const { id: b } = await seedCharacter(db, { id: castId<CharacterId>("character_bbb"), ownerId });
   const id = castId<DuplicateCharacterPairId>("duplicate_character_pair_one");
 
   await db.insert(duplicateCharacterPairs).values({
@@ -186,8 +176,8 @@ test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/simila
 test("deleting a character CASCADEs its duplicate_character_pairs rows (D24 — physics, no sweep)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dcp_casc", handle: castId<Handle>("h-user_dcp_casc") });
-  const a = await seedCharacter(db, ownerId, "character_aaa");
-  const b = await seedCharacter(db, ownerId, "character_bbb");
+  const { id: a } = await seedCharacter(db, { id: castId<CharacterId>("character_aaa"), ownerId });
+  const { id: b } = await seedCharacter(db, { id: castId<CharacterId>("character_bbb"), ownerId });
   await db.insert(duplicateCharacterPairs).values({
     id: castId<DuplicateCharacterPairId>("duplicate_character_pair_casc"),
     characterIdA: a,
@@ -226,8 +216,8 @@ test("duplicate_chat_pairs.relation CHECK rejects a non-member value", async () 
 test("duplicate_character_pairs canonical CHECK rejects a non-A<B order and a self-pair", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dcp_canon", handle: castId<Handle>("h-user_dcp_canon") });
-  const a = await seedCharacter(db, ownerId, "character_aaa");
-  const b = await seedCharacter(db, ownerId, "character_bbb");
+  const { id: a } = await seedCharacter(db, { id: castId<CharacterId>("character_aaa"), ownerId });
+  const { id: b } = await seedCharacter(db, { id: castId<CharacterId>("character_bbb"), ownerId });
 
   // a > b (B placed first) violates `character_id_a < character_id_b`.
   let caughtOrder: unknown;
@@ -300,7 +290,7 @@ test("keyword_cooccurrence canonical CHECK rejects a non-A<B order and a self-pa
 test("duplicate_character_pairs enforces its FKs (a missing character is rejected)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dcp_fk", handle: castId<Handle>("h-user_dcp_fk") });
-  const a = await seedCharacter(db, ownerId, "character_aaa");
+  const { id: a } = await seedCharacter(db, { id: castId<CharacterId>("character_aaa"), ownerId });
   let caught: unknown;
   try {
     await db.insert(duplicateCharacterPairs).values({
@@ -321,8 +311,8 @@ test("duplicate_character_pairs enforces its FKs (a missing character is rejecte
 test("duplicate_character_pairs unique index rejects the same canonical pair twice", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dcp_uniq", handle: castId<Handle>("h-user_dcp_uniq") });
-  const a = await seedCharacter(db, ownerId, "character_aaa");
-  const b = await seedCharacter(db, ownerId, "character_bbb");
+  const { id: a } = await seedCharacter(db, { id: castId<CharacterId>("character_aaa"), ownerId });
+  const { id: b } = await seedCharacter(db, { id: castId<CharacterId>("character_bbb"), ownerId });
   await db.insert(duplicateCharacterPairs).values({
     id: castId<DuplicateCharacterPairId>("duplicate_character_pair_u1"),
     characterIdA: a,
@@ -428,7 +418,7 @@ test("keyword_cooccurrence KEEPS ownerId (D23), is owner×keyword-pair unique, a
 test("character_keyword_profiles DERIVE ownerId (no column), FK character CASCADE, unique(character,keyword)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ckp", handle: castId<Handle>("h-user_ckp") });
-  const characterId = await seedCharacter(db, ownerId, "character_ckp");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ckp"), ownerId });
   const id = castId<CharacterKeywordProfileId>("character_keyword_profile_one");
   await db.insert(characterKeywordProfiles).values({ id, characterId, keyword: "brooding", count: 4 });
 
@@ -460,7 +450,7 @@ test("character_keyword_profiles DERIVE ownerId (no column), FK character CASCAD
 test("character_summaries is keyed by characterId, DERIVE ownerId (no column), and CASCADEs on character delete", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_cs", handle: castId<Handle>("h-user_cs") });
-  const characterId = await seedCharacter(db, ownerId, "character_cs");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cs"), ownerId });
   await db.insert(characterSummaries).values({
     characterId,
     genre: "fantasy",

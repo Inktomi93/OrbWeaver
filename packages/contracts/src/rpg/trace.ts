@@ -5,23 +5,24 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { RPG_BUS_EVENT_TYPES } from "./bus.ts";
 import { RPG_DELIVERY_PATHS, RPG_FOLD_FALLBACK_REASONS } from "./config.ts";
-import type { RpgRecordedToolCall } from "./extraction.ts";
-import { RPG_TOOL_CALL_VERDICTS } from "./extraction.ts";
+import { rpgRecordedToolCallSchema } from "./extraction.ts";
 
-/** How a state round ended; the settle event's and the settle hook's shared vocabulary.
- *  `dropped` carries the refused field in `droppedReason`; `readonly` means no round ran at all. */
+/** HOW A STATE ROUND ENDED — one importable union, the settle event's and the settle hook's shared
+ *  vocabulary (never re-spelled at either site). The members are the arms of `flushTurn`:
+ *  - `wrote`: the snapshot (and any journal) committed.
+ *  - `no-writes`: the round ran and staged nothing (the quiet beat; the 8B model's commonest end).
+ *  - `dropped`: the write-boundary backstop refused a contract-invalid state (`droppedReason` says which
+ *    field), so canon is untouched.
+ *  - `cancelled`: the caller pressed Stop, at either gate; whatever was staged was discarded.
+ *  - `readonly`: this game's resolved connection has no write path, so NO round ran at all.
+ *  - `failed`: something threw out of the round, the write boundary, or the tool-call disclosure. The
+ *    settle still fires (from the `finally`) BEFORE the throw propagates, because a barrier that only
+ *    releases on success hangs to its timeout on exactly the turn a reader most needs to see. */
 export const RPG_FLUSH_OUTCOMES = ["wrote", "no-writes", "dropped", "cancelled", "readonly", "failed"] as const;
 export type RpgFlushOutcome = (typeof RPG_FLUSH_OUTCOMES)[number];
 
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
 const turnIdSchema = typeIdSchema(ID_PREFIX.chatTurn);
-
-const rpgRecordedToolCallSchema = z.strictObject({
-  name: z.string(),
-  args: z.string(),
-  verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
-  issues: z.array(z.string()).readonly(),
-}) satisfies z.ZodType<RpgRecordedToolCall>;
 
 /** The per-turn trace event, discriminated on `phase`. `flush` is the delivery-path fork raised at dispatch;
  *  `flushed` is the write boundary's own settle event and the only one a barrier may poll. */

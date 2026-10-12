@@ -1,5 +1,6 @@
 // .int tests for `previewSchemaPlan`: the draft the plan judges is the one a refinery run would send (belted and
 // projected closed), and a draft the belt refuses has no plan.
+// @subject packages/server/src/domain/refinery/verbs/preview-schema-plan.ts
 
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

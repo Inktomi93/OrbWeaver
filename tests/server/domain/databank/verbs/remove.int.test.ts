@@ -1,5 +1,6 @@
 // verb: remove — delete an owned document; the DB CASCADE clears its document_chunks + all scope-junction
 // rows. A foreign/missing id throws DocumentNotFoundError.
+// @subject packages/server/src/domain/databank/verbs/remove.ts
 
 import { chatDocuments, documentChunks, documents, globalDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

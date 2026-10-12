@@ -96,7 +96,7 @@ export const gate = defineGate({
   family: "id-brand-flow",
   authority: "ordinary",
   severity: "error",
-  population: "@product",
+  population: ["@product", "@tests"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -145,9 +145,15 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: { "tests/server/domain/x/verb.test.ts": "export const y = value as never;\n" },
+      expect: { count: 1, token: "value" },
+      why: "tests are judged: a test-side `as never` is the same disabled check as a product one",
+    },
+    {
+      mode: "types",
       files: { "packages/server/src/x.ts": "export const x = (async () => value) as never;\n" },
-      expect: { count: 1, token: "async " },
-      why: "A PARENTHESIZED OPERAND IS STILL NAMEABLE (#2197). Reported on the UNWRAPPED arrow, so the coordinate is its leading paren-free slice `async ` rather than the parenthesized text, which starts with `(` and would be refused as permanently unwaivable (#2107) — withholding the whole policy. That is not hypothetical: `check-gates.repo.int`'s `__g_vpcr` fixture, planted for a DIFFERENT gate (retired 2026-09-13 with that gate's conversion; these bytes survive only here), was `(async (a: never) => await loadCanonHistory(a, a)) as never`, and it took the barrier's planter to a tool-error exit 2 with this policy reporting zero violations. This row pins the anchor so the paren-leading coordinate cannot come back unnoticed",
+      expect: { count: 1, token: "async" },
+      why: "A PARENTHESIZED OPERAND IS STILL NAMEABLE (#2197). Reported on the UNWRAPPED arrow, so the coordinate is its leading paren-free slice `async` rather than the parenthesized text, which starts with `(` and would be refused as permanently unwaivable (#2107) — withholding the whole policy. That is not hypothetical: `check-gates.repo.int`'s `__g_vpcr` fixture, planted for a DIFFERENT gate (retired 2026-09-13 with that gate's conversion; these bytes survive only here), was `(async (a: never) => await loadCanonHistory(a, a)) as never`, and it took the barrier's planter to a tool-error exit 2 with this policy reporting zero violations. This row pins the anchor so the paren-leading coordinate cannot come back unnoticed",
     },
     {
       mode: "types",
@@ -224,8 +230,8 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/server/src/clean.ts": "export const clean = true;\n", "tests/server/x.test.ts": "export const x = value as never;\n" },
-      why: "tests are outside this policy population",
+      files: { "packages/server/src/clean.ts": "export const clean = true;\n", "scripts/x.ts": "export const x = value as never;\n" },
+      why: "scripts are outside this policy population; tests are inside it (the `as never` test row in mustFlag)",
     },
     {
       mode: "types",

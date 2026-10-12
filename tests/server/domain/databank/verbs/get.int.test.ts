@@ -1,5 +1,6 @@
 // verb: get — owner-scoped fetchOwned. Load-bearing: returns the detail view (extractedText ONLY with
 // includeText); a foreign/missing id throws DocumentNotFoundError (no existence leak).
+// @subject packages/server/src/domain/databank/verbs/get.ts
 
 import type { DocumentId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

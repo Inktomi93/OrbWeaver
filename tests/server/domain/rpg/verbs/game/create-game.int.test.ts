@@ -1,6 +1,7 @@
 // verbs/game/create-game — createGame (docs/plans/rpg/design.md). Pins the knob default-identity (`gmPresetId`
 // NULL, `extractionMode` "folded"), the `createGame("full")` → RpgModeUnbuilt PHASE refusal, the
 // pointer-fired-once assertion, and the authority arms — all asserted at the ROW (assert-the-mutation-fired).
+// @subject packages/server/src/domain/rpg/verbs/game/create-game.ts
 
 import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";

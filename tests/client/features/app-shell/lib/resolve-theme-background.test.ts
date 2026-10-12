@@ -42,6 +42,7 @@ const NONE: ThemeBackground = { kind: "none", externalUrl: "", assetId: "", asse
 const HUMAN = makeParticipant({ kind: "human", characterId: null, displayName: "Alex" });
 const HUMAN2 = makeParticipant({ kind: "human", characterId: null, displayName: "Sam" });
 
+// @orb-waive no-vanity-alias(cast): baselined when the gate widened; burn-down item 906.
 /** The COMMITTED-room arm: a `getChat` roster projected into the cast the resolver reads. */
 const cast = carriedAppearanceFromParticipants;
 

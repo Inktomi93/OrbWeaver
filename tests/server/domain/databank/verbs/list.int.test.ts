@@ -7,6 +7,7 @@
 // the only population where a server-side lens and a client-side one differ: the pane used to filter the
 // ≤150 loaded rows, so a term matching only a document on page 4 read as "no matches" over a bank that
 // plainly contains it. Each pin below puts its match out of reach of the first page on purpose.
+// @subject packages/server/src/domain/databank/verbs/list.ts
 
 import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/databank";
 import type { DocumentId, Handle } from "@orb/kit/ids";

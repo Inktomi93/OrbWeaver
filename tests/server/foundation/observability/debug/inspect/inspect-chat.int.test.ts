@@ -23,6 +23,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { inspectChatState } from "@orb/server/foundation/observability/debug";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
+import { makeCharacter } from "../../../../../support/factories/character.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../../support/inference-identities.ts";
 
@@ -53,13 +54,14 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
   });
 
   const characterId = mintTypeId(ID_PREFIX.character);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>("card-inspect"),
-    ownerId: userId,
-    contentHash: "hash-inspect",
-    name: "Aria",
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id: characterId,
+      handle: castId<CharacterHandle>("card-inspect"),
+      ownerId: userId,
+      name: "Aria",
+    }),
+  );
 
   const chatId = mintTypeId(ID_PREFIX.chat);
   await db.insert(chats).values({ id: chatId });

@@ -1,4 +1,5 @@
 // verb: listGlobal — the caller's globally-attached scripts, in EXECUTION order (position, then createdAt).
+// @subject packages/server/src/domain/regex/verbs/attachments/list-global.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

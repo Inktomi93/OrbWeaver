@@ -36,13 +36,14 @@
 // SEED (owner rule): NEVER seed the "Mira" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
+// @orb-waive-file no-test-fabrication(readonly { readonly content?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
-import type { ActorRefInput, TrackerActor, TrackerView } from "./support/trpc.ts";
+import type { ActorRefInput, TrackerActor, TrackerDefInput, TrackerView } from "./support/trpc.ts";
 import {
   abortTurn,
   addJournalEntry,
@@ -86,7 +87,7 @@ const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern
 // SPEC 1's actor-subject tracker defs. Hoisted because `rpg.updateConfig`'s `trackers` is a WHOLE-LIST
 // replace (the ONE def door since the tracked-field unification — there is no additive "add a widget" call),
 // so a later def write that names only its own tracker DELETES these.
-const ACTOR_TRACKER_DEFS: readonly Record<string, unknown>[] = [
+const ACTOR_TRACKER_DEFS: readonly TrackerDefInput[] = [
   { key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 10, pinned: true },
   { key: "trust", label: "Trust", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 },
   { key: "secret", label: "Secret", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" },

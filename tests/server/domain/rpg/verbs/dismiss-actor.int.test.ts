@@ -4,6 +4,7 @@
 // at all (omission never removes, no tool removes an actor, the hand image could not, and even a resync
 // merges through the same additive plane). These tests pin the three couplings ONE gesture owns — the state
 // row, the scene-presence row, and the element's locks — because half a dismissal is a ghost.
+// @subject packages/server/src/domain/rpg/verbs/dismiss-actor.ts
 
 import type { Db } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";

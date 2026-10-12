@@ -3,6 +3,8 @@
 // that user; the heal clears the stale pointer so the row is writable again, and does not touch a row that
 // has nothing stale to clear.
 
+// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(userId): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";

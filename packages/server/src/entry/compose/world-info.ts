@@ -58,6 +58,7 @@ export interface WorldInfoComposeDeps {
   readonly character: Pick<CharacterService, "mintSyntheticGroupCharacter" | "getCard">;
 }
 
+// @orb-waive no-inline-wire-interface(WorldInfoComposeResult): baselined when the gate widened; burn-down item 904.
 /** The world-info compose product: the service + the import ports + the bulk importers + the owner resolver. */
 export interface WorldInfoComposeResult {
   readonly worldInfo: WorldInfoService;

@@ -3,7 +3,9 @@
 // throwing and yields every transport `Services` key plus the boot handles. This proves the injection graph
 // wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
+// @orb-waive-file no-test-fabrication({ spanName?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
@@ -864,6 +866,7 @@ async function seededEmbedder(result: Awaited<ReturnType<typeof buildGatedGraph>
 async function runQueued(result: Awaited<ReturnType<typeof buildGatedGraph>>, rows: readonly (typeof workloads.$inferSelect)[]): Promise<unknown[]> {
   const outcomes = await Promise.allSettled(
     rows.map(async (row) => {
+      // @orb-waive no-test-fabrication({ readonly run:): baselined when the gate widened to value casts; burn-down item 906.
       const contribution = result.workloadContributions[row.kind] as { readonly run: (...args: readonly unknown[]) => Promise<unknown> };
       return await contribution.run(
         { userId: row.ownerId, ownerId: row.ownerId, now: createFrozenClock().now },

@@ -8,6 +8,7 @@
 // exactly the contract the crunch said was broken, so the CT reads the attributes rather than the form
 // state that feeds them. Each field's root is addressable by `data-slot="field-root"` + its label.
 
+// @orb-waive-file testid-typed-only-stories("avatar-asset-id"): baselined when the gate widened; burn-down item 906.
 import { useAppForm } from "@orb/client/forms/editor";
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";

@@ -41,6 +41,7 @@ import { viewerTimeZone } from "#lib";
 
 /** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
 const useRewriteGreetingMutation = createEntityMutation<
+  // @orb-waive contract-structural-copy(characterId): baselined when the gate widened; burn-down item 904.
   { characterId: CharacterId; greeting: string; steer: string; transforms?: GreetingTransformId[] | undefined; timeZone: string },
   inferOutput<Trpc["character"]["rewriteGreeting"]>
 >({

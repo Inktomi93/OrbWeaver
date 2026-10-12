@@ -163,12 +163,10 @@ test("a surface that never stops scrolling away refuses by name with the rect it
 // @instrument-proof: #2430 — A CANDIDATE'S OWN COMPUTED `display` IS BLIND TO A HIDDEN ANCESTOR. The anchor
 // picked "the first candidate whose own computed display/visibility is not none/hidden", and CSS resolves a
 // child of a `display:none` subtree to its DECLARED value, so an unrendered node passed that filter, handed
-// back an all-zero rect and could never be anchored. Measured on the live shell 2026-09-19 at
-// desktop 1280x800 on `home`: the row `opposite-os-app-prepaint` judges
-// `:is(.shell-topbar-title, .shell-topbar-jump-label)`, whose FIRST match is the topbar's narrow identity
-// title — `display:block`, `visibility:visible`, `checkVisibility() === false`, parent `display:none`,
-// rect all zeros — while the genuinely rendered `.shell-topbar-jump-label` sits 39x20 at x=1109 later in
-// document order. `--matrix` spent 8 scroll attempts on the phantom and aborted cell v04 with no verdict.
+// back an all-zero rect and could never be anchored. On desktop the row `opposite-os-app-prepaint` judges a
+// union whose FIRST match is the topbar's narrow identity title — `display:block`, `visibility:visible`,
+// `checkVisibility() === false`, parent `display:none`, rect all zeros — while the rendered ink of the union
+// sits later in document order.
 //
 // @instrument-absence-proof: the second arm is the planted control in the other direction — with NO rendered
 // candidate behind the phantom, the anchor still refuses by its own "reaches no rendered candidate" name, so

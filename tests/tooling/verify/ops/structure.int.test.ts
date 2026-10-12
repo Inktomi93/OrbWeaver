@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ run: RunView }): baselined when the gate widened to value casts; burn-down item 906.
+
 // RUN COMPLETENESS (#410) — the planted-control proof that `reports/check-structure.json` cannot be read
 // as a verdict unless the run that wrote it actually finished and reconciled.
 //
@@ -10,6 +13,7 @@
 // THE FOUR ABNORMAL ARMS ARE THE POINT. Before #410 all four left the PREVIOUS run's complete-looking
 // artifact on disk, which every reader the doctrine sends there ("read the report, never re-run") would
 // consume as this run's clean verdict.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

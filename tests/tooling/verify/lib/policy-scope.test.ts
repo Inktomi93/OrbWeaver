@@ -1,5 +1,7 @@
 // The final policy runtime's one scope boundary: Git defines authored/current/change identity, TypeScript
 // defines program membership, and every request resolves to the same validated manifest shape.
+// @orb-waive-file no-loose-id-cast(request): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ kind: "whole", extra: true }): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

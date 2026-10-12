@@ -5,7 +5,9 @@
 // #677 made it DRIVER-SCOPED: a name resolves on the driver's own contributor shelf, falling back to the
 // first-party one. The pins below are what say a name alone no longer identifies an entry — two users
 // legitimately hold the same namespaced plugin tool name, and each must get THEIR copy.
+// @subject packages/server/src/domain/tool-use/verbs/resolve-tools.ts
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";

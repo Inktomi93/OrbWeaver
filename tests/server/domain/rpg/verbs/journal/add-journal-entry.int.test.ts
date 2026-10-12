@@ -1,5 +1,6 @@
 // verbs/journal/add-journal-entry — addJournalEntry (docs/plans/rpg/design.md). A hand entry stamps
 // `variantId: NULL` (every-lineage room note). Asserted at the persisted row + the lineage-projected read.
+// @subject packages/server/src/domain/rpg/verbs/journal/add-journal-entry.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

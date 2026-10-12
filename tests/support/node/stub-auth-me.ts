@@ -1,10 +1,10 @@
-// CT stub for the public `/api/auth/me` probe, typed by the client's own `AuthMe` so a renamed wire field
+// CT stub for the public `/api/auth/me` probe, typed by the contracts' `AuthMe` so a renamed wire field
 // turns every stub red instead of shipping an untyped JSON literal.
 
+import type { AuthMe } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page, Request } from "@playwright/test";
-import type { AuthMe } from "#client/data/auth-bootstrap.ts";
 
 export const SIGNED_OUT_ME: AuthMe = { authenticated: false, handle: null, role: null };
 export const SIGNED_IN_OWNER_ME: AuthMe = { authenticated: true, handle: castId<Handle>("owner"), role: "owner" };

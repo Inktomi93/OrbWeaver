@@ -43,6 +43,7 @@ import { useActiveRosterChat, useRoomGameCapture, useRosterRuleCapture, useRuleP
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, rulesetLine } from "../lib/roster-copy.ts";
 
+// @orb-waive no-vanity-alias(SavedRosterSummary): baselined when the gate widened; burn-down item 906.
 /** Derived, not re-minted (no-inline-types): the hook's own return shape. */
 type SavedRosterSummary = RosterPresetSummary;
 

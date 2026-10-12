@@ -39,17 +39,22 @@ const LIMIT_ONE = 1;
  *  own `.default()`s for the born-nullable planes. */
 function composeState(row: typeof rpgSnapshots.$inferSelect): RpgPortableSnapshot["state"] {
   return {
+    // @orb-waive json-column-read-parsed(clock): baselined when the gate widened; burn-down item 905.
     clock: row.clock ?? null,
     calendarDate: row.calendarDate,
     location: row.location,
+    // @orb-waive json-column-read-parsed(weather): baselined when the gate widened; burn-down item 905.
     weather: row.weather ?? null,
     // Spread, not pass-through: the columns are `$type<readonly …[]>` and the composed contract shape is
     // zod-inferred (mutable). One copy at the read boundary, never a cast.
     presentCharacters: [...(row.presentCharacters ?? [])],
     recentEvents: [...(row.recentEvents ?? [])],
+    // @orb-waive json-column-read-parsed(actorState): baselined when the gate widened; burn-down item 905.
     actorState: [...(row.actorState ?? [])],
     trackerValues: row.trackerValues ?? {},
+    // @orb-waive json-column-read-parsed(quests): baselined when the gate widened; burn-down item 905.
     quests: [...(row.quests ?? [])],
+    // @orb-waive json-column-read-parsed(plot): baselined when the gate widened; burn-down item 905.
     plot: row.plot ?? null,
     fieldLocks: row.fieldLocks ?? null,
   };
@@ -85,8 +90,10 @@ export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): Exp
       mode: game.mode,
       status: game.status,
       sessionNumber: game.sessionNumber,
+      // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
       config: game.config,
       createdAt: game.createdAt,
+      // @orb-waive json-column-read-parsed(sheet): baselined when the gate widened; burn-down item 905.
       sheets: sheetRows.map((row): RpgPortableSheet => ({ characterId: row.characterId, sheet: row.sheet })),
       snapshots: snapshotRows.map(
         (row): RpgPortableSnapshot => ({

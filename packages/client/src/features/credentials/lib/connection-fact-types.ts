@@ -40,6 +40,7 @@ export interface NumberBound {
   readonly reads: string;
 }
 
+// @orb-waive no-inline-wire-interface(FactRow): baselined when the gate widened; burn-down item 904.
 export interface FactRow {
   /** The DOTTED path from the `declared` block's root (`features.prefill`, `generation.context.window`) —
    *  the React key, the subject of the row's `Override`/`Reset` accessible name, and the write target. */

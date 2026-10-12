@@ -5,6 +5,7 @@
 // The fixture deliberately CUSTOMIZES one guided template and leaves everything else untouched: the
 // Default/Customized chip's derivation ("empty IS the default") is only observable against both states.
 
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";

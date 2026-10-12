@@ -33,6 +33,7 @@ test("native product Node collection includes every application runtime kind wit
     },
   );
   expect(result.code, result.stderr).toBe(0);
+  // @orb-waive no-test-fabrication(readonly { readonly file: string; readonly projectName: string }[]): baselined when the gate widened to value casts; burn-down item 906.
   const rows = JSON.parse(readFileSync(output, "utf8")) as readonly { readonly file: string; readonly projectName: string }[];
   const files = rows.map(({ file }) => relative(repoRoot, file).replaceAll("\\", "/")).toSorted();
   const expected = readPolicyRepositoryInventory(repoRoot)
@@ -95,6 +96,7 @@ test("native type-assertion collection retains all application worlds and exclud
       },
     );
     expect(result.code, result.stderr).toBe(0);
+    // @orb-waive no-test-fabrication(readonly { readonly file: string; readonly projectName: string }[]): baselined when the gate widened to value casts; burn-down item 906.
     const rows = JSON.parse(readFileSync(output, "utf8")) as readonly { readonly file: string; readonly projectName: string }[];
     return rows.map(({ file, projectName }) => `${relative(repoRoot, file).replaceAll("\\", "/")}:${projectName}`).toSorted();
   };

@@ -3,6 +3,7 @@
 // DomainNotFoundError (leak-free). Upsert-guarded → a duplicate add is idempotent (returns the existing
 // item) for BOTH subject shapes: the composite unique index cannot fire on a NULL subject, so the
 // un-charactered half rides its own partial unique index (#1375) and is pinned here at the VERB layer.
+// @subject packages/server/src/domain/assets/verbs/add-to-gallery.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

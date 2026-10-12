@@ -29,6 +29,7 @@ const useAbortMutation = createEntityMutation<AbortVars, unknown>({
   errorToast: "Couldn't stop generation.",
 });
 
+// @orb-waive no-inline-wire-interface(UseStopTurnResult): baselined when the gate widened; burn-down item 904.
 export interface UseStopTurnResult {
   readonly phase: TurnSlot["phase"];
   /** `pending` or `streaming` — a live turn with nothing yet asking it to stop. */

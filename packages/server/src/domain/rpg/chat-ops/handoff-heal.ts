@@ -65,6 +65,7 @@ async function gmPresetStatements(ctx: RpgContext, game: NonNullable<Awaited<Ret
   return [clearGmPresetStatement(ctx.db, game.id, ctx.now())];
 }
 
+// @orb-waive contract-structural-copy(HandoffHealArgs): baselined when the gate widened; burn-down item 904.
 /** The call args — chat's `HandoffHealArgs` shape, satisfied structurally (rpg declares its own copy rather
  *  than importing a sibling's type: the foreign-op-shape precedent). */
 interface HandoffHealArgs {

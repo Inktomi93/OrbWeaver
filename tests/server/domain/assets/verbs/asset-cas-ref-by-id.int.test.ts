@@ -1,6 +1,7 @@
 // verb: assetCasRefById — the un-principal by-id `(ownerId, hash, mime)` lookup (D20). Feeds the chat
 // image-resolution gate: `ownerId` drives the chat-scoped reference-check, `mime` the data-URI. It reads the
 // row by id ALONE (no owner scope), returns owner + hash + mime, and returns undefined for a gone id.
+// @subject packages/server/src/domain/assets/verbs/asset-cas-ref-by-id.ts
 
 import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

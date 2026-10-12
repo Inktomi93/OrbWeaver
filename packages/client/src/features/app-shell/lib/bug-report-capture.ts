@@ -44,6 +44,7 @@ const CAPS = { flags: 128, motionShifts: 32, motionLoafs: 64, busEvents: 64 } as
 
 const NO_BRIDGE_REASON = "window.__orb was not installed — this page is not a dev build, so no in-page census exists";
 
+// @orb-waive no-inline-wire-interface(BugReportCaptureInput): baselined when the gate widened; burn-down item 904.
 /** What the capture needs from the caller: the note, the ask, and the clock. Everything else it reads. */
 export interface BugReportCaptureInput {
   readonly note: string;

@@ -4,6 +4,43 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("burst-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("cache-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("carried-cast"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-remount-frame"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-revoke-session"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-wake-tab"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("durable-local-user"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("frame-src"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("freshness"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("gated-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ghost-row"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("held-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("husk-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("inline-error"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("invalidation-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("macro-lead"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("macro-names"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("online-status"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("open-refinery-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("overlap-tag-list"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("owned-count"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("refinery-cache-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rendered-body"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("reserve-probe"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("seed-preset"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("seeded-room"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("session-bind-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("session-recovery-modal"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("sibling-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("start-chat-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("surface-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("tag-list"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("upload-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("viewer-handle"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("wire-payload"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import type { CardFrameRequest, PluginDisplayRow, PluginFrameRequest } from "@orb/client/data";
 import {

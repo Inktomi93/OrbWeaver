@@ -132,6 +132,7 @@ export const GREETING_SLOTS_MAX = 100;
 /** The last greeting slot the CARD can hold — an index above it addresses a greeting that cannot exist,
  *  so a rewrite carrying one is unapplicable by construction. DERIVED, so the pair can never drift. */
 const GREETING_INDEX_MAX = GREETING_SLOTS_MAX - 1;
+// @orb-waive no-vanity-alias(GREETING_INDEXES_MAX): baselined when the gate widened; burn-down item 906.
 /** Greeting slots one selection may name (every slot the card can hold). */
 const GREETING_INDEXES_MAX = GREETING_SLOTS_MAX;
 /** Host-authored session label (the card `NAME_MAX` twin — a roster row's label, not prose). */

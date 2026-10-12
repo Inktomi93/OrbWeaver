@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(JscpdConfig): baselined when the gate widened to value casts; burn-down item 906.
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -9,6 +11,7 @@ import { scaledBudget } from "./_load-budget.ts";
 
 const RUN_BUDGET_MS = scaledBudget(30_000);
 const CONFIG = join(process.cwd(), "jscpd.json");
+const TESTS_CONFIG = join(process.cwd(), "jscpd.tests.json");
 
 interface JscpdReport {
   readonly duplicates: readonly {
@@ -76,6 +79,11 @@ function runCpd(root: string, config: string, output: string): ReturnType<typeof
   });
 }
 
+function readReport(output: string): JscpdReport {
+  // @orb-waive no-test-fabrication(JscpdReport): jscpd's JSON report is a third-party file with no schema in this repo, and the test reads two of its fields; ends if a jscpd report reader lands in tooling.
+  return JSON.parse(readFileSync(join(output, "jscpd-report.json"), "utf8")) as JscpdReport;
+}
+
 function duplicatePairs(report: JscpdReport): readonly string[] {
   return report.duplicates.map(({ firstFile, secondFile }) => [basename(firstFile.name), basename(secondFile.name)].toSorted().join(" ↔ "));
 }
@@ -102,7 +110,7 @@ test("native CPD covers package and tooling implementation while excluding non-i
     const result = await runCpd(root, fixtureConfig, output);
     expect(result.code, result.stderr || result.stdout).toBe(1);
 
-    const report = JSON.parse(readFileSync(join(output, "jscpd-report.json"), "utf8")) as JscpdReport;
+    const report = readReport(output);
     expect(report.statistics.total.sources).toBe(4);
     const pairs = duplicatePairs(report);
     expect(pairs).toContain("package-a.ts ↔ package-b.ts");
@@ -118,9 +126,36 @@ test("native CPD covers package and tooling implementation while excluding non-i
     const exposedOutput = join(root, "vendor-exposed-report");
     const exposedResult = await runCpd(root, exposedConfig, exposedOutput);
     expect(exposedResult.code, exposedResult.stderr || exposedResult.stdout).toBe(1);
-    const exposedReport = JSON.parse(readFileSync(join(exposedOutput, "jscpd-report.json"), "utf8")) as JscpdReport;
+    const exposedReport = readReport(exposedOutput);
     expect(exposedReport.statistics.total.sources).toBe(6);
     expect(duplicatePairs(exposedReport)).toContain("vendor-a.css ↔ vendor-b.css");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the tests-only ratchet scans tests/ alone and fails a copy above its threshold", { timeout: RUN_BUDGET_MS }, async () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-cpd-tests-"));
+  try {
+    const fixtureConfig = join(root, "jscpd.tests.json");
+    writeFileSync(fixtureConfig, readFileSync(TESTS_CONFIG));
+    plant(root, "tests/client/unique.ct.tsx", TOOLING_CLONE);
+    plant(root, "packages/example/src/package-a.ts", PACKAGE_CLONE);
+    plant(root, "packages/example/src/package-b.ts", PACKAGE_CLONE);
+
+    // The passing control: the package twins are jscpd.json's population, so a tests tree with no copy is clean.
+    const clean = await runCpd(root, fixtureConfig, join(root, "clean-report"));
+    expect(clean.code, clean.stderr || clean.stdout).toBe(0);
+    const cleanReport = readReport(join(root, "clean-report"));
+    expect(cleanReport.statistics.total.sources).toBe(1);
+
+    plant(root, "tests/server/domain/a.int.test.ts", PACKAGE_CLONE);
+    plant(root, "tests/server/domain/b.int.test.ts", PACKAGE_CLONE);
+    const copied = await runCpd(root, fixtureConfig, join(root, "copied-report"));
+    expect(copied.code, copied.stderr || copied.stdout).toBe(1);
+    const copiedReport = readReport(join(root, "copied-report"));
+    expect(copiedReport.statistics.total.sources).toBe(3);
+    expect(duplicatePairs(copiedReport)).toEqual(["a.int.test.ts ↔ b.int.test.ts"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

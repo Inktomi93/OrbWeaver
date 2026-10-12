@@ -15,6 +15,7 @@ import { GUIDED_ACTION_KINDS, TEMPLATE_CLUSTERS, TEMPLATE_DEFS, TEMPLATE_KINDS }
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { isPresetProseSlotId, PROSE_SLOTS } from "@orb/contracts/prose";
 
+// @orb-waive no-inline-wire-interface(TemplateRow): baselined when the gate widened; burn-down item 904.
 /** One registry row, resolved for the client: the def plus which slot shape it edits. */
 export interface TemplateRow {
   readonly def: TemplateDef;

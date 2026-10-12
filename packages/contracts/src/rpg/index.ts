@@ -174,6 +174,7 @@ export {
   rpgExtractionSchema,
   rpgPopulateSchema,
   rpgPopulateSheetSchema,
+  rpgRecordedToolCallSchema,
   salvagedToolCallFields,
   salvageExtraction,
   salvagePopulate,

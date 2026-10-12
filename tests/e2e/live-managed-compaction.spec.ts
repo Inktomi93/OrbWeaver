@@ -31,18 +31,20 @@ import { expect, test } from "@playwright/test";
 import { gotoChatsList } from "./support/chat-room.ts";
 import {
   claudeSubConnection,
+  createPreset,
   getChatBinding,
   getUserSettings,
   listCanon,
   mintFreshCharacter,
   previewContextFit,
   removeCharacter,
+  removePreset,
   restoreChatBinding,
   sendTurn,
   setChatBinding,
+  setPresetMaxContextTokens,
   startChat,
-  trpcMutation,
-  trpcQuery,
+  updateSettingsSection,
 } from "./support/trpc.ts";
 
 /** Why a run without a Claude-subscription connection reports UNAVAILABLE rather than failing or passing. */
@@ -176,16 +178,12 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
   }
   const priorChatBinding = await getChatBinding();
   await setChatBinding(claudeSub.id); // managed compaction is agent-sdk-only, and only `claude-sub` serves it
-  const tinyPreset = await trpcMutation("preset.create", { name: "e2e-managed-stable", kind: "chat" });
+  const tinyPreset = await createPreset("e2e-managed-stable");
   try {
     // Point the user default at a preset carrying a STABLE maxContextTokens (no per-send override → a stable cap
     // each turn, not the first test's changing-cap fork; at this tiny ceiling the session clears each turn — see header).
-    const created = await trpcQuery("preset.get", { id: tinyPreset.id });
-    await trpcMutation("preset.update", {
-      id: tinyPreset.id,
-      config: { ...created.config, params: { ...created.config.params, maxContextTokens: STABLE_CEILING } },
-    });
-    await trpcMutation("settings.updateUserSettingsSection", { section: "seeds", patch: { defaultPresetId: tinyPreset.id } });
+    await setPresetMaxContextTokens(tinyPreset.id, STABLE_CEILING);
+    await updateSettingsSection("seeds", { defaultPresetId: tinyPreset.id });
 
     const chatId = await startChat([characterId]);
     // A TOLERANT send: on a stable-cap session the accumulated transcript can momentarily overflow the SDK before a
@@ -230,8 +228,8 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
     // (covered) turns fell out of the prompt rather than the whole transcript still fitting.
     expect(post.boundaryMessageId).not.toBe(canon[0]?.id ?? null);
   } finally {
-    await trpcMutation("settings.updateUserSettingsSection", { section: "seeds", patch: { defaultPresetId: priorDefaultPresetId ?? null } });
-    await trpcMutation("preset.remove", { id: tinyPreset.id });
+    await updateSettingsSection("seeds", { defaultPresetId: priorDefaultPresetId ?? null });
+    await removePreset(tinyPreset.id);
     await restoreChatBinding(priorChatBinding);
     await removeCharacter(characterId);
   }

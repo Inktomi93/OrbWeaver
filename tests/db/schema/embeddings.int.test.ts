@@ -30,7 +30,6 @@ import { isConstraintViolation } from "@orb/db/query";
 import type {
   AssetId,
   CharacterEmbeddingId,
-  CharacterHandle,
   CharacterId,
   ChatDigestId,
   ChatSegmentId,
@@ -43,6 +42,7 @@ import type {
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
@@ -78,18 +78,6 @@ async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask): Pro
   return id;
 }
 
-async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
-  const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(`card-${id}`),
-    ownerId,
-    contentHash: "hash-card",
-    name: "Card",
-  });
-  return characterId;
-}
-
 async function seedAsset(db: Db, ownerId: UserId, id: string): Promise<AssetId> {
   const assetId = castId<AssetId>(id);
   await db.insert(assets).values({
@@ -112,7 +100,7 @@ test("image_embeddings.lens enum mirrors IMAGE_LENSES (db derives the contracts 
 test("character_embeddings round-trips a 1024-dim Float32 blob + content_hash + branded id", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ce", handle: castId<Handle>("h-user_ce") });
-  const characterId = await seedCharacter(db, ownerId, "character_ce");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ce"), ownerId });
   const id = castId<CharacterEmbeddingId>("character_embedding_one");
   const vec = rampVector();
 
@@ -146,10 +134,11 @@ test("character_embeddings round-trips a 1024-dim Float32 blob + content_hash + 
 test("content_hash is NOT NULL — a vector write missing it is rejected", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ch", handle: castId<Handle>("h-user_ch") });
-  const characterId = await seedCharacter(db, ownerId, "character_ch");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ch"), ownerId });
   let caught: unknown;
   try {
     // @orb-waive no-test-fabrication(never): the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (contentHash omitted). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
     await db.insert(characterEmbeddings).values({
       id: castId<CharacterEmbeddingId>("character_embedding_nohash"),
       characterId,
@@ -168,7 +157,7 @@ test("content_hash is NOT NULL — a vector write missing it is rejected", async
 test("character_embeddings is UNIQUE per (characterId, model) — a duplicate collides (upsert target)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_cem", handle: castId<Handle>("h-user_cem") });
-  const characterId = await seedCharacter(db, ownerId, "character_cem");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cem"), ownerId });
 
   await db.insert(characterEmbeddings).values({
     id: castId<CharacterEmbeddingId>("character_embedding_cem_a"),
@@ -201,7 +190,7 @@ test("character_embeddings is UNIQUE per (characterId, model) — a duplicate co
 test("character_embeddings.hubScore is a FLOAT — a fractional value round-trips as a number", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_hub", handle: castId<Handle>("h-user_hub") });
-  const characterId = await seedCharacter(db, ownerId, "character_hub");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_hub"), ownerId });
   const id = castId<CharacterEmbeddingId>("character_embedding_hub");
   // A CSLS mean-cosine FLOAT (the `real` column type) — discovery would write it; here we assert the type.
   const hubScore = 0.73;
@@ -225,7 +214,7 @@ test("character_embeddings.hubScore is a FLOAT — a fractional value round-trip
 test("no vector table carries an ownerId column (D20 — owner-scope derives from the producer FK)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_no_owner", handle: castId<Handle>("h-user_no_owner") });
-  const characterId = await seedCharacter(db, ownerId, "character_no_owner");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_no_owner"), ownerId });
   const assetId = await seedAsset(db, ownerId, "asset_no_owner");
   const chatId = await seedChat(db, { id: "chat_no_owner" });
 
@@ -344,6 +333,7 @@ test("image_embeddings.lens CHECK rejects a non-member lens value", async () => 
       id: castId<ImageEmbeddingId>("image_embedding_bad"),
       assetId,
       embedding: rampVector(),
+      // @orb-waive no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
       lens: "nope" as never,
       contentHash: "h",
       model: MODEL,
@@ -377,6 +367,7 @@ test("image_index_skips.reason CHECK rejects a non-member reason value", async (
   const assetId = await seedAsset(db, ownerId, "asset_badreason");
   let caught: unknown;
   try {
+    // @orb-waive no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
     await db.insert(imageIndexSkips).values({ assetId, reason: "nope" as never });
   } catch (err) {
     caught = err;
@@ -397,7 +388,7 @@ test("image_index_skips CASCADEs when its asset is deleted (owner-scope derives 
 test("chat_digests round-trips its distilled `text` body + topicAnchor + keywords (the {{memory}} fill)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dtext", handle: castId<Handle>("h-user_dtext") });
-  const characterId = await seedCharacter(db, ownerId, "character_dtext");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_dtext"), ownerId });
   const chatId = await seedChat(db, { id: "chat_dtext" });
   const id = castId<ChatDigestId>("chat_digest_text");
   await db.insert(chatDigests).values({
@@ -480,11 +471,12 @@ test("chat_segments admits N chunks per (chat, block) and keys uniqueness off ch
 test("chat_digests.text is NOT NULL — a digest write missing its body is rejected", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dnull", handle: castId<Handle>("h-user_dnull") });
-  const characterId = await seedCharacter(db, ownerId, "character_dnull");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_dnull"), ownerId });
   const chatId = await seedChat(db, { id: "chat_dnull" });
   let caught: unknown;
   try {
     // @orb-waive no-test-fabrication(never): the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (text omitted). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
     await db.insert(chatDigests).values({
       id: castId<ChatDigestId>("chat_digest_nulltext"),
       chatId,
@@ -534,7 +526,7 @@ test("chat_digests.scopedCharacterId FKs a real character — a dangling id is r
 test("deleting the scoped character CASCADEs its scoped digests (scopedCharacterId FK)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_scasc", handle: castId<Handle>("h-user_scasc") });
-  const characterId = await seedCharacter(db, ownerId, "character_scasc");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_scasc"), ownerId });
   const chatId = await seedChat(db, { id: "chat_scasc" });
   const id = castId<ChatDigestId>("chat_digest_scasc");
   await db.insert(chatDigests).values({
@@ -559,8 +551,8 @@ test("two distinct scope buckets coexist at the same (chat, tier, block); a same
   const ownerId = await seedUser(db, { id: "user_scope", handle: castId<Handle>("h-user_scope") });
   // The synthetic group-as-character (the shared/merged bucket) and a cast character (a scoped bucket) are
   // BOTH real CharacterIds (inv 8 — no '' sentinel); they key distinct buckets for the same block.
-  const groupCharId = await seedCharacter(db, ownerId, "character_group");
-  const castCharId = await seedCharacter(db, ownerId, "character_cast");
+  const { id: groupCharId } = await seedCharacter(db, { id: castId<CharacterId>("character_group"), ownerId });
+  const { id: castCharId } = await seedCharacter(db, { id: castId<CharacterId>("character_cast"), ownerId });
   const chatId = await seedChat(db, { id: "chat_scope" });
 
   await db.insert(chatDigests).values({
@@ -620,7 +612,7 @@ test("two distinct scope buckets coexist at the same (chat, tier, block); a same
 test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_casc", handle: castId<Handle>("h-user_casc") });
-  const characterId = await seedCharacter(db, ownerId, "character_casc");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_casc"), ownerId });
   const chatId = await seedChat(db, { id: "chat_casc" });
   const digestId = castId<ChatDigestId>("chat_digest_casc");
 
@@ -667,8 +659,8 @@ test("chat_digest_speakers round-trips, dedupes on the composite PK, and CASCADE
   // The digest's SCOPE bucket is a distinct character (e.g. the synthetic group char) from the SPEAKER it
   // contains — so deleting the speaker exercises the speaker-join CASCADE in isolation (the digest, scoped
   // to a different character, survives; it does NOT also vanish via the scopedCharacterId FK).
-  const scopeCharId = await seedCharacter(db, ownerId, "character_spk_scope");
-  const characterId = await seedCharacter(db, ownerId, "character_spk");
+  const { id: scopeCharId } = await seedCharacter(db, { id: castId<CharacterId>("character_spk_scope"), ownerId });
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_spk"), ownerId });
   const chatId = await seedChat(db, { id: "chat_spk" });
   const digestId = castId<ChatDigestId>("chat_digest_spk");
   await db.insert(chatDigests).values({

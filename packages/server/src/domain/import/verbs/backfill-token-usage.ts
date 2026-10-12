@@ -12,6 +12,7 @@ const PAGE_SIZE = 500;
 const PLANNED_CHANGES = ["exactRecovered", "estimated", "legacyPromoted"] as const;
 type PlannedChange = (typeof PLANNED_CHANGES)[number];
 
+// @orb-waive contract-structural-copy(BackfillCounts): baselined when the gate widened; burn-down item 904.
 interface BackfillCounts {
   scanned: number;
   exactRecovered: number;

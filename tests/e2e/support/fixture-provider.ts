@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(ChatRequest): baselined when the gate widened to value casts; burn-down item 906.
+
 // External scripted OpenAI-compatible wire fixture; the app still owns HTTP, SSE and persistence.
 // Held turns advance only when the browser has observed a prefix, so completion cannot fake streaming.
 import type { Server, ServerResponse } from "node:http";

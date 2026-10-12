@@ -15,6 +15,7 @@ const NO_MODELS_LISTED = "the provider listed no models";
 /** A catalog row from a list that carries only an id (plus, on some wires, a display name, a window, or the
  *  kind a server's native model info states): pricing, modalities and reasoning are unknown, never guessed. */
 export function bareCatalogEntry(args: {
+  // @orb-waive contract-structural-copy(id): baselined when the gate widened; burn-down item 904.
   readonly id: string;
   readonly name?: string | undefined;
   readonly contextLength?: number | null;

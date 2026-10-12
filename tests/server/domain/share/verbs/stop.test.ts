@@ -1,4 +1,5 @@
 // share.stop — owner only; ends the relay and audits it.
+// @subject packages/server/src/domain/share/verbs/stop.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { describe } from "vitest";

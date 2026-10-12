@@ -1,6 +1,8 @@
+// verb: findSyntheticGroupCharacter — look up the room's synthetic bucket; null before it's minted.
+// @subject packages/server/src/domain/character/verbs/find-synthetic-group-character.ts
+
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-// verb: findSyntheticGroupCharacter — look up the room's synthetic bucket; null before it's minted.
 
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";

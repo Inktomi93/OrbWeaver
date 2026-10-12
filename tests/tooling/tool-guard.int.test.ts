@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(HookRun["out"]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ decision: string; rule: string; ms: number; rewrittenTo?: string }): baselined when the gate widened to value casts; burn-down item 906.
+
 // The archived PreToolUse Bash classifier's proof (.claude/hooks/tool-guard.mjs) — every preserved rule has MUST-BITE rows and
 // MUST-PASS rows, validated here through the hook's REAL entry points (subprocess spawns, never an
 // in-process re-implementation): `--classify-batch` for the corpus table, full stdin/stdout hook-contract
@@ -70,6 +73,7 @@ function runBatch(cases: BatchCase[]): BatchResult[] {
     env: env(),
   });
   expect(r.status).toBe(0);
+  // @orb-waive no-test-fabrication(BatchResult[]): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(r.stdout) as BatchResult[];
 }
 
@@ -195,6 +199,7 @@ const OLD_PATH_ROWS: Row[] = OLD_PATH_VERBS.flatMap((verb) =>
 // terms instead (still no less safe, just a different, already-covered rule). The one shape that actually
 // exercises `gateRewrite` for rule 6 is the verb FIRST, playwright LAST.
 const PLAYWRIGHT_GATE_ROWS: Row[] = OLD_PATH_VERBS.map(
+  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   (verb): Row => [verb.decision, verb.rule as string, `${verb.command};npx playwright test tests/client/x.ct.tsx`],
 );
 
@@ -2287,6 +2292,7 @@ test("home expansion: `~/` and `$HOME/` resolve to the same file, and both get r
     env: env([["HOME", home]]),
   });
   expect(r.status).toBe(0);
+  // @orb-waive no-test-fabrication(BatchResult[]): baselined when the gate widened to value casts; burn-down item 906.
   const got = (JSON.parse(r.stdout) as BatchResult[]).map((d) => `${d.decision}/${d.rule ?? "null"}`);
   expect(got).toEqual(["deny/script:git-destructive", "deny/script:git-destructive", "deny/script:git-destructive", "pass/null", "pass/null"]);
 });
@@ -2332,6 +2338,7 @@ test("tracked-ness is scoped to THIS project's repo, and a linked WORKTREE of it
     env: env(),
   });
   expect(r.status).toBe(0);
+  // @orb-waive no-test-fabrication(BatchResult[]): baselined when the gate widened to value casts; burn-down item 906.
   const [inRepo, inWorktree, inOther] = JSON.parse(r.stdout) as BatchResult[];
   // the worktree's toplevel is NOT the repo's — the distinction the fix turns on
   const top = (dir: string): string => execFixtureGit(dir, ["rev-parse", "--show-toplevel"]).trim();
@@ -2443,6 +2450,7 @@ test("contract: a filename mention never exempts — deny/ask still reach the wi
   // path is resolved against the shell cwd, so the payload names the REAL checkout)
   const self = runHook(bashInput("node .claude/hooks/tool-guard.mjs --classify-batch < cases.json", [["cwd", REPO]]), [["CLAUDE_PROJECT_DIR", tmp]]);
   expect(self.out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  // @orb-waive no-test-fabrication({ rule: string }): baselined when the gate widened to value casts; burn-down item 906.
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("self-exempt");
 });
@@ -2459,6 +2467,7 @@ test("contract: an untracked wrapper script's body reaches the wire as a deny, a
   expect(r.out.hookSpecificOutput?.permissionDecision).toBe("deny");
   expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("git show HEAD:"); // the teaching text survives
   expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain(evil); // …named to the file
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as {
     rule: string;
     decision: string;
@@ -2485,6 +2494,7 @@ test("contract: a command hidden in a quoted string reaches the wire as a deny, 
     expect([command, r.out.hookSpecificOutput?.permissionDecision]).toEqual([command, "deny"]);
     expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("git show HEAD:"); // the teaching text survives the lift
   }
+  // @orb-waive no-test-fabrication({ rule: string }): baselined when the gate widened to value casts; burn-down item 906.
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("subst:git-destructive"); // triage can see WHERE the verdict came from
   // MUST PASS on the wire: the sanctioned long-run launcher (the 120s Bash ceiling forces this shape) —
@@ -2516,6 +2526,7 @@ test("contract: a QUOTED rm target reaches the wire, and a quoted scratch target
     expect([command, r.out.hookSpecificOutput?.permissionDecision]).toEqual([command, "ask"]);
     expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("Re-read the path");
   }
+  // @orb-waive no-test-fabrication({ rule: string }): baselined when the gate widened to value casts; burn-down item 906.
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("rm-rf-unsafe");
   // a lane cannot answer a prompt, so it gets the deny + who to escalate to
@@ -2619,6 +2630,7 @@ test("kill switch: ORB_TOOL_GUARD=off bypasses every rule and logs the bypass", 
     ["ORB_TOOL_GUARD", "off"],
   ]);
   expect(out).toEqual({});
+  // @orb-waive no-test-fabrication({ rule: string }): baselined when the gate widened to value casts; burn-down item 906.
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("kill-switch");
 });
@@ -2705,6 +2717,7 @@ test("lint:hook-syntax: the shipped argv fails on a broken hook, passes on a goo
 test("registration: settings.json wires this guard on PreToolUse, at a path that exists and can execute", () => {
   // the hook EVENT names are the external wire contract (PascalCase), so they stay data — read by literal
   // key out of a record rather than declared as properties the house naming convention would rewrite.
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const settings = JSON.parse(readFileSync(join(REPO, ".claude", "settings.json"), "utf8")) as {
     hooks: Record<string, { matcher?: string; hooks: { type: string; command: string; args?: string[] }[] }[] | undefined>;
   };

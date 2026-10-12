@@ -95,12 +95,14 @@ describe("relevanceOf — the READOUT half of the split (corpus forensics §3, R
       { d: 0.1, h: null },
       { d: 0.45, h: null },
     ];
+    // @orb-waive platform-spellings(rows): baselined when the gate widened; burn-down item 906.
     const byCsls = [...rows].sort(
       compareCslsBy(
         (r) => r.d,
         (r) => r.h,
       ),
     );
+    // @orb-waive platform-spellings(rows): baselined when the gate widened; burn-down item 906.
     const byRelevance = [...rows].sort((a, b) => relevanceOf(b.d) - relevanceOf(a.d));
     expect(byCsls).toEqual(byRelevance);
   });

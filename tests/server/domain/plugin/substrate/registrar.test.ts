@@ -3,6 +3,7 @@
 // BEFORE it crosses into an untrusted guest) and the transform §6 host-gate (a plugin transform attaches ONLY to
 // a chat the installer HOSTS — the process-global registry is chat-blind, so the apply self-guards).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { TriggerFact } from "@orb/contracts/automation";
 import type { PromptTransformEnv } from "@orb/contracts/chat";
 import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contracts/plugin";

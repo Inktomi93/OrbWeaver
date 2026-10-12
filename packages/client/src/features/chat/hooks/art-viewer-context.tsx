@@ -3,6 +3,7 @@
 
 import { createContext, use } from "react";
 
+// @orb-waive no-inline-wire-interface(ArtToView): baselined when the gate widened; burn-down item 904.
 /** The art being viewed: the blob's hash, and the speaker's name it is titled with. */
 export interface ArtToView {
   readonly hash: string;

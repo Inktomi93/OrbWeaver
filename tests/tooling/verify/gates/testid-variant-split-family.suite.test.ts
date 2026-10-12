@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(keyof typeof POPULATION_ROOTS): baselined when the gate widened to value casts; burn-down item 906.
+
 // The standing family floor for the two mixed-hook splits converted in #1950 group 5/6:
 //
 //   `testid-liveness`            → `testid-liveness` (ordinary A1 dead consumer + A2 dead registry row) +

@@ -13,6 +13,7 @@
 //   4. ROOMS go through chat's injected `resolveVisibleRooms` and NOTHING else — the harness default THROWS,
 //      so the "no chat attachments ⇒ no cross-domain call" short-circuit is proven by a passing call, and
 //      a room the op drops (a kicked ex-member) is proven absent by a stubbed op that drops it.
+// @subject packages/server/src/domain/regex/verbs/attachments/list-script-usage.ts
 
 import { characterRegexScripts, chatRegexScripts, presetRegexScripts } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";

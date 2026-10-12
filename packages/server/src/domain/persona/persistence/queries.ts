@@ -83,7 +83,7 @@ const PERSONA_VIEW_COLUMNS = {
   metadata: personas.metadata,
 };
 
-function toPersonaView(row: { id: PersonaId; ownerId: UserId; name: string; description: string; metadata: unknown }): PersonaListView {
+function toPersonaView(row: Pick<PersonaRow, keyof typeof PERSONA_VIEW_COLUMNS>): PersonaListView {
   return {
     id: row.id,
     ownerId: row.ownerId,

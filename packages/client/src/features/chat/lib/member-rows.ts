@@ -15,6 +15,7 @@ import type { ChatIdentity, HandoffOffer, JoinHistoryVisibility, ParticipantView
 import { buildIdentityAvatarMaps, buildIdentityNameContext } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
+// @orb-waive no-inline-wire-interface(MemberPersonRow): baselined when the gate widened; burn-down item 904.
 /** A PEOPLE (human) row view — projected by {@link toPersonRows} from `ParticipantView`. */
 export interface MemberPersonRow {
   readonly kind: "person";
@@ -41,6 +42,7 @@ export interface MemberPersonRow {
   readonly online: boolean | null;
 }
 
+// @orb-waive no-inline-wire-interface(MemberCharacterRow): baselined when the gate widened; burn-down item 904.
 /** A CHARACTER-SEAT row view — source-agnostic (committed roster OR draft founding cards). */
 export interface MemberCharacterRow {
   readonly kind: "character";

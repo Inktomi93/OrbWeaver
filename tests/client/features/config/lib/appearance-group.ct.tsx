@@ -8,6 +8,7 @@
 // aggregation (ONE footer, error > saved, inline retry AT the failing section, nav marker) · P5 nav/search
 // parity for the subs that moved or were absorbed · the §7.4 sub-level deep link.
 
+// @orb-waive-file no-test-fabrication({ entryId: string }[]): baselined when the gate widened to value casts; burn-down item 906.
 import { removeActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";

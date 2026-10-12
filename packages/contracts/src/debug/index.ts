@@ -38,6 +38,9 @@ export const wireCapturesResponseSchema = z.strictObject({
 /** The `GET /api/_debug/rpg/traces` response: the recorder ring, oldest first. */
 export const rpgTracesResponseSchema = z.strictObject({ count: z.number().int(), events: z.array(rpgTraceRecordSchema) });
 
+/** The `GET /api/_debug/errors` response: the error ring, whose lines are opaque to the harness (it asserts emptiness). */
+export const debugErrorsResponseSchema = z.strictObject({ errors: z.array(z.unknown()) });
+
 const inspectedParticipantSchema = z.strictObject({
   id: z.string(),
   kind: participantKindSchema,

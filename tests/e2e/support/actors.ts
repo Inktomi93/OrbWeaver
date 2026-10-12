@@ -25,9 +25,8 @@ import { authMeSchema } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-// TYPE-ONLY: `trpc.ts`'s client is bound to the single-user origin, while an actor carries its own cookie
-// jar — importing the router-derived types keeps this client under the same contract without borrowing it.
-import type { NewConnection, TrpcOutput, TrpcPath } from "./trpc.ts";
+import type { NewConnection, TrpcClient } from "./trpc.ts";
+import { createTrpcClient } from "./trpc.ts";
 
 // Every actor constructor takes the stack's `baseUrl` explicitly — the spec passes Playwright's per-project
 // `baseURL` fixture (its vite origin), so an actor ALWAYS targets the same stack as the project, with no
@@ -45,9 +44,9 @@ export const SESSION_COOKIE = "orb_session_insecure";
  *  SAME shape for every mode, so a spec that holds one is mode-agnostic. */
 export interface ActorClient {
   /** A batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx / error env. */
-  readonly query: <TPath extends TrpcPath>(procedure: TPath, input: unknown) => Promise<TrpcOutput<TPath>>;
+  readonly query: TrpcClient["query"];
   /** A batch mutation — returns the single procedure's `result.data`. Throws on a non-2xx / error env. */
-  readonly mutation: <TPath extends TrpcPath>(procedure: TPath, input: unknown) => Promise<TrpcOutput<TPath>>;
+  readonly mutation: TrpcClient["mutation"];
   /** The `expect(...).rejects` twin: run a call and RESOLVE with the error envelope's HTTP status + message
    *  instead of throwing — the "a member is refused an owner-only proc" assertion instrument. */
   readonly expectError: (procedure: string, input: unknown, kind: "query" | "mutation") => Promise<{ readonly status: number; readonly body: string }>;
@@ -61,37 +60,10 @@ export interface ActorClient {
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
 
-interface TrpcEnvelope<T> {
-  readonly result?: { readonly data?: T };
-  readonly error?: unknown;
-}
-
 /** Build an actor client bound to a stack `baseUrl` + a fixed header set (the actor's session/identity).
  *  Mutations merge the actor's headers with the JSON content-type; queries ride the actor's headers on the GET. */
 function makeActorClient(baseUrl: string, headers: Readonly<Record<string, string>>): ActorClient {
-  async function query<TPath extends TrpcPath>(procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
-    const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`, { headers });
-    const body = (await res.json()) as readonly TrpcEnvelope<TrpcOutput<TPath>>[];
-    const entry = body[0];
-    if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-      throw new Error(`actor trpc: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
-    }
-    return entry.result.data as TrpcOutput<TPath>;
-  }
-
-  async function mutation<TPath extends TrpcPath>(procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
-    const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1`, {
-      method: "POST",
-      headers: { ...headers, "content-type": "application/json" },
-      body: JSON.stringify({ 0: input }),
-    });
-    const body = (await res.json()) as readonly TrpcEnvelope<TrpcOutput<TPath>>[];
-    const entry = body[0];
-    if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-      throw new Error(`actor trpc: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
-    }
-    return entry.result.data as TrpcOutput<TPath>;
-  }
+  const { query, mutation } = createTrpcClient(baseUrl, headers);
 
   async function expectError(procedure: string, input: unknown, kind: "query" | "mutation"): Promise<{ readonly status: number; readonly body: string }> {
     const url = kind === "query" ? `${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}` : `${baseUrl}/api/trpc/${procedure}?batch=1`;
@@ -243,7 +215,7 @@ export async function configureCustomProvider(host: ActorClient, baseUrl: string
     allowBackground: true,
   };
   const connection = await host.mutation("connection.create", input);
-  for (const task of ["chat", "summarize"]) {
+  for (const task of ["chat", "summarize"] as const) {
     await host.mutation("connection.setBinding", { task, connectionId: connection.id });
   }
   return async (): Promise<void> => {

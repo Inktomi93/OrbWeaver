@@ -16,6 +16,7 @@
 // gate-authority.test.ts` owns them ("invalid coordinates, not-applicable findings, blank identities…"),
 // which is the control proving this fix came from moving the arm to an authority that admits it, never from
 // weakening the check the arm used to trip.
+// @orb-waive-file platform-spellings(PACKAGE_MANIFESTS): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

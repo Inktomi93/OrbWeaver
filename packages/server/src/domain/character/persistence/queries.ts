@@ -770,6 +770,7 @@ export async function loadSnapshotContent(db: Db, characterId: CharacterId, snap
     .where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId)))
     .limit(LIMIT_ONE);
   const row = rows[0];
+  // @orb-waive json-column-read-parsed(content): baselined when the gate widened; burn-down item 905.
   return row === undefined ? undefined : cardOf(row.content);
 }
 
@@ -850,7 +851,9 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
     interactiveHtml: row.interactiveHtml,
+    // @orb-waive json-column-read-parsed(themeOverride): baselined when the gate widened; burn-down item 905.
     themeOverride: row.themeOverride,
+    // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
     backgroundOverride: row.backgroundOverride,
     importedFrom: row.importedFrom,
     importHash: row.importHash,
@@ -876,7 +879,9 @@ export function summaryOf(
     archived: row.archived,
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
+    // @orb-waive json-column-read-parsed(themeOverride): baselined when the gate widened; burn-down item 905.
     themeOverride: row.themeOverride,
+    // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
     backgroundOverride: row.backgroundOverride,
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,

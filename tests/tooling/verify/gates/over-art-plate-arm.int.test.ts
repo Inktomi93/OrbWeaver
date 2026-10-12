@@ -22,6 +22,7 @@
 //        warning severity. The OWNER'S NUMBER is deliberately NOT pinned — see that test's comment.
 //   §4.6 the CONVERSION DIFFERENTIAL, both sides nonzero: the legacy descriptor's live set over the REAL
 //        tree, replayed through the converted reader.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";

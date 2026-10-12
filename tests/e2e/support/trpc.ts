@@ -17,45 +17,28 @@
 import process from "node:process";
 import type { ContextFitPreview } from "@orb/contracts/chat";
 import type { ChatInspection, WireCapture } from "@orb/contracts/debug";
-import { chatInspectionSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
+import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
 import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AppRouter } from "@orb/server";
+import type {
+  ActorRefInput,
+  CanonMessage,
+  CompactionIntent,
+  DistributiveOmit,
+  GroupConfigInput,
+  GuidedSteerInput,
+  RosterSeat,
+  RpgConfigPatch,
+  TaskBinding,
+  TrackerView,
+  TrpcInput,
+  TrpcOutput,
+  TrpcPath,
+} from "../../support/browser/trpc-wire.ts";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
 
-type RouterRecord = AppRouter["_def"]["record"];
-
-// `@trpc/server` is not a root dependency, so the router's own `_def` is read instead of `inferRouterOutputs`.
-interface ProcedureNode {
-  readonly _def: { readonly procedure: true; readonly $types: { readonly input: unknown; readonly output: unknown } };
-}
-
-type ProcedurePaths<TRecord> = {
-  [K in keyof TRecord & string]: TRecord[K] extends ProcedureNode
-    ? K
-    : TRecord[K] extends Record<string, unknown>
-      ? `${K}.${ProcedurePaths<TRecord[K]>}`
-      : never;
-}[keyof TRecord & string];
-
-type ProcedureAt<TRecord, TPath extends string> = TPath extends `${infer Head}.${infer Tail}`
-  ? Head extends keyof TRecord
-    ? ProcedureAt<TRecord[Head], Tail>
-    : never
-  : TPath extends keyof TRecord
-    ? TRecord[TPath]
-    : never;
-
-/** Every procedure the `AppRouter` mounts, as its dotted path (`chat.listMessages`). */
-export type TrpcPath = ProcedurePaths<RouterRecord>;
-
-/** What one procedure answers, derived from the router. */
-export type TrpcOutput<TPath extends TrpcPath> = Extract<ProcedureAt<RouterRecord, TPath>, ProcedureNode>["_def"]["$types"]["output"];
-
-/** What one procedure accepts, derived from the router. */
-export type TrpcInput<TPath extends TrpcPath> = Extract<ProcedureAt<RouterRecord, TPath>, ProcedureNode>["_def"]["$types"]["input"];
-
+/** The trailing arguments a procedure takes: none for a void input, optional when the input may be omitted. */
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
 // this is always SINGLE_USER.baseUrl — the actor clients target their stack via the spec's per-project
 // Playwright `baseURL`, not an env (playwright.config.ts:45-46), and no mode sets `E2E_BASE_URL`. A
@@ -87,37 +70,74 @@ const DEBUG_TOKEN = DEV_TARGET_ALLOWED ? (process.env["DEBUG_TOKEN"] ?? E2E_DEBU
 
 const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOKEN });
 
-/** A tRPC batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx or error env. */
-export async function trpcQuery<TPath extends TrpcPath>(procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
-  const res = await fetch(`${BASE_URL}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`);
-  const body = (await res.json()) as readonly { result?: { data?: TrpcOutput<TPath> }; error?: unknown }[];
-  const entry = body[0];
-  if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-    throw new Error(`e2e trpc: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
-  }
-  return entry.result.data as TrpcOutput<TPath>;
+export type {
+  ActorRefInput,
+  CanonMessage,
+  CompactionIntent,
+  GroupConfigInput,
+  GuidedSteerInput,
+  NewConnection,
+  RosterSeat,
+  TaskBinding,
+  TrackerActor,
+  TrackerDefInput,
+  TrackerView,
+  TrpcInput,
+  TrpcOutput,
+  TrpcPath,
+} from "../../support/browser/trpc-wire.ts";
+
+type InputArgs<TInput> = [TInput] extends [undefined] ? [] : undefined extends TInput ? [input?: TInput] : [input: TInput];
+
+interface TrpcEnvelope {
+  readonly result?: { readonly data?: unknown };
+  readonly error?: unknown;
 }
 
-/** A tRPC batch mutation — returns the single procedure's `result.data`. Throws on a non-2xx or error env. */
-export async function trpcMutation<TPath extends TrpcPath>(procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
-  const res = await fetch(`${BASE_URL}/api/trpc/${procedure}?batch=1`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ 0: input }),
-  });
-  const body = (await res.json()) as readonly { result?: { data?: TrpcOutput<TPath> }; error?: unknown }[];
-  const entry = body[0];
-  if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-    throw new Error(`e2e trpc: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
-  }
-  return entry.result.data as TrpcOutput<TPath>;
+/** A tRPC batch client bound to one stack and one header set (a session cookie, a signed-JWT proxy header, or none).
+ *  Inputs and results are typed per procedure by the router; a call throws on a non-2xx status or an error envelope. */
+export interface TrpcClient {
+  readonly query: <TPath extends TrpcPath>(procedure: TPath, ...input: InputArgs<TrpcInput<TPath>>) => Promise<TrpcOutput<TPath>>;
+  readonly mutation: <TPath extends TrpcPath>(procedure: TPath, ...input: InputArgs<TrpcInput<TPath>>) => Promise<TrpcOutput<TPath>>;
 }
+
+/** Build a {@link TrpcClient} against `baseUrl`. The ONE implementation of the batch wire shape: the default
+ *  single-user client below, every actor client and globalSetup's per-mode seed all ride it. */
+export function createTrpcClient(baseUrl: string, headers: Readonly<Record<string, string>> = {}): TrpcClient {
+  async function call<TPath extends TrpcPath>(kind: "query" | "mutation", procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
+    const res =
+      kind === "query"
+        ? await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`, { headers })
+        : await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1`, {
+            method: "POST",
+            headers: { ...headers, "content-type": "application/json" },
+            body: JSON.stringify({ 0: input }),
+          });
+    // @orb-waive no-test-fabrication(readonly TrpcEnvelope[]): the batch envelope is the wire's own shape; there is no schema to parse it with.
+    const body = (await res.json()) as readonly TrpcEnvelope[];
+    const entry = body[0];
+    if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
+      throw new Error(`e2e trpc: ${procedure} ${kind} failed (${res.status}): ${JSON.stringify(body)}`);
+    }
+    // @orb-waive no-test-fabrication(TrpcOutput<TPath>): the router's output type is the only description of the payload; the harness does not re-parse it.
+    return entry.result.data as TrpcOutput<TPath>;
+  }
+  return {
+    query: (procedure, ...input) => call("query", procedure, input[0]),
+    mutation: (procedure, ...input) => call("mutation", procedure, input[0]),
+  };
+}
+
+const singleUser = createTrpcClient(BASE_URL);
+
+/** A tRPC batch GET query against the single-user stack — returns the single procedure's `result.data`. */
+export const trpcQuery: TrpcClient["query"] = singleUser.query;
+
+/** A tRPC batch mutation against the single-user stack — returns the single procedure's `result.data`. */
+export const trpcMutation: TrpcClient["mutation"] = singleUser.mutation;
 
 // ── The canon/settings reads the specs assert against: ground truth straight from the server, typed by the
 // router. The `@orb/kit/ids` brands ride through, so an id position can never be a bare string. ──
-
-/** One canon message row — the fields the honesty specs read come straight off `chat.listMessages`. */
-export type CanonMessage = TrpcOutput<"chat.listMessages">["messages"][number];
 
 /** Read the chat's present-tense fit preview (the divider's server source). The procedure answers
  *  `{ unbound: true }` when the host has no chat connection; every spec that calls this binds one first. */
@@ -138,7 +158,7 @@ export async function listCanon(chatId: ChatId): Promise<readonly CanonMessage[]
 /** Read the current user settings — the ground truth for "what the seeds tier ACTUALLY holds". There is no
  *  `routing` tier: a per-task model pick is a `connection_bindings` ROW, read through `listBindings` below. */
 export function getUserSettings(): Promise<TrpcOutput<"settings.getUserSettings">> {
-  return trpcQuery("settings.getUserSettings", {});
+  return trpcQuery("settings.getUserSettings");
 }
 
 /** Read the appearance + theme slice — the DB ground truth the render-truth spec pins visibility against. */
@@ -148,26 +168,26 @@ export function getAppearanceTheme(): Promise<TrpcOutput<"settings.getUserSettin
 
 /** Patch one settings section over the API (the #16 spec's finally-restore path — reset appearance/theme
  *  to known-safe values without touching browser storage). Mirrors updateUserSettingsSection's input. */
-export function updateSettingsSection(section: string, patch: Record<string, unknown>): Promise<unknown> {
+export function updateSettingsSection(
+  section: TrpcInput<"settings.updateUserSettingsSection">["section"],
+  patch: TrpcInput<"settings.updateUserSettingsSection">["patch"],
+): Promise<unknown> {
   return trpcMutation("settings.updateUserSettingsSection", { section, patch });
 }
 
 /** List owned ∪ seed themes — the spec finds a seed theme (e.g. "Mocha") to select. */
 export function listThemes(): Promise<TrpcOutput<"settings.listThemes">> {
-  return trpcQuery("settings.listThemes", {});
+  return trpcQuery("settings.listThemes");
 }
 
 /** Start a fresh CLAIMED chat with the given character(s) (model-free — seeds the greeting row).
  *  `chat.startChat` alone mints a husk that every Chats list hides, so `openNewestChat` would open another
  *  chat. Rewriting the untitled chat's `null` title claims it without changing what the list shows. */
 export async function startChat(characterIds: readonly CharacterId[]): Promise<ChatId> {
-  const started = await trpcMutation("chat.startChat", { characterIds });
+  const started = await trpcMutation("chat.startChat", { characterIds: [...characterIds] });
   await trpcMutation("chat.updateTitle", { chatId: started.chat.id, title: null });
   return started.chat.id;
 }
-
-/** The managed-compaction per-send intent knob (`chat.send`'s `intent.compaction`) the specs drive. */
-export type CompactionIntent = NonNullable<NonNullable<TrpcInput<"chat.send">["intent"]>["compaction"]>;
 
 /** Drive one real turn on a chat via the API. `maxContextTokens` (optional) rides the per-send `intent`,
  *  which OVERRIDES the preset's params in the fold (chat/engine/pipeline.ts foldGenerationParams) — so a
@@ -253,25 +273,14 @@ export function getShapeTrace(chatId: ChatId): Promise<TrpcOutput<"chat.getShape
 /** One of the caller's `user_connections` rows. */
 type ConnectionRow = TrpcOutput<"connection.list">[number];
 
-/** What `connection.create` is sent.
- *
- *  Used from `global-setup.ts` (the local engine) and `actors.ts` (the fixture provider) — both talk to a
- *  DIFFERENT client than this module's `BASE_URL` one (a mode origin / an actor's cookie jar), so they import the
- *  TYPE rather than a sender. */
-export type NewConnection = TrpcInput<"connection.create">;
-
 /** Every connection row the caller owns (`connection.list`). */
 function listConnections(): Promise<readonly ConnectionRow[]> {
-  return trpcQuery("connection.list", undefined);
+  return trpcQuery("connection.list");
 }
-
-/** One Model-roles row (`connection.listBindings` — one per ROUTABLE task, bound or not). `resolved` is what
- *  a turn would ride RIGHT NOW against the PERSISTED read; `unavailableCause` is why it would not (§5.3a). */
-export type TaskBinding = TrpcOutput<"connection.listBindings">[number];
 
 /** The caller's own (`user` actor) Model-roles readout. */
 function listBindings(): Promise<readonly TaskBinding[]> {
-  return trpcQuery("connection.listBindings", undefined);
+  return trpcQuery("connection.listBindings");
 }
 
 /** The `chat` Model-roles row, always present (a slot with no binding reads `binding: null`). */
@@ -340,17 +349,30 @@ export async function getActivePreset(): Promise<TrpcOutput<"preset.get"> | unde
 
 /** Patch the active preset's config (preset.update). The harness sends the WHOLE merged config back (the
  *  update replaces `config` wholesale) and restores the original in a finally. */
-export function updatePresetConfig(id: string, config: Record<string, unknown>): Promise<unknown> {
+export function updatePresetConfig(id: TrpcInput<"preset.update">["id"], config: TrpcInput<"preset.update">["config"]): Promise<unknown> {
   return trpcMutation("preset.update", { id, config });
+}
+
+/** Create a throwaway chat preset (`preset.create`). The caller removes it in a finally via `removePreset`. */
+export function createPreset(name: string): Promise<TrpcOutput<"preset.create">> {
+  return trpcMutation("preset.create", { name, kind: "chat" });
+}
+
+/** Remove a spec-owned preset (`preset.remove`). */
+export function removePreset(id: TrpcInput<"preset.remove">["id"]): Promise<unknown> {
+  return trpcMutation("preset.remove", { id });
+}
+
+/** Set a preset's `params.maxContextTokens`. `preset.update` takes the FULL config (a `patch` key is silently
+ *  stripped), so this reads the config, merges the one knob and writes the whole thing back. */
+export async function setPresetMaxContextTokens(id: TrpcInput<"preset.get">["id"], maxContextTokens: number): Promise<void> {
+  const preset = await trpcQuery("preset.get", { id });
+  await updatePresetConfig(id, { ...preset.config, params: { ...preset.config.params, maxContextTokens } });
 }
 
 // ── GROUP-CHAT support (group-chat.spec.ts · live-group-modes.spec.ts · multi-tab-room-sync.spec.ts).
 // The group surface is roster + `chats.metadata.group` + arbitration, and EVERY assertion in those specs
 // reads server truth through these — the DOM is only ever the second witness. ──
-
-/** One PRESENT roster seat. The `id` is the `chat_participants` row id — the key `chat.setSeatKnobs` writes by
- *  (D80), NOT the characterId. */
-export type RosterSeat = TrpcOutput<"chat.getChat">["participants"][number];
 
 /** The `chat.startChat` / `chat.getChat` room detail. */
 type ChatDetail = TrpcOutput<"chat.getChat">;
@@ -360,17 +382,16 @@ type ChatDetail = TrpcOutput<"chat.getChat">;
  *  empty while making the room library-visible for UI setup. Returns the room detail so callers keep the seat
  *  ids `setSeatKnobs` needs. */
 export async function startGroupChat(args: {
-  readonly characterIds: readonly string[];
+  readonly characterIds: readonly CharacterId[];
   readonly title: string;
-  readonly groupConfig?: Record<string, unknown>;
+  readonly groupConfig?: GroupConfigInput;
 }): Promise<ChatDetail> {
-  const started = await trpcMutation("chat.startChat", {
-    characterIds: args.characterIds,
-    title: args.title,
-    opening: "none",
-    ...(args.groupConfig === undefined ? {} : { groupConfig: args.groupConfig }),
-  });
+  const started = await trpcMutation("chat.startChat", { characterIds: [...args.characterIds], title: args.title, opening: "none" });
   await trpcMutation("chat.updateTitle", { chatId: started.chat.id, title: args.title });
+  // `chat.startChat` takes no group config (a `groupConfig` key is silently stripped), so the knobs ride the setter.
+  if (args.groupConfig !== undefined) {
+    await trpcMutation("chat.setGroupConfig", { chatId: started.chat.id, config: args.groupConfig });
+  }
   return started.chat;
 }
 
@@ -398,8 +419,8 @@ export function addCharacterToChat(chatId: ChatId, characterId: CharacterId): Pr
 /** Patch ONE AI seat's arbitration knobs (`chat.setSeatKnobs`, D80) — keyed by the PARTICIPANT row id. */
 export function setSeatKnobs(
   chatId: ChatId,
-  participantId: string,
-  patch: { readonly disabled?: boolean; readonly talkativeness?: number },
+  participantId: TrpcInput<"chat.setSeatKnobs">["participantId"],
+  patch: TrpcInput<"chat.setSeatKnobs">["patch"],
 ): Promise<TrpcOutput<"chat.setSeatKnobs">> {
   return trpcMutation("chat.setSeatKnobs", { chatId, participantId, patch });
 }
@@ -480,9 +501,6 @@ export async function speakerSequence(chatId: ChatId): Promise<readonly (string 
 // so the steer text is assertable BEFORE (and without) any generation (read.int.test.ts:598 is the domain
 // twin of this). ──
 
-/** One guided steer as the wire schema accepts it — the same typed shape the composer wand sends on a real turn. */
-export type GuidedSteerInput = NonNullable<TrpcInput<"chat.previewAssembly">["guided"]>;
-
 /** Build the assembled prompt for a hypothetical turn, optionally with a guided steer routed through the
  *  SAME gather→build a real turn runs (`chat.previewAssembly` — host-only; single-user AUTH_MODE is host).
  *  The pre-turn "did the steer shape the assembly" instrument (no generation, nothing persists). */
@@ -523,17 +541,6 @@ export async function createLiteGame(chatId: ChatId): Promise<string> {
   return created.gameId;
 }
 
-/** The FULL persisted-snapshot projection `rpg.getTrackerView` returns (the exhaustive spec reads every plane
- *  here). This IS the flush/snapshot RESULT and the persisted-snapshot DB read at once (`getTrackerView` reads
- *  the `rpg_snapshots` rows live — there is no separate rpg-table debug dump, so this projection is the DB
- *  witness for every rpg plane). Every plane reads the same resolved-current snapshot (swipe-consistent — a
- *  swipe re-resolves the WHOLE view on the selected lineage, server writes nothing). */
-export type TrackerView = TrpcOutput<"rpg.getTrackerView">;
-
-/** ONE actor row in the tracker view — one shape for EVERY actor: roster members and scene NPCs, on stage and
- *  off. An offstage actor keeps every other field, which IS the retention guarantee. */
-export type TrackerActor = TrackerView["actors"][number];
-
 /** Read a game's persisted tracker view (`rpg.getTrackerView`, member-gated — single-user is a member/host).
  *  The SERVER-truth cross-check for the CP-4 panel: what the flush/snapshot actually wrote AND the persisted
  *  snapshot DB read (the projection reads the snapshot rows live). */
@@ -550,16 +557,13 @@ export function getGame(chatId: ChatId): Promise<TrpcOutput<"rpg.getGame">> {
  *  its own state; `cheap` = a dedicated tool round post-commit. `mode` stays `string` (the
  *  no-inline-union-redecl gate bans re-spelling the homed RPG_EXTRACTION_MODES tuple here; the spec passes the
  *  literal). */
-export function setExtractionMode(chatId: ChatId, mode: string): Promise<unknown> {
+export function setExtractionMode(chatId: ChatId, mode: NonNullable<TrpcInput<"rpg.updateConfig">["extractionMode"]>): Promise<unknown> {
   return trpcMutation("rpg.updateConfig", { chatId, extractionMode: mode });
 }
 
 /** Define the host-owned TRACKERS + custom-relationship hints (`rpg.updateConfig` — host). A passed array
  *  REPLACES the current list (whole-list edit). */
-export function setGameFeatures(
-  chatId: ChatId,
-  features: { readonly trackers?: readonly Record<string, unknown>[]; readonly relationshipHints?: Readonly<Record<string, string>> },
-): Promise<unknown> {
+export function setGameFeatures(chatId: ChatId, features: Pick<RpgConfigPatch, "trackers" | "relationshipHints">): Promise<unknown> {
   return trpcMutation("rpg.updateConfig", { chatId, patch: features });
 }
 
@@ -573,14 +577,7 @@ export function getConfigView(chatId: ChatId): Promise<TrpcOutput<"rpg.getConfig
  *  Omit keeps the current value; a passed scalar REPLACES it (the keep-on-omit contract, §config). */
 export function setFeatureKnobs(
   chatId: ChatId,
-  knobs: {
-    readonly deception?: boolean;
-    readonly omniscience?: boolean;
-    readonly hiddenContentReveal?: boolean;
-    readonly immersiveHtml?: boolean;
-    readonly cyoa?: boolean;
-    readonly plotProgression?: boolean;
-  },
+  knobs: Pick<RpgConfigPatch, "deception" | "omniscience" | "hiddenContentReveal" | "immersiveHtml" | "cyoa" | "plotProgression">,
 ): Promise<unknown> {
   return trpcMutation("rpg.updateConfig", { chatId, patch: knobs });
 }
@@ -590,25 +587,11 @@ export function setFeatureKnobs(
 // the deterministic proofs that a landed write is FE=BE=DB consistent for EVERY plane, without depending on the
 // small 8B decomposing that plane (the honest-arms ceiling, plan-for-small-hardware). ──
 
-/** An actor ref as the wire union accepts it. */
-export type ActorRefInput = TrpcInput<"rpg.patchSheet">["actorRef"];
-
 /** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
  *  className/attributes/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
  *  its ONLY write door). (`poolDefs` retired with the tracked-field unification — trackers are host-defined
  *  through `rpg.updateConfig.patch.trackers`, never through a sheet patch.) */
-export function patchSheet(
-  chatId: ChatId,
-  actorRef: ActorRefInput,
-  patch: {
-    readonly className?: string;
-    readonly attributes?: Readonly<Record<string, number>>;
-    readonly flavor?: string;
-    readonly level?: number | null;
-    readonly trackerGrants?: readonly string[];
-    readonly trackerRevokes?: readonly string[];
-  },
-): Promise<unknown> {
+export function patchSheet(chatId: ChatId, actorRef: ActorRefInput, patch: TrpcInput<"rpg.patchSheet">["patch"]): Promise<unknown> {
   return trpcMutation("rpg.patchSheet", { chatId, actorRef, patch });
 }
 
@@ -628,7 +611,7 @@ function assertHandWrote(path: string, result: unknown): unknown {
  *  ambient (location/date/clock/weather), presentCharacters (cast + mood + relationship), recentEvents,
  *  trackerValues, plot. The per-ACTOR plane is NOT one of them (R1) — it rides `patchActor` below, and an
  *  `actorState` patch here is refused by design. */
-export async function editSnapshot(chatId: ChatId, patch: Record<string, unknown>): Promise<unknown> {
+export async function editSnapshot(chatId: ChatId, patch: TrpcInput<"rpg.editSnapshot">["patch"]): Promise<unknown> {
   return assertHandWrote("rpg.editSnapshot", await trpcMutation("rpg.editSnapshot", { chatId, patch }));
 }
 
@@ -637,38 +620,26 @@ export async function editSnapshot(chatId: ChatId, patch: Record<string, unknown
  *  can reach. This is the ONLY hand door onto hp/trackerValues/conditions/inventory/wallet/status. */
 export async function patchActor(
   chatId: ChatId,
-  targetRef: Record<string, unknown>,
-  ops: readonly Record<string, unknown>[],
-  opts: { readonly autoLock?: boolean } = {},
+  targetRef: TrpcInput<"rpg.patchActor">["targetRef"],
+  ops: TrpcInput<"rpg.patchActor">["ops"],
+  opts: Pick<TrpcInput<"rpg.patchActor">, "autoLock"> = {},
 ): Promise<unknown> {
   return assertHandWrote("rpg.patchActor", await trpcMutation("rpg.patchActor", { chatId, targetRef, ops, ...opts }));
 }
 
 /** Upsert a quest (`rpg.upsertQuest` — HOST-only). `questId` absent ⇒ create. The quest-plane HAND door. */
-export function upsertQuest(
-  chatId: ChatId,
-  quest: {
-    readonly questId?: string;
-    readonly name: string;
-    readonly status?: string;
-    readonly description?: string;
-    readonly objectives?: readonly { readonly id?: string; readonly text: string; readonly completed?: boolean }[];
-  },
-): Promise<unknown> {
+export function upsertQuest(chatId: ChatId, quest: DistributiveOmit<TrpcInput<"rpg.upsertQuest">, "chatId">): Promise<unknown> {
   return trpcMutation("rpg.upsertQuest", { chatId, ...quest });
 }
 
 /** Define the game's TRACKERS (`rpg.updateConfig.patch.trackers` — host). ONE def home since the tracked-field
  *  unification, so this one call replaces the retired createWidget + cast-field + orb-pin surfaces. */
-export function setTrackers(chatId: ChatId, trackers: readonly Record<string, unknown>[]): Promise<unknown> {
+export function setTrackers(chatId: ChatId, trackers: NonNullable<RpgConfigPatch["trackers"]>): Promise<unknown> {
   return trpcMutation("rpg.updateConfig", { chatId, patch: { trackers } });
 }
 
 /** Add a hand journal entry (`rpg.addJournalEntry` — host). */
-export function addJournalEntry(
-  chatId: ChatId,
-  entry: { readonly type: string; readonly label?: string; readonly title: string; readonly content: string },
-): Promise<unknown> {
+export function addJournalEntry(chatId: ChatId, entry: Omit<TrpcInput<"rpg.addJournalEntry">, "chatId">): Promise<unknown> {
   return trpcMutation("rpg.addJournalEntry", { chatId, ...entry });
 }
 
@@ -722,7 +693,7 @@ export function editMessage(chatId: ChatId, messageId: MessageId, content: strin
  *  capture), not the model's answer. The gameSteer injects as a depth-0 SYSTEM injection into the assembled
  *  HISTORY, so it lands in the vLLM `messages` array — NOT the previewAssembly prefix fields (which is why the
  *  wire capture, not previewAssembly, is the honest instrument for the steer's live-state resolution). */
-export function sendGameSteerTurn(chatId: ChatId, kind: string): Promise<unknown> {
+export function sendGameSteerTurn(chatId: ChatId, kind: NonNullable<NonNullable<TrpcInput<"chat.send">["guided"]>["gameSteer"]>): Promise<unknown> {
   return trpcMutation("chat.send", {
     chatId,
     timeZone: UTC_TIME_ZONE,
@@ -738,7 +709,12 @@ export function wireMessagesText(capture: WireCapture): string {
   if (!Array.isArray(messages)) {
     return "";
   }
-  return (messages as readonly { readonly content?: unknown }[]).map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
+  return messages
+    .map((message: unknown) => {
+      const content = typeof message === "object" && message !== null && "content" in message ? message.content : undefined;
+      return typeof content === "string" ? content : JSON.stringify(content);
+    })
+    .join("\n");
 }
 
 // ── The CHAT-side DB witness (`/api/_debug/db/chat/:id` — inspectChatState). rpg has NO raw-TABLE debug dump,
@@ -763,8 +739,7 @@ export async function fetchDebugErrors(): Promise<readonly unknown[]> {
   if (!res.ok) {
     throw new Error(`e2e debug/errors read failed (${res.status})`);
   }
-  const body = (await res.json()) as { readonly errors?: readonly unknown[] };
-  return body.errors ?? [];
+  return debugErrorsResponseSchema.parse(await res.json()).errors;
 }
 
 /** Read a chat's rpg trace ring. REQUIRES `RPG_TRACE=on` in the stack's env (the harness sets it per mode in
@@ -779,8 +754,8 @@ export async function fetchRpgTraces(chatId: ChatId): Promise<readonly RpgTraceR
 }
 
 /** Delete message slots (`chat.deleteMessages`) — the sad-path "deleted turn" driver. */
-export function deleteMessages(chatId: ChatId, messageIds: readonly string[]): Promise<unknown> {
-  return trpcMutation("chat.deleteMessages", { chatId, messageIds });
+export function deleteMessages(chatId: ChatId, messageIds: Readonly<TrpcInput<"chat.deleteMessages">["messageIds"]>): Promise<unknown> {
+  return trpcMutation("chat.deleteMessages", { chatId, messageIds: [...messageIds] });
 }
 
 /** Abort the in-flight turn on a chat (`chat.abort`) — the sad-path "cancel mid-turn" driver. */

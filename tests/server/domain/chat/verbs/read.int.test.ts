@@ -4,6 +4,14 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
+// @orb-waive-file no-test-fabrication(ChatNotFoundError): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(Snapshot): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ roll: 9 }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ static: 42 }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(await): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(expected): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(hers): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(shown): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
@@ -769,6 +777,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     // EXACTLY once each: a tie-blind keyset returns the same page forever or jumps a whole tied run.
     expect(walked.length).toBe(seeded.length);
     expect(new Set(walked).size).toBe(seeded.length);
+    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
     expect([...walked].sort()).toEqual([...seeded].sort());
   });
 
@@ -802,6 +811,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     expect(walked).toHaveLength(expected.length);
     expect(new Set(walked).size).toBe(expected.length);
+    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
     expect([...walked].sort()).toEqual([...expected].sort());
     expect(walked).not.toContain(atBoundary[0]);
     expect(walked).not.toContain(above[0]);
@@ -1940,10 +1950,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // The present member is refused (known-existence authority refusal — the client mounts these host-only).
     const peekErr = await peekPrompt({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(peekErr).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((peekErr as ChatOperationError).code).toBe("not_host");
 
     const previewErr = await previewAssembly({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(previewErr).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((previewErr as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2723,6 +2735,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const err = await previewActionTemplates({ principal: principal(member), chatId, presetId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2802,6 +2815,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // peekPrompt/previewAssembly refuse them.
     const err = await previewSection({ principal: principal(member), chatId, sectionId: "main" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2914,6 +2928,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // A present but non-host member is refused (the host/admin inspector gate, matrix `getShapeTrace: "host"`).
     const err = await getShapeTrace({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2978,8 +2993,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const err = await getVariantWire({ principal: principal(member), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(ChatOperationError);
+      // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
       expect((err as ChatOperationError).code).toBe("not_host");
       // The refusal carries no prompt bytes (an error message that echoed the blob would be the leak itself).
+      // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
       expect((err as Error).message).not.toContain("traitor");
     });
 

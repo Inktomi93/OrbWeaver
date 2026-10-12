@@ -6,6 +6,7 @@
 // Every arm below plants a REAL filesystem object and reads a REAL verdict; there is no in-memory stand-in
 // for a symlink, which is exactly why the door exists at this layer rather than in a pure reader.
 
+// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

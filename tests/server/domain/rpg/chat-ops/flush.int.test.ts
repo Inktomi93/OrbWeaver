@@ -424,6 +424,7 @@ test("FLUSH BARRIER: a fast re-send BLOCKS on the prior in-flight flush, then as
 
   // HOLD turn 1's flush in-flight: the state-round gate blocks until we release it.
   let releaseFlush = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseFlush = resolve;
   });
@@ -465,6 +466,7 @@ test("FLUSH BARRIER: register is SYNCHRONOUS — an IMMEDIATE re-send (no await 
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseFlush = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseFlush = resolve;
   });
@@ -943,6 +945,7 @@ test("LOCK TRAIL (fold): a hand edit landing MID-FLIGHT suppresses the replay �
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -1048,6 +1051,7 @@ test("#78 (fold): a hand item edit landing MID-FLIGHT pins that field alone — 
 
   const { messageId, variantId } = await seedMessage(db, chatId, 2000, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -1094,6 +1098,7 @@ function untilRoundStarted(calls: readonly unknown[]): Promise<void> {
     if (attemptsLeft === 0) {
       return Promise.reject(new Error("the state round never started — the cancel would not have been mid-round"));
     }
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     return new Promise((resolve) => setTimeout(resolve, 5)).then(() => poll(attemptsLeft - 1));
   };
   return poll(400);
@@ -1112,6 +1117,7 @@ test("MID-ROUND cancel: the running round's own signal fires and the flush write
   h.fakes.busEvents.length = 0;
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -1154,6 +1160,7 @@ test("cancel is OWNER-SCOPED: another member's Stop leaves this round alone and 
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -1193,6 +1200,7 @@ test("a cancelled round still holds the FLUSH BARRIER until it unwinds (the stal
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });

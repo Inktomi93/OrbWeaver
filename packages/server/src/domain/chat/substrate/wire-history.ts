@@ -297,11 +297,13 @@ export function convertsToEmptyWireRow(content: string): boolean {
   return tokenizeContent(content, { committed: true }).every(spanConvertsToNothing);
 }
 
+// @orb-waive no-vanity-alias(__spanConvertsToNothingForTest): baselined when the gate widened; burn-down item 906.
 /** Test-only seam: the empty-conversion table is bound to the handlers span kind by span kind.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const __spanConvertsToNothingForTest = spanConvertsToNothing;
 
+// @orb-waive no-vanity-alias(__spanToWirePartForTest): baselined when the gate widened; burn-down item 906.
 /** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
  *  reason to reassemble a full turn to exercise one span → wire-part rule).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
