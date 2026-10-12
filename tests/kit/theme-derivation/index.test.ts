@@ -7,7 +7,7 @@
 // (2) that every accepted base produces semantic surface/foreground pairs that clear the text floor.
 
 import {
-  AA_LARGE_RATIO,
+  AA_NON_TEXT_RATIO,
   AA_NORMAL_RATIO,
   accentFillLightness,
   chartRampForSurface,
@@ -170,7 +170,7 @@ describe("chartRampForSurface (#939 — custom categorical fills)", () => {
     expect(ramp).toHaveLength(5);
     for (const fill of ramp) {
       for (const surface of surfaces) {
-        expect(wcagContrastRatio(oklchToSrgb(fill), oklchToSrgb(surface))).toBeGreaterThanOrEqual(AA_LARGE_RATIO);
+        expect(wcagContrastRatio(oklchToSrgb(fill), oklchToSrgb(surface))).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
       }
     }
   });
@@ -372,7 +372,7 @@ describe("accentFillLightness (#692 — the accent judged against the card its g
     const l = accentFillLightness(hearthAccent, 1, lightBase);
     expect(l).not.toBeNull();
     // Hue and chroma are the author's; only L moved, and only as far as the floor needed (0.72 -> 0.68).
-    expect(vsCard({ l: l ?? 0, c: hearthAccent.c, h: hearthAccent.h }, lightBase)).toBeGreaterThanOrEqual(AA_LARGE_RATIO);
+    expect(vsCard({ l: l ?? 0, c: hearthAccent.c, h: hearthAccent.h }, lightBase)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     expect(l ?? 0).toBeLessThan(hearthAccent.l);
     expect(l ?? 0).toBeGreaterThan(hearthAccent.l - 0.1);
   });
@@ -380,7 +380,7 @@ describe("accentFillLightness (#692 — the accent judged against the card its g
   test("BYTE-IDENTICAL PASS-THROUGH: an accent that already clears returns null on either polarity", () => {
     // The shipped Light seed's own primary on a light base — 5.07:1, nothing to fix (there was never a
     // seed to promote here; the defect is the cross-polarity INHERITANCE, not the light arm).
-    expect(vsCard(lightSeedAccent, lightBase)).toBeGreaterThan(AA_LARGE_RATIO);
+    expect(vsCard(lightSeedAccent, lightBase)).toBeGreaterThan(AA_NON_TEXT_RATIO);
     expect(accentFillLightness(lightSeedAccent, 1, lightBase)).toBeNull();
     // The dark arm does not move: Hearth's accent in a Hearth room is 6.83:1.
     expect(accentFillLightness(hearthAccent, 1, darkBase)).toBeNull();
