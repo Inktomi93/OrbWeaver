@@ -11,6 +11,7 @@
 //   • the dial's discrete label bands matching the contract's EXPLICIT `TIME_OF_DAY_RANGES` boundaries edge for
 //     edge (the ring names what the band's TEXT names, and a band ARC starts where its time period starts).
 import { TIME_OF_DAY, TIME_OF_DAY_HOURS, TIME_OF_DAY_RANGES, timeOfDayAtHour } from "@orb/contracts/rpg";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WaystoneParticleLayer, WaystonePhase, WaystoneWeather } from "@orb/ui/meter";
 import {
   handAngle,
@@ -27,7 +28,6 @@ import {
   waystoneStarOpacityAt,
   waystoneWeatherRecipe,
 } from "@orb/ui/meter";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 /** Every color the matrix emits must be a token or a `color-mix` over tokens (D71). */

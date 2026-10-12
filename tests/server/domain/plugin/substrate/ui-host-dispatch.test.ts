@@ -17,9 +17,9 @@ import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import { UI_PROXYABLE_HOST_FUNCTIONS } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { runUiHostCall } from "#server/domain/plugin/substrate/ui-host-dispatch.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_ui_host_dispatch_00000001");
 const MESSAGES: readonly PluginMessageView[] = [{ id: "m1", role: "user", authorDisplayName: "Ada", characterId: null, seq: 0, content: "hi" }];

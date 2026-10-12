@@ -7,9 +7,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ABSENT_ENV_KEY = "ORB_PROC_TEST_ABSENT";
 const PRESENT_ENV_KEY = "ORB_PROC_TEST_PRESENT";

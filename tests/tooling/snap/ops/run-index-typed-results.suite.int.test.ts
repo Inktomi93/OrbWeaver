@@ -5,6 +5,7 @@
 // required and a missing typed population cannot read as a clean structured verdict.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   aggregateDimension,
   aggregateScope,
@@ -29,7 +30,6 @@ import { disabledRunArmFailures } from "../../../../tooling/src/snap/ops/arms/re
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { completeSnapRun, registerSnapDiagnosticCompleteness, registerSnapFactBatch } from "../../../../tooling/src/snap/ops/run-bundle.ts";
 import { readSnapRunIndex } from "../../../../tooling/src/snap/ops/run-report.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // ONE CEILING FOR THE CHILD AND FOR THE TEST (#1744): the two cases below each drive a REAL browser

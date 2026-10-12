@@ -20,10 +20,10 @@
 import { mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
 import type { VerifyReport } from "../../../../tooling/src/verify/contract/stage.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(30_000) });

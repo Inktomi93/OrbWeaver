@@ -2,7 +2,7 @@ import { contentSpansToBlocks, messageContentBlockSchema } from "@orb/contracts/
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("messageContentBlockSchema — round-trips its three kinds (D44)", () => {
   for (const block of [

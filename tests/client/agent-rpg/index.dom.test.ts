@@ -4,8 +4,8 @@
 import { buildAgentRpg } from "@orb/client/agent-rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_agent_rpg_a");
 

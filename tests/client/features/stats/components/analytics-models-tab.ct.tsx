@@ -1,8 +1,9 @@
 // CT: the Analytics CONTEXT "Models" tab. Covers the two things the side-eye ANALYTICS pass (2026-08-19)
 // found wrong about how this tab SPEAKS: its breakdown announced as a list with no list items, and its
 // ranked bar chart carried no reading at all for anyone who cannot see it.
+
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsModelsTabStory } from "../_ct-stories.tsx";
 
 const LATENCY = { avgTtftMs: 300, p90TtftMs: 900, avgGenMs: 1200, p90GenMs: 2400 };

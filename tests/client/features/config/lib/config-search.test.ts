@@ -6,10 +6,10 @@
 // DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
 
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Settings } from "@orb/ui/icons";
 import type { ConfigSearchEntry } from "#client/features/config/lib/config-search.ts";
 import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified, shelfCompletions } from "#client/features/config/lib/config-search.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {
   return { id, shelf, label, icon: Settings, description: `${label} — the description.`, body: { kind: "sections" } };

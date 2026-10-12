@@ -3,8 +3,8 @@
 
 import { logger } from "@orb/server/foundation/observability";
 import { createRelayedFallbackNotice } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 // The throttle's window, mirrored so the tests can step past it (the key-map bound is pinned in

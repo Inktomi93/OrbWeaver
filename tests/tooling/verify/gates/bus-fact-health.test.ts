@@ -5,6 +5,8 @@
 // into one policy quantified over the belted roster, so the family's accumulated evidence is preserved
 // rather than re-founded. The arms a proof row cannot express — the two REFUSALS that carry the retired
 // `bus-coverage-owner`'s guarantee — are pinned through `runPolicyPass` here.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as busFactHealth } from "../../../../tooling/src/verify/gates/bus-fact-health.ts";
@@ -12,7 +14,6 @@ import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gate
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/bus-producers";

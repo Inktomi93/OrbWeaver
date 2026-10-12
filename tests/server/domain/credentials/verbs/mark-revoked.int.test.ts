@@ -1,10 +1,10 @@
 // verb: markRevoked — the RUNNER-INTERNAL revoke (no ownership check; the id IS the access token).
 
 import { userCredentials } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedCredential } from "../_support.ts";
 
 describe("markRevoked", () => {

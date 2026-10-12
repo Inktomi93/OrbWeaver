@@ -12,7 +12,7 @@ import { chatInjectionInputSchema } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("chat injection ids reject malformed and wrong-prefix TypeIDs", () => {
   const base = { position: "in_chat", depth: 0, role: "user", content: "note" } as const;

@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { TypecheckPlan } from "@orb/tooling/verify";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const PLAN_TIMEOUT = scaledBudget(30_000);

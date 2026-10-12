@@ -55,6 +55,10 @@ import { parseIanaTimeZone } from "@orb/kit/time";
 import { safeTokenWindow } from "@orb/kit/tokens";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { cardOf, loadOwnedCharacterRow } from "#server/domain/character/persistence/queries.ts";
@@ -70,10 +74,6 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 import {
   addVariant,

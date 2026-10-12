@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/floor/host/concurrency-profile";
 import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { parse } from "yaml";
 import { z } from "zod";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 const EXPLORATORY_CONFIG = "stryker.config.ts";

@@ -8,8 +8,8 @@ import {
   safeFetch,
   shouldBlockEgress,
 } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // @orb-waive no-vanity-alias(ranges): baselined when the gate widened; burn-down item 906.
 const ranges = DEFAULT_TRUSTED_RANGES;

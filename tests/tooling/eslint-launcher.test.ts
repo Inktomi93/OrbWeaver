@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 function runLauncher(
   args: readonly string[],

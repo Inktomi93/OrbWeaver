@@ -1,11 +1,11 @@
 // CT: plugin provider lifecycle and the saved connection it supplies share one live query client. The test
 // warms every connection read before toggling lifecycle state so only correct invalidation can move the UI.
 
+import { makeCachePolicy, makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { makeCachePolicy, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { PluginProviderConnectionLifecycleStory } from "../_ct-stories.tsx";
 
 const PLUGIN_ID = "plugin_ct_provider_lifecycle01";

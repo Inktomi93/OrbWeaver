@@ -3,14 +3,14 @@ import type { CorpusSource } from "@orb/contracts/search";
 import { chatSegments, embedGenerations, messages } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { createMessageWindow } from "#server/domain/chat/verbs/message-window.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedChatSegment, vec } from "../../search/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, seedChat, seedMessage, seedParticipant } from "../_support.ts";
 

@@ -1,5 +1,5 @@
 // Native accounting crosses actual HTTP/library export, upload and the composed import workload.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,16 +12,16 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/serve
 import type { PrincipalEnv } from "@orb/server/entry/http";
 import { registerExport, registerImportBundle } from "@orb/server/entry/http";
 import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
-import { freshDb } from "../../../support/db.ts";
-import { seedCharacter } from "../../../support/factories/character.ts";
-import { makeGenerationUsage } from "../../../support/factories/generation-usage.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 test("two-box native workload preserves retained legs and pending positional facts, remints private parents and settles once", async ({

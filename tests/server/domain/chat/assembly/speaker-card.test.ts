@@ -9,10 +9,10 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "#server/domain/chat/assembly/speaker-card.ts";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });

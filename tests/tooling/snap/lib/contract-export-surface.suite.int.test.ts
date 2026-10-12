@@ -2,8 +2,8 @@
 // types stay private: exporting one "just in case" makes Knip's public API inventory lie and forces every
 // cold agent to decide whether an unused name is contractual.
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project } from "ts-morph";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const EXPECTED_TYPE_EXPORTS = {
   "contract/map.ts": [

@@ -10,9 +10,9 @@
 // of which seed is live); B seeds it empty. Dirty A via the Scenario field, switch to B, edit B's Scenario:
 // the saved overrides' UNTOUCHED mainPrompt must be B's (absent), never A's frozen "A-prompt".
 
+import { measureClamp } from "@orb/testkit/browser/measure-clamp.ts";
+import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { measureClamp } from "../../../../support/browser/measure-clamp.ts";
-import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { RoomOverridesSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="room-overrides-saved"]';

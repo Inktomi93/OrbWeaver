@@ -1,11 +1,11 @@
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { SeedTurn } from "#inference/backends/agent-sdk/session/frames.ts";
 import { GREETING_USER_STUB, sessionMatchesSeed } from "#inference/backends/agent-sdk/session/frames.ts";
 import type { SeededSessionDecision } from "#inference/backends/agent-sdk/session/store.ts";
 import { SessionCache } from "#inference/backends/agent-sdk/session/store.ts";
 import type { SessionEntryWriter } from "#inference/contract/agent.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const log = {
   debug: (): void => undefined,

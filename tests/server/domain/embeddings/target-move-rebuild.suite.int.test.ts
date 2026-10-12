@@ -16,6 +16,9 @@ import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@o
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, createEmbeddingsWorkloadContributions } from "@orb/server/domain/embeddings";
 import { logger } from "@orb/server/foundation/observability";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { MemoryEmbedSpace } from "#server/domain/chat/contract/memory.ts";
 import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
@@ -26,9 +29,6 @@ import { WIDTH_PROBE_TEXT } from "#server/domain/embeddings/substrate/generation
 import { nearestCharacters } from "#server/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
 import { GenerationSupersededError } from "#server/primitives/embedding-generation/index.ts";
-import { freshDb } from "../../../support/db.ts";
-import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import type { ConnectionHarness, HarnessOptions } from "../connection/_support.ts";
 import { BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import { makeStoreHarness, seedCharacter } from "./_support.ts";

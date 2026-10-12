@@ -11,15 +11,15 @@ import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db
 import type { CharacterHandle, CharacterId, ChatId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "#server/domain/chat/contract/context.ts";
 import type { ResolveBackfillMemoryConfig } from "#server/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "#server/domain/chat/substrate/backfill.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, realMemoryWiring, seedTurns } from "../memory/_support.ts";

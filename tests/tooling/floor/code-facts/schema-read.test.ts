@@ -4,9 +4,10 @@
 // banned shapes, branding) reported ✓ over zero obligations while their schema file scan stayed healthy
 // (2026-08-31). An empty column set is the
 // silent-green shape, so every composition this reader cannot establish REFUSES instead.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { columnProperties, schemaScan, schemaTables } from "../../../../tooling/src/floor/code-facts/schema-read.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TABLE_FILE = "packages/db/src/schema/x.ts";
 

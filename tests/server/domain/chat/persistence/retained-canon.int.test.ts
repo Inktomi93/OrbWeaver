@@ -5,14 +5,14 @@ import { batchStmt } from "@orb/db/query";
 import type { ChatParticipantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { commitRetainedCanonStats } from "#server/domain/chat/persistence/retained-canon.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/index.ts";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { seedChat } from "../../../../support/factories/chat.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext } from "../_support.ts";
 
 test.for([false, true])("retained canon and both owner deltas commit atomically; changed cohort: %s", async (change, { db, ids, clock }) => {

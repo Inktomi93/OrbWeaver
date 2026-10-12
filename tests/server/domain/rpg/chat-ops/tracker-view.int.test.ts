@@ -9,13 +9,13 @@ import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatTurnId, Handle, RpgSheetId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
 import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
 import { findGameByChat, updateGame } from "#server/domain/rpg/persistence/games.ts";
 import { upsertSheet } from "#server/domain/rpg/persistence/sheets.ts";
 import { writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
-import { freshDb } from "../../../../support/db.ts";
 import {
   emptyState,
   expect,

@@ -31,6 +31,8 @@ import { characterEmbeddings, documentChunks } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { readOwnedCharacterVectors } from "#server/domain/discovery/persistence/embed-store-reads.ts";
@@ -43,8 +45,6 @@ import type { ActiveQuerySpace } from "#server/domain/search/contract/service.ts
 import { nearestDigests, nearestSegments } from "#server/domain/search/persistence/digest-rows.ts";
 import { nearestCharacters, nearestDocumentChunks } from "#server/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import type { ConnectionHarness } from "../connection/_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import type { StoreHarnessSources } from "./_support.ts";

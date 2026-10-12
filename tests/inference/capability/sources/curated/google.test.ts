@@ -9,11 +9,11 @@ import {
   honoursParallelControl,
   isTurnEstimated,
 } from "@orb/contracts/inference";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { embeddingPrompt } from "#inference/backends/wire/embedding-input.ts";
 import { curatedKind, curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testProviderId } from "../../../../support/inference-identities.ts";
 import { fakeResolved } from "../../../_support.ts";
 
 test("Gemini model facts share native, OpenRouter and compatibility names", () => {

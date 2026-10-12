@@ -5,8 +5,8 @@
 
 import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { presetDraftStore } from "#client/features/preset/lib/preset-draft-store.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("preset draft mirrors a form-value change and reads it back keyed by entityId", () => {
   expect(readDraftSeed(presetDraftStore, "preset_1")).toBeUndefined();

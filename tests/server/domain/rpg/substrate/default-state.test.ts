@@ -2,9 +2,9 @@
 // shape mirrors the createGame born-seed exactly (null ambient, empty planes, no locks) — the state must be
 // byte-identical whether the first turn has run or not.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("defaultSnapshotState", () => {
   test("the empty steady state: null ambient, empty planes, no quests, no locks", () => {

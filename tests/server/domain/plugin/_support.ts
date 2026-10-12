@@ -17,6 +17,8 @@ import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
 import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
@@ -43,8 +45,6 @@ import {
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "#server/domain/plugin/index.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 
 export { seedUser } from "../embeddings/_support.ts";
 

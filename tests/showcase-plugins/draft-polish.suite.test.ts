@@ -2,8 +2,8 @@ import { join } from "node:path";
 import vm from "node:vm";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { unzipSync } from "fflate";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 async function polishGuest(): Promise<{
   context: vm.Context;

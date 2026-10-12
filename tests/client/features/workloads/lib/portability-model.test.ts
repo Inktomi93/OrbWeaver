@@ -6,6 +6,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // card batch → per-file; caption elision of zero tallies).
 
 import type { PortableKind } from "@orb/contracts/portability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // Deep import the PURE module (NOT the "@orb/client/..." barrel): a barrel import drags browser TSX into
 // the dom-less node typecheck:graph program (the 2026-06-28 dom-lib incident).
 import {
@@ -18,7 +19,6 @@ import {
   summarizeCardImport,
   summaryCaption,
 } from "#client/features/workloads/lib/portability-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("EXPORTABLE_KINDS excludes `assets` and every offered kind has a label", () => {
   expect(EXPORTABLE_KINDS).not.toContain("assets");

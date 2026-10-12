@@ -1,6 +1,7 @@
 // @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
 import type { BridgeAuthority } from "#server/infra/plugin-host/bridge-rpc.ts";
@@ -8,7 +9,6 @@ import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall } from "#ser
 import type { PluginEgressBridge } from "#server/infra/plugin-host/net-egress.ts";
 import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
 import { isBridgeOperation } from "#server/infra/plugin-host/process-protocol.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = "chat_authorized00000000000000" as ChatId;
 const OTHER_CHAT = "chat_other00000000000000000" as ChatId;

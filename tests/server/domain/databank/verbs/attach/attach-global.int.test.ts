@@ -5,9 +5,9 @@ import { globalDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedChat, seedChatHost, seedUser } from "../../_support.ts";
 
 test("marks the owned document global; re-attach is idempotent", async () => {

@@ -11,7 +11,7 @@ import {
   ST_SETTINGS_FILE,
   stProfileEntryDisposition,
 } from "@orb/contracts/import";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a handled entry is handled; an unhandled one carries its reason; an unknown one is bare", () => {
   expect(stProfileEntryDisposition("characters", true)).toEqual({ handled: true });

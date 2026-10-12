@@ -4,12 +4,12 @@
 // @instrument-absence-proof: a call with no recorded usage, a prompt below the calibration prefix or the model's
 // cache minimum, a case with one call, and a run whose every line is SKIPPED must never read as a clean verdict.
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallUsage, CaseOutcome, CaseVerdict } from "@orb/tooling/cache-check";
 import { CACHE_READ_FLOOR, exitFor, FLOOR_CALIBRATION, formatOutcome, judgeCase, runVerdict } from "@orb/tooling/cache-check";
 import { printVerdictReceipt } from "@orb/tooling/floor/verdict/evidence";
 import { vi } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SONNET_CACHE_MIN = 1024;
 // Prompt sizes from the live direct run on the resized fixture.

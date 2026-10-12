@@ -7,6 +7,8 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   deleteOwnedTheme,
@@ -18,8 +20,6 @@ import {
   updateOwnedTheme,
   upsertSeedTheme,
 } from "#server/domain/settings/persistence/theme-queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1_750_000_000_000;

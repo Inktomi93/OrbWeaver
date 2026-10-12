@@ -12,8 +12,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 
 export const ALICE = castId<UserId>("user_alice");
 export const BOB = castId<UserId>("user_bob");

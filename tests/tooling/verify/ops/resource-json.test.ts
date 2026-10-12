@@ -2,11 +2,12 @@
 // unparseable are three different answers, and collapsing any of them into `{}` is how a liveness gate
 // reports a clean zero over a config it never read (the ResourceHost access-pattern ruling). It is the same
 // shape as the ruled biome refusal (da3c71831c, #1245): reading nothing is a REFUSAL, never a clean result.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { JsonResourceFacts } from "../../../../tooling/src/verify/contract/resource-json.ts";
 import { loadJsonResource } from "../../../../tooling/src/verify/ops/resource-json.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const BIOME = "biome.json";
 

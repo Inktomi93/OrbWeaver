@@ -30,6 +30,8 @@ import { chatDigests, chatSegments, embedGenerations, embedSpaceState } from "@o
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import type { ChatWorkloadDeps } from "#server/domain/chat/contract/workloads.ts";
@@ -40,8 +42,6 @@ import type { EmbeddingsService, PinnedGeneration } from "#server/domain/embeddi
 import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import type { StoreHarness } from "./_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedDocument, seedUser } from "./_support.ts";
 

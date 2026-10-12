@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { normalizePathSet } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { repoRel } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("native roots and compiler paths reconcile into exact repository identities", () => {
   expect(repoRel("D:\\a\\orbweaver", "D:/a/orbweaver/tooling/src/example.ts")).toBe("tooling/src/example.ts");

@@ -9,10 +9,10 @@
 
 import { chatTags, tags } from "@orb/db";
 import { createTagService } from "@orb/server/domain/tag";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("attach chat tag by name", () => {

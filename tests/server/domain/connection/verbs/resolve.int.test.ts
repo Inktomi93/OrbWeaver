@@ -8,10 +8,10 @@ import type { GenerationCapability, ProviderId } from "@orb/contracts/inference"
 import { CONNECTION_OP_CODES, requireGenerationCapability, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { NoConnectionError } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { hasStructuredWriter, hasToolWriter } from "#server/domain/rpg/substrate/readonly-axis.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 
 const OLLAMA = castId<ProviderId>("ollama");

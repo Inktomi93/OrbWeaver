@@ -7,13 +7,13 @@
 // component is exported from its feature front door, and both resolve to the SAME module instance the
 // `@orb/client/*` providers resolve to (one on-disk path ⇒ one vite module id), so context identity holds.
 
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 // @orb-waive-file testid-typed-only-stories("preset-renamed"): baselined when the gate widened; burn-down item 906.
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterCreateActions } from "#client/features/character/components/character-create-actions.tsx";
 import { PresetRenameDialog } from "#client/features/preset/components/preset-rename-dialog.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The rename dialog, open on mount and seeded — the crunch's named "PresetRenameDialog" surface. */
 export function PresetRenameDialogStory(): ReactElement {

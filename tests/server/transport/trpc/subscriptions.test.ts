@@ -13,8 +13,8 @@
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { withSubscriptionErrors } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The parts of a tracked envelope (`[id, data, symbol]` server-side). */
 function partsOf(envelope: unknown): { readonly id: string; readonly data: Record<string, unknown> } {

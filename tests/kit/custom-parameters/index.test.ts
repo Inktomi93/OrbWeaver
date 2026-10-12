@@ -4,8 +4,8 @@
 // merge (the defense-in-depth requirement — no behavior change for valid input).
 
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("deepMergeRequestBody — prototype-pollution defense (Layer 2)", () => {
   test("a top-level __proto__ on the patch does not pollute Object.prototype", () => {

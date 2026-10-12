@@ -2,10 +2,10 @@
 // there is nothing to show). Known codes get bespoke copy; an unknown-but-shape-safe code falls back to a
 // generic line rather than echoing the raw token.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // A lib INTERNAL the front door doesn't re-export — deep-imported like the _ct-stories precedent.
 import { authErrorMessage } from "#client/features/auth/lib/auth-error.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("authErrorMessage", () => {
   test("null / undefined / empty ⇒ null (no error to show)", () => {

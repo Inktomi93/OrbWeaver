@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { vi } from "vitest";
 import { referenceProblems } from "../../../../tooling/src/floor/prose/prose-references.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("absent ignored output passes; missing descendants of existing output fail", ({ scratch }) => {
   execFixtureGit(scratch, ["init", "-q"]);

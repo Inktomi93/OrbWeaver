@@ -15,11 +15,11 @@ import type { AuthRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { OidcVerifiedTokens } from "@orb/server/infra/auth";
 import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const NOW = 1_750_000_000_000;
 const APP_HOST = "app.example";

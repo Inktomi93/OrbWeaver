@@ -8,8 +8,8 @@
 // exact `.text()`/status/statusText wiring this seam is here to get right.
 
 import { throwHttpError } from "@orb/client/data";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // No trailing ` — ` separator on the empty-body path.
 const ENDS_AT_STATUS_TEXT = /Internal Server Error$/u;

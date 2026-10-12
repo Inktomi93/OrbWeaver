@@ -13,11 +13,11 @@
 //     `--full` at all.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../../tooling/src/verify/contract/selection.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { selectAffectedInstrumentTests } from "../../../../tooling/src/verify/ops/instrument-affected.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
@@ -264,7 +264,7 @@ test("changed tooling helpers reach native consumers; deleted or renamed tests a
     ["tooling/biome.edit.jsonc"],
     ["tooling/runner/custom.config.ts"],
     [".github/actions/setup/action.yml"],
-    ["tests/support/fixtures.ts"],
+    ["tests/support/node/fixtures.ts"],
     ["scripts/vitest-supervised.ts"],
     ["tests/tooling/fixture.json"],
   ]) {

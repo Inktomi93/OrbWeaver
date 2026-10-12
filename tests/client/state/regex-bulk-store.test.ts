@@ -9,8 +9,8 @@
 import { __readRegexBulkForTest, clearRegexBulkSelection, exitRegexBulkMode, toggleRegexBulkMode, toggleRegexScriptSelected } from "@orb/client/state";
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SCRIPT_A = castId<RegexScriptId>("regex_script_bulkaaaaaaaaaa");
 const SCRIPT_B = castId<RegexScriptId>("regex_script_bulkbbbbbbbbbb");

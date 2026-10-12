@@ -7,6 +7,8 @@
 // WHY the precedence is worth pinning: the bug this module was fixed for was an override
 // (SNAP_FIXTURE_SERVER_URL) that existed but reached NEITHER the health probe nor the browser's base URL.
 // One resolve feeding both halves is the fix; these cases are its lens.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import type { PortOwnerAuthProbe } from "../../../../tooling/src/snap/contract/fixture.ts";
 import {
@@ -19,7 +21,6 @@ import {
   resolveFixtureUsers,
 } from "../../../../tooling/src/snap/ops/fixture.ts";
 import { FIXTURE_CREDENTIALS, fixtureEnv as fixtureRecipe } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // ── resolveFixtureTarget ────────────────────────────────────────────────────────────────────────────────
 

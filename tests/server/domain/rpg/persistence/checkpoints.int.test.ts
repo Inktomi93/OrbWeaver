@@ -7,11 +7,11 @@ import { rpgSnapshots } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findCheckpoint, insertCheckpoint, listCheckpoints } from "#server/domain/rpg/persistence/checkpoints.ts";
 import { buildRestoredSnapshotStatement, insertSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
 
 let db: Db;

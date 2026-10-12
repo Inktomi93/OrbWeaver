@@ -33,6 +33,9 @@ import { createNotificationsService } from "@orb/server/domain/notifications";
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync, zipSync } from "fflate";
 import { afterEach, beforeAll } from "vitest";
@@ -41,9 +44,6 @@ import type { ExamplePluginSeederDeps } from "#server/entry/boot/seed-example-pl
 import { createExamplePluginSeeder } from "#server/entry/boot/seed-example-plugins.ts";
 import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "#showcase-plugins/index.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../../domain/plugin/_support.ts";
 

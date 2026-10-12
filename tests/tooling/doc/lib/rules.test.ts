@@ -1,8 +1,9 @@
 // The governed-tree rules on hand-built snapshots: each failure class beside the clean control that
 // proves the same walk passes. No tree, no git — `docProblems` is pure over a `DocTree`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DocTree, GovernedDoc } from "../../../../tooling/src/doc/index.ts";
 import { adrTemplate, docProblems, expectedGeneratedFiles, itemTemplate, nextFreeRulingId, planTemplate } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
 const ADR = "docs/adr/0164-docs-plans-adrs.md";

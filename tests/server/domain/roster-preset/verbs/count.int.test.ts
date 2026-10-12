@@ -1,9 +1,9 @@
 import { rosterPresets } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createRosterPresetService } from "@orb/server/domain/roster-preset";
-import { principal } from "../../../../support/factories/principal.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeHarness } from "../_support.ts";
 
 test("census counts only owned library rows without entering full-list enrichment", async ({ db }) => {

@@ -3,10 +3,10 @@ import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { assemblePrompt } from "#server/domain/chat/assembly/assemble.ts";
 import { buildAssembleContext } from "#server/domain/chat/assembly/context.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedChat, seedUser } from "../_support.ts";
 
 test("cache diagnostics name only matched, kept keyword entries at active system anchors", async () => {

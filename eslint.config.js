@@ -193,7 +193,7 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // THE MEASUREMENT that justifies the block, taken over 591 files before anything was enabled:
 // no-floating-promises 36 · switch-exhaustiveness-check 7 · no-deprecated 1 · restrict-template-expressions 1
 // · no-misused-promises / require-await / await-thenable 0. The 36 were ONE class and a LYING-TEST class:
-// `expect(res).toExitWith(N)` with no `await` — `toExitWith` is an ASYNC matcher (tests/support/matchers.ts),
+// `expect(res).toExitWith(N)` with no `await` — `toExitWith` is an ASYNC matcher (tests/support/node/matchers.ts),
 // so a wrong exit code surfaced as an unhandled rejection attributed to a DIFFERENT test while the real
 // test reported PASS (planted-control receipt: 2 passed, 1 unhandled error, wrong test named). Biome is
 // syntactic and structurally cannot see any of these. All live violations were fixed in the landing lane;

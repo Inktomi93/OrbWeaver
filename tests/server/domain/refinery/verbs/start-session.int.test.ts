@@ -5,9 +5,9 @@
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ZodError } from "zod";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 const NAME_MAX = 200;

@@ -1,8 +1,8 @@
 import type { CharacterId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { costOfSamples, createSelectedCostAccumulator, modelCostKey } from "#server/domain/stats/substrate/selected-cost-samples.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 test("selected cost keeps unknown and explicit zero distinct and groups only the matching voice/model/provider", ({ ids }) => {
   const owner = castId<UserId>(ids.next("user"));

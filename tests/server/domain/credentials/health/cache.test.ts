@@ -3,9 +3,9 @@
 // eviction) the header describes for the bounded Maps. Each test uses its own unique credentialId so the
 // module-scope singleton state never leaks across tests.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { clearHealthStrikes, getLastHealthCheck, recordHealthStrike, rememberHealthCheck } from "#server/domain/credentials/health/cache.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("getLastHealthCheck / rememberHealthCheck", () => {
   test("never-probed credential reads undefined", () => {

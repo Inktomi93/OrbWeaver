@@ -2,10 +2,10 @@
 
 import { characterTags } from "@orb/db";
 import { createTagService } from "@orb/server/domain/tag";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 const TAG_DELETE = /delete from "tags"/iu;

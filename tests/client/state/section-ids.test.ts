@@ -2,9 +2,9 @@
 // resolveSectionPath is #181's deep-link resolver: a URL segment is an ASSERTION (miss ⇒ null ⇒ the
 // router's notFound), deliberately unlike the stored-section heal whose miss arm is the born default.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "#client/state/section-ids.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("resolveSectionPath", () => {
   test("resolves every live section id to itself — the path spelling IS the section id", () => {

@@ -2,6 +2,7 @@
 // it would run on darwin and win32 and the output that tool documents, so a wrong flag or a wrong column is
 // a red here rather than on a machine nobody has. The Linux branch reads a planted `/proc`.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import type { OpenerChild, PlatformDeps, PortOwner, SocketTableRead } from "../../../../tooling/src/floor/host/platform.ts";
 import {
@@ -19,7 +20,6 @@ import {
   socketTableOrThrow,
 } from "../../../../tooling/src/floor/host/platform.ts";
 import type { RunNicedSyncResult } from "../../../../tooling/src/floor/process/proc.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("process start ticks preserve Linux pid identity and read nothing on unsupported platforms", () => {
   const readFile = vi.fn(() => `42 (name with ) parentheses) ${Array.from({ length: 19 }, () => "0").join(" ")} 98765 0`);

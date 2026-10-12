@@ -4,8 +4,8 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RefineryService } from "@orb/server/domain/refinery";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const ACTOR = castId<UserId>("user_actor");

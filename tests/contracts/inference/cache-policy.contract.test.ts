@@ -1,5 +1,5 @@
 import { cachePolicyContextSchema, cachePolicySchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const CONTEXT = {
   wire: "openai-compat",

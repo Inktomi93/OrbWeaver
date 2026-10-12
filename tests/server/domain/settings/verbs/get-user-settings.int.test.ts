@@ -3,10 +3,10 @@
 
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { userSettings } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("getUserSettings", () => {

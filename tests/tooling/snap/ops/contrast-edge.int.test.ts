@@ -12,9 +12,10 @@
 //
 // @instrument-proof: the failing and passing borders differ ONLY in border-color; a per-side sampler reading
 // the wrong strip (the fill, the surround, the anti-aliased corner) cannot separate them.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { measureEdgeContrast } from "../../../../tooling/src/snap/ops/contrast-edge.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

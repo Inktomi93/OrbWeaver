@@ -26,14 +26,14 @@ import { parseUserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { imageryToolDefinitions } from "#server/domain/imagery/index.ts";
 import type { ImageryComposeDeps } from "#server/entry/compose/imagery.ts";
 import { buildImagery, createCharacterSeated } from "#server/entry/compose/imagery.ts";
-import { freshDb } from "../../../support/db.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const CALLER = principal(castId<UserId>("usr_caller"), { handle: castId<Handle>("caller") });

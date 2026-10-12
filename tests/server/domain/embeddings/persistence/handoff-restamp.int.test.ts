@@ -12,14 +12,14 @@ import { characters, chatDigestSpeakers, chatDigests, embedGenerations, userConn
 import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createHandoffRestampStatements } from "#server/domain/embeddings/index.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { seedChat } from "../../../../support/factories/chat.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 const AT = 1_700_000_000_000;
 

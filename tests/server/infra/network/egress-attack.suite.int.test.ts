@@ -30,10 +30,10 @@ import {
   safeFetch,
   shouldBlockEgress,
 } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // Capture/restore via undici's PUBLIC accessors — NEVER a hardcoded `Symbol.for("undici.globalDispatcher.N")`.
 // undici 8 moved that slot from `.1` to `.2` and kept `.1` as a legacy alias nothing reads, so the old

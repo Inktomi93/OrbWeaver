@@ -1,11 +1,11 @@
 // @orb-waive-file no-vanity-alias(seedUser): baselined when the gate widened; burn-down item 906.
 import { chatDigests, chatParticipants, chatSegments, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatParticipant, seedChatSegment, vec } from "../_support.ts";
 
 describe("room-derived search authority", () => {

@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
 import { loadTrackedFiles } from "../../../../tooling/src/verify/ops/resource-tracked.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("Git failure is unresolved, while a valid empty index is empty", ({ scratch }) => {
   expect(loadTrackedFiles(scratch)).toMatchObject({ status: "unresolved", subprocess: { exitStatus: 128 } });

@@ -7,10 +7,10 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { z } from "zod";
 import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext } from "#server/domain/tool-use/index.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;

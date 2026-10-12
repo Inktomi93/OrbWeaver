@@ -1,6 +1,6 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import { CRED_REVOKED_REASONS, parseProviderMetadata, providerMetadataSchema, RESOLVED_SECRET_KINDS } from "@orb/contracts/credentials";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // --- The credential vocabulary under connections-as-the-unit (inference program §3.2, F7) -------------
 // The retired `CRED_SOURCES` / `CRED_PROVIDERS` axes have NO successor here: a row's `provider` is a registry

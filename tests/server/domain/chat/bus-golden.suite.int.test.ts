@@ -14,13 +14,13 @@
 
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ResolveForeignInputsOp } from "#server/domain/chat/contract/foreign.ts";
 import { createEdit } from "#server/domain/chat/verbs/edit.ts";
 import { createFork } from "#server/domain/chat/verbs/fork.ts";
-import { scenario } from "../../../support/chat/index.ts";
-import { tape } from "../../../support/chat/tape.ts";
-import { expect, test } from "../../../support/fixtures.ts";
+import { scenario } from "./_scenario.ts";
 
 const PERSONA: AssemblePersona = { name: "Alex", description: "the user" };
 

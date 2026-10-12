@@ -8,6 +8,7 @@ import { projectViewForMember } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "#server/domain/chat/contract/views.ts";
 import {
   createMemberDeltaStamper,
@@ -18,7 +19,6 @@ import {
   stripChatEventForMember,
   stripMessagesForViewer,
 } from "#server/domain/chat/substrate/member-visibility.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 const chatId = castId<ChatId>("chat_1");

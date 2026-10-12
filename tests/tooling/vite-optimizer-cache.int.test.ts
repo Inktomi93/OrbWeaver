@@ -2,8 +2,8 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 test("distinct dev ports own disjoint optimizer caches and same-port restarts reuse completed output", { timeout: scaledBudget(30_000) }, async ({

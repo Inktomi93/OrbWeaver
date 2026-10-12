@@ -6,13 +6,13 @@
 // failed write behind an invalid field; an `unsaved` that outranked `blocked` would say "Saving…" over a
 // write the driver is refusing to make). A table is the honest shape for a law that is a table.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // The DEEP path, not `@orb/client/forms`: these three are the Session's internals and are deliberately off
 // the barrel (a consumer that could reach `foldSaveState` could re-derive a status the boundary already
 // hands it — the second truth `AutosaveSession` exists to prevent). Same import shape as the
 // `save-circuit-breaker.test.ts` sibling, which tests the family's other unexported internal.
 import { foldSaveState, hasUnsavedEdits, takeDiscard } from "#client/forms/create-autosave-entity-form-model.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("hasUnsavedEdits", () => {
   test("compares STRUCTURALLY, not by identity — a mapper-fresh object with equal content is clean", () => {

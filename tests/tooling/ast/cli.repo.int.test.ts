@@ -2,7 +2,7 @@
 // audited zeroes, and exit classes. Lens behavior and formatting use the same production verbs over tiny
 // projects in ops/verbs.test.ts, avoiding a full repository load for every semantic assertion.
 import { fileURLToPath } from "node:url";
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));

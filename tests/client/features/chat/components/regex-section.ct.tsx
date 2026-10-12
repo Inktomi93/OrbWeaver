@@ -19,11 +19,11 @@
 import { characterRegexTierKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expectContainedWithin } from "@orb/testkit/browser/contained-within.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { expectContainedWithin } from "../../../../support/browser/contained-within.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RegexSectionStory } from "../_ct-stories.tsx";
 
 const ALICE = castId<CharacterId>("character_ct_alice");

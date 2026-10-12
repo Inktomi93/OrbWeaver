@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { testProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { ApplicationPartition } from "../../../../tooling/src/verify/contract/application-partitions.ts";
@@ -13,7 +14,6 @@ import { aggregateExit, noVerdictStages } from "../../../../tooling/src/verify/l
 import { aggregateApplicationPartitions } from "../../../../tooling/src/verify/lib/partition-aggregate.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HEAD = "a".repeat(40);
 test("hosted mutation omission remains an exact unmeasured row in the native denominator", async ({ scratch }) => {

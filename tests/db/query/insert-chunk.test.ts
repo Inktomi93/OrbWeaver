@@ -4,7 +4,7 @@
 // silently drops a non-empty batch (#1377 item 1).
 
 import { chunkRows, rowsPerInsert } from "@orb/db/query";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const ROWS = [1, 2, 3, 4, 5];
 

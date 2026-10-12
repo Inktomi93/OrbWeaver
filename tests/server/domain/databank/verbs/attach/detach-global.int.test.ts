@@ -4,9 +4,9 @@
 import { globalDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 
 test("detach removes the global row; a repeat detach is a silent no-op", async () => {

@@ -3,10 +3,10 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const FAKES = `
 import { writeFileSync } from "node:fs";

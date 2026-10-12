@@ -10,8 +10,8 @@ import type { PortableParse } from "@orb/contracts/portability";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CanonicalDocument } from "@orb/server/primitives/serde/databank";
 import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "@orb/server/primitives/serde/databank";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

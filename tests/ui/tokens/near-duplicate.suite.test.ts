@@ -9,8 +9,8 @@
 // epsilon does not swallow the deliberate elevation ladder, and the sanctioned-exception path works.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ALLOWED_NEAR_PAIRS, assertNoNearDuplicateColors, NEAR_DUPLICATE_EPSILON } from "../../../packages/ui/tokens.near-duplicate.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const TOKENS_JSON = join(import.meta.dirname, "../../../packages/ui/src/tokens/tokens.json");
 const LIGHT_JSON = join(import.meta.dirname, "../../../packages/ui/src/tokens/themes/light.json");

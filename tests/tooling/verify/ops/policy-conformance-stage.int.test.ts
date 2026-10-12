@@ -23,11 +23,11 @@
 // source. Arm 2's grant counts were already derived this way and are the shape the rest now follows.
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as baseuiRenderProp } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
 import { policyGrantIdentityRowCount } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES = "tooling/src/verify/gates";

@@ -1,8 +1,8 @@
 import { characterStats, characters, chatParticipants, chats, messageVariants, ownerStats } from "@orb/db";
 import { castId } from "@orb/kit/ids";
 import { createResolveRetainedChatAccountingScope, reconcileStats } from "@orb/server/domain/stats";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../chat/_support.ts";
 
 test("multi-owner retained canon rebuild writes only its owned character grain and preserves both owner totals", async ({ db }) => {

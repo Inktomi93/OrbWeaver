@@ -9,10 +9,10 @@
 // second character now; everything the roster IS (the section, the row, its identity, View character,
 // Remove from chat) stays — that half is #162's ruling and these tests pin it so the narrowing can't creep.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CommittedMembersTabStory } from "../_ct-stories.tsx";
 
 const CHARACTER_SECTION = '[data-slot="members-characters"]';

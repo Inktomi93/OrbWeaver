@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { loadPackageMetadata, loadStaticConfig } from "../../../../tooling/src/verify/ops/resource-config.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function parser(): (path: string, text: string) => import("ts-morph").SourceFile {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });

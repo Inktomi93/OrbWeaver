@@ -1,11 +1,11 @@
 // CT: a saved connection whose provider is absent stays identifiable, editable and removable while every
 // provider-backed list action is unavailable. The badge and disabled switch state the reason at the row.
 
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 // Pure `.ts`, safe in a node-side CT spec; the feature's front door is a barrel that would pull `.tsx` in.
 import type { ReindexPreview } from "#client/lib/embedder-rebuild.ts";
 import { REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "#client/lib/embedder-rebuild.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { connectionRow, openRowMenu, stubConnectionsPane } from "../_connection-fixtures.ts";
 import { ConnectionsAuthoringStory, ConnectionsListReadStory } from "../_ct-stories.tsx";
 

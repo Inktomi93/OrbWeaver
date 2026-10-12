@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -5,7 +6,6 @@ import { gate } from "../../../../tooling/src/verify/gates/json-column-write-par
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { spellingTwinsOf } from "../../../../tooling/src/verify/lib/spelling-twins.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the actual shorthand-writer namespace twin preserves detection and its unchanged supporting proofs", { tags: ["slow"] }, () => {
   const proofs = gate.mustFlag.filter((candidate) => candidate.why.startsWith("THE #1035 SHORTHAND RED:"));

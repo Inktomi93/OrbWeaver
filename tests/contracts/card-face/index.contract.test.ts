@@ -15,8 +15,8 @@ import type { ChatPersonaIdentity } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { CharacterDetail } from "#server/domain/character/contract/views.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 // ── Reference equality — one home, proven per field per composer ─────────────────────────────────────
 

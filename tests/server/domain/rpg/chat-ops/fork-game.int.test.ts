@@ -24,13 +24,13 @@ import type { Db } from "@orb/db";
 import { messageVariants, presets, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq, getTableColumns } from "drizzle-orm";
 import { insertCheckpoint, listCheckpoints } from "#server/domain/rpg/persistence/checkpoints.ts";
 import { findGameByChat, insertGame, updateGame } from "#server/domain/rpg/persistence/games.ts";
 import { insertJournalEntry, listAllJournal } from "#server/domain/rpg/persistence/journal.ts";
 import { listSheets, upsertSheet } from "#server/domain/rpg/persistence/sheets.ts";
 import { insertSnapshot, listSnapshots, resolveSnapshotForTurn, writeHandSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../support/db.ts";
 import {
   actorWithWallet,
   emptyState,

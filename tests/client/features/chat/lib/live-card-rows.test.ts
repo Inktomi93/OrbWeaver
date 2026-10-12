@@ -3,9 +3,9 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { LIVE_CARD_ROWS_KEPT_MOUNTED, liveCardRowIds } from "#client/features/chat/lib/live-card-rows.ts";
 import type { RowRenderPolicy } from "#client/lib/render-trust.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeMessageView } from "../fixtures.ts";
 
 const CARD = ':::card title="Ledger"\n<div>Tally</div>\n:::';

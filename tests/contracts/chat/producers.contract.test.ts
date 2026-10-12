@@ -15,7 +15,7 @@ import {
 } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const ARIA_ID = castId<CharacterId>(mintTypeId(ID_PREFIX.character));
 const KAI_ID = castId<CharacterId>(mintTypeId(ID_PREFIX.character));

@@ -4,6 +4,7 @@
 // code, and every blind input refuses instead of passing. The last case reads the real `main.tsx`.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DevInstrumentVerdict, ModuleValueGraph } from "../../../../tooling/src/verify/contract/dev-instrument-absence.ts";
 import {
   chunkSources,
@@ -14,7 +15,6 @@ import {
   resolveSpecifier,
   valueGraphFromCruise,
 } from "../../../../tooling/src/verify/lib/dev-instrument-absence.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ENTRY = "packages/client/src/main.tsx";
 const ROOT = "packages/client/src/agent-handles/index.ts";

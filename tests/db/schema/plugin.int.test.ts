@@ -13,9 +13,9 @@ import { assets, pluginAssets, pluginKv, plugins, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 function isConstraintErr(err: unknown): boolean {

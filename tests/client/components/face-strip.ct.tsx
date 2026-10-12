@@ -9,9 +9,9 @@
 //   · the face's own box meets the per-pointer touch floor even though `size="media"` is content-sized.
 
 import { FaceStrip } from "@orb/client/components";
+import { resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolveSpacingPxIn } from "../../support/browser/touch-floor.ts";
 import { FaceStripFoldHarness } from "./face-strip.fixtures.tsx";
 
 const AVELINE = { id: "char_aveline", name: "Aveline", avatarHash: null };

@@ -12,11 +12,11 @@ import { users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, ne } from "drizzle-orm";
 import { describe } from "vitest";
 import { commitAuditedWrite } from "#server/domain/admin/substrate/audited-write.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { auditActions, liveSessionIds, makeHarness, seedLiveSession, seedUser, withBrokenAudit } from "../_support.ts";
 
 const AT = 1_750_000_000_000;

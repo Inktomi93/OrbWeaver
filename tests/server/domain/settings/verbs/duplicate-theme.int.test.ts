@@ -1,11 +1,11 @@
 // verb: duplicateTheme — copy-to-customize. Source = any readable row (own or seed) → a NEW owned row;
 // name defaults to "<source> copy", de-duped by numeric suffix against the caller's own names.
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ThemeNotFoundError } from "#server/domain/settings/contract/errors.ts";
 import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { findSeedTheme, makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("duplicateTheme", () => {

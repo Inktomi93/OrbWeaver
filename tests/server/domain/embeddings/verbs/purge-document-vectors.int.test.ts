@@ -7,9 +7,9 @@ import { documentChunks } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";

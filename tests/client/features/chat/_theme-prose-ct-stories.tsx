@@ -4,12 +4,12 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { Suspense } from "react";
 import { HomeHearthRoom } from "#client/features/chat/components/home-hearth-room.tsx";
 import { HomeMastheadBody } from "#client/features/chat/components/home-masthead-body.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { makeChatSummary } from "./fixtures.ts";
 
 interface HomePartialThemeProseStoryProps {

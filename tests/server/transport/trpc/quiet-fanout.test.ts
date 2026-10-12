@@ -18,8 +18,8 @@ import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishUserEvent, silenceRoomEntityFan, subscribeUserEvents, withQuietBulkFanout } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const ROOM_A = castId<ChatId>("chat_quiet_a");
 const ROOM_B = castId<ChatId>("chat_quiet_b");

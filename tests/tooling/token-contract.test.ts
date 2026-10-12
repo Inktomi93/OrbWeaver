@@ -4,6 +4,7 @@
 // @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import {
   FORMAT_SCHEMA_SHA256,
@@ -15,7 +16,6 @@ import {
 import { describe } from "vitest";
 import { gate as tokensContractGate } from "../../tooling/src/verify/gates/tokens-contract.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
 const REPO_ROOT = join(import.meta.dirname, "../..");

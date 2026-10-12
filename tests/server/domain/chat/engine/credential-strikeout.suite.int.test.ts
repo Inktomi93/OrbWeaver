@@ -28,6 +28,11 @@ import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeApiKeySecret } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
@@ -36,11 +41,6 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import type { SearchContext } from "#server/domain/search/context.ts";
 import { createDigests } from "#server/domain/search/verbs/digests.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeApiKeySecret } from "../../../../support/factories/resolved-connection.ts";
-import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   fakeRecallResult,

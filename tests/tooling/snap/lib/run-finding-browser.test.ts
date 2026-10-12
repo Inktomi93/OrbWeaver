@@ -2,9 +2,10 @@
 // terminal colour arguments included — as a finding's `what`, which made five ambient annotation rows
 // 5.3 KB of a 17 KB `--map` run. This is the parse that replaced it, pinned on the exact shapes the
 // client logger emits (captured from a live /chats run, 2026-09-04) plus the two ways it can be wrong.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import { annotationOf, annotationText, diagnosticFindingDrafts } from "../../../../tooling/src/snap/lib/run-finding-console-annotation.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FRAME = "%c10:54:40.830 [frame]%c long frame 153ms · blocking 103ms (budget 100ms) · @ main.tsx 147ms · route / color:#c60;font-weight:bold color:#888";
 const PERF = "%c10:54:42.310 [perf]%c slow commit region:content 25ms (mount) color:#c60;font-weight:bold color:#888";

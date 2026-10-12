@@ -1,5 +1,8 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { createGoogleBackend } from "#inference/backends/google/index.ts";
 import { googleTokenDetailsOf, googleTokenUsageOf } from "#inference/backends/google/usage.ts";
@@ -7,9 +10,6 @@ import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { ChatResult, GoogleChatRequest } from "#inference/contract/chat.ts";
 import type { Resolved } from "#inference/contract/resolved.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { testProviderId } from "../../../support/inference-identities.ts";
-import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 
 const SIGNATURE = "signed-native-tool-fixture";

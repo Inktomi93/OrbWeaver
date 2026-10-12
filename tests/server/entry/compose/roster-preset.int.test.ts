@@ -5,18 +5,18 @@
 // actual setGroupConfig parse-and-persist, and chat's actual requireHost refusal — so a stubbed or
 // mis-mapped compose op cannot pass on fakes alone.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { chatParticipants, chats, rosterPresets, rpgGames } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { describe } from "vitest";
-import { principal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../../domain/chat/_support.ts";
 
 describe("roster-preset applyToChat — composed-real (createServices)", () => {

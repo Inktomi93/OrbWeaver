@@ -6,12 +6,12 @@ import { chats, messageVariants, statsCanonVersions } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#server/domain/chat/persistence/token-usage-backfill.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;

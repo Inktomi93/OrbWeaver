@@ -8,11 +8,11 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CreateOnStartClickStory, NarrowNewChatPickerStory, NewChatPickerStory, TemporaryNewChatPickerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage } from "../fixtures.ts";

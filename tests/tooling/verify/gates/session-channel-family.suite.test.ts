@@ -19,13 +19,14 @@
 //          the final population resolver refuses that at the population phase where legacy visited nothing.
 //          Legacy-side coverage, read first: the occurrence arm fires in 2 of 5 legacy examples and the
 //          tripwire in 1 of 5 — both nonzero, so the replay is evidence for both halves of the split.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as boundary } from "../../../../tooling/src/verify/gates/session-channel-boundary.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/session-channel-boundary-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/session-channel-family";
 const FAMILY: readonly GatePolicy[] = [boundary, health];

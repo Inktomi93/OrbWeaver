@@ -64,6 +64,10 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createCopyHandoffCards, handoffProvenance } from "#server/domain/character/index.ts";
@@ -73,10 +77,6 @@ import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#
 import { reconcileStats } from "#server/domain/stats/index.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#server/domain/world-info/index.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;

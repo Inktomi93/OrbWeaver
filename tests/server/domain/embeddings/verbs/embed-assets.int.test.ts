@@ -16,6 +16,8 @@ import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createLocalLightImageEmbed } from "#inference/backends/local-light/tasks.ts";
@@ -29,8 +31,6 @@ import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { fakeModelCache, fakeResolved } from "../../../../inference/_support.ts";
 import type { RecordedRequest } from "../../../../inference/backends/_hosted-support.ts";
 import { scriptedJsonFetch } from "../../../../inference/backends/_hosted-support.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../../connection/_support.ts";
 import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeRoleClients, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 

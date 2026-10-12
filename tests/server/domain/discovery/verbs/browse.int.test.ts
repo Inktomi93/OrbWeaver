@@ -15,10 +15,10 @@ import { assets, characterSummaries, characters } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 
 // Insert a distilled summary row directly (the browse read is decoupled from the distill compute; a direct

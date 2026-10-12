@@ -7,8 +7,8 @@ import type { CharacterHandle, CharacterId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { createImportService, ImportCardError, importFileHash } from "@orb/server/domain/import";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness } from "../_support.ts";
 
 const V3_CARD = {

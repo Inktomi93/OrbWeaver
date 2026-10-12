@@ -6,8 +6,8 @@
 import type { WireSchemaMode } from "@orb/contracts/inference";
 import { checkWireSchema, effectiveStructuredLimits, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** Every keyword appearing anywhere in a schema tree. */
 function collectKeys(node: unknown, acc: Set<string> = new Set()): Set<string> {

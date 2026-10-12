@@ -24,11 +24,12 @@ import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { setVariantContentStatement } from "#server/domain/chat/persistence/canon-write.ts";
 import { createEdit } from "#server/domain/chat/verbs/edit.ts";
-import { scenario, tape } from "../../../../support/chat/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { scenario } from "../_scenario.ts";
 import { seedMessage } from "../_support.ts";
 
 /** The FOREIGN-half fake the edit bundle needs — DEFAULT config only (the `edit.int.test` stub). */

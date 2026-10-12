@@ -3,8 +3,8 @@
 // refused before the redirected socket.
 
 import { __setEgressResolverForTest, guardedGitHttp } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

@@ -4,7 +4,7 @@
 // Each case drives a scratch plugin through the real broker and compose and counts ALL warn/error lines the
 // failure produced, so a second line from anywhere up the stack fails the case.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,12 +16,12 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { logger } from "@orb/server/foundation/observability";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface LogLine {
   readonly level: "warn" | "error";

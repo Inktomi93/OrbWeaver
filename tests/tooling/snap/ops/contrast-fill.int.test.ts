@@ -19,9 +19,10 @@
 // IT DRIVES THE PUBLIC DOOR (`captureContrastEvidence`) rather than the fill op, deliberately: that is
 // the surface a reviewer's `pnpm snap --contrast` reaches, and asserting through it is what makes this
 // file a defect proof against the OLD source rather than a compile error.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

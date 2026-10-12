@@ -6,9 +6,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { requestWithHost } from "@orb/testkit/node/host-request.ts";
 import { afterAll, beforeAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
-import { requestWithHost } from "../../support/host-request.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-host-allowlist-"));
 const OK = 200;

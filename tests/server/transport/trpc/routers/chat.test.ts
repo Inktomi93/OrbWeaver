@@ -14,8 +14,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.

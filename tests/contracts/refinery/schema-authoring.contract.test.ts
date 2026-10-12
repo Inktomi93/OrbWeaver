@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import type { REFINERY_SCHEMA_STAGES } from "@orb/contracts/refinery";
 import { REFINERY_SCHEMA_MAX_DEPTH, refinerySchemaDocumentSchema, renderHintOf, renderHintSchema } from "@orb/contracts/refinery";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 function scoreSchema(extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {

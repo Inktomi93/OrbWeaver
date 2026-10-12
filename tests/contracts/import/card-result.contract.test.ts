@@ -1,6 +1,6 @@
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const CARD = {
   filename: "card.png",

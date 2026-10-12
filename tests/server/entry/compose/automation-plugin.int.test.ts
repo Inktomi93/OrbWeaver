@@ -22,8 +22,8 @@
 // together, because `runTool`'s own reachability re-check + `resolveTools`' throw are a third belt behind
 // them. It is a defence-in-depth receipt, not a dead assertion.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
@@ -35,10 +35,10 @@ import { RuleValidationError } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { PluginToolHandle } from "@orb/server/domain/tool-use";
 import type { ServicesResult } from "@orb/server/entry/compose";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import type { MockInstance } from "vitest";
 import { vi } from "vitest";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 import { principal, seedHostChat, seedUser } from "../../domain/automation/_support.ts";
 import { seedParticipant } from "../../domain/chat/_support.ts";
 

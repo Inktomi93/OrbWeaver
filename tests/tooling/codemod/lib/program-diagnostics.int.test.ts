@@ -3,9 +3,9 @@
 import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe, vi } from "vitest";
 import { createSourceFile, deleteFiles, moveFiles } from "../../../../tooling/src/codemod/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { withTree } from "../_kit-tree.ts";
 

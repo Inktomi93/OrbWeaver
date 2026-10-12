@@ -10,12 +10,12 @@
 
 import { removeActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { findSettingsColumnViolation, readSettingsPaneGeometry } from "@orb/testkit/browser/settings-geometry.ts";
+import { UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
-import { UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** A bundled SCENE PLATE as this surface sees one since `kind:"seeded"` retired (2026-09-18): an ordinary

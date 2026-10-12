@@ -2,8 +2,8 @@
 // the two never brings the certificate back at the next boot.
 
 import { DomainForbiddenError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, shareHarness } from "../_support.ts";
 
 const SETTING = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 } as const;

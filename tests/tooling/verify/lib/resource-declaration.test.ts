@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceFact } from "../../../../tooling/src/verify/contract/resource.ts";
 import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
@@ -8,7 +9,6 @@ import type { ResourceHost } from "../../../../tooling/src/verify/contract/resou
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
 import type { SchemaFactStatus } from "../../../../tooling/src/verify/contract/schema-fact.ts";
 import { resolveResourceDeclarations } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function fact<T>(source: string, paths: readonly string[], value: T, status: SchemaFactStatus = "ready"): ResourceFact<T> {
   const receipt = { source, status, paths, members: paths.length, durationMs: 0 };

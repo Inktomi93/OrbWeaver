@@ -75,7 +75,8 @@ const MESSAGE =
   "the design-audit proof denominator is incomplete: every registered rule id needs executable firing and nearest-legitimate-neighbour silence proofs; stale ids and a missing or empty registry are RED — tooling/src/ui-audit/contract/rules.ts";
 const FIX = `register the live id, then attach both proof rows to the ${HELPER} callbacks that exercise it without weakening the detector — ${REGISTRY}`;
 
-const BOUND_HELPER_FIXTURE = `import { test } from "../../support/tool-fixtures.ts";\nfunction ${HELPER}(proofs: unknown, title: string, fn: () => void): void { void proofs; test(title, fn); }\n`;
+const TOOL_FIXTURE_DOOR = "@orb/testkit/node/tool-fixtures.ts";
+const BOUND_HELPER_FIXTURE = `import { test } from "${TOOL_FIXTURE_DOOR}";\nfunction ${HELPER}(proofs: unknown, title: string, fn: () => void): void { void proofs; test(title, fn); }\n`;
 const ONE_RULE = `export const ${REGISTRY_CONST} = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n`;
 const BOTH_PROOFS = `${HELPER}([{ rule: "side-tab", kind: "fires", reason: "fixture" }, { rule: "side-tab", kind: "silent", reason: "neighbor" }], "fixture", () => {});\n`;
 const PROOF_FILE = `${TEST_PREFIX}__g_proof.test.ts`;
@@ -121,10 +122,7 @@ function hasBoundTestImport(sf: SourceFile): boolean {
       })),
     )
     .filter((binding) => (binding.alias ?? binding.name) === "test");
-  return (
-    bindings.length === 1 &&
-    bindings.every((binding) => binding.module.endsWith("support/tool-fixtures.ts") && binding.name === "test" && binding.alias === undefined)
-  );
+  return bindings.length === 1 && bindings.every((binding) => binding.module === TOOL_FIXTURE_DOOR && binding.name === "test" && binding.alias === undefined);
 }
 
 /** The file-level half of the helper contract: exactly one `auditRuleTest` function declaration, unshadowed
@@ -418,7 +416,7 @@ export const gate = defineGate({
       mode: "source",
       files: {
         [REGISTRY]: ONE_RULE,
-        [PROOF_FILE]: `import { test } from "../../support/tool-fixtures.ts";\nfunction ${HELPER}(proofs: unknown, title: string, fn: () => void): void { void proofs; void title; void fn; }\n${BOTH_PROOFS}`,
+        [PROOF_FILE]: `import { test } from "${TOOL_FIXTURE_DOOR}";\nfunction ${HELPER}(proofs: unknown, title: string, fn: () => void): void { void proofs; void title; void fn; }\n${BOTH_PROOFS}`,
       },
       expect: { count: 3, messageIncludes: "not bound" },
       why: "a same-name no-op helper cannot turn detached literals into Vitest registrations",
@@ -427,7 +425,7 @@ export const gate = defineGate({
       mode: "source",
       files: {
         [REGISTRY]: ONE_RULE,
-        [PROOF_FILE]: `import { test } from "../../support/tool-fixtures.ts";\nfunction ${HELPER}(proofs: unknown, title: string, fn: () => void): void { void proofs; const test = (_title: string, _fn: () => void): void => {}; test(title, fn); }\n${BOTH_PROOFS}`,
+        [PROOF_FILE]: `import { test } from "${TOOL_FIXTURE_DOOR}";\nfunction ${HELPER}(proofs: unknown, title: string, fn: () => void): void { void proofs; const test = (_title: string, _fn: () => void): void => {}; test(title, fn); }\n${BOTH_PROOFS}`,
       },
       expect: { count: 3, messageIncludes: "not bound" },
       why: "a helper-local `test` shadow cannot impersonate the imported executable registration",

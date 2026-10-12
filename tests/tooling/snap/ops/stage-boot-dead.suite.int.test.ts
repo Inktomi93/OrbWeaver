@@ -20,13 +20,13 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { __resetStageRunBinding, markStageBootDead, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
 import { tearDownBootDeadStage } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CASE_BUDGET_MS = scaledBudget(120_000);

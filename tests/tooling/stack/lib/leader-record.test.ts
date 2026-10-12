@@ -3,6 +3,7 @@
 // record that does not parse never authorizes a signal.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DevPinKey, LeaderRecord, PinSource } from "../../../../tooling/src/stack/index.ts";
 import {
   DEV_PIN_KEYS,
@@ -16,7 +17,6 @@ import {
   serializeLeaderRecord,
   writeLeaderRecord,
 } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 /** Every pin pinned but one; env names, so the record is built from pairs. */

@@ -7,12 +7,12 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { discoverBaselineFiles } from "@orb/tooling/floor/verdict/ratchet-rows";
 import type { Ledger } from "@orb/tooling/verify";
 import { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "@orb/tooling/verify";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const MALFORMED = /malformed/u;
 

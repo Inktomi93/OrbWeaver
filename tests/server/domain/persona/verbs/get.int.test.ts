@@ -4,11 +4,11 @@
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
-import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 // The central user factory replaces the harness's hand-rolled seedUser (support/factories).
-import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
 import { makeHarness, principal } from "../_support.ts";
 
 describe("get", () => {

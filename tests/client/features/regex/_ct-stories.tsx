@@ -16,6 +16,8 @@ import {
   useRegexBulkActive,
 } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -24,10 +26,7 @@ import { ConfigCollectionLanding } from "#client/features/config/components/conf
 import { RegexBulkBar } from "#client/features/regex/components/regex-bulk-bar.tsx";
 import { RegexContextBody } from "#client/features/regex/components/regex-context-body.tsx";
 import { regexGroup } from "#client/features/regex/lib/regex-group.tsx";
-
 import { RegexMemberSurface } from "#client/features/regex/surfaces/regex-member-surface.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The narrow end of the real CONTENT pane: a 752px shell docks the LIST at its measured 307px default and
  *  the pane pays its own `px-section` inset, leaving 397. Stated here so the bulk bar's reachability pin is

@@ -28,12 +28,12 @@
 // on the static tier, where `ops/config-snapshot.ts` already spawns a child for exactly this class.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/biome-grant-liveness-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const POLICIES = [gate, health] as const;

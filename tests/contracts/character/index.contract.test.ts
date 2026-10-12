@@ -20,7 +20,7 @@ import {
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { SubstituteFindRegex } from "@orb/kit/regex";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // A fully-specified regex script (every field present) so `parse` is an identity on the card → the card
 // round-trips byte-for-byte. Mirrors the regex node's own FULL_SCRIPT fixture (no high-entropy literals).

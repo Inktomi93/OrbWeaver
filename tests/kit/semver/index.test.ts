@@ -2,8 +2,8 @@
 // (not lexical) segment order and the validation regex both callers apply at their boundary.
 
 import { compareSemver, SEMVER_RE } from "@orb/kit/semver";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("compareSemver", () => {
   test("orders segments numerically, so 0.10.0 is newer than 0.9.9", () => {

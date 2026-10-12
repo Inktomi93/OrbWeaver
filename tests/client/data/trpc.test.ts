@@ -21,8 +21,8 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 interface RecordedRequest {
   readonly url: string;

@@ -2,9 +2,9 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, ensureSystemDefaultPreset, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const PRESET_INSERT = /insert into "presets"/iu;

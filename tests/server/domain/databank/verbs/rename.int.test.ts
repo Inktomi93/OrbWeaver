@@ -4,8 +4,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedChat, seedChatHost, seedUser } from "../_support.ts";
 
 test("renames an owned document and bumps updatedAt", async () => {

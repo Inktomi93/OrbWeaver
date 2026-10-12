@@ -4,10 +4,10 @@
 // that owns the edit (D41 — surface the failure where it happened; the aggregate never retries).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { UPDATE_USER_SETTINGS_SECTION } from "../../../support/node/last-settings-patch.ts";
-import { routeTrpc, trpcError } from "../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../../features/config/_ct-stories.tsx";
 
 const SETTINGS_VIEW = {

@@ -35,6 +35,11 @@ import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
@@ -44,11 +49,6 @@ import { continuedSignatureMetadata } from "#server/domain/chat/substrate/conten
 import { createEdit } from "#server/domain/chat/verbs/edit.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { emptyState, seedGame, snapshotId } from "../../rpg/_support.ts";
 import {
   addVariant,

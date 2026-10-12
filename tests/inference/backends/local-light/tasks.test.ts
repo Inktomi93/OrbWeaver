@@ -4,9 +4,9 @@
 // caller ids and sorts by score, the multimodal PAIR kind is refused.
 
 import { EMBEDDING_FLOOR, LOCAL_TEXT_ENCODING, RERANK_FLOOR } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "#inference/backends/local-light/tasks.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { fakeModelCache, fakeResolved } from "../../_support.ts";
 
 const MODEL = "jinaai/jina-clip-v2";

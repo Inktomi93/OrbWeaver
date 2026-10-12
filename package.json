@@ -118,6 +118,7 @@
     "@orb/plugin-toolchain": "workspace:*",
     "@orb/server": "workspace:*",
     "@orb/showcase-plugins": "workspace:*",
+    "@orb/testkit": "workspace:*",
     "@orb/tooling": "workspace:*",
     "@orb/ui": "workspace:*",
     "@playwright/experimental-ct-react": "catalog:",

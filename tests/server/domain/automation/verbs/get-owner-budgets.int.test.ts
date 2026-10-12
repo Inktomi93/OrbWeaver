@@ -7,8 +7,8 @@
 // gate side is pinned at `../engine/dispatch.int.test.ts`; this is the projection side.
 
 import { AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 
 describe("getOwnerBudgets", () => {

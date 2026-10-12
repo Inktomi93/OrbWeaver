@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import type { BugReportDiagnostics } from "@orb/contracts/diagnostics";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { parse } from "yaml";
 import type { PublicBugReportInput } from "#client/lib/bug-report-public.ts";
@@ -19,7 +20,6 @@ import {
   publicBugReportIssueUrl,
 } from "#client/lib/bug-report-public.ts";
 import { __resetSafeErrorRing, recordSafeError, safeErrorRing } from "#client/lib/safe-error-ring.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ORIGIN = "http://192.0.2.10:8788";
 const NOW = 1_790_000_000_000;

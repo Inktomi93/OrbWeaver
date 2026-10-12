@@ -11,9 +11,9 @@
 // DOM-free, so importing it directly keeps the aggregator's node-only program honest — the same
 // precedent as tests/ui/tokens/index.test.ts's direct import of tokens.build.ts.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { snapToGraphemeBoundary, snapToWordBoundary } from "#ui/stream/snap.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("snapToWordBoundary", () => {
   test("advances to the next whitespace boundary", () => {

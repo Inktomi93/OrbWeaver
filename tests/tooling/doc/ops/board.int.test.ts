@@ -3,9 +3,9 @@
 // drift reads the tree's facts.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { drift, driftFacts, landItems, landMerged, newItem, newPlan, overview, setStatus } from "../../../../tooling/src/doc/index.ts";
 import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const TODAY = "2026-09-23";

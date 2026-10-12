@@ -8,10 +8,10 @@ import type { MemoryQueryOptions } from "@orb/contracts/search";
 import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { SCOPE_INSTRUCTIONS } from "#server/domain/search/substrate/instructions.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedUser, vec } from "../_support.ts";
 
 /** A `MemoryQueryOptions` with the within-chat defaults filled; override per test. */

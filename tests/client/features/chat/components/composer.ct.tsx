@@ -19,12 +19,12 @@ import { IMAGE_GEN_SPENDS_NOW, IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, se
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { routeImpersonateStream } from "@orb/testkit/node/route-impersonate-stream.ts";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
 

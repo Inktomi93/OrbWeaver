@@ -199,6 +199,15 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserConnectionId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import {
+  CtAppDataProviders,
+  CtChatContributorSectionRegistry,
+  CtDataProviders,
+  CtRealConfigSectionRegistry,
+  CtRealSectionRegistry,
+} from "@orb/testkit/browser/ct-data-providers.tsx";
+import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
@@ -275,15 +284,6 @@ import { createWarningSurface } from "#client/features/chat/lib/turn-warning-sur
 import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
-import {
-  CtAppDataProviders,
-  CtChatContributorSectionRegistry,
-  CtDataProviders,
-  CtRealConfigSectionRegistry,
-  CtRealSectionRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
-import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "../../../support/browser/ct-door.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 

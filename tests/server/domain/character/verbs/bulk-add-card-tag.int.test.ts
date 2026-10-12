@@ -9,11 +9,11 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createAttachCardTagByName } from "#server/domain/tag/verbs/attach-card-tag-by-name.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness } from "../../tag/_support.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 

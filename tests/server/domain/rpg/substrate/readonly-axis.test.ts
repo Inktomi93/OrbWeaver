@@ -5,13 +5,13 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   deriveEffectiveDelivery,
   deriveTrackersReadOnly,
   hasStructuredWriter,
   structuredVehicleUnavailable,
 } from "#server/domain/rpg/substrate/readonly-axis.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal capability with the two write-relevant axes toggleable. */
 function capability(over: { tools?: boolean; structured?: boolean }): GenerationCapability {

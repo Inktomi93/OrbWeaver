@@ -5,8 +5,8 @@
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError } from "@orb/server/domain/plugin";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 test("a disabled plugin (no resident instance) has an empty log", async () => {

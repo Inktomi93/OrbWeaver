@@ -10,8 +10,8 @@ import { castId } from "@orb/kit/ids";
 import type { CollectedGroup, ImportContext, ImportGroupsInput } from "@orb/server/domain/import";
 import { createImportService, importFileHash, parseStGroupFile } from "@orb/server/domain/import";
 import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const ARIA = castId<CharacterId>("chr_aria");

@@ -4,10 +4,10 @@
 // button, and the dialog's submit fires the real `admin.linkSsoIdentity` mutation with the entered subject.
 // The empty state renders when nothing is linkable.
 
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AdminLinkSsoSectionStory } from "../_ct-stories.tsx";
 
 const T = 1_700_000_000_000;

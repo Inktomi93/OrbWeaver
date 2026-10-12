@@ -5,9 +5,9 @@
 
 import type { MessageKind } from "@orb/contracts/chat";
 import { MESSAGE_KINDS } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isPromptEligible } from "#server/domain/chat/substrate/prompt-eligibility.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const row = (kind: MessageKind, excludedFromPrompt: boolean): { kind: MessageKind; excludedFromPrompt: boolean } => ({ kind, excludedFromPrompt });
 

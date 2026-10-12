@@ -7,7 +7,7 @@
 // This suite closes that gap structurally: the REAL shipped `main.js` runs in a bare `node:vm` context
 // (ES intrinsics only — no timers, no fetch, no process, the floor a bare QuickJS context offers) after the
 // realm's EXPORTED `AMBIENT_STUBS` text is evaluated in it, so the harness's denial IS the realm's, never a
-// copy that can drift. The harness itself moved to `tests/support/atlas-guest.ts` when the #1698 import-
+// copy that can drift. The harness itself moved to `tests/support/node/atlas-guest.ts` when the #1698 import-
 // outcome suite needed the same boot with a character plane; what it does is unchanged.
 //
 // `.suite`: one property (the atlas survives the realm's denial) across the guest bundle + the realm — it
@@ -15,10 +15,10 @@
 // tests/server/infra/plugin-host/; the atlas's registration + activation publish in the real sandbox is
 // `seed-example-plugins.int.test.ts` (which cannot reach the wire halves — `safeFetch` has no seam).
 
+import type { CannedResponse } from "@orb/testkit/node/atlas-guest.ts";
+import { bootAtlas, lastAtlasState } from "@orb/testkit/node/atlas-guest.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import type { CannedResponse } from "../../../support/atlas-guest.ts";
-import { bootAtlas, lastAtlasState } from "../../../support/atlas-guest.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** A foreign wire row — the hubs' snake_case keys are wire tokens, tuple-built so they never become
  *  lint-checked identifiers (the atlas's own header-pair pattern). */

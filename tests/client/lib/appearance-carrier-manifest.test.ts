@@ -2,6 +2,7 @@
 // assertions keep the executable manifest's populations and pair generator honest for focused CT/Snap use.
 
 import { appearanceSettingsSchema } from "@orb/contracts/settings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   APPEARANCE_CARRIER_MANIFEST,
@@ -13,7 +14,6 @@ import {
   appearanceMatrixContract,
   THEME_CARRIER_OBSERVABLES,
 } from "#client/lib/appearance-carrier-manifest.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
 import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
 

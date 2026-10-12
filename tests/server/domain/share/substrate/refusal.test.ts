@@ -3,9 +3,9 @@
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import type { ShareFacts } from "@orb/server/domain/share";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { shareRefusal } from "#server/domain/share/substrate/refusal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const SETUP = "http://localhost:9999";
 const PUBLIC_ADDRESS = "https://orb.example.com";

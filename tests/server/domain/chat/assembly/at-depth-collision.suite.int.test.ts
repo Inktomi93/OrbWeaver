@@ -13,11 +13,11 @@
 // (depth ASC, or order ASC) flips these sequences → the suite is non-vacuous.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { spliceInChatInjections } from "#server/domain/chat/assembly/injections.ts";
 import { shape } from "#server/domain/chat/assembly/shape.ts";
 import { convertsToEmptyWireRow } from "#server/domain/chat/substrate/wire-history.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The four cross-source markers — each source contributes ONE `in_chat` injection carrying a unique tag. */
 const WI = "MARK_WI";

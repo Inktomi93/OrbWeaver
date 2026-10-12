@@ -77,6 +77,14 @@ import {
   useSectionListIsScreen,
 } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import {
+  CtDataProviders,
+  CtFakeModalRegistry,
+  CtFakeSectionRegistry,
+  CtRealSectionRegistry,
+  CtStandInChromeRegistry,
+} from "@orb/testkit/browser/ct-data-providers.tsx";
+import { chatSettingsSections } from "@orb/testkit/browser/ct-door.ts";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Command, Crown, Drama, Flag, FlaskConical, Gauge, Icon, MessagesSquare } from "@orb/ui/icons";
@@ -109,14 +117,6 @@ import { useMessageAppearance } from "#client/features/chat/hooks/use-message-ap
 import { CHAT_TRACK } from "#client/features/chat/lib/chat-track.ts";
 import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
-import {
-  CtDataProviders,
-  CtFakeModalRegistry,
-  CtFakeSectionRegistry,
-  CtRealSectionRegistry,
-  CtStandInChromeRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
-import { chatSettingsSections } from "../../../support/browser/ct-door.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
 

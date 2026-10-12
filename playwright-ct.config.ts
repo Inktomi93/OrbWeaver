@@ -2,6 +2,14 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import {
+  SELECT_BUILD_DIAGNOSTIC_ENV,
+  SELECT_BUILD_DIAGNOSTIC_FILE,
+  SELECT_BUILD_REGISTRY_FILE,
+  SELECT_CPU_DIAGNOSTIC_ENV,
+  SELECT_CPU_PROFILING_ENV,
+  SELECT_NATIVE_TRACE_ENV,
+} from "@orb/testkit/node/select-native-sources.ts";
 import { adoptRunSlot } from "@orb/tooling/floor/artifacts/artifact-out";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -14,14 +22,6 @@ import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 import type { InlineConfig as CtViteConfig, Plugin as CtVitePlugin } from "vite-ct";
-import {
-  SELECT_BUILD_DIAGNOSTIC_ENV,
-  SELECT_BUILD_DIAGNOSTIC_FILE,
-  SELECT_BUILD_REGISTRY_FILE,
-  SELECT_CPU_DIAGNOSTIC_ENV,
-  SELECT_CPU_PROFILING_ENV,
-  SELECT_NATIVE_TRACE_ENV,
-} from "./tests/support/node/select-native-sources.ts";
 
 // Component tests — `.ct.tsx` at the tests/{ui,client} mirrors, in a real chromium via Playwright CT
 // (the vitest browser project was never adopted — it hangs cold-cache; docs/law/Spine-Testing.md §7).

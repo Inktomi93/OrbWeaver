@@ -14,9 +14,9 @@ import { pluginKv } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError, PluginNotShowcaseError } from "@orb/server/domain/plugin";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { hashBundle, makeBundle, makePluginHarness, makeShowcaseShipping, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const SLUG = "oracle-deck";

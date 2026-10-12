@@ -21,9 +21,9 @@ import {
 } from "@orb/client/state";
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
 import type { StateStorage } from "zustand/middleware";
-import { expect, test } from "../../support/fixtures.ts";
 
 // #854 — the bind boundary now takes the SESSION-VERIFIED brand (`VerifiedUserId`), so the doubles mint
 // it here exactly as the session-recovery seam does off `sessions.me`. It is a sub-brand of `UserId`, so

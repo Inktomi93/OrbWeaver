@@ -22,9 +22,9 @@ import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@or
 import { castId } from "@orb/kit/ids";
 import type { CardFrameDeps, PrincipalEnv } from "@orb/server/entry/http";
 import { registerCardFrame, securityHeaders } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // REAL TypeIDs: the mint contract brands both selectors (`typeIdSchema`), so a placeholder like "chat_1"
 // is now a 400 rather than a floor — the shapes here are what a live client actually sends.

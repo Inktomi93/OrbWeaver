@@ -1,5 +1,5 @@
-import { expect, test } from "../support/fixtures.ts";
-import { bootShowcase, settle } from "../support/showcase-guest.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { bootShowcase, settle } from "@orb/testkit/node/showcase-guest.ts";
 
 type Handler = (args: unknown) => Promise<string>;
 type PageAction = (a: { actionId: string; values: Record<string, string> }) => Promise<void>;

@@ -26,6 +26,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { ZWSP } from "@orb/kit/macro";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type {
@@ -43,8 +45,6 @@ import { createArmExecutors } from "#server/domain/automation/engine/arm-executo
 import { createAutomationService } from "#server/domain/automation/index.ts";
 import { selectRuleState } from "#server/domain/automation/persistence/rule-state.ts";
 import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, makeAutomationHarness, NO_TOOLS, principal, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 

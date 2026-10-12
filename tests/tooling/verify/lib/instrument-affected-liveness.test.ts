@@ -2,6 +2,8 @@
 // selects only matching arms. These are the old-source red controls for the performance repair: without
 // the selector the unrelated arm remains in the expensive shared pass, and without the absent-value arm
 // direct/full runs accidentally inherit the optimization.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   decodeInstrumentAffectedPolicyIds,
   encodeInstrumentAffectedPolicyIds,
@@ -10,7 +12,6 @@ import {
   selectedInstrumentAffectedPolicyIds,
   selectInstrumentAffectedArms,
 } from "../../../../tooling/src/verify/lib/instrument-affected-liveness.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ARMS = [{ policy: { id: "affected" } }, { policy: { id: "unrelated" } }] as const;
 

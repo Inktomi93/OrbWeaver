@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { readyResourceValue } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
 import { uiPrimitiveFact } from "../../../../tooling/src/verify/lib/ui-primitive-fact.ts";
@@ -7,7 +8,6 @@ import {
   readUiPrimitiveStructure,
 } from "../../../../tooling/src/verify/lib/ui-primitive-structure-read.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const BASE = {
   "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;',

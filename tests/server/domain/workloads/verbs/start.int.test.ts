@@ -6,9 +6,9 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
 
 /** The chat domain's own refusal sentence (#156) — asserted through the message a caller actually reads. */

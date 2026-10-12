@@ -1,8 +1,9 @@
 // The reach walk's edge shapes that no `test-reach` proof row can carry: a CT through its story module, mocks that
 // must not count, a type-only helper edge, a namespace member, and a helper that re-exports a product module.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { testReach } from "../../../../tooling/src/verify/lib/test-reach.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const COMPONENT = "packages/client/src/features/chat/composer.tsx";

@@ -2,10 +2,11 @@
 // so an axis inherited from an imported base is still law that owes a production reader. Conformance pins
 // the inherited red/green pair; this file pins what conformance structurally cannot: the REFUSALS, where a
 // throwing or withheld owner is a failed proof rather than a proven refusal.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/message-kind-policy";
 const HOME = "packages/contracts/src/chat/participants.ts";

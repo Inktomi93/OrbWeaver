@@ -13,12 +13,12 @@ import type { Db } from "@orb/db";
 import { characters, chats, personas } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { WorldInfoContext } from "#server/domain/world-info/context.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;

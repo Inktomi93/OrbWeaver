@@ -7,7 +7,7 @@
 
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("RPG_BUS_EVENT_TYPES is the committed member set", () => {
   expect([...RPG_BUS_EVENT_TYPES]).toEqual([

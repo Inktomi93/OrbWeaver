@@ -9,11 +9,11 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTagService, TagNotFoundError } from "@orb/server/domain/tag";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedChat, seedPersona, seedPreset, seedTag, seedUser, seedWorldBook } from "../_support.ts";
 
 /** How many rows of `table` carry `tagId` on `col` — the junction-count assertion helper. */

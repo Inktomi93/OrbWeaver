@@ -10,10 +10,10 @@
 //   2. "COULDN'T CHECK" NEVER PAINTS LIKE "UP TO DATE". The unknown arm renders its own reason; a reader
 //      glancing at a green line on an offline box is the failure this feature exists to avoid.
 
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AboutSectionStory, AboutUpdatesSectionStory } from "../_ct-stories.tsx";
 
 const LOCAL_COMMIT = "f4cdde34be59914c4a2aecec108899bd034579ac";

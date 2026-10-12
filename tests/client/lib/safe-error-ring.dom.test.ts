@@ -2,9 +2,9 @@
 // `recordSafeError` and the two reducers with hostile values and prove that no message, argument, host, path
 // outside this origin, query or deep path segment survives into a record.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { __resetSafeErrorRing, recordSafeError, safeErrorRing, safeStackFrames, sectionOfPathname } from "#client/lib/safe-error-ring.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ORIGIN = "http://192.0.2.10:8788";
 const AT = 1_790_000_000_000;

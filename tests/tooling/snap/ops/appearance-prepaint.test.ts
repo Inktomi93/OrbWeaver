@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { AppearancePrepaintEvidence, AppearancePrepaintSample } from "../../../../tooling/src/floor/appearance/appearance-prepaint.ts";
 import { evaluateAppearancePrepaint } from "../../../../tooling/src/snap/ops/appearance-prepaint.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const hydrated = { dataTheme: "dark", fontScale: "1.25", reducedMotion: "false" } as const;
 

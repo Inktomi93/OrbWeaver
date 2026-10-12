@@ -2,8 +2,8 @@
 import { copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 test("native dependency rules reject upward helper-world edges and retain compatible edges", { timeout: scaledBudget(30_000) }, ({ scratch, repoRoot }) => {

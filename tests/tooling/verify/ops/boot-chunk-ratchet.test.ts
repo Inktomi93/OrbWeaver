@@ -19,8 +19,8 @@
 // `BOOT_CHUNK_CEILING_BYTES` without re-doing its calibration arithmetic still leaves these honest.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { APP_STYLESHEET_SENTINELS, BOOT_CHUNK_CEILING_BYTES, measureAppStylesheet, measureBootChunk } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ASSETS_REL = "packages/client/dist/assets";
 const INDEX_HTML_REL = "packages/client/dist/index.html";

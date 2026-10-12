@@ -4,9 +4,9 @@
 import { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { SCHEMA_STALE_PATCH_REASON } from "@orb/server/domain/refinery";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 const SCORE_CORE_REFUSAL = /overallScore/u;

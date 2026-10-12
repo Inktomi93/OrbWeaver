@@ -13,6 +13,7 @@ import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { ROOM_ENTITY_KINDS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
 // Deep-imported, not through `@orb/client/data`: the package's export map is directory-barrel only
@@ -28,7 +29,6 @@ import {
   roomEntityHealReads,
   runtimeVariablesRead,
 } from "#client/data/invalidation-reads.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationreads");
 

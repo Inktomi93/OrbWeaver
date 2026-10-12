@@ -2,7 +2,7 @@
 
 // The shipped UI action and lookup guest cross the real installer-variable, room-attachment and lore
 // persistence boundaries. Only the external DNS/HTTP edges are scripted; no provider/model is called.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import vm from "node:vm";
 import type { Principal } from "@orb/contracts/identity";
@@ -14,12 +14,12 @@ import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { __setEgressResolverForTest } from "@orb/server/infra/network";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { unzipSync } from "fflate";
 import { afterEach, beforeEach, vi } from "vitest";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const fetches: string[] = [];
 beforeEach(() => {

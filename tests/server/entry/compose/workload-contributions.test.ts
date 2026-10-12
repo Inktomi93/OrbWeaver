@@ -15,10 +15,10 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { WorkloadContributionsDeps } from "#server/entry/compose/workload-contributions.ts";
 import { buildWorkloadContributions } from "#server/entry/compose/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** Every contribution factory only CLOSES over its deps (the work happens when the engine runs a job), so a
  *  recursive no-op stand-in is enough to assemble the real registry — and it keeps this pin honest about

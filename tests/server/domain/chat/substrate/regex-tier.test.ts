@@ -11,10 +11,10 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { HostTierRegexSources, RegexTierLabels } from "#server/domain/chat/contract/regex.ts";
 import { resolveHostTierRegexScripts, resolveRegexTiers } from "#server/domain/chat/substrate/regex-tier.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const idsByLabel = new Map<string, ReturnType<typeof mintTypeId>>();
 /** One stable minted TypeID per readable label — so "the same script attached at two tiers" is genuinely the

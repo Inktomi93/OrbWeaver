@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { depositTrackedEvidence, resolveTrackedEvidencePath } from "../../../../tooling/src/review-mirror/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SERIALIZED = `${JSON.stringify({ schemaVersion: 1, findings: 3 }, null, 2)}\n`;
 

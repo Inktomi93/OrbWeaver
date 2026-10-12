@@ -2,6 +2,7 @@
 // value/onValueChange controlled-capable passthrough, disabled, and Field composability
 // (ui-package-design §6.1; ui-primitive-contract R7).
 
+import { pixelExtremaContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { TOKENS } from "@orb/ui/tokens";
@@ -10,7 +11,6 @@ import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import type { OutputInfo } from "sharp";
 import sharp from "sharp";
-import { pixelExtremaContrast } from "../../../support/browser/pixel-contrast.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;

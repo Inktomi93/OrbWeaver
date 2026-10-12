@@ -13,10 +13,10 @@ import { providerIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, ProviderError } from "@orb/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { InferenceDeps, InferenceLog } from "#inference/deps.ts";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, newUserId } from "../_support.ts";
 import { localServerFetch } from "./_local-servers-fetch.ts";
 

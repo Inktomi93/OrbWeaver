@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { subjectAnchor } from "../../../../tooling/src/verify/lib/absent-subject-anchor.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SUBJECTS = ["a/door.ts", "b/entry.ts", "c/proof.ts"] as const;
 

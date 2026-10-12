@@ -5,10 +5,10 @@
 import type { DiscoverSegment } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { chatSubtitle, evidenceScent, groupByEvidence, roomNumberingHint, snippetForDisplay } from "#client/features/discovery/lib/corpus-result-text.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 
 describe("chatSubtitle", () => {
   test("an authored room title wins; an unnamed room falls through to its cast, never an id", () => {

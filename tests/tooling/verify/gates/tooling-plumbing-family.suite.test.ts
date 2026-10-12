@@ -56,6 +56,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -74,7 +75,6 @@ import { gate as runnerConfigLiterals } from "../../../../tooling/src/verify/gat
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/tooling-plumbing-family";

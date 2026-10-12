@@ -57,7 +57,7 @@ const UNSCANNED_UNDER: readonly [string, ...string[]] = ["tests/support/**", "te
 const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
   {
     re: /\bDate\.now\s*\(/u,
-    what: "Date.now() — inject the frozen clock (tests/support/clock.ts)",
+    what: "Date.now() — inject the frozen clock (tests/support/iso/clock.ts)",
   },
   {
     re: /\bnew\s+Date\s*\(\s*\)/u,
@@ -66,7 +66,7 @@ const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
   { re: /\bMath\.random\s*\(/u, what: "Math.random() — nondeterministic; seed it or inject" },
   {
     re: /\.randomUUID\s*\(/u,
-    what: "randomUUID() — unseeded id; use the seeded ids (tests/support/ids.ts)",
+    what: "randomUUID() — unseeded id; use the seeded ids (tests/support/iso/ids.ts)",
   },
   { re: /\bperformance\.now\s*\(/u, what: "performance.now() — ambient clock" },
   {
@@ -79,7 +79,7 @@ const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
   },
   {
     re: /\bvi\.useFakeTimers\s*\(/u,
-    what: "vi.useFakeTimers() — replaces the ambient clock globally; inject the frozen clock via the composition seam instead (tests/support/clock.ts)",
+    what: "vi.useFakeTimers() — replaces the ambient clock globally; inject the frozen clock via the composition seam instead (tests/support/iso/clock.ts)",
   },
   {
     re: /\.waitForTimeout\s*\(/u,
@@ -102,7 +102,7 @@ export const gate = defineGate({
   message:
     "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (docs/law/Spine-Testing.md §3).",
   fix:
-    "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the " +
+    "inject the frozen clock (tests/support/iso/clock.ts) + seeded ids (tests/support/iso/ids.ts) through the " +
     "composition seam production uses. A deliberate site (a test whose SUBJECT is elapsed real time) is " +
     "waived with `@orb-waive test-determinism(<position>): <reason>` on the line IMMEDIATELY above the " +
     "call, where <position> is the matched banned spelling trimmed of its call parens (`Date.now`, " +
@@ -248,7 +248,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "tests/support/clock.test.ts": "export const t = Date.now();\n",
+        "tests/support/iso/clock.test.ts": "export const t = Date.now();\n",
         // A companion IN-population file: `notUnder` excludes every candidate here otherwise, and a
         // population resolving zero paths from a nonempty candidate set is a tool error, not a pass.
         "tests/server/companion.test.ts": "export const t = clock.now();\n",

@@ -1,9 +1,10 @@
 // CT: the textarea seal — a multi-line control that accepts input and wears the token skin
 // (border-border oklch) plus native field-sizing autosize.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 import { ValueChangeDetailsStory } from "./textarea.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;

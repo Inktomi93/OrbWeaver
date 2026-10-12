@@ -17,6 +17,10 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { parseWorldBookFile } from "@orb/server/primitives/serde/world-info";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
@@ -26,11 +30,8 @@ import { buildAssembleContext } from "#server/domain/chat/assembly/context.ts";
 import type { ResolveForeignInputsOp } from "#server/domain/chat/contract/foreign.ts";
 import type { GroupOutput, TurnMessage, TurnRequest } from "#server/domain/chat/contract/results.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
-import type { ChatScenario } from "../../../support/chat/index.ts";
-import { scenario, tape } from "../../../support/chat/index.ts";
-import { freshDb } from "../../../support/db.ts";
-import { makeResolved } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
+import type { ChatScenario } from "./_scenario.ts";
+import { scenario } from "./_scenario.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 /** The history rows up to and including the row the runner pins its deepest-in-history marker on. */

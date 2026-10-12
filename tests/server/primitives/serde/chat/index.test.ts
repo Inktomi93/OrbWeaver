@@ -8,8 +8,8 @@ import type { VariantMetadata } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/primitives/serde/chat";
 import { buildChatJsonl, buildChatTxt, chatContentHash, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/primitives/serde/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // ── parse ────────────────────────────────────────────────────────────────────────────────────────────────
 

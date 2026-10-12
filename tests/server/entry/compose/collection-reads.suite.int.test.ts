@@ -1,9 +1,9 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { principal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../../domain/chat/_support.ts";
 
 test("dedicated collection censuses do not enter enrichment and preserve the page's owner scope", async ({ services, db }) => {

@@ -10,9 +10,9 @@
 import { createAppQueryClient, retryUnlessBadRequest } from "@orb/client/data";
 import type { Notify, NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MutationObserver, QueryObserver } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A spy Notify bound via the real `bindNotify` composition seam — never `vi.mock()` of the module. */
 function spyNotify(): Notify & { readonly errorCalls: string[] } {

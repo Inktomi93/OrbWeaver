@@ -10,8 +10,8 @@
 // user cannot act on and did not ask for — the 24h TTL sweep is the actual guarantee. The
 // composer-text SKIP is the store's half and is pinned in tests/client/state/active-chat-store.ct.tsx.
 
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { HuskReaperStory } from "./_ct-stories.tsx";
 
 const HUSK_ID = "chat_ct_husk_probe";

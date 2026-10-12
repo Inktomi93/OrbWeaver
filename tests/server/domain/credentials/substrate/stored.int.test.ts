@@ -4,12 +4,12 @@
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors.ts";
 import { reloadView, requireStorage } from "#server/domain/credentials/substrate/stored.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedCredential, seedUser } from "../_support.ts";
 
 describe("requireStorage", () => {

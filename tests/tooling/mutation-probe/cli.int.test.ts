@@ -1,4 +1,4 @@
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("the front door documents the report/source/window contract", async ({ runCli }) => {
   const result = await runCli("mutation-probe", ["--help"]);

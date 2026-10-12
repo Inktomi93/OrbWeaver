@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "#client/state/corpus-mode-store.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("mode subscribers observe writes and healing, and unsubscribe releases the observer", () => {
   writeCorpusMode("explore");

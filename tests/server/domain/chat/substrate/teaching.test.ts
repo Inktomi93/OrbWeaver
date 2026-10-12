@@ -6,11 +6,11 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { TeachingContext, TeachingContribution } from "#server/domain/chat/contract/context.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
 import { collectTeaching, resolveTeachingKnobs } from "#server/domain/chat/substrate/teaching.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const TCTX: TeachingContext = {
   chatId: castId<ChatId>("chat_teach"),

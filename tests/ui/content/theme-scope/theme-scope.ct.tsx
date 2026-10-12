@@ -1,3 +1,5 @@
+import { partVsSurface } from "@orb/testkit/browser/part-vs-surface.ts";
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Button } from "@orb/ui/button";
@@ -11,8 +13,6 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { CSSProperties } from "react";
-import { partVsSurface } from "../../../support/browser/part-vs-surface.ts";
-import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { ThemedFloatScope } from "./float-theming.fixtures.tsx";
 
 test("a legal override lands as a scoped custom property", async ({ mount }) => {

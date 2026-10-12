@@ -9,11 +9,11 @@ import { assets } from "@orb/db";
 import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { assetIdForHash, metadataForOwnedHash, storeBlob } from "#server/domain/assets/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { pngBytes, pngBytesWithDims, seedUser } from "../_support.ts";
 
 const PNG = "image/png";

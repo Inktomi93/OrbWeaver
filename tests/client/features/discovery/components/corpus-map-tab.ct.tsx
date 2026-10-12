@@ -17,8 +17,8 @@
 // are the datum. What IS pinned is that a genre never appears twice in the key, because the ramp wraps at
 // five series and the "Other" pool used to be the sixth (see `corpus-charts.ts`'s cap).
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusMapTabStory } from "../_ct-stories.tsx";
 
 /** Six genres + a genre-less card: more than the ramp can name, which is what makes the pool a series. */

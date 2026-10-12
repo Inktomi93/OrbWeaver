@@ -18,7 +18,7 @@ import {
   pluginFrameResultMessage,
   pluginFrameUrl,
 } from "@orb/contracts/plugin";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const PLUGIN = "plugin_01h455vb4pex5vsknk084sn02q";
 

@@ -11,12 +11,12 @@
 // consumers).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { hitExtent, resolveSpacingPx } from "@orb/testkit/browser/touch-floor.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { hitExtent, resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = {

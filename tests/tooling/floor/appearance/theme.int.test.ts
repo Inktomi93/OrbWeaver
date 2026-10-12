@@ -14,9 +14,9 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { afterAll, beforeAll, vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // 4-up: tests/tooling/floor/<role> → repo root (re-derived at the P2 relocation — the depth-derived-root class).

@@ -17,9 +17,10 @@
 // really for. `git grep -l '__orb'` on `main` is 255 tracked files across every layer, and this document
 // is where a lane LEARNS that vocabulary. Anyone who later "simplifies" those summaries by dropping the
 // backticks reds HERE, at the generator, naming the token, instead of shipping an index nobody can search.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { snapFlagDescriptors } from "../../../../../tooling/src/snap/index.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_STATIC_ROWS } from "../../../../../tooling/src/verify/ops/gen/snap-flags-index.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 /** Literal occurrences — the thing a cold agent's `rg` actually counts. */
 function hits(text: string, literal: string): number {

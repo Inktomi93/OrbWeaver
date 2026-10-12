@@ -13,8 +13,8 @@
 // `isAdmin` reads off the context, which in production is the request's already-resolved principal.
 import type { DebugAuthOptions } from "@orb/server/foundation/observability/debug";
 import { createDebugAuthMiddleware, toDebugLimit, tokenMatches } from "@orb/server/foundation/observability/debug";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 interface MockResult {
   readonly body: unknown;

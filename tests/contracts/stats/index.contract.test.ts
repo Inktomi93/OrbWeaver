@@ -3,8 +3,8 @@ import { statsDeltaSchema } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
-import { expect, test } from "../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../support/inference-identities.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // Sample keys: a low-entropy owner brand at the untyped seam + a minted character TypeID (no pasted
 // high-entropy literals — noSecrets). The bucket grain is what `@orb/kit/stats-tally.statsBucketStart` emits.

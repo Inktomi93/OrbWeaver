@@ -5,12 +5,12 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/floor/host/host-slots";
 import { TS7_SLOT_BUSY_EXIT } from "@orb/tooling/floor/host/ts7-admission";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const HOOK_REL = ".claude/hooks/biome-check.mjs";

@@ -4,15 +4,15 @@
 // (`connection.draftCatalogModels`) and the connect-time firewall the dial itself passes (`fetch` through the
 // installed global dispatcher). A non-owner save must widen neither.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
+import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, beforeAll, describe } from "vitest";
-import type { AppCaller } from "../../../support/fixtures.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const ENDPOINT_PROVIDER = "custom-openai";
 // A normal high port with nothing listening: an admitted dial fails ECONNREFUSED, which is the evidence that

@@ -1,6 +1,6 @@
 // Production client/native subscription link/adapter over real loopback HTTP and the real appRouter.
 // Generation is injected; these are transport lifetime/replay proofs, not provider/domain execution proofs.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { once } from "node:events";
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
@@ -10,10 +10,10 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { createCas } from "@orb/server/infra/storage";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { createApp } from "#server/entry/app.ts";
 import { principal } from "../../../server/transport/trpc/_support.ts";
-import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 
 const CASES = [
   { mode: "partial-eof", generations: 1, requests: 1, idleBounds: 0, liveCells: 0, received: ["partial draft"] },

@@ -12,9 +12,9 @@
 //     exemption true rather than asserted.
 
 import type { UpstreamOf, UpstreamProbeResult, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { HARNESS_VERSION, makeHarness } from "../_support.ts";
 
 const MAIN_HEAD = { channel: "main", commit: "f00dcafe1234567890abcdef1234567890abcdef", short: "f00dcafe1234", committedAt: "2026-09-17T12:00:00Z" } as const;

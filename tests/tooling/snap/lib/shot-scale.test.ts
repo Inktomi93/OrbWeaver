@@ -5,6 +5,8 @@
 // (one image pixel per CSS pixel ≈ half the image tokens on a hi-dpi context), and it must stay
 // byte-identical for every invocation that does not opt in. The first assertion below is therefore about
 // the DEFAULT, not the new flag: a later reader "fixing" the default to `device` reds here.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   CSS_SHOT_SCALE,
   parseShotScale,
@@ -13,7 +15,6 @@ import {
   shotScaleDimensions,
   shotScaleResultValue,
 } from "../../../../tooling/src/snap/lib/shot-scale.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DESKTOP = { width: 1280, height: 800 };
 const MOBILE = { width: 430, height: 932 };

@@ -2,8 +2,8 @@
 // the same `setCorpusMode` the switch writes — the keyboard route to the homes Analytics and Tags moved to.
 // Asserted at the store, through the state probe mounted beside the palette.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusSelectionProbe } from "../../../state/_ct-stories.tsx";
 import { CorpusModePaletteStory } from "../_ct-stories.tsx";
 

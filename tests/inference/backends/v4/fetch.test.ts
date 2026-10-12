@@ -10,12 +10,12 @@
 
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Wire } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import type { WrapFetchArgs } from "#inference/backends/v4/fetch.ts";
 import { wrapFetch } from "#inference/backends/v4/fetch.ts";
 import type { WireCaptureSink } from "#inference/contract/backend.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const SECRET = "sk-live-super-secret";
 const secrets = resolvedScrubSet({ credential: { secret: SECRET }, transport: { includeBody: { api_key: SECRET } } });

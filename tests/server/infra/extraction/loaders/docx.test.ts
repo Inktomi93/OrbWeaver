@@ -2,9 +2,9 @@
 // `<w:t>` runs concatenated per `<w:p>`, paragraphs joined `\n\n`, `<w:tab>`/`<w:br>` → whitespace, XML entities
 // decoded, and the failure modes (a non-zip / a zip missing `word/document.xml`). The fixture zips REAL OOXML.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { zipSync } from "fflate";
 import { loadDocx } from "#server/infra/extraction/loaders/docx.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { buildDocx } from "../_fixtures.ts";
 
 const enc = new TextEncoder();

@@ -11,7 +11,7 @@
 //   3. the loading contract stays swap + a variable weight range (no invisible text, no synthetic bold).
 import { readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const UI_STYLES = join(import.meta.dirname, "../../../packages/ui/src/styles");
 const GLOBALS_CSS_PATH = join(UI_STYLES, "globals.css");

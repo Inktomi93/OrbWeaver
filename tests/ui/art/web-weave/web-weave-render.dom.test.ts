@@ -8,6 +8,7 @@
 // The instrument is a recording 2D context: no jsdom, no canvas binding — the painters only ever call
 // context methods, so recording them is a complete observation of the frame.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
@@ -18,7 +19,6 @@ import type { WeavePalette } from "#ui/art/web-weave/web-weave-render.ts";
 import { renderWeaveFrame } from "#ui/art/web-weave/web-weave-render.ts";
 import type { WeavePluckMap } from "#ui/art/web-weave/web-weave-sway.ts";
 import { swayPt, weaveSwayOffset } from "#ui/art/web-weave/web-weave-sway.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** One browser frame — the delta the prey machine would integrate over. */
 const FRAME_MS = 16;

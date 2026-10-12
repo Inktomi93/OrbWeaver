@@ -4,8 +4,8 @@
 
 import { ENVIRONMENT_BLOCK_WINS, HOST_NETWORK_OVERLAY, signInModeEnvLines } from "@orb/contracts/identity";
 import { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // The deploy-mode arms are mode-independent; a login mode keeps the single-user arm out of them.
 const HATCH_OPEN = { allowDevPublicBind: true, authMode: "local", ownerPeersDeclared: false, inContainer: false } as const;

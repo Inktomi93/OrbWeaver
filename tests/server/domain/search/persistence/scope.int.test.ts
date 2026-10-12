@@ -2,11 +2,11 @@
 import { characters, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { digestScopeCond, segmentScopeCond } from "#server/domain/search/persistence/scope.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("digestScopeCond", () => {

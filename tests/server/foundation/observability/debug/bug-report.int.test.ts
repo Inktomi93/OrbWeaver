@@ -15,6 +15,7 @@ import { join } from "node:path";
 import process from "node:process";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
 import {
   mintBugReportId,
@@ -25,7 +26,6 @@ import {
   writeBugReport,
 } from "#server/foundation/observability/debug/bug-report.ts";
 import { logRing } from "#server/foundation/observability/logger.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_760_000_000_000;
 const MINUTE = 60_000;

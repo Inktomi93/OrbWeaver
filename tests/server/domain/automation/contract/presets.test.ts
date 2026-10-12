@@ -15,11 +15,11 @@ import { ANALYSIS_SCORE_MAX, automationActionsSchema, LIVE_TRIGGERS, NEEDLE_TENS
 import type { CelBindings } from "@orb/kit/cel";
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ErasedRulePresetDef, RulePresetRuleDef } from "#server/domain/automation/contract/presets.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
 import { resolveRulePresetKnobs } from "#server/domain/automation/substrate/presets.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** `createRule`'s per-rule default (`substrate/validate.ts` RULE_MAX_FIRES_DEFAULT) — law 4's floor: a rule
  *  that fires on EVERY beat must declare a cap ABOVE this or it freezes stale mid-session. */

@@ -3,10 +3,10 @@ import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { __resetChatContextSections } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
-import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 
 const sections = createContributorRegistry<ChatSettingsSectionContribution>("host-truth", [
   pluginChatSettingsSection,

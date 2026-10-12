@@ -1,11 +1,11 @@
 // Promise identity is a wrapper/owner fact, not proof that a value was loaded from storage.
 // The JSON-write policy separately proves actual Drizzle producer bodies.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Expression, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { schemaRowOriginIdentity } from "../../../../tooling/src/verify/lib/open-json-row-origin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function rowCall(
   options: { readonly augment?: boolean; readonly awaited?: boolean; readonly foreign?: string; readonly noLib?: boolean; readonly result?: string } = {},

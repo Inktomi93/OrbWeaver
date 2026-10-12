@@ -5,9 +5,9 @@
 // asserting the plain strings below over `output` ALSO proves the non-TTY identity path (no `\x1b[`
 // escape ever lands in the string; a real terminal would only add codes around the same substrings).
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { RequestTrace, SerializedSpan } from "../../../tooling/src/render-trace/index.ts";
 import { fireEvidenceGap, renderTrace } from "../../../tooling/src/render-trace/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ANSI_ESCAPE = "\x1b[";
 

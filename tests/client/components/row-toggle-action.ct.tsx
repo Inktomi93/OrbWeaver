@@ -6,9 +6,9 @@
 //     hover + focus-within + `pointer-coarse:opacity-100`), while `rest="always"` never hides either state;
 //   · the control box IS the resolved control-md token square (the per-pointer floor, D62 P1 — no hand math).
 
+import { resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolveSpacingPxIn } from "../../support/browser/touch-floor.ts";
 import { RowToggleActionHarness } from "./row-toggle-action.fixtures.tsx";
 
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;

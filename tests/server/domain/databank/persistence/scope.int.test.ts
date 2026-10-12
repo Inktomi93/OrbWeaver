@@ -16,9 +16,9 @@ import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { requireHost } from "@orb/server/domain/chat";
 import { resolveActiveDocumentIds } from "@orb/server/domain/databank";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedRosterCharacter, seedUser } from "../_support.ts";
 
 for (const door of ["upload", "paste", "link"] as const) {

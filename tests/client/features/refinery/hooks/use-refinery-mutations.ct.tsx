@@ -26,9 +26,9 @@
 import { CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { RefineryDataStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";

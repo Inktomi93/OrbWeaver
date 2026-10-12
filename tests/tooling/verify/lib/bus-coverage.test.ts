@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { BusCoverageSpec } from "../../../../tooling/src/verify/contract/readers.ts";
 import { reconcileBusCoverage } from "../../../../tooling/src/verify/lib/bus-coverage.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 
 const HOME = "packages/contracts/src/user-bus/index.ts";

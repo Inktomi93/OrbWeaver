@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { z } from "zod";
 import { awaitDevClientReady } from "../../../../tooling/src/dev/ops/client-ready.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const PROBE_TIMEOUT = scaledBudget(20_000);

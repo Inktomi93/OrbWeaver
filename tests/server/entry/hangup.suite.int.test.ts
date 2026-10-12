@@ -11,8 +11,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ENTRY = fileURLToPath(new URL("../../../packages/server/src/entry/index.ts", import.meta.url));
 const BOOT_TIMEOUT_MS = 90_000;

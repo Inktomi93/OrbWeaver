@@ -13,8 +13,8 @@ import {
   THEME_SCHEMA_VERSION,
   themeContentKey,
 } from "@orb/server/primitives/serde/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function must<T>(result: PortableParse<T>): T {

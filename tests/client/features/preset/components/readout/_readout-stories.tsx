@@ -33,13 +33,13 @@ import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { makeCachePolicy, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { PromptReadout } from "#client/features/preset/components/readout/prompt-readout.tsx";
 import { CapabilityCard, EffectiveProfile } from "#client/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "#client/features/preset/components/readout/transforms-readout.tsx";
-import { CtDataProviders } from "../../../../../support/browser/ct-data-providers.tsx";
-import { makeCachePolicy, makeGenerationCapability } from "../../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");

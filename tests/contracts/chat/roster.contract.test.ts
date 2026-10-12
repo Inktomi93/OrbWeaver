@@ -24,7 +24,7 @@ import {
 } from "@orb/contracts/chat";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───
 const SAMPLE_CHAT_ID = mintTypeId(ID_PREFIX.chat);

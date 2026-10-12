@@ -8,8 +8,8 @@
 // contract: reachable anonymously, validates input, always answers { ok: true } on success.
 
 import { logger, logRing } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "./_support.ts";
 
 describe("clientError (the client error boundary's report verb)", () => {

@@ -33,9 +33,9 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 /** Three real native TS7 programs, one after another, on a two-file project. Quiet-box measured well under

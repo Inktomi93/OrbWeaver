@@ -4,10 +4,10 @@
 import { readFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { vitestTypecheckGroupName } from "@orb/tooling/floor/testing/test-kinds";
 import vitestConfig from "../../vitest.config.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const TYPE_PROGRAMS = [
   { project: vitestTypecheckGroupName("node"), tsconfig: "tsconfig.json" },

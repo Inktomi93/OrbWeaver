@@ -3,10 +3,10 @@
 // reconnect timer is the injected seam, so a `retry:` delay is an exact observation, not a wait.
 import { PostEventSource } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { ManualTimer } from "@orb/testkit/iso/clock.ts";
+import { createManualTimer } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import type { ManualTimer } from "../../../support/clock.ts";
-import { createManualTimer } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface SentRequest {
   readonly url: string;

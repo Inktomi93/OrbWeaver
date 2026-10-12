@@ -14,14 +14,14 @@ import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 /** One UTC day in ms — the gap that makes a claim land on a different `day` bucket than the creation. */

@@ -18,9 +18,9 @@
 // EVERY settle (success or fail), which would make "does the row survive to the real read" racy
 // against "when did the assertion happen" instead of actually pinning reconciliation.
 
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import {
   InlineFailureStory,
   SectionEchoStory,

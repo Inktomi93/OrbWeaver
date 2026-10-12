@@ -18,9 +18,9 @@ import { characterRegexScripts, chatRegexScripts, presetRegexScripts } from "@or
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { allowChat, makeHarness, principal, seedCharacter, seedChat, seedPreset, seedScript, seedUser } from "../../_support.ts";
 
 /** A fixed last-activity instant for the stubbed room refs — the verb passes `at` through untouched, so its

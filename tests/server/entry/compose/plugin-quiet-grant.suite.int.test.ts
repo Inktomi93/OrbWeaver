@@ -3,16 +3,16 @@
 // hop before the user hop (`inference/resolve/precedence.ts`), composed-real over the app's own binder. Each
 // scripted endpoint answers with its own host, which names the connection that served the call.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, plugins } from "@orb/db";
 import type { AssetId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildPluginQuietLlm } from "#server/entry/compose/automation-plugin.ts";
-import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 import { principal } from "../../domain/automation/_support.ts";
 
 const USER_HOST = "user-default.example";

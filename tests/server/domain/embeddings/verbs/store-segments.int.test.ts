@@ -12,10 +12,10 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedChat, seedUser } from "../_support.ts";
 
 const SEGMENT_TEXT = "Alice: meet me at the docks.\nBob: I'll bring the relic.";

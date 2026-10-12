@@ -5,10 +5,10 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService, createEnabledRuleIndex, createSuggestionStore, RuleValidationError } from "@orb/server/domain/automation";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import type { SuggestionStore } from "#server/domain/automation/contract/ops.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, makeAutomationHarness, principal, readFailingDb, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 

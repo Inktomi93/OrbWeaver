@@ -7,6 +7,7 @@
 // element it lands on, and that CLI misuse is refused instead of silently doing nothing.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   appearanceBootHintPatch,
   applySettingsToBody,
@@ -25,7 +26,6 @@ import {
 import type { BrowserContext, Route } from "@playwright/test";
 import { installSettingsShim } from "../../../../tooling/src/floor/appearance/appearance.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PRESETS_PATH = fileURLToPath(new URL("../../../../tooling/src/floor/appearance/appearance-presets.json", import.meta.url));
 

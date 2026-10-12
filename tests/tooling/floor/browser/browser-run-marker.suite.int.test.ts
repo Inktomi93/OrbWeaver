@@ -16,6 +16,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { leakChromiumArgs } from "@orb/testkit/node/chromium-processes.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { listProcesses, processInfo } from "@orb/tooling/floor/host/platform";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -34,9 +37,6 @@ import {
 } from "@orb/tooling/floor/process/run-marker";
 import { chromium } from "@playwright/test";
 import { afterAll, vi } from "vitest";
-import { leakChromiumArgs } from "../../../support/chromium-processes.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // A real Chromium launch under a contended parallel lane — the same ceiling browser.int.test.ts sets.

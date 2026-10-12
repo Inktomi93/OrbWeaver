@@ -9,9 +9,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { RunHistoryEntry } from "../../../../tooling/src/verify/index.ts";
 import { appendHistory, batteryCadenceLines, lastRanAt, previousAtTier, readHistory, slowdownLines, slowdowns } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function entry(over: Partial<RunHistoryEntry> = {}): RunHistoryEntry {
   return {

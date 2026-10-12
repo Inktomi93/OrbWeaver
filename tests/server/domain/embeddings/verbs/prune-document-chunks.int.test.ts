@@ -7,11 +7,11 @@ import { documentChunks, userConnections } from "@orb/db";
 import type { DocumentId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";

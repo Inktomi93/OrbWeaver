@@ -8,8 +8,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
 const STUB_SUPERVISOR = `

@@ -1,8 +1,9 @@
 // Scoped node runs select the projects Vitest attributes to the caller's test files.
 // Typecheck projects use `ignoreSourceErrors` so they judge `.test-d.ts` assertions only.
 // The native typecheck stage owns source diagnostics across every discovered compiler program.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { bareCtGrepRefusal, hasCallerProjectFilter, missingBrowserExecutable, nodeConfigModeArgs } from "../../../../tooling/src/verify/ops/scoped-test.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const RUNTIME_ONLY = "--runtime-only";
 

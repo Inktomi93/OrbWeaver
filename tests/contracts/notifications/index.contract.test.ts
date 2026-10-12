@@ -2,7 +2,7 @@ import type { NotificationEvent, NotificationType, PresenceSnapshot, PresenceVie
 import { AUTOMATION_NOTICE_MESSAGE_MAX, NOTIFICATION_RECIPIENTS, notificationEventSchema, PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // Sample values: TypeID ids are MINTED (valid prefix + suffix, so they pass the prefix-checking
 // `typeIdSchema`); plain brands use the sanctioned `castId`. No pasted random-looking literals (noSecrets).

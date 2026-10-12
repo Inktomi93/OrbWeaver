@@ -2,9 +2,9 @@
 // is bounded to |BLOB_WIDTHS|). Pins: below-first → first rung; exact rung; between → next rung up;
 // oversized → top rung; non-usable widths → undefined (the route 404s them).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { BANNER_WIDTHS, BLOB_WIDTHS, snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "#server/domain/assets/substrate/variant-policy.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("snapBlobWidth", () => {
   test("snaps to the smallest rung >= the request", () => {

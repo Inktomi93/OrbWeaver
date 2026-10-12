@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { survivorsOf } from "../../../../tooling/src/mutation-probe/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SRC_REL = "packages/server/src/domain/admin/guard.ts";
 const SOURCE = "export const can = 1;\n";

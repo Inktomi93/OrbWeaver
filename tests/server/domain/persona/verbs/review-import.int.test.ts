@@ -6,11 +6,11 @@ import { personas } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService } from "@orb/server/domain/persona";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedPersona } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { seedPersona } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 function incoming(name: string, description: string): { name: string; description: string; metadata: null; artHash: null } {

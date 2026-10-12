@@ -2,9 +2,9 @@
 // semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user fold).
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { frameInjection, spliceInChatInjections } from "#server/domain/chat/assembly/injections.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const HIST = [
   { role: "assistant" as const, content: "a0" },

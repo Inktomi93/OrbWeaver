@@ -52,10 +52,10 @@ import type { PrincipalEnv } from "@orb/server/entry/http";
 import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
 import type { AuthConfig, ForwardJwtVerifier } from "@orb/server/infra/auth";
 import { sessionCookieFor } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const OK = 200;
 const BAD_REQUEST = 400;

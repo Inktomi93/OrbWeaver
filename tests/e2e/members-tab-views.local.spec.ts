@@ -19,8 +19,8 @@
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { STORY_SHOT_DIR } from "@orb/testkit/node/story-shot.ts";
 import { expect, test } from "@playwright/test";
-import { STORY_SHOT_DIR } from "../support/node/story-shot.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";

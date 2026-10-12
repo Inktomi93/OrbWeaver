@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { candidateIndexGitEnvironment, loadCandidateIndexDelta } from "../../../../tooling/src/verify/ops/resource-index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function plant(root: string, path: string, text: string): void {
   const absolute = join(root, path);

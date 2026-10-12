@@ -7,6 +7,8 @@
 // so an absent `ok` reads as falsy and prints a NAV FAILED that never happened, while a truthy
 // non-boolean reports success for a nav that did not land — and a probe that navigated nowhere then
 // measures the WRONG SURFACE, which every snap header calls worse than not measuring at all.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import {
   navResultShape,
@@ -21,7 +23,6 @@ import {
   pageObject,
   pageString,
 } from "../../../../tooling/src/floor/browser/page-validate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 describe("the page→node primitives", () => {
   test("each accepts its own kind and refuses every other, naming what it got", () => {

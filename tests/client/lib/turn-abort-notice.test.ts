@@ -4,8 +4,8 @@
 // AND proves the hook-side suppression is `aborted`-NARROW (a real fault still toasts).
 
 import { TURN_ABORT_REASONS, TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbortNotice, turnMutationToast } from "#client/lib/turn-abort-notice.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 // ── turnAbortNotice: reason → user-visible copy (or null) ──────────────────────────────────────────
 

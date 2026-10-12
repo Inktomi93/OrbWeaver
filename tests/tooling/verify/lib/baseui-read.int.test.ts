@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterEach, beforeEach, vi } from "vitest";
 import type { SurfaceManifest } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -26,7 +27,6 @@ import {
 } from "../../../../tooling/src/verify/index.ts";
 import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
 import { nestedDeclarations } from "../../../../tooling/src/verify/lib/baseui-surface-derive.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Three cases SPAWN the real generator CLI (`verify baseline baseui-surface`) over a scratch tree, paying

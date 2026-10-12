@@ -28,6 +28,7 @@
 // mechanism live in `test-presence-client.ts`'s header beside the declaration.
 import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -38,7 +39,6 @@ import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates
 import { gate as testReach } from "../../../../tooling/src/verify/gates/test-reach.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [testLayout, testReach, testPresenceClient] as const;

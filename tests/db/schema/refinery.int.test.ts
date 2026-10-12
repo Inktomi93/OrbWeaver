@@ -14,10 +14,10 @@ import { characters, refineryRuns, refinerySessions, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { seedCharacter } from "../../support/factories/character.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 // Deterministic timestamps for the ordering pin (no wall clock in tests — Spine-Testing §3).

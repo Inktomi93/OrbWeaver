@@ -6,8 +6,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stageDirectory } from "@orb/server/infra/storage";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 let root: string;
 

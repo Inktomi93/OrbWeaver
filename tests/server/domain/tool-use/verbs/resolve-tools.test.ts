@@ -9,11 +9,11 @@
 // @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, ToolNotFoundError } from "#server/domain/tool-use/index.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });

@@ -4,8 +4,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
 test("owner-scope reindex enqueues a databank-reindex workload with the resolved mode", async () => {

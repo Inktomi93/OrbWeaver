@@ -1,10 +1,11 @@
 // The half of a template literal that CANNOT vary, kept apart from the half that can. Both directions are
 // planted: quasis carry authored text even when a hole sits between them, a hole's own text is never read
 // as authored, and a node that is not a template answers null rather than a fabricated empty string.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { readStaticTextOf, readTemplateSkeleton } from "../../../../tooling/src/verify/lib/template-static-text.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

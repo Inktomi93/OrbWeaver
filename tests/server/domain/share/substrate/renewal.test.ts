@@ -1,6 +1,8 @@
 // domain/share/substrate/renewal — the IP certificate's renewal schedule (D275): inside the renewal window, backing off
 // on failure, and never at or after the guard window before expiry.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   EXPIRY_GUARD_MS,
@@ -9,8 +11,6 @@ import {
   RENEWAL_RETRY_FIRST_MS,
   RENEWAL_RETRY_MAX_MS,
 } from "#server/domain/share/substrate/renewal.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const HOUR_MS = 3_600_000;
 const LIFETIME_MS = 160 * HOUR_MS;

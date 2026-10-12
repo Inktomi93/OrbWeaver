@@ -3,8 +3,8 @@
 // answers in the forge's leaf language, so the CURRENT schema is prompt material rather than a typed input —
 // which is what lets a hand-authored raw-door schema (outside the leaf language) still be refined.
 
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 const designReply = JSON.stringify({

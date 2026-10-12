@@ -6,9 +6,9 @@ import { join } from "node:path";
 import process from "node:process";
 import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { noVerdictStages, ownScheme } from "../../../../tooling/src/verify/lib/exit-classifiers.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // The ambient-env WINDOW pins live beside their door in process-env.test.ts (#1848 moved the door out of
 // proc.ts at its line cap); what stays here is the SPAWN/SIGNAL half — the only half proc.ts still owns.

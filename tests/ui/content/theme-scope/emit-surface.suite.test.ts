@@ -2,10 +2,11 @@
 // generated TOKENS map (packages/ui/src/tokens/index.ts, derived from tokens.json) is the single
 // source of truth for what's themeable; this test proves `clampThemeTokens` can never emit a
 // stale/typo'd `--*` custom property that doesn't trace back to a real token.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "#ui/content/theme-scope/clamp.ts";
 import { THEME_SCOPE_EMIT_VARS } from "#ui/content/theme-scope/emit-vars.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const LEADING_DASHES_RE = /^--/u;
 

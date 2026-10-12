@@ -8,13 +8,13 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { parseChatMetadata } from "#server/domain/chat/contract/metadata.ts";
 import { createSetRpgPointer } from "#server/domain/chat/verbs/set-rpg-pointer.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, noClaim, seedChat } from "../_support.ts";
 
 let db: Db;

@@ -6,14 +6,14 @@
 
 import type { DeclaredCapability, GenerationCapability } from "@orb/contracts/inference";
 import { createInferenceRuntime, ProviderError } from "@orb/inference";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { runOpenAiCompatRerank } from "#inference/backends/openai-compat/rerank.ts";
 import { applyServerToolChoice } from "#inference/capability/floor.ts";
 import type { Resolved } from "#inference/contract/resolved.ts";
 import { resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { planStructuredFor } from "#inference/structured/plan.ts";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { fakeConnection, fakeDeps, fakeResolved, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import type { RecordedRequest } from "../backends/_hosted-support.ts";
 import { generationCapability, openAiTextStream, scriptedSseFetch } from "../backends/_hosted-support.ts";

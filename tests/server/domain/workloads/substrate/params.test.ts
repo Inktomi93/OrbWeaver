@@ -8,9 +8,9 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
 import type { WorkloadContribution, WorkloadContributions } from "@orb/server/domain/workloads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "#server/domain/workloads/substrate/params.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER: UserId = castId("user_owner");
 const DOC_ID: DocumentId = mintTypeId("document");

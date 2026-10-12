@@ -9,11 +9,11 @@ import type { Db } from "@orb/db";
 import { messageVariants, ownerStats } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createStatsService } from "#server/domain/stats/service.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
 
 /** A fixed instant for the service's injected clock — the rebuild stamps `computedAt` with it. */

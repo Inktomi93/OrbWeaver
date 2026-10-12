@@ -27,6 +27,8 @@
 //          example loads its real-tree anchor), which is asserted rather than left to look like a pass.
 //   THE POPULATION PORT — `testid-liveness` retains showcase but excludes package roots that cannot
 //          produce UI selectors; the exact legacy-only difference is measured below.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POPULATION_ROOTS } from "../../../../tooling/src/verify/contract/population.ts";
@@ -38,7 +40,6 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { TESTID_REGISTRY_HOME } from "../../../../tooling/src/verify/lib/testid-registry.ts";
 import { AXIS_HOME_REL } from "../../../../tooling/src/verify/lib/variant-axis-stamp.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/testid-variant-split-family";
 const TESTID_FAMILY: readonly GatePolicy[] = [testid, testidHealth];

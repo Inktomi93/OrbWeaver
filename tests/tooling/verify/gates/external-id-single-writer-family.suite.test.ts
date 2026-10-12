@@ -32,13 +32,14 @@
 // covered by zero legacy rows. The first test asserts that fact per example rather than leaving it as
 // prose, because it is the reason the successor proof below had to be CONSTRUCTED from the legacy arm's own
 // trigger conditions instead of replayed from its corpus.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as externalIdSingleWriter } from "../../../../tooling/src/verify/gates/external-id-single-writer.ts";
 import { gate as externalIdSingleWriterHealth } from "../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
 import { gate as handleKeyWriter } from "../../../../tooling/src/verify/gates/handle-key-writer.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/external-id-single-writer-family";
 const FAMILY = [externalIdSingleWriter, externalIdSingleWriterHealth];

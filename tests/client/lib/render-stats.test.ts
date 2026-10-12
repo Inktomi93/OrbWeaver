@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { __resetRenderStats, recordRender, renderHeatmap } from "#client/lib/render-stats.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("render evidence can be reset between driven checkpoints", () => {
   __resetRenderStats();

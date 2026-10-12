@@ -5,9 +5,9 @@
 // entities' DIRECTORIES; a `?kinds=` filter narrows to those dirs; a re-uploaded library bundle imports the
 // ROWS for the uploading owner (the round-trip through the actual HTTP handlers, not the layers below).
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import type { WorkloadRef } from "@orb/contracts/workloads";
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { presets, tags, themes } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
@@ -16,10 +16,10 @@ import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
 import { registerExport, registerImportBundle } from "@orb/server/entry/http";
 import { extractZip } from "@orb/server/infra/storage";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // The portability route suite builds the full service graph + drives a real `import-bundle` workload; it

@@ -3,6 +3,8 @@
 // below cover what a proof row structurally cannot express — a receipt REFUSAL (a tool error, not a
 // finding), the ordinary marker identity each ordinary policy's report must supply, and the grant liveness
 // the five reviewed-grant policies' whole authority rests on.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -27,7 +29,6 @@ import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [

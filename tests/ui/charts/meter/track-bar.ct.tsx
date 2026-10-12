@@ -2,9 +2,10 @@
 // job is: fill WIDTH = value/max, fill COLOR = the D71 track ramp token, and the bar is aria-hidden
 // (the datum is TEXT the consuming block renders — never the bar). Assert the computed width fraction,
 // the resolved ramp token color, and the aria-hidden contract — never a hardcoded px/hex.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { TrackBar } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("fill width is value/max and the fill rides the track-ramp token color", async ({ mount }) => {
   const component = await mount(<TrackBar value={24} max={30} color={1} />);

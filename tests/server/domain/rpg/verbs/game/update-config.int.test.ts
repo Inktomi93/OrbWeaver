@@ -6,9 +6,9 @@ import { RPG_CONFIG_MAX_TRACKERS, RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrac
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
-import { freshDb } from "../../../../../support/db.ts";
 import { expect, principal, seedLiteGame, seedPreset, seedUser, test } from "../../_support.ts";
 
 const EXTRACTION_RE = /extractionmode/i;

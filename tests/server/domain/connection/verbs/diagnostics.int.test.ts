@@ -6,9 +6,9 @@
 // with its headers REDACTED, because "test endpoint" must never be the surface that echoes the key back.
 
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 
 const MODELS_OK = { match: "/models", json: { data: [{ id: "m" }] } };

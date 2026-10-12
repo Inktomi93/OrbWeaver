@@ -3,8 +3,8 @@
 // observability clock, exercised only for shape — not value — here).
 
 import { logClock } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CLOCK_RE = /^\d{2}:\d{2}:\d{2}\.\d{3}$/u;
 

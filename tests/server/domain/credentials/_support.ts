@@ -7,6 +7,7 @@
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
 import { handleKey } from "@orb/kit/handle-key";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import type { Principal, UserRole } from "#contracts/identity/index.ts";
 import { builtinProvider } from "#contracts/inference/index.ts";
 import type { Db } from "#db/client/index.ts";
@@ -18,7 +19,6 @@ import type { CredentialView } from "#server/domain/credentials/contract/views.t
 import type { CredentialsService } from "#server/domain/credentials/index.ts";
 import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 // A fixed 32-byte key so the SecretBox is enabled + deterministic across runs.

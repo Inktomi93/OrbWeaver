@@ -8,10 +8,10 @@ import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { AssetNotFoundError, CharacterNotFoundError, CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { principal as assetsPrincipal, makeHarness as makeAssetsHarness, pngBytes } from "../../assets/_support.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 

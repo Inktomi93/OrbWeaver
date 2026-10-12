@@ -6,12 +6,12 @@ import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatStreamEvents, chats, messages } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { loadStreamReplay } from "#server/domain/chat/persistence/queries.ts";
 import { insertChatStreamEventStatements } from "#server/domain/chat/persistence/stream-events.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage } from "../_support.ts";
 
 let db: Db;

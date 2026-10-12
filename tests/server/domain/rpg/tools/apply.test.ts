@@ -8,6 +8,7 @@ import type { RpgSnapshotState, RpgToolCall, RpgTrackerDef } from "@orb/contract
 import { RPG_RULESET_PROFILE, RPG_SEED_HP_MAX, rpgSeedTrackers, toolCallsToExtraction } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   applySetTracker,
   applyUpdateInventory,
@@ -19,7 +20,6 @@ import {
   ghostTargetRefs,
   toStagedJournalEntry,
 } from "#server/domain/rpg/tools/apply.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** An actor row on the state plane — `over` patches the VOLATILE half. */
 function actorRow(npcKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {

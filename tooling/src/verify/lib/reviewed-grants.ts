@@ -25,6 +25,14 @@ import { REVIEWED_GRANTS_SUPPRESSIONS_B } from "./reviewed-grants-suppressions-b
 import { REVIEWED_GRANTS_TAILWIND } from "./reviewed-grants-tailwind.ts";
 import { REVIEWED_GRANTS_TEST_REACH_MODULES } from "./reviewed-grants-test-reach-modules.ts";
 import { REVIEWED_GRANTS_TEST_REACH_VERBS } from "./reviewed-grants-test-reach-verbs.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A } from "./reviewed-grants-tests-raw-package-reach-a.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B } from "./reviewed-grants-tests-raw-package-reach-b.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C } from "./reviewed-grants-tests-raw-package-reach-c.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D } from "./reviewed-grants-tests-raw-package-reach-d.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E } from "./reviewed-grants-tests-raw-package-reach-e.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F } from "./reviewed-grants-tests-raw-package-reach-f.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G } from "./reviewed-grants-tests-raw-package-reach-g.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_H } from "./reviewed-grants-tests-raw-package-reach-h.ts";
 import { REVIEWED_GRANTS_TOOLING_TO_PERMISSION } from "./reviewed-grants-tooling-to-permission.ts";
 import { REVIEWED_GRANTS_Z_TO_CITATIONS } from "./reviewed-grants-z-to-citations.ts";
 import { REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX } from "./reviewed-grants-zoderrorissues-zindex.ts";
@@ -51,6 +59,14 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_TAILWIND,
       ...REVIEWED_GRANTS_TEST_REACH_MODULES,
       ...REVIEWED_GRANTS_TEST_REACH_VERBS,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_H,
       ...REVIEWED_GRANTS_TOOLING_TO_PERMISSION,
       ...REVIEWED_GRANTS_Z_TO_CITATIONS,
       ...REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX,

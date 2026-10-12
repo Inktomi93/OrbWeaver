@@ -5,10 +5,10 @@
 import { characters } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedAsset } from "@orb/testkit/node/factories/asset.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { seedAsset } from "../../../../support/factories/asset.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { analyzeReply, makeRefineryHarness, principal, rewriteReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("roster: newest-updated first, latestVerdict from the newest analyze, stranger sees []", async () => {

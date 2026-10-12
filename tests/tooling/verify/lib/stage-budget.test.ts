@@ -13,11 +13,12 @@
 // DERIVED from the profile's caps (not a constant, not a literal repeated here), and the composite that
 // used to hide both suites in one stage can no longer run inside a tier at all — otherwise the split would
 // have doubled every push instead of fixing it.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readStageBudgets } from "@orb/tooling/floor/host/concurrency-profile";
 import type { StageDef } from "@orb/tooling/verify";
 import { REGISTRY } from "../../../../tooling/src/verify/lib/registry.ts";
 import { ctSuiteHangCeilingMs, mutationGateHangCeilingMs, stageHangCeilingBaseMs } from "../../../../tooling/src/verify/lib/stage-budget.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function stage(name: string): StageDef {
   const row = REGISTRY.find((candidate) => candidate.name === name);

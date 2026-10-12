@@ -19,6 +19,7 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { vi } from "vitest";
 import { isAdmin, isOwner, requireOwner } from "#server/domain/admin/guard.ts";
 import { createAssetsWorkloadContributions } from "#server/domain/assets/workload-contributions.ts";
@@ -35,7 +36,6 @@ import type { WorkloadRunnableRow } from "#server/domain/workloads/contract/work
 import { loadWorkload } from "#server/domain/workloads/persistence/queries.ts";
 import { createWorkloadService } from "#server/domain/workloads/service.ts";
 import { createReservedWorkloadContributions } from "#server/domain/workloads/substrate/reserved-contributions.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 /** A fixed instant — every timestamp in a test pins to this (no ambient clock; test-determinism §3). */
 export const T0 = 1_700_000_000_000;

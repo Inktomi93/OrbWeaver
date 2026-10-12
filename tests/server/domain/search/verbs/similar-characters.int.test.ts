@@ -6,9 +6,9 @@
 
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedAsset, seedCharacter, seedCharacterEmbedding, seedCharacterSummary, seedUser, vec } from "../_support.ts";
 
 describe("similarCharacters", () => {

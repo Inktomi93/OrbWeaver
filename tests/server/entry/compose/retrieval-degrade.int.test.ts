@@ -23,8 +23,8 @@
 // room is deliberate: `search.documents` short-circuits an empty allowlist, so this arm proves the space read
 // no longer precedes that short-circuit.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
@@ -32,9 +32,9 @@ import { connectionBindings, embedGenerations, embedGenerationTargets, userConne
 import type { ChatId, ConnectionBindingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const FROZEN_AT = 1_700_000_000_000;

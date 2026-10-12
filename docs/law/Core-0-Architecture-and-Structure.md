@@ -200,9 +200,27 @@ Why central plus a directory mirror over colocation: an agent can drop a colocat
 directory gives every test one home a gate can check, and the src tree stays clean. The fixture doctrine is composed
 `test.extend` (over `beforeEach`/`freshDb()`).
 
-A test imports a package's source through the root `#<package>/*` imports map
-(`#server/domain/chat/verbs/send.ts`), never a relative climb into `packages/` (`tests-package-subpath`). The map
-lives in the root `package.json`, so product code cannot resolve it and every package keeps its root-only exports.
+**The test kit is a package.** `tests/support` is the workspace package `@orb/testkit`. It sits above the cake
+beside tooling (§9). Its exports map has three world subpaths and no root entry: `@orb/testkit/iso/<path>`,
+`@orb/testkit/node/<path>` and `@orb/testkit/browser/<path>`. Each world directory compiles under its own world
+program (`TEST_WORLD_PROGRAMS` in `tooling/src/floor/compiler/project-worlds.ts`). `test-helper-world-direction`
+keeps the direction: iso imports no other world, node imports iso, browser imports both.
+
+The kit holds only test-only seams: the frozen clock, seeded ids, factories, fixtures and runner doors, fakes,
+in-memory stores and recorders. Product logic a test needs moves down to its owning layer and its public API, and
+production and tests both call it there. A harness that wires one domain's internals lives beside that domain's
+tests, not in the kit.
+
+**Tests enter packages through their doors.** A test or the kit imports a package through its public entry
+(`@orb/<package>` or a subpath its `exports` map declares) or its testing door. A testing door is a package module
+that exports only test-only seams; none is built yet. A raw reach through the root `#<package>/*` imports map
+(`#server/domain/chat/verbs/send.ts`) needs a reviewed grant (`tests-raw-package-reach`). The map lives in the root
+`package.json`, so product code and the kit cannot resolve it. A relative climb into a package's `src` or, from
+outside, into the kit is banned (`tests-package-subpath`).
+
+Two named exceptions replace copies. The browser world re-exports the client door's registry lists from
+`@orb/client/compose`, the reviewed exception in `client-compose-door-only`. The kit takes tRPC types from the
+`@orb/server` root, the type-only `AppRouter` bridge the client uses (`testkit-app-router-bridge`).
 
 > **Authority: `Spine-Testing.md`.** This section is the mirror rule and the `test-layout` gate only. The full
 > policy — the tree (§2 there), the lanes/projects, presence (`test-reach`), the mock/determinism doctrine, the
@@ -238,6 +256,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | One verb per file, named for the verb | `verb-naming` |
 | Exported feature types live only in `contract/`; `service.ts` interface always present | `types-in-contract` |
 | Tests live in the mirrored source directory, kind by suffix | `test-layout` |
+| Tests and the test kit enter a package through its declared entries; a raw reach carries a reviewed grant | `tests-package-subpath` · `tests-raw-package-reach` |
 | **Verbs, routers, schemas and persistence are each reached by the test kind they owe** (presence by reach, not blanket coverage) | `test-reach` (§5 `spine/testing`) |
 | **No ambient clock/random/unseeded-id under `tests/`** (inject the frozen clock + seeded ids) | `test-determinism` (§3 `spine/testing`) |
 | `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
@@ -287,6 +306,11 @@ posture. The one surface still sealed AGAINST tooling is the provider FAMILIES
 contract internals — `tooling-no-provider-families`. The package FRONT DOOR is legal; its families are
 not.
 
+**The test kit sits beside tooling.** `@orb/testkit` (`tests/support`, §5) is a package above the cake.
+It may import any app package and tooling's floor, such as the contrast and timing engines. Nothing in
+`packages/**` imports it (`not-to-test`), and tooling never imports it (`tooling-no-testkit`), so a tool's verdict
+never depends on a test fixture.
+
 **The five-slot tool template** (`tooling/src/<tool>/` — the domain template's tooling twin; learn one,
 know all):
 
@@ -322,6 +346,7 @@ did not change when the fleet moved.
 | ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
 | every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `floor/instrument/instruments.ts`) |
 | `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
+| `packages/**` and `tooling/**` ⇏ the test kit | `not-to-test` · `tooling-no-testkit` |
 
 **Two fleet-wide doors, both in `floor/cli/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
 toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:

@@ -1,5 +1,5 @@
 import "../../../tooling/src/plugin-author-showcase/cli.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("showcase author CLI imports without running and rejects an invalid command at its real entry", async ({ runCli }) => {
   const result = await runCli("plugin-author-showcase", ["not-a-command"]);

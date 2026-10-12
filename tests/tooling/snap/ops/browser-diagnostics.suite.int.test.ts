@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { createPageCapture, wireProbePage } from "@orb/tooling/floor/browser/browser-capture";
 import type { BrowserDiagnostic, OrbConsoleCompleteness } from "@orb/tooling/floor/browser/browser-diagnostics";
@@ -16,7 +17,6 @@ import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { parseDiagnosticQuery, queryDiagnostics } from "../../../../tooling/src/snap/ops/diagnostics.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });

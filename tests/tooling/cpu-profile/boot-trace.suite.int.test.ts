@@ -6,12 +6,12 @@
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { beginBootTrace } from "@orb/tooling/cpu-profile";
 import type { CDPSession, Page } from "@playwright/test";
 import sharp from "sharp";
 import { vi } from "vitest";
 import type { SnapRunArtifact } from "../../../tooling/src/snap/contract/run-index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000, 4);
@@ -118,7 +118,7 @@ test("beginBootTrace abort stops tracing and removes its browser instrumentation
 });
 
 test("beginBootTrace bounds a stalled presentation, retains raw events, and performs terminal cleanup", async ({ scratch }) => {
-  // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+  // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
   vi.useFakeTimers();
   try {
     let tracingComplete: (() => void) | undefined;
@@ -167,7 +167,7 @@ test("beginBootTrace bounds a stalled presentation, retains raw events, and perf
 
 for (const failureMode of ["completion", "presentation-and-completion", "end-command"] as const) {
   test(`beginBootTrace retains collected events when ${failureMode} stalls`, async ({ scratch }) => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     try {
       const event = { name: "retained-before-stop", ts: 1 };

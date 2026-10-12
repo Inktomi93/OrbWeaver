@@ -9,9 +9,10 @@
 // style/layout, so the moment it is excused `budgetedStyleLayout` is 0 and the failing row cannot exist.
 // The two rows are mutually exclusive by construction, which is why `exemption` is its own non-failing
 // kind rather than a sentence appended to a `threshold` row.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { AuditData, BrowserEnvironmentEvidence, MotionSnapshot } from "../../../../tooling/src/motion-audit/index.ts";
 import { motionProblems } from "../../../../tooling/src/snap/lib/motion-problems.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ENVIRONMENT: BrowserEnvironmentEvidence = {
   requested: { device: null, viewport: { width: 1280, height: 800 }, colorScheme: null, reducedMotion: false, contrast: null, reducedTransparency: false },

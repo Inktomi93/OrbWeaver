@@ -12,8 +12,8 @@ import { castId } from "@orb/kit/ids";
 import type { AuthMetaDeps } from "@orb/server/entry/http";
 import { registerAuthMeta } from "@orb/server/entry/http";
 import { ownerFallbackAllowed } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface MockResult {
   readonly body: Record<string, unknown>;

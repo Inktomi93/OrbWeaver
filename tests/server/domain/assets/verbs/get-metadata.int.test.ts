@@ -6,9 +6,9 @@ import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import {
   makeHarness,

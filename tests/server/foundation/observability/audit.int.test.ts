@@ -15,10 +15,10 @@ import {
   logAudit,
   resetAuditFailureCount,
 } from "@orb/server/foundation/observability";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const STAMP = 1_700_000_000_000; // a fixed epoch-ms (determinism — never the wall clock)
 const FAIL_STAMP = 1_700_000_999_999;

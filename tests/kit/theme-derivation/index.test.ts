@@ -32,8 +32,8 @@ import {
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("shadowIngredients (#243 — the polarity-derived elevation recipe)", () => {
   const darkBase = { l: 0.158, c: 0.006, h: 60 };

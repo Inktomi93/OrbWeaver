@@ -1,8 +1,8 @@
 // The command ranking: a row's declared terms (its label and keywords) outrank cmdk's fuzzy score. Each case
 // pits a declared-term row against a row cmdk alone would put first, so a pass proves the bands, not cmdk.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { declaredTermFirstFilter } from "#ui/primitives/command/declared-term-filter.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const LABELS_ROW = { value: "corpus-mode:labels", keywords: ["Labels", "Create, merge, prune and edit your tags", "Corpus", "tags"] };
 // The id itself starts with the query, which cmdk scores near 1, but no declared term carries it.

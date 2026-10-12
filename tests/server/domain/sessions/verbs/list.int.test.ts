@@ -4,9 +4,9 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
 const USER_ID = castId<UserId>("user_alice");

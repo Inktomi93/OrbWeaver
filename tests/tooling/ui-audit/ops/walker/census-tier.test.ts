@@ -29,10 +29,10 @@
 // reported as a mismatch — so the comparator is proven able to fail on every run, not just at review time.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { WALKER_CENSUS_TIER } from "../../../../../tooling/src/ui-audit/ops/walker/census-tier.ts";
 import { blankCssComments } from "../../../../../tooling/src/verify/lib/comment-spans.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const TIER_MAP_REL = "packages/ui/src/styles/tiers.css";
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..", "..");

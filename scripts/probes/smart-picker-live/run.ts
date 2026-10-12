@@ -18,6 +18,7 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveSideGenSampling } from "@orb/inference";
 import type { CharacterId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import type {
   ArbiterCandidate,
   SmartArbitrationResult,
@@ -31,7 +32,6 @@ import { humanPlayerNames } from "../../../packages/server/src/domain/chat/engin
 import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
 import { speakerArbiterFor } from "../../../packages/server/src/entry/compose/chat.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps } from "../../../tests/inference/_support.ts";
-import { principal } from "../../../tests/support/factories/principal.ts";
 import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { Scene } from "./scenes.ts";

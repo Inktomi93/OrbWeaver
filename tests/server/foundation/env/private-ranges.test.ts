@@ -1,9 +1,9 @@
 // foundation/env/private-ranges — the one TRUSTED_PRIVATE_RANGES parse. Pins: the list split the egress guard and the
 // boot refusal share, and which entries the refusal picks out (the boot-level refusal is pinned in index.test.ts).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { parseTrustedPrivateRanges, trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "#server/foundation/env/private-ranges.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 describe("parseTrustedPrivateRanges", () => {
   test("unset and blank values are no entries", () => {

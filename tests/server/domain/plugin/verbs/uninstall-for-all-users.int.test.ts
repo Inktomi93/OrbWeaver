@@ -10,9 +10,9 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotDistributedError } from "@orb/server/domain/plugin";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { listDistributions } from "#server/domain/plugin/persistence/distributed-plugins.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 async function cast(db: Awaited<ReturnType<typeof freshDb>>): Promise<{ readonly boss: UserId; readonly members: readonly UserId[] }> {

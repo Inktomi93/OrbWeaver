@@ -24,6 +24,7 @@
 //        legacy `readdirSync`/`globSync` walk produced.
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, ScriptKind } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -33,7 +34,6 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { loadAuthoredCss } from "../../../../tooling/src/verify/ops/resource-tree.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const TOKENS_JSON_REL = "packages/ui/src/tokens/tokens.json";

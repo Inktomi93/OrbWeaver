@@ -6,8 +6,8 @@
 // byte-identically, the rows land, the character↔chat seating + gallery handle re-link) AND a re-import is
 // idempotent (zero dupes). This is the machine-checked proof the bundle is self-contained.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -60,12 +60,12 @@ import { castId } from "@orb/kit/ids";
 import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
 import { registerExport, registerImportBundle } from "@orb/server/entry/http";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
-import { freshDb } from "../../../support/db.ts";
-import { seedCharacter } from "../../../support/factories/character.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // This suite builds TWO full service graphs (source `app` fixture + a fresh target box) and drives a real

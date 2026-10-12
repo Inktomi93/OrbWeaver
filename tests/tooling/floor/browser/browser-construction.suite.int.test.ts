@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { createPageCapture } from "@orb/tooling/floor/browser/browser-capture";
@@ -18,7 +19,6 @@ import { resolveBrowserEnvironmentContract } from "@orb/tooling/floor/browser/br
 import { resolveProbeMedia } from "@orb/tooling/floor/browser/browser-media";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const RUN_TIMEOUT_MS = scaledBudget(90_000, 4);

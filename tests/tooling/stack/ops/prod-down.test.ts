@@ -1,7 +1,7 @@
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import type { DownDeps } from "../../../../tooling/src/stack/ops/prod-down.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const control = vi.hoisted(() => ({ alive: false }));
 vi.mock("node:timers/promises", () => ({ setTimeout: async () => undefined }));

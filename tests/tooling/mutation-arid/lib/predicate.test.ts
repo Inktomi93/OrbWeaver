@@ -17,9 +17,9 @@
 // Survived for the three near-misses, in the same order asserted below. If this file ever disagrees with a
 // real run, the REAL RUN is right and these fixtures have drifted from babel.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { shouldIgnoreArid } from "../../../../tooling/src/mutation-arid/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Mirrors the (unexported, by no-inline-types) `AridNode` in the plugin — the babel subset it reads. */
 interface Node {

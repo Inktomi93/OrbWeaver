@@ -3,10 +3,10 @@
 
 import { samplingCapabilitySchema } from "@orb/contracts/inference";
 import { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "@orb/server/domain/preset";
+import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { honoredKnobLabels, knobGhost, knobLabel, mirostatSkipped, provenanceSuffix } from "#client/features/preset/lib/effective-knobs.ts";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "#client/features/preset/lib/sampling-knob-catalog.ts";
-import { makeCachePolicy } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A camelCase key is a schema identifier; a one-word key (`seed`) may stand as its own label. */
 const SCHEMA_IDENTIFIER = /[A-Z]/u;

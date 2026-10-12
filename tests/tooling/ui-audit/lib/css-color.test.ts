@@ -8,12 +8,12 @@
 // the negatives that must stay silent (the sanctioned carriers, our own --shadow-overlay recipe, an
 // unresolved var()). A regression to any colour-space-blind parser turns the oklch rows red.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { Finding } from "../../../../tooling/src/ui-audit/contract/findings.ts";
 import { checkGlowShadow } from "../../../../tooling/src/ui-audit/lib/checks-decor.ts";
 import { checkRadialGlow } from "../../../../tooling/src/ui-audit/lib/checks-ornament.ts";
 import { findColorToken, parseCssColor } from "../../../../tooling/src/ui-audit/lib/css-color.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DARK = { r: 20, g: 18, b: 16, a: 1 } as const;
 

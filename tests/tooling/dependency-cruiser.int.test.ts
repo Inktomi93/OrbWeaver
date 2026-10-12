@@ -12,9 +12,9 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterAll, beforeAll } from "vitest";
 import { TEST_KIND_SUFFIXES } from "../../tooling/src/floor/testing/test-kinds.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 interface DcRestriction {
   readonly path?: string | readonly string[];
@@ -105,7 +105,7 @@ function writeNativeSubstrate(): void {
   fx("packages/client/src/main.tsx", VAL);
   fx("packages/client/src/styles/index.ts", `import "../features/app-shell/surfaces/shell.css";\n`);
   fx("packages/ui/src/primitives/alert-dialog/index.ts", "export const AlertDialog = {};\n");
-  fx("tests/support/clock.ts", VAL);
+  fx("tests/support/iso/clock.ts", VAL);
 }
 
 // db/schema/embeddings.ts is the stats-rule anchor.
@@ -272,7 +272,7 @@ function writeAllFixtures(): void {
   fx(`${S}/domain/__dc_feat/persistence/io.ts`, `import "node:fs";\n`);
   fx(EMBEDDINGS, VAL);
   fx(`${S}/domain/stats/__dc.ts`, `import "../../../../db/src/schema/embeddings.ts";\n`);
-  fx("packages/kit/src/__dc/totest.ts", `import "../../../../tests/support/clock.ts";\n`);
+  fx("packages/kit/src/__dc/totest.ts", `import "../../../../tests/support/iso/clock.ts";\n`);
   fx("packages/kit/testing/__dc_registered.repo.int.test.ts", VAL);
   fx("packages/kit/testing/__dc_unsupported.test.js", VAL);
   fx("packages/kit/src/__dc/test-kind.ts", `import "../../testing/__dc_registered.repo.int.test.ts";\nimport "../../testing/__dc_unsupported.test.js";\n`);
@@ -352,6 +352,11 @@ function writeAllFixtures(): void {
   // The browser-CT support world is the one reviewed test importer of the door; a node test helper is not.
   fx("tests/support/browser/__dc/compose-door.ts", `import "../../../../packages/client/src/compose/__dc_t.ts";\n`);
   fx("tests/support/node/__dc/compose-door.ts", `import "../../../../packages/client/src/compose/__dc_t.ts";\n`);
+  // testkit-app-router-bridge: the kit takes AppRouter from the server root as a type; a value edge is the violation.
+  fx("tests/support/node/__dc/router-type.ts", `import type { AppRouter } from "../../../../packages/server/src/index.ts";\nexport type R = AppRouter;\n`);
+  fx("tests/support/node/__dc/router-value.ts", `import { AppRouter } from "../../../../packages/server/src/index.ts";\nexport const r = AppRouter;\n`);
+  // tooling-no-testkit: a tool importing the test kit.
+  fx("tooling/src/__dc_ta/testkit.ts", `import "../../../tests/support/iso/clock.ts";\n`);
 
   // ── @orb/tooling (the tool fleet ABOVE the cake — Core-Tooling-Law.md §4.6) ──
   fx("tooling/src/__dc_tb/ops/y.ts", VAL);
@@ -563,6 +568,13 @@ test("the exact CSS front door may import shell.css while every other importer r
   const cssFrontDoorViolations = allViolations.filter((violation) => violation.rule.name === "client-css-front-door-shell-only");
   expect(cssFrontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/index.ts"))).toBe(false);
   expect(cssFrontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/__dc_css_frontdoor_bypass.ts"))).toBe(true);
+});
+
+test("the test kit reaches the server root only as the type-only AppRouter bridge, and tooling never reaches the kit", () => {
+  const bridge = allViolations.filter((violation) => violation.rule.name === "testkit-app-router-bridge").map((violation) => violation.from);
+  expect(bridge).toEqual(["tests/support/node/__dc/router-value.ts"]);
+  const tooling = allViolations.filter((violation) => violation.rule.name === "tooling-no-testkit").map((violation) => violation.from);
+  expect(tooling).toEqual(["tooling/src/__dc_ta/testkit.ts"]);
 });
 
 test("helper worlds reject node→browser and type-only iso→node while preserving same-world type imports", () => {

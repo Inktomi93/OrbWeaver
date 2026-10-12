@@ -2,9 +2,9 @@
 // one similarity spelling (side-eye corpus re-pass #2: P2-5, P3-2, P3-4). Pure, so it is unit-pinned here
 // and the rendered halves are pinned by the surfaces that use them.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { facetLabel, matchWord, percent, sentenceCase } from "#client/features/discovery/lib/corpus-vocabulary.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("percent (P2-5)", () => {
   test("a 0-1 similarity reads as a whole percent — the surface's ONE spelling", () => {

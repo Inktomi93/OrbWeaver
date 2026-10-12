@@ -11,10 +11,10 @@ import { join } from "node:path";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 import { extractTgzWithTar, spawnQuickTunnel } from "@orb/server/infra/relay";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeAll } from "vitest";
 import { APP_SECRET_ENV_KEYS, scrubAppSecretsFromProcessEnv } from "#server/foundation/env/index.ts";
 import { readBuildIdentity } from "#server/foundation/observability/debug/bug-report.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 const EXECUTABLE_MODE = 0o700;

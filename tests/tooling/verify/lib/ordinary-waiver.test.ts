@@ -1,10 +1,11 @@
 // Final ordinary-waiver grammar, trivia carriers, occurrence identity, and two-sided reconciliation.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { OrdinaryWaiverEngine, OrdinaryWaiverMatchResult } from "../../../../tooling/src/verify/contract/ordinary-waiver.ts";
 import { createOrdinaryWaiverEngine } from "../../../../tooling/src/verify/lib/ordinary-waiver.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ORDINARY = "ordinary-policy";
 const FILE = "packages/sample/src/probe.tsx";

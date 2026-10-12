@@ -2,13 +2,13 @@
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { deriveTypeConfigFiles, generateTypeConfigs, readCompilerPrograms, typeConfigsDrift } from "@orb/tooling/verify";
 import { ts } from "ts-morph";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const BASE = JSON.stringify({ compilerOptions: { strict: true, lib: ["es2025", "esnext.disposable"] }, files: [] });

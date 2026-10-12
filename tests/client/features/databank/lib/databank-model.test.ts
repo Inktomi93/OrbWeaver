@@ -5,6 +5,7 @@
 import type { BankHealthView, DocumentView } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, MIME_TO_FORMAT } from "@orb/contracts/extraction";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   bankHealth,
@@ -25,7 +26,6 @@ import {
   showsPhaseChip,
 } from "#client/features/databank/lib/databank-model.ts";
 import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 const FIVE_MINUTES = 300_000;

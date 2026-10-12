@@ -10,8 +10,8 @@ import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorkloadScheduleRow } from "@orb/server/domain/workloads";
 import { seedCasSchedules } from "@orb/server/entry/boot";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("u_owner");
 

@@ -3,9 +3,9 @@
 // hooks and config, so a bug here can plant into `scratch` at worst.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { captureWorkingTree, diffWorkingTree } from "@orb/tooling/floor/testing/working-tree-guard";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** A committed, clean fixture repository — `captureWorkingTree` over it starts from an empty dirty-list. */
 async function cleanFixtureRepo(root: string): Promise<void> {

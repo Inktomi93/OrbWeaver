@@ -1,5 +1,5 @@
+import { pixelExtremaContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { pixelExtremaContrast } from "../../../support/browser/pixel-contrast.ts";
 import { JumpingStickyList } from "./list-window.fixtures.tsx";
 
 test("instant jumps recompute the top fade after the new sticky rows render", async ({ mount, page }) => {

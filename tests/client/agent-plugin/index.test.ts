@@ -4,9 +4,9 @@
 
 import { buildAgentPlugin } from "@orb/client/agent-plugin";
 import { typeIdSchema } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 type AgentPluginClient = Parameters<typeof buildAgentPlugin>[0];
 type InstalledPlugins = Awaited<ReturnType<AgentPluginClient["plugin"]["list"]["query"]>>;

@@ -28,6 +28,7 @@ import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtChatContributorSectionRegistry, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -42,7 +43,6 @@ import { RpgTakeoverHeader } from "#client/features/rpg/components/rpg-takeover-
 import { RpgVeiledSection } from "#client/features/rpg/components/rpg-veiled-section.tsx";
 import { useUpdateConfig } from "#client/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "#client/features/rpg/lib/archived-cards.ts";
-import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
 
 /** Five live conditions — the measured shape, and enough to WRAP at 430, which is where the vertical floor

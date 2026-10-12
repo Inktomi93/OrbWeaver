@@ -32,6 +32,10 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { applyStatsDelta, reconcileStats } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createAgentSdkLog } from "#inference/backends/agent-sdk/log.ts";
@@ -50,10 +54,6 @@ import type { WitnessInterval } from "#server/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadStreamReplay, loadTurnOrigin } from "#server/domain/chat/persistence/queries.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   fakeRecallResult,

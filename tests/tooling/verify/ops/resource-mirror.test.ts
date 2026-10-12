@@ -4,11 +4,12 @@
 // Every arm below carries its planted control in BOTH directions: a positive plant that must be SEEN, and
 // the same corpus without it, which must go the other way. A door that cannot produce a false verdict on
 // demand has not been shown to work.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { MirrorFamilyId, MirrorIndex } from "../../../../tooling/src/verify/contract/resource-mirror.ts";
 import { loadMirrorIndex } from "../../../../tooling/src/verify/ops/resource-mirror.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SOURCE = "packages/server/src/domain/act.ts";
 const MIRROR = "tests/server/domain/act.test.ts";

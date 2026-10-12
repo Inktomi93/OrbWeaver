@@ -26,6 +26,7 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { openProbeContext } from "@orb/tooling/floor/browser/browser-context";
 import type { ProbeSession } from "@orb/tooling/floor/browser/browser-contract";
@@ -36,7 +37,6 @@ import { chromium } from "@playwright/test";
 import { snapshot } from "lighthouse";
 import puppeteer from "puppeteer-core";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Structural assertions stay parallel; their completion deadline scales with browser startup cost.

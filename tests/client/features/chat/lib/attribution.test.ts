@@ -13,9 +13,9 @@ import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "#client/features/chat/lib/attribution.ts";
 import { colorForCharacter } from "#client/features/chat/lib/speaker-color.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice");

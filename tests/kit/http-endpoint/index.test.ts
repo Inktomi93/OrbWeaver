@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { effectiveHttpPort, parseTcpPort } from "#kit/http-endpoint/index.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("effective HTTP ports keep client admission and server dialing equal", () => {
   expect(effectiveHttpPort("http:", "")).toBe(80);

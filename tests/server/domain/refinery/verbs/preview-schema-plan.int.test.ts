@@ -1,8 +1,8 @@
 // .int tests for `previewSchemaPlan`: the draft the plan judges is the one a refinery run would send (belted and
 // projected closed), and a draft the belt refuses has no plan.
 
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 test("the plan is asked about the projected draft a run would send; a belt-refused draft gets no plan and asks nothing", async () => {

@@ -9,11 +9,11 @@ import { characterEmbeddings, characterSummaries, characters, chatDigests, chatS
 import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { computeGroupHubs } from "#server/domain/discovery/substrate/hub-math.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import {
   EMBED_MODEL,
   FROZEN_AT,

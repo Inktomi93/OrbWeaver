@@ -1,8 +1,8 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { AppearanceInvariantReceipt } from "../../../../tooling/src/snap/contract/appearance-invariants.ts";
 import { evaluateAppearanceInvariantCell, sameAppearanceReceiptPopulation } from "../../../../tooling/src/snap/ops/appearance-invariants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const selector = '[data-slot="dialog-popup"]';
 const requiredMerge = {

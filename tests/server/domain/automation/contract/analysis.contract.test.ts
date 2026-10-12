@@ -6,6 +6,7 @@
 // schema projects from).
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { expectTypeOf } from "vitest";
 import type { z } from "zod";
 import type { AnalysisPayload, AnalysisRoutes, AnalysisState } from "#server/domain/automation/contract/analysis.ts";
@@ -20,7 +21,6 @@ import {
   parseAnalysisState,
   projectAnalysisWireSchema,
 } from "#server/domain/automation/contract/analysis.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A payload with only the always-present plot half (the route-gated fields absent). */
 function plotPayload(

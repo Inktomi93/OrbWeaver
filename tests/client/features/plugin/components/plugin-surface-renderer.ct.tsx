@@ -16,10 +16,10 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { malformedOrForwardTrpcWire, routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { malformedOrForwardTrpcWire, routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];

@@ -1,5 +1,7 @@
 // The static class-expression walker's contract: carrier discovery is declaration provenance, and the
 // value evaluator keeps producer anchors across the local/cross-file expression shapes a class can ride.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind, SyntaxKind } from "ts-morph";
 import {
   evaluateStaticClassExpression,
@@ -7,7 +9,6 @@ import {
   evaluateStaticObjectProperties,
   walkStaticClassExpressions,
 } from "../../../../tooling/src/verify/lib/static-class-expression.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

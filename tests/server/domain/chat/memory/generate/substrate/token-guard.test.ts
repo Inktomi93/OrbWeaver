@@ -2,6 +2,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   chunkBlockForEmbedWindow,
@@ -12,7 +13,6 @@ import {
 } from "#server/domain/chat/memory/generate/substrate/token-guard.ts";
 import { renderTranscript } from "#server/domain/chat/memory/generate/substrate/transcript.ts";
 import type { MsgRow, SummarizerBudget } from "#server/domain/chat/memory/types.ts";
-import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");
 const names: RowMacroNameContext = {

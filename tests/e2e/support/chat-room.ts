@@ -20,11 +20,11 @@
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
 import type { MessageId } from "@orb/kit/ids";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
-import { HOST_BAND, openContextSections } from "../../support/node/open-context-sections.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine

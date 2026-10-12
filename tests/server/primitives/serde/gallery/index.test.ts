@@ -8,8 +8,8 @@ import type { PortableParse } from "@orb/contracts/portability";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem, GalleryExport } from "@orb/server/primitives/serde/gallery";
 import { buildGallery, GALLERY_SCHEMA_KIND, GALLERY_SCHEMA_VERSION, parseGallery } from "@orb/server/primitives/serde/gallery";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

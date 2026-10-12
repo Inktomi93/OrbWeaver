@@ -4,9 +4,10 @@
 // is a RELATIONSHIP to the roster passed in, never a number that goes stale the day a gate lands or dies.
 // This file pins the pure renderer's shape instead: one well-formed row per gate, every gate id
 // searchable as a backticked token, and no PURPOSE truncation ever leaving a dangling markdown escape.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy } from "@orb/tooling/verify";
 import { defineGate, deriveActiveGatesIndexMarkdown } from "@orb/tooling/verify";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 function gate(overrides: Partial<Parameters<typeof defineGate>[0]> = {}): GatePolicy {
   return defineGate({

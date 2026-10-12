@@ -6,9 +6,9 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildPatch, remapSelection } from "#server/domain/refinery/substrate/accept-belts.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD: CharacterCard = {
   name: "Aria",

@@ -1,6 +1,6 @@
 // Socket lifecycle metadata precedes every room frame, including sockets with no rooms attached.
 import type { StreamFrame } from "@orb/contracts/stream";
-import { expect } from "../../../../support/fixtures.ts";
+import { expect } from "@orb/testkit/node/fixtures.ts";
 
 export async function consumeServerReady(iterator: AsyncIterator<unknown>): Promise<string> {
   const result = await iterator.next();

@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   PLUGIN_BROKER_MESSAGE_MAX_BYTES,
   parseBrokerParentMessage,
@@ -5,7 +6,6 @@ import {
   parseParentBrokerMessage,
   serializeMessage,
 } from "#server/infra/plugin-host/process-protocol.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("the inherited-channel protocol rejects open operation names and bridge messages without command authority", () => {
   expect(parseParentBrokerMessage({ kind: "command", id: "one", operation: "eval", runtimeId: "runtime-000000000" })).toBeNull();

@@ -13,11 +13,11 @@ import { assets, characters, plugins } from "@orb/db";
 import type { AssetId, CharacterId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { backfillPluginProvenanceOnBoot } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../support/db.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 const IMPORT_HASH = "sha256-boot-fixture";

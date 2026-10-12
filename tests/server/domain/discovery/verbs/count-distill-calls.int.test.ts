@@ -2,9 +2,9 @@
 // content, scoped to one owner or box-wide. The agreement with the real batch lives in distill.int.test.ts.
 
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 
 describe("countDistillCalls", () => {

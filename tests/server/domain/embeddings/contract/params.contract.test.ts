@@ -9,9 +9,9 @@
 // the loop) with zero coverage `tsc` doesn't already give. Removed 2026-07-10.
 
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { SourceKind, SourceLens } from "#server/domain/embeddings/contract/params.ts";
 import { SOURCE_KINDS, SOURCE_LENSES, TEXT_LENSES } from "#server/domain/embeddings/contract/params.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("SOURCE_KINDS is exactly [card, avatar, chat-block, document] (the producer-class axis)", () => {
   // `document` is the databank source-document class — the 4th producer.

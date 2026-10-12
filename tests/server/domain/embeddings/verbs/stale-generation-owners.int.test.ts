@@ -9,10 +9,10 @@ import type { EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/k
 import { castId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeStoreHarness, seedUser } from "../_support.ts";
 
 const NOW = 1_700_000_000_000;

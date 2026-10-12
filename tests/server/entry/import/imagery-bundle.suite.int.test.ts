@@ -1,5 +1,5 @@
 // Actual HTTP export/upload, composed registry, real import workload, owned CAS and stats rebuild.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,16 +14,16 @@ import type { PrincipalEnv } from "@orb/server/entry/http";
 import { registerExport, registerImportBundle } from "@orb/server/entry/http";
 import { buildImageryCall, parseImageryCall } from "@orb/server/primitives/serde/imagery";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeImageryCall } from "@orb/testkit/node/factories/imagery-call.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
-import { freshDb } from "../../../support/db.ts";
-import { seedCharacter } from "../../../support/factories/character.ts";
-import { makeImageryCall } from "../../../support/factories/imagery-call.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 async function imageSpend(db: Db, ownerId: UserId): Promise<number | undefined> {

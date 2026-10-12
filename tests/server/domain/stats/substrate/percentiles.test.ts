@@ -1,8 +1,8 @@
 // substrate/percentiles — pure avg/p50/p90 (nearest-rank). No db, no clock.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { percentiles } from "#server/domain/stats/substrate/percentiles.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("percentiles", () => {
   test("empty input → all null", () => {

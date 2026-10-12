@@ -2,9 +2,10 @@
 // whole job: each segment's WIDTH is its share of the whole, its COLOR is a D71 ramp token, and the rail is
 // aria-hidden (the datum is the SeriesRow text beside it). Assert computed geometry + resolved token colors,
 // never a hardcoded px/hex.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { SegmentBar } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const SEGMENTS = [
   { id: "system", value: 25, color: 1 as const },

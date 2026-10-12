@@ -9,11 +9,11 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
+import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import sharp from "sharp";
 import { vi } from "vitest";
-import type { CliResult } from "../../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

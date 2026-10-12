@@ -4,9 +4,9 @@
 // carries no owner), and narrowable to ONE character.
 
 import { createTagService } from "@orb/server/domain/tag";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 describe("listPendingSuggestions", () => {

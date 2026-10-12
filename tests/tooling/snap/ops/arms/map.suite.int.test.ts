@@ -5,9 +5,9 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { afterAll, vi } from "vitest";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const RUN_ID = `snap_map_${process.pid}`;

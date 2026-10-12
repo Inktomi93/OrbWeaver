@@ -3,9 +3,9 @@
 // pin); records are provenance-faithful; durationMs rides the injected clock; execution is sequential
 // in emission order.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const NOOP_SCHEMA = z.object({});

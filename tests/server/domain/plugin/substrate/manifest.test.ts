@@ -4,12 +4,12 @@
 // downgrade-refusal semver helper.
 
 import { PLUGIN_UI_ASSET_MAX_BYTES, PLUGIN_UI_ASSETS_MAX_COUNT, PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES } from "@orb/contracts/plugin";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
 import { HostVersionUnservedError, ManifestInvalidError } from "#server/domain/plugin/contract/errors.ts";
 import { isVersionDowngrade, parseBundle } from "#server/domain/plugin/substrate/manifest.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { magicBytes } from "../../../../support/magic-bytes.ts";
 
 const VALID_MANIFEST = {
   id: "my-plugin",

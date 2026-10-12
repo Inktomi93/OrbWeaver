@@ -4,10 +4,10 @@ import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const NATIVE_FIXTURE_TIMEOUT_BASE_MS = 60_000;

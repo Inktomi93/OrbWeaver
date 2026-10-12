@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -9,7 +10,6 @@ import { gate as serdeCoreSealHealth } from "../../../../tooling/src/verify/gate
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // The first defineGate-only wave of the "bus/contract-shape family" (#1584 gate-runtime-standardization):

@@ -1,8 +1,8 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AssemblyPreviewPanelStory } from "../_ct-stories.tsx";
 
 const TRACE = {

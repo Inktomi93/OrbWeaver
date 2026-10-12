@@ -1,12 +1,12 @@
 // CT: the button seal — token variants land as computed style, sizes hold the touch floor,
 // loading is a real disabled+aria-busy state (ui-package-design §6.1).
 
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { ReactElement } from "react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TOUCH_FLOOR_PX = 44;
 

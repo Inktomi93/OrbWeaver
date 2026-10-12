@@ -1,9 +1,9 @@
 // The settle loop's contract: a round counts only when no target moved under it, a supersede with no move behind it
 // is a fault rather than a spin, and an abort never buys another round.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { GenerationSupersededError, runUntilSettled } from "#server/primitives/embedding-generation/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = "user_settle";
 

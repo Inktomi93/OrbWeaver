@@ -7,9 +7,9 @@
 import type { RoleClientTask } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { requireTaskModel } from "#server/domain/embeddings/substrate/task-model.ts";
-import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_a");
 

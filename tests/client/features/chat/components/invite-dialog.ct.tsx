@@ -8,12 +8,12 @@
 import { SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { AuthConfigShare, AuthMode, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { auditRenderedTextContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
-import { auditRenderedTextContrast } from "../../../../support/browser/pixel-contrast.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
 
 const AA_NORMAL = 4.5;

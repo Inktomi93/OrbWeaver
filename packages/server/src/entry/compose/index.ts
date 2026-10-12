@@ -25,5 +25,6 @@ export type { DeleteReachCapture } from "./room-reach.ts";
 export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 export type { ServicesDeps, ServicesResult, ShareComposeDeps } from "./services.ts";
 export { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "./services.ts";
+export { buildSideGenParams } from "./side-gen-params.ts";
 export type { UpstreamProbeDeps } from "./update-check.ts";
 export { createUpstreamProbes, parseLatestRelease, parseMainHead } from "./update-check.ts";

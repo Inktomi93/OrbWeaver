@@ -11,10 +11,10 @@
 //                    (viewer-LAST — the ruling's counter-style guarantee).
 //   4. either arm  → the composer, the edit textarea, and the wire payload keep the RAW canon, always.
 
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder } from "../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { DisplayTierChatlessStory, DisplayTierInRoomStory } from "./_ct-stories.tsx";
 
 // The story's raw canon, restated here rather than imported: playwright-ct rewrites every named import

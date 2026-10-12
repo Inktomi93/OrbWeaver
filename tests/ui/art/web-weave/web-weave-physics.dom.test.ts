@@ -7,11 +7,11 @@
 //   • a hit lands on the strand under the pointer, and never on the bridge.
 // Deterministic: every function takes `now` — no clock, no rAF, no browser.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { WeavePluck } from "#ui/art/web-weave/web-weave-physics.ts";
 import { decayShiver, findStrandHit, PLUCK_LIFE_MS, pluckDisplacement, pluckOffset, raiseShiver, swayGain } from "#ui/art/web-weave/web-weave-physics.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const BOX = { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 } as const;
 /** A strand long enough that index-space and px-space are clearly different. */

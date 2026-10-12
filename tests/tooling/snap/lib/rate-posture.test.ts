@@ -1,11 +1,12 @@
 // The rate posture belongs to one Snap run. Every rate arm must consume the same acceleration/load
 // sample even when a hypothetical second read would disagree.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Browser } from "@playwright/test";
 import { vi } from "vitest";
 import type { BrowserAccelerationEvidence } from "../../../../tooling/src/floor/browser/browser-acceleration.ts";
 import { snapRatePostureSchema } from "../../../../tooling/src/snap/contract/rate-posture.ts";
 import { ratePostureDisposition, sampleSnapRatePosture } from "../../../../tooling/src/snap/lib/rate-posture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HARDWARE: BrowserAccelerationEvidence = {
   backend: "Mesa Intel UHD 770",

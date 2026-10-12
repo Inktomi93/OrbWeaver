@@ -6,9 +6,9 @@ import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
-import { freshDb } from "../../../../../support/db.ts";
 import { expect, makeRpgService, principal, seedChat, test } from "../../_support.ts";
 
 const FULL_UNBUILT_RE = /full mode is not built/i;

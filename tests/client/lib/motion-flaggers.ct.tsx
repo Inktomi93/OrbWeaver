@@ -18,10 +18,10 @@
 //  · `[drop]` — the RE-ARM. A second real stutter on the SAME surface after `__resetMotionFlags` must fire
 //    again, or a driven multi-step probe reads every step after the first as clean.
 
+import { blockMainThread } from "@orb/testkit/node/block-main-thread.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { droppedFramePct } from "../../../tooling/src/motion-audit/index.ts";
-import { blockMainThread } from "../../support/node/block-main-thread.ts";
 import {
   DeadClassConfirmStory,
   MotionFlaggersAuditPauseStory,

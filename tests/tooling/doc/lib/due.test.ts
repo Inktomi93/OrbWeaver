@@ -1,7 +1,8 @@
 // The soft freshness tier as a pure rule: the described paths come from the body's backticked repository
 // paths, a directory cite matches below it, and only a change after the review date makes a doc due.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { changesFromLog, describedDoc, dueDocs, earliestUpdated } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DOC = {
   path: "docs/law/X.md",

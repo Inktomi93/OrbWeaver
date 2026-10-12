@@ -1,10 +1,10 @@
 // The installed image SDK discards raw cost/details and returns its requested model as response.modelId.
 // These real SDK response fixtures pin the normalized facts, not a reconstructed provider invoice.
 
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatGenerateImage } from "#inference/backends/openai-compat/images.ts";
 import { passthroughImageNormalizer } from "#inference/backends/wire/image-normalize.ts";
-import { makeCapability, makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 
 test.for([

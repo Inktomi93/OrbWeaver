@@ -3,6 +3,7 @@
 // tests/tooling/ui-audit/index.int.test.ts; this file pins the READINESS arm's pure verdict, whose whole job
 // is to be true when the two count-based arms cannot see the problem.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SettingsShimEvidence } from "../../../../tooling/src/floor/appearance/appearance.ts";
 import { instrumentPageError, pageErrorText, runtimePageError } from "../../../../tooling/src/floor/browser/browser-contract.ts";
 import type { RowVoidInput } from "../../../../tooling/src/ui-audit/contract/samples-layout.ts";
@@ -10,7 +11,6 @@ import type { TierDriftInput } from "../../../../tooling/src/ui-audit/contract/s
 import type { DomPopulation, RawSamples, ThemeRenderInput } from "../../../../tooling/src/ui-audit/index.ts";
 import { censusThinGap, censusTotal, instrumentPageErrorGap, readinessGap, themeProvenanceGap } from "../../../../tooling/src/ui-audit/index.ts";
 import { checkScriptErrors } from "../../../../tooling/src/ui-audit/lib/checks-quality.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function population(duringWalk: number, settled: number, stabilized = true): DomPopulation {
   const documentHead = Math.min(2, duringWalk);

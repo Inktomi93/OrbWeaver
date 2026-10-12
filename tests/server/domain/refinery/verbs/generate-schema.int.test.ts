@@ -5,8 +5,8 @@
 // begging for JSON, and a green that only checks the happy path would not have caught it.
 
 import type { SchemaForgeResult } from "@orb/server/domain/refinery";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser } from "../_support.ts";
 
 /** Narrow a forge result to one arm, THROWING (never `expect`-inside-an-`if`) so the assertions after it are

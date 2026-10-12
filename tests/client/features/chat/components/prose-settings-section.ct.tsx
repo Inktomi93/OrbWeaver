@@ -9,12 +9,12 @@
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ProseSettingsSectionStory } from "../_ct-stories.tsx";
 
 const ARBITER = "chat.arbiter.system";

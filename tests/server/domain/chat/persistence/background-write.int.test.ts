@@ -6,11 +6,11 @@ import type { ChatMetadata } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { carriedBackgroundAvailable, guardedChatId, ownedBackgroundAvailable } from "#server/domain/chat/persistence/background-write.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedUser } from "../_support.ts";
 
 let db: Db;

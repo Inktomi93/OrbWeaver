@@ -17,8 +17,8 @@
 // The room-level composition (which rows get the strip, and the window that gates them) is pinned in
 // chat-room-surface.ct.tsx; this file is the component's own contract.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GreetingSwipeStripStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
 

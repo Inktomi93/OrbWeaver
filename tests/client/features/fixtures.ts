@@ -15,7 +15,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 

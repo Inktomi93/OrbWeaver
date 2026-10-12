@@ -3,8 +3,8 @@
 
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { toContentBlocks } from "#client/features/chat/lib/content-blocks.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("plain text projects to a single markdown block", () => {
   expect(toContentBlocks("hello world")).toEqual([{ kind: "markdown", md: "hello world" }]);

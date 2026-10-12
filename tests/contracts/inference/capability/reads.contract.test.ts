@@ -15,8 +15,8 @@ import {
   userRoleHandlingOptions,
   windowForPreset,
 } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 describe("the strictness order is the tuple order", () => {
   test("slotted sits between merge and semi-strict", () => {

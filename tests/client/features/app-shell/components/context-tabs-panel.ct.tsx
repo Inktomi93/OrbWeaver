@@ -6,10 +6,10 @@
 // shell.css is loaded into the CT bundle (the story module imports it), so the header height and the strip's
 // scroll behaviour resolve exactly as in the shell.
 
+import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { ContextDefaultTabStory, ContextMetaRailStory, ContextTabStatesStory, ContextTabStripStory, EmptyContextScrollStory } from "../_ct-stories.tsx";
 
 /** Chat's own tabs, named by the product's own labels. */

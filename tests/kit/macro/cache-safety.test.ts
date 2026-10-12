@@ -2,7 +2,7 @@
 // reads invalidate a prefix, while bytes nested in a discarded or unknown-inline input do not.
 
 import { createDefaultRegistry, macroTextInvalidatesCache } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const registry = createDefaultRegistry();
 

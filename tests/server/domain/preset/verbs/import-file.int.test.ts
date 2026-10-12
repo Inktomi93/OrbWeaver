@@ -10,10 +10,10 @@ import { presets } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createExportPresets, createPresetService } from "@orb/server/domain/preset";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const configWith = (temperature: number): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, params: { temperature } });

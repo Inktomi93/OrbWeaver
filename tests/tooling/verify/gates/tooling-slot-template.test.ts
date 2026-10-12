@@ -2,9 +2,10 @@
 // cli.ts is not a missing argv door when a snap arm ENTERS it through that index.ts — it is an engine, and
 // the stub cli.ts the template used to force (ui-audit, motion-audit, cpu-profile) can be deleted. Derived
 // from snap's own import specifiers, never from a row: a dir nothing under snap imports is still RED.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate } from "../../../../tooling/src/verify/gates/tooling-slot-template.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor, withTree } from "../../_support.ts";
 
 type EffectiveFinding = ReturnType<typeof runPolicyPass>["authority"]["effectiveFindings"][number];

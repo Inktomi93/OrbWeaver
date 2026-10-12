@@ -16,6 +16,8 @@ import { characterRegexScripts, globalRegexScripts, presetRegexScripts, regexScr
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -27,8 +29,6 @@ import {
   createImportPresetScripts,
   createImportRegexScript,
 } from "#server/domain/regex/persistence/portability-write.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { behavior, makeHarness, principal, seedCharacter, seedPreset, seedScript, seedUser } from "../_support.ts";
 
 const FROZEN = 1_700_000_000_000;

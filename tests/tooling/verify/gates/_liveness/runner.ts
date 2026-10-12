@@ -2,6 +2,15 @@
 // Only identical ordered overlays share a pass; report paths cannot prove input independence.
 // Affected runs keep the controls associated with their selected policies.
 
+import type { LivenessBatchProgress, RealCorpusArmVerdict, RealCorpusLivenessArm, RealCorpusLivenessRunner } from "@orb/testkit/node/real-corpus-liveness.ts";
+import {
+  assertArmVerdict,
+  assertLivenessPartitions,
+  openRealCorpusLiveness,
+  partitionLivenessArms,
+  planLivenessBatches,
+} from "@orb/testkit/node/real-corpus-liveness.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { processEnvValue } from "../../../../../tooling/src/floor/process/process-env.ts";
 import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../../../../../tooling/src/verify/contract/instrument-affected.ts";
 import { defineGate } from "../../../../../tooling/src/verify/contract/policy.ts";
@@ -15,15 +24,6 @@ import {
   selectInstrumentAffectedArms,
 } from "../../../../../tooling/src/verify/lib/instrument-affected-liveness.ts";
 import { QUERY_BOUNDARY_HOME } from "../../../../../tooling/src/verify/lib/query-boundary-vocabulary.ts";
-import type { LivenessBatchProgress, RealCorpusArmVerdict, RealCorpusLivenessArm, RealCorpusLivenessRunner } from "../../../../support/real-corpus-liveness.ts";
-import {
-  assertArmVerdict,
-  assertLivenessPartitions,
-  openRealCorpusLiveness,
-  partitionLivenessArms,
-  planLivenessBatches,
-} from "../../../../support/real-corpus-liveness.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 import { AUTHORED_ARMS } from "./authored.ts";
 import { CLIENT_ARMS } from "./client.ts";

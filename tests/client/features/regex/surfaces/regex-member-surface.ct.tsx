@@ -9,12 +9,12 @@
 // way the retired pane CT did.
 
 import { deriveRegexTierFlags } from "@orb/kit/regex";
+import { measureContentColumn } from "@orb/testkit/browser/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
-import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexMemberContentColumnStory, RegexMemberStory } from "../_ct-stories.tsx";
 
 const RUN_ON_EDIT = /Run on edit/;

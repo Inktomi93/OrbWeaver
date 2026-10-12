@@ -19,6 +19,8 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { TurnEngine, TurnRequest } from "#server/domain/chat/contract/results.ts";
 import { createTurnEngine } from "#server/domain/chat/engine/engine.ts";
@@ -26,8 +28,6 @@ import { driveRound } from "#server/domain/chat/engine/round.ts";
 import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, testConnection } from "./_support.ts";
 
 const HOST = castId<UserId>("user_host");

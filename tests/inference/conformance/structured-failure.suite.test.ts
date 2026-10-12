@@ -24,8 +24,8 @@
 // both are non-retryable, which is the part that is actually a law.
 
 import type { Wire } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { PROVIDER_ERROR_KINDS } from "#inference/contract/errors.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { CONFORMANCE_WIRES, cellTest, driveStructuredMalformed, settledProviderError } from "./_harness.ts";
 
 for (const wire of CONFORMANCE_WIRES) {

@@ -8,8 +8,8 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { chatSummaryRowView } from "#client/features/chat/lib/chat-summary-row.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 type SummaryItem = Parameters<typeof chatSummaryRowView>[0];
 

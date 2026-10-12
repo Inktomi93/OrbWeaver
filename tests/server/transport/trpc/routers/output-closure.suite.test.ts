@@ -13,9 +13,9 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { SettingsService } from "@orb/server/domain/settings";
 import type { WorkloadService } from "@orb/server/domain/workloads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { appRouter } from "#server/transport/trpc/router.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OUTPUT_NAMESPACES = ["automation", "character", "chat", "imagery", "preset", "refinery", "rpg", "settings", "workloads", "regex"] as const;

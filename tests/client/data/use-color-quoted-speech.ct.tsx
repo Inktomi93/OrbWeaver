@@ -11,9 +11,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { ColorQuotedSpeechStory } from "./_ct-stories.tsx";
 
 type AppearanceFixture =

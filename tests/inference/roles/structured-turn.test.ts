@@ -4,8 +4,8 @@
 
 import type { StructuredRetrySummary } from "@orb/inference";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SCHEMA = z.object({ genre: z.string(), score: z.number() });
 

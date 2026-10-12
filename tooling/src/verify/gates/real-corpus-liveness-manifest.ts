@@ -15,7 +15,7 @@
 // `defineGate` from a specifier containing `contract/policy` followed by a `defineGate(...)` call — the same
 // identity test the family uses at syntax tier. The policy ID equals the filename by loader contract.
 // Liveness pins live in the ONE arm home, `tests/tooling/verify/gates/_liveness/`, in files that import BOTH
-// a gate module's `gate` export AND the `tests/support/real-corpus-liveness` vocabulary. In such a file,
+// a gate module's `gate` export AND the `tests/support/node/real-corpus-liveness` vocabulary. In such a file,
 // every `PropertyAssignment` named `policy` whose initializer is one of the tracked gate imports counts as a
 // pin for that policy ID.
 //
@@ -193,7 +193,7 @@ function probeGate(id: string): string {
 function probeTestFile(localName: string, gateSpecifier: string): string {
   return (
     `import { ${GATE_EXPORT} as ${localName} } from "${gateSpecifier}";\n` +
-    `import type { RealCorpusLivenessArm } from "../../../support/real-corpus-liveness.ts";\n` +
+    `import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";\n` +
     `const ARMS: readonly RealCorpusLivenessArm[] = [{ ${POLICY_PROP}: ${localName}, globs: [], overlays: [{ kind: "add" as const, path: "x", source: "x" }], messageIncludes: "m" }];\n` +
     "export { ARMS };\n"
   );

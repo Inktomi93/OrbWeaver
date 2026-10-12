@@ -15,10 +15,10 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { BUG_REPORT_MAX_BODY_BYTES, recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { afterEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const TOKEN = "operator-token";
 const UNAUTHORIZED = 401;

@@ -2,8 +2,8 @@
 // then the seating a public link needs, then the relay.
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, LIVE_SOCKETS, LOCAL_SETUP_URL, shareHarness } from "../_support.ts";
 
 describe("share.start", () => {

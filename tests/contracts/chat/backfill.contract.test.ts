@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   backfillPassResultSchema,
   importWindowSchema,
@@ -6,7 +7,6 @@ import {
   mergeImportWindows,
   storedImportWindowSchema,
 } from "#contracts/chat/backfill.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("input import windows refuse reversed, fractional and negative boundaries; stored windows retain shape", () => {
   expect(importWindowSchema.parse({ from: 0, to: 0 })).toEqual({ from: 0, to: 0 });

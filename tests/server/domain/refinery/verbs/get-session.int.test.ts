@@ -3,8 +3,8 @@
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("returns the started session's view verbatim; a stranger gets NOT_FOUND", async () => {

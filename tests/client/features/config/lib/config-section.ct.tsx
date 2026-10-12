@@ -27,10 +27,10 @@
 // driver is gone with the defect; the arrival is asserted instead.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigMobileShellStory } from "../_ct-stories.tsx";
 
 /** The shell's mobile way back — `Back to ${activeSectionLabel}`, and the config section's label is

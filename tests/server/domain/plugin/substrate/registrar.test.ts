@@ -10,10 +10,10 @@ import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contrac
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createPromptTransformRegistry } from "#server/domain/chat/substrate/prompt-transforms.ts";
 import { buildPluginPromptTransform, capFactContent } from "#server/domain/plugin/substrate/registrar.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_reg000000000000000000000");
 const HANDLER = castId<PluginHandlerRef>("handler_1");

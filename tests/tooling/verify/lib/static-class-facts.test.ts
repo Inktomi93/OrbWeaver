@@ -1,10 +1,10 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { StaticClassFactResult } from "../../../../tooling/src/verify/contract/static-class-expression.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { createStaticClassFactReader, STATIC_CLASS_FACT_KINDS, staticClassFact } from "../../../../tooling/src/verify/lib/static-class-facts.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/static-class-facts";
 

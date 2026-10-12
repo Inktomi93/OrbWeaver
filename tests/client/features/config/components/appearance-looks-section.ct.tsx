@@ -25,11 +25,11 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { themeActionsName } from "#client/features/config/lib/theme-row-names.ts";
-import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { LooksSectionNarrowStory, LooksSectionReopenStory, LooksSectionStory } from "../_ct-stories.tsx";
 
 const NOW = 0;

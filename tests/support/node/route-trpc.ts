@@ -38,9 +38,9 @@
 import type { Branded } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
-// The ONE tRPC code union home (tests/support/matchers.ts, derived through classifyDomainError —
+// The ONE tRPC code union home (tests/support/node/matchers.ts, derived through classifyDomainError —
 // gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
-import type { TrpcErrorCode } from "../matchers.ts";
+import type { TrpcErrorCode } from "./matchers.ts";
 
 type AppRouterRecord = AppRouter["_def"]["record"];
 

@@ -2,9 +2,10 @@
 // both composed doors re-export the same vitest declaration. Both directions are planted — a runner
 // package, a composed project door, a package door whose types resolve to a real node_modules file, and a
 // `#`/relative door that resolves to nothing (UNRESOLVED, never absent).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { readFixtureDoor, registersSnapshotSerializer } from "../../../../tooling/src/verify/lib/test-runner-door.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

@@ -5,8 +5,9 @@
 // serve them ("authored resource traverses a symbolic link") and why a temp-root fixture would prove the
 // wrong thing: a hand-built `node_modules` does not reproduce the store indirection that breaks the naive
 // implementation. The refusal arms use a scratch root, where nothing resolves.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 const SEMVER_RE = /^\d+\.\d+\.\d+/u;

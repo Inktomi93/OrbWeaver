@@ -9,10 +9,10 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BACK_TO_PARENT_CHAT_LABEL } from "#client/features/chat/lib/chat-options-names.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory, ChatStartFailureMenuStory } from "../_ct-stories.tsx";
 import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 

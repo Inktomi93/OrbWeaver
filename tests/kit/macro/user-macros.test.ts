@@ -16,8 +16,8 @@ import {
   resolveUserMacroInputs,
   ZWSP,
 } from "@orb/kit/macro";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SOURCE = { kind: "preset", id: "preset_test" } as const;
 

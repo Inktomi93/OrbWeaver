@@ -15,6 +15,8 @@ import { ProviderError } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { responseCacheOf } from "../../../packages/inference/src/backends/http/response-cache.ts";
@@ -22,8 +24,6 @@ import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../packages/inferen
 import { redactSecretsFromText } from "../../../packages/inference/src/backends/wire/openai-body.ts";
 import type { ProviderScrubSet } from "../../../packages/inference/src/contract/errors.ts";
 import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../tests/inference/backends/_hosted-support.ts";
-import { freshDb } from "../../../tests/support/db.ts";
-import { seedUser } from "../../../tests/support/factories/user.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import { appendEvidence } from "./evidence.ts";
 import type { Scenario } from "./scenario.ts";

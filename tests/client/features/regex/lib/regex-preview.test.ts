@@ -7,9 +7,9 @@
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { previewRegexScript, REGEX_PREVIEW_CHAR } from "#client/features/regex/lib/regex-preview.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The executor's own complexity-cap wording (`@orb/kit/regex` `tooComplex`), matched loosely so the exact
  *  numbers in the message can change without this becoming a copy of that string. */

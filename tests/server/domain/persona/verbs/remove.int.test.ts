@@ -8,10 +8,10 @@ import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, LastPersonaError, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 

@@ -10,11 +10,11 @@ import { chats, messages, messageVariants } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { freshCountedDb, freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach } from "vitest";
 import { applyStandaloneVariableOps } from "#server/domain/chat/substrate/variable-ops.ts";
-import { freshCountedDb, freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedChat } from "../_support.ts";
 
 let db: Db;

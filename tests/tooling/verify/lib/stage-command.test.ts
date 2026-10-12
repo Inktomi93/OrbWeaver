@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveStageCommand } from "../../../../tooling/src/verify/lib/stage-command.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("Windows resolves pinned command shims before PATH executables", ({ scratch }) => {
   const bin = join(scratch, "node_modules", ".bin");

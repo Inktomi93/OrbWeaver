@@ -10,10 +10,10 @@
 // the REAL backend through its injected `query` seam, so nothing under test is mocked.
 
 import type { AgentSdkModel } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createAgentSdkBackend } from "#inference/backends/agent-sdk/index.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
 import type { InferenceLog } from "#inference/deps.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, newUserId } from "../../_support.ts";
 
 /** `sanitizeApiError`'s cap plus its truncation marker — the bound every provider message obeys. */

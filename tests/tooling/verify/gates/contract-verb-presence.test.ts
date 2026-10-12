@@ -1,8 +1,8 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 
 const CONTRACT = "packages/server/src/domain/hub/contract/service.ts";

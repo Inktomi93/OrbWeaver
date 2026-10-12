@@ -2,7 +2,7 @@
 // a size, so a transcription slip (a short hash, a swapped asset) fails here instead of refusing every share.
 
 import { CLOUDFLARED_PIN, CLOUDFLARED_TARGETS } from "@orb/server/infra/relay";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 const RELEASE_VERSION = /^\d{4}\.\d{1,2}\.\d+$/u;

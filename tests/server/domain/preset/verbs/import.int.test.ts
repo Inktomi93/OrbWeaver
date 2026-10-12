@@ -3,10 +3,10 @@ import { buildPresetFile, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { presets } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { createExportPresets, createImportPresets } from "@orb/server/domain/preset";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 /** A non-default config so a round-trip / merge actually carries a distinguishing value. */

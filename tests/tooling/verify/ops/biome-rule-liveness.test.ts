@@ -14,11 +14,11 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { RuleGrant } from "../../../../tooling/src/verify/lib/biome-rule-liveness.ts";
 import { judgeReport, judgeRuleLiveness } from "../../../../tooling/src/verify/lib/biome-rule-liveness.ts";
 import { ruleLivenessReport, runBiomeRuleLiveness } from "../../../../tooling/src/verify/ops/biome-rule-liveness.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = "biome.json";

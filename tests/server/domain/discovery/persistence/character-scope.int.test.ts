@@ -3,10 +3,10 @@
 // ALL-OWNERS form (the bulk passes' `ownerId: null`) drops the owner half and keeps the synthetic half.
 
 import { characters } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ownedRealCharacters } from "#server/domain/discovery/persistence/character-scope.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
 describe("ownedRealCharacters", () => {

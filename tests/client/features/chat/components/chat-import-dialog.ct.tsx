@@ -13,12 +13,12 @@
 // offer or starts a fresh one after a build began.
 
 import type { ImportWindow } from "@orb/contracts/chat";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
+import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ChatImportDialogStory } from "../_ct-stories.tsx";
 
 const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';

@@ -4,13 +4,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readStageBudgets } from "@orb/tooling/floor/host/concurrency-profile";
 import type { HostSlotLease } from "@orb/tooling/floor/host/host-slots";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function wholeRun(argv: readonly string[]): WholeRunAsk {
   const parsed = parseRequest(argv);

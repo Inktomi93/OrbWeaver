@@ -6,11 +6,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { requestWithHost } from "@orb/testkit/node/host-request.ts";
+import { lanAddress } from "@orb/testkit/node/lan-address.ts";
+import { selfSignedIpPair, tlsRequest } from "@orb/testkit/node/tls-hop.ts";
 import { afterAll, beforeAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
-import { requestWithHost } from "../../support/host-request.ts";
-import { lanAddress } from "../../support/node/lan-address.ts";
-import { selfSignedIpPair, tlsRequest } from "../../support/node/tls-hop.ts";
 
 const LAN = lanAddress();
 const LOOPBACK = "127.0.0.1";

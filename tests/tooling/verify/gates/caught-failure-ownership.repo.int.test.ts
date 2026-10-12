@@ -21,6 +21,7 @@
 // is that it equals the gate's live population exactly. The final program commit adds the zero assertion.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { CAUGHT_FAILURE_ARMS } from "../../../../tooling/src/verify/contract/caught-failure.ts";
 import { gate as caughtFailureOwnership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
@@ -33,7 +34,6 @@ import {
   projectCtx,
   runPolicyPass,
 } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const GATE = "caught-failure-ownership";
 /** The census is worthless if the detector stopped reading the tree — a real run admits thousands of files,

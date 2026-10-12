@@ -7,11 +7,11 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginInstance } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach } from "vitest";
 import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 // The real-runtime case below activates guests in the managed broker; reset it so a resident from one test

@@ -2,9 +2,9 @@
 // outside the OpenAI∩MCP charset refuses, and the JSON-schema projection is computed once and cached
 // on the entry (read back through resolveTools).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { createToolUseService, ToolNameCollisionError } from "#server/domain/tool-use/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });

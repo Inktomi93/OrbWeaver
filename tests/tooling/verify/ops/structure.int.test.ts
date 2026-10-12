@@ -14,15 +14,15 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { plantedPolicySource } from "@orb/testkit/node/planted-gate-corpus.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
-import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** A minimal, VALID policy that reports nothing ON THIS TREE: its one subject path is deliberately not
- *  planted (tests/support/planted-gate-corpus.ts states the silence convention). Its `mustFlag` row still
+ *  planted (tests/support/node/planted-gate-corpus.ts states the silence convention). Its `mustFlag` row still
  *  fires on its own virtual fixture, so the loader's proof floor is satisfied without a second shape. */
 const okPolicy = (repoRoot: string, id = "planted-ok", extraHooks?: string): string =>
   plantedPolicySource({

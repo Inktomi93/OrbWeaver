@@ -26,9 +26,9 @@ import type { Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginFrameDeps, PrincipalEnv } from "@orb/server/entry/http";
 import { registerPluginFrame, securityHeaders } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PLUGIN = castId<PluginId>("plugin_01h455vb4pex5vsknk084sn02q");
 

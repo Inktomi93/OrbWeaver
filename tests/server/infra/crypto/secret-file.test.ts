@@ -5,8 +5,8 @@ import { lstat, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readSecretFile, removeSecretFile, writeSecretFile } from "@orb/server/infra/crypto";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ONLY = 0o600;
 const PERMISSION_BITS = 0o777;

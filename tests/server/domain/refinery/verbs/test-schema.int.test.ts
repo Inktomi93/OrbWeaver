@@ -5,8 +5,8 @@ import { refineryRuns } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser, validScoreSchema } from "../_support.ts";
 
 test("drills the draft against an owned card and persists NOTHING; the ownership belt runs first", async () => {

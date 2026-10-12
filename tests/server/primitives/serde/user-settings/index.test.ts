@@ -16,8 +16,8 @@ import {
   SHARE_SAFE_SETTINGS_NAMESPACES,
   USER_SETTINGS_SCHEMA_KIND,
 } from "@orb/server/primitives/serde/user-settings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

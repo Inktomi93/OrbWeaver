@@ -1,8 +1,8 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Expression } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { readContextualZodOutputTwin } from "../../../../tooling/src/verify/lib/zod-output-twin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ZOD_PROOF_MODULE = `
 export interface ZodType<Output = unknown, Input = unknown> {

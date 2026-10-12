@@ -8,11 +8,11 @@ import { databankRetrievalSettingsSchema } from "@orb/contracts/databank";
 import type { ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { DocumentChunkHit } from "#server/domain/search/contract/results.ts";
 import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE } from "#server/domain/search/substrate/constants.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_gather");

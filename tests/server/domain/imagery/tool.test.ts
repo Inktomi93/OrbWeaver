@@ -9,9 +9,9 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { GeneratedPicture, GeneratePictureParams } from "@orb/server/domain/imagery";
 import { imageryToolDefinitions } from "@orb/server/domain/imagery";
 import type { ToolExecutionContext } from "@orb/server/domain/tool-use";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
-import { testModelId } from "../../../support/inference-identities.ts";
 import { principal } from "./_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

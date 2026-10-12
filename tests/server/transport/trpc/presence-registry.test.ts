@@ -8,8 +8,8 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresenceRegistry } from "@orb/server/transport/trpc";
 import { createPresenceRegistry } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // The grace window baked into the registry (the chat design doc §4). Mirrored here to pin the exact boundary; a
 // fully-disconnected user reads `online` for strictly less than this.

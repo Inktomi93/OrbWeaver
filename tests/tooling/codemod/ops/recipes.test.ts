@@ -6,9 +6,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { RECIPES } from "../../../../tooling/src/codemod/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Any run line invoking a codemod SCRIPT — the family whose spelling decides the heap floor. */
 const CODEMOD_SCRIPT_INVOCATION = /^\s*(?:\/\/\s*)?(?<prefix>\S.*?)\s*scripts\/codemods\/\S+\.ts/gmu;

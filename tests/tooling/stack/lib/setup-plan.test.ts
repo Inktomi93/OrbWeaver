@@ -5,6 +5,7 @@ import type { NetworkInterfaceInfo, NetworkInterfaceInfoIPv4, NetworkInterfaceIn
 import { parseEnv } from "node:util";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { applyEnvEdits, DELETE_ENV_LINE } from "@orb/kit/env-file";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SetupMachine, SetupValues } from "../../../../tooling/src/stack/index.ts";
 import {
   AUTH_MODE_KEY,
@@ -21,7 +22,6 @@ import {
   setupEnvEdits,
   setupValues,
 } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Env names are SCREAMING_SNAKE, so fixture envs are built from tuples (the house idiom). */
 function env(...pairs: readonly (readonly [string, string])[]): Readonly<Record<string, string>> {

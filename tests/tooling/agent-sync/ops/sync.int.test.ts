@@ -3,6 +3,7 @@
 // tests/tooling/codex-agent-config.int.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   codexAgentSyncProblems,
   parseClaudeAgent,
@@ -12,7 +13,6 @@ import {
   syncCodexAgents,
 } from "../../../../tooling/src/agent-sync/index.ts";
 import { formatMarkdown } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 

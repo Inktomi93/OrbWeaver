@@ -7,10 +7,10 @@ import { oidcPendingSignups } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
 const PENDING_TTL_MS = 600_000;

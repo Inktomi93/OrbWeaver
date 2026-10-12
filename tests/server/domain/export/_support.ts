@@ -16,11 +16,11 @@ import type { Db } from "@orb/db";
 import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { ExportContext } from "#server/domain/export/context.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;

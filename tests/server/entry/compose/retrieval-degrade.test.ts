@@ -8,9 +8,9 @@
 // recall that no surface reports. Only the owner's SPACE being unqueryable is an ordinary state.
 
 import { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "@orb/server/domain/search";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { withRetrievalDegrade } from "#server/entry/compose/retrieval-degrade.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const HITS: readonly string[] = ["a", "b"];
 

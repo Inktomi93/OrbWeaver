@@ -8,9 +8,9 @@
 
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { PersonaFormValues } from "#client/features/persona/lib/persona-editor-model.ts";
 import { isPrefillCombo, personaInputFromForm } from "#client/features/persona/lib/persona-editor-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const BASE_VALUES: PersonaFormValues = {
   name: "Mira",

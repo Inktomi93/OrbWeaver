@@ -1,33 +1,18 @@
-// Gate: tests-package-subpath — a test reaches a package's source through the root `#<package>/*` imports map, never a
-// relative climb into packages/<pkg>/src (Core-0-Architecture-and-Structure.md §5); product code cannot resolve that map.
-// Arms: import · re-export · import() · vi.mock-family calls.
+// Gate: tests-package-subpath — a test never climbs by relative path into a package's src or, from outside it, into
+// the test kit (Core-0-Architecture-and-Structure.md §5): a package is entered through its declared entries, the kit
+// through `@orb/testkit/<world>/<path>`. Arms: import · re-export · import() · vi.mock-family calls.
 // DECLARED LIMITS: a path read as data (a CSS or JSON file) and a package-root file are not module imports into src.
-// FAMILY: singleton — it reads module specifiers only; no shared lib/ reader covers the tests tree's package map.
-import { posix } from "node:path";
-import type { Node as MorphNode } from "ts-morph";
+// FAMILY: tests-package-subpath — the module-specifier reader `lib/test-import-door.ts#testModuleSpecifier`, shared with `tests-raw-package-reach`.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-
-const PACKAGE_SOURCE = /^packages\/([^/]+)\/src\/(.+)$/u;
-const MODULE_CALLEES: ReadonlySet<string> = new Set(["vi.mock", "vi.doMock", "vi.unmock", "vi.doUnmock", "vi.importActual", "vi.importMock", "require"]);
+import { relativeClimb, testModuleSpecifier } from "../lib/test-import-door.ts";
 
 const MESSAGE =
-  "a test reaches into a package's source by a relative path. Tests import package internals through the root " +
-  "`#<package>/*` map (`#server/domain/chat/verbs/send.ts`), which product code cannot resolve " +
-  "(docs/law/Core-0-Architecture-and-Structure.md §5).";
-const FIX = "replace the specifier with the subpath the finding names; `pnpm codemod test-subpaths --apply` rewrites every site.";
-
-function moduleSpecifier(node: MorphNode): MorphNode | undefined {
-  if (Node.isImportDeclaration(node) || Node.isExportDeclaration(node)) {
-    return node.getModuleSpecifier();
-  }
-  if (!Node.isCallExpression(node)) {
-    return;
-  }
-  const callee = node.getExpression();
-  const isModuleCall = callee.getKind() === SyntaxKind.ImportKeyword || MODULE_CALLEES.has(callee.getText());
-  return isModuleCall ? node.getArguments()[0] : undefined;
-}
+  "a test reaches by a relative path into a package's source or into the test kit. A test enters a package through its " +
+  "public entry and the test kit through its world subpaths (docs/law/Core-0-Architecture-and-Structure.md §5).";
+const FIX =
+  "import the package through its public entry (`@orb/<package>` or an exported subpath) and the test kit through `@orb/testkit/<world>/<path>`; " +
+  "a raw `#<package>/<path>` reach needs a reviewed grant (`tests-raw-package-reach`).";
 
 export const gate = defineGate({
   id: "tests-package-subpath",
@@ -46,15 +31,16 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression],
         visit: (node, sourceFile) => {
-          const literal = moduleSpecifier(node);
-          if (literal === undefined || !Node.isStringLiteral(literal) || !literal.getLiteralValue().startsWith(".")) {
+          const literal = testModuleSpecifier(node);
+          if (literal === undefined || !Node.isStringLiteral(literal)) {
             return;
           }
-          const path = ctx.relativePath(sourceFile);
-          const target = PACKAGE_SOURCE.exec(posix.normalize(posix.join(posix.dirname(path), literal.getLiteralValue())));
-          if (target?.[1] !== undefined && target[2] !== undefined) {
-            ctx.report.node(literal, { message: `${MESSAGE} Use #${target[1]}/${target[2]}.`, fix: FIX });
+          const climb = relativeClimb(ctx.relativePath(sourceFile), literal.getLiteralValue());
+          if (climb === undefined) {
+            return;
           }
+          const door = climb.kind === "testkit" ? climb.door : `the public entry of @orb/${climb.pkg}`;
+          ctx.report.node(literal, { message: `${MESSAGE} Use ${door}.`, fix: FIX });
         },
       },
     ],
@@ -66,7 +52,7 @@ export const gate = defineGate({
         "tests/server/domain/chat/verbs/send.test.ts":
           'import { send } from "../../../../../packages/server/src/domain/chat/verbs/send.ts";\nexport const s = send;\n',
       },
-      expect: { count: 1, token: '"../../../../../packages/server/src/domain/chat/verbs/send.ts"', messageIncludes: "Use #server/domain/chat/verbs/send.ts." },
+      expect: { count: 1, token: '"../../../../../packages/server/src/domain/chat/verbs/send.ts"', messageIncludes: "Use the public entry of @orb/server." },
       why: "the founding shape: a test climbing out of tests/ into a package's source",
     },
     {
@@ -78,15 +64,24 @@ export const gate = defineGate({
       expect: { count: 3 },
       why: "the vi.mock, re-export and import() arms: each spelling reaches the same internals",
     },
+    {
+      mode: "source",
+      files: {
+        "tests/server/domain/chat/verbs/send.test.ts": 'import { fx } from "../../../../support/node/fixtures.ts";\nexport const s = fx;\n',
+      },
+      expect: { count: 1, token: '"../../../../support/node/fixtures.ts"', messageIncludes: "Use @orb/testkit/node/fixtures.ts." },
+      why: "the test kit is a package: a test outside it climbing into its files bypasses the world subpaths its exports map declares",
+    },
   ],
   mustPass: [
     {
       mode: "source",
       files: {
         "tests/server/domain/chat/verbs/send.test.ts":
-          'import { send } from "#server/domain/chat/verbs/send.ts";\nimport { kit } from "@orb/kit/ids";\nimport { fx } from "../../../../support/fixtures.ts";\nconst css = readFileSync(new URL("../../../../../packages/ui/src/styles/theme.css", import.meta.url));\nexport const s = [send, kit, fx, css];\n',
+          'import { send } from "#server/domain/chat/verbs/send.ts";\nimport { kit } from "@orb/kit/ids";\nimport { fx } from "@orb/testkit/node/fixtures.ts";\nimport { h } from "./_support.ts";\nconst css = readFileSync(new URL("../../../../../packages/ui/src/styles/theme.css", import.meta.url));\nexport const s = [send, kit, fx, h, css];\n',
+        "tests/support/node/db.ts": 'import { clock } from "../iso/clock.ts";\nimport { m } from "./matchers.ts";\nexport const d = [clock, m];\n',
       },
-      why: "the legal shapes: the root subpath, a package front door, test support, and a CSS file read as data (not a module position). Cutting the module-position test reds the last",
+      why: "the legal shapes: a raw root subpath (the reviewed-grant sibling's subject), a package entry, a test kit world subpath, a same-tree helper, a CSS file read as data (not a module position), and the kit's own relative imports. Cutting the module-position test reds the CSS read; cutting the importer-inside-the-kit test reds the kit row",
     },
   ],
 });

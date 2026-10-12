@@ -5,9 +5,9 @@
 // server-side. The fold branches on the FINISH REASON (the vendored doc's rule: the API may refuse with no
 // details at all), never on `stop_details` presence.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { refusalEventOf } from "#inference/backends/anthropic-messages/refusal.ts";
 import type { StreamDrain } from "#inference/backends/v4/stream.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 function drainOf(overrides: Partial<StreamDrain>): StreamDrain {
   return {

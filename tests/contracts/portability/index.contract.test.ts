@@ -2,7 +2,7 @@ import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportO
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS, PORTABLE_PARSE_FAILURES } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("image generation provenance restores after its owned assets, subjects and room files", () => {
   const kinds: readonly string[] = PORTABLE_KINDS;

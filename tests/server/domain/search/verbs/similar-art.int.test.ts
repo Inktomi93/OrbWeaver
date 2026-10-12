@@ -7,9 +7,9 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedAsset, seedCharacter, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 /** Seed a character whose avatar has an `image-raw` embedding at the given vector — a `similarArt` candidate. */

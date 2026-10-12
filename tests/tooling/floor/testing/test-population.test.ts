@@ -2,11 +2,11 @@
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { classifyTestFilename, runtimeForTestFamily } from "@orb/tooling/floor/testing/test-kinds";
 import { classifyCtListing } from "../../../../tooling/src/verify/lib/ct-listing.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const COLLECTION_TIMEOUT = scaledBudget(120_000);

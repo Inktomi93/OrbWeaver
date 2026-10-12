@@ -1,8 +1,8 @@
 // share.resumeIpCertificate — the boot start of a stored IP certificate choice (D275). It re-runs the preconditions,
 // because the sign-in mode and the bind are env and may have changed since the owner chose.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { shareHarness } from "../_support.ts";
 
 const SETTING = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 } as const;

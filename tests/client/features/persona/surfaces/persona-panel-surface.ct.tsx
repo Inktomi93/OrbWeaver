@@ -7,10 +7,10 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PersonaEditDoorColdStory, PersonaEditDoorStory, PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";

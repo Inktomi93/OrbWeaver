@@ -1,5 +1,5 @@
+import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate } from "../../../../../tooling/src/verify/gates/trpc-output-declarations.ts";
-import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-liveness.ts";
 
 export const TRPC_OUTPUT_ARMS: readonly RealCorpusLivenessArm[] = [
   {

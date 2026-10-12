@@ -5,13 +5,14 @@
 // The declared rows themselves (13 catches, 8 passes, 13 refusals across the two siblings) run on the
 // static `structure:policy-conformance` stage; the first test here only asserts they are readable, so a
 // row that stops conforming is caught in this file too rather than only in the whole-corpus stage.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as reach } from "../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads-health.ts";
 import { CHAT_MATRIX_FILE, CHAT_QUERIES_FILE } from "../../../../tooling/src/verify/lib/chat-plane-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/chat-viewer-plane-family";
 const READ = "packages/server/src/domain/chat/verbs/read.ts";

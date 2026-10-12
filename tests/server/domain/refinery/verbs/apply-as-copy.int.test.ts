@@ -4,9 +4,9 @@
 // copy; a diverged field drops without `confirmDiverged` and lands with it.
 
 import { characterSnapshots, characters } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("applyAsCopy mints a fresh character with the accepted patch; the live card and its snapshots are untouched", async () => {

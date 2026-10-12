@@ -5,9 +5,9 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import { createExportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
 import { parseUserSettingsBackup } from "@orb/server/primitives/serde/user-settings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

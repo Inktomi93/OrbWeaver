@@ -10,6 +10,8 @@
 // licensed is pinned by grant consumption. The bus arms that declare a new union share the batched pass, so the
 // bus fact sees every one of them; the runner's entanglement check proves those arms alone. An arm that would
 // leave the bus fact incomplete edits a real union instead, so it runs alone and withholds no batch-mate.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as agentBridgeLock } from "../../../../../tooling/src/verify/gates/agent-bridge-lock.ts";
 import { gate as appearanceCarrierContract } from "../../../../../tooling/src/verify/gates/appearance-carrier-contract.ts";
 import { gate as appearanceCarrierHealth } from "../../../../../tooling/src/verify/gates/appearance-carrier-health.ts";
@@ -44,7 +46,6 @@ import { gate as knobWireCoverage } from "../../../../../tooling/src/verify/gate
 import { gate as lifecyclePortability } from "../../../../../tooling/src/verify/gates/lifecycle-portability.ts";
 import { gate as macroResolutionHealth } from "../../../../../tooling/src/verify/gates/macro-resolution-health.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const MANIFEST = "packages/client/src/lib/appearance-carrier-manifest.ts";
 const CONTRACTS = "packages/contracts/src";

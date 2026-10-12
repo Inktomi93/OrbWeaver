@@ -1,6 +1,6 @@
 import { basename } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { migrateTypeIdBoundarySchemas } from "../../../scripts/codemods/typeid-prefix-boundaries.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { withTree } from "./_kit-tree.ts";
 
 const IDS = `

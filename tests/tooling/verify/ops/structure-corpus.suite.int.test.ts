@@ -19,9 +19,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import type { FinalPolicyRow, StructurePolicyReport, StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES = "tooling/src/verify/gates";

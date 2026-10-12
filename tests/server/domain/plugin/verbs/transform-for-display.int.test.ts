@@ -11,8 +11,8 @@
 import type { ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginHostPort, PluginInstance } from "@orb/server/domain/plugin";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_display0000000000000000");

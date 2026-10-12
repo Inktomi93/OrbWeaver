@@ -14,13 +14,13 @@
 //      and its verdict lands through the central grant table with zero alarms (#1947).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const POLICIES = [gate, health] as const;

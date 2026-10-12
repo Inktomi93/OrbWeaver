@@ -12,6 +12,7 @@ import { characterRegexTierKey } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { SubstituteFindRegex } from "@orb/kit/regex";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   regexRowAlsoAt,
@@ -24,7 +25,6 @@ import {
   regexTierProvenance,
   regexTierRows,
 } from "#client/features/chat/lib/regex-section-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A library row, spelled WHOLE against the contract (never a double cast — a fabricated row survives the
  *  schema gaining a field, `no-test-fabrication`). Only the branded id is cast, which is the one thing a

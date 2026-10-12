@@ -4,11 +4,11 @@
 
 import type { EndpointFeatures } from "@orb/contracts/inference";
 import { connectionExtrasSchema, WIRE_DEFAULT_FEATURES } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ShapeArgs } from "#inference/backends/openai-compat/body.ts";
 import { shapeOutboundBody } from "#inference/backends/openai-compat/body.ts";
 import type { WirePlan } from "#inference/backends/v4/prompt.ts";
 import type { ResolvedWarning } from "#inference/contract/resolve.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** A row that SPELLS `reasoning_effort` (OpenAI-shaped), so the effort rule stays out of the other pins. */
 const SPELLS_EFFORT: EndpointFeatures = { ...WIRE_DEFAULT_FEATURES, effort: "reasoning_effort" };

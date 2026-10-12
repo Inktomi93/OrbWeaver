@@ -1,10 +1,10 @@
 // Typecheck routing is derived from native compiler roots; intent only selects a primary among real roots.
 import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { processEnvValue, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { planTypecheckPrograms } from "@orb/tooling/verify";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 function present(path: string): { readonly path: string; readonly status: "present"; readonly previousPath: null } {

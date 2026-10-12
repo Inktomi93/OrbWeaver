@@ -41,11 +41,11 @@ import type { RpgActorOp, RpgActorRef, RpgDateMode, RpgExtraction, RpgTrackerDef
 import { actorRefKey, actorTrackerWriteKeys, RPG_PROFILE_D20, rpgSheetSchema, rpgSnapshotStateSchema, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, ChatTurnId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { zodLeafPaths } from "@orb/testkit/iso/zod-leaf-paths.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import type { RpgGatherResult } from "#server/domain/rpg/contract/params.ts";
 import type { RpgParticipantActor } from "#server/domain/rpg/index.ts";
 import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "#server/domain/rpg/substrate/delta.ts";
-import { freshDb } from "../../../support/db.ts";
-import { zodLeafPaths } from "../../../support/zod-leaf-paths.ts";
 import type { RpgHarness } from "./_support.ts";
 import { expect, participantUser, principal, seedCharacter, seedLiteGame, seedMessage, seedUser, test, turnConnection } from "./_support.ts";
 

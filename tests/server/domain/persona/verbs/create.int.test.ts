@@ -5,10 +5,10 @@ import { personas } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AssetNotFoundError, createPersonaService } from "@orb/server/domain/persona";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 describe("create", () => {

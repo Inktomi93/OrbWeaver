@@ -7,8 +7,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ENTRY = fileURLToPath(new URL("../../../packages/server/src/entry/index.ts", import.meta.url));
 const DATA_DIR = mkdtempSync(join(tmpdir(), "orb-entry-env-refusal-"));

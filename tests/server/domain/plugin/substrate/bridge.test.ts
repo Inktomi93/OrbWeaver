@@ -11,6 +11,8 @@ import type { PluginInvocationLiveness } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { PluginBelts, PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "#server/domain/plugin/substrate/bridge.ts";
@@ -22,8 +24,6 @@ import {
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "#server/domain/plugin/substrate/rate-floor.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeInertOps } from "../_support.ts";
 
 const INSTALLER = castId<UserId>("user_installer00000000000000");

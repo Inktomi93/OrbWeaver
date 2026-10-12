@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, Handle, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { freshDb } from "../../../../../support/db.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import type { RpgHarness } from "../../_support.ts";
 import { expect, principal, seedCharacter, seedLiteGame, seedUser, test } from "../../_support.ts";
 

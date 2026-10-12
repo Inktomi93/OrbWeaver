@@ -3,7 +3,7 @@
 import { parseEnv } from "node:util";
 import type { EnvEdit } from "@orb/kit/env-file";
 import { applyEnvEdits, DELETE_ENV_LINE } from "@orb/kit/env-file";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const HEADER = "# written by a test";
 

@@ -2,11 +2,11 @@
 // predicate can never match); a taken name on rename throws DomainConflictError.
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ThemeNotFoundError } from "#server/domain/settings/contract/errors.ts";
 import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { findSeedTheme, makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("updateTheme", () => {

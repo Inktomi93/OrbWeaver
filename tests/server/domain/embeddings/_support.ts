@@ -31,6 +31,13 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
@@ -39,13 +46,6 @@ import type { EmbeddingsIndexerContext, EmbeddingsService } from "#server/domain
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { createSeededIds } from "../../../support/ids.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
@@ -373,13 +373,13 @@ interface SeedUserOverrides {
  * first `store()` of every sweep).
  *
  * THE ROW IS NOT DECORATION, AND IT IS NOT OPTIONAL. The shared fake `roleClients` resolve every owner to
- * {@link TEST_CONNECTION_ID} (`tests/support/factories/resolved-connection.ts`) — the id is minted there as a
+ * {@link TEST_CONNECTION_ID} (`tests/support/node/factories/resolved-connection.ts`) — the id is minted there as a
  * pure const and NOTHING seeds the row it points at. With no row, the generation insert fails the FK and the
  * failure surfaces wherever the caller happens to swallow it: an embeddings verb throws outright, while
  * databank's ingest accumulator records it as DATA (`failed[]`) and every count reads zero, leaving the suite
  * quietly, plausibly green. Three lanes hit this on three different days; this helper is the one home.
  *
- * WHY THE SEEDER IS HERE AND NOT AT THE ID'S MINT. `tests/support/factories/resolved-connection.ts` is
+ * WHY THE SEEDER IS HERE AND NOT AT THE ID'S MINT. `tests/support/node/factories/resolved-connection.ts` is
  * imported by BROWSER-world CT stories (`tests/client/features/preset/components/_params-deck-stories.tsx`,
  * `readout/_readout-stories.tsx`, `_message-handling-stories.tsx` and their `.ct.tsx` specs) — giving it a
  * `@orb/db` import would drag the node-only db package into the CT bundle. So the id stays a pure const with

@@ -5,6 +5,7 @@ import process from "node:process";
 import type { PluginAuthorProject } from "@orb/plugin-toolchain";
 import { compilePluginDirectory } from "@orb/plugin-toolchain";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { execGit } from "@orb/tooling/floor/git/git";
 import { compileShowcasePlugins, renderShowcaseReleaseReceipt, showcaseReleaseReceipt, staleShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
@@ -23,7 +24,6 @@ import {
   showcaseReceiptTracked,
   trackedBaseReceipt,
 } from "../../../tooling/src/verify/ops/showcase-release.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 function plantCompilerProject(root: string, main: string): PluginAuthorProject {

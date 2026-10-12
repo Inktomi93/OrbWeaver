@@ -9,8 +9,8 @@
 import { uploadDocument } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DOCUMENT_ID = mintTypeId(ID_PREFIX.document);
 

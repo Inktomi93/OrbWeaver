@@ -30,11 +30,11 @@ import {
   PLUGIN_MEMORY_LIMIT_BYTES,
   Sandbox,
 } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe, vi } from "vitest";
 import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX } from "#server/infra/plugin-host/budgets.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT_A = "chat_aaaa000000000000000000000" as ChatId;

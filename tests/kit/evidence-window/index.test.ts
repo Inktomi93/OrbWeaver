@@ -4,8 +4,8 @@
 // ring no longer reaches the requested start.
 
 import { EVIDENCE_WINDOW_PAD_MS, resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const NOW = 1_760_000_000_000;
 const MINUTE = 60_000;

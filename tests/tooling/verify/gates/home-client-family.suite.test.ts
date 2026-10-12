@@ -2,6 +2,8 @@
 // proof runs through the production dispatcher on an isolated population; the pins below cover what a proof
 // cannot express — a receipt REFUSAL (a tool error, not a finding) and the central grant liveness these
 // policies' whole authority rests on.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, ScriptTarget } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { tanstackReactFormProof } from "../../../../tooling/src/verify/gates/_proof/client-vendors.ts";
@@ -21,7 +23,6 @@ import { gate as selectionStoreViaFactory } from "../../../../tooling/src/verify
 import { gate as themeOverrideOnlyViaScope } from "../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FAMILY: readonly GatePolicy[] = [
   boundFieldViaHook,

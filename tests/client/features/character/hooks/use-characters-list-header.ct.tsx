@@ -16,9 +16,9 @@
 // mount of the composite would measure a layout the shell never produces.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharactersBandInShellStory } from "../_ct-stories.tsx";
 
 /** The two ends of the docked list track (shell.css #242): the resting clamp, and the squeezed width the

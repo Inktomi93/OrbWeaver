@@ -7,11 +7,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } fr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { clonedStageWarning, cloneStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OWNER_ID = "owner_abc";

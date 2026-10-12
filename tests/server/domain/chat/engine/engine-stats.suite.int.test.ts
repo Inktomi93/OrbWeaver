@@ -24,6 +24,11 @@ import type { Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "#server/domain/chat/context.ts";
@@ -34,11 +39,6 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { chatCreatedDelta } from "#server/domain/chat/substrate/stats-delta.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
-import { createFrozenClock } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   makeChatContext,

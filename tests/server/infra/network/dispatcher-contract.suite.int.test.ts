@@ -23,10 +23,10 @@
 
 import { createRequire } from "node:module";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { buildConnector, Dispatcher } from "undici";
 import { Agent, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // RFC 5737 TEST-NET-1 — guaranteed unroutable, so a contract break cannot accidentally dial a real host.
 // The PORT MUST STAY NORMAL: `fetch` refuses a "bad port" (9/discard, 25/smtp, …) BEFORE it ever consults

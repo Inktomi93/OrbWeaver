@@ -3,9 +3,9 @@ import { castId } from "@orb/kit/ids";
 // verb: findSyntheticGroupCharacter — look up the room's synthetic bucket; null before it's minted.
 
 import { createCharacterService } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedUser } from "../_support.ts";
 
 describe("find synthetic group character", () => {

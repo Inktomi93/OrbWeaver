@@ -1,9 +1,9 @@
 // The Custom body fields' paste reader: every format a server's docs print reads to the one object the request
 // carries, and text that reads as nothing names why instead of saving.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { fieldText, looksLikeFields, parsePastedObject } from "#client/features/credentials/lib/pasted-fields.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const VLLM_FIELDS = { ["chat_template_kwargs"]: { ["enable_thinking"]: false }, stop: ["</s>", "<|im_end|>"], ["top_k"]: 40 };
 

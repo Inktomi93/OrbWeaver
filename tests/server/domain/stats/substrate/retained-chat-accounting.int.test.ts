@@ -1,11 +1,11 @@
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatParticipantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { retainedRebaseProjection } from "#server/domain/stats/substrate/retained-chat-accounting.ts";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { seedChat } from "../../../../support/factories/chat.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("accepted rekeys retain departed seats and deduplicate owners; mismatched plans do not silently rebase", async ({ db, ids }) => {
   const a = await seedUser(db);

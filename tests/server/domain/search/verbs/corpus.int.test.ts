@@ -1,10 +1,10 @@
 // Joint host-scoped retrieval preserves digest/segment block dedupe and content-hash collapse.
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("corpus", () => {

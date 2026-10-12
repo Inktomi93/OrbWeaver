@@ -1,8 +1,8 @@
 // share.stop — owner only; ends the relay and audits it.
 
 import { DomainForbiddenError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, LIVE_SOCKETS, shareHarness } from "../_support.ts";
 
 describe("share.stop", () => {

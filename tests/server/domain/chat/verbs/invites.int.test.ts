@@ -12,15 +12,15 @@ import { chatInvites, chatParticipants, users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { AssembleInvitePreviewOp, ClaimChatOp } from "#server/domain/chat/contract/context.ts";
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createInvitePreview, guestModeSentence } from "#server/domain/chat/verbs/invite-preview.ts";
 import { createInvites } from "#server/domain/chat/verbs/invites.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;

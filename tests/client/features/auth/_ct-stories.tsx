@@ -17,6 +17,7 @@ import { LoginShellAnchor } from "@orb/client/features/auth";
 import { closeModal, openModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { StrictMode, useEffect, useState } from "react";
@@ -30,7 +31,6 @@ import { LoginLocalForm } from "#client/features/auth/components/login-local-for
 import { reauthModal } from "#client/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "#client/features/auth/surfaces/login-surface.tsx";
 import { LoginPage } from "#client/routes/login-page.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The per-mode login arm (LoginBody) — mounted router-free with a stub `onDone`, so the CT can prove
  *  each mode renders its arm (esp. the forward-header explainer an unauthenticated broken-proxy request

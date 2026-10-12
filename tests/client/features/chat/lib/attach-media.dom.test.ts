@@ -4,6 +4,7 @@
 // three gestures cannot drift; the CT pins the gestures themselves.
 
 import type { UploadCaps } from "@orb/contracts/uploads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   ATTACH_MEDIA_ACCEPT,
@@ -12,7 +13,6 @@ import {
   triageAttachFiles,
   unsupportedAttachMessage,
 } from "#client/features/chat/lib/attach-media.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const KIB = 1024;
 // A deliberately ASYMMETRIC pair: the image ceiling is TIGHTER than the route ceiling (that is the whole

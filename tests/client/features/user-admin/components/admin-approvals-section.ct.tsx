@@ -3,10 +3,10 @@
 // pending set (disabled, non-owner), renders each with an Approve button, and the Approve fires the real
 // `admin.setEnabled({enabled:true})` mutation. The empty state renders when nothing is pending.
 
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AdminApprovalsSectionStory } from "../_ct-stories.tsx";
 
 const T = 1_700_000_000_000;

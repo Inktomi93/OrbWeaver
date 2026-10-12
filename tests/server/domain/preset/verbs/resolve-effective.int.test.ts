@@ -15,11 +15,11 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EffectivePreset } from "@orb/server/domain/preset";
 import { createPresetService, PresetNotFoundError } from "@orb/server/domain/preset";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCapability, makeGenerationCapability, makeResolvedCacheView, makeResolvedView } from "@orb/testkit/node/factories/index.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCapability, makeGenerationCapability, makeResolvedCacheView, makeResolvedView } from "../../../../support/factories/index.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const PRESET_ID = castId<PresetId>("preset_effective");

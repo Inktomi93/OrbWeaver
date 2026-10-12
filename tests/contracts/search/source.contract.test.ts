@@ -1,8 +1,8 @@
 import { corpusSourceSchema, messageWindowTargetSchema } from "@orb/contracts/search";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { expectTypeOf } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SEGMENT = {
   kind: "segment",

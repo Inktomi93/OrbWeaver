@@ -12,11 +12,11 @@ import type { PersonaDetail } from "@orb/server/domain/persona";
 import { createPersonaService } from "@orb/server/domain/persona";
 import type { PersonaBackup } from "@orb/server/primitives/serde/persona";
 import { buildPersonaBackup } from "@orb/server/primitives/serde/persona";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createBulkImportPersonas } from "#server/domain/persona/persistence/import-write.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** A portable persona file from the canonical shape (the bytes both doors hand the verb). */

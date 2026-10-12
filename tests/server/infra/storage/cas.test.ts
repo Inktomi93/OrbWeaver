@@ -11,8 +11,8 @@ import process from "node:process";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** `directoryOpen` plants a failure on the `open(dir, "r")` that precedes the dir fsync; `directorySync`
  *  plants it on the `handle.sync()` itself (win32 refuses at either point, so both doors are covered).

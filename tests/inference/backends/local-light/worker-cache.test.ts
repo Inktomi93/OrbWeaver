@@ -8,10 +8,10 @@ import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
 import { LOCAL_LIGHT_SEED_ROWS, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WorkerModelCache } from "#inference/backends/local-light/worker-cache.ts";
 import { createWorkerModelCache } from "#inference/backends/local-light/worker-cache.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import {
   ABSENT_MODEL,
   BLOCK_PREFIX,

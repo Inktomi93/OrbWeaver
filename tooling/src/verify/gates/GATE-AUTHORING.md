@@ -224,7 +224,7 @@ two generated-tsconfig excludes are all gone, and so are the four reviewed-grant
 entries deliberately survive and belong to ONE owner that is not a fixture: `tooling/src/verify/lib/biome-rule-liveness.ts`
 writes a repo-root `__g_biome-rule-liveness.<pid>.json` probe, which is why `.gitignore` still ignores the prefix and
 `biome.json` still negates it. `__dc_*` remains the dependency-cruiser self-test's own live planter. A final policy proves
-real-corpus liveness through a VIRTUAL overlay (`tests/support/real-corpus-liveness.ts`) and plants nothing — none of the
+real-corpus liveness through a VIRTUAL overlay (`tests/support/node/real-corpus-liveness.ts`) and plants nothing — none of the
 surviving entries is permission to change that.
 
 ## 7. Header and style

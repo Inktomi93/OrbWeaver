@@ -7,8 +7,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../../../tooling/_load-budget.ts";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../../../../..");

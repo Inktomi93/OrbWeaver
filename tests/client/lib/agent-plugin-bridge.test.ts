@@ -5,9 +5,9 @@
 
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { AUTOMATION_FIRES_ROUTE, readAutomationFires } from "#client/lib/agent-plugin-bridge.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const OK = 200;
 const UNAUTHORIZED = 401;

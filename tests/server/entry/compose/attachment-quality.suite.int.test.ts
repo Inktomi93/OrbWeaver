@@ -1,18 +1,18 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { IMAGE_DETAILS, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { chatParticipants, connectionBindings, messages, messageVariants, userConnections } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import sharp from "sharp";
 import { vi } from "vitest";
 import { z } from "zod";
 import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { test as base, expect } from "../../../support/fixtures.ts";
 import { seedCharacter } from "../../domain/chat/_support.ts";
 
 const IMAGE_URL = "image_url";

@@ -14,8 +14,8 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { FrameQueue } from "@orb/server/transport/trpc";
 import { createFrameQueue, OVERFLOW_POLICIES } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_q1");
 const OTHER_CHAT = castId<ChatId>("chat_q2");

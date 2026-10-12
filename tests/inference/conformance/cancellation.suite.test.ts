@@ -24,7 +24,7 @@
 // happily and the arm passes vacuously; `abortAware` rejects with `signal.reason` the way undici does, which
 // is also what makes the leak observable at all.
 
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { CONFORMANCE_WIRES, cancellationTaskFor, driveCancellable, settledProviderError } from "./_harness.ts";
 
 /** A caller abort reason built from the EXACT vocabulary the transport classifier treats as transient. If a

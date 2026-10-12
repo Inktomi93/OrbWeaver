@@ -2,8 +2,9 @@
 // ECharts instance does not survive the Playwright component-test RPC boundary with its methods
 // intact, so the reduced-motion/aria wiring is proven here as plain data transformation instead of
 // through a live instance (chart.ct.tsx covers what IS DOM-observable: rendering + resize).
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { mergeChartOption } from "#ui/charts/chart/merge-option.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("reduced motion forces animation off, even when the option requests it on", () => {
   const merged = mergeChartOption({ series: [{ type: "bar", data: [1] }], animation: true }, { label: "Widget", reducedMotion: true });

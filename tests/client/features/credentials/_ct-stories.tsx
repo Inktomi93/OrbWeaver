@@ -24,12 +24,12 @@ import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ConnectionEditor } from "#client/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "#client/features/credentials/components/credential-key-row.tsx";
-import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The Connections group's three contributed sections, assembled as at the door. */
 const connectionsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(

@@ -4,9 +4,9 @@
 // `failed` arm rather than a silently-empty draft.
 
 import type { SchemaForgeResult } from "@orb/server/domain/refinery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveForgeCall, runForgeTurn } from "#server/domain/refinery/substrate/schema-forge.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, seedUser } from "../_support.ts";
 
 /** Narrow a forge result to one arm, THROWING (never `expect`-inside-an-`if`) so the assertions after it are

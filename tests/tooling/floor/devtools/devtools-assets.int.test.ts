@@ -1,8 +1,8 @@
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join, normalize, relative } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { verifyDevToolsAssets } from "../../../../tooling/src/floor/devtools/devtools-assets.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // The manifest is slash-authored even when its filesystem census uses Windows separators.
 vi.mock("node:path", async (importOriginal) => {

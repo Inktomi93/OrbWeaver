@@ -26,18 +26,18 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
-import { MIROSTAT_SKIPPED_GLOSS } from "#client/features/preset/lib/effective-knobs.ts";
 import {
   makeCachePolicy,
   makeCapability,
   makeGenerationCapability,
   makeResolvedView,
   TEST_CONNECTION_ID,
-} from "../../../../../support/factories/resolved-connection.ts";
-import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../../support/node/route-trpc.ts";
+} from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
+import { MIROSTAT_SKIPPED_GLOSS } from "#client/features/preset/lib/effective-knobs.ts";
 import {
   EffectiveProfileFailedStory,
   EffectiveProfileMirostatStory,

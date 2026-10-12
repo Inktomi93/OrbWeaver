@@ -7,9 +7,9 @@ import type { CharacterId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "@orb/server/domain/discovery";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshCountedDb, freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshCountedDb, freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
   makeDiscoveryHarness,

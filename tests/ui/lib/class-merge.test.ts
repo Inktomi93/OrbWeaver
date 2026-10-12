@@ -8,10 +8,11 @@
 // as text COLORS and drops the size class — the same source rendering in a different font size
 // depending on import order. The first test below is deliberately the FIRST statement to touch a
 // merger in this module graph, so it exercises exactly the cold-graph state that used to be wrong.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
 import { CSS_MERGE_FAMILY_NAMES, CSS_MERGE_TRACE_INPUT_LIMIT, cn, cssMergeTrace, tv } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "../../support/fixtures.ts";
 
 // `text-title` is a custom DTCG type-scale utility (--text-title); `text-muted-foreground` is a real
 // text COLOR. They are different axes and MUST both survive. An unconfigured tailwind-merge puts them

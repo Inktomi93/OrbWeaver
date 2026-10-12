@@ -1,6 +1,10 @@
 // CT: the switch seal — real role="switch" semantics: pointer + keyboard toggle aria-checked,
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
+
+import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "@orb/testkit/browser/pixel-contrast.ts";
+import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { contrastRatio, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Field } from "@orb/ui/field";
@@ -9,9 +13,6 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "../../../support/browser/pixel-contrast.ts";
-import { pixelSurface } from "../../../support/browser/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

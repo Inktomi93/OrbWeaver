@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { unzipSync } from "fflate";
 import { PluginBundlePreviewError, packPluginFolder } from "#client/features/plugin/lib/plugin-bundle.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function folderFile(path: string, contents = path): File {
   const file = new File([contents], path.split("/").at(-1) ?? "entry");

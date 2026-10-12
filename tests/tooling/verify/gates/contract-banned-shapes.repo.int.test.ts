@@ -1,7 +1,7 @@
+import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate } from "../../../../tooling/src/verify/gates/contract-banned-shapes.ts";
-import type { RealCorpusLivenessArm } from "../../../support/real-corpus-liveness.ts";
-import { assertArmVerdict, openRealCorpusLiveness } from "../../../support/real-corpus-liveness.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SETTINGS = "packages/contracts/src/settings/index.ts";
 const forbiddenKey = {

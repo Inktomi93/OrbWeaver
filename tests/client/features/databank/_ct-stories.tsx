@@ -10,6 +10,9 @@
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
 import type { ChatId } from "@orb/kit/ids";
+import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { homeTiles } from "@orb/testkit/browser/ct-door.ts";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
 import { Button } from "@orb/ui/button";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -35,9 +38,6 @@ import {
   useSelectedCharacterId,
   useSelectedDocumentId,
 } from "#client/state/index.ts";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
-import { homeTiles } from "../../../support/browser/ct-door.ts";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
  *  a clipped title or a cluster that does not fit is visible here rather than hidden by a roomy story box. */

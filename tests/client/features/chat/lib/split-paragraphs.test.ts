@@ -7,8 +7,8 @@
 // fired on 69% of assistant turns — i.e. the pin was holding the skin OFF for its own subject. Its
 // replacement is the long-message test below, which asserts the opposite property with the same shape.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { splitIntoTrainParagraphs } from "#client/features/chat/lib/split-paragraphs.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("splits on blank-line breaks, trimming each paragraph", () => {
   const content = "First paragraph.\n\nSecond paragraph.\n\n\nThird, with an extra blank line.";

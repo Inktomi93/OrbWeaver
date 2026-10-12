@@ -52,6 +52,14 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import {
+  CtAppDataProviders,
+  CtChatContributorSectionRegistry,
+  CtConfigGroupBody,
+  CtDataProviders,
+  CtRealSectionRegistry,
+} from "@orb/testkit/browser/ct-data-providers.tsx";
+import { toolRenderers } from "@orb/testkit/browser/ct-door.ts";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -78,14 +86,6 @@ import {
   useWithdrawPlugin,
 } from "#client/features/plugin/lib/plugin-mutations.ts";
 import { setActiveSection, setPanelMode } from "#client/state/shell-store.ts";
-import {
-  CtAppDataProviders,
-  CtChatContributorSectionRegistry,
-  CtConfigGroupBody,
-  CtDataProviders,
-  CtRealSectionRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
-import { toolRenderers } from "../../../support/browser/ct-door.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 

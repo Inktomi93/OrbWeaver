@@ -16,10 +16,10 @@
 // a data-slot census: those names are what a screen-reader user navigates the list by, and they are the
 // affordance the whole ticket adds.
 
+import type { TrpcFixtureOutput, TrpcInput, TrpcRecorder, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRecorder, TrpcResponder } from "../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { RegexContextStory, RegexPickerStory } from "../features/regex/_ct-stories.tsx";
 
 const APPLY_PROC = "regex.applyScopeOrder";

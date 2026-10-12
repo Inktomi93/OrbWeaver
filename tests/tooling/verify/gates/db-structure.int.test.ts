@@ -7,9 +7,9 @@
 import type * as Fs from "node:fs";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SCHEMA_DIR_SUFFIX = "packages/db/src/schema";
 const fault = vi.hoisted(() => ({ kind: "" as "" | "eacces" | "enoent" }));

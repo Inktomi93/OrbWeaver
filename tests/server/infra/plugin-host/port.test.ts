@@ -24,8 +24,8 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
   Sandbox,
 } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT = "chat_test0000000000000000000" as ChatId;

@@ -23,8 +23,8 @@
 
 import type { OidcCodeGrant, OidcTransaction } from "@orb/server/infra/auth";
 import { createOidcExchange } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The consumed transaction. Each field is a distinct literal so a swapped mapping (nonce ↔ state) shows up
  *  as a wrong VALUE rather than an accidental pass. */

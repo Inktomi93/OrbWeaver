@@ -13,9 +13,9 @@ import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contract
 import { CARD_FRAME_ROUTE, resolveRenderPolicy } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import { normalizeThrownErrors, securityHeaders } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 async function headersFor(dev: boolean, allowExternalMedia = false): Promise<Headers> {
   const app = new Hono();

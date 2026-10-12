@@ -8,11 +8,11 @@
 
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { vi } from "vitest";
 import type { AuthoredPathIdentity } from "../../../../tooling/src/verify/contract/resource-path.ts";
 import { loadAuthoredPaths } from "../../../../tooling/src/verify/ops/resource-path.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function plantFile(root: string, path: string, text = "x\n"): void {
   const absolute = join(root, path);

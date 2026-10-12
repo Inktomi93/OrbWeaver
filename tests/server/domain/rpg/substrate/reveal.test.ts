@@ -5,9 +5,9 @@
 
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { RevealBodyRow } from "#server/domain/rpg/contract/service.ts";
 import { buildRevealView } from "#server/domain/rpg/substrate/reveal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const LIE = (character: string, truth: string): string => `<lie character="${character}" type="motive" truth="${truth}" reason="greed" />`;
 const OFILTER = '<ofilter event="a spy watches from the roof" reason="the player is indoors" />';

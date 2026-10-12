@@ -14,10 +14,10 @@ import { PROVIDER_ERROR_KINDS } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCredentialsService } from "@orb/server/domain/credentials";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 /** The verdict every provider failure kind carries. Exhaustive by construction — a new `PROVIDER_ERROR_KINDS`

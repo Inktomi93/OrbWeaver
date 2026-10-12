@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { openRunSlot, publishRunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { browserEvidenceRetentionBatchSchema } from "@orb/tooling/floor/browser/browser-evidence-ring";
@@ -14,7 +15,6 @@ import type { CDPSession } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { assertCompleteNetworkHar, buildNetworkHar, writeNetworkHar } from "../../../../tooling/src/snap/lib/network-har.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });

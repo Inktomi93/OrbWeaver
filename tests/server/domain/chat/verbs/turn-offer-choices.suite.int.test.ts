@@ -18,11 +18,12 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
 import type { TurnRequest } from "#server/domain/chat/contract/results.ts";
-import { scenario, tape } from "../../../../support/chat/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { scenario } from "../_scenario.ts";
 
 /** The teach's ONE home — the same slot rpg's reminder resolves (S2: NO second prose home). */
 const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;

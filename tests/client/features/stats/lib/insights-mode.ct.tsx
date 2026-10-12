@@ -8,9 +8,9 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { LatencyStats, ModelStatRow } from "@orb/server/domain/stats";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories.tsx";
 
 const DRILLED_CHARACTER = {

@@ -10,8 +10,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "@babel/parser";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { shouldIgnoreArid } from "../../../tooling/src/mutation-arid/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** The canonical two-arm dispatcher: `domain/admin/guard.ts` is the `can()` kernel, and its two `default:`
  *  clauses are the house exhaustiveness shape (`const _exhaustive: never = …`). Measured with

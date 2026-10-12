@@ -6,12 +6,12 @@
 // Assertions ride roles, focus, geometry and the card's data attributes; no copy is asserted.
 
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";

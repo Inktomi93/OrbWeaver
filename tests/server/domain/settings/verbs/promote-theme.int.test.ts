@@ -7,10 +7,10 @@
 //   • the row is OWNED, never a seed — `isSeed` derives from a NULL owner, so a promote that wrote one
 //     would mint an un-deletable, un-editable palette (D71).
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 const CARD_LOOK = {

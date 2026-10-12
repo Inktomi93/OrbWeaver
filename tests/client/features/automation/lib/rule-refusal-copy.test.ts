@@ -7,6 +7,7 @@
 // the predicate that decides WHICH rule is which, and that the sentences speak the host's words rather than
 // the wire's — no `actionsCorrupt`, no `transform_not_runnable`, no "corrupt".
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   isTransformOnlyRule,
@@ -16,7 +17,6 @@ import {
   ruleUnreadableLine,
   ruleUnreadableRunRefusal,
 } from "#client/features/automation/lib/rule-refusal-copy.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("isTransformOnlyRule", () => {
   test("a rule whose every arm rewrites the draft is transform-only", () => {

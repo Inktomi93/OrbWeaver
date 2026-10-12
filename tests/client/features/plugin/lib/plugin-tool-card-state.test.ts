@@ -6,8 +6,8 @@
 // card that binds a field must still render something rather than blow up the transcript row it lives in.
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { toolCardResultLine, toolCardState } from "#client/features/plugin/lib/plugin-tool-card-state.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function record(over: Partial<ToolCallRecord> = {}): ToolCallRecord {
   return { toolCallId: "call_1", name: "plugin_oracle__deck_draw", arguments: "{}", result: null, isError: false, durationMs: null, ...over };

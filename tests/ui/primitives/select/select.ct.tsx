@@ -1,10 +1,11 @@
 // CT: the select seal — explicit Positioner/Popup anatomy portals a real popup (popover token,
 // overlay z), pointer + keyboard select, controlled value surfaces in the trigger.
+
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { LinkedLabelStory, RenderValueStory } from "./select.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;

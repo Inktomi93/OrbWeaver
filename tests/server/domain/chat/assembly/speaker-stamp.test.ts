@@ -2,9 +2,9 @@
 // that keeps SOLO byte-identical).
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { hasMultipleCharacters } from "#server/domain/chat/assembly/speaker-stamp.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
 const KAI = castId<CharacterId>("character_kai");

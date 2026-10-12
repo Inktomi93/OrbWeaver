@@ -10,6 +10,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
@@ -44,7 +45,6 @@ import { resolveLatestVerifyRun } from "../../../../tooling/src/verify/lib/show-
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // The selection cases' cold compiler snapshot (one native TS7 closure read per program) is paid here, once per file,
@@ -1021,7 +1021,7 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
     "tests/kit/ids/index.test-d.ts",
     "tests/db/client.int.test.ts",
     "tests/contracts/portability/index.contract.test.ts",
-    "tests/support/tool-fixtures.ts",
+    "tests/support/node/tool-fixtures.ts",
     "tests/e2e/support/global-setup.ts",
     "tests/ui/stream/snap.test.ts",
     "tests/client/state/create-entity-draft-store.test.ts",

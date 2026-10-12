@@ -4,8 +4,8 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { pluginSurfaceViewSchema, pluginUpdateCheckSchema } from "@orb/server/domain/plugin";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const pluginId = mintTypeId(ID_PREFIX.plugin);
 

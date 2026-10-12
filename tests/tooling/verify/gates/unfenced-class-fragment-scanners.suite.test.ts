@@ -24,6 +24,8 @@
 // §4.3 (reviewed grants) and §4.5 (refusal/receipt) do not apply: both policies declare `facts: []` and
 // `resources: []`, resolve no home and derive no population, so there is no receipt to forge and nothing to
 // refuse about.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -32,7 +34,6 @@ import { gate as noRawContainerWidths } from "../../../../tooling/src/verify/gat
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/unfenced-class-fragment-scanners";
 

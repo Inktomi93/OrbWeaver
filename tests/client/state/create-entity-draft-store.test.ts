@@ -6,10 +6,10 @@
 import { __resetDurableLocal, bindDurableLocalToUser, createEntityDraftStore } from "@orb/client/state";
 import type { VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { StateStorage } from "zustand/middleware";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

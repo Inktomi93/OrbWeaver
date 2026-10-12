@@ -22,6 +22,11 @@
 
 import type { USER_ROLES } from "@orb/contracts/identity";
 import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, effectivePromptCache, modelIdSchema } from "@orb/contracts/inference";
+import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
+import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
+import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
@@ -31,11 +36,6 @@ import { detectModelFamily } from "#inference/capability/families.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
-import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
-import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
-import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
-import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
 import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorScrollPaneStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 

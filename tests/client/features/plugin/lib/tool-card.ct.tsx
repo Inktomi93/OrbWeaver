@@ -19,9 +19,9 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginToolCardStory } from "../_ct-stories.tsx";
 
 const A_PAST_INSTANT = 1_760_000_000_000;

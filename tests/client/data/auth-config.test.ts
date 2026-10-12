@@ -7,10 +7,10 @@
 // PREVIOUS test's cached result across tests in the same file.
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { reimportBudget } from "@orb/testkit/node/reimport-budget.ts";
 import { afterEach, vi } from "vitest";
 import type { AuthConfig } from "#client/data/auth-config.ts";
-import { expect, test } from "../../support/fixtures.ts";
-import { reimportBudget } from "../../support/reimport-budget.ts";
 
 // The re-import IS the subject here (see the header): every case pays a fresh transform of the client
 // data module's graph, inside the first test's timer. Measured cold and alone on a quiet box

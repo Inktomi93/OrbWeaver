@@ -8,10 +8,10 @@
 // fire is a rule nobody can trust to be quiet.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { RelationalPopulationReport } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 /** The proof denominator the `design-audit-rule-proof` gate reads: every live rule id owes an executable
  *  FIRING proof and an executable NEAREST-LEGITIMATE-NEIGHBOUR SILENCE proof, attached to the test that

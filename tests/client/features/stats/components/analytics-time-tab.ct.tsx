@@ -2,9 +2,10 @@
 // no reading at all for a screen reader, and a token axis that printed raw digits while every figure beside
 // it printed "1.2M" (side-eye ANALYTICS 2026-08-19, P1e + P2f). Every chart folds the one UTC quarter-hour
 // timeline onto the BROWSER's calendar, so the runner's zone is pinned per describe.
+
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsTimeTabStory } from "../_ct-stories.tsx";
 
 type TimelineBucket = TrpcWireOutput<"stats.timeseries">[number];

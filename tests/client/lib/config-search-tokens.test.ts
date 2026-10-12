@@ -4,8 +4,8 @@
 // highlight ranges. Pure logic → a browser-free unit test (Spine-Testing.md §7).
 
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("parseConfigQuery", () => {
   test("free text alone is terms, single-spaced", () => {

@@ -5,11 +5,11 @@ import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { dismissScoped, insertNotification, markAllReadScoped, markReadScoped, selectInbox } from "#server/domain/notifications/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { ALICE, BOB, inviteEvent, kickedEvent, seedUser } from "../_support.ts";
 
 let db: Db;

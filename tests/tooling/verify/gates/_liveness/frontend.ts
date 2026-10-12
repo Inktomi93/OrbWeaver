@@ -9,6 +9,8 @@
 // the REAL file through the reader's own overlay (`kind: "resource"`, `append`). Every add path, id and
 // class string is this arm's own: the add arms share one overlaid pass, and two arms minting the same thing
 // would make each other speak.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as baseuiRenderPropComposition } from "../../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as classTokenSplice } from "../../../../../tooling/src/verify/gates/class-token-splice.ts";
 import { gate as cssFamilyDirectClientMechanism } from "../../../../../tooling/src/verify/gates/css-family-direct-client-mechanism.ts";
@@ -44,7 +46,6 @@ import { gate as typographyTierHomeHealth } from "../../../../../tooling/src/ver
 import { gate as uiSizeViaVariant } from "../../../../../tooling/src/verify/gates/ui-size-via-variant.ts";
 import { gate as zIndexTierHealth } from "../../../../../tooling/src/verify/gates/z-index-tier-health.ts";
 import { gate as zIndexTierPermission } from "../../../../../tooling/src/verify/gates/z-index-tier-permission.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const FEATURE = "packages/client/src/features/chat/components";
 const UI = "packages/ui/src/primitives";

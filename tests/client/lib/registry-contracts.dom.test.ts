@@ -9,8 +9,8 @@ import { chatContextTabs } from "@orb/client/features/chat";
 import { makeRpgContextTabs } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef, ContextTabsSpec } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, resolveContextTabs } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 import { CT_META_RAIL_CROWNED_IDS } from "../features/app-shell/_crowned-tabs.ts";
 
 interface State {

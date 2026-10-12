@@ -8,6 +8,7 @@
 //   • THE GLYPH — the condensed mark: spokes/turns per cut, an OPEN spiral with a real arc length
 //     (WebSpinner's dash period), the dew at its named fraction, 24-space emission for the icon seal.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import {
   buildStrandOut,
@@ -21,7 +22,6 @@ import {
   webGlyph,
 } from "@orb/ui/web-weave";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const BOX = { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 } as const;
 /** Hosts whose aspect is far from the mock's — the login card at phone width, a wide-short banner. */

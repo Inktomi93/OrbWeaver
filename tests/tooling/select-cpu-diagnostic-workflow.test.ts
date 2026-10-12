@@ -3,10 +3,10 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { runInNewContext } from "node:vm";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { parse } from "yaml";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const stepSchema = z.object({
   id: z.string().optional(),

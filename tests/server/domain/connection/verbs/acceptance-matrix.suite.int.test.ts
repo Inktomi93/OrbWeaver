@@ -10,9 +10,9 @@ import type { Db } from "@orb/db";
 import { userCredentials } from "@orb/db";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, makeHarness, seedOwner } from "../_support.ts";
 
 type KindAcceptance = Readonly<Record<ModelKind, readonly RoutableTask[]>>;

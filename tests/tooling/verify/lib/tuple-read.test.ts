@@ -4,9 +4,10 @@
 // and `chrome-registry-completeness` rejected the legitimate `rail.brand` entry its copied list omitted.
 // The permissive direction is the dangerous one here, so every unsupported composition shape must REFUSE
 // loudly rather than yield a smaller set (tooling/src/verify/gates/GATE-AUTHORING.md §4.6 / §5).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { readTupleDeclaration, readTupleVocabulary } from "../../../../tooling/src/verify/lib/tuple-read.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

@@ -7,8 +7,8 @@
 
 import type { ClientErrorReport } from "@orb/server/foundation/observability";
 import { logger, recordClientError } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 function report(overrides: Partial<ClientErrorReport> = {}): ClientErrorReport {
   return { message: "boom", url: "https://example.test/chats/abc", ...overrides };
