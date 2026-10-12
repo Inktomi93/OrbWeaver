@@ -3,7 +3,7 @@
 //
 // What this pins, beyond "it renders":
 //   · the HEALTH LINE is a DERIVATION of the same counts the rows carry — passages embedded OF passages
-//     that exist, so a half-embedded bank cannot read as finished;
+//     that exist, so a bank cannot read as finished without saying how much it holds;
 //   · an aggregate chip appears ONLY for what the rows do not already show, and when it appears it is a
 //     CONTROL that scopes the library to that phase and goes there (the store, not a rendered echo);
 //   · READY is the ABSENCE of a chip on a row here too (§6.1) — the tile does not re-litigate the ruling;
@@ -20,6 +20,10 @@ import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 const TILE = '[data-home-tile="databank.documents"]';
 
+const QUEUED_LABEL = "Queued";
+const EMPTY_LABEL = "Empty";
+const STALLED_LABEL = "Stalled";
+
 // A bank AFTER A BAD REINDEX — the state the aggregates exist for: every non-ready phase populated at two
 // digits, far past the four rows the tile renders. (The four-state fixture bank is fully VISIBLE in those
 // rows, which is exactly why it must produce no aggregates at all — the test below pins that.)
@@ -32,17 +36,16 @@ const CROWDED_BANK = [
   ...crowdedRows(12, 100, { chunkCount: 0, embeddedCount: 0, updatedAt: READY_DOC.updatedAt - WEDGED_AGO_MS }),
   ...crowdedRows(11, 200, { charCount: 0, chunkCount: 0, embeddedCount: 0 }),
   ...crowdedRows(10, 300, { chunkCount: 0, embeddedCount: 0 }),
-  ...crowdedRows(13, 400, { chunkCount: 39, embeddedCount: 22 }),
+  ...crowdedRows(13, 400, {}),
 ];
 
-test("the health line counts embedded passages OF the passages that exist", async ({ mount, page }) => {
+test("the health line states both passage numbers: those indexed, OF those that exist", async ({ mount, page }) => {
   await stubDatabank(page);
   const home = await mount(<DatabankHomeTileStory />);
 
   const tile = home.locator(TILE);
-  // 12 of 12 + 22 of 39 + 0 + 0. "34 passages indexed" alone would read as a finished count on a bank
-  // that is 17 passages short of it.
-  await expect(tile.getByText("4 documents · 34 of 51 passages indexed")).toBeVisible();
+  // 12 of 12 + 0 + 0 + 0: a bare "12 passages indexed" would read as a complete count whatever the bank held.
+  await expect(tile.getByText("4 documents · 12 of 12 passages indexed")).toBeVisible();
 });
 
 test("no aggregate chip for a phase the ROWS already show — only the rows' own chips render", async ({ mount, page }) => {
@@ -50,11 +53,11 @@ test("no aggregate chip for a phase the ROWS already show — only the rows' own
   const home = await mount(<DatabankHomeTileStory />);
 
   const tile = home.locator(TILE);
-  await expect(tile.getByText("4 documents · 34 of 51 passages indexed")).toBeVisible();
+  await expect(tile.getByText("4 documents · 12 of 12 passages indexed")).toBeVisible();
   // The bank is four documents and the tile renders four rows, so every non-ready phase is already named
   // ON a row. The badges present are therefore exactly the row chips, in list order (READY contributes
   // none) — an aggregate here would be the same fact twice.
-  await expect(tile.locator('[data-slot="badge"]')).toHaveText(["Indexing", "Empty", "Stalled"]);
+  await expect(tile.locator('[data-slot="badge"]')).toHaveText([QUEUED_LABEL, EMPTY_LABEL, STALLED_LABEL]);
   await expect(tile.getByRole("group", { name: "Ingest attention" })).toHaveCount(0);
 });
 
@@ -63,7 +66,7 @@ test("a phase that reaches PAST the rows earns an aggregate, worst first, as a n
   const home = await mount(<DatabankHomeTileWithJumpGridStory />);
 
   const group = home.locator(TILE).getByRole("group", { name: "Ingest attention" });
-  await expect(group.getByRole("button")).toHaveText(["12 stalled", "11 empty", "10 queued", "13 indexing"]);
+  await expect(group.getByRole("button")).toHaveText(["12 stalled", "11 empty", "10 queued"]);
   // The chip's TEXT is a count; its accessible name has to be the promise, or a screen reader hears a
   // number where a verb belongs.
   await expect(group.getByRole("button", { name: "Show the 12 stalled documents in your databank" })).toBeVisible();
@@ -91,7 +94,7 @@ test("a READY row carries no phase chip; a non-ready row carries its own, plus a
 
   await expect(ready).toContainText("Upload · 24.5 KB · 12 passages");
   await expect(ready.locator('[data-slot="badge"]')).toHaveCount(0);
-  await expect(indexing.locator('[data-slot="badge"]')).toHaveText(["Indexing"]);
+  await expect(indexing.locator('[data-slot="badge"]')).toHaveText([QUEUED_LABEL]);
   // The list is called "Recent documents" — sighted users get the ordering cue too, not just the SR label.
   // The page clock is frozen at the fixtures' own instant, so the newest rows read as "now".
   await expect(ready.locator('[data-slot="list-row-meta"]')).toBeVisible();
@@ -297,7 +300,7 @@ test("at the narrowest real host a crowded health line WRAPS — every chip stay
   const tile = home.locator(TILE);
   // Barrier on the SETTLED body first — geometry read while the tile's QueryBoundary is still showing its
   // reserved skeleton measures the skeleton, and `count()` does not auto-wait.
-  await expect(tile.getByText("46 documents · 286 of 507 passages indexed")).toBeVisible();
+  await expect(tile.getByText("46 documents · 156 of 156 passages indexed")).toBeVisible();
   const chips = tile.locator('[data-slot="badge"]');
   await expect(chips.first()).toHaveText("12 stalled");
   await expect.poll(async () => await tile.boundingBox()).not.toBeNull();

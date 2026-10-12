@@ -15,7 +15,7 @@ import { DEV_PORTS, ORB_APP_PORT_NUMBERS, stageBandPorts } from "../../../../too
 // the barrel 0.86-2.05s vs the three own modules 0.73-0.76s. Both doors have a module of their own, so
 // the cheap seam is simply naming them (`ops/flags-handlers.ts` was already named this way below).
 import { parseGotoTarget } from "../../../../tooling/src/floor/instrument/argv.ts";
-import { snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-grammar.ts";
+import { INTERNAL_FLAGS, snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-grammar.ts";
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { validateRouteSection } from "../../../../tooling/src/snap/ops/parse-route.ts";
@@ -40,14 +40,10 @@ function runSnap(args: readonly string[]): SpawnSyncReturns<string> {
   });
 }
 
-/** Snap's own spawned child entries — accepted, but hidden from the printed grammar and the generated
- *  index (`ops/flag-grammar.ts` INTERNAL_FLAGS). A SET, so a second such entry is one row here. */
-const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
-
 function undocumentedAcceptedFlags(): string[] {
   const documented = new Set(snapFlagDescriptors().map((row) => row.flag));
   return Object.keys(FLAG_HANDLERS)
-    .filter((flag) => !INTERNAL_SPELLINGS.has(flag))
+    .filter((flag) => !INTERNAL_FLAGS.has(flag))
     .filter((flag) => !documented.has(flag))
     .sort();
 }

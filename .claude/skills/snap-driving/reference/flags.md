@@ -36,11 +36,12 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--local-storage <value>` | key=json — seed localStorage before navigation (the FIRST = splits; the value is JSON) |
 | `--ref <value>` | pin the isolated stage to a commit (implies --isolated; survives a merge train) |
 | `--stage-auth <value>` | the stage's sign-in mode: single-user (default, a dev-db copy) or local (empty data, seeded owner+member for --contexts/--as; implies --isolated) |
-| `--stage-db <value>` | clone a database file (and its -wal/-shm) into a rebuilt stage instead of the dev db; implies --isolated and --fresh |
+| `--stage-db <value>` | clone a database file (and its -wal/-shm and the assets/ beside its db/) into a rebuilt stage instead of the dev db; implies --isolated and --fresh |
 | `--stage-down` | tear down the stages your session owns |
 | `--stage-owner <value>` | names the checkout for a checkout-wide or cross-checkout --stage-down |
 | `--stage-status` | the shared stage-band table: owner, checkout, ref, age, sessions, db provenance |
 | `--stage-sweep` | reap stages idle past the TTL and prune orphan dirs |
+| `--stage-wait <value>` | queue for a stage for up to <min> minutes when none can be had; a detached waiter boots it in order and the wait survives this process |
 | `--visitor` | send relay headers so a loopback stack serves a signed-out visitor, not its owner |
 | `--wait <value>` | after app readiness, require this selector to become visible before anything else runs |
 
@@ -147,6 +148,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--lighthouse <value>` | Lighthouse (accessibility + best-practices + seo) on this run's settled page; not with --cascade |
 | `--lighthouse-mode <value>` | default snapshot audits the page as your tape left it; navigation reloads first and loses the drive |
 | `--motion [selector]` | one motion window: LoAF, CLS, compositor-dirty animations, dropped frames |
+| `--motion-goto <value>` | one motion window around a --goto target: the trace opens first, then the navigation runs inside it |
 | `--motion-no-throttle` | disable the --motion CPU throttle (drop rates stay advisory only off a hardware rate posture) |
 | `--motion-window <value>` | --motion window length in ms (default 2500) |
 | `--perf` | per-step LoAF/long-task attribution, input delay, rAF gaps and CLS over the action tape |

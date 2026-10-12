@@ -13,6 +13,7 @@
 // Population is carried as COUNTS, deliberately: 163 policies × ~7,300 paths as lists would make the artifact
 // unreadable and `check:show` unusable; the per-policy semantic receipts (members, unresolved) stay whole because
 // they ARE the denominator a verdict rests on.
+import type { StructureArtifact, StructureArtifactGate, StructureArtifactPolicy } from "@orb/tooling/floor/artifacts/structure-artifact-contract";
 import type {
   AuthorityConsumption,
   GateAuthority,
@@ -48,21 +49,17 @@ export interface PopulationCounts {
 /** One final policy's outcome. `violations` are the EFFECTIVE findings after central waiver/grant reconciliation
  *  (warnings included, each carrying `severity`); `waived`/`granted` are what reconciliation absorbed. `ok` is
  *  false on any blocking finding, a withheld or non-successful owner, or an authority alarm naming this policy. */
-export interface FinalPolicyRow {
+export interface FinalPolicyRow extends StructureArtifactGate {
   readonly contract: "final";
-  readonly name: string;
   readonly family: string;
   readonly authority: GateAuthority;
   readonly severity: GateSeverity;
   readonly workItem: number | null;
   readonly ok: boolean;
   readonly owner: GateOwnerCompletion;
-  readonly withheld: boolean;
   readonly population: PopulationCounts;
   readonly receipts: readonly PolicySemanticReceipt[];
   readonly violations: readonly Violation[];
-  readonly waived: number;
-  readonly granted: number;
   readonly timing: PolicyTiming;
 }
 
@@ -83,7 +80,7 @@ export interface StructureFactRow {
 }
 
 /** The final side's aggregate — everything `runPolicyPass` returned that is not a per-policy row. */
-export interface StructurePolicyReport {
+export interface StructurePolicyReport extends StructureArtifactPolicy {
   readonly facts: readonly StructureFactRow[];
   readonly factErrors: readonly GateFactToolError[];
   readonly toolErrors: readonly PolicyToolError[];
@@ -113,7 +110,7 @@ export interface StructureCountReconciliation {
 
 /** The artifact. `policy` is null when the corpus resolved no policy at all (a planted empty tree) — every
  *  refusal, alarm and cost ledger lives inside it, which is why nothing sits beside it here any more. */
-export interface StructureReport {
+export interface StructureReport extends StructureArtifact {
   readonly run: RunManifest;
   readonly gates: readonly StructureGateRow[];
   readonly policy: StructurePolicyReport | null;

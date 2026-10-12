@@ -164,5 +164,17 @@ export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage
 // The boot-dead arm (#1837): cli.ts's own exit runs it — a stage this run BOOTED that never served a settled
 // app. Front-door members so a proof can plant a booted row and drive the SHIPPED teardown.
 export { tearDownBootDeadStage, tearDownStageRow } from "./ops/stage-teardown.ts";
+// The stage wait queue (`--stage-wait`): cli.ts awaits `waitForStage` before the stage door; a proof drives the
+// SHIPPED queue against a scratch home with injected deps.
+export {
+  awaitStageWait,
+  readStageWaits,
+  registerStageWait,
+  runStageWaiter,
+  setStageWaiterPid,
+  stageAskFromArgs,
+  stageWaiterTurn,
+  waitForStage,
+} from "./ops/stage-wait.ts";
 export { awaitThemeStamp, themeStampExit, themeStampExpectation, themeStampGap } from "./ops/theme-stamp.ts";
 export { hasSnapFailure } from "./ops/verdict.ts";

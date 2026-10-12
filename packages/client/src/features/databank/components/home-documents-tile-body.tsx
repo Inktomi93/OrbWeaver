@@ -29,6 +29,7 @@
 // It suspends; home mounts every tile body inside its own `QueryBoundary`.
 
 import type { IngestPhase } from "@orb/contracts/databank";
+import { ingestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -43,7 +44,7 @@ import { useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
-import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPhase, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
+import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
 
 /** How many documents the tile shows. FOUR, not the library's eight: this is a half-span tile carrying a
  *  health line above the rows, and the fifth-newest document is a browse, not a glance. Exported because

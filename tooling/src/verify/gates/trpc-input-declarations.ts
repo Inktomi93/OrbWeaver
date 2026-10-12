@@ -6,9 +6,9 @@
 // keeps its readers module-private; this policy reads authored builder chains and shares no reader with it.
 import type { CallExpression, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess, readsMemberNamed } from "../lib/symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const TERMINALS: ReadonlySet<string> = new Set(["query", "mutation", "subscription"]);
 const INPUT_MEMBER: ReadonlySet<string> = new Set(["input"]);
@@ -64,9 +64,9 @@ function inputReader(access: Node): Node | undefined {
 /** One step down a builder chain: the receiver of a call, a builder variable's initializer, or an unwrapped expression. */
 function chainStep(current: Node): Node | undefined {
   if (N.isCallExpression(current)) {
-    return readMemberAccess(current.getExpression())?.receiver;
+    return staticMemberAccess(current.getExpression())?.receiver;
   }
-  if (N.isIdentifier(current) || readMemberAccess(current) !== undefined) {
+  if (N.isIdentifier(current) || staticMemberAccess(current) !== undefined) {
     const held = resolveStableExpression(current);
     if (held.kind === "resolved") {
       return held.value === current ? undefined : held.value;
@@ -97,7 +97,7 @@ function isLooseParser(parser: Node): boolean {
     return false;
   }
   const callee = parser.getExpression();
-  const read = readMemberAccess(callee);
+  const read = staticMemberAccess(callee);
   const spelled = read === undefined ? callee.getText() : `${read.receiver.getText()}.${read.name}`;
   return LOOSE_CALLEES.has(spelled) || read?.name === PASSTHROUGH;
 }
@@ -139,7 +139,7 @@ export const gate = defineGate({
       ],
       evaluate: () => {
         for (const call of terminals) {
-          const terminal = readMemberAccess(call.getExpression());
+          const terminal = staticMemberAccess(call.getExpression());
           const handler = handlerOf(call.getArguments()[0]);
           if (terminal === undefined || handler === undefined || !readsInput(handler, readers)) {
             continue;

@@ -12,97 +12,21 @@
 //   • AN IDENTIFIER STANDING FOR A LITERAL — `role={ROLE}` / `margin: -8` are not StringLiteral /
 //     NumericLiteral nodes, so a literal-kind check reads them as "not my subject".
 // Every reader here only ever WIDENS what a gate detects; none can turn a live finding into a pass.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { MemberReference } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
-import type { MemberRead, ModuleMemberReference } from "../contract/symbol-reference.ts";
-import { declarationsNamed, readStringValue, unwrapExpression } from "./ast-read.ts";
+import type { ModuleMemberReference } from "../contract/symbol-reference.ts";
 
 /** The node kinds a gate MUST subscribe to so that no spelling of a member read escapes it. Subscribing to
  *  `PropertyAccessExpression` alone is the #1506 hole; this tuple is the whole family. */
 export const MEMBER_ACCESS_KINDS = [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const;
 
-/** How deep a same-file `const` hop chain is followed before a read gives up — a cheap cycle fence, the
- *  same budget `ast-read.ts`'s object reader uses. */
-const IDENTIFIER_HOPS = 4;
-
-/** The same-file initializer an identifier denotes, one hop, or undefined when it is not a locally-declared
- *  single-initializer const (an import, a parameter, a re-assigned binding). */
-function sameFileInitializer(identifier: Node): Node | undefined {
-  const declared = declarationsNamed(identifier.getSourceFile(), identifier.getText()).filter((d) => TsNode.isVariableDeclaration(d));
-  const only = declared.length === 1 ? declared[0] : undefined;
-  return only !== undefined && TsNode.isVariableDeclaration(only) ? only.getInitializer() : undefined;
-}
-
-/** The literal STRING a node denotes — through `as`/`satisfies`/parens (`readStringValue`) AND through
- *  same-file `const` indirection (`const KEY = "insert"; db[KEY](…)`).
- *
- *  This is the widening `readStringValue` deliberately does not do: that reader answers "is this node a
- *  string literal", which is the right question at a definition site. At a REFERENCE site the question is
- *  "which member does this name", and an identifier standing for a literal names the same member. */
-export function readStringConstant(node: Node, hopsLeft: number = IDENTIFIER_HOPS): string | undefined {
-  const direct = readStringValue(node);
-  if (direct !== undefined) {
-    return direct;
-  }
-  const inner = unwrapExpression(node);
-  const initializer = hopsLeft > 0 && TsNode.isIdentifier(inner) ? sameFileInitializer(inner) : undefined;
-  return initializer === undefined ? undefined : readStringConstant(initializer, hopsLeft - 1);
-}
-
-/** The value of a `-8` / `+8` sign wrapper. A signed number is a `PrefixUnaryExpression`, NOT a
- *  NumericLiteral, which is exactly how a negative value walks past a literal-kind check. */
-function readSignedNumber(expression: Node): number | undefined {
-  if (!TsNode.isPrefixUnaryExpression(expression)) {
-    return;
-  }
-  const operator = expression.getOperatorToken();
-  if (operator !== SyntaxKind.MinusToken && operator !== SyntaxKind.PlusToken) {
-    return;
-  }
-  const operand = readNumericConstant(expression.getOperand());
-  if (operand === undefined) {
-    return;
-  }
-  return operator === SyntaxKind.MinusToken ? -operand : operand;
-}
-
-/** The NUMBER a node denotes — a numeric literal, a signed literal (`readSignedNumber`), through
- *  `as`/`satisfies`/parens and through same-file `const` indirection. */
-export function readNumericConstant(node: Node, hopsLeft: number = IDENTIFIER_HOPS): number | undefined {
-  const inner = unwrapExpression(node);
-  if (TsNode.isNumericLiteral(inner)) {
-    return inner.getLiteralValue();
-  }
-  if (TsNode.isPrefixUnaryExpression(inner)) {
-    return readSignedNumber(inner);
-  }
-  const initializer = hopsLeft > 0 && TsNode.isIdentifier(inner) ? sameFileInitializer(inner) : undefined;
-  return initializer === undefined ? undefined : readNumericConstant(initializer, hopsLeft - 1);
-}
-
-/** The member `node` reads off a receiver, whatever the spelling — `x.foo`, `x?.foo`, `x["foo"]`,
- *  `x?.["foo"]`, `x[KEY]` with a same-file `const KEY = "foo"`. `undefined` when the node is not a member
- *  access, or when the bracket argument is a genuinely dynamic value (a computed key names no ONE member,
- *  so there is nothing for a name-keyed gate to judge — the DECLARED LIMIT of this reader). */
-export function readMemberAccess(node: Node): MemberRead | undefined {
-  if (TsNode.isPropertyAccessExpression(node)) {
-    return { name: node.getName(), receiver: node.getExpression(), nameNode: node.getNameNode(), access: node };
-  }
-  if (!TsNode.isElementAccessExpression(node)) {
-    return;
-  }
-  const argument = node.getArgumentExpression();
-  if (argument === undefined) {
-    return;
-  }
-  const name = readStringConstant(argument);
-  return name === undefined ? undefined : { name, receiver: node.getExpression(), nameNode: argument, access: node };
-}
-
 /** Does the member read at `node` name one of `names`, however spelled? The one-line door for a gate whose
  *  subject is a fixed member vocabulary (`.insert`/`.update`/`.delete`, `.state`, `.printResult`). */
-export function readsMemberNamed(node: Node, names: ReadonlySet<string>): MemberRead | undefined {
-  const read = readMemberAccess(node);
+export function readsMemberNamed(node: Node, names: ReadonlySet<string>): MemberReference | undefined {
+  const read = staticMemberAccess(node);
   return read !== undefined && names.has(read.name) ? read : undefined;
 }
 
@@ -195,7 +119,7 @@ export function moduleMemberReference(node: Node, matchesSpecifier: (specifier: 
     const specifier = declaration?.getModuleSpecifierValue();
     return specifier !== undefined && matchesSpecifier(specifier) ? { kind: "named-import", name: node.getName(), specifier, node } : undefined;
   }
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   if (read === undefined) {
     return;
   }

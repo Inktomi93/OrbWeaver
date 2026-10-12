@@ -102,12 +102,13 @@
 // §4.6 DIFFERENTIAL: the pre-conversion descriptor at `(pruned from public history)` replayed through the legacy dispatcher
 // against the final policy, both over the real `tests/**` corpus AND fixture-level over every legacy
 // example. The result is in the landing commit message.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { callChainRoot, isTestCallShape } from "../lib/test-call-shape.ts";
 
 const MAX_HELPER_DEPTH = 4;
@@ -138,7 +139,7 @@ function isDescribeCall(call: CallExpression): boolean {
  *  `expect["poll"](…)`, because the member is read through the shared spelling-independent reader. */
 function calleeName(call: CallExpression): string | undefined {
   const expr = call.getExpression();
-  return Node.isIdentifier(expr) ? expr.getText() : readMemberAccess(expr)?.name;
+  return Node.isIdentifier(expr) ? expr.getText() : staticMemberAccess(expr)?.name;
 }
 
 /** The authored name the report anchors on: the MEMBER the chain is actually called through (`each` for
@@ -173,7 +174,7 @@ function callbackFromCall(call: CallExpression): ArrowFunction | FunctionExpress
 }
 
 /** Does this expression chain bottom out in the bare `expect` identifier or an `expect(...)` call? Member
- *  hops are read through `lib/symbol-reference.ts#readMemberAccess`, so `expect(x)["toBe"]` reaches `expect`
+ *  hops are read through `floor/code-facts/reference-fact.ts#staticMemberAccess`, so `expect(x)["toBe"]` reaches `expect`
  *  exactly as `expect(x).toBe` does — THE ACQUITTING SIDE MOVING WITH THE ACCUSING ONE (#2353): a
  *  bracket-spelled matcher chain that stopped reaching `expect` here would turn a real assertion into a
  *  no-assertion finding. */
@@ -185,7 +186,7 @@ function walksToExpectCall(cursor: MorphNode | undefined): boolean {
     const inner = cursor.getExpression();
     return (Node.isIdentifier(inner) && inner.getText() === EXPECT) || walksToExpectCall(inner);
   }
-  const read = readMemberAccess(cursor);
+  const read = staticMemberAccess(cursor);
   if (read === undefined) {
     return false;
   }
@@ -194,7 +195,7 @@ function walksToExpectCall(cursor: MorphNode | undefined): boolean {
 
 /** A MATCHER-chained expect: a call whose callee is a member read (however spelled) reaching `expect`. */
 function isMatcherChainedExpect(call: CallExpression): boolean {
-  const read = readMemberAccess(call.getExpression());
+  const read = staticMemberAccess(call.getExpression());
   return read !== undefined && walksToExpectCall(read.receiver);
 }
 

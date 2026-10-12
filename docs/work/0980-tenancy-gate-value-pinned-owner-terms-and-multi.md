@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-12
 priority: P1
+lane: wt/agent-a6014bd6ad36d18f0
 ---
 
 # Tenancy gate: value-pinned owner terms and multi-parent satellites

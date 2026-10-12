@@ -3,11 +3,11 @@
 import type { SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
 import { shapeFitsColumns } from "../../floor/code-facts/drizzle-columns.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { canonicalCompilerPath } from "../../floor/compiler/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, ProducerlessTableCandidate, TableDef } from "../contract/types.ts";
 import { byProdFirst, relPath } from "../ops/swallowed.ts";
-import { memberReadOf } from "../ops/wiring.ts";
 import { columnKey, isColumnConsumer, resolveTableDef, scanColumnWrites } from "./columns.ts";
 import { KEY_SEP, REPO_ROOT } from "./root.ts";
 
@@ -338,14 +338,14 @@ function scanFileRowReads(sf: SourceFile, scan: RowReadCtx): void {
 }
 
 /** ONE member access as a row read, if its name is a column and its object's shape is a row of some table.
- *  Reads through {@link memberReadOf} — the ONE spelling of "what member does this node read" (`.col`,
+ *  Reads through `staticMemberAccess` — the ONE spelling of "what member does this node read" (`.col`,
  *  `?.col`, `["col"]`); two copies is how one arm learns a shape and the other silently does not. */
 function recordAccessRead(node: Node, scan: RowReadCtx): void {
-  const access = memberReadOf(node);
+  const access = staticMemberAccess(node);
   if (access === undefined || !scan.columnNames.has(access.name)) {
     return;
   }
-  for (const table of rowTablesOf(access.object.getType(), scan.tables, scan.cache)) {
+  for (const table of rowTablesOf(access.receiver.getType(), scan.tables, scan.cache)) {
     scan.add(table, access.name, node);
   }
 }

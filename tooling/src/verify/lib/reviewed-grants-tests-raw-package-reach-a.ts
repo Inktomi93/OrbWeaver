@@ -75,7 +75,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A: readonly ReviewedGateGra
     "#client/features/app-shell/components/modal-host.tsx",
     "#client/features/auth/components/login-first-run-form.tsx",
     "#client/features/auth/components/login-local-form.tsx",
-    "#client/features/auth/lib/reauth-modal.tsx",
     "#client/features/auth/surfaces/login-surface.tsx",
     "#client/routes/login-page.tsx",
   ],
@@ -196,7 +195,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A: readonly ReviewedGateGra
     "#client/features/chat/lib/member-rows.ts",
     "#client/features/chat/lib/pager-chrome.ts",
     "#client/features/chat/lib/turn-warning-surface.ts",
-    "#client/features/chat/lib/warning-notice.ts",
     "#client/lib/appearance-message-registry.ts",
     "#client/lib/contribution-contracts.ts",
   ],
@@ -206,9 +204,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A: readonly ReviewedGateGra
   ],
   "tests/client/features/chat/_reaction-stories.tsx": [
     "#client/features/chat/components/message-actions-row.tsx",
-    "#client/features/chat/components/reaction-picker.tsx",
     "#client/features/chat/hooks/use-message-reactions.ts",
-    "#client/features/chat/lib/reaction-mutations.ts",
   ],
   "tests/client/features/chat/_theme-prose-ct-stories.tsx": [
     "#client/features/chat/components/home-hearth-room.tsx",

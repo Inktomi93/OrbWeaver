@@ -1,39 +1,33 @@
 // CT harness for the greeting studio (audit §3) — not a spec (Playwright CT needs mounted components in
 // their own module; biome forbids exporting a component from a `.ct.tsx`). Wraps `GreetingStudio` in the
-// CT data-provider stack (Query + real tRPC over the routeTrpc network stub) and wires `onAccept` to a
-// REAL `character.update` mutation — so the CT can assert the character-update mutation fired on accept
-// (the DRAFT-mount persistence path), exactly as the chat draft greeting row wires it.
+// CT data-provider stack (Query + real tRPC over the routeTrpc network stub). The studio's only product
+// output is `onAccept(text)`: the character editor turns it into a form edit that autosaves, so the harness
+// lists what was accepted and does not invent a persistence path of its own.
 
 import { GreetingStudio } from "@orb/client/components";
-import { createEntityMutation, useInvalidation, useTRPC } from "@orb/client/data";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
+import { useState } from "react";
 
 const CHARACTER_ID = castId<CharacterId>("character_ct");
 
-/** The character.update input the accept path fires — the full greetings-array replace (the append shape). */
-interface UpdateVars {
-  readonly characterId: CharacterId;
-  readonly input: { readonly greetings: { readonly text: string }[] };
-}
-
-const useUpdateCharacter = createEntityMutation<UpdateVars, unknown>({
-  options: (trpc) => trpc.character.update.mutationOptions(),
-  busDriven: true,
-});
-
 function StudioHarness(): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const update = useUpdateCharacter({ trpc, invalidation });
+  const [accepted, setAccepted] = useState<readonly { readonly order: number; readonly text: string }[]>([]);
   return (
-    <GreetingStudio
-      characterId={CHARACTER_ID}
-      baseGreeting="Hello there, traveller."
-      onAccept={(text): void => update.mutate({ characterId: CHARACTER_ID, input: { greetings: [{ text }] } })}
-    />
+    <>
+      <GreetingStudio
+        characterId={CHARACTER_ID}
+        baseGreeting="Hello there, traveller."
+        onAccept={(text): void => setAccepted((prior) => [...prior, { order: prior.length, text }])}
+      />
+      <ul aria-label="Accepted greetings">
+        {accepted.map(({ order, text }) => (
+          <li key={order}>{text}</li>
+        ))}
+      </ul>
+    </>
   );
 }
 

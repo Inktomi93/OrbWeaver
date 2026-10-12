@@ -84,14 +84,15 @@
 // commit the inert-`ext` class was swept to zero at — and is NOT a pre-conversion sha. A census that
 // word-matches hex in a header counts it as a legacy-SHA citation; it is not one, and this module cannot
 // have one.
+
+import type { MemberReference } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { resolveModuleMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
 import { RETIRED_MARKER_OPENERS } from "../contract/policy-descriptor-read.ts";
-import type { MemberRead } from "../contract/symbol-reference.ts";
 import { inspectGateContract } from "../lib/gate-contract.ts";
 import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";
 import {
@@ -104,7 +105,7 @@ import {
   stableTerminal,
 } from "../lib/policy-descriptor-read.ts";
 import { staticSegments, staticText } from "../lib/policy-static-text.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess } from "../lib/symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS } from "../lib/symbol-reference.ts";
 import {
   familyFixture,
   finalProbeModule,
@@ -225,7 +226,7 @@ function isDynamicLoadingDoor(call: CallExpression): boolean {
   }
   // READ THROUGH THE SHARED RESOLVER, not `isPropertyAccessExpression` (#2199): `process["binding"](…)` is the
   // same door one node kind over, and a property-keyed check reads it as ordinary code.
-  const read = readMemberAccess(callee);
+  const read = staticMemberAccess(callee);
   return read !== undefined && read.name === BINDING && isNodeProcess(read.receiver);
 }
 
@@ -238,7 +239,7 @@ function retiredOpenerIn(text: string): string | undefined {
  *  string and the OPENER rides the argument (`text.includes("@orb-gate-ignore")`, `RE.test(line)` is judged at the
  *  regex literal instead). */
 function grammarCallArgumentText(call: CallExpression): string | undefined {
-  const read = readMemberAccess(call.getExpression());
+  const read = staticMemberAccess(call.getExpression());
   const argument = call.getArguments()[0];
   // `text["includes"]("@orb-gate-ignore")` parses the same grammar as `text.includes(…)` (#2199).
   if (read === undefined || !GRAMMAR_CALL_METHODS.has(read.name) || argument === undefined) {
@@ -266,8 +267,8 @@ function regExpConstructionText(construction: MorphNode): string | undefined {
  *  `ctx["resources"]` is the same host read as `ctx.resources`. Keyed on `PropertyAccessExpression` alone,
  *  this arm — the one that decides whether a policy touched the resource host WITHOUT its guard — answered a
  *  silent no for the bracket spelling, which is a false clean on the accusing side. */
-function contextResourceAccess(node: MorphNode): MemberRead | undefined {
-  const read = readMemberAccess(node);
+function contextResourceAccess(node: MorphNode): MemberReference | undefined {
+  const read = staticMemberAccess(node);
   return read !== undefined && read.name === RESOURCE_HOST_MEMBER && bindsParameter(read.receiver) ? read : undefined;
 }
 
@@ -291,9 +292,9 @@ function isResourceGuard(callee: MorphNode): boolean {
  *  home module. Every other shape — a bare door call, a door call wrapped in something else, the host bound to
  *  a name, the host passed to ANY function, shared or local — answers true. There is no hand-off exception;
  *  the header records the one that existed and why it was removed. */
-function unguardedResourceRead(access: MemberRead): boolean {
+function unguardedResourceRead(access: MemberReference): boolean {
   const door = access.access.getParent();
-  const doorRead = door === undefined ? undefined : readMemberAccess(door);
+  const doorRead = door === undefined ? undefined : staticMemberAccess(door);
   // The DOOR is read through the same resolver as the host (#2199) — `ctx["resources"]["read"](…)` is one
   // admitted shape's spelling, and a property-keyed chain walk would have called it unguarded on the pass
   // side and invisible on the report side at once.
@@ -321,7 +322,7 @@ interface JudgedModule {
   readonly path: string;
   readonly registration: FinalRegistration;
   readonly ioDoors: readonly MorphNode[];
-  readonly resourceReads: readonly MemberRead[];
+  readonly resourceReads: readonly MemberReference[];
   readonly grammarSites: readonly GrammarSite[];
 }
 
@@ -367,7 +368,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const ioDoors = new Map<SourceFile, MorphNode[]>();
-    const resourceReads = new Map<SourceFile, MemberRead[]>();
+    const resourceReads = new Map<SourceFile, MemberReference[]>();
     const grammarSites = new Map<SourceFile, GrammarSite[]>();
     const noteDoor = (sourceFile: SourceFile, node: MorphNode): void => {
       ioDoors.set(sourceFile, [...(ioDoors.get(sourceFile) ?? []), node]);

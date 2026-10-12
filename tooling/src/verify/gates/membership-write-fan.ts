@@ -28,12 +28,13 @@
 // That is the mechanism working as designed, and it is the tripwire a prose deferral cannot give: a grant
 // whose condition has fired alarms `stale-reviewed-grant` instead of quietly outliving its reason.
 // `lib/reviewed-grants-membership-write-fan.ts` remains this policy's grant home.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { isDrizzleWriteStatement, tableTargetOf } from "../lib/tenancy-read.ts";
 import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
@@ -107,12 +108,12 @@ interface FileFacts {
   roomFan: boolean;
 }
 
-/** The callee's name for `ctx.emitX(...)` — EVERY spelling, through the shared `readMemberAccess`
+/** The callee's name for `ctx.emitX(...)` — EVERY spelling, through the shared `staticMemberAccess`
  *  (`ctx["emitUserEvent"](…)` and `ctx?.emitUserEvent(…)` included) — and for a bare `emitX(...)`. A
  *  `PropertyAccessExpression`-only read here is the #1506 spelling hole the twins census reds. */
 function calleeName(call: CallExpression): string | undefined {
   const callee = call.getExpression();
-  const read = readMemberAccess(callee);
+  const read = staticMemberAccess(callee);
   if (read !== undefined) {
     return read.name;
   }
@@ -124,7 +125,7 @@ function calleeName(call: CallExpression): string | undefined {
  *  position would have to name, quotes included. */
 function calleeNameNode(call: CallExpression): MorphNode {
   const callee = call.getExpression();
-  const read = readMemberAccess(callee);
+  const read = staticMemberAccess(callee);
   return read === undefined ? callee : read.nameNode;
 }
 
@@ -190,7 +191,7 @@ export const gate = defineGate({
             // The table class is not resolvable until the schema fact is ready, so the walk only records.
             // The write verb must be a MEMBER call (`db.insert(T)` / `db["insert"](T)`), never a bare
             // `insert(T)`: the receiver is what makes it a drizzle builder rather than a local helper.
-            if (WRITE_VERBS.has(name) && arg !== undefined && readMemberAccess(node.getExpression()) !== undefined) {
+            if (WRITE_VERBS.has(name) && arg !== undefined && staticMemberAccess(node.getExpression()) !== undefined) {
               candidates.push({ file: sourceFile, arg, call: node });
             }
           },

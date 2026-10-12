@@ -1,11 +1,12 @@
 // The predicates of the `tooling-os-neutral` policy: which argv, path, env and line-split shapes only work
 // on one operating system. Pure readers over delivered nodes; the policy owns the walk, the door identity
 // and the report.
+
+import { staticString } from "@orb/tooling/floor/code-facts/reference-fact-static";
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import type { OsNeutralCase } from "../contract/os-neutral.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { readStringConstant } from "./symbol-reference.ts";
 
 /** The per-case sentence a finding carries; the policy's `message` states the rule once. */
 export const OS_NEUTRAL_CASE_MESSAGES: Readonly<Record<OsNeutralCase, string>> = {
@@ -106,7 +107,7 @@ export function objectMemberName(member: Node): string | undefined {
   }
   const name = member.getNameNode();
   if (MorphNode.isComputedPropertyName(name)) {
-    return readStringConstant(name.getExpression());
+    return staticString(name.getExpression());
   }
   return MorphNode.isStringLiteral(name) ? name.getLiteralValue() : name.getText();
 }
@@ -118,13 +119,13 @@ export function pairKey(element: Node): string | undefined {
     return;
   }
   const [key] = pair.getElements();
-  return key === undefined ? undefined : readStringConstant(key);
+  return key === undefined ? undefined : staticString(key);
 }
 
 const NEWLINE = "\n";
 
 export function isNewlineSeparator(node: Node): boolean {
-  return readStringConstant(node) === NEWLINE;
+  return staticString(node) === NEWLINE;
 }
 
 /** The literal text of a string, a template without substitutions, or a template's head. */

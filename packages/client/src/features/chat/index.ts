@@ -15,6 +15,8 @@ export { MessageThreadAnchor } from "./anchors/message-thread-anchor.tsx";
 export { ChatsWithCharacterPane } from "./components/chats-with-character-pane.tsx";
 export type { ComposerProps } from "./components/composer.tsx";
 export { Composer } from "./components/composer.tsx";
+/** @public exported for the reaction CT story, which mounts the picker the way the message row does. */
+export { RowReactionPicker } from "./components/row-reaction-picker.tsx";
 export type {
   UseSendMessageOptions,
   UseSendMessageResult,

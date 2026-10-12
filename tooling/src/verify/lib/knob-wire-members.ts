@@ -4,10 +4,11 @@
 // and the member-source constants with their paired anchors. A population this module cannot establish is
 // a THROW, never a shorter list (`knob-wire-fact.ts`'s header states why). Split out at the size cap
 // (2026-09-18); one-way — this module imports nothing from `knob-wire-fact.ts` or `knob-wire-corpora.ts`.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { InterfaceDeclaration, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 import { readTupleDeclaration } from "./tuple-read.ts";
 
 // ── member sources and their paired-anchor rename tripwires ─────────────────────────────────────────────
@@ -178,13 +179,13 @@ function collectBoundMembers(identifier: Node, out: SchemaMembers, walk: SchemaW
 }
 
 /** Dispatch one `<recv>.<method>(…)` builder in a schema position. The METHOD is read through
- *  `lib/symbol-reference.ts#readMemberAccess` (#2353), so `z["object"]({ … })` and `.extend`/`.prefault`
+ *  `floor/code-facts/reference-fact.ts#staticMemberAccess` (#2353), so `z["object"]({ … })` and `.extend`/`.prefault`
  *  spelled with brackets are the same builder as their dotted twins. Keyed on `PropertyAccessExpression`
  *  alone this reader THREW on every bracket-spelled schema — a loud tool error rather than a silent pass,
  *  but still a gate that stopped judging six of its own `mustFlag` fixtures under the respelling. */
 function collectCallMembers(call: Node, out: SchemaMembers, walk: SchemaWalk): void {
   const callee = MorphNode.isCallExpression(call) ? call.getExpression() : undefined;
-  const read = callee === undefined ? undefined : readMemberAccess(callee);
+  const read = callee === undefined ? undefined : staticMemberAccess(callee);
   if (read === undefined) {
     throw new Error(`knob-wire-coverage: unsupported ${walk.label} expression: ${preview(call)}`);
   }
@@ -226,7 +227,7 @@ function collectSchemaMembers(expression: Node, out: SchemaMembers, walk: Schema
     return;
   }
   // `{ ...base.shape }` / `{ ...base["shape"] }` — the sanctioned zod spelling for "every key of that schema".
-  const shape = readMemberAccess(node);
+  const shape = staticMemberAccess(node);
   if (shape !== undefined && shape.name === "shape") {
     collectSchemaMembers(shape.receiver, out, walk);
     return;
