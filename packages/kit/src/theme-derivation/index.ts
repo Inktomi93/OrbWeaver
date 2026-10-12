@@ -115,9 +115,12 @@ export const AA_NORMAL_RATIO = 4.5;
  *  WCAG's black/white crossover cannot physically reach 4.6, so each search caps this aim at the chosen
  *  polarity endpoint's measured capacity rather than narrowing the accepted theme domain. */
 export const AA_NORMAL_DERIVATION_RATIO = 4.6;
-/** WCAG AA for large text and non-text graphics. The chart-ramp and accent-fill solvers use this live 3:1
+/** WCAG AA for large text. The chart-ramp and accent-fill solvers use this live 3:1
  *  floor, and the theme-derivation suite pins both families against it. */
 export const AA_LARGE_RATIO = 3;
+/** WCAG 2.x SC 1.4.11 Non-text Contrast: the floor for a user-interface component's boundary or a graphic
+ *  that carries meaning. Numerically the large-text floor, named separately because it is a separate criterion. */
+export const AA_NON_TEXT_RATIO = AA_LARGE_RATIO;
 
 /** An sRGB triple, channels 0–255. */
 export interface Rgb {
@@ -177,8 +180,7 @@ function gammaEncode(linear: number): number {
   return (c <= GAMMA_LINEAR_THRESHOLD ? GAMMA_LINEAR_SLOPE * c : GAMMA_SCALE * c ** (1 / GAMMA_EXPONENT) - GAMMA_OFFSET) * SRGB_MAX;
 }
 
-/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH, and the same house math
- *  `palette-contrast.suite.test.ts` uses to measure a derived tone. */
+/** OKLCH → sRGB (0–255), gamut-clamped. The inverse of the importer's sRGB→OKLCH. */
 export function oklchToSrgb({ l, c, h }: Oklch): Rgb {
   const radians = h / DEGREES_PER_RADIAN;
   const a = c * Math.cos(radians);
@@ -250,7 +252,8 @@ export function oklabToOklch(l: number, a: number, b: number): Oklch {
   return { l, c: Math.hypot(a, b), h: hue };
 }
 
-function relativeLuminance({ r, g, b }: Rgb): number {
+/** WCAG 2.x relative luminance (0–1) of an sRGB colour; channels outside 0–255 are clamped. */
+export function relativeLuminance({ r, g, b }: Rgb): number {
   const channel = (raw: number): number => {
     const c = Math.max(0, Math.min(SRGB_MAX, raw)) / SRGB_MAX;
     return c <= WCAG_LINEAR_THRESHOLD ? c / GAMMA_LINEAR_SLOPE : ((c + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT;

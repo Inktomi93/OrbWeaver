@@ -35,8 +35,8 @@ import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -5522,7 +5522,7 @@ async function listPanelEdgeRatio(page: Page, panel: Locator): Promise<number> {
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const midY = Math.floor(y + height / 2);
   const [edge, interior] = await Promise.all([samplePixel(page, Math.floor(x + width) - 1, midY), samplePixel(page, Math.floor(x + width) - 8, midY)]);
-  const ratio = contrastRatio(edge, interior);
+  const ratio = wcagContrastRatio(edge, interior);
   // The MEASURED number, into reports/ct-report.json. An a11y threshold assertion that only ever prints
   // pass/fail makes the next reader re-derive the margin by hand; these annotations are the receipt.
   test.info().annotations.push({
@@ -5613,7 +5613,7 @@ for (const theme of ["dark", "light"] as const) {
     const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
     const panel = shell.getByTestId("panel-probe");
     await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
-    await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
 
   test(`under contrast: no-preference that same seam is the hairline it always was (${theme})`, async ({ mount, page }) => {
@@ -5624,7 +5624,7 @@ for (const theme of ["dark", "light"] as const) {
     // The control that keeps the pin above honest: the raise is the PREFERENCE's doing, not the theme's.
     // A hairline below the non-text floor is the deliberate resting state — this block is what closes it.
     const ratio = await listPanelEdgeRatio(page, panel);
-    expect(ratio, "the shipped hairline is BELOW the non-text floor — closing that is what this block is for").toBeLessThan(UI_COMPONENT_MIN_RATIO);
+    expect(ratio, "the shipped hairline is BELOW the non-text floor — closing that is what this block is for").toBeLessThan(AA_NON_TEXT_RATIO);
     // …and strictly above 1, which is this test's own positive control: a screenshot that sampled the
     // wrong element (or a covered panel) returns the identical pixel twice and would otherwise sail
     // through the assertion above.
@@ -5640,7 +5640,7 @@ test("the contrast edge does NOT depend on the glass toggle — blur off, the se
   const shell = await mount(<ShellCascadeFixture omitMainRegion={true} />);
   const panel = shell.getByTestId("panel-probe");
   await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
-  await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+  await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   // Still per-side with the glass off, i.e. the currentColor stripe cannot come back through this door.
   await expect
     .poll(() => borderWidthsOf(panel), { intervals: [20, 50, 100] })
@@ -7349,7 +7349,7 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
     return { b: b ?? 0, g: g ?? 0, r: r ?? 0 };
   });
   const readRatioAtAssertion = async (): Promise<typeof ratio> =>
-    contrastRatio(
+    wcagContrastRatio(
       await panel.evaluate((el) => {
         const canvas = document.createElement("canvas");
         canvas.width = 1;
@@ -7365,12 +7365,12 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
       }),
       landed,
     );
-  const ratio = contrastRatio(ink, landed);
+  const ratio = wcagContrastRatio(ink, landed);
   test.info().annotations.push({
     description: `${ratio.toFixed(2)}:1 · pane kicker ink rgb(${ink.r},${ink.g},${ink.b}) vs LANDED rgb(${landed.r},${landed.g},${landed.b}) over black art`,
     type: "pane-contrast",
   });
-  await expect.poll(async () => await readRatioAtAssertion()).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  await expect.poll(async () => await readRatioAtAssertion()).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 // ── #623: THE MODAL SLOTS NEVER ADOPTED D144'S OVER-ART FLOOR ──────────────────────────────────────
@@ -7420,7 +7420,7 @@ async function landedMutedContrast(page: Page, probe: Locator): Promise<{ readon
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await tokenInk(probe, "--color-muted-foreground");
-  return { ink, landed, ratio: contrastRatio(ink, landed) };
+  return { ink, landed, ratio: wcagContrastRatio(ink, landed) };
 }
 
 test("#623: over worst-case art a LIGHT palette's DIALOG POPUP clears AA on its weakest ink", async ({ mount, page }) => {
@@ -7436,7 +7436,7 @@ test("#623: over worst-case art a LIGHT palette's DIALOG POPUP clears AA on its 
     description: `dialog ${dialog.ratio.toFixed(2)}:1 · muted ink rgb(${dialog.ink.r},${dialog.ink.g},${dialog.ink.b}) vs LANDED rgb(${dialog.landed.r},${dialog.landed.g},${dialog.landed.b})`,
     type: "over-art-contrast",
   });
-  expect(dialog.ratio).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(dialog.ratio).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 test("#623: the DARK arm's dialog popup does not move a pixel (D144(d) — the sacred rooms stand)", async ({ mount, page }) => {
@@ -7530,11 +7530,11 @@ test("#623 census: EVERY glass surface over worst-case art clears AA on the LIGH
     measured.push({ label: row.label, ...(await landedMutedContrast(page, light.getByTestId(row.probe))) });
   }
   test.info().annotations.push({
-    description: `${measured.map((m) => `${m.label} ${m.ratio.toFixed(2)}:1`).join(" · ")} — AA floor ${NORMAL_MIN_RATIO}`,
+    description: `${measured.map((m) => `${m.label} ${m.ratio.toFixed(2)}:1`).join(" · ")} — AA floor ${AA_NORMAL_RATIO}`,
     type: "over-art-census",
   });
   for (const m of measured) {
-    expect(m.ratio, `${m.label} over black art`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(m.ratio, `${m.label} over black art`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 

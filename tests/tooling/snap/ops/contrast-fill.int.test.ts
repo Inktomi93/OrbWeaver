@@ -19,6 +19,7 @@
 // IT DRIVES THE PUBLIC DOOR (`captureContrastEvidence`) rather than the fill op, deliberately: that is
 // the surface a reviewer's `pnpm snap --contrast` reaches, and asserting through it is what makes this
 // file a defect proof against the OLD source rather than a compile error.
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -67,7 +68,7 @@ test("a fill-only subject is measured on its FILL, not on the inherited ink that
     expect(quiet?.outcome.line).toContain("FAIL");
     expect(quiet?.outcome.line).toContain("channel fill");
     expect(quiet?.outcome.failed).toBe(true);
-    expect(quiet?.evidence).toMatchObject({ status: "ok", method: "fill-sample", sampled: 1, passed: false, requiredRatio: 3 });
+    expect(quiet?.evidence).toMatchObject({ status: "ok", method: "fill-sample", sampled: 1, passed: false, requiredRatio: AA_NON_TEXT_RATIO });
     expect(quiet?.evidence.ratio ?? 0).toBeLessThan(1.5);
     // The measured foreground IS the painted fill, never the inherited white ink.
     expect(quiet?.evidence.foreground).toMatchObject({ r: 20, g: 20, b: 20 });
@@ -217,7 +218,7 @@ test("an EMPTY field with a placeholder is judged on its PLACEHOLDER INK, at the
     expect(quiet?.outcome.line).not.toContain("FILL ");
     expect(quiet?.outcome.line).toContain("(placeholder-ink ·");
     expect(quiet?.outcome.line).toContain("FAIL");
-    expect(quiet?.evidence).toMatchObject({ status: "ok", method: "css-resolve", sampled: 1, passed: false, requiredRatio: 4.5 });
+    expect(quiet?.evidence).toMatchObject({ status: "ok", method: "css-resolve", sampled: 1, passed: false, requiredRatio: AA_NORMAL_RATIO });
     // The measured foreground is the ::placeholder colour, never the field's (invisible) text colour.
     expect(quiet?.evidence.foreground).toMatchObject({ r: 27, g: 27, b: 27 });
 
@@ -281,7 +282,7 @@ test("a FILLED <input> is judged on the ink it paints, not on its box", { timeou
     expect(typed?.outcome.line).not.toContain("FILL ");
     expect(typed?.outcome.line).toContain("(text · font 16px");
     expect(typed?.outcome.line).toContain("FAIL");
-    expect(typed?.evidence).toMatchObject({ status: "ok", passed: false, requiredRatio: 4.5 });
+    expect(typed?.evidence).toMatchObject({ status: "ok", passed: false, requiredRatio: AA_NORMAL_RATIO });
     expect(typed?.evidence.foreground).toMatchObject({ r: 27, g: 27, b: 27 });
 
     // …and the OTHER direction: the same filled shape with legible ink PASSES, so the arm reports the

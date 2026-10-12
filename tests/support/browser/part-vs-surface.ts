@@ -16,8 +16,8 @@
 // function it is handed, so a helper that closed over another module-scope binding arrives in the page as a
 // ReferenceError. Every binding it needs is declared inside it.
 
+import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import type { Locator } from "@playwright/test";
 
 interface PartAndSurface {
@@ -61,5 +61,5 @@ function resolvePartAndSurface(surface: Element, selector: string): PartAndSurfa
  */
 export async function partVsSurface(surface: Locator, selector: string): Promise<number> {
   const colours = await surface.evaluate(resolvePartAndSurface, selector);
-  return contrastRatio(colours.part, colours.surface);
+  return wcagContrastRatio(colours.part, colours.surface);
 }

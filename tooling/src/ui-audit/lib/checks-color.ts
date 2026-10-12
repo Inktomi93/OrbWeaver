@@ -1,18 +1,15 @@
 // Contrast + text-over-art + gray-on-color + the ON/OFF weight ORDERING — WCAG 2.x math over resolved
 // backdrops. Pure; every threshold cited. Provenance/attribution: lib/collect.ts header.
 
+import { AA_LARGE_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
   compositeForeground,
-  contrastRatio,
   FOREGROUND_OPACITY_EPS,
   INACTIVE_ADVISORY_MAX_RATIO,
   isContrastExempt,
   isLargeText,
-  LARGE_MIN_RATIO,
   MEASURABLE_OPACITY_MIN,
-  NORMAL_MIN_RATIO,
-  relativeLuminance,
   remainsOperable,
   rgbChroma,
 } from "@orb/tooling/floor/instrument/wcag";
@@ -63,7 +60,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
     return { kind: "maskedForeground" };
   }
   const large = isLargeText(input.fontSizePx, input.fontWeight);
-  const minRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
+  const minRatio = large ? AA_LARGE_RATIO : AA_NORMAL_RATIO;
   const opacity = input.foregroundOpacity ?? 1;
   // Ancestor opacity dims the FOREGROUND: the glyph is a blend of `color` and whatever is behind it.
   // Measuring the authored color is a false PASS the eye can see through (issue #188 — two live lines
@@ -120,7 +117,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
         ),
       };
     }
-    const ratios = backdrop.stops.map((stop) => contrastRatio(seenColor(stop), stop));
+    const ratios = backdrop.stops.map((stop) => wcagContrastRatio(seenColor(stop), stop));
     const worst = Math.min(...ratios);
     if (worst < minRatio) {
       return {
@@ -140,7 +137,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
 
   return {
     kind: "flat",
-    finding: flatBackdropFinding({ input, ratio: contrastRatio(seenColor(backdrop.color), backdrop.color), minRatio, large, dimNote, dimmedMessage }),
+    finding: flatBackdropFinding({ input, ratio: wcagContrastRatio(seenColor(backdrop.color), backdrop.color), minRatio, large, dimNote, dimmedMessage }),
   };
 }
 
@@ -161,7 +158,7 @@ function inactiveOutcome(
   if (backdrops.some((stop) => (stop.a ?? 1) < OPAQUE_STOP_MIN_ALPHA)) {
     return { kind: "inactive", unmeasurable: "translucentBackdrop", finding: null };
   }
-  const worst = Math.min(...backdrops.map((over) => contrastRatio(seenColor(over), over)));
+  const worst = Math.min(...backdrops.map((over) => wcagContrastRatio(seenColor(over), over)));
   return { kind: "inactive", unmeasurable: null, finding: inactiveAdvisory(input.selector, worst, input.inactive ?? "none", dimNote) };
 }
 

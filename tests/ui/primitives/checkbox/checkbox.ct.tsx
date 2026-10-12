@@ -1,7 +1,7 @@
 // CT: the checkbox seal — real role="checkbox" semantics (the styled span carries the role, a
 // hidden input rides beside it). Pointer + keyboard toggle aria-checked; checked wears the primary
 // token; indeterminate reports aria-checked="mixed".
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
@@ -145,7 +145,7 @@ async function boxFill(page: Page, theme: string, arm: string): Promise<{ ratio:
   const name = `${theme} ${arm}`;
   const pane = await pixelSurface(page, page.getByTestId(`pane-${theme}`));
   const box = await pixelSurface(page, page.getByRole("checkbox", { name }));
-  return { ratio: contrastRatio(box.rgb, pane.rgb), describe: `${name}: box ${box.describe} vs pane ${pane.describe}` };
+  return { ratio: wcagContrastRatio(box.rgb, pane.rgb), describe: `${name}: box ${box.describe} vs pane ${pane.describe}` };
 }
 
 test("tone=quiet spends no accent, stays the LOUDER state, and clears 3:1 box-on-pane + mark-on-box in every seed (#1110)", async ({ mount, page }) => {
@@ -158,7 +158,7 @@ test("tone=quiet spends no accent, stays the LOUDER state, and clears 3:1 box-on
     // THE UN-FAILABLE GUARD. Every ratio here collapses to 1.000 if the samples come back as one colour —
     // a clipped screenshot, a `[data-theme]` that never applied — and an ordering pin over constant inputs
     // passes on nothing. The ON accent box must be a really painted fill.
-    expect(accentOn.ratio, `[${theme}] the ON accent fill must be real, or this pin is vacuous — ${accentOn.describe}`).toBeGreaterThan(3);
+    expect(accentOn.ratio, `[${theme}] the ON accent fill must be real, or this pin is vacuous — ${accentOn.describe}`).toBeGreaterThan(AA_NON_TEXT_RATIO);
 
     // THE BUDGET CLAIM (the whole reason the arm exists): quiet is measurably quieter than the accent.
     expect(quietOn.ratio, `[${theme}] quiet ON must undercut the accent — ${quietOn.describe} || ${accentOn.describe}`).toBeLessThan(accentOn.ratio);
@@ -170,9 +170,9 @@ test("tone=quiet spends no accent, stays the LOUDER state, and clears 3:1 box-on
 
     // WCAG 1.4.11's two floors on the quiet arm: the box identifies the control against its surface, and
     // the check mark is the visual information that identifies its STATE.
-    expect(quietOn.ratio, `[${theme}] quiet ON box vs pane — ${quietOn.describe}`).toBeGreaterThanOrEqual(3);
+    expect(quietOn.ratio, `[${theme}] quiet ON box vs pane — ${quietOn.describe}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     const mark = await pixelContrast(page, page.getByRole("checkbox", { name: `${theme} quiet on` }).locator("svg.lucide-check"));
-    expect(mark.ratio, `[${theme}] quiet ON check glyph vs its box — ${mark.describe}`).toBeGreaterThanOrEqual(3);
+    expect(mark.ratio, `[${theme}] quiet ON check glyph vs its box — ${mark.describe}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   }
 });
 

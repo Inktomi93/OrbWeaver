@@ -6,8 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { oklchToSrgb } from "@orb/kit/theme-derivation";
-import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NORMAL_RATIO, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { SnappedTokenPath } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, SNAPPED_LENGTH_BASE_PX, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { gridVariants } from "#ui/layout/variants.ts";
@@ -196,10 +195,9 @@ test("the load-bearing token names exist (backdrop · reading plate · chart ram
   }
 });
 
-// The colour math shared by the token-VALUE invariants below (browser-independent — it reads only TOKENS
-// and the generated seed value-sets, so it lives with the other token invariants):
-// oklch → linear sRGB (Björn Ottosson's OKLab matrix) → relative luminance → the WCAG contrast ratio.
-// Its main consumer is the avatar fallback-hue AA matrix at the foot of this file.
+// The token-VALUE invariants below are browser-independent: they read only TOKENS and the generated seed
+// value-sets. Colours convert through the kit's `oklchToSrgb` and are graded by the shared WCAG engine;
+// `parseOklch` only reads a literal. The avatar fallback-hue AA matrix at the foot is the main consumer.
 const OKLCH_RE = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/u;
 
 function parseOklch(value: string): readonly [number, number, number] {
@@ -268,7 +266,7 @@ const triple = ([l, c, h]: readonly [number, number, number]): Oklch => ({ l, c,
  *  Takes PARSED triples, not strings: the avatar guard below measures DERIVED fills that never exist as a
  *  literal anywhere (see `derivedAvatarFill`). */
 function contrast(fg: readonly [number, number, number], bg: readonly [number, number, number]): number {
-  return contrastRatio(oklchToSrgb(triple(fg)), oklchToSrgb(triple(bg)));
+  return wcagContrastRatio(oklchToSrgb(triple(fg)), oklchToSrgb(triple(bg)));
 }
 
 // THE AVATAR FALLBACK-HUE AA GUARD, RETARGETED (#103, 2026-08-16). It used to sweep `color.chart-1..5`,
@@ -309,7 +307,7 @@ test.each(AVATAR_HUE_MATRIX)("avatar hue $bucket clears AA (≥4.5:1) against $p
   bucket,
 }) => {
   const ratio = contrast(parseOklch(foreground), derivedAvatarFill(primary, step));
-  expect(ratio, `${palette} hue ${bucket} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(ratio, `${palette} hue ${bucket} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 // …and the steps must stay TELLABLE APART (the ruling's other half: differentiation by lightness/chroma

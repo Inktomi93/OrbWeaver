@@ -1,5 +1,5 @@
+import { AA_LARGE_RATIO, AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogPopup, DialogTrigger } from "@orb/ui/dialog";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -72,7 +72,7 @@ const INK_ON_FILL = ["color", "background-color"] as const;
 
 async function pairContrast(target: Locator, names: readonly [string, string]): Promise<number> {
   const [first, second] = await target.evaluate(resolvedPair, names);
-  return contrastRatio(first, second);
+  return wcagContrastRatio(first, second);
 }
 
 test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a light theme", async ({ mount }) => {
@@ -95,8 +95,8 @@ test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a li
   const ratioOf = (testId: string): Promise<number> => pairContrast(cmp.getByTestId(testId), INK_ON_FILL);
   // accent-foreground on the derived accent surface = body text ⇒ AA 4.5:1; the solid primary button
   // label ⇒ the 3:1 UI/large-text floor. Both would FAIL if the fg had stayed the static dark default.
-  expect(await ratioOf("accent")).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
-  expect(await ratioOf("primary")).toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
+  expect(await ratioOf("accent")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  expect(await ratioOf("primary")).toBeGreaterThanOrEqual(AA_LARGE_RATIO);
 });
 
 for (const theme of [
@@ -128,7 +128,7 @@ for (const theme of [
       const action = cmp.getByRole("button", { name: label });
       await expect(action).toBeVisible();
       const receipt = await pixelContrast(page, action);
-      expect(receipt.ratio, `${label} @ ${theme.label}: ${receipt.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      expect(receipt.ratio, `${label} @ ${theme.label}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   });
 }
@@ -330,7 +330,7 @@ test("an INK-ONLY scope under a LIGHT ambient renders its three voices at AA —
   // Pre-#236 every one of these measured 2.11:1 — pale teal ghosts on warm white.
   await Promise.all(
     ["speaker", "dialogue", "narration"].map((voice) =>
-      expect.poll(() => pairContrast(cmp.getByTestId(voice), INK_ON_FILL), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO),
+      expect.poll(() => pairContrast(cmp.getByTestId(voice), INK_ON_FILL), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(AA_NORMAL_RATIO),
     ),
   );
 });
@@ -350,7 +350,7 @@ test("the ambient chain re-bases at a CARRIED palette: an ink-only scope inside 
       </ThemeScope>
     </ThemeScope>,
   );
-  await expect.poll(() => pairContrast(cmp.getByTestId("in-room"), INK_ON_FILL), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  await expect.poll(() => pairContrast(cmp.getByTestId("in-room"), INK_ON_FILL), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 // ── #243: THE ELEVATION INGREDIENTS UNDER A CUSTOM LIGHT THEME (rendered — done ≠ emitted) ─────────
@@ -395,7 +395,7 @@ test("#243 a CUSTOM light theme paints a DARK elevation ring — not the base th
   const [composite, base] = await cmp.getByTestId("ring-probe").evaluate(paintedRingVsBase, RING_PROBE_BASE);
   // Pre-#243 the inherited white ring composited to the base's own luminance (1.00:1, invisible).
   expect(relativeLuminance(composite)).toBeLessThan(relativeLuminance(base));
-  expect(contrastRatio(composite, base)).toBeGreaterThan(1.2);
+  expect(wcagContrastRatio(composite, base)).toBeGreaterThan(1.2);
 });
 
 test("#243 a CUSTOM dark theme's elevation ring stays light-from-above (the dark arm does not move)", async ({ mount }) => {
@@ -525,7 +525,7 @@ for (const { label, base, testId } of TRACK_ARMS) {
     );
     // Pre-#692 the near-white arm measured 2.58:1 here (the dark arm's 6.83 was never the defect, and the
     // clamp leaves it byte-identical — this row is that arm's fence).
-    await expect.poll(() => arcPartVsCard(cmp.getByTestId(testId), FILL_ARC), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    await expect.poll(() => arcPartVsCard(cmp.getByTestId(testId), FILL_ARC), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
 
   test(`#692 the corrected fill still outshouts the track under ${label} — the #685 invariant survives`, async ({ mount }) => {
@@ -603,11 +603,11 @@ test("#2424 a scope that paints a DARK surface under a LIGHT root repaints inher
   );
   // The INHERITING text node — the general form of the defect.
   const prose = await pixelContrast(page, cmp.getByTestId("inheriting-prose"));
-  expect(prose.ratio, `inherited prose ink: ${prose.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(prose.ratio, `inherited prose ink: ${prose.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   // The TYPED control — the element the live drive measured at 1.13:1. A textarea's value is not a child
   // text node, so nothing but the inherited `color` ever reached it.
   const typed = await pixelContrast(page, cmp.getByTestId("typed"));
-  expect(typed.ratio, `typed composer ink: ${typed.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(typed.ratio, `typed composer ink: ${typed.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 test("#2424 CONTROL: an INK-ONLY scope emits no `color` — the ambient cascade is byte-identical", async ({ mount }) => {

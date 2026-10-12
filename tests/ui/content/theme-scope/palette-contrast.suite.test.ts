@@ -3,15 +3,18 @@
 //   1. a STATIC seed token (tokens.json → theme.css) whose body-text pairing drops below AA 4.5:1;
 //   2. a DERIVATION retune (kit theme-derivation THEME_DERIVATION) that pushes a derived foreground below AA on a
 //      realistic light OR dark base.
-// It recomputes every pairing in HOUSE oklch→sRGB math (no dependency) and reuses the WCAG contrast
-// helpers the design-audit probe already owns. Translucent tokens (the --color-input field fill, 0.12α)
+// It converts every pairing with the kit's `oklchToSrgb`, pinned to published OKLab vectors by the first
+// test below, and measures with the shared WCAG engine. Translucent tokens (the --color-input field fill, 0.12α)
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from @orb/kit/theme-derivation, so both are drift-free single sources.
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import {
+  AA_LARGE_RATIO,
+  AA_NON_TEXT_RATIO,
   AA_NORMAL_DERIVATION_RATIO,
+  AA_NORMAL_RATIO,
   compositeSrgb,
   derivedForegroundLightness,
   oklchToSrgb,
@@ -24,16 +27,17 @@ import {
   shadowIngredients,
   surfacePolarity,
   THEME_DERIVATION,
+  wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "#ui/content/theme-scope/clamp.ts";
 import { compositedBase } from "#ui/content/theme-scope/color-parse.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "../../../support/oklab-reference.ts";
 
-// ── House oklch → sRGB (0–255). Standard OKLab matrices; channels clamped to gamut (neutral/low-chroma
-// derived tones never clip, so this matches the browser's resolution of the emitted relative-color). ──
+// ── Token literals → sRGB (0–255) through the kit's gamut-clamped `oklchToSrgb`. Neutral and low-chroma
+// derived tones never clip, so this matches the browser's resolution of the emitted relative-color. ──
 const OKLCH_RE = /oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/u;
 interface Oklch {
   readonly l: number;
@@ -125,6 +129,15 @@ const REALISTIC_BASES = [...DARK_BASES, ...LIGHT_BASES];
 // three seed accents + a cool/warm spread. primary-foreground must stay legible on every one.
 const ACCENTS = ["oklch(0.72 0.175 52)", "oklch(0.7 0.14 250)", "oklch(0.55 0.16 50)", "oklch(0.5 0.2 25)", "oklch(0.9 0.15 100)"];
 
+// The ruler every measurement below converts with. If the kit's OKLCH decode drifts off the published
+// answers, this fails first and says so, instead of every contrast verdict quietly moving with it.
+test.each(OKLAB_VECTORS.map((vector) => [vector.name, vector] as const))("the suite's oklchToSrgb reproduces the published sRGB of %s", (_name, vector) => {
+  const got = oklchToSrgb(vector.oklch);
+  for (const channel of ["r", "g", "b"] as const) {
+    expect(Math.abs(got[channel] - vector.srgb[channel]), `${channel} of ${vector.name} (${vector.source})`).toBeLessThanOrEqual(SRGB_CHANNEL_TOLERANCE);
+  }
+});
+
 test.each(PALETTES.map((palette) => [palette.name, palette] as const))("static %s seed neutral pairs carry the framebuffer render margin", (_name, palette) => {
   // Body/surface/secondary pairings must carry the solver's above-AA render target.
   const bodyPairs: ReadonlyArray<readonly [keyof typeof TOKENS, keyof typeof TOKENS]> = [
@@ -164,8 +177,8 @@ test("static PRIMARY solid surface clears the 3:1 UI/large-text floor", () => {
   // primary is a SOLID accent button+badge (medium/bold label = the WCAG large-text carve). The semantic
   // INTENTS (destructive/success/warning/highlight) are no longer asserted here — they are polarity-aware
   // light-dark() tokens now swept per-palette at the stronger AA-NORMAL 4.5:1 floor in the test below.
-  const ratio = contrastRatio(rgbOf("color.primary-foreground"), rgbOf("color.primary"));
-  expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
+  const ratio = wcagContrastRatio(rgbOf("color.primary-foreground"), rgbOf("color.primary"));
+  expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(AA_LARGE_RATIO);
 });
 
 test.each(
@@ -176,15 +189,15 @@ test.each(
   for (const intent of INTENT_TEXT_TOKENS) {
     const fg = resolveTokenRgb(intent, palette);
     for (const surface of INTENT_TEXT_SURFACES) {
-      const ratio = contrastRatio(fg, resolveTokenRgb(surface, palette));
-      expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      const ratio = wcagContrastRatio(fg, resolveTokenRgb(surface, palette));
+      expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   }
   // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/info/highlight).
   // Subsumes the former Hearth-only destructive special-case across ALL palettes.
   for (const [bg, foreground] of INTENT_PILL_PAIRS) {
-    const ratio = contrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
-    expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ratio = wcagContrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
+    expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 
@@ -207,7 +220,7 @@ test.each(
   const mark = resolveTokenRgb("color.selection-quiet-foreground", palette);
 
   // FLOOR 1 — the mark on its own fill, at AA-NORMAL.
-  expect(contrastRatio(mark, fill), `color.selection-quiet-foreground on color.selection-quiet @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(wcagContrastRatio(mark, fill), `color.selection-quiet-foreground on color.selection-quiet @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 
   // FLOOR 2 — the fill against every ground a selection control rests on, at 1.4.11's 3:1. `accent` is
   // the interactive ground (hover/selected on ListRow + Card) and is the binding one.
@@ -222,18 +235,16 @@ test.each(
     "color.accent",
   ];
   for (const ground of grounds) {
-    expect(contrastRatio(fill, resolveTokenRgb(ground, palette)), `color.selection-quiet on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
-      UI_COMPONENT_MIN_RATIO,
+    expect(wcagContrastRatio(fill, resolveTokenRgb(ground, palette)), `color.selection-quiet on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
+      AA_NON_TEXT_RATIO,
     );
   }
 
   // CEILING — quieter than the accent checked fill on the surface both are judged against.
   const card = resolveTokenRgb("color.card", palette);
-  const accent = contrastRatio(resolveTokenRgb("color.primary", palette), card);
-  expect(accent, `color.primary on color.card @ ${palette.name} must be a real painted fill, or the ceiling is vacuous`).toBeGreaterThan(
-    UI_COMPONENT_MIN_RATIO,
-  );
-  expect(contrastRatio(fill, card), `color.selection-quiet must undercut color.primary on color.card @ ${palette.name}`).toBeLessThan(accent);
+  const accent = wcagContrastRatio(resolveTokenRgb("color.primary", palette), card);
+  expect(accent, `color.primary on color.card @ ${palette.name} must be a real painted fill, or the ceiling is vacuous`).toBeGreaterThan(AA_NON_TEXT_RATIO);
+  expect(wcagContrastRatio(fill, card), `color.selection-quiet must undercut color.primary on color.card @ ${palette.name}`).toBeLessThan(accent);
 });
 
 // ── D159 / #1641 / #1361-1: THE FORM-CONTROL BORDER — bounded from BOTH sides, in every seed ────────
@@ -279,16 +290,16 @@ test.each(
   // FLOOR — 3:1 against each panel and against the field fill composited over that panel.
   for (const ground of CONTROL_GROUNDS) {
     const panel = resolveTokenRgb(ground, palette);
-    expect(worstContrast(edge, panel), `color.input-border on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    expect(worstContrast(edge, panel), `color.input-border on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     expect(worstContrast(edge, compositeOver(fill, panel)), `color.input-border on the bg-input fill over ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
-      UI_COMPONENT_MIN_RATIO,
+      AA_NON_TEXT_RATIO,
     );
   }
 
   // CEILING — quieter than the focus ring on the surface both are judged against.
   const card = resolveTokenRgb("color.card", palette);
   const ring = worstContrast(resolveTokenRgb("color.ring", palette), card);
-  expect(ring, `color.ring on color.card @ ${palette.name} must be a real painted ring, or the ceiling is vacuous`).toBeGreaterThan(UI_COMPONENT_MIN_RATIO);
+  expect(ring, `color.ring on color.card @ ${palette.name} must be a real painted ring, or the ceiling is vacuous`).toBeGreaterThan(AA_NON_TEXT_RATIO);
   expect(worstContrast(edge, card), `color.input-border must stay under color.ring on color.card @ ${palette.name}`).toBeLessThan(ring);
 });
 
@@ -304,7 +315,7 @@ test.each(
   expect(
     worstContrast(compositeOver(divider, card), card),
     `color.border on color.card @ ${palette.name} — a decorative hairline, deliberately under 1.4.11 (D159)`,
-  ).toBeLessThan(UI_COMPONENT_MIN_RATIO);
+  ).toBeLessThan(AA_NON_TEXT_RATIO);
 });
 
 // ── #697: THE TRACK RAMP FILL — a non-text UI component (WCAG 1.4.11), floored at 3:1 on the LIGHT panel ──
@@ -320,7 +331,7 @@ const TRACK_FILL_PATHS = ["color.track-1", "color.track-2", "color.track-3", "co
 const TRACK_PANELS = ["color.sidebar", "color.surface-raised", "color.card", "color.background"] as const;
 const quantizeRgb = (c: Rgb): Rgb => ({ r: Math.round(c.r), g: Math.round(c.g), b: Math.round(c.b) });
 /** The worse of the float and 8-bit-quantized contrast — the pixel a reader actually sees is the rounded one. */
-const worstContrast = (a: Rgb, b: Rgb): number => Math.min(contrastRatio(a, b), contrastRatio(quantizeRgb(a), quantizeRgb(b)));
+const worstContrast = (a: Rgb, b: Rgb): number => Math.min(wcagContrastRatio(a, b), wcagContrastRatio(quantizeRgb(a), quantizeRgb(b)));
 
 test.each(
   PALETTES.filter((p) => p.colorScheme === "light").map((p) => [p.name, p] as const),
@@ -330,14 +341,12 @@ test.each(
     const fill = resolveTokenRgb(fillPath, palette);
     // Direct panel backings the ring gauge / coin disc ride.
     for (const panel of TRACK_PANELS) {
-      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} fill on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(
-        UI_COMPONENT_MIN_RATIO,
-      );
+      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} fill on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     }
     // The TrackBar / SegmentBar rail is `bg-input`: composite it over the panel and measure the fill in it.
     for (const panel of ["color.card", "color.sidebar"] as const) {
       const rail = compositeOver(inputTok, resolveTokenRgb(panel, palette));
-      expect(worstContrast(fill, rail), `${fillPath} fill on the bg-input rail over ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+      expect(worstContrast(fill, rail), `${fillPath} fill on the bg-input rail over ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     }
   }
 });
@@ -350,7 +359,7 @@ test("#697 the track-ramp DARK arm is unchanged — still ≥3:1 on the dark pan
   for (const fillPath of TRACK_FILL_PATHS) {
     const fill = resolveTokenRgb(fillPath, hearth);
     for (const panel of ["color.sidebar", "color.surface-raised", "color.card"] as const) {
-      expect(worstContrast(fill, resolveTokenRgb(panel, hearth)), `${fillPath} dark fill on ${panel}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+      expect(worstContrast(fill, resolveTokenRgb(panel, hearth)), `${fillPath} dark fill on ${panel}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     }
   }
 });
@@ -364,7 +373,7 @@ test.each(PALETTES.map((palette) => [palette.name, palette] as const))("#939 cha
   for (const fillPath of CHART_FILL_PATHS) {
     const fill = resolveTokenRgb(fillPath, palette);
     for (const panel of CHART_PANELS) {
-      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     }
   }
 });
@@ -428,7 +437,7 @@ test(
           for (const [index, fill] of colors.entries()) {
             for (const panel of panels) {
               expect(worstContrast(oklchToSrgb(fill), oklchToSrgb(panel)), `${CUSTOM_CHART_VARS[index]} on custom host @ ${baseStr}`).toBeGreaterThanOrEqual(
-                UI_COMPONENT_MIN_RATIO,
+                AA_NON_TEXT_RATIO,
               );
             }
           }
@@ -483,7 +492,7 @@ test("#939 every accepted spelling/alpha/gamut class is total and clears every a
       for (const [index, fill] of colors.entries()) {
         for (const panel of panels) {
           expect(worstContrast(oklchToSrgb(fill), oklchToSrgb(panel)), `${CUSTOM_CHART_VARS[index]} on ${spelling}/${ambientName}`).toBeGreaterThanOrEqual(
-            UI_COMPONENT_MIN_RATIO,
+            AA_NON_TEXT_RATIO,
           );
         }
       }
@@ -499,7 +508,7 @@ test("#939 chart-ramp contrast matrix has a planted failing color (non-vacuity c
     throw new Error("Light seed missing from generated value sets");
   }
   const plantedBadChartColor = resolveTokenRgb("color.card", light);
-  const failures = CHART_PANELS.filter((panel) => worstContrast(plantedBadChartColor, resolveTokenRgb(panel, light)) < UI_COMPONENT_MIN_RATIO);
+  const failures = CHART_PANELS.filter((panel) => worstContrast(plantedBadChartColor, resolveTokenRgb(panel, light)) < AA_NON_TEXT_RATIO);
   expect(failures, "a chart color planted at the card tone must be caught").toContain("color.card");
 });
 
@@ -561,7 +570,7 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
     const { vars } = clampThemeTokens({ background: baseStr });
     const foreground = emittedForegroundRgb(vars, "--color-foreground", base);
     for (const [name, surface] of Object.entries({ background: surfaces.background, raised: surfaces.raised, card: surfaces.card })) {
-      expect(contrastRatio(foreground, oklchToSrgb(surface)), `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      expect(wcagContrastRatio(foreground, oklchToSrgb(surface)), `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
     for (const [cssVar, name, surface] of [
       ["--color-card-foreground", "card", surfaces.card],
@@ -570,8 +579,8 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
       ["--color-secondary-foreground", "secondary", surfaces.secondary],
       ["--color-sidebar-accent-foreground", "sidebar-accent", surfaces["sidebar-accent"]],
     ] as const) {
-      expect(contrastRatio(emittedForegroundRgb(vars, cssVar, base), oklchToSrgb(surface)), `${cssVar} on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(
-        NORMAL_MIN_RATIO,
+      expect(wcagContrastRatio(emittedForegroundRgb(vars, cssVar, base), oklchToSrgb(surface)), `${cssVar} on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(
+        AA_NORMAL_RATIO,
       );
     }
     // Muted foreground over the derived input fill (contrast tone at inputAlpha) composited over the
@@ -583,17 +592,17 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
       ["popover", surfaces.popover],
       ["background", base],
     ] as const) {
-      const ratio = contrastRatio(muted, compositeOver(inputFill, oklchToSrgb(surface)));
-      expect(ratio, `derived muted-foreground on input over ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      const ratio = wcagContrastRatio(muted, compositeOver(inputFill, oklchToSrgb(surface)));
+      expect(ratio, `derived muted-foreground on input over ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
     const mutedSurface = rampSurface(base, ramp.muted);
-    expect(contrastRatio(muted, oklchToSrgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(wcagContrastRatio(muted, oklchToSrgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     // …and on the CARD ramp surface, which the seed table already floors (`bodyPairs`) but the derived
     // sweep did not: #674 gave the S1 control band the composer's opaque `bg-card`, and the ink an
     // `intent="outline"` chip paints on it is exactly this token. Without this row the band's contrast
     // guarantee held on the three seeds and was merely BRACKETED (card sits between `background` and
     // `muted` in L) on a user's own palette.
-    expect(contrastRatio(muted, oklchToSrgb(surfaces.card)), `derived muted-foreground on card @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(wcagContrastRatio(muted, oklchToSrgb(surfaces.card)), `derived muted-foreground on card @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 
@@ -606,8 +615,8 @@ test("clamp DERIVED accent (hover/selected) surface + its foreground clear AA on
     const accentDl = rampOf(base).accent;
     const accent = rampSurface(base, accentDl);
     const accentFg = emittedForegroundRgb(clampThemeTokens({ background: baseStr }).vars, "--color-accent-foreground", base);
-    const ratio = contrastRatio(accentFg, oklchToSrgb(accent));
-    expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ratio = wcagContrastRatio(accentFg, oklchToSrgb(accent));
+    expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 
@@ -628,8 +637,8 @@ test("clamp DERIVED primary-foreground clears AA on every realistic picked accen
   for (const accentStr of ACCENTS) {
     const accent = parseOklch(accentStr);
     const primaryFg = foregroundRgb(accent);
-    const ratio = contrastRatio(primaryFg, oklchToSrgb(accent));
-    expect(ratio, `derived primary-foreground on accent ${accentStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ratio = wcagContrastRatio(primaryFg, oklchToSrgb(accent));
+    expect(ratio, `derived primary-foreground on accent ${accentStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 
@@ -701,8 +710,8 @@ test("#241 the band's paired reading-plate ink clears AA on the band, every real
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
     const ink = oklchToSrgb(readingPlateForeground(base));
-    const ratio = contrastRatio(ink, oklchToSrgb(readingBandSurface(base)));
-    expect(ratio, `reading-plate foreground on the band @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ratio = wcagContrastRatio(ink, oklchToSrgb(readingBandSurface(base)));
+    expect(ratio, `reading-plate foreground on the band @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });
 
@@ -712,8 +721,8 @@ test("#204 the plate alpha FLOORS AA for the paired reading ink over worst-case 
     const fg = oklchToSrgb(readingPlateForeground(base));
     const plate = derivedPlate(base);
     for (const [artName, art] of WORST_ART) {
-      const ratio = contrastRatio(fg, compositeOver(plate, art));
-      expect(ratio, `derived foreground over plate over ${artName} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      const ratio = wcagContrastRatio(fg, compositeOver(plate, art));
+      expect(ratio, `derived foreground over plate over ${artName} @ ${baseStr}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   }
 });
@@ -759,8 +768,8 @@ test.each(
     }
     const composited = compositeOver(plate, art);
     for (const ink of PROSE_INK_PATHS) {
-      const ratio = contrastRatio(resolveTokenRgb(ink, palette), composited);
-      expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), composited);
+      expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   }
 });
@@ -802,8 +811,8 @@ test.each(
   for (const [artName, art] of WORST_ART) {
     const composited = readingBackdropOverArt(palette, art, BACKGROUND_DIM_MIN);
     for (const ink of FLOORED_INK_PATHS) {
-      const ratio = contrastRatio(resolveTokenRgb(ink, palette), composited);
-      expect(ratio, `${ink} over plate over scrim(${BACKGROUND_DIM_MIN}) over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), composited);
+      expect(ratio, `${ink} over plate over scrim(${BACKGROUND_DIM_MIN}) over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   }
 });
@@ -817,8 +826,8 @@ test("#487 the floor is a FLOOR: at dim 0 the same property FAILS on a dark pale
   expect(dark.length, "there is at least one dark palette to control against").toBeGreaterThan(0);
   for (const palette of dark) {
     const unscrimmed = readingBackdropOverArt(palette, { r: 255, g: 255, b: 255 }, 0);
-    const ratios = FLOORED_INK_PATHS.map((ink) => contrastRatio(resolveTokenRgb(ink, palette), unscrimmed));
-    expect(Math.min(...ratios), `some body ink fails AA over RAW white art @ ${palette.name}`).toBeLessThan(NORMAL_MIN_RATIO);
+    const ratios = FLOORED_INK_PATHS.map((ink) => wcagContrastRatio(resolveTokenRgb(ink, palette), unscrimmed));
+    expect(Math.min(...ratios), `some body ink fails AA over RAW white art @ ${palette.name}`).toBeLessThan(AA_NORMAL_RATIO);
   }
 });
 
@@ -877,7 +886,7 @@ test("#243 the derived hairline ring falls on the CORRECT side of the base — l
     // Luminance, not a channel: the ring must READ as edge light on a dark surface and as a hairline
     // border on a light one. The pre-#243 inherited dark recipe is a WHITE ring on a light base — the
     // 1.29:1 ghost #232 measured — so this assertion is the defect, stated directionally.
-    const brighter = contrastRatio(ring, baseRgb) > 1 && ring.r > baseRgb.r;
+    const brighter = wcagContrastRatio(ring, baseRgb) > 1 && ring.r > baseRgb.r;
     expect(brighter, `hairline ring lighter than the base @ ${baseStr}`).toBe(surfacePolarity(base) === "dark");
   }
 });
@@ -895,10 +904,10 @@ test("#243 the derived ingredients BEAT the inherited dark recipe on the two pro
     const { vars } = clampThemeTokens({ background: baseStr });
     const inheritedRing = compositeOver(inheritedHairline, baseRgb);
     const derivedRing = resolvedIngredientOver(vars[SHADOW_HAIRLINE_VAR], base);
-    expect(contrastRatio(derivedRing, baseRgb), `ring visibility @ ${baseStr}`).toBeGreaterThan(contrastRatio(inheritedRing, baseRgb));
+    expect(wcagContrastRatio(derivedRing, baseRgb), `ring visibility @ ${baseStr}`).toBeGreaterThan(wcagContrastRatio(inheritedRing, baseRgb));
     const inheritedDrop = compositeOver(inheritedAmbientFar, baseRgb);
     const derivedDrop = resolvedIngredientOver(vars[SHADOW_AMBIENT_FAR_VAR], base);
-    expect(contrastRatio(derivedDrop, baseRgb), `ambient weight @ ${baseStr}`).toBeLessThan(contrastRatio(inheritedDrop, baseRgb));
+    expect(wcagContrastRatio(derivedDrop, baseRgb), `ambient weight @ ${baseStr}`).toBeLessThan(wcagContrastRatio(inheritedDrop, baseRgb));
     // …and the drop is still a DROP: an ambient layer darkens its surroundings on either polarity.
     expect(derivedDrop.r, `the ambient drop darkens @ ${baseStr}`).toBeLessThan(baseRgb.r);
   }
@@ -951,7 +960,7 @@ test("#682 the derived surface family stays PAIRWISE DISTINCT on every near-whit
 function derivedCardMutedRatio(baseStr: string): number {
   const base = parseOklch(baseStr);
   const { vars } = clampThemeTokens({ background: baseStr });
-  return contrastRatio(
+  return wcagContrastRatio(
     oklchToSrgb({ ...base, l: emittedRampL(vars, "--color-card", base) }),
     oklchToSrgb({ ...base, l: emittedRampL(vars, "--color-muted", base) }),
   );
@@ -976,7 +985,7 @@ test("#682 muted-on-card is never less legible on a light base than on the palet
 test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the four prose inks clear AA on their own base (the §7a no-op criterion)", (_name, palette) => {
   const baseRgb = resolveTokenRgb("color.background", palette);
   for (const ink of PROSE_INK_PATHS) {
-    const ratio = contrastRatio(resolveTokenRgb(ink, palette), baseRgb);
-    expect(ratio, `${ink} on background @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), baseRgb);
+    expect(ratio, `${ink} on background @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   }
 });

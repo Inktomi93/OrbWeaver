@@ -1,7 +1,7 @@
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 
 // ONE FORMULA, TWO SPELLINGS — pinned (#1327). `relLum` inside `WALKER_CENSUS_REGION` and
-// `floor/instrument/wcag.ts`'s `relativeLuminance` are the same WCAG 2.x relative-luminance kernel written twice,
+// the kit's `relativeLuminance` (`@orb/kit/theme-derivation`) are the same WCAG 2.x relative-luminance kernel written twice,
 // necessarily: one ships to the page as an ES5 string (no imports reach in there), the other runs in Node.
 // Nothing pinned their equality, so a drift on either side — a re-tuned knee, a transposed channel
 // weight, a `**` that is not a `Math.pow` — would silently make the in-page quiet-state ordering disagree
@@ -14,8 +14,8 @@
 // control: a one-digit mutation of the extracted source must make the two sides disagree, or this file
 // proves nothing.
 import { runInNewContext } from "node:vm";
+import { relativeLuminance } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { WALKER_CENSUS_REGION } from "../../../../../tooling/src/ui-audit/ops/walker/census-region.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 
@@ -58,7 +58,7 @@ const TRIPLES: readonly Rgb[] = [
   { r: 250, g: 249, b: 245 },
 ];
 
-test("the in-page relLum and floor/instrument/wcag relativeLuminance are bit-identical over both gamma arms", () => {
+test("the in-page relLum and the kit relativeLuminance are bit-identical over both gamma arms", () => {
   const relLum = compile(pageLuminanceSource());
   for (const rgb of TRIPLES) {
     expect(relLum(rgb), `sRGB ${String(rgb.r)},${String(rgb.g)},${String(rgb.b)}`).toBe(relativeLuminance(rgb));

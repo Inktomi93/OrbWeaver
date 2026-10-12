@@ -10,8 +10,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { AA_NORMAL_RATIO, relativeLuminance } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { NORMAL_MIN_RATIO, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -1409,7 +1409,7 @@ for (const polarity of ["dark", "light"] as const) {
           `${String(cell.width)}x${String(cell.height)}\t${polarity}\t${reading.cta}\t${reading.ratio.toFixed(2)}:1\t${reading.inBand ? "IN BAND" : "clear"}\t${reading.describe}`,
         );
         // The CTAs are 13px/500, so the large-text 3:1 relaxation does not apply.
-        if (reading.ratio < NORMAL_MIN_RATIO) {
+        if (reading.ratio < AA_NORMAL_RATIO) {
           failures.push(`${String(cell.width)}x${String(cell.height)} ${polarity}: "${reading.cta}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`);
         }
       }

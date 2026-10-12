@@ -21,9 +21,10 @@
 // 100/100. A tool caught printing a false clean is fixed in the era it is found; the planted control is
 // the locked-cell arm of `context-bracket.ct.tsx`, which is RED on the pre-#874 source and green after.
 
+import { relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
+import { compositeForeground, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
 
@@ -219,7 +220,7 @@ export async function pixelContrast(page: Page, target: Locator): Promise<PixelC
   const dimmed = raw.opacity < FOREGROUND_OPACITY_EPS;
   const ink = dimmed ? compositeForeground(raw.color, backdrop, raw.opacity) : raw.color;
   const dimNote = dimmed ? ` · dimmed α${raw.opacity.toFixed(2)}` : "";
-  return { ratio: contrastRatio(ink, backdrop), ink, backdrop, describe: `ink ${show(ink)} on backdrop ${show(backdrop)}${dimNote}` };
+  return { ratio: wcagContrastRatio(ink, backdrop), ink, backdrop, describe: `ink ${show(ink)} on backdrop ${show(backdrop)}${dimNote}` };
 }
 
 interface DeclaredTextSubject {
@@ -431,7 +432,7 @@ export async function pixelExtremaContrast(page: Page, target: Locator, options:
   return {
     brightest,
     darkest,
-    ratio: contrastRatio(brightest, darkest),
+    ratio: wcagContrastRatio(brightest, darkest),
     describe: `brightest ${show(brightest)} vs darkest ${show(darkest)} in ${String(width)}x${String(height)}`,
   };
 }
