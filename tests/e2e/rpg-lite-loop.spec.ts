@@ -273,7 +273,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(mira?.identity?.mood).toBe("wary");
     expect(mira?.identity?.relationship).toEqual({ kind: "custom", label: "vassal" });
     // Her carried trackers resolve SERVER-side (the `npcs` class) and pair with the readings on her own row.
-    expect(mira?.trackers.map((d) => [d.key, mira.volatile.trackerValues[d.key]?.value])).toEqual([
+    expect(mira?.trackers.map((d) => [d.key, mira.volatile?.trackerValues[d.key]?.value])).toEqual([
       ["secret", "knows the password"],
       ["trust", 4],
     ]);

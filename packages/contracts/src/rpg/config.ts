@@ -245,10 +245,7 @@ export const rpgGameConfigSchema = z.object({
   // `window` arm's transcript budget (message-boundary sliced), floored for the sad-path 8B and capped so a
   // hosted room can raise it without unbounded prefill ([[plan-for-small-hardware]]).
   extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).default("window"),
-  extractionWindowTokens: z.int()
-    .min(RPG_EXTRACTION_WINDOW_TOKENS_MIN)
-    .max(RPG_EXTRACTION_WINDOW_TOKENS_MAX)
-    .default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
+  extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
   // The RECONCILE CADENCE (§1.3) — every Nth flush FORCES a full re-emission of the refreshable planes
   // (scene + present characters, via the establish-when-unset machinery applied unconditionally) so a deep story's
   // panel self-heals instead of decaying. `0` = off. DEFINED here (wired-on-arrival, D107) so the config

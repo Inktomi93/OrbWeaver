@@ -446,7 +446,8 @@ const databankSchema = z
   .object({
     chunk: chunkParamsSchema.prefault({}),
     retrieval: databankRetrievalSettingsSchema.prefault({}),
-    slotTokenBudget: z.int()
+    slotTokenBudget: z
+      .int()
       .min(DATABANK_SLOT_TOKEN_BUDGET_MIN)
       .max(DATABANK_SLOT_TOKEN_BUDGET_MAX)
       .catch(DATABANK_SLOT_TOKEN_BUDGET_DEFAULT)
@@ -469,7 +470,8 @@ const chatSchema = z
     autoContinue: z.boolean().catch(false).default(false),
     // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
     // engine's AUTO_CONTINUE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
-    autoContinueRounds: z.int()
+    autoContinueRounds: z
+      .int()
       .min(AUTO_CONTINUE_ROUNDS_MIN)
       .max(AUTO_CONTINUE_ROUNDS_MAX)
       .catch(AUTO_CONTINUE_ROUNDS_DEFAULT)
@@ -499,11 +501,7 @@ const chatSchema = z
     // caller's hosted chats) may delete it. Was the engine's TEMPORARY_CHAT_REAP_TTL_MS=24h const; per-user
     // because the reaper runs under the caller's principal over THEIR chats. A value outside the bounds
     // self-heals to the default.
-    tempChatTtlHours: z.int()
-      .min(TEMP_CHAT_TTL_HOURS_MIN)
-      .max(TEMP_CHAT_TTL_HOURS_MAX)
-      .catch(TEMP_CHAT_TTL_HOURS_DEFAULT)
-      .default(TEMP_CHAT_TTL_HOURS_DEFAULT),
+    tempChatTtlHours: z.int().min(TEMP_CHAT_TTL_HOURS_MIN).max(TEMP_CHAT_TTL_HOURS_MAX).catch(TEMP_CHAT_TTL_HOURS_DEFAULT).default(TEMP_CHAT_TTL_HOURS_DEFAULT),
     // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON (owner ruling 2026-08-09):
     // the #42 forge moved the per-word fade onto `mode="streaming"` itself, so this knob is now PURELY
     // pacing — and the old "smooth is jankier" objection was measured dead on that build (over-budget
