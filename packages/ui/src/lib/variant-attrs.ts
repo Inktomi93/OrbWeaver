@@ -72,6 +72,9 @@ function resolvedArm<Selection>(recipe: VariantAxisSource<Selection>, axis: stri
   if (arms === undefined || chosen === undefined || chosen === null) {
     return;
   }
+  if (typeof chosen !== "string" && typeof chosen !== "number" && typeof chosen !== "boolean") {
+    return;
+  }
   const key = String(chosen);
   return key in arms ? key : undefined;
 }

@@ -23,6 +23,12 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
 const HTTP_ERROR_MIN = 400;
 
+function requestLocation(request: Readonly<Record<string, unknown>> | null): string {
+  const method = request?.["method"];
+  const url = request?.["url"];
+  return `${typeof method === "string" ? method : "request"} ${typeof url === "string" ? url : "(unknown URL)"}`;
+}
+
 function matchingIdentity(diagnostics: readonly FindingDraft[], value: string): SnapFindingEvidenceRef | null {
   const key = `symptom:${findingSymptom(value)}`;
   return diagnostics.find((row) => row.correlation === key)?.evidence[0] ?? null;
@@ -135,7 +141,7 @@ function coreRequestDrafts(path: string, rows: readonly unknown[], diagnostics: 
       arms: ["requests"],
       channels: ["requests"],
       what: failure,
-      where: `${String(request["method"] ?? "request")} ${String(request["url"] ?? "(unknown URL)")}`,
+      where: requestLocation(request),
       evidence: [findingRef("core-capture", path, identity?.scope)],
       completeness: "bounded",
       conflicts: [],
@@ -181,7 +187,7 @@ function parseDriveFailure(path: string, value: unknown): DriveFailure {
   if (!valid) {
     throw new Error(`${path} has a malformed drive-failure row`);
   }
-  return { index: Number(index), kind, flag: String(flag), subject: subject as string | null, reason: String(reason) };
+  return { index: Number(index), kind, flag, subject: subject as string | null, reason };
 }
 
 function driveFailureRows(path: string, capture: Readonly<Record<string, unknown>> | null): readonly DriveFailure[] {
@@ -322,7 +328,7 @@ function harEntryDraft(value: unknown, artifact: SnapRunArtifact): FindingDraft 
     arms: ["requests"],
     channels: ["har"],
     what: failureText,
-    where: `${String(request?.["method"] ?? "request")} ${String(request?.["url"] ?? "(unknown URL)")}`,
+    where: requestLocation(request),
     evidence: [findingRef("har", artifact.path, context === null || page === null || window === null ? artifact.scope : exactScope(context, page, window))],
     completeness: findingCompleteness(artifact),
     conflicts: [],

@@ -76,5 +76,8 @@ test("merged interface declarations retain every inherited policy axis", () => {
       "interface Base { readonly prompt: 'conversation' | 'never'; } interface Base { readonly wire: 'carry' | 'drop'; } export interface MessageKindPolicy extends Base {} export const MESSAGE_KIND_POLICY = {};",
   });
   expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map((finding) => finding.token).sort()).toEqual(["prompt", "wire"]);
+  expect(result.authority.effectiveFindings.map((finding) => finding.token).sort((left = "", right = "") => left.localeCompare(right))).toEqual([
+    "prompt",
+    "wire",
+  ]);
 });

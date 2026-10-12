@@ -158,12 +158,13 @@ function oldestSentSeq(body: Record<string, unknown> | null, factSeq: number | n
  *  above it. A `/v1` count below this is content the server dropped. */
 async function sentTokens(body: Record<string, unknown> | null, model: string): Promise<number | null> {
   const messages = Array.isArray(body?.["messages"]) ? (body["messages"] as readonly { readonly role: string; readonly content?: unknown }[]) : [];
-  const flat = messages.map((message) => ({
-    role: message.role,
-    content: Array.isArray(message.content)
-      ? (message.content as readonly { readonly text?: string }[]).map((part) => part.text ?? "").join("")
-      : String(message.content ?? ""),
-  }));
+  const flat = messages.map((message) => {
+    const text = typeof message.content === "string" ? message.content : "";
+    return {
+      role: message.role,
+      content: Array.isArray(message.content) ? (message.content as readonly { readonly text?: string }[]).map((part) => part.text ?? "").join("") : text,
+    };
+  });
   const res = await http(`${ROOT}/api/chat`, { body: { model, messages: flat, stream: false, options: { ["num_ctx"]: COUNT_NUM_CTX, ["num_predict"]: 1 } } });
   return (res.json as { prompt_eval_count?: number } | null)?.prompt_eval_count ?? null;
 }

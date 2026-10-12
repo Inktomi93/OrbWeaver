@@ -121,7 +121,7 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
     return [];
   }
   const isBatch = url.searchParams.get("batch") === "1";
-  const byIndex = isBatch ? ((body as Record<string, unknown>) ?? {}) : { 0: body };
+  const byIndex = isBatch ? ((body as Record<string, unknown> | null | undefined) ?? {}) : { 0: body };
   const attaches: AttachRequest[] = [];
   for (const [i, proc] of procs.entries()) {
     if (proc !== `stream.${wanted}`) {

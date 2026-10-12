@@ -305,7 +305,7 @@ test("the creation-request non-row grant licenses only its exact column and reta
   const subjects = ["automation_rules.creationRequestId", "automation_rules.ruleId", "unrelated.creationRequestId"];
   expect(raw.toolErrors).toEqual([]);
   expect(raw.authority.withheldPolicyIds).toEqual([]);
-  expect(raw.authority.effectiveFindings.map(({ subject }) => subject).toSorted()).toEqual(subjects);
+  expect(raw.authority.effectiveFindings.map(({ subject }) => subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(subjects);
 
   const grant = reviewedGrantsFor([noUntypedSoftRef]).find(({ subject }) => subject === "automation_rules.creationRequestId");
   expect(grant).toBeDefined();
@@ -315,13 +315,15 @@ test("the creation-request non-row grant licenses only its exact column and reta
   const granted = passOf(noUntypedSoftRef, files, [grant]);
   expect(granted.toolErrors).toEqual([]);
   expect(granted.authority.grantedFindings.map(({ finding }) => finding.subject)).toEqual(["automation_rules.creationRequestId"]);
-  expect(granted.authority.effectiveFindings.map(({ subject }) => subject).toSorted()).toEqual(subjects.slice(1));
+  expect(granted.authority.effectiveFindings.map(({ subject }) => subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
+    subjects.slice(1),
+  );
   expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: grant.id, count: 1 }]);
   expect(granted.authority.authorityAlarms).toEqual([]);
 
   const wrong = passOf(noUntypedSoftRef, files, [{ ...grant, operation: `${grant.operation}:wrong` }]);
   expect(wrong.authority.grantedFindings).toEqual([]);
-  expect(wrong.authority.effectiveFindings.map(({ subject }) => subject).toSorted()).toEqual(subjects);
+  expect(wrong.authority.effectiveFindings.map(({ subject }) => subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(subjects);
   expect(wrong.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: grant.id }]);
 
   const stale = passOf(

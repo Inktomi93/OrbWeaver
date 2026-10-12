@@ -134,7 +134,7 @@ test("weekly-owned components execute exactly the native shard or non-corpus pop
         .trim()
         .split("\n")
         .map((row) => JSON.parse(row))
-        .toSorted(),
+        .toSorted((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
     ).toEqual(expected?.toSorted());
     const failing = expected?.[0];
     if (failing === undefined) {

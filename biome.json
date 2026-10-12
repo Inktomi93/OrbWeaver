@@ -404,7 +404,7 @@
         "noTsIgnore": "error",
         "noEvolvingTypes": "error",
         "noImportCycles": "error",
-        "noDeprecatedImports": "error",
+        "noDeprecatedImports": "off",
         "noFocusedTests": "error",
         "noSkippedTests": "off",
         "noVar": "error",
@@ -469,19 +469,19 @@
       "nursery": {
         "preset": "none",
         "noFloatingPromises": "error",
-        "noMisusedPromises": "error",
+        "noMisusedPromises": "off",
         "useAwaitThenable": "off",
         "useExhaustiveSwitchCases": "error",
-        "noBaseToString": "error",
+        "noBaseToString": "off",
         "noUnsafePlusOperands": "error",
-        "noUselessTypeConversion": "error",
+        "noUselessTypeConversion": "off",
         "useReduceTypeParameter": "error",
-        "useNullishCoalescing": "error",
+        "useNullishCoalescing": "off",
         "useImportsFirst": "error",
         "noUnnecessaryTemplateExpression": "error",
         "useArraySome": "error",
-        "useIncludes": "error",
-        "useStringStartsEndsWith": "error",
+        "useIncludes": "off",
+        "useStringStartsEndsWith": "off",
         "useMathMinMax": "error",
         "noJsxLeakedDollar": "error",
         "noReactStringRefs": "error",
@@ -510,7 +510,7 @@
         "noPlaywrightWaitForTimeout": "error",
         "usePlaywrightValidDescribeCallback": "error",
         "useRegexpTest": "error",
-        "useRegexpExec": "error",
+        "useRegexpExec": "off",
         "noExcessiveNestedCallbacks": "error",
         "useDisposables": "error"
       }
@@ -2407,9 +2407,6 @@
             "noMagicNumbers": "off",
             "useNumericSeparators": "off",
             "useForOf": "off"
-          },
-          "nursery": {
-            "useNullishCoalescing": "off"
           }
         }
       }

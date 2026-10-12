@@ -126,7 +126,7 @@ function registeredProofMarker(call: MorphNode, marker: string): boolean {
   if (!(Node.isStringLiteral(title) && (Node.isArrowFunction(body) || Node.isFunctionExpression(body)))) {
     return false;
   }
-  return statement.getLeadingCommentRanges().some((comment) => comment.getText().match(new RegExp(`^// ${marker}:\\s*\\S.+$`, "u")) !== null);
+  return statement.getLeadingCommentRanges().some((comment) => new RegExp(`^// ${marker}:\\s*\\S.+$`, "u").exec(comment.getText()) !== null);
 }
 
 const VALID_BOUNDARY_FIXTURES = {

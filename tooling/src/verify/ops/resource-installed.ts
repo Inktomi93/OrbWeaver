@@ -150,7 +150,7 @@ export function loadInstalledPackage(
   overlay?: InstalledPackageTextOverlay,
 ): ResourceLoad<InstalledPackageFacts> {
   if (!Object.hasOwn(INSTALLED_PACKAGE_DEFINITIONS, request.id)) {
-    return refused(`unknown installed package id: ${String(request.id)}`);
+    return refused(`unknown installed package id: ${request.id}`);
   }
   if (overlay !== undefined && (request.mode !== "text" || overlay.request.id !== request.id || overlay.request.file !== request.file)) {
     return refused(`installed package text overlay does not match the requested identity: ${request.id}:${request.mode}`);

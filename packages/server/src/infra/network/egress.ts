@@ -437,7 +437,7 @@ function lookupAll(hostname: string): Promise<readonly string[]> {
         resolve([]);
         return;
       }
-      resolve(Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)]);
+      resolve(Array.isArray(address) ? address.map((a) => a.address) : [address]);
     });
   });
 }
@@ -544,7 +544,7 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
           return;
         }
         // node:dns: {all:true} yields LookupAddress[]; the default yields a single address string.
-        const addrs: string[] = Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)];
+        const addrs: string[] = Array.isArray(address) ? address.map((a) => a.address) : [address];
         // A hostname NOT listed by name, whose RESOLVED address lands inside an admitted RANGE, is admitted
         // here — the one gate where the address is in hand. It is PORT-BLIND by construction (no port
         // reaches a dns.lookup override), which is exactly why `ranges` only ever holds any-port entries.
@@ -571,7 +571,7 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
           callback(err, address as string, family as number);
           return;
         }
-        const addrs: string[] = Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)];
+        const addrs: string[] = Array.isArray(address) ? address.map((a) => a.address) : [address];
         const blocked = firstRefusedAddress(addrs, (a) => isInRanges(a, NEVER_ADMISSIBLE_RANGES));
         if (blocked !== undefined) {
           securityEvent(

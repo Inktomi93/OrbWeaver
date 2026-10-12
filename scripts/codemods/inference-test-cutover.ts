@@ -243,7 +243,7 @@ function insertFunderPlans(ctx: CodemodContext, diags: readonly Diagnostic[], in
     }
     const literal = enclosingObjectLiteral(at.node);
     if (literal === undefined) {
-      into.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} (no object literal at the diagnostic)`);
+      into.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber()} (no object literal at the diagnostic)`);
       continue;
     }
     const key = `${at.sf.getFilePath()}:${literal.getStart()}`;
@@ -253,7 +253,7 @@ function insertFunderPlans(ctx: CodemodContext, diags: readonly Diagnostic[], in
     seen.add(key);
     const expr = fill.value === "funder" ? funderExpressionFor(literal) : fill.value;
     if (expr === undefined) {
-      into.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} (${propertyName})`);
+      into.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber()} (${propertyName})`);
       continue;
     }
     const text = literal.getText();
@@ -323,7 +323,7 @@ function deleteRetiredPlans(ctx: CodemodContext, diags: readonly Diagnostic[], i
       continue;
     }
     if (!retiredMatches(property, receivingType)) {
-      into.skippedRetired.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} ${property} in ${receivingType.slice(0, RECEIVING_TYPE_PREVIEW_CHARS)}`);
+      into.skippedRetired.push(`${at.sf.getFilePath()}:${diag.getLineNumber()} ${property} in ${receivingType.slice(0, RECEIVING_TYPE_PREVIEW_CHARS)}`);
       continue;
     }
     const key = `${at.sf.getFilePath()}:${assignment.getStart()}`;
@@ -335,20 +335,20 @@ function deleteRetiredPlans(ctx: CodemodContext, diags: readonly Diagnostic[], i
     const full = at.sf.getFullText();
     let start = assignment.getStart();
     let end = assignment.getEnd();
-    const after = full.slice(end).match(/^\s*,/u);
+    const after = /^\s*,/u.exec(full.slice(end));
     if (after !== null) {
       end += after[0].length;
     } else {
-      const before = full.slice(0, start).match(/,\s*$/u);
+      const before = /,\s*$/u.exec(full.slice(0, start));
       if (before !== null) {
         start -= before[0].length;
       }
     }
     // Swallow the property's own leading whitespace/newline so no blank line is left behind.
-    const lead = full.slice(0, start).match(/[ \t]*(\r?\n)?[ \t]*$/u);
+    const lead = /[ \t]*(\r?\n)?[ \t]*$/u.exec(full.slice(0, start));
     if (lead !== null && after !== null) {
       start -= lead[0].length;
-      const trailingWs = full.slice(end).match(/^[ \t]*/u);
+      const trailingWs = /^[ \t]*/u.exec(full.slice(end));
       end += trailingWs?.[0].length ?? 0;
     }
     replacements.push({

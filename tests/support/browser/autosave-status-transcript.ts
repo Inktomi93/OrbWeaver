@@ -37,9 +37,9 @@ export async function beginAutosaveStatusTranscript(page: Page): Promise<void> {
       sink.textContent = "[]";
       document.head.append(sink);
       const record = (): void => {
-        const next = document.querySelector(selector)?.textContent?.trim() ?? "";
+        const next = document.querySelector(selector)?.textContent.trim() ?? "";
         // @orb-waive no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
-        const log = JSON.parse(sink.textContent ?? "[]") as string[];
+        const log = JSON.parse(sink.textContent) as string[];
         // Consecutive duplicates are the same render observed through several mutations, not a transition.
         if (next.length > 0 && next !== log.at(-1)) {
           log.push(next);

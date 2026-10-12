@@ -40,7 +40,7 @@ export function dropIncompleteSentence(text: string): string {
   if (ENDS_CLEANLY.test(trimmed)) {
     return text;
   }
-  const match = trimmed.match(UP_TO_LAST_SENTENCE);
+  const match = UP_TO_LAST_SENTENCE.exec(trimmed);
   if (match === null || match[0].length === 0) {
     return text; // no complete sentence — leave as-is
   }

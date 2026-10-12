@@ -128,7 +128,7 @@ function assertInstalledPackageRequest(request: Readonly<Record<string, unknown>
     return `installed-package:${String(request["id"])}:${String(request["mode"])}`;
   }
   assertRepoPathIdentity(request["file"], `${label}.file`);
-  return `installed-package:${String(request["id"])}:text:${String(request["file"])}`;
+  return `installed-package:${String(request["id"])}:text:${request["file"]}`;
 }
 
 function assertGateResourceDeclaration(candidate: unknown, index: number): string {

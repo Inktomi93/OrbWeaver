@@ -226,7 +226,7 @@ export async function run() {
 
   const tally: Record<string, string> = {};
   for (const row of rows) {
-    const cell = `${String(row["model"])} ${String(row["note"])} ${String(row["placement"])}${row["frame"] === null ? "" : `/${String(row["frame"])}`}`;
+    const cell = `${String(row["model"])} ${String(row["note"])} ${String(row["placement"])}${row["frame"] === null ? "" : `/${typeof row["frame"] === "string" ? row["frame"] : JSON.stringify(row["frame"])}`}`;
     const [honoured = 0, total = 0] = (tally[cell] ?? "0/0").split("/").map(Number);
     tally[cell] = `${honoured + (row["honoured"] === true ? 1 : 0)}/${total + 1}`;
   }

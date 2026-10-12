@@ -84,7 +84,7 @@ function ambiguousTailStart(source: string): number {
     // delimiter on line two). Until then the run is undecidable and must not paint.
     const run = source.slice(runStart);
     const firstBreak = run.indexOf("\n");
-    if (firstBreak === -1 || run.indexOf("\n", firstBreak + 1) === -1) {
+    if (firstBreak === -1 || !run.includes("\n", firstBreak + 1)) {
       return runStart;
     }
   }

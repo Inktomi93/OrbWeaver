@@ -43,7 +43,6 @@ import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const OPERATION = "soft-reference";
-const ID_KEY = /Id$/u;
 /** The two scalar builders an orbweaver id column is ever declared with. */
 const ID_COLUMN_BUILDERS: ReadonlySet<string> = new Set(["text", "integer"]);
 
@@ -57,7 +56,7 @@ const FIX = "add the `.references(() => target.id)` FK; a genuinely non-relation
 /** Is this an id-shaped column with no FK — the D24 subject? */
 function isSoftReference(column: SchemaColumn, tableForeignKeyChildren: ReadonlySet<string>): boolean {
   return (
-    ID_KEY.test(column.identity.propertyName) &&
+    column.identity.propertyName.endsWith("Id") &&
     ID_COLUMN_BUILDERS.has(column.builder.exportedName) &&
     !column.primaryKey &&
     column.foreignKey === null &&

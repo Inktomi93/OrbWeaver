@@ -232,7 +232,9 @@ test("own-tables-only reports every FILE_ALLOWLIST subject when the complete per
 
   const findings = result.authority.effectiveFindings;
   expect(findings).toHaveLength(expectedSubjects.length);
-  expect(findings.map(({ message }) => message).toSorted()).toEqual(expectedSubjects.map((subject) => `${STALE_FILE_PREFIX}"${subject}"`).toSorted());
+  expect(findings.map(({ message }) => message).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
+    expectedSubjects.map((subject) => `${STALE_FILE_PREFIX}"${subject}"`).toSorted((left = "", right = "") => left.localeCompare(right)),
+  );
 });
 
 for (const policy of [

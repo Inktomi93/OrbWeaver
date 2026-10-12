@@ -28,7 +28,7 @@ function readMountedRows(page: Page): Promise<readonly SweptRow[]> {
     els.map((el) => ({
       id: el.getAttribute("data-message-id") ?? "",
       role: el.getAttribute("data-role") ?? "",
-      text: (el.textContent ?? "").replace(/\s+/gu, " ").trim(),
+      text: el.textContent.replace(/\s+/gu, " ").trim(),
     })),
   );
 }

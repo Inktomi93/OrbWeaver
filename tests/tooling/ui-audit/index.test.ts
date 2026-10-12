@@ -653,7 +653,7 @@ test("tap-target populations collapse siblings, suppress nested owners, and pres
     false,
   );
   expect(result.findings).toHaveLength(2);
-  expect(result.findings.map((finding) => finding.population?.affected).sort()).toEqual([2, 3]);
+  expect(result.findings.map((finding) => finding.population?.affected).sort((left = 0, right = 0) => left - right)).toEqual([2, 3]);
   expect(result.accounting).toMatchObject({
     candidates: 6,
     judged: 6,

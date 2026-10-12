@@ -105,7 +105,9 @@ test("the four actual non-row execution identities license only their exact colu
   };
   const raw = passFor(softReferences, files, []);
   expect(raw.toolErrors).toEqual([]);
-  expect(raw.authority.effectiveFindings.map((finding) => finding.subject).toSorted()).toEqual([...subjects, "imagery_generations.foreignRowId"].toSorted());
+  expect(raw.authority.effectiveFindings.map((finding) => finding.subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
+    [...subjects, "imagery_generations.foreignRowId"].toSorted((left = "", right = "") => left.localeCompare(right)),
+  );
   const admitted = passFor(softReferences, files, grants);
   expect(admitted.toolErrors).toEqual([]);
   expect(admitted.authority.grantedFindings).toHaveLength(4);
@@ -131,7 +133,9 @@ test("the launcher provenance key belongs only to the actual sole env home", () 
   expect(grants).toHaveLength(1);
   const raw = passFor(soleEnvReader, files, []);
   expect(raw.toolErrors).toEqual([]);
-  expect(raw.authority.effectiveFindings.map((finding) => finding.subject).toSorted()).toEqual([home, foreign].toSorted());
+  expect(raw.authority.effectiveFindings.map((finding) => finding.subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
+    [home, foreign].toSorted((left = "", right = "") => left.localeCompare(right)),
+  );
   const admitted = passFor(soleEnvReader, files, grants);
   expect(admitted.toolErrors).toEqual([]);
   expect(admitted.authority.grantedFindings).toHaveLength(1);

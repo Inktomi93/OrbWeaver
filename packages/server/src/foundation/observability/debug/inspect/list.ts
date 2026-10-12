@@ -34,8 +34,8 @@ export interface CharacterListRow {
 export async function chatListSummaries(db: Db): Promise<ChatListRow[]> {
   const partCounts = await db.select({ chatId: chatParticipants.chatId, n: count() }).from(chatParticipants).groupBy(chatParticipants.chatId);
   const msgCounts = await db.select({ chatId: messages.chatId, n: count() }).from(messages).groupBy(messages.chatId);
-  const partById = new Map(partCounts.map((r) => [r.chatId, Number(r.n)]));
-  const msgById = new Map(msgCounts.map((r) => [r.chatId, Number(r.n)]));
+  const partById = new Map(partCounts.map((r) => [r.chatId, r.n]));
+  const msgById = new Map(msgCounts.map((r) => [r.chatId, r.n]));
 
   const rows = await db.select({ id: chats.id, title: chats.title, updatedAt: chats.updatedAt }).from(chats).orderBy(desc(chats.updatedAt));
   return rows.map((r) => ({

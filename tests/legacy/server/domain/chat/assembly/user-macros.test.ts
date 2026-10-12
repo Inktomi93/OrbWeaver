@@ -169,7 +169,7 @@ function render(built: TurnUserMacros, name: string): string {
     throw new Error(`expected ${name} to be registered`);
   }
   const ctxOpts: ProcessMacroOptions = { char: "Aria", user: "Alex", persona: "", scenario: "", env: {} };
-  return String(handler([], createMacroContext(ctxOpts, built.registry)));
+  return handler([], createMacroContext(ctxOpts, built.registry));
 }
 
 describe("assembly/user-macros — preset + game defs (owner ruling #20 / the 2026-08-01 shadow ruling)", () => {

@@ -37,7 +37,6 @@ import {
   policyFamilyNames,
 } from "./policy-module.ts";
 
-const D_TS_RE = /\.d\.ts$/u;
 // Conformance fixtures must live inside the real gate directory so corpus-scoped policies can inspect them.
 // They are source inputs to those policies, never gate modules themselves. Keeping the reserved probe names
 // out of reconciliation preserves both halves: the project still scans the fixture, while run-manifest does
@@ -107,7 +106,7 @@ function classify(module: Readonly<Record<string, unknown>>, rel: string): Class
 function corpusFiles(root: string): readonly string[] {
   return globSync("tooling/src/verify/gates/*.ts", { cwd: root })
     .map((file) => file.replaceAll("\\", "/"))
-    .filter((f) => !(D_TS_RE.test(f) || PROBE_GATE_FILE_RE.test(f)))
+    .filter((f) => !(f.endsWith(".d.ts") || PROBE_GATE_FILE_RE.test(f)))
     .sort();
 }
 

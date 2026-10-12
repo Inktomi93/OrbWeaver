@@ -483,7 +483,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
     await h.turn.commitMessage({ principal: principal(host), chatId, content: "I roll {{roll:d20}} and {{user}} smiles" });
 
     const stored = (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
-    expect(stored.match(FROZEN_ROLL_RE)).not.toBeNull();
+    expect(FROZEN_ROLL_RE.exec(stored)).not.toBeNull();
     expect(stored).toContain("{{user}}");
     expect(stored).not.toContain("{{roll");
   });
@@ -571,7 +571,7 @@ describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / 
     const canon = await loadCanonHistory(db, chatId);
     const stored = canon.find((r) => r.role === "user")?.content ?? "";
     // The nondeterministic {{roll}} is FROZEN to a literal number in canon; the identity {{user}} stays RAW.
-    const matched = stored.match(FROZEN_ROLL_RE);
+    const matched = FROZEN_ROLL_RE.exec(stored);
     expect(matched).not.toBeNull();
     expect(stored).toContain("{{user}}");
     expect(stored).not.toContain("{{roll");

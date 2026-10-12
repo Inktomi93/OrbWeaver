@@ -183,12 +183,13 @@ function rootOf(baseUrl: string): string {
 }
 
 function content(json: unknown): string {
-  const choice = (json as { choices?: { message?: { content?: unknown } }[] })?.choices?.[0];
+  const choice = (json as { choices?: { message?: { content?: unknown } }[] } | null | undefined)?.choices?.[0];
   return typeof choice?.message?.content === "string" ? choice.message.content : "";
 }
 
 function toolCalls(json: unknown): { readonly name: string; readonly arguments: string }[] {
-  const choice = (json as { choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[] })?.choices?.[0];
+  const choice = (json as { choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[] } | null | undefined)
+    ?.choices?.[0];
   return (choice?.message?.tool_calls ?? []).map((call) => ({ name: call.function?.name ?? "", arguments: call.function?.arguments ?? "" }));
 }
 
@@ -273,7 +274,7 @@ async function probeVision(arm: Arm, model: string, expectAccepted: boolean, log
 
 async function probeEmbed(arm: Arm, model: string, advertisedDims: number | undefined, log: ReturnType<typeof jsonl>): Promise<boolean> {
   const res = await http(`${arm.baseUrl}/embeddings`, { body: { model, input: "The quick brown fox jumps over the lazy dog." } });
-  const vector = (res.json as { data?: { embedding?: unknown }[] })?.data?.[0]?.embedding;
+  const vector = (res.json as { data?: { embedding?: unknown }[] } | null | undefined)?.data?.[0]?.embedding;
   const width = Array.isArray(vector) ? vector.length : null;
   const ok = res.status === HTTP_OK && width !== null && (advertisedDims === undefined || width === advertisedDims);
   log.row({
@@ -345,7 +346,7 @@ async function probeOllamaCtx(arm: Arm, model: string, log: ReturnType<typeof js
     const res = await http(`${arm.baseUrl}/chat/completions`, {
       body: { model: modelId, messages: [{ role: "user", content: prompt }], temperature: 0, max_tokens: CTX_MAX_TOKENS, ...extra },
     });
-    const usage = (res.json as { usage?: { prompt_tokens?: number } })?.usage;
+    const usage = (res.json as { usage?: { prompt_tokens?: number } } | null | undefined)?.usage;
     return {
       status: res.status,
       ms: res.ms,
@@ -358,7 +359,7 @@ async function probeOllamaCtx(arm: Arm, model: string, log: ReturnType<typeof js
     const res = await http(`${root}/api/chat`, {
       body: { model: modelId, messages: [{ role: "user", content: prompt }], stream: false, ...(options === undefined ? {} : { options }) },
     });
-    const body = res.json as { prompt_eval_count?: number; message?: { content?: string } };
+    const body = res.json as { prompt_eval_count?: number; message?: { content?: string } } | null | undefined;
     const answer = body?.message?.content ?? "";
     return {
       status: res.status,

@@ -84,7 +84,7 @@ const CT_ANONYMOUS_LOCATION = "<anonymous>";
  *  position when it carries one (a load failure does; the matched-nothing refusal does not). */
 function formatCtError(error: unknown): string {
   const file = readField(readProperty(error, "location"), "file");
-  const message = readField(error, "message") ?? readField(error, "value") ?? readField(error, "stack") ?? String(JSON.stringify(error));
+  const message = readField(error, "message") ?? readField(error, "value") ?? readField(error, "stack") ?? JSON.stringify(error);
   return file === undefined || file === CT_ANONYMOUS_LOCATION ? message : `${file}: ${message}`;
 }
 

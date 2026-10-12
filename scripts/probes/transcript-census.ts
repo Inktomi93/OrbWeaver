@@ -184,7 +184,6 @@ const RE_BARE_TSC = /\bnpx\s+tsc\b/;
 const RE_BARE_BIOME = /\bnpx\s+biome\b|\bbiome\s+(check|format)\b[^&|;]*--write\b|\bbiome\b[^&|;]*--apply\b/;
 const RE_PLAYWRIGHT_TEST = /\bnpx\s+playwright\s+test\b/;
 const RE_PLAYWRIGHT_CACHE_CLEAR = /rm\s+-rf\s+playwright\/\.cache/;
-const RE_PLAYWRIGHT_CT_CONFIG = /playwright-ct\.config\.ts/;
 const RE_BARE_DEPCRUISE_KNIP = /\bnpx\s+(depcruise|knip)\b/;
 const RE_GIT_STASH = /\bgit\s+stash\b/;
 const RE_GIT_RESTORE = /\bgit\s+restore\b/;
@@ -192,7 +191,6 @@ const RE_GIT_CHECKOUT_DASH_OR_DOT = /\bgit\s+checkout\s+(?:--\s|\.(?:\s|$))/;
 const RE_CD_INTO_WORKTREE = /\bcd\s[^&|;]*\.claude\/worktrees/;
 const RE_BARE_SG = /(?:^|[;&|]\s*)sg\s/;
 const RE_GREP_DASH_R = /\bgrep\s+-[a-zA-Z]*r[a-zA-Z]*\b/;
-const RE_EXCLUDE_DIR = /--exclude-dir/;
 const RE_SQLITE3 = /\bsqlite3\b/;
 const RE_SQLITE3_SAFE_HINT = /\/tmp\/|test|:memory:|\.bak\b|scratchpad/i;
 const RE_GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^&|;]*--no-verify\b/;
@@ -203,7 +201,6 @@ const RE_SCRATCH_OR_TMP = /scratchpad|\/tmp\//;
 const RE_NO_GPG_SIGN = /--no-gpg-sign\b/;
 const RE_CURL_PIPE_SHELL = /curl[^|;&]*\|\s*(?:sh|bash)\b/;
 const RE_HARNESS_SIGNATURE = /\b(pnpm|turbo|npm)\s+(?:run\s+)?([a-z0-9:_-]+)/i;
-const RE_TIMED_OUT = /Command timed out after/;
 const RE_CLAUSE_SPLIT = /&&|;|\n/;
 
 function splitClauses(cmd: string): string[] {
@@ -223,11 +220,11 @@ function harnessSignature(cmd: string): string | null {
 
 function classifyHarnessClauses(cmd: string, tags: Set<string>): void {
   for (const clause of splitClauses(cmd)) {
-    const match = clause.match(RE_HARNESS);
+    const match = RE_HARNESS.exec(clause);
     if (!match) {
       continue;
     }
-    const after = clause.slice(match.index ?? 0);
+    const after = clause.slice(match.index);
     if (RE_SWALLOWER.test(after)) {
       tags.add("A1_harness_piped_to_swallower");
     }
@@ -254,7 +251,7 @@ function classifyBareRunners(cmd: string, tags: Set<string>): void {
     tags.add("B3_bare_biome_or_write");
   }
   if (RE_PLAYWRIGHT_TEST.test(cmd)) {
-    const sanctioned = RE_PLAYWRIGHT_CACHE_CLEAR.test(cmd) && RE_PLAYWRIGHT_CT_CONFIG.test(cmd);
+    const sanctioned = RE_PLAYWRIGHT_CACHE_CLEAR.test(cmd) && cmd.includes("playwright-ct.config.ts");
     tags.add(sanctioned ? "B4_playwright_sanctioned" : "B4_playwright_unsanctioned");
   }
   if (RE_BARE_DEPCRUISE_KNIP.test(cmd)) {
@@ -278,7 +275,7 @@ function classifyFootguns(cmd: string, tags: Set<string>): void {
   if (RE_BARE_SG.test(cmd)) {
     tags.add("C5_bare_sg");
   }
-  if (RE_GREP_DASH_R.test(cmd) && !RE_EXCLUDE_DIR.test(cmd)) {
+  if (RE_GREP_DASH_R.test(cmd) && !cmd.includes("--exclude-dir")) {
     tags.add("C6_grep_r_no_exclude_dir");
   }
   if (RE_SQLITE3.test(cmd)) {
@@ -534,7 +531,7 @@ function recordToolResultItem(rec: TranscriptRecord, file: string, pending: Map<
   recordDuration(use, durationMs);
 
   const contentStr = typeof item.content === "string" ? item.content : JSON.stringify(item.content ?? "");
-  if (RE_TIMED_OUT.test(contentStr)) {
+  if (contentStr.includes("Command timed out after")) {
     recordTimeout(use, durationMs, file);
   }
 }

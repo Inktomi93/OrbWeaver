@@ -10,7 +10,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cwd, env } from "node:process";
+import { cwd } from "node:process";
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona } from "@orb/contracts/chat";
 import type { PersonaMetadata } from "@orb/contracts/persona";
@@ -28,6 +28,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { and, eq } from "drizzle-orm";
 import type { ResolveForeignInputsOp } from "#server/domain/chat/contract/foreign.ts";
 import type { GroupOutput, TurnRequest } from "#server/domain/chat/contract/results.ts";
@@ -39,7 +40,7 @@ import { seedCharacter, seedParticipant, seedUser } from "./_support.ts";
 const BINDING_VALUES = ["base", "fix"] as const;
 type Binding = (typeof BINDING_VALUES)[number];
 
-const LABEL: Binding = env["PERSONA_MATRIX_LABEL"] === "base" ? "base" : "fix";
+const LABEL: Binding = processEnvValue("PERSONA_MATRIX_LABEL") === "base" ? "base" : "fix";
 
 /** The preset probe: a literal section in the system region whose `{{user}}` is PRESET-context. */
 const PRESET_PROBE: PromptSection = { type: "literal", id: "probe", name: "probe", role: "system", enabled: true, content: "PRESET_USER=<{{user}}>" };

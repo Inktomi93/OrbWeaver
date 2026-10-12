@@ -11,7 +11,6 @@ const FLOORLESS = ["inline", "glyph-xs", "glyph-sm", "glyph-md", "glyph-lg"] as 
 const FLOORLESS_SET: ReadonlySet<string> = new Set(FLOORLESS);
 const BUTTON_VARIANTS = "packages/ui/src/primitives/button/variants.ts";
 const FLEX_WRAP_RE = /\bflex-wrap\b/u;
-const MAP_CALLEE_RE = /\.map$/u;
 export const floorlessControlFact = defineFact({
   id: "floorless-control",
   population: ["@client", "@ui"],
@@ -40,7 +39,7 @@ export const floorlessControlFact = defineFact({
       let found: CallExpression | undefined;
       if (node?.isKind(SyntaxKind.CallExpression) === true) {
         const callee = node.getExpression();
-        if (callee.isKind(SyntaxKind.PropertyAccessExpression) && MAP_CALLEE_RE.test(callee.getText())) {
+        if (callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getText().endsWith(".map")) {
           found = node;
         }
       }

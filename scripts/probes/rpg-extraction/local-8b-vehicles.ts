@@ -489,12 +489,12 @@ function enumViolations(raw: Record<string, Args[]>, refs: ExtractionRefs): stri
     }
     for (const d of (a["trackerDeltas"] as Args[] | undefined) ?? []) {
       if (typeof d["key"] === "string" && !deltaKeys.has(d["key"])) {
-        bad.push(`trackerDeltas.key="${String(d["key"])}"`);
+        bad.push(`trackerDeltas.key="${d["key"]}"`);
       }
     }
     for (const s of (a["trackerSets"] as Args[] | undefined) ?? []) {
       if (typeof s["key"] === "string" && !setKeys.has(s["key"])) {
-        bad.push(`trackerSets.key="${String(s["key"])}"`);
+        bad.push(`trackerSets.key="${s["key"]}"`);
       }
     }
   }
@@ -513,7 +513,7 @@ function enumViolations(raw: Record<string, Args[]>, refs: ExtractionRefs): stri
   }
   for (const a of raw["set_tracker"] ?? []) {
     if (typeof a["key"] === "string" && gameKeys.size > 0 && !gameKeys.has(a["key"])) {
-      bad.push(`set_tracker.key="${String(a["key"])}"`);
+      bad.push(`set_tracker.key="${a["key"]}"`);
     }
   }
   for (const a of raw["add_journal_entry"] ?? []) {
@@ -790,7 +790,7 @@ async function main(): Promise<void> {
       console.log(`\n=== ${arm} · run ${run}/${RUNS} ===`);
       const result = await runGame(arm, run);
       fs.writeFileSync(path.join(OUT, `${arm}-${run}.json`), JSON.stringify(result, null, 2));
-      summary[arm]?.push({ totals: result.totals });
+      summary[arm].push({ totals: result.totals });
       console.log(`[done] ${arm} r${run}: rm ${result.totals["removeHit"]}/${result.totals["removeExpected"]} · hp ${result.totals["hpHit"]}/${result.totals["hpExpected"]} · fields ${result.totals["fieldsTouched"]}/${FIELD_SPECS.length} · viol ${result.totals["enumViolations"]}`);
     }
   }

@@ -124,7 +124,9 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
   const readback = await client.execute("PRAGMA foreign_keys");
   const value = readback.rows[0]?.["foreign_keys"];
   if (value !== FK_ENABLED) {
-    throw new Error(`@orb/db: PRAGMA foreign_keys did not stick (read back ${String(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`);
+    throw new Error(
+      `@orb/db: PRAGMA foreign_keys did not stick (read back ${JSON.stringify(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`,
+    );
   }
   for (const pragma of TUNING_PRAGMAS) {
     await client.execute(`PRAGMA ${pragma}`);
@@ -135,7 +137,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
     const journalMode = mode.rows[0]?.["journal_mode"];
     if (journalMode !== WAL) {
       throw new Error(
-        `@orb/db: PRAGMA journal_mode did not stick (read back ${String(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
+        `@orb/db: PRAGMA journal_mode did not stick (read back ${JSON.stringify(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
       );
     }
   }
@@ -430,7 +432,7 @@ async function readAppliedBaseline(db: Db): Promise<{ hash: string; folderMillis
   if (row === undefined) {
     return;
   }
-  return { hash: String(row["hash"]), folderMillis: Number(row["created_at"]) };
+  return { hash: typeof row["hash"] === "string" ? row["hash"] : JSON.stringify(row["hash"]), folderMillis: Number(row["created_at"]) };
 }
 
 // The migrations journal drizzle itself reads: one `{ when, tag }` per migration file, in apply order.
@@ -585,7 +587,7 @@ async function readAppliedBaselineFromFile(url: string): Promise<{ hash: string;
     if (row === undefined) {
       return;
     }
-    return { hash: String(row["hash"]), folderMillis: Number(row["created_at"]) };
+    return { hash: typeof row["hash"] === "string" ? row["hash"] : JSON.stringify(row["hash"]), folderMillis: Number(row["created_at"]) };
   } finally {
     client.close();
   }

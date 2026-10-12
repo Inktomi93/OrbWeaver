@@ -165,9 +165,7 @@ export async function startFilmstripCapture(
   });
 
   const stopProtocol = (): Promise<unknown> => {
-    if (stopPromise === null) {
-      stopPromise = cdp.stopScreencast();
-    }
+    stopPromise ??= cdp.stopScreencast();
     return stopPromise;
   };
 

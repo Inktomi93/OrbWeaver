@@ -63,7 +63,7 @@ function runSnap(args: readonly string[]): SnapRun {
     encoding: "utf8",
     timeout: scaledBudget(30_000),
   });
-  return { status: result.status, stdout: String(result.stdout), stderr: String(result.stderr) };
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 async function runSnapAsync(args: readonly string[]): Promise<SnapRun> {

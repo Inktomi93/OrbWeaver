@@ -82,6 +82,11 @@ export interface TableProps<TData> {
   readonly "aria-label"?: string;
 }
 
+// Custom accessors deliberately retain native coercion for non-primitive default cells and sort keys.
+function cellValueText(value: unknown): string {
+  return String(value);
+}
+
 function comparePrimitive(a: unknown, b: unknown): number | null {
   if (typeof a === "number" && typeof b === "number") {
     return a - b;
@@ -110,7 +115,7 @@ function compareValues(a: unknown, b: unknown, sign: number): number {
   if (b === null || b === undefined) {
     return -1;
   }
-  return sign * (comparePrimitive(a, b) ?? String(a).localeCompare(String(b)));
+  return sign * (comparePrimitive(a, b) ?? cellValueText(a).localeCompare(cellValueText(b)));
 }
 
 /** A row paired with its stable id + original position — computed once so sorting never needs to
@@ -155,7 +160,7 @@ function defaultCell(value: unknown): ReactNode {
   if (typeof value === "string" || typeof value === "number") {
     return value;
   }
-  return String(value);
+  return cellValueText(value);
 }
 
 function sortIconFor(columnId: string, sort: TableSort | null): LucideIcon {

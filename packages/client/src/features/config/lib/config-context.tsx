@@ -32,6 +32,7 @@
 // roster" true by construction rather than by a second clearing rule — and it subsumes the group/section
 // predicate, because a row that is off screen cannot be in the set.
 
+import { isPrimitive } from "@orb/kit/guards";
 import type { ConfigLeafAddress, ConfigLeafValue } from "#components";
 import { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "#components";
 import { useSettingsViewerView } from "#data";
@@ -200,7 +201,7 @@ function valueLabel(value: unknown, options: ConfigSettingLeaf["options"], forma
   if (typeof value === "object") {
     return JSON.stringify(value);
   }
-  const raw = String(value);
+  const raw = isPrimitive(value) ? String(value) : JSON.stringify(value);
   return options?.find((option) => option.value === raw)?.label ?? raw;
 }
 

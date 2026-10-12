@@ -394,7 +394,7 @@ export function armPairLedger(input: ArmPairInput, runPairs: ReadonlyMap<Arm, re
    *  exactly how the ledger silently stopped matching: the first version minted the two keys in two
    *  separate template literals, they disagreed by one byte, and EVERY arm's pairs printed twice at the
    *  tail of the RESULT line while the spine above them looked perfect. */
-  const claimKey = (arm: Arm, key: ResultPair[0]): string => `${arm}\u0000${String(key)}`;
+  const claimKey = (arm: Arm, key: ResultPair[0]): string => `${arm}\u0000${key}`;
   const take = (arm: Arm, pairs: readonly ResultPair[]): readonly ResultPair[] => {
     for (const [key] of pairs) {
       claimed.add(claimKey(arm, key));
@@ -402,7 +402,7 @@ export function armPairLedger(input: ArmPairInput, runPairs: ReadonlyMap<Arm, re
     return pairs;
   };
   const named = (arm: Arm, key: string): ResultPair => {
-    const found = (byArm.get(arm) ?? []).find(([name]) => String(name) === key);
+    const found = (byArm.get(arm) ?? []).find(([name]) => name === key);
     if (found === undefined) {
       throw new Error(`INSTRUMENT ERROR: the RESULT line claims "${key}" from the ${arm} arm, which did not produce it (tooling/src/snap/ops/arms/${arm}.ts)`);
     }

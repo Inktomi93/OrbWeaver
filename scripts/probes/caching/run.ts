@@ -271,7 +271,7 @@ function networkResponse(input: Parameters<typeof fetch>[0], init: RequestInit |
   const inherited = init?.signal === undefined || init.signal === null ? [] : [init.signal];
   return LIVE
     ? fetch(input, { ...init, signal: AbortSignal.any([...inherited, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) })
-    : scriptedResponse(new URL(String(input)), init, capture);
+    : scriptedResponse(new URL(input instanceof Request ? input.url : input), init, capture);
 }
 
 async function captureResponse(response: Response, capture: Capture, ordinal: number, init: RequestInit | undefined): Promise<void> {
@@ -311,7 +311,7 @@ async function executeCapturedPost(input: Parameters<typeof fetch>[0], init: Req
   if (physicalPosts >= LIVE_POST_LIMIT || capture.posts >= SCENARIO_POST_LIMIT || sourceHash() !== FROZEN_SOURCE) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: "Probe physical POST/source-freeze guard refused the request" });
   }
-  const url = new URL(String(input));
+  const url = new URL(input instanceof Request ? input.url : input);
   const bytes = typeof init?.body === "string" ? init.body : "";
   const body = jsonObjectSchema.parse(JSON.parse(bytes));
   capture.secrets = resolvedScrubSet({
@@ -362,7 +362,7 @@ async function executeCapturedPost(input: Parameters<typeof fetch>[0], init: Req
 
 function capturedFetch(capture: Capture): typeof fetch {
   return (input, init): Promise<Response> => {
-    const url = new URL(String(input));
+    const url = new URL(input instanceof Request ? input.url : input);
     if (!ALLOWED_HOSTS.has(url.hostname)) {
       return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: "Probe refused a non-admitted endpoint" }));
     }

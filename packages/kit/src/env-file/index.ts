@@ -12,7 +12,6 @@ export interface EnvEdit {
   readonly value: string | null | typeof DELETE_ENV_LINE;
 }
 
-const LINE_ENDING_RE = /\r$/u;
 const CRLF = "\r\n";
 const LF = "\n";
 
@@ -30,7 +29,7 @@ interface KeyPattern {
 
 /** One line after the edits: the first edited key it assigns decides it; a line that assigns none stays. */
 function editLine(line: string, patterns: readonly KeyPattern[], seen: Set<string>): readonly string[] {
-  const ending = LINE_ENDING_RE.test(line) ? "\r" : "";
+  const ending = line.endsWith("\r") ? "\r" : "";
   const body = ending === "" ? line : line.slice(0, -1);
   for (const { edit, pattern } of patterns) {
     const match = pattern.exec(body);

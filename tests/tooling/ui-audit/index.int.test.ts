@@ -273,8 +273,8 @@ auditRuleTest(
     const findings = report.findings.filter(({ rule }) => rule === "undersized-ui-text");
 
     expect(findings).toHaveLength(2);
-    expect(findings.map(({ population }) => population?.affected).sort()).toEqual([1, 8]);
-    expect(findings.map(({ representatives }) => representatives?.length).sort()).toEqual([1, 5]);
+    expect(findings.map(({ population }) => population?.affected).sort((left = 0, right = 0) => left - right)).toEqual([1, 8]);
+    expect(findings.map(({ representatives }) => representatives?.length).sort((left = 0, right = 0) => left - right)).toEqual([1, 5]);
     expect(report.populationAccounting?.["undersized-ui-text"]).toMatchObject({
       candidates: 9,
       judged: 9,
@@ -305,7 +305,7 @@ auditRuleTest(
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "grouping on data-slot=button alone would incorrectly merge these homes").toHaveLength(2);
-    expect(findings.map((finding) => finding.population?.affected).sort()).toEqual([3, 3]);
+    expect(findings.map((finding) => finding.population?.affected).sort((left = 0, right = 0) => left - right)).toEqual([3, 3]);
     await expect(res).toExitWith(1);
   },
 );

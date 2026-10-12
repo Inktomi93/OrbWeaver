@@ -92,7 +92,11 @@ function literalMembers(read: MorphNode): ReadonlySet<string> | undefined {
     if (!part.isStringLiteral()) {
       return;
     }
-    members.add(String(part.getLiteralValue()));
+    const literal = part.getLiteralValue();
+    if (typeof literal !== "string") {
+      return;
+    }
+    members.add(literal);
   }
   return members.size === 0 ? undefined : members;
 }

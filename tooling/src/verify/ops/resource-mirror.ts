@@ -47,7 +47,7 @@ function membersWithin(entries: readonly ResourceTreeEntry[], root: string, kind
 
 export function loadMirrorIndex(reader: ResourceReader, family: MirrorFamilyId): ResourceLoad<MirrorIndex> {
   if (!Object.hasOwn(MIRROR_FAMILY_DEFINITIONS, family)) {
-    return { status: "unresolved", paths: [], members: 0, reason: `unknown mirror family: ${String(family)}` };
+    return { status: "unresolved", paths: [], members: 0, reason: `unknown mirror family: ${family}` };
   }
   const definition = MIRROR_FAMILY_DEFINITIONS[family];
   const sources = loadAuthoredTree(reader, definition.sourceTree);

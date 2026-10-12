@@ -171,9 +171,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
   // because the capture below is NOT of the settled app and every downstream assertion about it is void.
   if (opts.file === null) {
     const settled = await readinessWithColdStageWarmup(page, opts, url, { nav: navTimeout, ready: budgets.ready });
-    if (navError === null) {
-      navError = settled.httpError ?? (settled.readiness === "settled" ? null : UNSETTLED_REASON[settled.readiness]);
-    }
+    navError ??= settled.httpError ?? (settled.readiness === "settled" ? null : UNSETTLED_REASON[settled.readiness]);
   }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).
   if (opts.waitSelector !== null) {

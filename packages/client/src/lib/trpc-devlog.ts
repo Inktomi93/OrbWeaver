@@ -2,6 +2,7 @@
 // Inputs are key-scrubbed before they ever reach the console. NOT dev-only: loggerLink fires this in
 // prod for errors too, so this module (+ log-clock) ships.
 
+import { isPrimitive } from "@orb/kit/guards";
 import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
 
@@ -80,7 +81,7 @@ function summarizeResult(data: unknown): string {
     const keys = Object.keys(data);
     return `{${keys.slice(0, SUMMARY_KEYS_MAX).join(",")}${keys.length > SUMMARY_KEYS_MAX ? ",…" : ""}}`;
   }
-  return String(data).slice(0, SUMMARY_SCALAR_MAX);
+  return (isPrimitive(data) ? String(data) : JSON.stringify(data)).slice(0, SUMMARY_SCALAR_MAX);
 }
 
 /**

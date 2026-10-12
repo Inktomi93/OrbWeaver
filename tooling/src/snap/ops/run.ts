@@ -94,15 +94,13 @@ function windowOutcomes(outcomes: readonly CaptureOutcome[], session: ProbeSessi
     return;
   }
   for (const outcome of outcomes) {
-    if (outcome.evidenceRange === null) {
-      outcome.evidenceRange = {
-        consoleStart: window.consoleStart,
-        consoleEnd: session.evidence.console.cursor(),
-        pageErrorStart: window.pageErrorStart,
-        pageErrorEnd: session.evidence.pageErrors.cursor(),
-        diagnosticWindow: session.diagnosticWindow.value,
-      };
-    }
+    outcome.evidenceRange ??= {
+      consoleStart: window.consoleStart,
+      consoleEnd: session.evidence.console.cursor(),
+      pageErrorStart: window.pageErrorStart,
+      pageErrorEnd: session.evidence.pageErrors.cursor(),
+      diagnosticWindow: session.diagnosticWindow.value,
+    };
   }
 }
 

@@ -96,7 +96,6 @@ const PROSE_MIN_WORDS = 12;
 const WORD_RE = /\S+/gu;
 const LOWER_RUN_RE = /[a-z]{3,}/u;
 const OPERATOR_CALLEE_RE = /^(?:logger|log|console)\b|getLog\(\)/u;
-const ERROR_NAME_RE = /Error$/u;
 
 const MESSAGE =
   "model-facing prose hardcoded at a prompt-assembly seam — every string whose bytes reach a model is a " +
@@ -196,7 +195,7 @@ function isOperatorFacing(node: Node): boolean {
     if (cur.isKind(SyntaxKind.ThrowStatement)) {
       return true;
     }
-    if (cur.isKind(SyntaxKind.NewExpression) && ERROR_NAME_RE.test(cur.getExpression().getText())) {
+    if (cur.isKind(SyntaxKind.NewExpression) && cur.getExpression().getText().endsWith("Error")) {
       return true;
     }
     if (cur.isKind(SyntaxKind.CallExpression) && OPERATOR_CALLEE_RE.test(cur.getExpression().getText())) {

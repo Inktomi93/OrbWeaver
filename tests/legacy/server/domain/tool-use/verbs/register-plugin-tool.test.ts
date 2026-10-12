@@ -324,7 +324,7 @@ describe("#677: the same tool name may be held once PER INSTALLER", () => {
 // this exact-value pin is the tie back — if either side's cap ever moves without the other, this test is the
 // one thing that catches it before the boundaries silently stop matching the registry they were sized for.
 test("#1803: the registry's TOOL_NAME_RE bound equals the contracts wire-mint budget constant", () => {
-  const maxLen = TOOL_NAME_RE.source.match(/\{0,(\d+)\}/)?.[1];
+  const maxLen = /\{0,(\d+)\}/.exec(TOOL_NAME_RE.source)?.[1];
   expect(maxLen).toBeDefined();
   expect(1 + Number(maxLen)).toBe(PLUGIN_TOOL_WIRE_NAME_MAX);
 });

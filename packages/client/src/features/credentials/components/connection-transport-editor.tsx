@@ -220,7 +220,7 @@ function FinishReasonReading({ value }: { readonly value: unknown }): ReactEleme
   const known = typeof value === "string" && (NORMALIZED_FINISH_REASONS as readonly string[]).includes(value);
   return (
     <Badge intent={known ? "success" : "warning"} size="sm" tone="soft">
-      {known ? `reads as ${String(value)}` : "we can't read that as a finish reason"}
+      {known ? `reads as ${value}` : "we can't read that as a finish reason"}
     </Badge>
   );
 }

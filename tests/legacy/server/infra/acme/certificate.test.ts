@@ -26,7 +26,7 @@ function keyPair(): { readonly privateKey: KeyObject; readonly publicKey: KeyObj
 }
 
 function pemOf(key: KeyObject): string {
-  return key.export({ type: "pkcs8", format: "pem" }).toString();
+  return key.export({ type: "pkcs8", format: "pem" });
 }
 
 function issued(address: string): Pair {

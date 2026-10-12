@@ -19,10 +19,6 @@ import { compilerConfigRoster, readCompilerConfigEntries } from "./policy-progra
 
 /** biome's include syntax treats a leading `!` as an EXCLUSION rather than a grant. */
 const NEGATION_PREFIX = "!";
-/** A `${configDir}`-style template token is not a literal path: TypeScript expands it per INHERITING
- *  config, so the entry denotes a different path in each extender and has no single member set to test. */
-const TEMPLATE_RE = /\$\{/u;
-
 /** ONE classified config row. `subject` is BOTH the grant subject and the finding token, and it is the
  *  entry AS AUTHORED — the same key the retired gate-local tables used, so a legacy exemption ports to a
  *  reviewed grant without re-keying. `rooted` is that entry resolved against its own config's directory,
@@ -61,8 +57,9 @@ function rootedEntry(config: string, entry: string): string {
  *  applied only to what is left: `${…}` carries `{` and `}`, so that boundary would already call a template
  *  a glob and the irreducible intent would be invisible. */
 function classify(rows: readonly ConfigGrantRow[]): Omit<ConfigGrantRows, "candidates"> {
-  const templates = rows.filter((row) => TEMPLATE_RE.test(row.subject));
-  const literal = rows.filter((row) => !TEMPLATE_RE.test(row.subject));
+  // TypeScript expands configDir per inheriting config, so templates have no single member set.
+  const templates = rows.filter((row) => row.subject.includes("${"));
+  const literal = rows.filter((row) => !row.subject.includes("${"));
   return {
     exact: literal.filter((row) => isFileExact(row.subject)),
     globs: literal.filter((row) => !isFileExact(row.subject)),
@@ -160,7 +157,7 @@ export function tsconfigGrantRows(configs: readonly CompilerConfigEntries[]): Co
     candidates += config.entries.length;
     for (const entry of config.entries) {
       const rooted = rootedEntry(config.config, entry.value);
-      const exact = isFileExact(entry.value) && !TEMPLATE_RE.test(entry.value);
+      const exact = isFileExact(entry.value) && !entry.value.includes("${");
       rows.push({ subject: exact ? rooted : entry.value, rooted, config: config.config, line: entry.line });
     }
   }

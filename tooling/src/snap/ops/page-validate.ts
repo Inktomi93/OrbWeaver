@@ -300,7 +300,7 @@ export function mapShellEvidence(value: unknown): MapShellEvidence {
   for (const panel of publishedPanels) {
     const rendered = regions.find((region) => region.id === panel.side);
     if (rendered === undefined || rendered.mode !== panel.mode || rendered.available !== panel.available) {
-      throw new Error(`INSTRUMENT ERROR: ${label} __orb.shell panel declaration disagrees with rendered ${String(panel.side)} attributes`);
+      throw new Error(`INSTRUMENT ERROR: ${label} __orb.shell panel declaration disagrees with rendered ${panel.side} attributes`);
     }
   }
   return {

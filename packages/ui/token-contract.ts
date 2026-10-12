@@ -225,7 +225,7 @@ function ajvDiagnostics(path: string, code: string, validate: ValidateFunction, 
     return [];
   }
   return (validate.errors ?? []).map((error: ErrorObject) =>
-    diagnostic(`${path}${error.instancePath}`, code, `${error.message ?? "schema violation"}${error.params ? ` (${JSON.stringify(error.params)})` : ""}`),
+    diagnostic(`${path}${error.instancePath}`, code, `${error.message ?? "schema violation"}${` (${JSON.stringify(error.params)})`}`),
   );
 }
 

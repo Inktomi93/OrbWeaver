@@ -45,7 +45,7 @@ function hasReasoning(values: readonly StreamValue[]): boolean {
   return values.some(
     (v) =>
       (v.event.type === "delta" && v.event.delta.kind === "reasoning" && v.event.delta.text.length > 0) ||
-      ("view" in v.event && (v.event.view?.reasoning ?? null) !== null),
+      ("view" in v.event && (v.event.view.reasoning ?? null) !== null),
   );
 }
 

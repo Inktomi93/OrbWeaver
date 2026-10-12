@@ -10,7 +10,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
 export function loadNativeConfig(reader: ResourceReader, options: ResourceReaderOptions, id: ConfigSnapshotRunner): ResourceLoad<ConfigSnapshot> {
   if (!Object.hasOwn(NATIVE_CONFIG_RESOURCE_PATHS, id)) {
-    return { status: "unresolved", paths: [], members: 0, reason: `unknown native config: ${String(id)}` };
+    return { status: "unresolved", paths: [], members: 0, reason: `unknown native config: ${id}` };
   }
   const configPath = NATIVE_CONFIG_RESOURCE_PATHS[id];
   const rootConfig = reader.read(configPath);

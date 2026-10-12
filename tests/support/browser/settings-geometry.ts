@@ -72,9 +72,7 @@ export function readClippedNavLabels(page: Page): Promise<readonly string[]> {
     const nav = document.querySelector('[role="navigation"]');
     return nav === null
       ? []
-      : [...nav.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')]
-          .filter((el) => el.scrollWidth > el.clientWidth)
-          .map((el) => el.textContent ?? "");
+      : [...nav.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')].filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent);
   });
 }
 
@@ -178,7 +176,7 @@ export function readSwitchRowOrientation(page: Page, accessibleName: string): Pr
     const ink = range.getBoundingClientRect();
     const box = control.getBoundingClientRect();
     return {
-      label: (label.textContent ?? "").trim(),
+      label: label.textContent.trim(),
       labelLeadsControl: ink.left < box.left,
       onOneLine: Math.min(ink.bottom, box.bottom) - Math.max(ink.top, box.top) > 0,
       // A real `<label for=…>` pointing INSIDE this row. Not `for === control.id`: Base UI's Switch is a

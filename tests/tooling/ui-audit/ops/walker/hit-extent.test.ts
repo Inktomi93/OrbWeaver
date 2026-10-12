@@ -34,7 +34,6 @@ const LADDER_PATTERN = /var HIT_PROBE_RADII = \[([^\]]+)\]/;
  *  Both halves are derived from the walker string — the constant AND the ring that must consume it, because
  *  a declared-but-unused inset reads exactly like a fixed walker. */
 const INSET_PATTERN = /var HIT_PROBE_INSET = ([\d.]+)/;
-const INSET_RING_PATTERN = /var p = r - HIT_PROBE_INSET;/;
 /** Wide enough to contain every floor the rule can hold (the widest is the AAA 44px touch target). */
 const SIZE_SCAN_MAX = 80;
 
@@ -111,12 +110,12 @@ describe("the hit-extent ladder and the tap-target floors", () => {
     const value = Number(inset?.[1] ?? Number.NaN);
     expect(value, "the inset must be a sub-pixel step: 0 re-creates the boundary probe, >=1 skips real pixels").toBeGreaterThan(0);
     expect(value).toBeLessThan(1);
-    expect(INSET_RING_PATTERN.test(WALKER_HIT_EXTENT), "HIT_PROBE_INSET is declared but the ring does not consume it").toBe(true);
+    expect(WALKER_HIT_EXTENT.includes("var p = r - HIT_PROBE_INSET;"), "HIT_PROBE_INSET is declared but the ring does not consume it").toBe(true);
   });
 
   test("PLANTED CONTROL: a ring rebuilt on the bare radius is reported, so the check above can fail", () => {
     const boundaryProbe = WALKER_HIT_EXTENT.replace("var p = r - HIT_PROBE_INSET;", "var p = r;");
     expect(boundaryProbe, "the planted control changed nothing — the ring was not inset to begin with").not.toBe(WALKER_HIT_EXTENT);
-    expect(INSET_RING_PATTERN.test(boundaryProbe)).toBe(false);
+    expect(boundaryProbe.includes("var p = r - HIT_PROBE_INSET;")).toBe(false);
   });
 });

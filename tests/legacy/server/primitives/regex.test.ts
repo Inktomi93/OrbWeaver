@@ -40,7 +40,7 @@ const O_GLOBAL = /o/gu;
 const TIMED_OUT = /timed out/iu;
 const REPLACER_BOOM = /replacer boom/u;
 
-const noopReplacer: RegexReplacer = (match) => `[${String(match)}]`;
+const noopReplacer: RegexReplacer = (match) => `[${match}]`;
 
 // Benign key patterns for the `.test` watchdog's happy-path arms.
 const DRAGON = /dragon/iu;
@@ -63,7 +63,7 @@ describe("createRegexApplyReplace — ReDoS watchdog", () => {
       // …a SECOND runaway still gets its own full budget and also throws (not a cumulative/shared timer)…
       expect(() => applyReplace(EVIL_SUBJECT, EVIL_REGEX, noopReplacer)).toThrow(TIMED_OUT);
       // …and a normal call afterwards completes correctly on a fresh budget.
-      const out = applyReplace("ab", SINGLE_A, (m) => String(m).toUpperCase());
+      const out = applyReplace("ab", SINGLE_A, (m) => m.toUpperCase());
       expect(out).toBe("Ab");
     },
     TEST_DEADLINE_MS,
@@ -86,7 +86,7 @@ describe("createRegexApplyReplace — correctness across the vm boundary", () =>
   });
 
   test("the whole-match (arg 0) is available to the replacer", () => {
-    const out = applyReplace("a1b2c3", DIGIT, (m) => `<${String(m)}>`);
+    const out = applyReplace("a1b2c3", DIGIT, (m) => `<${m}>`);
     expect(out).toBe("a<1>b<2>c<3>");
   });
 

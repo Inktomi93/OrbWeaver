@@ -107,7 +107,10 @@ test("§4.7 SCOPE SPLIT: one rule suppressed in BOTH scopes is two findings with
     "packages/kit/src/a.ts": "// biome-ignore lint/style/useNamingConvention: wire key\nexport const snake_case = 1;\n",
     "tests/kit/a.test.ts": "// biome-ignore lint/style/useNamingConvention: fixture wire key\nexport const other_key = 2;\n",
   });
-  expect(authority.effectiveFindings.map((finding) => finding.operation).toSorted()).toEqual(["source", "tests"]);
+  expect(authority.effectiveFindings.map((finding) => finding.operation).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual([
+    "source",
+    "tests",
+  ]);
 });
 
 test("THE STALE-RULE SUCCESSOR: a grant whose rule class has no live site alarms, which is what the deleted arm did", () => {
@@ -145,7 +148,11 @@ test("work item 0036: a directive in a repo-root config, a package file outside 
     "scripts/vitest-supervised.ts": "// biome-ignore lint/style/noProcessEnv: probe\nexport const c = 3;\n",
   });
   expect(toolErrors).toEqual([]);
-  expect(authority.effectiveFindings.map((finding) => [finding.subject, finding.operation]).toSorted()).toEqual([
+  expect(
+    authority.effectiveFindings
+      .map((finding) => [finding.subject, finding.operation])
+      .toSorted((left, right) => (left[0] ?? "").localeCompare(right[0] ?? "") || (left[1] ?? "").localeCompare(right[1] ?? "")),
+  ).toEqual([
     ["lint/performance/noNamespaceImport", "source"],
     ["lint/style/noDefaultExport", "source"],
     ["lint/style/noProcessEnv", "source"],

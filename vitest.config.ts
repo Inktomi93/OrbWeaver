@@ -202,7 +202,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: "unit",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: runtimeGlobs([...exclusiveTestGlobs(({ family, resource }) => family === "unit" && resource === null), `!${TOOLING}`]),
+            include: runtimeGlobs([...exclusiveTestGlobs(({ family }) => family === "unit"), `!${TOOLING}`]),
           },
         },
         {
@@ -250,7 +250,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: "contract",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: runtimeGlobs([...exclusiveTestGlobs(({ family, resource }) => family === "contract" && resource === null), `!${TOOLING}`]),
+            include: runtimeGlobs([...exclusiveTestGlobs(({ family }) => family === "contract"), `!${TOOLING}`]),
           },
         },
         ...(runtimeOnly ? [] : typecheckProjects(applicationOnly)),

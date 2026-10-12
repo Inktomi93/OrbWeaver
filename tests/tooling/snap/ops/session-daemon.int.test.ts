@@ -244,7 +244,9 @@ test("T1 — two sessions over one fixture: A's --viewport 412x823 is A's alone 
     const bootB = await r.snap(["--session", b, "--file", r.fixture, "--eval", "innerWidth", ...QUIET]);
     await expect(bootB).toExitWith(EXIT.clean);
     expect(evalValue(bootB.stdout)).toBe(1280);
-    expect(slotHolders(r.ctPool).toSorted()).toEqual([rowOf(r.home, a).daemonPid, rowOf(r.home, b).daemonPid].toSorted());
+    expect(slotHolders(r.ctPool).toSorted((left = 0, right = 0) => left - right)).toEqual(
+      [rowOf(r.home, a).daemonPid, rowOf(r.home, b).daemonPid].toSorted((left = 0, right = 0) => left - right),
+    );
     // The control that the instrument MEASURES (and that a later call drives the live page, no route):
     const live = await r.snap(["--session", a, "--eval", "innerWidth", ...QUIET]);
     await expect(live).toExitWith(EXIT.clean);
@@ -507,7 +509,9 @@ test("T6 — at the cap the next boot exits 2 naming the live sessions with idle
   try {
     await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     await expect(await r.snap(["--session", b, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
-    expect(slotHolders(r.ctPool).toSorted()).toEqual([rowOf(r.home, a).daemonPid, rowOf(r.home, b).daemonPid].toSorted());
+    expect(slotHolders(r.ctPool).toSorted((left = 0, right = 0) => left - right)).toEqual(
+      [rowOf(r.home, a).daemonPid, rowOf(r.home, b).daemonPid].toSorted((left = 0, right = 0) => left - right),
+    );
     const refused = await r.snap(["--session", c, "--file", r.fixture, "--eval", "1", ...QUIET]);
     await expect(refused).toExitWith(EXIT.toolError);
     expect(refused.stdout).toContain("cap is 2");
@@ -523,7 +527,9 @@ test("T6 — at the cap the next boot exits 2 naming the live sessions with idle
     const admitted = await r.snap(["--session", c, "--file", r.fixture, "--eval", "1", ...QUIET]);
     await expect(admitted).toExitWith(EXIT.clean);
     expect(admitted.stdout).toContain("booting");
-    expect(slotHolders(r.ctPool).toSorted()).toEqual([rowOf(r.home, b).daemonPid, rowOf(r.home, c).daemonPid].toSorted());
+    expect(slotHolders(r.ctPool).toSorted((left = 0, right = 0) => left - right)).toEqual(
+      [rowOf(r.home, b).daemonPid, rowOf(r.home, c).daemonPid].toSorted((left = 0, right = 0) => left - right),
+    );
   } finally {
     await r.close([a, b, c]);
   }

@@ -7,15 +7,6 @@ import type { Node } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import { EFFECTIVE_APP_CONFIG, METADATA_PARSER, SETTINGS_CONTRACTS } from "./knob-wire-members.ts";
 
-// ── consumer scopes ─────────────────────────────────────────────────────────────────────────────────────
-// Arm A: the resolver DEFAULTS every field off an `AppSettings` receiver — its reads are AppSettings-typed,
-// never EffectiveAppConfig-typed, so type-keying already excludes it from the consumer set; the config-cache
-// APPLICATION seam (reloadEffectiveConfig rebinding live subsystems, e.g. logger.level = resolved.logLevel)
-// is a GENUINE consumer and stays IN scope. So arm A needs no path exclusion.
-const SERVER_SRC = /\/packages\/server\/src\//u;
-const CLIENT_SRC = /\/packages\/client\/src\//u;
-const UI_SRC = /\/packages\/ui\/src\//u;
-const ENTRY_SCOPE = /\/packages\/server\/src\/entry\//u;
 /** Arm B2: the admin write surfaces (the config host + the user-admin feature dir). The settings feature
  *  folded INTO `features/config` at #2447 (owner ruling 2026-09-19), taking every surface this arm ever
  *  scanned with it; no `appSettingsSchema` key was written in either dir on the day of the move, so the
@@ -77,15 +68,15 @@ export interface FileScope {
 }
 
 export function scopeOf(path: string): FileScope {
-  const server = SERVER_SRC.test(path);
-  const client = CLIENT_SRC.test(path);
+  const server = path.includes("/packages/server/src/");
+  const client = path.includes("/packages/client/src/");
   const isSettingsContract = SETTINGS_CONTRACTS.test(path);
   const chatWrite = CHAT_WRITE_SCOPE.test(path);
   return {
-    settingsRead: (server || client || UI_SRC.test(path)) && !isSettingsContract,
+    settingsRead: (server || client || path.includes("/packages/ui/src/")) && !isSettingsContract,
     presetRead: server,
     metadataRead: server && !METADATA_PARSER.test(path) && !chatWrite,
-    sectionWrite: client || ENTRY_SCOPE.test(path),
+    sectionWrite: client || path.includes("/packages/server/src/entry/"),
     adminWrite: ADMIN_SURFACES.test(path),
     metadataWrite: chatWrite,
     configRead: server,
@@ -161,6 +152,7 @@ function configReadName(node: Node, scope: FileScope): string | undefined {
   if (!(scope.configRead && MorphNode.isPropertyAccessExpression(node))) {
     return;
   }
+  // AppSettings-typed resolver defaults are not consumption; EffectiveAppConfig reload reads remain in scope.
   const type = node.getExpression().getType();
   return (type.getSymbol() ?? type.getAliasSymbol())?.getName() === EFFECTIVE_APP_CONFIG ? node.getName() : undefined;
 }

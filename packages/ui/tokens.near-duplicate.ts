@@ -81,7 +81,7 @@ function renderColor(value: unknown): string {
   if (color["colorSpace"] !== "oklch" || !Array.isArray(color["components"])) {
     return JSON.stringify(value);
   }
-  return `oklch(${color["components"].join(" ")}${color["alpha"] === undefined ? "" : ` / ${String(color["alpha"])}`})`;
+  return `oklch(${color["components"].join(" ")}${color["alpha"] === undefined ? "" : ` / ${JSON.stringify(color["alpha"])}`})`;
 }
 
 function tokenValues(node: RawNode, path: readonly string[], out: Map<string, unknown>): void {

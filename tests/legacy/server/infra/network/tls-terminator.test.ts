@@ -51,7 +51,7 @@ function selfSigned(serial: number): Pair {
       notBefore: clock.now() - LIFETIME_MS,
       notAfter: clock.now() + LIFETIME_MS * 1000,
     }),
-    keyPem: keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    keyPem: keys.privateKey.export({ type: "pkcs8", format: "pem" }),
   };
 }
 

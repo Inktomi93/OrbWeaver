@@ -103,9 +103,14 @@ function safeBodySummary(body: Record<string, unknown>): object {
     parallelControl: body["parallel_tool_calls"] ?? null,
     nativeSchema: gen["responseJsonSchema"] !== undefined,
     responseFormat: asObject(body["response_format"])["type"] ?? null,
-    replayIds: [...native.map((p) => String(asObject(p["functionCall"])["id"] ?? "(absent)")), ...gateway.map((c) => String(c["id"]))],
+    replayIds: [
+      ...native.map((p) => (typeof asObject(p["functionCall"])["id"] === "string" ? asObject(p["functionCall"])["id"] : "(absent)")),
+      ...gateway.map((c) => String(c["id"])),
+    ],
     replaySignatures: [...native.map((p) => typeof p["thoughtSignature"] === "string"), ...gateway.map(gatewaySignature)],
-    reasoningFormats: messages.flatMap((r) => rows(r["reasoning_details"]).map((d) => `${String(d["type"])}:${String(d["format"] ?? "unspecified")}`)),
+    reasoningFormats: messages.flatMap((r) =>
+      rows(r["reasoning_details"]).map((d) => `${String(d["type"])}:${typeof d["format"] === "string" ? d["format"] : "unspecified"}`),
+    ),
     sentinelPresent: JSON.stringify(body).includes("skip_thought_signature_validator"),
     topKeys: Object.keys(body),
     messageRoles: messages.map((r) => r["role"]),
@@ -148,7 +153,7 @@ function safeReplySummary(text: string): object {
     upstream: echoes.length === 0 ? "unavailable" : echoes,
     providers: [...new Set(frames.map((f) => f["provider"]).filter((p) => typeof p === "string"))],
     signedToolParts: calls.map(gatewaySignature),
-    reasoningFormats: [...new Set(reasoning.map((d) => `${String(d["type"])}:${String(d["format"] ?? "unspecified")}`))],
+    reasoningFormats: [...new Set(reasoning.map((d) => `${String(d["type"])}:${typeof d["format"] === "string" ? d["format"] : "unspecified"}`))],
   };
 }
 
@@ -239,7 +244,7 @@ const transport: typeof fetch = async (url, init) => {
     return Response.json({ data: [], models: [] });
   }
   spendRequest();
-  const body = object.parse(JSON.parse(String(init.body)));
+  const body = object.parse(JSON.parse(typeof init.body === "string" ? init.body : ""));
   sends.push(safeBodySummary(body));
   if (!fixture) {
     const response = await fetch(

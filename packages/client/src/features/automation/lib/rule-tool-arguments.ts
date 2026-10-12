@@ -46,5 +46,5 @@ function parameterTypeLabel(type: AutomationRuleToolView["parameters"][string] |
   if (typeof type === "string") {
     return type;
   }
-  return Array.isArray(type) ? type.join(" or ") : "value";
+  return Array.isArray(type) && type.every((member) => typeof member === "string") ? type.join(" or ") : "value";
 }

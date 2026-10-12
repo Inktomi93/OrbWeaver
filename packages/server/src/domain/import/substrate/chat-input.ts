@@ -398,7 +398,7 @@ function groupSpeakerFor(m: ParsedChatMessage, deps: GroupChatInputDeps): Charac
     return byFile;
   }
   const name = m.speakerName?.trim().toLowerCase();
-  return (name !== undefined && deps.speakerByName.get(name)) || null;
+  return (name === undefined ? undefined : deps.speakerByName.get(name)) ?? null;
 }
 
 /**

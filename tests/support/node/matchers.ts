@@ -64,7 +64,9 @@ function excerpt(message: string): string {
 
 function stringify(v: unknown): string {
   try {
-    return excerpt(JSON.stringify(v) ?? String(v));
+    // JSON.stringify returns undefined for functions and symbols; the native declaration omits that result.
+    const text = JSON.stringify(v) as string | undefined;
+    return excerpt(text ?? String(v));
   } catch {
     return String(v);
   }
@@ -112,7 +114,7 @@ expect.extend({
       const trpcError = asTrpcError(e);
       if (trpcError === null) {
         // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
-        const got = (e as Error | null)?.constructor?.name ?? typeof e;
+        const got = (e as Error | null)?.constructor.name ?? typeof e;
         // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
         const message = (e as Error | null)?.message ?? "";
         return {
@@ -144,7 +146,7 @@ expect.extend({
     } catch (e) {
       if (!(e instanceof ProviderError)) {
         // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
-        const got = (e as Error | null)?.constructor?.name ?? typeof e;
+        const got = (e as Error | null)?.constructor.name ?? typeof e;
         // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
         const message = (e as Error | null)?.message ?? "";
         return {

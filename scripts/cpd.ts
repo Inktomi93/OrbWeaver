@@ -38,7 +38,7 @@ function run(): number {
     return EXIT_TOOL_ERROR;
   }
   if (result.signal !== null) {
-    process.stderr.write(`cpd: jscpd terminated by signal ${result.signal ?? "unknown"}; no duplication verdict was produced\n`);
+    process.stderr.write(`cpd: jscpd terminated by signal ${result.signal}; no duplication verdict was produced\n`);
     return EXIT_TOOL_ERROR;
   }
   if (result.status === EXIT_CLEAN || result.status === EXIT_VIOLATIONS) {

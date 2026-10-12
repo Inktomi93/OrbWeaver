@@ -107,9 +107,7 @@ export async function logAudit(db: Db, entry: AuditEntry, createdAt: number): Pr
     await db.insert(auditLogs).values(auditRow(entry, createdAt));
   } catch (err) {
     auditFailureCount += 1;
-    if (firstFailureAt === null) {
-      firstFailureAt = createdAt;
-    }
+    firstFailureAt ??= createdAt;
     lastFailureAt = createdAt;
     getLog().error({ err, action: entry.action, entityType: entry.entityType, entityId: entry.entityId }, "audit: write failed (suppressed)");
     if (auditFailureCount % ALERT_EVERY === 0) {

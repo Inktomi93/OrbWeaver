@@ -14,7 +14,7 @@ export function loadExactFiles(reader: ResourceReader, ids: readonly ExactResour
   }
   const unknown = distinct.find((id) => !Object.hasOwn(EXACT_RESOURCE_PATHS, id));
   if (unknown !== undefined) {
-    return { status: "unresolved", paths: [], members: 0, reason: `unknown exact resource id: ${String(unknown)}` };
+    return { status: "unresolved", paths: [], members: 0, reason: `unknown exact resource id: ${unknown}` };
   }
   const files = new Map<ExactResourceId, ExactFile>();
   const paths = distinct.map((id) => EXACT_RESOURCE_PATHS[id]);

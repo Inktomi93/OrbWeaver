@@ -36,7 +36,6 @@ refuseDirectInvocation(import.meta.url, "pnpm stack served-probe");
  *  problem, not vite's. */
 const WATCHED_SOURCE_DIRS = ["packages/client/src", "packages/ui/src", "packages/kit/src", "packages/contracts/src"];
 const MODULE_EXT_RE = /\.(?:ts|tsx)$/u;
-const DECLARATION_RE = /\.d\.ts$/u;
 /** How far down the newest-first list to walk before giving up on finding a comparable module. */
 const CANDIDATE_DEPTH = 5;
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
@@ -75,7 +74,7 @@ export async function probeServedTransform(
   roots: readonly string[] = WATCHED_SOURCE_DIRS.map((rel) => `${REPO_ROOT}/${rel}`),
   vitePort: number = DEV_PORTS.vite,
 ): Promise<ServedVerdict> {
-  const candidates = newestSourceEntries(roots, (path) => MODULE_EXT_RE.test(path) && !DECLARATION_RE.test(path)).slice(0, CANDIDATE_DEPTH);
+  const candidates = newestSourceEntries(roots, (path) => MODULE_EXT_RE.test(path) && !path.endsWith(".d.ts")).slice(0, CANDIDATE_DEPTH);
   let last: ServedVerdict = classifyServedTransform({ file: null, diskSource: null, servedBody: null });
   for (const candidate of candidates) {
     const rel = relative(REPO_ROOT, candidate.path);

@@ -96,7 +96,7 @@ function lineReader(opts: SetupRunOpts): LineReader {
         if (next.done === true) {
           return null;
         }
-        const parsed = parse(String(next.value));
+        const parsed = parse(next.value);
         if (parsed.ok) {
           return { value: parsed.value };
         }

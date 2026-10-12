@@ -49,7 +49,10 @@ test("a planner internal reached through a namespace import or a re-export is th
     "packages/server/src/domain/x/re.ts": 'export { scrubWireSchema as scrub, checkWireSchema } from "@orb/contracts/inference";\n',
   });
 
-  expect(namespaced.authority.effectiveFindings.map((finding) => finding.token).toSorted()).toEqual(["countWireSchemas", "scrubWireSchema"]);
+  expect(namespaced.authority.effectiveFindings.map((finding) => finding.token).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual([
+    "countWireSchemas",
+    "scrubWireSchema",
+  ]);
   expect(reexported.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["scrubWireSchema"]);
 });
 

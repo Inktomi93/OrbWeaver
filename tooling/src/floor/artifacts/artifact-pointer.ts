@@ -135,9 +135,7 @@ function censusRow(dir: string, runIdValue: string): SlotCensusRow | null {
   if (ranAt === null && marker !== null) {
     ranAt = marker.startedAt;
   }
-  if (ranAt === null) {
-    ranAt = dirInstant(dir);
-  }
+  ranAt ??= dirInstant(dir);
   if (ranAt === null) {
     return null;
   }

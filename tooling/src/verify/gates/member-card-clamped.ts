@@ -28,9 +28,6 @@ import { Node as NodeGuards, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 
-const CONTRACTS = /\/packages\/contracts\//u;
-const SERVER_SRC = /\/packages\/server\/src\//u;
-const CLAMP_HOME = /\/packages\/server\/src\/domain\/chat\/substrate\/auth\//u;
 const VIEW_TYPE = "MemberCardView";
 const CLAMP_SYMBOLS = new Set(["clampMemberCard", "resolveCardVisibility"]);
 const DELETED_VERB = "getRosterCardView";
@@ -107,15 +104,19 @@ export const gate = defineGate({
         visit: (node) => {
           const path = node.getSourceFile().getFilePath();
           // Type arm: a MemberCardView interface/type-alias declaration outside contracts.
-          if ((NodeGuards.isInterfaceDeclaration(node) || NodeGuards.isTypeAliasDeclaration(node)) && node.getName() === VIEW_TYPE && !CONTRACTS.test(path)) {
+          if (
+            (NodeGuards.isInterfaceDeclaration(node) || NodeGuards.isTypeAliasDeclaration(node)) &&
+            node.getName() === VIEW_TYPE &&
+            !path.includes("/packages/contracts/")
+          ) {
             reportName(ctx.report, node, VIEW_TYPE);
             return;
           }
-          if (!SERVER_SRC.test(path)) {
+          if (!path.includes("/packages/server/src/")) {
             return;
           }
           // Clamp arm: a clamp-symbol function/variable declaration outside the clamp home.
-          const clampName = CLAMP_HOME.test(path) ? undefined : clampDeclName(node);
+          const clampName = path.includes("/packages/server/src/domain/chat/substrate/auth/") ? undefined : clampDeclName(node);
           if (clampName !== undefined && CLAMP_SYMBOLS.has(clampName)) {
             reportName(ctx.report, node, clampName);
             return;

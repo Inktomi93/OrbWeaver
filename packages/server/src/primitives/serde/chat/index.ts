@@ -398,7 +398,10 @@ export function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZON
   if (typeof v === "number") {
     return epochToMs(v);
   }
-  const s = String(v).trim();
+  if (typeof v !== "string") {
+    return null;
+  }
+  const s = v.trim();
   if (s.length === 0) {
     return null;
   }

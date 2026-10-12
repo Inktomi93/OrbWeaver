@@ -135,7 +135,7 @@ async function judge(text: string): Promise<number> {
     { role: "user", content: `In the passage below, rate the character WREN on how mentally sharp, insightful and capable she comes across — 1 (slow, confused, unhelpful) to 10 (brilliant, incisive).\n\n---\n${text}\n---\n\nInteger only:` },
   ], 8);
   spent += cost;
-  const n = parseInt(String(out).match(/\d+/)?.[0] ?? "0", 10);
+  const n = parseInt((/\d+/.exec(out))?.[0] ?? "0", 10);
   return Number.isFinite(n) ? n : 0;
 }
 

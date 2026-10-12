@@ -307,7 +307,7 @@ function scanCards(text: string): CardHit[] {
       continue;
     }
     if (!/^\s*:::card\b/.test(line)) continue;
-    const titleMatch = line.match(/title\s*=\s*"([^"]*)"/);
+    const titleMatch = /title\s*=\s*"([^"]*)"/.exec(line);
     let close = -1;
     for (let j = i + 1; j < lines.length; j++) {
       if (/^\s*:::\s*$/.test(lines[j] ?? "")) {

@@ -131,7 +131,7 @@ export async function signUpWithInvite(
     return { ok: true, chatId: signupResultSchema.parse(await res.json()).chatId };
   }
   const parsed = await optionalAuthBody(res, authErrorResponseSchema);
-  return { ok: false, code: isSignupErrorCode(parsed?.error) ? parsed?.error : null };
+  return { ok: false, code: isSignupErrorCode(parsed?.error) ? parsed.error : null };
 }
 
 const NOT_FOUND = 404;
@@ -237,7 +237,7 @@ export async function confirmPendingJoin(
     return { ok: true, signedIn: result.signedIn, chatId: result.chatId };
   }
   const parsed = await optionalAuthBody(res, authErrorResponseSchema);
-  return { ok: false, code: isPendingJoinErrorCode(parsed?.error) ? parsed?.error : null };
+  return { ok: false, code: isPendingJoinErrorCode(parsed?.error) ? parsed.error : null };
 }
 
 /** The logout response: the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer

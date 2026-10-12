@@ -204,7 +204,7 @@ async function main(): Promise<void> {
       const row = await runJob(job);
       appendFileSync(outFile, `${JSON.stringify(row)}\n`);
       process.stdout.write(
-        `  ${CELL} ${job.mode} beat ${job.beat} rep ${job.rep}: ${String(row["shape"])}${row["error"] === undefined ? "" : ` ERROR ${String(row["error"])}`}\n`,
+        `  ${CELL} ${job.mode} beat ${job.beat} rep ${job.rep}: ${String(row["shape"])}${row["error"] === undefined ? "" : ` ERROR ${typeof row["error"] === "string" ? row["error"] : JSON.stringify(row["error"])}`}\n`,
       );
     }
   };

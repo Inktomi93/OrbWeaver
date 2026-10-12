@@ -152,7 +152,7 @@ function treeLedgerMembers(reader: ResourceReader, tree: string, member: RegExp)
 
 export function loadLedger(reader: ResourceReader, id: LedgerId): ResourceLoad<LedgerFacts> {
   if (!Object.hasOwn(LEDGER_DEFINITIONS, id)) {
-    return { status: "unresolved", paths: [], members: 0, reason: `unknown ledger id: ${String(id)}` };
+    return { status: "unresolved", paths: [], members: 0, reason: `unknown ledger id: ${id}` };
   }
   const definition: LedgerDefinition = LEDGER_DEFINITIONS[id];
   const members = treeLedgerMembers(reader, definition.tree, definition.member);

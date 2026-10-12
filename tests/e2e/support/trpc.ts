@@ -340,7 +340,7 @@ export async function claudeSubConnection(): Promise<ConnectionRow | undefined> 
 export async function getActivePreset(): Promise<TrpcOutput<"preset.get"> | undefined> {
   const settings = await getUserSettings();
   const id = settings.config.seeds.defaultPresetId;
-  if (id === undefined || id === null) {
+  if (id === null) {
     return;
   }
   return await trpcQuery("preset.get", { id });

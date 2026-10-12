@@ -74,6 +74,6 @@ test("the ruled product sites keep their geometry and only their exact occurrenc
   expect(
     drive(raw)
       .authority.effectiveFindings.map((f) => f.token)
-      .sort(),
+      .sort((left = "", right = "") => left.localeCompare(right)),
   ).toEqual(["glyph-lg", "glyph-xs"]);
 });
