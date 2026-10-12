@@ -7,11 +7,10 @@
 
 import type { RpgGameConfig, RpgQuest } from "@orb/contracts/rpg";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
-import { characters, chats, messages, messageVariants, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, users } from "@orb/db";
+import { chats, messages, messageVariants, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type {
-  CharacterHandle,
   CharacterId,
   ChatId,
   Handle,
@@ -28,6 +27,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 // ── Test-mirror (D34): every rpg enum column derives the ONE contracts tuple ────────────────────────────
@@ -152,7 +152,7 @@ test("rpg_sheets enforces the character XOR user actor CHECK (neither set AND bo
   const ownerId = castId<UserId>("user_sheet_owner");
   await db.insert(users).values({ id: ownerId, handle: castId<Handle>("sheet_owner"), handleKey: handleKey(castId<Handle>("sheet_owner")) });
   const characterId = castId<CharacterId>("character_sheet");
-  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-sheet"), ownerId, contentHash: "hash", name: "Card" });
+  await seedCharacter(db, { id: characterId, ownerId });
   const bothSet = { id: castId<RpgSheetId>("rpg_sheet_both"), gameId, characterId, userId: ownerId, sheet: EMPTY_SHEET };
   await expect(db.insert(rpgSheets).values(bothSet)).rejects.toSatisfy(isConstraint);
   // Exactly one set → accepted (the sanctioned shape).

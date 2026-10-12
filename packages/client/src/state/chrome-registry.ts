@@ -12,7 +12,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
 import type { SectionId } from "./section-ids.ts";
-import type { MobileCuration, SectionGroup } from "./section-registry.ts";
+import type { MobileCuration, RailZone, SectionGroup } from "./section-registry.ts";
 import { RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
 
 // The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
@@ -28,21 +28,48 @@ export type { MobileCuration } from "./section-registry.ts";
  *  has a consumer this wave; the sheet lens lands §E-5. */
 export type ChromePresentation = "bar" | "sheet";
 
-/** Where a chrome entry's affordance comes from — the three sources unified (§A). A `section`/`modal` arm
- *  carries only its target id (the consuming surface renders the affordance + wires the action from the
- *  section/modal registry); a `widget` arm carries a live body a static icon/label pair can't express. */
-export type ChromeEntryBehavior =
-  | { readonly kind: "section"; readonly sectionId: SectionId }
-  | { readonly kind: "modal"; readonly modalId: ModalSlotId }
-  | { readonly kind: "widget"; readonly body: (presentation: ChromePresentation) => ReactNode };
+/** Where a chrome entry's affordance comes from — the three sources unified (§A). A `section` or `modal`
+ *  arm carries its target id and its glyph, required, so every lens that draws one has an icon; a `widget`
+ *  arm carries a live body a static icon/label pair can't express, and so no glyph. */
+export type ChromeEntryBehavior = SectionBehavior | ModalBehavior | WidgetBehavior;
 
-/** A shell chrome affordance as ONE definition. `id`/`label`/`icon`/`zone`/`order`/`mobile` are the
- *  presentation axes every source shares; `behavior` is where it points. */
-export interface ChromeEntry {
+interface SectionBehavior {
+  readonly kind: "section";
+  readonly sectionId: SectionId;
+  readonly icon: LucideIcon;
+}
+
+interface ModalBehavior {
+  readonly kind: "modal";
+  readonly modalId: ModalSlotId;
+  readonly icon: LucideIcon;
+}
+
+interface WidgetBehavior {
+  readonly kind: "widget";
+  readonly body: (presentation: ChromePresentation) => ReactNode;
+}
+
+/** A rail SECTION's entry. Its zone is a `RailZone`, so no section entry can reach `topbar.trail`. */
+interface SectionChromeEntry extends ChromeEntryAxes {
+  readonly zone: RailZone;
+  readonly behavior: SectionBehavior;
+}
+
+/** A modal trigger's or a widget's entry, legal in every zone. */
+export interface ActionChromeEntry extends ChromeEntryAxes {
+  readonly zone: ChromeZone;
+  readonly behavior: ModalBehavior | WidgetBehavior;
+}
+
+/** A shell chrome affordance as ONE definition: the presentation axes every source shares, plus where it
+ *  points. The zone and the behavior travel together, so a lens narrows both by checking the zone. */
+export type ChromeEntry = SectionChromeEntry | ActionChromeEntry;
+
+/** `id`/`label`/`order`/`mobile` are the presentation axes every source shares. */
+interface ChromeEntryAxes {
   readonly id: string;
   readonly label: string;
-  readonly icon?: LucideIcon;
-  readonly zone: ChromeZone;
   /** `rail.nav` grouping — the divider order derives from it; the group axis has ONE home in
    *  section-registry.ts (kills rail-slots.ts's duplicate tuple). No consumer this wave. */
   readonly group?: SectionGroup;
@@ -80,7 +107,6 @@ export interface ChromeEntry {
    *  Called UNCONDITIONALLY inside a per-entry component, and only where `useVisible` already said yes —
    *  the same contract `useVisible` itself has. */
   readonly useBadge?: () => number;
-  readonly behavior: ChromeEntryBehavior;
 }
 
 /** The `topbar.trail` entries a PHONE's row cannot afford, which the You sheet projects instead (§E-5).

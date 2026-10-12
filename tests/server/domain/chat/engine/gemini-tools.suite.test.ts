@@ -1,5 +1,5 @@
 import type { ContentSignatures } from "@orb/contracts/chat";
-import { parseVariantMetadata } from "@orb/contracts/chat";
+import { parseVariantMetadata, projectViewForMember } from "@orb/contracts/chat";
 import { createInferenceRuntime } from "@orb/inference";
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -11,7 +11,6 @@ import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { buildCommittedMessageView } from "#server/domain/chat/persistence/canon-write.ts";
 import { continuedSignatureMetadata, signaturesForContent } from "#server/domain/chat/substrate/content-signatures.ts";
-import { projectViewForMember } from "#server/domain/chat/substrate/member-visibility.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "../../../../../scripts/probes/gemini-capabilities/scenario.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved, newUserId } from "../../../../inference/_support.ts";

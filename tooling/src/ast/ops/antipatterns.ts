@@ -111,7 +111,7 @@ function waivedHits(policy: StructurePolicy, readText: (rel: string) => string):
       continue;
     }
     const file = at["file"];
-    const source = lines.get(file) ?? readText(file).split("\n");
+    const source = lines.get(file) ?? readText(file).split(/\r?\n/u);
     lines.set(file, source);
     const marker = MARKER_RE.exec(source[Number(at["line"]) - 1] ?? "");
     if (marker?.[1] !== undefined) {

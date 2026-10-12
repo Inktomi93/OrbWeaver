@@ -39,6 +39,7 @@ export const rpgClockTimeSchema = z.object({
 });
 export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
 
+// @orb-waive no-vanity-alias(RPG_WEATHER_TYPES): baselined when the gate widened; burn-down item 906.
 /** The CLOSED weather vocabulary the model writes and the panel's Waystone paints — the axis is homed in
  *  `@orb/kit/weather` (reachable by BOTH this schema and the ui primitive, which may not import contracts,
  *  D54); this is the rpg-facing NAME for the same tuple, never a second spelling. */

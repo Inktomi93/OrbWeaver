@@ -17,6 +17,7 @@ import type { ResolveBackfillMemoryConfig } from "#server/domain/chat/contract/m
 import { backfillGroupCharacters, backfillMemory } from "#server/domain/chat/substrate/backfill.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
@@ -310,15 +311,16 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       mintSyntheticGroupCharacter: async ({ ownerId }) => {
         await db
           .insert(characters)
-          .values({
-            id: groupCharId,
-            handle: castId<CharacterHandle>(`__group__${group}`),
-            ownerId,
-            name: "group",
-            synthetic: true,
-            contentHash: "hash_group",
-            createdAt: 0,
-          })
+          .values(
+            makeCharacter({
+              id: groupCharId,
+              handle: castId<CharacterHandle>(`__group__${group}`),
+              ownerId,
+              name: "group",
+              synthetic: true,
+              createdAt: 0,
+            }),
+          )
           .onConflictDoNothing();
         return { characterId: groupCharId };
       },

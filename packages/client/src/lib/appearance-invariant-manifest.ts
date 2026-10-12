@@ -91,10 +91,10 @@ const LIST_PANEL_GLASS = `${LIST_PANEL}::before`;
 const LIST_PANEL_INK = `${LIST_PANEL} .shell-panel-header`;
 const TOPBAR = ".shell-topbar";
 const SHELL_CONTENT = ".shell-content";
-// Home's expanded list deliberately leaves the wide identity wrapper empty, while the narrow title and
-// Jump label trade visibility at the shell container breakpoint. This union always names real rendered
-// ink without binding the invariant to either responsive arm.
-const THEME_INK = ":is(.shell-topbar-title, .shell-topbar-jump-label)";
+// Home's expanded list leaves the wide identity wrapper empty and the topbar's buttons carry no text, so
+// above the shell container breakpoint the docked LIST band holds the shell's ink and below it the narrow
+// title does. This union always names real rendered ink without binding the invariant to either arm.
+const THEME_INK = `:is(.shell-topbar-title, ${LIST_PANEL_INK})`;
 const MATRIX_FIXTURE_INK = "--orb-matrix-fixture-ink";
 const DIALOG_VIEWPORT = '[data-slot="dialog-viewport"]';
 // THE PREVIEW OF THE OPTION YOU HAVE NOT PICKED (#929/#1099 F9). Density's spacing art used to be ONE

@@ -5,8 +5,9 @@
 // their `body("sheet")` lens, the You tab badges their `useBadge` count). `mobileBarCuration` decides who
 // is a TAB right now: the current section always holds a bar slot (#484), borrowing the last standing one.
 
-import type { ChromeEntry, SectionId } from "@orb/client/state";
+import type { ChromeEntry, RailZone, SectionId } from "@orb/client/state";
 import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state";
+import { Users } from "@orb/ui/icons";
 import { expect, test } from "../../support/fixtures.ts";
 
 function entry(id: string, zone: ChromeEntry["zone"], mobile?: ChromeEntry["mobile"]): ChromeEntry {
@@ -25,14 +26,14 @@ function section(
   sectionId: SectionId,
   group: NonNullable<ChromeEntry["group"]>,
   mobile: NonNullable<ChromeEntry["mobile"]>,
-  zone: ChromeEntry["zone"] = "rail.nav",
+  zone: RailZone = "rail.nav",
 ): ChromeEntry {
-  return { id: sectionId, label: sectionId, zone, group, mobile, behavior: { kind: "section", sectionId } };
+  return { id: sectionId, label: sectionId, zone, group, mobile, behavior: { kind: "section", sectionId, icon: Users } };
 }
 
 /** The same, minus the `group` axis — a nav section the rail's group-by-group render can never paint. */
 function ungroupedSection(sectionId: SectionId, mobile: NonNullable<ChromeEntry["mobile"]>): ChromeEntry {
-  return { id: sectionId, label: sectionId, zone: "rail.nav", mobile, behavior: { kind: "section", sectionId } };
+  return { id: sectionId, label: sectionId, zone: "rail.nav", mobile, behavior: { kind: "section", sectionId, icon: Users } };
 }
 
 test("selects ONLY the topbar widgets curated onto the phone's sheet", () => {

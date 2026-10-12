@@ -562,6 +562,7 @@ patchedDependencies:
   '@stryker-mutator/vitest-runner@10.0.0': 77cdc87d3c09581b4e6542e480877bd9154884d822a7a642f7c3ceccbf62890b
   '@ts-morph/common@0.29.0': 3dfce2339c755602f60d026b39533d68760eca1b0a2a966b9f0397ddaecd7b5e
   chrome-devtools-mcp@1.8.0: 67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a
+  cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
   isomorphic-git@1.42.2: be8fb8a37b59f0ba20092772c50d4f678b0d6a8c6e0d5556808cdbb8c6297047
   node-av@6.1.1: 36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039
   ts-morph@28.0.0: 4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37
@@ -1133,7 +1134,7 @@ importers:
         version: 3.0.1(ajv@8.20.0)
       cmdk:
         specifier: 'catalog:'
-        version: 1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        version: 1.1.1(patch_hash=a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       codemirror:
         specifier: 'catalog:'
         version: 6.0.2
@@ -11742,7 +11743,7 @@ snapshots:
 
   clsx@2.1.1: {}
 
-  cmdk@1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+  cmdk@1.1.1(patch_hash=a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
       '@radix-ui/react-compose-refs': 1.1.3(@types/react@19.3.0)(react@19.3.0)
       '@radix-ui/react-dialog': 1.1.18(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

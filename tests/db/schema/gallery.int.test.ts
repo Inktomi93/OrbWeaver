@@ -7,24 +7,13 @@
 
 import type { Db } from "@orb/db";
 import { assets, characters, galleryItems } from "@orb/db";
-import type { AssetId, CharacterHandle, CharacterId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
-
-async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
-  const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(`card-${id}`),
-    ownerId,
-    contentHash: "hash",
-    name: "Card",
-  });
-  return characterId;
-}
 
 async function seedAsset(db: Db, ownerId: UserId, id: string): Promise<AssetId> {
   const assetId = castId<AssetId>(id);
@@ -42,7 +31,7 @@ async function seedAsset(db: Db, ownerId: UserId, id: string): Promise<AssetId> 
 test("gallery_items: unique(assetId, subjectCharacterId) REJECTS a duplicate charactered add", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_gal_a", handle: castId<Handle>("gal-a") });
-  const characterId = await seedCharacter(db, ownerId, "character_gal_a");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_gal_a"), ownerId });
   const assetId = await seedAsset(db, ownerId, "asset_gal_a");
 
   await db.insert(galleryItems).values({
@@ -93,7 +82,7 @@ test("gallery_items: the partial unique index makes un-charactered rows unique p
 test("gallery_items: a character-scoped row coexists with the un-charactered one for the same asset", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_gal_b2", handle: castId<Handle>("gal-b2") });
-  const characterId = await seedCharacter(db, ownerId, "character_gal_b2");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_gal_b2"), ownerId });
   const assetId = await seedAsset(db, ownerId, "asset_gal_b2");
 
   await db.insert(galleryItems).values({ id: castId<GalleryItemId>("gallery_item_gal_b3"), assetId });
@@ -106,7 +95,7 @@ test("gallery_items: a character-scoped row coexists with the un-charactered one
 test("gallery_items: character delete SET NULLs the subject (item survives un-charactered)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_gal_c", handle: castId<Handle>("gal-c") });
-  const characterId = await seedCharacter(db, ownerId, "character_gal_c");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_gal_c"), ownerId });
   const assetId = await seedAsset(db, ownerId, "asset_gal_c");
   const itemId = castId<GalleryItemId>("gallery_item_gal_c");
   await db.insert(galleryItems).values({ id: itemId, assetId, subjectCharacterId: characterId });

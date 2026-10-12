@@ -21,21 +21,11 @@ import {
   users,
 } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
-import type {
-  AssetId,
-  CharacterHandle,
-  CharacterId,
-  ChatId,
-  DocumentChunkId,
-  DocumentId,
-  EmbedGenerationId,
-  Handle,
-  UserConnectionId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
@@ -161,13 +151,7 @@ test("scope junctions: composite PK + CASCADE both sides (doc delete wipes; scop
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_db_c", handle: castId<Handle>("h-user_db_c") });
   const characterId = castId<CharacterId>("character_db_c");
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>("card-c"),
-    ownerId,
-    contentHash: "h",
-    name: "C",
-  });
+  await seedCharacter(db, { id: characterId, ownerId });
   const chatId = castId<ChatId>("chat_db_c");
   await db.insert(chats).values({ id: chatId });
   const docId = await seedDoc(db, ownerId, "document_db_c", "hash-c");

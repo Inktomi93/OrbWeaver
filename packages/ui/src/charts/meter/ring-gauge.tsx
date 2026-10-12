@@ -10,6 +10,7 @@ import { cn, isSafeColor } from "#lib";
 import type { TrackColor } from "./track-bar.tsx";
 import { RING_STROKE, ringGaugeVariants } from "./variants.ts";
 
+// @orb-waive no-vanity-alias(RingColor): baselined when the gate widened; burn-down item 906.
 /** RingGauge shares the track-ramp step vocabulary with TrackBar. */
 export type RingColor = TrackColor;
 

@@ -11,19 +11,21 @@ import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { createDeleteSnapshot, createLoadOwnedCard, createStampRefinerySignals } from "#server/domain/character/index.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 async function seedCard(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({
-    id,
-    ownerId,
-    handle: castId<CharacterHandle>(key),
-    name: "Aria",
-    description: "keeps the ledger",
-    contentHash: key,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      ownerId,
+      handle: castId<CharacterHandle>(key),
+      name: "Aria",
+      description: "keeps the ledger",
+    }),
+  );
   return id;
 }
 

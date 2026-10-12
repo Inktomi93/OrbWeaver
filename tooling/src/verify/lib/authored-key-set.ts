@@ -22,11 +22,9 @@
 //      — correct for a value reader, since the value is not statically known. For a KEY-SET reader those two
 //      are COMPOSITION nodes, so the walk continues at the refusal's own `node`. The binding identity below
 //      them is still entirely the shared resolver's; nothing here re-implements an alias hop.
-//   2. `resolveCallableOrigin` / `resolveModuleMemberOrigin` cannot reach a MODULE-LOCAL factory: a
-//      non-exported `function f() {}` refuses as "FunctionDeclaration is not a supported module-member
-//      binding", and every real factory in canon-write is exactly that. `resolveCalleeFunction` therefore
-//      tries the shared module-origin reader FIRST (which is what closes cross-module factories, aliases and
-//      re-export renames) and falls back to the shared lexical symbol for the module-local case.
+//   2. A factory's returns come from `floor/code-facts/call-returns.ts` `readCallReturns`, which reaches
+//      cross-module factories through the shared module-origin reader and a MODULE-LOCAL one (every real
+//      factory in canon-write) through the shared lexical symbol.
 //
 // REFUSAL VOCABULARY is the shared one (`floor/code-facts/reference-fact-contract.ts`): every answer is a `ReferenceFact`,
 // so unsupported syntax is an `unresolved` FACT with a reason and an anchor — never absence, never an empty
@@ -37,12 +35,11 @@
 // GREENER for its consumers, and no consumer or live site asks for it; widening is a separate, provable
 // change. No hop cap: the walk is bounded by a node-identity cycle guard, not by a depth budget.
 
+import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
-import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
-import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
 
 interface KeyState {
@@ -72,94 +69,6 @@ function resolvedKeys(keys: ReadonlySet<string>, origin: MorphNode, target: KeyS
 /** The composition nodes this reader owns, which the shared value resolver reports as `dynamic` terminals. */
 function isCompositionNode(node: MorphNode): boolean {
   return Node.isCallExpression(node) || Node.isConditionalExpression(node);
-}
-
-function isFunctionish(node: MorphNode): boolean {
-  return Node.isFunctionDeclaration(node) || Node.isArrowFunction(node) || Node.isFunctionExpression(node) || Node.isMethodDeclaration(node);
-}
-
-/** The function-like node a declaration denotes: a `function`/method directly, an arrow or function
- *  expression through a `const f = …` binding. Anything else is not a factory this reader can enter. */
-function functionLike(declaration: MorphNode, target: KeyState): ReferenceFact<MorphNode> {
-  if (isFunctionish(declaration)) {
-    note(target, declaration);
-    return { kind: "resolved", value: declaration, trace: { declarations: [...target.declarations], origin: declaration } };
-  }
-  if (!Node.isVariableDeclaration(declaration)) {
-    return unresolved("unsupported", declaration, target, `${declaration.getKindName()} is not a callable declaration`);
-  }
-  const initializer = declaration.getInitializer();
-  const value = initializer === undefined ? undefined : unwrapExpression(initializer);
-  if (value === undefined || !isFunctionish(value)) {
-    return unresolved("unsupported", declaration, target, `${declaration.getName()} is not bound to a function expression`);
-  }
-  note(target, declaration);
-  return { kind: "resolved", value, trace: { declarations: [...target.declarations], origin: value } };
-}
-
-/** The module-local declaration an identifier binds, through the SHARED lexical symbol. This is the hop the
- *  module-origin reader deliberately does not model (it answers "which module export", and a non-exported
- *  local is not one); a shadowed or overloaded name resolves to more than one declaration and refuses. */
-function localDeclaration(callee: MorphNode, target: KeyState, refusal: UnresolvedReferenceFact): ReferenceFact<MorphNode> {
-  if (!Node.isIdentifier(callee)) {
-    return refusal;
-  }
-  const declarations = lexicalReferenceSymbol(callee)?.getDeclarations() ?? [];
-  if (declarations.length === 0) {
-    return refusal;
-  }
-  if (declarations.length !== 1) {
-    return unresolved("ambiguous", callee, target, `${callee.getText()} binds ${declarations.length} declarations`);
-  }
-  const only = declarations[0];
-  return only === undefined ? refusal : functionLike(only, target);
-}
-
-function calleeFunction(call: CallExpression, target: KeyState): ReferenceFact<MorphNode> {
-  const origin = resolveCallableOrigin(call);
-  if (origin.kind === "resolved" && origin.value.target.kind === "module") {
-    const canonical = origin.value.target.canonical;
-    return canonical.kind === "project"
-      ? functionLike(canonical.declaration, target)
-      : unresolved("unsupported", call, target, `${canonical.exportedName} is declared in the external package ${canonical.moduleSpecifier}`);
-  }
-  const refusal =
-    origin.kind === "unresolved"
-      ? unresolved(origin.reason, origin.node, target, origin.detail)
-      : unresolved("unsupported", call, target, `${call.getExpression().getText()} resolves to an ambient global, not an authored factory`);
-  return localDeclaration(unwrapExpression(call.getExpression()), target, refusal);
-}
-
-/** Every expression a function-like node RETURNS — its OWN returns only, so a nested closure's `return` is
- *  not this function's. A concise arrow's body IS its single return. */
-function returnedExpressions(fn: MorphNode): readonly MorphNode[] {
-  if (Node.isArrowFunction(fn) && !Node.isBlock(fn.getBody())) {
-    return [fn.getBody()];
-  }
-  const hasBody = Node.isFunctionDeclaration(fn) || Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) || Node.isMethodDeclaration(fn);
-  const body = hasBody ? fn.getBody() : undefined;
-  if (body === undefined || !Node.isBlock(body)) {
-    return [];
-  }
-  return body
-    .getDescendantsOfKind(SyntaxKind.ReturnStatement)
-    .filter((statement) => statement.getFirstAncestor(isFunctionish) === fn)
-    .map((statement) => statement.getExpression())
-    .filter((expression) => expression !== undefined);
-}
-
-/** The expressions the function THIS CALL targets returns. A one-literal factory reader would refuse any function
- *  with more than one `return`; a union reader must see them all, so this is its own door. */
-export function readCallReturns(call: CallExpression): ReferenceFact<readonly MorphNode[]> {
-  const target = state();
-  const fn = calleeFunction(call, target);
-  if (fn.kind === "unresolved") {
-    return fn;
-  }
-  const returns = returnedExpressions(fn.value);
-  return returns.length === 0
-    ? unresolved("missing", fn.value, target, `${call.getExpression().getText()} returns no expression this reader can enter`)
-    : { kind: "resolved", value: returns, trace: { declarations: [...target.declarations], origin: fn.value } };
 }
 
 /** One authored property's key, through the shared string-literal door (`"glyph-xs":` reads as `"glyph-xs"`

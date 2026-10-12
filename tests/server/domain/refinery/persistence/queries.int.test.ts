@@ -14,6 +14,7 @@ import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { latestRunRowOf, latestVerdictsOf, loadOwnedSessionRow, sessionViewOf } from "#server/domain/refinery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 
@@ -47,7 +48,7 @@ const SCORE: RefineryScorePayload = { fieldScores: [], overallScore: 5, priority
 
 async function seedSession(db: Db, ownerId: UserId, tag: string): Promise<RefinerySessionId> {
   const characterId = castId<CharacterId>(`character_${tag}`);
-  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>(`h-${tag}`), ownerId, contentHash: "h", name: "Aria" });
+  await db.insert(characters).values(makeCharacter({ id: characterId, handle: castId<CharacterHandle>(`h-${tag}`), ownerId, name: "Aria" }));
   const sessionId = castId<RefinerySessionId>(`refinery_session_${tag}`);
   await db
     .insert(refinerySessions)

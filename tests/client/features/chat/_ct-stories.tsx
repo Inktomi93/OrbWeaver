@@ -1248,10 +1248,25 @@ export function GhostRowScriptedStory({
 
 const PARITY_CHAT_ID = castId<ChatId>("chat_ct_row_parity");
 const PARITY_CHARACTER = castId<CharacterId>("character_ct_row_parity");
+const NO_PARITY_METADATA: MessageMetadataVisibility = {
+  showTimestamps: false,
+  showMessageId: false,
+  showModelIcon: false,
+  showTokenCount: false,
+  showGenerationTimer: false,
+  showGenerationCost: false,
+};
 
 /** The same short reply from the same no-image speaker, once as the streaming ghost and once as the settled row,
  *  in two equal-width columns: the geometry-parity CT compares their art slots and bubbles box for box. */
-export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatStyle }): ReactElement {
+export function RowParityStory({
+  chatStyle,
+  showModelIcon,
+}: {
+  readonly chatStyle: ThemeChatStyle;
+  /** The "Show model" appearance toggle: the settled row's credit glyph, which the streaming row must reserve. */
+  readonly showModelIcon: boolean;
+}): ReactElement {
   const phase = useTurnPhase(PARITY_CHAT_ID);
   useEffect(() => {
     chatStream.beginTurn(PARITY_CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null });
@@ -1266,6 +1281,7 @@ export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatSty
               chatId={PARITY_CHAT_ID}
               chatStyle={chatStyle}
               streaming={phase === "streaming"}
+              generationCredit={showModelIcon}
               attribution={{ name: "Alice", kind: "character", avatarAssetId: null, avatarHash: null, hueSeed: "Alice", tokens: null }}
             />
           </CtDataProviders>
@@ -1279,6 +1295,7 @@ export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatSty
           characters={[{ id: PARITY_CHARACTER, name: "Alice", avatarHash: null }]}
           content="Hi."
           width={360}
+          metadataVisibility={{ ...NO_PARITY_METADATA, showModelIcon }}
         />
       </div>
     </div>

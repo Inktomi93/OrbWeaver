@@ -14,6 +14,7 @@ import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, PresetId,
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import type { TagContext } from "#server/domain/tag/contract/service.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -93,13 +94,14 @@ export async function seedTag(
 
 export async function seedCharacter(db: Db, ownerId: UserId, id = "character_x"): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(id),
-    ownerId,
-    contentHash: "hash",
-    name: id,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id: characterId,
+      handle: castId<CharacterHandle>(id),
+      ownerId,
+      name: id,
+    }),
+  );
   return characterId;
 }
 

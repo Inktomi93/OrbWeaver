@@ -7,6 +7,7 @@ interface SeedVector {
   readonly kind: string;
   readonly vector: readonly number[];
 }
+// @orb-waive no-vanity-alias(vectors): baselined when the gate widened; burn-down item 906.
 const vectors: readonly SeedVector[] = data;
 
 /** A byte or embedding-space change misses the seed cache and uses normal inference. */
