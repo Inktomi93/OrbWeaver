@@ -197,16 +197,6 @@ describe("wcagContrastRatio", () => {
   });
 });
 
-describe("oklchToSrgb", () => {
-  test("round-trips the published primaries back to sRGB", () => {
-    // The inverse of the importer's sRGB→OKLCH; a transposed coefficient shows up as a wrong channel here.
-    const red = oklchToSrgb({ l: 0.628, c: 0.2577, h: 29.23 });
-    expect(red.r).toBeCloseTo(255, 0);
-    expect(red.g).toBeCloseTo(0, 0);
-    expect(red.b).toBeCloseTo(0, 0);
-  });
-});
-
 describe("#969 accepted-base foreground contract", () => {
   test.each([0.62, 0.6201] as const)("L=%s derives each semantic ink against the surface it paints", (l) => {
     const base = { l, c: 0.01, h: 60 };

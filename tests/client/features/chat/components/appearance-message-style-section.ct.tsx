@@ -8,6 +8,7 @@
 
 // @orb-waive-file no-test-fabrication(HTMLElement | null): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
@@ -112,7 +113,7 @@ for (const style of ["Flat", "Hush"] as const) {
     await label.scrollIntoViewIfNeeded();
     const receipt = await pixelContrast(page, label);
     await testInfo.attach("light-inherited-ink", { body: await cell.screenshot(), contentType: "image/png" });
-    expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(4.5);
+    expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   });
 }
 

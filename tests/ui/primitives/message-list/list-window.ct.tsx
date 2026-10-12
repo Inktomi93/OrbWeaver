@@ -1,3 +1,4 @@
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelExtremaContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { JumpingStickyList } from "./list-window.fixtures.tsx";
@@ -7,7 +8,7 @@ test("instant jumps recompute the top fade after the new sticky rows render", as
   const component = await mount(<JumpingStickyList />);
   const scroller = component.locator('[data-slot="message-list-scroll"]');
   await expect(component.getByTestId("speaker-23")).toBeVisible();
-  await expect.poll(async () => (await pixelExtremaContrast(page, component.getByTestId("contrast-control"))).ratio).toBeGreaterThanOrEqual(4.5);
+  await expect.poll(async () => (await pixelExtremaContrast(page, component.getByTestId("contrast-control"))).ratio).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 
   for (const index of [2, 17, 5, 20, 9, 1]) {
     await scroller.evaluate((element, row) => {
@@ -34,7 +35,7 @@ test("instant jumps recompute the top fade after the new sticky rows render", as
       .toBeLessThan(1);
     await expect(scroller).toHaveAttribute("data-fade-top", "");
     await expect.poll(() => scroller.evaluate((element) => Number.parseFloat(element.style.getPropertyValue("--mask-top-inset")))).toBeGreaterThan(0);
-    await expect.poll(async () => (await pixelExtremaContrast(page, speaker)).ratio).toBeGreaterThanOrEqual(4.5);
+    await expect.poll(async () => (await pixelExtremaContrast(page, speaker)).ratio).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     await scroller.evaluate((element, row) => {
       const viewport = element.querySelector('[data-slot="message-list-viewport"]');
       if (!(viewport instanceof HTMLElement)) {

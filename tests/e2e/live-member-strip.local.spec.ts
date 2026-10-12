@@ -26,7 +26,7 @@
 // `tests/server/domain/chat/verbs/read.int.test.ts`), not faked at E2E. This spec proves the security-critical
 // BODY strip end-to-end with a real member + the deception-active GATE — the layer the capstone could not reach.
 
-import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/test";
@@ -37,47 +37,30 @@ const LIE_TRUTH = "he is the smuggler the guards seek";
 const LIE_TAG = `<lie character="Thornwick" type="identity" truth="${LIE_TRUTH}" reason="to keep the party from turning him in"/>`;
 const CARD_HANDLE = "e2e-member-strip";
 
-// Wire subset shapes (declared locally — the e2e-support import-free-of-package-trees rule).
-interface CreatedCharacter {
-  readonly id: string;
-}
-interface StartedChat {
-  readonly chat: { readonly id: ChatId };
-}
-interface MessagesPage {
-  readonly messages: readonly { readonly id: string; readonly role: string; readonly content: string }[];
-}
-interface ConfigView {
-  readonly deception: boolean;
-}
-interface RevealView {
-  readonly standingLies: readonly { readonly character: string; readonly lies: readonly { readonly truth: string }[] }[];
-}
-
 test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie; the HOST reveals it", { tag: "@live" }, async ({ baseURL }) => {
   test.setTimeout(120_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 
   // Fresh spec-owned character (idempotent across crashed runs — remove any prior, then re-mint chatless).
-  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
+  const priorList = await host.query("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
     await host.mutation("character.remove", { characterId: prior.id });
   }
-  const character = await host.mutation<CreatedCharacter>("character.create", {
+  const character = await host.mutation("character.create", {
     input: { handle: CARD_HANDLE, name: "Thornwick", description: "e2e member-strip probe", greetings: [{ text: "The lantern gutters." }] },
   });
 
   try {
     // HOST: a lite game with deception active + a planted lie in the greeting canon row.
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [character.id] });
+    const started = await host.mutation("chat.startChat", { characterIds: [character.id] });
     const chatId = started.chat.id;
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
     await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });
-    expect((await host.query<ConfigView>("rpg.getConfigView", { chatId })).deception).toBe(true);
+    expect((await host.query("rpg.getConfigView", { chatId })).deception).toBe(true);
 
-    const canon = await host.query<MessagesPage>("chat.listMessages", { chatId });
+    const canon = await host.query("chat.listMessages", { chatId });
     const greeting = canon.messages.find((m) => m.role === "assistant");
     expect(greeting).toBeDefined();
     const greetingId = greeting?.id ?? "";
@@ -88,7 +71,7 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
     // ── ASSERTION 1 (MEMBER-STRIP): the member's serialized listMessages payload carries ZERO hidden bytes.
-    const memberPage = await member.query<MessagesPage>("chat.listMessages", { chatId });
+    const memberPage = await member.query("chat.listMessages", { chatId });
     const memberWire = JSON.stringify(memberPage);
     expect(memberWire).not.toContain(LIE_TRUTH); // the truth is server-stripped, not client-hidden
     expect(memberWire).not.toContain("<lie"); // the whole hidden span is gone, tag and all
@@ -97,11 +80,11 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
     expect(memberGreeting?.content).toContain("Just a traveller");
 
     // ── ASSERTION 2 (HOST REVEAL): the host sees the truth via the reveal eye + reads the raw body verbatim.
-    const reveal = await host.query<RevealView>("rpg.revealHidden", { chatId });
+    const reveal = await host.query("rpg.revealHidden", { chatId });
     const thornwickLies = reveal.standingLies.find((g) => g.character === "Thornwick");
     expect(thornwickLies?.lies.some((l) => l.truth === LIE_TRUTH)).toBe(true);
 
-    const hostPage = await host.query<MessagesPage>("chat.listMessages", { chatId });
+    const hostPage = await host.query("chat.listMessages", { chatId });
     expect(hostPage.messages.find((m) => m.id === greetingId)?.content).toContain(LIE_TRUTH);
   } finally {
     await host.mutation("character.remove", { characterId: character.id });

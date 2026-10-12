@@ -10,6 +10,7 @@ export {
   createTurnPersonaResolver,
   voicePersonaFor,
 } from "./chat.ts";
+export { createMemoryRecallInspector, createRpgTraceInspector } from "./debug-inspectors.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
 export { createChatChangedEmitter } from "./emit-chat-changed.ts";

@@ -5,7 +5,7 @@
 // battery). This leg only confirms that on the OPERATOR-started live stack a real turn is captured and the
 // four layers agree, driving ONE representative row (names 'completion') through the stateless (openai-compat)
 // wire — where the `name` fingerprint manifests (the agent-sdk path collapses history into a session prompt).
-//   1. FE       — chat.getActivePresetConfig reflects what the harness set.
+//   1. FE       — the active preset (preset.get) reflects what the harness set.
 //   2. ASSEMBLE — chat.getShapeTrace stage counts.
 //   3. WIRE     — the captured provider body (/api/_debug/wire/captures).
 //   4. DB       — chat.listMessages `model` stamp.
@@ -23,7 +23,6 @@ import { expect, test } from "@playwright/test";
 import {
   fetchWireCaptures,
   getActivePreset,
-  getActivePresetConfig,
   getShapeTrace,
   listCanon,
   listCharacters,
@@ -72,7 +71,7 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     }
 
     // FE — the preset resolves to completion (what the harness set).
-    expect((await getActivePresetConfig(chatId)).namesBehavior).toBe("completion");
+    expect((await getActivePreset())?.config.namesBehavior).toBe("completion");
     // ASSEMBLE — the name-stamp pass touched rows.
     expect((await getShapeTrace(chatId)).stageCounts.named).toBeGreaterThan(0);
     // WIRE — a non-system message carries a `name` (the completion fingerprint), NO inline "Author: " prefix.

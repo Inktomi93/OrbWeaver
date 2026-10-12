@@ -11,9 +11,9 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { configSections } from "#client/compose/config-sections.ts";
 
 /** A section contribution stub — `body` returns a marker string so the resolve output is inspectable. */
 function section(id: string, anchor: ConfigSectionContribution["anchor"] = "chat-behavior"): ConfigSectionContribution {

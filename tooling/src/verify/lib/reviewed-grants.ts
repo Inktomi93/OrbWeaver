@@ -35,7 +35,6 @@ import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D } from "./reviewed-grants-tes
 import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E } from "./reviewed-grants-tests-raw-package-reach-e.ts";
 import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F } from "./reviewed-grants-tests-raw-package-reach-f.ts";
 import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G } from "./reviewed-grants-tests-raw-package-reach-g.ts";
-import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_H } from "./reviewed-grants-tests-raw-package-reach-h.ts";
 import { REVIEWED_GRANTS_TOOLING_TO_PERMISSION } from "./reviewed-grants-tooling-to-permission.ts";
 import { REVIEWED_GRANTS_Z_TO_CITATIONS } from "./reviewed-grants-z-to-citations.ts";
 import { REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX } from "./reviewed-grants-zoderrorissues-zindex.ts";
@@ -72,7 +71,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E,
       ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F,
       ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G,
-      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_H,
       ...REVIEWED_GRANTS_TOOLING_TO_PERMISSION,
       ...REVIEWED_GRANTS_Z_TO_CITATIONS,
       ...REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX,

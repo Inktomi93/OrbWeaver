@@ -5,14 +5,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 import { testsRawPackageReachGrants } from "./reviewed-grants-tests-raw-package-reach-rows.ts";
 
 export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F: readonly ReviewedGateGrant[] = testsRawPackageReachGrants({
-  "tests/server/domain/plugin/activation/activate.int.test.ts": [
-    "#server/domain/plugin/activation/activate.ts",
-    "#server/domain/plugin/activation/crash-policy.ts",
-    "#server/domain/plugin/contract/service.ts",
-    "#server/domain/plugin/persistence/plugins.ts",
-    "#server/domain/plugin/substrate/lifecycle-lanes.ts",
-    "#server/infra/plugin-host/process-runtime.ts",
-  ],
   "tests/server/domain/plugin/activation/crash-policy.int.test.ts": [
     "#server/domain/plugin/activation/crash-policy.ts",
     "#server/domain/plugin/persistence/plugins.ts",
@@ -427,4 +419,18 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F: readonly ReviewedGateGra
   "tests/server/domain/stats/verbs/wrapped.int.test.ts": ["#server/domain/stats/service.ts"],
   "tests/server/domain/stats/workload-contributions.int.test.ts": ["#server/domain/stats/workload-contributions.ts"],
   "tests/server/domain/stats/write/apply-delta.int.test.ts": ["#server/domain/stats/write/apply-delta.ts"],
+  "tests/server/domain/stats/write/drift-gate.suite.int.test.ts": [
+    "#server/domain/chat/persistence/canon-write.ts",
+    "#server/domain/chat/substrate/stats-delta.ts",
+    "#server/domain/chat/verbs/compaction.ts",
+    "#server/domain/imagery/substrate/generate-core.ts",
+    "#server/domain/stats/persistence/rebuild-from-canon.ts",
+    "#server/domain/stats/write/apply-delta.ts",
+  ],
+  "tests/server/domain/tag/_support.ts": ["#server/domain/tag/contract/service.ts"],
+  "tests/server/domain/tag/persistence/junctions.int.test.ts": ["#server/domain/tag/persistence/junctions.ts"],
+  "tests/server/domain/tag/persistence/queries.int.test.ts": ["#server/domain/tag/persistence/junctions.ts", "#server/domain/tag/persistence/queries.ts"],
+  "tests/server/domain/tool-use/_support.ts": ["#server/domain/tool-use/index.ts"],
+  "tests/server/domain/tool-use/substrate/capability.test.ts": ["#server/domain/tool-use/substrate/capability.ts"],
+  "tests/server/domain/tool-use/substrate/partition.test.ts": ["#server/domain/tool-use/contract/results.ts", "#server/domain/tool-use/substrate/partition.ts"],
 });

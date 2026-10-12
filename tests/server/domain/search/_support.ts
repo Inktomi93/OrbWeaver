@@ -53,7 +53,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
+import { consolidationHash, createResolveViewerVisibility, resolveTier0Range } from "@orb/server/domain/chat";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
@@ -261,7 +261,7 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
   const ctx: SearchContext = {
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     digestConsolidationHash: consolidationHash,
-    tier0RangeOf: (tier, blockIdx) => ({ startIdx: blockIdx * 4 ** tier, endIdx: (blockIdx + 1) * 4 ** tier - 1 }),
+    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
     resolveEmbeddingConnection: async (ownerId, task) => {

@@ -19,9 +19,9 @@
 // @orb-waive-file testid-typed-only-stories("rpg-notified"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
-import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
-import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput, NotifyNotice } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
+import { rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
+import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
+import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat, useRequestedConnectionEditor, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
@@ -29,6 +29,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { makeChatContextContributors, makeChatContextRegions } from "@orb/testkit/browser/ct-door.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -146,8 +147,8 @@ export function PackIconPickerStory({ width = 430 }: { readonly width?: number }
 function RpgTakeoverHarness({ width, height }: { readonly width: number; readonly height: number }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const contributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", makeRpgContextTabs({ trpc, queryClient }));
-  const regions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [makeRpgHudRegion({ trpc, queryClient })]);
+  const contributors = makeChatContextContributors({ trpc, queryClient });
+  const regions = makeChatContextRegions({ trpc, queryClient });
   return (
     <CtChatContributorSectionRegistry contextContributors={contributors} contextRegions={regions}>
       <RpgTakeoverInner width={width} height={height} />

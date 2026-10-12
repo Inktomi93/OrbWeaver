@@ -33,7 +33,7 @@
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { RosterSeat } from "./support/trpc.ts";
+import type { GroupConfigInput, RosterSeat } from "./support/trpc.ts";
 import {
   assistantTurns,
   characterSeats,
@@ -84,7 +84,7 @@ async function dropCast(characterIds: readonly CharacterId[]): Promise<void> {
 
 /** Seed a fresh room with `count` spec-owned characters and the given group config. The returned `seats`
  *  are in ROSTER (join) order — the order `list`/`pooled` walk, and the comparand for an order assertion. */
-async function seedRoom(label: string, count: number, groupConfig: Record<string, unknown>): Promise<Room> {
+async function seedRoom(label: string, count: number, groupConfig: GroupConfigInput): Promise<Room> {
   const characterIds = await mintCast(count);
   const chat = await startGroupChat({ characterIds, title: `e2e-modes-${label}-${Date.now()}`, groupConfig });
   return { chatId: chat.id, characterIds, seats: await characterSeats(chat.id) };

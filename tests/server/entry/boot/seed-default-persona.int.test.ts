@@ -11,8 +11,7 @@
 // @orb-waive-file no-test-fabrication(PersonaId): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
-import { readSeedAvatar } from "@orb/default-content";
-import type { AssetId, CharacterHandle, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createPersonaService } from "@orb/server/domain/persona";
@@ -20,6 +19,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
 import { createDefaultPersonaSeeder } from "#server/entry/boot/seed-default-persona.ts";
+import { createSeedAvatarOps } from "#server/entry/compose/seed-avatar-ops.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
 import { makeHarness as makePersonaHarness, principal, seedUser } from "../../domain/persona/_support.ts";
 
@@ -78,20 +78,7 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
         const detail = await persona.create({ principal: p, input });
         return { id: detail.id };
       },
-      storeAvatar: async (p): Promise<AssetId | null> => {
-        const art = await readSeedAvatar(castId<CharacterHandle>("persona-you"));
-        if (art === null) {
-          return null;
-        }
-        const stored = await assets.store({
-          principal: p,
-          bytes: art.bytes,
-          kind: "avatar",
-          mime: art.mime,
-          enforceMagic: true,
-        });
-        return stored.assetId;
-      },
+      ...createSeedAvatarOps(assets).persona,
       // The SECOND idempotency layer (the character seeder's handle-conflict tolerance, in persona terms):
       // the seeder's own artifact is self-identifying through `metadata.seededDefault`.
       findSeededDefault: async (p): Promise<PersonaId | null> =>

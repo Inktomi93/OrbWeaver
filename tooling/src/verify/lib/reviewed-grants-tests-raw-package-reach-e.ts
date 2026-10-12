@@ -5,21 +5,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 import { testsRawPackageReachGrants } from "./reviewed-grants-tests-raw-package-reach-rows.ts";
 
 export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E: readonly ReviewedGateGrant[] = testsRawPackageReachGrants({
-  "tests/server/domain/chat/verbs/participants.int.test.ts": [
-    "#server/domain/assets/persistence/asset-refs.ts",
-    "#server/domain/chat/bus.ts",
-    "#server/domain/chat/contract/errors.ts",
-    "#server/domain/chat/contract/metadata.ts",
-    "#server/domain/chat/verbs/participants.ts",
-    "#server/domain/stats/write/apply-delta.ts",
-    "#server/transport/trpc/chat-events-bus.ts",
-  ],
-  "tests/server/domain/chat/verbs/post-narrator-message.int.test.ts": [
-    "#server/domain/chat/verbs/claim-chat.ts",
-    "#server/domain/chat/verbs/post-narrator-message.ts",
-    "#server/domain/stats/write/apply-delta.ts",
-  ],
-  "tests/server/domain/chat/verbs/prompt-config-triggerer.suite.int.test.ts": ["#server/domain/chat/contract/foreign.ts"],
   "tests/server/domain/chat/verbs/quiet-generate.int.test.ts": [
     "#server/domain/chat/context.ts",
     "#server/domain/chat/contract/context.ts",
@@ -27,6 +12,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E: readonly ReviewedGateGra
     "#server/domain/chat/verbs/quiet-generate.ts",
   ],
   "tests/server/domain/chat/verbs/reactions.int.test.ts": ["#server/domain/chat/contract/errors.ts", "#server/domain/chat/verbs/reactions.ts"],
+  "tests/server/domain/chat/verbs/read-inherited-chat-books.int.test.ts": ["#server/domain/sessions/verbs/load-user-by-id.ts"],
   "tests/server/domain/chat/verbs/read.int.test.ts": [
     "#server/domain/character/persistence/queries.ts",
     "#server/domain/chat/active-turns.ts",
@@ -283,10 +269,12 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E: readonly ReviewedGateGra
     "#server/domain/chat/workload-contributions.ts",
     "#server/domain/databank/contract/service.ts",
     "#server/domain/databank/workload-contributions.ts",
+    "#server/domain/discovery/index.ts",
     "#server/domain/embeddings/contract/service.ts",
     "#server/domain/embeddings/persistence/queries.ts",
     "#server/domain/embeddings/substrate/generation.ts",
     "#server/domain/search/persistence/active-space.ts",
+    "#server/entry/compose/vector-sweep-ops.ts",
   ],
   "tests/server/domain/embeddings/substrate/avatar-analysis-availability.test.ts": ["#server/domain/embeddings/substrate/avatar-analysis-availability.ts"],
   "tests/server/domain/embeddings/substrate/generation.int.test.ts": [
@@ -302,11 +290,15 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E: readonly ReviewedGateGra
     "#server/domain/chat/contract/memory.ts",
     "#server/domain/chat/workload-contributions.ts",
     "#server/domain/databank/workload-contributions.ts",
+    "#server/domain/discovery/index.ts",
     "#server/domain/embeddings/context.ts",
     "#server/domain/embeddings/contract/service.ts",
     "#server/domain/embeddings/substrate/generation.ts",
     "#server/domain/search/persistence/nearest.ts",
     "#server/domain/search/substrate/space.ts",
+    "#server/domain/sessions/verbs/load-user-by-id.ts",
+    "#server/entry/compose/embedding-connection.ts",
+    "#server/entry/compose/vector-sweep-ops.ts",
     "#server/primitives/embedding-generation/index.ts",
   ],
   "tests/server/domain/embeddings/verbs/embed-assets.int.test.ts": [
@@ -432,5 +424,13 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E: readonly ReviewedGateGra
     "#server/domain/plugin/contract/results.ts",
     "#server/domain/plugin/contract/service.ts",
     "#server/domain/plugin/index.ts",
+  ],
+  "tests/server/domain/plugin/activation/activate.int.test.ts": [
+    "#server/domain/plugin/activation/activate.ts",
+    "#server/domain/plugin/activation/crash-policy.ts",
+    "#server/domain/plugin/contract/service.ts",
+    "#server/domain/plugin/persistence/plugins.ts",
+    "#server/domain/plugin/substrate/lifecycle-lanes.ts",
+    "#server/infra/plugin-host/process-runtime.ts",
   ],
 });

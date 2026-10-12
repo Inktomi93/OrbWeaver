@@ -26,6 +26,7 @@ import type {
   RpgDeliveryPath,
   RpgExtractionMode,
   RpgFieldLocks,
+  RpgFlushOutcome,
   RpgFoldFallbackReason,
   RpgGameView,
   RpgJournalEntryView,
@@ -87,7 +88,6 @@ import type {
   UpsertQuestParams,
 } from "./params.ts";
 import type { CreateGameResult, HandDoorResult, PopulateResult, PromoteActorResult, ResyncResult, RollDiceResult } from "./results.ts";
-import type { RpgFlushOutcome } from "./trace.ts";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;

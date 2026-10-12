@@ -15,12 +15,12 @@
 // `fetch` is stubbed at the global boundary (the upload-asset.test.ts precedent). Deep imports, not
 // barrels (node lane — a feature barrel drags browser TSX into the dom-less program).
 
+import type { AuthMe } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { stubTabStorage } from "@orb/testkit/node/tab-storage.ts";
 import { afterEach, beforeEach, vi } from "vitest";
-import type { AuthMe } from "#client/data/auth-bootstrap.ts";
 import { redirectIfAuthed, requireAuthed } from "#client/features/auth/lib/route-guards.ts";
 
 const AUTHED: AuthMe = { authenticated: true, handle: castId<Handle>("alice"), role: "user" };

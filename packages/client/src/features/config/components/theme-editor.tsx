@@ -18,6 +18,7 @@
 import type { Theme, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
 import type { CodeEditorDiagnostic, CodeEditorProps } from "@orb/ui/code-editor";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -35,7 +36,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
 import { DENSITY_ITEMS, messageBubbleClass } from "#lib";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
-import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast.ts";
+import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
 
@@ -267,7 +268,7 @@ function ContrastBadge({ label, color, against }: { readonly label: string; read
   if (ratio === null) {
     return null;
   }
-  const passes = ratio >= AA_CONTRAST_FLOOR;
+  const passes = ratio >= AA_NORMAL_RATIO;
   const rounded = ratio.toFixed(1);
   return (
     <Row gap="field" align="center">

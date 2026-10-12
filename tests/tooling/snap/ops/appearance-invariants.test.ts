@@ -1,3 +1,4 @@
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
@@ -214,7 +215,7 @@ describe("#953 appearance invariant receipt", () => {
       matchIndex: 0,
       method: "pixel-sample" as const,
       ratio: 7,
-      requiredRatio: 4.5,
+      requiredRatio: AA_NORMAL_RATIO,
       passed: true,
       foreground: { r: 255, g: 255, b: 255 },
       backdrop: { r: 0, g: 0, b: 0 },

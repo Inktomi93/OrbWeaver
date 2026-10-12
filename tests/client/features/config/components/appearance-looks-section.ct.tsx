@@ -304,6 +304,36 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
   expect(trpc.count("settings.duplicateTheme")).toBe(0);
 });
 
+// The builder's non-blocking WCAG badge: each picked text colour is rated against its surface by the kit's
+// ratio and flags "hard to read" below AA. The product's own picks are oklch (every DEFAULT_THEME_FORM colour),
+// which the browser resolves to an oklch() string, so oklch is the primary arm and hex the second.
+const readable = (id: string, name: string, background: string, accent: string): typeof OWNED => ({ ...OWNED, id, name, override: { background, accent } });
+const READABLE_OKLCH = readable("theme_readable_oklch", "Readable oklch", "oklch(0.158 0.006 60)", "oklch(0.955 0.004 75)");
+const WASHED_OKLCH = readable("theme_washed_oklch", "Washed oklch", "oklch(0.55 0.01 60)", "oklch(0.58 0.01 60)");
+const READABLE_HEX = readable("theme_readable_hex", "Readable hex", "#101010", "#f0f0f0");
+const WASHED_HEX = readable("theme_washed_hex", "Washed hex", "#808080", "#8a8a8a");
+const ACCENT_LABEL_RE = /^Accent$/u;
+const PASSING_BADGE_RE = /^\d+\.\d:1$/u;
+const FAILING_BADGE_RE = /:1 — hard to read$/u;
+
+for (const [theme, verdict, badgeText] of [
+  [READABLE_OKLCH, "passes", PASSING_BADGE_RE],
+  [WASHED_OKLCH, "fails", FAILING_BADGE_RE],
+  [READABLE_HEX, "passes", PASSING_BADGE_RE],
+  [WASHED_HEX, "fails", FAILING_BADGE_RE],
+] as const) {
+  test(`the builder's Accent contrast badge ${verdict} AA for ${theme.name}`, async ({ mount, page }) => {
+    await stub(page, { "settings.listThemes": () => [HEARTH, theme] });
+    const component = await mount(<LooksSectionStory />);
+    await component.getByRole("button", { name: themeActionsName(theme.name) }).click();
+    await page.getByRole("menuitem", { name: "Edit in builder" }).click();
+    await component.getByRole("button", { name: "Show advanced theme tools" }).click();
+    const badge = component.locator('[data-voice="kicker"]', { hasText: ACCENT_LABEL_RE }).locator("xpath=..");
+    await expect(badge).toBeVisible();
+    await expect(badge.locator("xpath=./*[2]")).toHaveText(badgeText);
+  });
+}
+
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
   const trpc = await stub(page, { "settings.removeTheme": () => null });
   const component = await mount(<LooksSectionStory />);

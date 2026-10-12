@@ -12,9 +12,9 @@
 
 // @orb-waive-file testid-typed-only-stories("ct-slash-fired"): baselined when the gate widened; burn-down item 906.
 import type { ContributorRegistry, SlashCommandContribution, SlashCommandMountProps } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
 import { SlashCommandRegistryProvider } from "@orb/client/state";
 import { slashCommands } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerStory } from "../_ct-stories.tsx";
@@ -55,7 +55,11 @@ function buildSlashRegistry(registered: boolean, onFire: (fired: string) => void
         },
       ]
     : [];
-  return createContributorRegistry<SlashCommandContribution>("slash-commands", contributions);
+  return isolationRegistry<SlashCommandContribution>(
+    "slash-commands",
+    "swaps the shipped commands for two fakes, or none, so the dispatch contract is proven apart from any real command",
+    contributions,
+  );
 }
 
 export interface SlashComposerStoryProps {

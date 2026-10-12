@@ -5,7 +5,7 @@
 // for a method it lacks.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { ModelListing, Wire } from "@orb/contracts/inference";
+import type { ModelListing, ProviderId, Wire } from "@orb/contracts/inference";
 import type {
   AccountCredits,
   EmbedResult,
@@ -60,7 +60,7 @@ export type WireCaptureSink = (entry: {
   readonly chatId: ChatId | undefined;
   readonly api: string;
   readonly wire: Wire;
-  readonly providerId: string;
+  readonly providerId: ProviderId;
   readonly model: string;
   readonly body: Record<string, unknown>;
   /** WHAT CAME BACK'S envelope (§D1): the response headers, lower-cased, secret-scrubbed by value like the

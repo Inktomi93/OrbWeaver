@@ -29,7 +29,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
-import { withViewTransition } from "#client/lib/view-transition.ts";
+import { __resetViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
@@ -40,6 +40,8 @@ const PRESET_ID = castId<PresetId>("preset_invalidationtest");
 const AUTOMATION_RULE_ID = castId<AutomationRuleId>("automationrule_invalidationtest");
 
 afterEach(() => {
+  // A held transition keeps its destination hold open past the test; unreset, the next test's swap joins it.
+  __resetViewTransition();
   vi.unstubAllGlobals();
 });
 

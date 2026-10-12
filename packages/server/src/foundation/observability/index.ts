@@ -16,7 +16,6 @@ export { type ClientErrorReport, recordClientError } from "./client-error.ts";
 export {
   type AdminAuthChecker,
   type AssetInspector,
-  type ChatInspection,
   createDebugAuthMiddleware,
   type DebugAuthOptions,
   type DebugRoutesOptions,
@@ -35,7 +34,6 @@ export {
   resetWireCaptures,
   tableCounts,
   tokenMatches,
-  type WireCapture,
   type WireCaptureFilter,
   type WireOutcome,
   type WireToolCall,

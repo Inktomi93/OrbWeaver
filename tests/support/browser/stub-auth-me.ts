@@ -1,7 +1,7 @@
-// CT stub for the public `/api/auth/me` probe, typed by the client's own `AuthMe` so a renamed wire field
+// CT stub for the public `/api/auth/me` probe, typed by the contracts' `AuthMe` so a renamed wire field
 // turns every stub red instead of shipping an untyped JSON literal.
 
-import type { AuthMe } from "@orb/client/data";
+import type { AuthMe } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page, Request } from "@playwright/test";

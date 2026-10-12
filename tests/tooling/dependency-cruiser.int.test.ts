@@ -12,11 +12,12 @@
 // @orb-waive-file no-test-fabrication({ stdout?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ summary: { violations: Violation[] } }): baselined when the gate widened to value casts; burn-down item 906.
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterAll, beforeAll } from "vitest";
+import { IMPORT_ENTRY_ROOTS } from "../../tooling/src/floor/compiler/import-population.ts";
 import { TEST_KIND_SUFFIXES } from "../../tooling/src/floor/testing/test-kinds.ts";
 
 interface DcRestriction {
@@ -368,6 +369,8 @@ function writeAllFixtures(): void {
   fx("tests/support/node/__dc/tool-internal.ts", `import "../../../../tooling/src/__dc_tb/ops/y.ts";\n`);
   // tooling-no-testkit: a tool importing the test kit.
   fx("tooling/src/__dc_ta/testkit.ts", `import "../../../tests/support/iso/clock.ts";\n`);
+  // A client story or spec reaching the door directly is judged too: `tests/client` is a cruise entry root.
+  fx("tests/client/__dc/compose-door.ts", `import "../../../packages/client/src/compose/__dc_t.ts";\n`);
 
   // ── @orb/tooling (the tool fleet ABOVE the cake — Core-Tooling-Law.md §4.6) ──
   fx("tooling/src/__dc_tb/ops/y.ts", VAL);
@@ -425,7 +428,7 @@ function runCruise(): Violation[] {
     // changes the child cwd back to the workspace and silently cruises the real tree instead.
     stdout = execFileSync(
       join(ROOT, "node_modules/.bin/depcruise"),
-      ["packages", "tooling", "tests/support", "--config", join(ROOT, ".dependency-cruiser.cjs"), "--output-type", "json"],
+      [...IMPORT_ENTRY_ROOTS.filter((dir) => existsSync(join(fixtureRoot, dir))), "--config", join(ROOT, ".dependency-cruiser.cjs"), "--output-type", "json"],
       {
         cwd: fixtureRoot,
         encoding: "utf8",
@@ -464,9 +467,13 @@ test("derives a non-trivial set of active rules from the config (the list isn't 
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
 });
 
-test("the compose door is open to the browser-CT support world only: a feature and a node test helper still fail", () => {
+test("the compose door is open to the browser-CT support world only: a feature, a node test helper and a client story still fail", () => {
   const importers = allViolations.filter((violation) => violation.rule.name === "client-compose-door-only").map((violation) => violation.from);
-  expect(importers.toSorted()).toEqual(["packages/client/src/features/__dc_cfeat/compose-door.ts", "tests/support/node/__dc/compose-door.ts"]);
+  expect(importers.toSorted()).toEqual([
+    "packages/client/src/features/__dc_cfeat/compose-door.ts",
+    "tests/client/__dc/compose-door.ts",
+    "tests/support/node/__dc/compose-door.ts",
+  ]);
 });
 
 test("data and forms reaching up into components fire their direction rules", () => {

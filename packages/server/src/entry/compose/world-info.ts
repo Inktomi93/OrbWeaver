@@ -12,10 +12,8 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -29,7 +27,7 @@ import type { WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { publishUserEvent } from "#transport/trpc";
-import { createHostPrincipalResolver } from "../auth/index.ts";
+import { createHostPrincipalResolver, createResolveUserEnabled } from "../auth/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture } from "./room-reach.ts";
@@ -84,7 +82,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
       db,
       can,
       getCard: async ({ ownerId, characterId }) => deps.character.getCard({ principal: await resolvePrincipal(ownerId), characterId }),
-      resolveUserEnabled: async (userId) => (await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, userId)).limit(1))[0]?.enabled ?? false,
+      resolveUserEnabled: createResolveUserEnabled(deps.sessions),
     }),
     emitWiEvent: deps.emitChatBusEvent,
     emitUserEvent: publishUserEvent,

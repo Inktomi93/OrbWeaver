@@ -12,7 +12,6 @@
 // @orb-waive-file testid-typed-only-stories("ct-extensions-content"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
-import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   pluginChatFlankSurface,
@@ -22,15 +21,11 @@ import {
   pluginComposerActionSurface,
   pluginComposerMediaSurface,
   pluginComposerPanelsSurface,
-  pluginDistributeSection,
   pluginMessageFooterSurface,
-  pluginsInstalledSection,
-  pluginsInstallSection,
   SnippetConsole,
 } from "@orb/client/features/plugin";
-import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ToolRenderer } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
+import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
+import type { ChromeEntry } from "@orb/client/state";
 import {
   __resetComposerDrafts,
   __resetPluginCommandArgs,
@@ -59,7 +54,8 @@ import {
   CtDataProviders,
   CtRealSectionRegistry,
 } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { toolRenderers } from "@orb/testkit/browser/ct-door.ts";
+import { configSections, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -85,8 +81,8 @@ import {
   useUninstallPlugin,
   useWithdrawPlugin,
 } from "#client/features/plugin/lib/plugin-mutations.ts";
-import { setActiveSection, setPanelMode } from "#client/state/shell-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
+import { AppShellRealRoomStory } from "../app-shell/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 
 /** The settings modal's content column at its real docked width — the narrowest REAL host for this pane. */
@@ -147,15 +143,6 @@ export function PluginDisplayLifecycleStory({ pluginId }: { readonly pluginId: P
   );
 }
 
-/** The plugins anchor's real config-section roster, assembled as at the door:
- *  Installed · Add-a-plugin · the admin-gated "Distribute to everyone" section. Rendered through the config
- *  host's OWN resolver (`CtConfigGroupBody`), so the distribute section's `when` gates on the CT's viewer
- *  exactly as production does — for a non-admin viewer it resolves out and the group is its two own rows. */
-const pluginsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
-  "config-sections",
-  [pluginsInstalledSection, pluginsInstallSection, pluginDistributeSection],
-);
-
 /** The whole Plugins group over the stubbed network: the installed list + the install/grant card. */
 export function PluginsSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number }): ReactElement {
   return (
@@ -168,7 +155,7 @@ export function PluginsSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly 
 function PluginsGroupBody({ width }: { readonly width: number }): ReactElement {
   return (
     <div style={{ width }}>
-      <CtConfigGroupBody anchor="plugins" sections={pluginsSections} />
+      <CtConfigGroupBody anchor="plugins" sections={configSections} />
     </div>
   );
 }
@@ -203,21 +190,26 @@ export function SnippetConsoleStory({ chatId, width = CONTEXT_PANE_WIDTH }: { re
  *  window) and fixed, so a geometry pin compares like with like across arms. */
 const ROOM_HARNESS_HEIGHT = 480;
 
-/** The REAL flank contribution, registered exactly as the door registers it. */
-const pluginFlankContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> = createContributorRegistry<ChatSurfaceContribution>(
+/** The REAL flank contribution, alone in the room's surface roster. */
+const pluginFlankContributors: ContributorRegistry<ChatSurfaceContribution> = isolationRegistry<ChatSurfaceContribution>(
   "chat-surface",
+  "keeps the plugin chat-flank surface as the only room contribution so the flank is the sole subject of the room geometry",
   [pluginChatFlankSurface],
 );
 /** The BASELINE arm: the same room with NO surface contributors at all — what "a build without the plugin
  *  seam" renders, and the geometry every silent arm must match byte for byte. */
-const noContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> = createContributorRegistry<ChatSurfaceContribution>(
+const noContributors: ContributorRegistry<ChatSurfaceContribution> = isolationRegistry<ChatSurfaceContribution>(
   "chat-surface",
+  "empties the surface roster so the room renders as a build without the plugin seam, the geometry every silent arm must match",
   [],
 );
 
-/** The REAL "This chat" plugin-panel section, registered exactly as the door registers it. */
-const pluginChatSections: ReturnType<typeof createContributorRegistry<ChatSettingsSectionContribution>> =
-  createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [pluginChatSettingsSection]);
+/** The REAL "This chat" plugin-panel section, alone in the tab's section roster. */
+const pluginChatSections: ContributorRegistry<ChatSettingsSectionContribution> = isolationRegistry<ChatSettingsSectionContribution>(
+  "chat-settings-sections",
+  "keeps the plugin panel section as the only grafted This-chat section so its own gating decides whether anything paints",
+  [pluginChatSettingsSection],
+);
 
 /** The chats section's CONTENT through the REAL registry (`registry.get("chats").content()`) — the same call
  *  the shell's `SectionContent` makes, so the flank renders on the production path. */
@@ -246,9 +238,12 @@ export function PluginChatFlankRoomStory({ registered = true }: { readonly regis
   );
 }
 
-/** The flank AND its touch-device door in Message tools, registered exactly as the door registers them. */
-const pluginFlankAndDoorContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> =
-  createContributorRegistry<ChatSurfaceContribution>("chat-surface", [pluginChatFlankSurface, pluginComposerPanelsSurface]);
+/** The flank AND its touch-device door in Message tools, alone in the room's surface roster. */
+const pluginFlankAndDoorContributors: ContributorRegistry<ChatSurfaceContribution> = isolationRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  "keeps the plugin flank and its touch door in Message tools as the only room contributions so the sheet is the subject",
+  [pluginChatFlankSurface, pluginComposerPanelsSurface],
+);
 
 /** The room with its composer: the production path for a touch device's plugin-panels sheet. Toasts are mounted
  *  because hiding the last panel leaves its Undo in one. */
@@ -267,25 +262,10 @@ export function PluginFlankSheetRoomStory(): ReactElement {
   );
 }
 
-/** The REAL shell on the chats section with the flank and its touch door at the door, the list docked when asked.
- *  A test opens Details through its own topbar toggle, as a person does. */
+/** The REAL shell over the REAL room with the flank and its touch door as the room's only contributions, the
+ *  list docked when asked. A test opens Details through its own topbar toggle, as a person does. */
 export function PluginPhoneShellStory({ listDocked = false }: { readonly listDocked?: boolean }): ReactElement {
-  useEffect(() => {
-    setActiveSection("chats");
-    selectChat(CHAT_ID);
-    if (listDocked) {
-      setPanelMode("list", "docked");
-    }
-  }, [listDocked]);
-  return (
-    <CtDataProviders>
-      <CtToastSurface>
-        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankAndDoorContributors}>
-          <AppShell />
-        </CtChatContributorSectionRegistry>
-      </CtToastSurface>
-    </CtDataProviders>
-  );
+  return <AppShellRealRoomStory chatId={CHAT_ID} listDocked={listDocked} surfaceContributors={pluginFlankAndDoorContributors} />;
 }
 
 function InstalledPluginRows(): ReactElement {
@@ -318,9 +298,10 @@ export function PluginChatVisibilityStory(): ReactElement {
   );
 }
 
-/** The REAL composer placement contributions, registered exactly as the door registers them. */
-const pluginComposerContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> = createContributorRegistry<ChatSurfaceContribution>(
+/** The REAL composer placement contributions, alone in the room's surface roster. */
+const pluginComposerContributors: ContributorRegistry<ChatSurfaceContribution> = isolationRegistry<ChatSurfaceContribution>(
   "chat-surface",
+  "keeps the plugin composer action and media placements as the only room contributions so the composer is the subject",
   [pluginComposerActionSurface, pluginComposerMediaSurface],
 );
 
@@ -411,7 +392,7 @@ export function PluginScriptedSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { re
   return (
     <CtDataProviders>
       <div style={{ width }}>
-        <CtConfigGroupBody anchor="plugins" sections={pluginsSections} />
+        <CtConfigGroupBody anchor="plugins" sections={configSections} />
       </div>
     </CtDataProviders>
   );
@@ -429,9 +410,10 @@ export function PluginChatSettingsSectionStory({ width = CONTEXT_PANE_WIDTH }: {
   );
 }
 
-/** The REAL `message-footer` contribution, registered exactly as the door registers it (U6, §5.4). */
-const pluginFooterContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> = createContributorRegistry<ChatSurfaceContribution>(
+/** The REAL `message-footer` contribution, alone in the room's surface roster (U6, §5.4). */
+const pluginFooterContributors: ContributorRegistry<ChatSurfaceContribution> = isolationRegistry<ChatSurfaceContribution>(
   "chat-surface",
+  "keeps the plugin message-footer surface as the only room contribution so the per-row strip is the subject",
   [pluginMessageFooterSurface],
 );
 
@@ -461,7 +443,11 @@ const TRANSCRIPT_WIDTH = 640;
 
 /** The BASELINE arm: a build with NO plugin contribution — the generic-block rendering every byte-identity
  *  pin below compares against. */
-const noToolRenderers: ReturnType<typeof createContributorRegistry<ToolRenderer>> = createContributorRegistry<ToolRenderer>("tool-renderers", []);
+const noToolRenderers: ContributorRegistry<ToolRenderer> = isolationRegistry<ToolRenderer>(
+  "tool-renderers",
+  "empties the tool-renderer roster so a build with no plugin card renders the generic block every byte-identity pin compares against",
+  [],
+);
 
 /** A message's tool block, with (or, at `registered: false`, without) the plugin plane's card renderer at the
  *  door. The CT drives the DATA (`plugin.listSurfaces`), so the arms differ only in what the plugin feature
@@ -644,7 +630,11 @@ function ExtensionsContentHarness(): ReactElement {
  *  `notify.success`, the guest-handler round-trip's user-visible result) reaches a real Toaster. */
 export function PluginCommandPaletteStory({ sourced = true }: { readonly sourced?: boolean }): ReactElement {
   const sources: readonly CommandPaletteSource[] = sourced ? [pluginCommandPaletteSource] : [];
-  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", sources);
+  const registry = isolationRegistry<CommandPaletteSource>(
+    "command-palette-sources",
+    "mounts the plugin command source alone, or none, so the plugin rows are the only dynamic palette group",
+    sources,
+  );
   return (
     <CtDataProviders>
       <CtToastSurface>
@@ -835,7 +825,11 @@ export function PluginTerminalInvalidationStory({
   );
 }
 
-const pluginCommandsChromeRegistry = createContributorRegistry<ChromeEntry>("chrome", [pluginCommandsChrome]);
+const pluginCommandsChromeRegistry = isolationRegistry<ChromeEntry>(
+  "chrome",
+  "keeps the plugin commands entry as the only chrome widget so the You sheet projects just it",
+  [pluginCommandsChrome],
+);
 
 /** The production plugin chrome contributor projected through the production mobile You sheet. */
 export function PluginCommandsYouSheetStory(): ReactElement {

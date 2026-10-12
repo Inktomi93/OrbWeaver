@@ -15,9 +15,9 @@
 // @orb-waive-file testid-typed-only-stories("panel-request-reason"): baselined when the gate widened; burn-down item 906.
 import { buildAgentNav } from "@orb/client/agent-nav";
 import { useTRPC } from "@orb/client/data";
-import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -106,7 +106,11 @@ function ConfigTargetRefusalStory(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [verdict, setVerdict] = useState("");
-  const registry = createContributorRegistry<ConfigSectionContribution>("story-config-sections", [storySection]);
+  const registry = isolationRegistry<ConfigSectionContribution>(
+    "story-config-sections",
+    "injects exactly one real sub and leaf so the bridge refusal for an unknown sub or setting is the subject",
+    [storySection],
+  );
   const nav = buildAgentNav(trpc, queryClient, () => registry);
   const fire = (sub: string, setting?: string): void => {
     const result = nav.openConfig(STORY_GROUP, sub, setting);

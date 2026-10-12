@@ -32,7 +32,7 @@ test("rename in tab A propagates live to tab B's list via the user-bus", { tag: 
 
     // THE load-bearing assertion: tab B's LIST updates via the user-bus with NO manual reload.
     await expect(listRowB).toContainText(newTitle, { timeout: 10_000 });
-    expect((await trpcQuery<{ readonly title: string }>("chat.getChat", { chatId })).title).toBe(newTitle);
+    expect((await trpcQuery("chat.getChat", { chatId })).title).toBe(newTitle);
   } finally {
     await ctx.close();
     await deleteChat(chatId);

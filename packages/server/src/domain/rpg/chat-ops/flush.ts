@@ -36,14 +36,13 @@
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/inference";
-import type { RpgExtractionMode, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgFlushOutcome, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import { markLockSuppressions, recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import { generationOf } from "@orb/inference";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "#domain/chat";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
-import type { RpgFlushOutcome } from "../contract/trace.ts";
 import { findMessageSeq, writeStagedSnapshotAndJournal } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
 import { currentSnapshotState, foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";

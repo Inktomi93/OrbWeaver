@@ -7,11 +7,11 @@
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatQuickPicksTile } from "@orb/client/features/chat";
 import { HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
-import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution, HomeTileRegion } from "@orb/client/state";
 import { __readSurfaceBoxForTest, rememberHomeRegion, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { homeTiles } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -55,7 +55,14 @@ const DORMANT_TILE: HomeTileContribution = {
 function Story({ tiles }: { readonly tiles: readonly HomeTileContribution[] }): ReactElement {
   return (
     <CtDataProviders>
-      <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", tiles)} />
+      <HomeSurface
+        onNewChat={(): void => undefined}
+        tiles={isolationRegistry<HomeTileContribution>(
+          "home-tiles",
+          "mounts fake tiles in place of the shipped roster so the frame's ordering, gating and empty state are the subject",
+          tiles,
+        )}
+      />
     </CtDataProviders>
   );
 }
@@ -90,7 +97,14 @@ export function HomeSectionJumpStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <ActiveSectionProbe />
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [makeSectionJumpTile([])])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the section jump tile alone, with no sibling claiming a section, so every non-home section keeps its row",
+            [makeSectionJumpTile([])],
+          )}
+        />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
@@ -166,7 +180,14 @@ export function HomeSplitPressureStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ inlineSize: SPLIT_PRESSURE_PANE_PX }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", PRESSURE_TILES)} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "mounts one unshrinkable hearth tile and one shelf tile so the two-column split is measured under pressure",
+            PRESSURE_TILES,
+          )}
+        />
       </div>
     </CtDataProviders>
   );
@@ -212,7 +233,14 @@ export function HomeTileReserveStory(): ReactElement {
       <Button intent="secondary" onClick={releaseSlowBody}>
         Settle
       </Button>
-      <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", RESERVE_TILES)} />
+      <HomeSurface
+        onNewChat={(): void => undefined}
+        tiles={isolationRegistry<HomeTileContribution>(
+          "home-tiles",
+          "mounts one suspending tile above a plain tile so the remembered-box reservation is the subject",
+          RESERVE_TILES,
+        )}
+      />
     </CtDataProviders>
   );
 }
@@ -250,7 +278,14 @@ export function HomeTileFirstBootStory(): ReactElement {
       <Button intent="secondary" onClick={releaseFirstBootBody}>
         Settle
       </Button>
-      <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", FIRST_BOOT_TILES)} />
+      <HomeSurface
+        onNewChat={(): void => undefined}
+        tiles={isolationRegistry<HomeTileContribution>(
+          "home-tiles",
+          "mounts a tile that declares its own skeleton rows above a plain tile so the first-boot reservation is the subject",
+          FIRST_BOOT_TILES,
+        )}
+      />
     </CtDataProviders>
   );
 }
@@ -326,7 +361,10 @@ function ScrollCueStory({ tiles }: { readonly tiles: readonly HomeTileContributi
   return (
     <CtDataProviders>
       <div style={{ blockSize: SCROLL_CUE_PANE_PX, display: "grid" }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", tiles)} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>("home-tiles", "mounts one tall or one short fake tile so the pane's scroll cue is the subject", tiles)}
+        />
       </div>
     </CtDataProviders>
   );

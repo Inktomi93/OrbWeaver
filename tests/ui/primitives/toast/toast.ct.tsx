@@ -1,5 +1,5 @@
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -69,7 +69,7 @@ async function cssContrast(page: Page, foreground: string, background: string): 
     },
     [foreground, background] as const,
   );
-  return contrastRatio(front, back);
+  return wcagContrastRatio(front, back);
 }
 
 /** A toast SLIDES in. Geometry read on the same tick as the mount is the enter transition's first frame,
@@ -349,13 +349,13 @@ test("the action button's fill clears the 3:1 non-text contrast floor against th
   const fill = await action.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
   const surface = await toast.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(await cssContrast(page, fill, surface)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+  expect(await cssContrast(page, fill, surface)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
 
   // …and its LABEL stays readable on that new fill (4.5:1 text floor) — a boundary fix that blinds the
   // text is not a fix.
   const label = await action.evaluate((element: Element) => getComputedStyle(element).color);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(await cssContrast(page, label, fill)).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(await cssContrast(page, label, fill)).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 // NEW P3. Moving the stack top-right put it under the notifications popover: measured z-60 toast vs z-65

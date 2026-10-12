@@ -27,7 +27,7 @@ import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { chatDigests, chatSegments, embedGenerations, embedSpaceState } from "@orb/db";
-import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -38,10 +38,12 @@ import type { ChatWorkloadDeps } from "#server/domain/chat/contract/workloads.ts
 import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
 import type { DatabankWorkloadDeps } from "#server/domain/databank/contract/service.ts";
 import { createDatabankWorkloadContributions } from "#server/domain/databank/workload-contributions.ts";
+import { distinctCorpusOwners } from "#server/domain/discovery/index.ts";
 import type { EmbeddingsService, PinnedGeneration } from "#server/domain/embeddings/contract/service.ts";
-import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
+import { upsertCharacterEmbedding, upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
+import { createVacuousMemoryReceipt, createVectorSweepOps } from "#server/entry/compose/vector-sweep-ops.ts";
 import type { StoreHarness } from "./_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedDocument, seedUser } from "./_support.ts";
 
@@ -67,17 +69,28 @@ async function targetOf(harness: StoreHarness, ownerId: UserId): Promise<PinnedG
   return generation;
 }
 
+/** The completion ops compose wires (`entry/compose/vector-sweep-ops.ts`) over the real embeddings service and
+ *  discovery's corpus-owner enumeration. Memory is on for every owner here, so no vacuous receipt is minted. */
+function sweepOps(f: Pick<Fixture, "db" | "svc">): ReturnType<typeof createVectorSweepOps> {
+  return createVectorSweepOps({
+    embeddings: f.svc,
+    listCorpusOwners: () => distinctCorpusOwners(f.db),
+    vacuousMemoryReceipt: createVacuousMemoryReceipt({ isMemoryEnabled: () => Promise.resolve(true), embeddings: f.svc }),
+  });
+}
+
 /**
- * The chat deps compose wires (`entry/compose/services.ts`): `backfillMemory` is the sweep, and
- * `purgeMemoryVectors` is the INJECTED cross-domain op whose body enumerates the ENUMERATION SCOPE —
- * every corpus owner on the bulk arm, exactly the one swept owner on the singular arm. The sweep itself is
- * faked (its `completedSpaces` derivation is pinned by `tests/server/domain/chat/substrate/backfill.int.test.ts`);
- * everything downstream of it — the contribution's fence, the op, `markGenerationComplete`, the ledger — is real.
+ * The chat deps compose wires: `backfillMemory` is the sweep, and `purgeMemoryVectors` is compose's own op, whose
+ * covered set is the ENUMERATION SCOPE — every corpus owner on the bulk arm, exactly the one swept owner on the
+ * singular arm. The sweep itself is faked (its `completedSpaces` derivation is pinned by
+ * `tests/server/domain/chat/substrate/backfill.int.test.ts`); everything downstream of it — the contribution's
+ * fence, the op, `markGenerationComplete`, the ledger — is real.
  */
 function chatDeps(
-  svc: EmbeddingsService,
+  f: Pick<Fixture, "db" | "svc">,
   sweep: { readonly spaces: readonly { ownerId: UserId; generation: PinnedGeneration }[]; readonly failed?: number },
 ): ChatWorkloadDeps {
+  const { svc } = f;
   return {
     backfillMemory: vi.fn(async () => ({
       segments: { scanned: 1, changed: 1 },
@@ -93,44 +106,23 @@ function chatDeps(
     })),
     estimateMemoryBackfill: vi.fn(async () => 0),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 0, changed: 0 })),
-    purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
-      const swept = enumerationScope === null ? spaces : spaces.filter((space) => space.ownerId === enumerationScope);
-      for (const space of swept) {
-        await svc.purgeMemoryVectors({
-          ownerId: space.ownerId,
-          generation: { id: space.generationId, task: "embed", via: "embed", epoch: space.generationEpoch, space: space.model },
-        });
-      }
-    },
+    purgeMemoryVectors: sweepOps(f).purgeMemoryVectors,
     isMemoryEnabled: vi.fn(async () => true),
     targetSnapshot: svc.targetSnapshot,
   };
 }
 
 /** The databank deps compose wires — same shape: the reindex is faked, the sweep-begin + completion are real. */
-function databankDeps(svc: EmbeddingsService, harness: StoreHarness, owners: readonly UserId[]): DatabankWorkloadDeps {
+function databankDeps(f: Pick<Fixture, "db" | "svc">): DatabankWorkloadDeps {
+  const { beginDocumentVectorSweep, purgeDocumentVectors } = sweepOps(f);
   return {
     databankIngest: {
       ingestDocument: vi.fn(async () => NO_OP_REINDEX),
       reindex: vi.fn(async () => NO_OP_REINDEX),
     },
-    beginDocumentVectorSweep: async (enumerationScope): Promise<readonly { readonly ownerId: UserId; readonly generation: PinnedGeneration }[]> => {
-      const scoped = enumerationScope === null ? owners : owners.filter((ownerId) => ownerId === enumerationScope);
-      const receipts: { ownerId: UserId; generation: PinnedGeneration }[] = [];
-      for (const ownerId of scoped) {
-        const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
-        if (generation !== null) {
-          receipts.push({ ownerId, generation });
-        }
-      }
-      return receipts;
-    },
-    purgeDocumentVectors: async (receipts): Promise<void> => {
-      for (const receipt of receipts) {
-        await svc.purgeDocumentVectors(receipt);
-      }
-    },
-    targetSnapshot: svc.targetSnapshot,
+    beginDocumentVectorSweep,
+    purgeDocumentVectors,
+    targetSnapshot: f.svc.targetSnapshot,
   };
 }
 
@@ -157,9 +149,9 @@ async function fixture(handle = "owner"): Promise<Fixture> {
 async function runPerOwnerCatchUp(f: Fixture, owners: readonly UserId[] = [f.owner]): Promise<void> {
   await f.svc.embedCorpus({ ownerId: f.owner, signal: liveSignal(), force: false });
   const generation = await targetOf(f.harness, f.owner);
-  const chat = createChatWorkloadContributions(chatDeps(f.svc, { spaces: owners.map((ownerId) => ({ ownerId, generation })) }));
+  const chat = createChatWorkloadContributions(chatDeps(f, { spaces: owners.map((ownerId) => ({ ownerId, generation })) }));
   await chat[0].run(runContext(f.owner, f.owner), {}, vi.fn(), liveSignal());
-  const databank = createDatabankWorkloadContributions(databankDeps(f.svc, f.harness, owners));
+  const databank = createDatabankWorkloadContributions(databankDeps(f));
   await databank[1].run(runContext(f.owner, f.owner), { scope: { kind: "owner" } }, vi.fn(), liveSignal());
 }
 
@@ -190,6 +182,19 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
     const f = await fixture();
     const neighbour = await seedUser(f.db, { handle: castId<Handle>("neighbour") });
     await seedChat(f.db, "chat_neighbour", neighbour);
+    // A corpus owner (an embedded card), so a sweep that enumerated every owner instead of its own scope would
+    // reach them.
+    const neighbourCard = await seedCharacter(f.db, neighbour, { id: "character_neighbour" });
+    await upsertCharacterEmbedding(f.db, {
+      id: castId<CharacterEmbeddingId>("character_embedding_neighbour"),
+      characterId: neighbourCard,
+      embedding: fakeVector(EMBED_DIM, 3),
+      contentHash: "neighbour",
+      model: EMBED_MODEL,
+      generationId: (await targetOf(f.harness, neighbour)).id,
+      dim: EMBED_DIM,
+      now: NOW,
+    });
 
     await runPerOwnerCatchUp(f, [f.owner, neighbour]);
 
@@ -222,7 +227,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
       dim: EMBED_DIM,
       now: NOW,
     });
-    const chat = createChatWorkloadContributions(chatDeps(f.svc, { spaces: [{ ownerId: f.owner, generation }] }));
+    const chat = createChatWorkloadContributions(chatDeps(f, { spaces: [{ ownerId: f.owner, generation }] }));
     await chat[0].run(runContext(f.owner, f.owner), {}, vi.fn(), liveSignal());
 
     expect(await ledgerScopes(f.db, f.owner)).toEqual(["memory"]);
@@ -237,7 +242,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
     const generation = await targetOf(f.harness, f.owner);
     const controller = new AbortController();
     controller.abort();
-    const chat = createChatWorkloadContributions(chatDeps(f.svc, { spaces: [{ ownerId: f.owner, generation }] }));
+    const chat = createChatWorkloadContributions(chatDeps(f, { spaces: [{ ownerId: f.owner, generation }] }));
     await chat[0].run(runContext(f.owner, f.owner), {}, vi.fn(), controller.signal);
 
     expect(await ledgerScopes(f.db, f.owner)).toEqual([]);
@@ -246,7 +251,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
   test("a per-owner catch-up whose sweep had per-chat FAILURES records no memory completion", async () => {
     const f = await fixture();
     const generation = await targetOf(f.harness, f.owner);
-    const chat = createChatWorkloadContributions(chatDeps(f.svc, { spaces: [{ ownerId: f.owner, generation }], failed: 2 }));
+    const chat = createChatWorkloadContributions(chatDeps(f, { spaces: [{ ownerId: f.owner, generation }], failed: 2 }));
     await expect(chat[0].run(runContext(f.owner, f.owner), {}, vi.fn(), liveSignal())).rejects.toThrow();
 
     expect(await ledgerScopes(f.db, f.owner)).toEqual([]);

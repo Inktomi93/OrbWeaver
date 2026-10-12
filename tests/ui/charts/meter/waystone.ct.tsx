@@ -10,9 +10,9 @@
 //   • reduced motion REMOVES every animation while every layer still paints (static but still distinct).
 // One mount per test (mount() is once-per-test; a state change uses update()).
 
-import { partVsSurface } from "@orb/testkit/browser/part-vs-surface.ts";
 // @orb-waive-file no-test-fabrication(SVGElement): baselined when the gate widened to value casts; burn-down item 906.
-import { UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
+import { partVsSurface } from "@orb/testkit/browser/part-vs-surface.ts";
 import { Waystone } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
@@ -367,7 +367,7 @@ for (const { name, background } of [
     await panel.locator(moonSelector).evaluate((el) => {
       (el as SVGElement).style.color = getComputedStyle(el).fill;
     });
-    await expect.poll(() => partVsSurface(panel, moonSelector)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    await expect.poll(() => partVsSurface(panel, moonSelector)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     await expect(panel.locator('[data-slot="waystone-horizon"]')).toHaveCSS("fill", TOKENS["color.sky-night"].value);
     await expect
       .poll(() =>

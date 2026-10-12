@@ -14,6 +14,7 @@ import { createCharacterService } from "@orb/server/domain/character";
 import { createReadInheritedChatBooks, requireHost, requireParticipant } from "@orb/server/domain/chat";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
+import { createHostPrincipalResolver, createResolveUserEnabled } from "@orb/server/entry/auth";
 import { createDeleteReachCapture, createRoomEntityFan } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
@@ -21,6 +22,7 @@ import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { eq } from "drizzle-orm";
+import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
 import { makeHarness as characterHarness } from "../../character/_support.ts";
 import { makeHarness as personaHarness } from "../../persona/_support.ts";
 import { makeHarness, principal, seedChat, seedUser } from "../../world-info/_support.ts";
@@ -91,11 +93,15 @@ async function setup(suppliedDb?: Db): Promise<WorldBookFixture> {
   await db
     .insert(chatParticipants)
     .values({ id: castId<ChatParticipantId>("chatpart_card"), chatId, kind: "character", characterId: card.id, role: "member", joinSeq: 0 });
+  // The two user-row reads compose wires over sessions' `loadUserById`: the row-derived owner Principal and the
+  // fail-closed enabled check.
+  const sessions = createLoadUserById({ db });
+  const resolvePrincipal = createHostPrincipalResolver(sessions);
   const readInheritedChatBooks = createReadInheritedChatBooks({
     db,
     can,
-    getCard: ({ ownerId, characterId }) => character.getCard({ principal: principal(ownerId), characterId }),
-    resolveUserEnabled: async (id) => (await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, id)))[0]?.enabled ?? false,
+    getCard: async ({ ownerId, characterId }) => character.getCard({ principal: await resolvePrincipal(ownerId), characterId }),
+    resolveUserEnabled: createResolveUserEnabled(sessions),
   });
   const ctx = makeHarness(db, {
     requireChatHost: (actor, id) => requireHost({ db, can }, actor, id).then((): void => undefined),

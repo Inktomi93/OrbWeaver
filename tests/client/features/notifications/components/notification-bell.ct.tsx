@@ -787,6 +787,9 @@ test("a phone's disabled-plugin notice closes the real You drawer and reveals th
     "plugin.list": [installedPlugin(AFFINITY_PLUGIN, "Affinity Tracker")],
     "plugin.listSurfaces": [],
     "plugin.getLog": [],
+    // The story mounts the shipped chrome, whose persona identity and plugin-commands widgets read these.
+    "persona.list": [],
+    "plugin.listCommands": [],
     // The installed card's chat-visibility toggle reads the viewer's profile (`use-plugin-chat-visibility.ts`).
     "settings.getUserSettings": userSettingsView(),
     "sessions.me": { userId: "user_ct_reader", handle: "reader", globalRole: "user" },

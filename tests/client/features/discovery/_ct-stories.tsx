@@ -30,7 +30,7 @@ import {
   useCorpusListHeader,
 } from "@orb/client/features/discovery";
 import type { CommandPaletteSource, CorpusDestination } from "@orb/client/lib";
-import { corpusDestinationIdentity, createContributorRegistry } from "@orb/client/lib";
+import { corpusDestinationIdentity } from "@orb/client/lib";
 import {
   CommandPaletteSourceRegistryProvider,
   readCorpusResultScroll,
@@ -45,6 +45,7 @@ import {
 import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -615,7 +616,11 @@ function SelectedArtifactStoryBody(): ReactElement | null {
 
 /** The ⌘K palette with the Corpus mode source, as the door assembles it (D271). */
 export function CorpusModePaletteStory(): ReactElement {
-  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [corpusModePaletteSource]);
+  const registry = isolationRegistry<CommandPaletteSource>(
+    "command-palette-sources",
+    "keeps the Corpus mode source apart from the other sources so the palette lists only Corpus modes",
+    [corpusModePaletteSource],
+  );
   return (
     <CtDataProviders>
       <CommandPaletteSourceRegistryProvider value={registry}>

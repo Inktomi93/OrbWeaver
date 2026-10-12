@@ -5,17 +5,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 import { testsRawPackageReachGrants } from "./reviewed-grants-tests-raw-package-reach-rows.ts";
 
 export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGrant[] = testsRawPackageReachGrants({
-  "tests/inference/capability/synthesize.test.ts": ["#inference/capability/floor.ts", "#inference/capability/synthesize.ts"],
-  "tests/inference/catalog/endpoint.test.ts": ["#inference/backends/http/sanitize.ts", "#inference/catalog/endpoint.ts", "#inference/contract/runtime.ts"],
-  "tests/inference/catalog/google.test.ts": ["#inference/backends/http/sanitize.ts", "#inference/catalog/google.ts"],
-  "tests/inference/catalog/listing.test.ts": ["#inference/deps.ts"],
-  "tests/inference/catalog/mirror.suite.test.ts": ["#inference/backends/http/sanitize.ts", "#inference/catalog/mirror.ts"],
-  "tests/inference/catalog/openrouter.test.ts": ["#inference/catalog/openrouter.ts"],
-  "tests/inference/catalog/probe-safety.suite.test.ts": [
-    "#inference/backends/http/sanitize.ts",
-    "#inference/catalog/detect.ts",
-    "#inference/catalog/endpoint.ts",
-  ],
   "tests/inference/conformance/_harness.ts": [
     "#inference/contract/backend.ts",
     "#inference/contract/chat.ts",
@@ -71,7 +60,11 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
   "tests/server/domain/admin/substrate/audited-write.int.test.ts": ["#server/domain/admin/substrate/audited-write.ts"],
   "tests/server/domain/admin/verbs/link-sso-identity.int.test.ts": ["#server/domain/admin/contract/errors.ts"],
   "tests/server/domain/admin/verbs/restart.test.ts": ["#server/domain/admin/verbs/restart.ts"],
-  "tests/server/domain/assets/_support.ts": ["#server/domain/assets/context.ts", "#server/entry/compose/co-participant-assets.ts"],
+  "tests/server/domain/assets/_support.ts": [
+    "#server/domain/assets/context.ts",
+    "#server/entry/compose/co-participant-assets.ts",
+    "#server/entry/compose/gallery-character-ops.ts",
+  ],
   "tests/server/domain/assets/persistence/maintenance.int.test.ts": ["#server/domain/assets/persistence/maintenance.ts"],
   "tests/server/domain/assets/persistence/portable-refs.int.test.ts": [
     "#server/domain/assets/persistence/asset-refs.ts",
@@ -84,12 +77,10 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
   "tests/server/domain/assets/substrate/variant-policy.test.ts": ["#server/domain/assets/substrate/variant-policy.ts"],
   "tests/server/domain/assets/verbs/backfill-avatars.int.test.ts": ["#server/domain/assets/contract/maintenance.ts"],
   "tests/server/domain/assets/verbs/export-assets.int.test.ts": ["#server/domain/assets/substrate/portable-asset-file.ts"],
-  "tests/server/domain/assets/verbs/export-gallery.int.test.ts": ["#server/domain/assets/context.ts"],
   "tests/server/domain/assets/verbs/import-asset.int.test.ts": [
     "#server/domain/assets/persistence/queries.ts",
     "#server/domain/assets/substrate/portable-asset-file.ts",
   ],
-  "tests/server/domain/assets/verbs/import-gallery.int.test.ts": ["#server/domain/assets/context.ts"],
   "tests/server/domain/assets/workload-contributions.int.test.ts": [
     "#server/domain/assets/contract/service.ts",
     "#server/domain/assets/workload-contributions.ts",
@@ -99,6 +90,8 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/automation/contract/plugin-subscribers.ts",
     "#server/domain/automation/contract/service.ts",
     "#server/domain/automation/index.ts",
+    "#server/domain/sessions/verbs/load-user-by-id.ts",
+    "#server/entry/compose/automation-watcher.ts",
   ],
   "tests/server/domain/automation/contract/analysis.contract.test.ts": ["#server/domain/automation/contract/analysis.ts"],
   "tests/server/domain/automation/contract/ops.contract.test.ts": ["#server/domain/automation/contract/ops.ts"],
@@ -421,4 +414,23 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/stats/persistence/rebuild-from-canon.ts",
     "#server/domain/stats/write/apply-delta.ts",
   ],
+  "tests/server/domain/chat/engine/engine.int.test.ts": [
+    "#inference/backends/agent-sdk/log.ts",
+    "#inference/backends/agent-sdk/runner.ts",
+    "#inference/backends/agent-sdk/session/frames.ts",
+    "#inference/backends/http/generation-observation.ts",
+    "#inference/backends/http/sanitize.ts",
+    "#server/domain/chat/context.ts",
+    "#server/domain/chat/contract/errors.ts",
+    "#server/domain/chat/contract/memory.ts",
+    "#server/domain/chat/contract/results.ts",
+    "#server/domain/chat/engine/engine.ts",
+    "#server/domain/chat/memory/persistence/queries.ts",
+    "#server/domain/chat/memory/recall/recall.ts",
+    "#server/domain/chat/memory/types.ts",
+    "#server/domain/chat/persistence/lock.ts",
+    "#server/domain/chat/persistence/queries.ts",
+    "#server/domain/chat/substrate/turn-retrieval-warning.ts",
+  ],
+  "tests/server/domain/chat/engine/engine.test.ts": ["#server/domain/chat/engine/engine.ts"],
 });

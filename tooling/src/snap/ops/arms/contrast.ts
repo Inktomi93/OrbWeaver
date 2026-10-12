@@ -2,12 +2,13 @@
 // the occlusion/off-screen refusals (#211), foreground-opacity compositing, and role-aware thresholds.
 // The WCAG math itself is the fleet-shared kernel (floor/instrument/wcag.ts) — one ruler for every instrument.
 import { errorMessage } from "@orb/kit/error-message";
+import { AA_LARGE_RATIO, AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Page } from "@playwright/test";
 import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../../floor/instrument/argv.ts";
-import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../floor/instrument/wcag.ts";
+import { compositeForeground, FOREGROUND_OPACITY_EPS, isLargeText } from "../../../floor/instrument/wcag.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { ContrastCapture, ContrastFacts, ContrastMeasured, ContrastOutcome } from "../../contract/contrast.ts";
 import { buildContrastScript } from "../../lib/contrast-script.ts";
@@ -21,7 +22,6 @@ import {
   refuseContrastVerdict,
   rendersText,
   terminalEvidence,
-  UI_COMPONENT_MIN_RATIO,
 } from "../../lib/contrast-verdict.ts";
 import { measureEdgeContrast } from "../contrast-edge.ts";
 import { measureFillContrast } from "../contrast-fill.ts";
@@ -182,11 +182,11 @@ async function measureInkContrast(
   // and says so in the label, rather than being judged as a box at 3:1.
   const isComponent = !rendersText(facts);
   const large = isLargeText(facts.fontSizePx, facts.fontWeight);
-  const textRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
-  const needRatio = isComponent ? UI_COMPONENT_MIN_RATIO : textRatio;
+  const textRatio = large ? AA_LARGE_RATIO : AA_NORMAL_RATIO;
+  const needRatio = isComponent ? AA_NON_TEXT_RATIO : textRatio;
   const kindLabel = contrastSubjectLabel(facts);
   const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
-  const ratio = contrastRatio(fg, backdrop.rgb);
+  const ratio = wcagContrastRatio(fg, backdrop.rgb);
   const pass = ratio >= needRatio;
   // Say WHICH match was measured whenever it wasn't the first — silence there is how "the first DOM
   // match" got mistaken for "the one on screen".

@@ -26,6 +26,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "@orb/testkit/browser/autosave-status-transcript.ts";
 import { pixelExtremaContrast, pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
 import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
@@ -34,7 +35,6 @@ import { makeCachePolicy, makeCapability, makeGenerationCapability, makeResolved
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -1951,7 +1951,7 @@ for (const polarity of ["dark", "light"] as const) {
         failures.push(
           ...readings
             // The tabs are 13px/500, so the 3:1 large-text relaxation does not apply.
-            .filter((reading) => reading.ratio < NORMAL_MIN_RATIO)
+            .filter((reading) => reading.ratio < AA_NORMAL_RATIO)
             .map((reading) => `${String(pane)}px ${polarity} ${edge}: "${reading.label}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`),
         );
       }

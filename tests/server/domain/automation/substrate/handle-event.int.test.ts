@@ -10,7 +10,7 @@ import type { AutomationActionInput, AutomationBusEvent, AutomationTrigger } fro
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
-import { automationRules, chatParticipants, messages } from "@orb/db";
+import { automationRules, chatParticipants } from "@orb/db";
 import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -29,7 +29,7 @@ import { createSuggestionStore } from "#server/domain/automation/substrate/sugge
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
 import { makeChatContext, seedAsset, seedCharacter, seedMessage } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
-import { makeAutomationHarness, NO_TOOLS, principal, readFailingDb, seedHostChat, seedUser } from "../_support.ts";
+import { makeAutomationHarness, NO_TOOLS, principal, readFailingDb, realAutomationOps, seedHostChat, seedUser } from "../_support.ts";
 
 const CHAT_OPENED: AutomationTrigger = { bus: "chat", type: "chatOpened" };
 const TURN_COMPLETED: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
@@ -768,57 +768,21 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
         return Promise.resolve();
       },
     });
-    const ops: AutomationOps = {
-      tools: NO_TOOLS,
-      chat: {
-        // Read ops off the REAL db (the fact resolver reads `getTurnOrigin` back off the posted slot). The
-        // message projection must resolve too: since #1417 a `messageCommitted` whose slot cannot be read is
-        // SKIPPED (an unknown cascade depth never degrades to a human-plane 0), so a `null` here would make
-        // the re-fire path under test unreachable and this suite green for the wrong reason.
-        getMessageFact: async (_chatId, messageId) => {
-          const rows = await db
-            .select({ id: messages.id, role: messages.role, authorUserId: messages.authorUserId, characterId: messages.characterId, seq: messages.seq })
-            .from(messages)
-            .where(eq(messages.id, messageId))
-            .limit(1);
-          const row = rows[0];
-          return row === undefined ? null : { ...row, content: "" };
-        },
-        // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
-        resolveViewerVisibility: () => Promise.resolve(null),
-        getTurnOrigin: async (_chatId, messageId) => {
-          const rows = await db
-            .select({ initiator: messages.initiator, automationDepth: messages.automationDepth })
-            .from(messages)
-            .where(eq(messages.id, messageId))
-            .limit(1);
-          const row = rows[0];
-          return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };
-        },
-        readVariables: () => Promise.resolve({}),
-        readChoicePicks: () => Promise.resolve({}),
-        resolveChatProse: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
-        listBackgroundChoices: () => Promise.resolve([]),
-        setChatBackground: () => Promise.resolve(),
-        requestTurn: () => Promise.resolve({ costUsd: null, messageCount: 0 }),
+    // The chat reads are the production ones over the REAL db: the fact resolver reads the turn origin back off
+    // the posted slot, and since #1417 a `messageCommitted` whose slot cannot be read is SKIPPED, so the re-fire
+    // path under test needs the real message projection too.
+    const ops: AutomationOps = realAutomationOps(db, {
+      // The F1 compose op: generate → (non-quiet) POST through `postNarratorMessage`, threading the firing
+      // rule's automation origin so the posted image's slot is depth ≥ 1 (the N1 fix under test).
+      generatePicture: async (req) => {
+        // The non-quiet POST needs a room; a chat-less (owner-global) request cannot reach it — the
+        // automation admission matrix refuses a non-quiet global `generate_image` for exactly that reason.
+        if (!req.quiet && req.chatId !== null) {
+          await postNarratorMessage(req.chatId, req.prompt ?? "", [asset], { initiator: "automation", automationDepth: req.automationDepth });
+        }
+        return { costUsd: null, imageCount: 1 };
       },
-      worldInfo: { upsertEntries: () => Promise.resolve({ inserted: 0, updated: 0, skippedHandEdited: 0 }) },
-      notifications: { emit: () => Promise.resolve() },
-      imagery: {
-        // The F1 compose op: generate → (non-quiet) POST through `postNarratorMessage`, threading the firing
-        // rule's automation origin so the posted image's slot is depth ≥ 1 (the N1 fix under test).
-        generatePicture: async (req) => {
-          // The non-quiet POST needs a room; a chat-less (owner-global) request cannot reach it — the
-          // automation admission matrix refuses a non-quiet global `generate_image` for exactly that reason.
-          if (!req.quiet && req.chatId !== null) {
-            await postNarratorMessage(req.chatId, req.prompt ?? "", [asset], { initiator: "automation", automationDepth: req.automationDepth });
-          }
-          return { costUsd: null, imageCount: 1 };
-        },
-      },
-      summarizeQuiet: () => Promise.resolve({ text: "", costUsd: null }),
-    };
+    });
     return {
       runArm: createArmExecutors({
         db,

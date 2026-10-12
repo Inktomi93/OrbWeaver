@@ -8,12 +8,12 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { isAdmin } from "#server/domain/admin/guard.ts";
 import { assertKindSupportsMode, isVisibleToCaller, resolveListOwnerFilter } from "#server/domain/workloads/substrate/authorize.ts";
 
 const OWNER: UserId = castId("user_owner");
 const OTHER: UserId = castId("user_other");
 const caller = (userId: UserId): Principal => ({ userId, role: "user", handle: castId("h"), externalId: null, via: "header" });
-const isAdmin = (p: Principal): boolean => p.role === "admin";
 
 describe("assertKindSupportsMode", () => {
   test("a kind supporting the mode does not throw", () => {
@@ -49,6 +49,12 @@ describe("isVisibleToCaller", () => {
     expect(isVisibleToCaller(isAdmin, admin, OWNER)).toBe(true);
   });
 
+  test("the box owner holds admin authority and sees every owner's row", () => {
+    const owner: Principal = { ...caller(OTHER), role: "owner" };
+    expect(isVisibleToCaller(isAdmin, owner, OWNER)).toBe(true);
+    expect(isVisibleToCaller(isAdmin, owner, null)).toBe(true);
+  });
+
   test("a non-admin sees only its own rows, never a null-owned system row", () => {
     expect(isVisibleToCaller(isAdmin, caller(OWNER), OWNER)).toBe(true);
     expect(isVisibleToCaller(isAdmin, caller(OWNER), null)).toBe(false);
@@ -71,5 +77,11 @@ describe("resolveListOwnerFilter", () => {
     const admin: Principal = { ...caller(OWNER), role: "admin" };
     expect(resolveListOwnerFilter(isAdmin, admin, undefined)).toBeUndefined();
     expect(resolveListOwnerFilter(isAdmin, admin, OTHER)).toBe(OTHER);
+  });
+
+  test("the box owner keeps the requested filter like an admin", () => {
+    const owner: Principal = { ...caller(OWNER), role: "owner" };
+    expect(resolveListOwnerFilter(isAdmin, owner, undefined)).toBeUndefined();
+    expect(resolveListOwnerFilter(isAdmin, owner, OTHER)).toBe(OTHER);
   });
 });

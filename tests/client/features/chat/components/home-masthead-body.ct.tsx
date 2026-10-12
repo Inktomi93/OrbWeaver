@@ -8,6 +8,7 @@
 // now ago in …". The fix is the kit's sentence form `formatRelativeAgo` ("just now" sub-minute). Asserted
 // through the rendered sentence (not the new API), so it compiles and fails against the old composition.
 
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -156,7 +157,7 @@ for (const [polarity, background, ambientBackground, ambientInk] of [
     await expect(resumeSubtitle).toBeVisible();
     for (const subject of [mastheadSubtitle, resumeSubtitle]) {
       const receipt = await pixelContrast(page, subject);
-      expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(4.5);
+      expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   });
 }

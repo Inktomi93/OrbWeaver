@@ -44,9 +44,9 @@ const BOOTSTRAP_MESSAGE = "Hi";
 const COLD_CHAT_SURFACE_TIMEOUT = budget(45_000);
 
 // The dev introspection handle's shape, as read from inside a browser-context `page.evaluate`. Declared
-// locally (not imported from the client's ambient `declare global`) — the e2e support tree stays
-// import-free of the package trees on purpose. `__orb` is a dev-only global no lib declares, so the
-// direct cast (all-optional target — always assignable) is the one sanctioned bridge to it.
+// locally because the client's ambient `declare global` is not importable from this program; it is a dev global,
+// not a wire shape. `__orb` is a dev-only global no lib declares, so the direct cast (all-optional target —
+// always assignable) is the one sanctioned bridge to it.
 interface OrbBusHandle {
   readonly __orb?: {
     readonly bus: () => {

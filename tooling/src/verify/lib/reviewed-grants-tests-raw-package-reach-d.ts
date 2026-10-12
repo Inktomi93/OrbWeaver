@@ -5,25 +5,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 import { testsRawPackageReachGrants } from "./reviewed-grants-tests-raw-package-reach-rows.ts";
 
 export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D: readonly ReviewedGateGrant[] = testsRawPackageReachGrants({
-  "tests/server/domain/chat/engine/engine.int.test.ts": [
-    "#inference/backends/agent-sdk/log.ts",
-    "#inference/backends/agent-sdk/runner.ts",
-    "#inference/backends/agent-sdk/session/frames.ts",
-    "#inference/backends/http/generation-observation.ts",
-    "#inference/backends/http/sanitize.ts",
-    "#server/domain/chat/context.ts",
-    "#server/domain/chat/contract/errors.ts",
-    "#server/domain/chat/contract/memory.ts",
-    "#server/domain/chat/contract/results.ts",
-    "#server/domain/chat/engine/engine.ts",
-    "#server/domain/chat/memory/persistence/queries.ts",
-    "#server/domain/chat/memory/recall/recall.ts",
-    "#server/domain/chat/memory/types.ts",
-    "#server/domain/chat/persistence/lock.ts",
-    "#server/domain/chat/persistence/queries.ts",
-    "#server/domain/chat/substrate/turn-retrieval-warning.ts",
-  ],
-  "tests/server/domain/chat/engine/engine.test.ts": ["#server/domain/chat/engine/engine.ts"],
   "tests/server/domain/chat/engine/gemini-tools.suite.test.ts": [
     "#inference/backends/v4/prompt.ts",
     "#inference/capability/sources/curated/loader.ts",
@@ -120,7 +101,12 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D: readonly ReviewedGateGra
     "#server/domain/chat/assembly/macros.ts",
     "#server/domain/chat/persistence/identity.ts",
   ],
-  "tests/server/domain/chat/memory/_support.ts": ["#server/domain/chat/contract/context.ts", "#server/domain/chat/memory/types.ts"],
+  "tests/server/domain/chat/memory/_support.ts": [
+    "#server/domain/chat/contract/context.ts",
+    "#server/domain/chat/memory/types.ts",
+    "#server/domain/chat/persistence/reactions.ts",
+    "#server/entry/compose/memory-embedding-ops.ts",
+  ],
   "tests/server/domain/chat/memory/constants.test.ts": ["#server/domain/chat/memory/constants.ts"],
   "tests/server/domain/chat/memory/generate/digests.int.test.ts": [
     "#server/domain/chat/contract/context.ts",
@@ -430,4 +416,19 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D: readonly ReviewedGateGra
     "#server/domain/chat/verbs/invites.ts",
   ],
   "tests/server/domain/chat/verbs/message-window.int.test.ts": ["#server/domain/chat/contract/errors.ts", "#server/domain/chat/verbs/message-window.ts"],
+  "tests/server/domain/chat/verbs/participants.int.test.ts": [
+    "#server/domain/assets/persistence/asset-refs.ts",
+    "#server/domain/chat/bus.ts",
+    "#server/domain/chat/contract/errors.ts",
+    "#server/domain/chat/contract/metadata.ts",
+    "#server/domain/chat/verbs/participants.ts",
+    "#server/domain/stats/write/apply-delta.ts",
+    "#server/transport/trpc/chat-events-bus.ts",
+  ],
+  "tests/server/domain/chat/verbs/post-narrator-message.int.test.ts": [
+    "#server/domain/chat/verbs/claim-chat.ts",
+    "#server/domain/chat/verbs/post-narrator-message.ts",
+    "#server/domain/stats/write/apply-delta.ts",
+  ],
+  "tests/server/domain/chat/verbs/prompt-config-triggerer.suite.int.test.ts": ["#server/domain/chat/contract/foreign.ts"],
 });

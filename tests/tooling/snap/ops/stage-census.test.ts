@@ -1,6 +1,7 @@
 // The claim row the allocator writes before a boot: it must be held by the claiming process, or a full table
 // reads it as dangling residue and reaps it while its stack is still coming up.
 import process from "node:process";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
@@ -57,8 +58,8 @@ function allocateAgainst(claim: StageRow, nowMs: number): ReturnType<typeof allo
 }
 
 test("a claim still booting is held by the claiming process, so a full table does not reap it", () => {
-  const nowMs = Date.now();
-  const claim = claimRow({
+  const nowMs = FROZEN_AT_MS;
+  const booted = claimRow({
     band: 0,
     checkout: CHECKOUT,
     owner: CHECKOUT,
@@ -66,6 +67,9 @@ test("a claim still booting is held by the claiming process, so a full table doe
     dir: `${CHECKOUT}/.cache/snap-stage/0123456789ab`,
     nowIso: new Date(nowMs).toISOString(),
   });
+  // The holder stamps real wall time, which the frozen clock cannot reach; an epoch stamp is stale at any
+  // `nowMs`, so only the running claiming process can keep the claim live.
+  const claim: StageRow = { ...booted, holders: (booted.holders ?? []).map((holder) => ({ ...holder, stampedAt: new Date(0).toISOString() })) };
   expect(claim.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: CHECKOUT })]);
   expect(allocateAgainst(claim, nowMs).kind).toBe("exhausted");
   // Positive control: the same claim with no holder is the dangling residue the reap exists for.

@@ -46,13 +46,12 @@ import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { EmbedResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";
 import { SEED_MANIFEST } from "@orb/default-content";
-import type { BindingActor, InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import type { BindingActor, InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
@@ -70,7 +69,7 @@ import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
-import type { EmbeddingConnectionSnapshot, EmbeddingsIndexer, EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
+import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createRecordUsage } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
@@ -119,7 +118,7 @@ import { publishPrivateEndpointAllowlist, resolvedEndpointAdmission } from "#inf
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import type { PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishChatEvent, publishUserEvent, silenceRoomEntityFan } from "#transport/trpc";
-import { createHostPrincipalResolver } from "../auth/index.ts";
+import { createHostPrincipalResolver, createResolveUserEnabled } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
@@ -132,6 +131,7 @@ import { buildChatService, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
+import { createResolveEmbeddingConnection } from "./embedding-connection.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery, createCharacterSeated } from "./imagery.ts";
@@ -151,6 +151,7 @@ import { createSessionEntryWriter } from "./session-entries.ts";
 import { createEnableShareSeating } from "./share-seating.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
 import { createUpstreamProbes } from "./update-check.ts";
+import { createVectorSweepOps } from "./vector-sweep-ops.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
 
@@ -564,67 +565,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const resolveFunderPrincipal = createHostPrincipalResolver(sessions);
   const roleClientsFor = async (funderUserId: UserId, actor?: BindingActor): Promise<RoleClientsWithSignal> =>
     runtime.roleClientsFor(await resolveFunderPrincipal(funderUserId), actor);
-  const executeEmbed = (
-    encoderConnection: Resolved<"embed">,
-    input: string | readonly string[],
-    opts?: Parameters<EmbeddingConnectionSnapshot["embed"]>[1],
-  ): Promise<EmbedResult> => {
-    if (encoderConnection.capability.kind !== "embedding") {
-      throw new Error("text embed connection has a non-embedding capability");
-    }
-    const knobs = runtime.funnel.embed(opts ?? {}, encoderConnection.capability.embedding);
-    return runtime.executor.embed({
-      connection: encoderConnection,
-      input,
-      ...(knobs.dimensions === undefined ? {} : { dimensions: knobs.dimensions }),
-      ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
-      ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
-      ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
-    });
-  };
-  const isResolvedTask = <T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> => candidate.task === task;
-  const snapshotOf = (generationConnection: Resolved): EmbeddingConnectionSnapshot => ({
-    connectionId: generationConnection.connectionId,
-    providerId: generationConnection.providerId,
-    model: generationConnection.model,
-    capability: generationConnection.capability,
-    api: generationConnection.api ?? "none",
-    wire: generationConnection.wire,
-    baseUrl: generationConnection.baseUrl,
-    features: generationConnection.features,
-    extras: generationConnection.extras,
-    transport: generationConnection.transport,
-    embed: (input, opts): ReturnType<EmbeddingConnectionSnapshot["embed"]> => {
-      if (!isResolvedTask(generationConnection, "embed") || generationConnection.capability.kind !== "embedding") {
-        throw new Error("generation is not a text embed connection");
-      }
-      return executeEmbed(generationConnection, input, opts);
-    },
-    imageEmbed: (input, opts): ReturnType<EmbeddingConnectionSnapshot["imageEmbed"]> => {
-      if (!isResolvedTask(generationConnection, "imageEmbed")) {
-        throw new Error("generation is not an image embed connection");
-      }
-      return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
-    },
-  });
-  const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId, opts) => {
-    const principal = await resolveFunderPrincipal(ownerId);
-    let outcome: Awaited<ReturnType<typeof runtime.resolve>>;
-    try {
-      outcome = await runtime.resolve({
-        task,
-        principal,
-        ...(connectionId === undefined ? {} : { connectionId }),
-        ...(opts?.cachedFacts === true ? { cachedFacts: true } : {}),
-      });
-    } catch (error) {
-      if (connectionId === undefined) {
-        throw error;
-      }
-      return null;
-    }
-    return snapshotOf(outcome.resolved);
-  };
+  const resolveEmbeddingConnection = createResolveEmbeddingConnection(runtime, resolveFunderPrincipal);
 
   // The connection domain — selection's thin front door over the runtime (§3.3). The four ownership /
   // admission reads it needs are wired here rather than derived inside the domain: a credential row is the
@@ -998,6 +939,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }),
     embeddings,
     resolveHandle: (handle) => sessions.resolveHandle(handle),
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     authMode: env.AUTH_MODE,
     signup: {
       signupUserStatement: sessions.signupUserStatement,
@@ -1255,14 +1197,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importReportsDir: env.DATA_LAYOUT.reports,
   });
 
-  // THE COVERED SET of a vector sweep, from its ENUMERATION SCOPE (#2517): `null` is the bulk arm, whose
-  // covered set is exactly `listCorpusOwners()`; a `UserId` is a per-owner catch-up, whose covered set is
-  // that one owner. Deriving it HERE rather than fencing the CALL is what lets a singular pass record its
-  // own `embed_space_state` completion — a true statement about the scope it actually swept — without ever
-  // reaching a neighbour's live space.
-  const sweptOwners = async (enumerationScope: UserId | null): Promise<readonly UserId[]> =>
-    enumerationScope === null ? await searchDiscovery.listCorpusOwners() : [enumerationScope];
-
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
   workloadContributions = buildWorkloadContributions({
     db,
@@ -1275,23 +1209,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankIngest,
     importWorkloads,
     refineryWorkloads,
-    // The completion + old-space reclaim is PER OWNER (vector tasks are owner-scoped, §7.5) — one receipt
-    // per owner in the swept set (`sweptOwners` above), the row counts advisory.
-    beginDocumentVectorSweep: async (enumerationScope) => {
-      const receipts: { ownerId: UserId; generation: GenerationReceipt }[] = [];
-      for (const ownerId of await sweptOwners(enumerationScope)) {
-        const generation = await embeddings.resolveGeneration(ownerId, "embed");
-        if (generation !== null) {
-          receipts.push({ ownerId, generation });
-        }
-      }
-      return receipts;
-    },
-    purgeDocumentVectors: async (receipts): Promise<void> => {
-      for (const receipt of receipts) {
-        await embeddings.purgeDocumentVectors(receipt);
-      }
-    },
+    // The databank and memory sweeps' completion ops: one covered-owner set, per-owner receipts.
+    ...createVectorSweepOps({
+      embeddings,
+      listCorpusOwners: searchDiscovery.listCorpusOwners,
+      vacuousMemoryReceipt: searchDiscovery.vacuousMemoryReceipt,
+    }),
     // The databank and memory sweeps settle on it the way the `index` sweep does.
     targetSnapshot: embeddings.targetSnapshot,
     backfillMemory: (args) => chatCompose.backfill.memory(args),
@@ -1299,20 +1222,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
-    // Same enumeration rule as `beginDocumentVectorSweep` above — one `sweptOwners` set, two consumers.
-    purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
-      const completed = new Map(spaces.map((space) => [space.ownerId, space]));
-      for (const ownerId of await sweptOwners(enumerationScope)) {
-        const receipt = completed.get(ownerId) ?? (await searchDiscovery.vacuousMemoryReceipt(ownerId));
-        if (receipt === null) {
-          continue;
-        }
-        await embeddings.purgeMemoryVectors({
-          ownerId,
-          generation: { id: receipt.generationId, task: "embed", via: "embed", epoch: receipt.generationEpoch, space: receipt.model },
-        });
-      }
-    },
     loadUserSettings: settings.loadUserSettings,
     // The ONE per-user freshness plane the background passes fan `corpusRecomputed` on at their terminals
     // (event-bus coverage survey §2.5/F6) — shared by discovery's five analytics kinds AND embeddings'
