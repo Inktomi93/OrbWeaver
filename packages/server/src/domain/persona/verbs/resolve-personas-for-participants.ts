@@ -10,7 +10,7 @@ import type { PersonaContext } from "../context.ts";
 import type { ResolvePersonasForParticipants } from "../contract/ops.ts";
 import { loadPersonasForOwners, loadPinnedPersonaView } from "../persistence/queries.ts";
 
-export function createResolvePersonasForParticipants(ctx: PersonaContext): ResolvePersonasForParticipants {
+export function createResolvePersonasForParticipants(ctx: Pick<PersonaContext, "db">): ResolvePersonasForParticipants {
   return async ({ chatId, personaIds, allowedOwnerIds }) => {
     // Dedup both sides: the room hands us its anchor + every present human's active persona (the same id
     // can appear twice when two pointers agree), and the same human can hold only one seat but the caller

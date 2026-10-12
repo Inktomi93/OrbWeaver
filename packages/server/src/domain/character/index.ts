@@ -81,3 +81,4 @@ export { buildCardEmbedText } from "./substrate/embed-text.ts";
 // rpg promotion recovers from a handle-uniqueness refusal through this, injected at the composition root.
 export { isCharacterHandleConflict } from "./substrate/handle-conflict.ts";
 export { createEmbeddableCardText } from "./verbs/embeddable-card-text.ts";
+export { createCharacterRoomProjections } from "./verbs/room-projections.ts";

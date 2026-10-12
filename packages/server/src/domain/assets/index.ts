@@ -16,6 +16,7 @@ export type { AssetsService, AssetsWorkloadDeps } from "./contract/service.ts";
 export { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "./persistence/asset-refs.ts";
 export { createAssetsService } from "./service.ts";
 export { createAssetEmbeddingReads } from "./verbs/asset-embedding-reads.ts";
+export { createChatAssetOps } from "./verbs/chat-asset-ops.ts";
 // The assets/gallery portability halves — entry root composes these into their PortableEntity descriptors.
 // Not on AssetsService — a bundle descriptor, not the core path.
 export { createExportAssets } from "./verbs/export-assets.ts";

@@ -80,8 +80,8 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
     captureRoomReachForDelete: () => Promise.resolve(() => undefined),
     requireChatAuthorOrHost: () => Promise.resolve(),
     setChatActivePersona: () => Promise.resolve(),
-    repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId) => {
-      repointCalls.push({ ownerId, deletedId });
+    repointSeedsAfterPersonaDelete: (actor: Principal, deletedId: PersonaId) => {
+      repointCalls.push({ ownerId: actor.userId, deletedId });
       return Promise.resolve({ defaultPersonaId: null, currentPersonaId: null, defaultMoved: false });
     },
     captureSeatsForDelete: () => Promise.resolve(() => Promise.resolve()),

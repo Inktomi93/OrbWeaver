@@ -3,6 +3,7 @@
 // @orb/contracts/chat; callers import them from there directly, not through this door.
 
 export { createActiveTurns } from "./active-turns.ts";
+export { activePersonaIdFor, createTurnPersonaResolver, voicePersonaFor } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
 export type { ChatContext, ChatServiceDeps } from "./context.ts";
 // `ChatRpgGatherResult` + `ChatRpgOps` are PREBUILT[for: rpg push-2] — the injected rpg turn-ops seam +
@@ -105,6 +106,7 @@ export type {
   SignupUserStatementOp,
 } from "./contract/signup.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
+export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 // The room identity rule imagery's chat-scoped preview runs under (D298): the host funds and runs as.
 export { resolveTurnIdentity } from "./engine/turn-identity.ts";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";
@@ -173,7 +175,10 @@ export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — contributor #0,
 // the rpg-gather projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
+export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
 export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
+export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
+export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // The rpg-facing generic chat surface (docs/plans/rpg/design.md) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // The imagery quiet-extraction shaper — imagery consumes it as an injected op at the
@@ -186,6 +191,7 @@ export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
 // The two co-participant asset reference checks assets consumes (`AssetsContext`): room membership is chat's data.
 export { createLoadChatAssetRefs } from "./verbs/load-chat-asset-refs.ts";
 export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.ts";
+export { createChatMemorySearchOps } from "./verbs/memory-search.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
@@ -202,6 +208,7 @@ export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 // The D121-E room display policy regex consumes (`RegexContext.resolveRoomDisplayPolicy`): both halves are chat's data.
 export { createResolveRoomDisplayPolicy } from "./verbs/resolve-room-display-policy.ts";
+export { createChatRoomInputs } from "./verbs/resolve-room-inputs.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.
 export { createResolveRpgCardCorpus } from "./verbs/resolve-rpg-card-corpus.ts";
@@ -214,6 +221,7 @@ export { createResolveStandingAsks } from "./verbs/resolve-standing-asks.ts";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility.ts";
 // The ONE leak-safe reverse-room read every attachment-junction library consumes (`ResolveVisibleRoomsOp`).
 export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
+export { createChatInferenceOps, createTaskWindowReaders, speakerArbiterFor } from "./verbs/runtime-inference.ts";
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";

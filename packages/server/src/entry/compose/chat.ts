@@ -7,74 +7,54 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
-import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
+import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { RERANK_FLOOR, windowForPreset } from "@orb/contracts/inference";
-import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import { composeProse } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import type {
-  BindingActor,
-  ChatDeltaEvent,
-  ChatEvent,
-  ChatRequest,
-  ChatResult,
-  ChatTurnInput,
-  NoConnectionError,
-  Resolved,
-  RoleClientsWithSignal,
-} from "@orb/inference";
-import { carriesStructured, toChatRequest, unavailableRefusal } from "@orb/inference";
-import type { CharacterId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
+import type { ChatRequest, ChatResult, RoleClientsWithSignal } from "@orb/inference";
+import type { ChatId, Handle, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
-import { isAdmin } from "#domain/admin";
+
+import { createSignupMinterCheck as createAdminSignupMinterCheck } from "#domain/admin";
+
 import type { AssetsService } from "#domain/assets";
+import { createChatAssetOps } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import { createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
+import { createCharacterRoomProjections, createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
   BeginGenerationObservation,
-  BoundToolExecution,
+  backfillGroupCharacters,
+  backfillMemory,
   ChatContext,
   ChatService,
   ChatServiceDeps,
-  ChatToolOps,
-  ChatToolSet,
   ClaimChatOp,
-  GeneratePictureOp,
+  estimateMemoryBackfillCalls,
   GetMembership,
   GetPendingUserText,
-  HumanSeatPersona,
-  MemoryConfig,
   MemoryRecallRecorder,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,
   RequestTurnOp,
   ResolveCanonWindow,
-  ResolvedPersonas,
-  ResolveForeignInputsOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   SetRpgPointer,
   SignupInviteDeps,
   SignupInviteOps,
-  SignupMinterCheckOp,
-  TurnRequest,
-  TurnStreamChunk,
-  TurnTrigger,
-  TurnVoice,
 } from "#domain/chat";
 import {
   applyStandaloneVariableOps,
-  backfillGroupCharacters,
-  backfillMemory,
   createActiveTurns,
+  createChatBoundBackfillOps,
+  createChatInferenceOps,
+  createChatMemorySearchOps,
+  createChatRoomInputs,
   createChatService,
   createChatTeachingContributions,
   createEmitChatChanged,
@@ -88,26 +68,34 @@ import {
   createResolveRpgCardCorpus,
   createResolveRpgParticipants,
   createSetRpgPointer,
-  estimateMemoryBackfillCalls,
+  activePersonaIdFor as domainActivePersonaIdFor,
+  buildChatToolOps as domainBuildChatToolOps,
+  createGeneratePictureOp as domainCreateGeneratePictureOp,
+  createRunChatTurnBridge as domainCreateRunChatTurnBridge,
+  createTaskWindowReaders as domainCreateTaskWindowReaders,
+  createTurnPersonaResolver as domainCreateTurnPersonaResolver,
+  speakerArbiterFor as domainSpeakerArbiterFor,
+  voicePersonaFor as domainVoicePersonaFor,
   getGroupConfig,
   getRoomOverrides,
   isPresentParticipant,
   loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
-import { readOwnedDistillates } from "#domain/discovery";
+import { createResolveOwnedDistillates } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
+import { createRecordAndPublishNotification } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
-import { createPersonaOwned, createResolveConnectedPersona, createResolveUserPublics, PersonaNotFoundError } from "#domain/persona";
+import { createPersonaOwned, createResolveConnectedPersona, createResolvePersonaSeedPointers, createResolveUserPublics } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
-import { PresetNotFoundError } from "#domain/preset";
+import { createLoadOptionalPreset } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
 import type { SearchService } from "#domain/search";
-import type { SessionsService } from "#domain/sessions";
+import { withRetrievalDegrade } from "#domain/search";
 import { createTokenHasher, selectHandleById } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import {
@@ -127,151 +115,22 @@ import { publishChatChanged, publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { createMemoryEmbeddingOps } from "./memory-embedding-ops.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
-import { withRetrievalDegrade } from "./retrieval-degrade.ts";
+
+export const createSignupMinterCheck = createAdminSignupMinterCheck;
+export const activePersonaIdFor = domainActivePersonaIdFor;
+export const voicePersonaFor = domainVoicePersonaFor;
+export const createTurnPersonaResolver = domainCreateTurnPersonaResolver;
+export const buildChatToolOps = domainBuildChatToolOps;
+export const createRunChatTurnBridge = domainCreateRunChatTurnBridge;
+export const createTaskWindowReaders = domainCreateTaskWindowReaders;
+export const createGeneratePictureOp = domainCreateGeneratePictureOp;
+export const speakerArbiterFor = domainSpeakerArbiterFor;
 
 /** Per-chat turn-lock TTL (ms) — auto-expires so a crashed holder's lock is takeover-eligible. */
 const CHAT_LOCK_TTL_MS = 120_000;
 
 function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
-}
-
-/**
- * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
- * resolves against on a `trigger`-voice turn (an impersonate draft — see {@link voicePersonaFor}), dispatched
- * exhaustively over {@link TurnTrigger} (Chat-Macro-Resolution §3–§4; the union's own doc carries the arm
- * semantics). PURE; exported for its unit pin only — not a composition surface.
- *
- *   • `human`  → THAT human's persona ("who's speaking right now", §A.1), and `null` when their seat holds
- *     none — the kit floor, NEVER the anchor. Borrowing the anchor here is INVITE-JOIN-NULL-PERSONA: it
- *     hands a member the host's identity on the wire.
- *   • `none` (deferred drain / auto turn) → the chat ANCHOR. The anchor is the chat-invariant identity (D51
- *     rider); binding to `personaIds[0]` instead would address the prompt to a presence-order-arbitrary
- *     bystander, and falling to the kit floor would address `DEFAULT_PERSONA_NAME` in a room whose `{{user}}` is well-defined.
- *
- * THERE IS NO ABSENT ARM (owner ruling, 2026-08-07 — the `personaIds[0]` fallback is RETIRED). It used to
- * exist for trigger-less contexts (previews, host instruments) and bound `{{user}}` to "whoever joined
- * first" — presence-order-arbitrary, nondeterministic across a join, and on a host instrument a cross-member
- * read. Every caller now states its arm, and `trigger` is REQUIRED rather than loud-at-runtime: a caller that
- * genuinely has no triggering human passes `{kind:"none"}` (⇒ the anchor, the chat-invariant identity), which
- * is what a preview wanted all along. The enforcement ladder prefers unrepresentable over thrown (§2.2).
- *
- * Returning an ID (not a resolved persona) is deliberate: the anchor arm then resolves through the SAME
- * participants read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
- * `sameProjectedPersona` dedup keeps holding.
- */
-// @orb-waive compose-wiring-only(activePersonaIdFor): baselined when the gate landed; burn-down item 964.
-export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
-  const trigger = args.trigger;
-  switch (trigger.kind) {
-    case "human":
-      return trigger.personaId;
-    case "none":
-      return args.anchorPersonaId;
-    default:
-      return assertNeverTrigger(trigger);
-  }
-}
-
-function assertNeverTrigger(trigger: never): never {
-  throw new Error(`activePersonaIdFor: unhandled TurnTrigger ${JSON.stringify(trigger)}`);
-}
-
-/**
- * THE VOICE BINDING (D122 as amended) — which persona id prompt-config `{{user}}` resolves against, and whose
- * persona it is. PURE; exported for its unit pin.
- *
- *   • `anchor` (every canon turn) → the anchor HUMAN's current seat persona. The anchor human owns the anchor
- *     persona when it resolved under the consent gate, else the frozen host. Who pressed send never enters, so
- *     the system block and every history label are byte-identical across senders. A mid-chat persona swap
- *     still splits the two personas: the card keeps the anchor persona, the preset follows the seat. An empty
- *     seat falls back to the anchor persona its human owns, never to another human's.
- *   • `trigger` (an impersonate draft, the presser's own next line) → {@link activePersonaIdFor}.
- */
-// @orb-waive compose-wiring-only(voicePersonaFor): baselined when the gate landed; burn-down item 964.
-export function voicePersonaFor(args: {
-  readonly voice: TurnVoice;
-  readonly trigger: TurnTrigger;
-  readonly anchorPersonaId: PersonaId | null;
-  readonly anchorOwnerId: UserId | null;
-  readonly runAsUserId: UserId;
-  readonly humanSeats: readonly HumanSeatPersona[];
-}): { readonly personaId: PersonaId | null; readonly userId: UserId } {
-  const anchorHuman = args.anchorOwnerId ?? args.runAsUserId;
-  const voice = args.voice;
-  switch (voice) {
-    case "anchor": {
-      // An anchor human whose seat holds no persona speaks as the anchor persona they own; with no resolved
-      // anchor the frozen host's empty seat is the honest kit floor.
-      const seatPersonaId = args.humanSeats.find((seat) => seat.userId === anchorHuman)?.personaId ?? null;
-      return { personaId: seatPersonaId ?? (args.anchorOwnerId === null ? null : args.anchorPersonaId), userId: anchorHuman };
-    }
-    case "trigger":
-      return {
-        personaId: activePersonaIdFor({ trigger: args.trigger, anchorPersonaId: args.anchorPersonaId }),
-        userId: args.trigger.kind === "human" ? args.trigger.userId : anchorHuman,
-      };
-    default:
-      return assertNeverVoice(voice);
-  }
-}
-
-function assertNeverVoice(voice: never): never {
-  throw new Error(`voicePersonaFor: unhandled TurnVoice ${JSON.stringify(voice)}`);
-}
-
-/** The persona half of the FOREIGN read: one consent-gated persona read over the anchor, the trigger's persona
- *  and every seat persona, plus the room's pin read through `chatId`, then {@link voicePersonaFor}. Every other
- *  seat's resolved persona projects into `people` in seat order, so the block moves only on a join, a leave, a
- *  swap or a re-anchor. Personas are
- *  single-owned and `setActivePersona` seats only the target's own, so no two seats hold one persona. The
- *  composition root's `resolveForeignInputs` is its one production caller. */
-export function createTurnPersonaResolver(
-  resolvePersonasForParticipants: ResolvePersonasForParticipants,
-): (
-  args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "chatId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
-) => Promise<ResolvedPersonas> {
-  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
-  return async (args) => {
-    const triggerPersonaId = args.trigger.kind === "human" ? args.trigger.personaId : null;
-    const resolved = await resolvePersonasForParticipants({
-      chatId: args.chatId,
-      personaIds: [args.anchorPersonaId, triggerPersonaId, ...args.humanSeats.map((seat) => seat.personaId)].flatMap((id) => (id === null ? [] : [id])),
-      allowedOwnerIds: args.presentHumanUserIds,
-    });
-    const project = (personaId: PersonaId | null): ResolvedPersonas["active"] => {
-      const p = personaId === null ? undefined : resolved.get(personaId);
-      return p === undefined ? null : { name: p.name, description: p.description, placement: resolvePersonaDescriptionPlacement(p.metadata) };
-    };
-    // A held pin (its owner left or is disabled) still names the card's persona, but its owner is no voice
-    // here: preset {{user}} binds to the frozen host's seat (ADR 0250), so the owner must be in the consent set.
-    const anchorRowOwner = args.anchorPersonaId === null ? null : (resolved.get(args.anchorPersonaId)?.ownerId ?? null);
-    const anchorOwnerId = anchorRowOwner !== null && args.presentHumanUserIds.includes(anchorRowOwner) ? anchorRowOwner : null;
-    const voice = voicePersonaFor({ ...args, anchorOwnerId });
-    const people = args.humanSeats.flatMap((seat) => {
-      const persona = seat.userId === voice.userId ? null : project(seat.personaId);
-      return persona === null ? [] : [persona];
-    });
-    return {
-      anchor: project(args.anchorPersonaId),
-      active: project(voice.personaId),
-      activeUserId: voice.userId,
-      ...(people.length > 0 ? { people } : {}),
-    };
-  };
-}
-
-/** D259 — the minter re-check a signup redeem runs before its batch: the live row must be enabled, and its
- *  row-derived Principal (invariant 1) must pass the same global-admin `can()` the mint asked. */
-export function createSignupMinterCheck(
-  sessions: Pick<SessionsService, "loadUserById">,
-  resolvePrincipal: (userId: UserId) => Promise<Principal>,
-): SignupMinterCheckOp {
-  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
-  return async (minterUserId) => {
-    const row = await sessions.loadUserById(minterUserId);
-    return row !== null && row.enabled && isAdmin(await resolvePrincipal(minterUserId));
-  };
 }
 
 // @orb-waive no-inline-package-interface(ChatComposeInput): baselined when the gate landed; burn-down item 952.
@@ -448,376 +307,6 @@ export interface ChatComposeResult {
   };
 }
 
-/** Adapt tool-use into chat through typed closures over the concrete resolved set.
- * The host Principal resolves before the request is built (D152).
- * @public Test-anchored composition surface.
- */
-export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
-  return {
-    resolveTools: (driverUserId, names): ChatToolSet => {
-      const set = toolUse.resolveTools(driverUserId, names);
-      return {
-        toToolDefinitions: () => toolUse.toToolDefinitions(set),
-        prepareExecution: async (frame): Promise<BoundToolExecution> => {
-          const exec = {
-            principal: await resolveHostPrincipal(frame.runAsUserId),
-            triggeredBy: frame.triggeredBy,
-            chatId: frame.chatId,
-            membership: frame.membership,
-            turnId: frame.turnId,
-            ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
-          };
-          return (calls) => toolUse.executeToolCalls(set, calls, exec);
-        },
-      };
-    },
-  };
-}
-
-/** The runner's `ChatResult.events` → the domain stream's out-of-band chunks (D41 no-silent-degrade, the READ
- *  end). The bridge CARRIES the infra codes; it does not translate them — chat owns its bus vocabulary, so the
- *  infra→`ChatWarningCode` narrowing lives in the domain (`engine.ts` `toChatWarning`), the mirror of the
- *  IMAGE role's hop where compose hands the domain a narrowed infra code and
- *  `domain/chat/verbs/generate-image.ts` does the re-map. Deduped here because one runner can repeat a code
- *  within a single result; the pipeline dedupes again across recursion depths.
- *  Extracted so the bridge body stays under the cognitive-complexity cap.
- *
- *  TWO event kinds cross, not one. `refusal` rides as its OWN chunk kind because it is not a degrade of our
- *  settings but the model's verdict on the request; it collapses to a single chunk for the same reason the
- *  warnings dedupe (a result can carry more than one), and it crosses PAYLOAD-FREE — the provider's
- *  `category`/`explanation`/`fallbackModel` are raw strings the chat bus may not carry, and they stay on
- *  `ChatResult.events` for the wire-outcome ring.
- *
- *  WHAT DELIBERATELY DOES NOT CROSS: `rate_limit`. It is an OPERATOR signal about the account's remaining
- *  headroom, not a fact about this reply — the turn succeeded — and its payload is raw provider strings. It
- *  has a home already (the `provider.rate_limit` log line beside the emit, and the event on `ChatResult`);
- *  telling every member of a room that the host is at 80% of a rate limit mid-story is noise, not honesty.
- *  Same for `compaction`/`api_retry`/`status`/`auth_status`/`model_downgrade`/`permission_leak`: diagnostics
- *  with no user decision behind them. If one ever earns a room-public surface it needs its own bus member and
- *  its own ruling, not a quiet addition here. */
-// @orb-waive compose-wiring-only(outOfBandChunks): baselined when the gate landed; burn-down item 964.
-function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
-  const seen = new Map<string, TurnStreamChunk>();
-  let refused = false;
-  for (const event of events) {
-    if (event.kind === "refusal") {
-      refused = true;
-    }
-    if (event.kind === "warning") {
-      const { kind: _kind, at: _at, ...warning } = event;
-      // KEYED ON THE WHOLE WARNING, not on the code alone (#1440): with the drop's structured half carried
-      // through, two DIFFERENT dropped knobs share the `sampling_knob_dropped` code and are two distinct
-      // degrades — a code-keyed dedupe would silently pick one and lie about the other. Identical repeats
-      // (the same runner re-raising the same drop) still collapse to one.
-      seen.set(JSON.stringify(warning), { kind: "warning", ...warning });
-    }
-  }
-  return refused ? [...seen.values(), { kind: "refusal" }] : [...seen.values()];
-}
-
-const FRESH_RESPONSE_BY_KIND: Readonly<Record<TurnRequest["kind"], boolean>> = {
-  send: false,
-  swipe: true,
-  continue: true,
-  generate: true,
-  impersonate: true,
-  opening: true,
-  auto: true,
-  force: true,
-};
-
-/** The domain {@link TurnRequest} → the BACKEND-NEUTRAL {@link ChatTurnInput}. No wire branch lives here: how
- *  the history and the tools reach a backend (Agent SDK seed frames + an MCP server, or a history array + a
- *  `tools[]` declaration) is `@orb/inference`'s `toChatRequest` (D177). What
- *  stays is this seam's own concern — the deployment's cache-depth FLOOR, layered onto SHAPE's depth. */
-function chatTurnInputOf(args: {
-  readonly req: TurnRequest;
-  readonly onDelta: (delta: ChatDeltaEvent) => void;
-  readonly promptCacheMinDepth: number;
-}): ChatTurnInput {
-  const { req, onDelta } = args;
-  return {
-    // The WHOLE resolved connection rides the request (§8.4-3): provider row, credential, folded features,
-    // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
-    connection: req.connection,
-    onObservedResult: req.onObservedResult,
-    params: req.intent,
-    responseCache: FRESH_RESPONSE_BY_KIND[req.kind] ? { enabled: false, refresh: false } : undefined,
-    attachmentQuality: req.attachmentQuality,
-    systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-    // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId` filter),
-    // and so the stateful backend keys its resume cache by it.
-    chatId: req.chatId,
-    history: req.history,
-    // The cache breakpoint DEPTH (role switches from the end — `backends/wire/cache-control.ts` owns the axis).
-    // SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the stable prefix is
-    // disrupted; the admin knob is a FLOOR layered on top, so it can only push the breakpoint DEEPER (more of
-    // the tail kept volatile), never shallower — a shallower breakpoint pins bytes that change every turn, which
-    // is a guaranteed wasted cache write, not a preference. SHAPE's abort therefore stays absolute: no safe depth
-    // ⇒ no breakpoint, whatever the knob says.
-    cacheBreakpointDepth: req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, args.promptCacheMinDepth),
-    ...(req.tools !== undefined ? { tools: req.tools } : {}),
-    ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
-    ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
-    onDelta,
-    signal: req.signal,
-  };
-}
-
-/** The terminal `final` chunk: the infra {@link ChatResult} folded onto the domain's committed economics. */
-// @orb-waive compose-wiring-only(finalTurnChunk): baselined when the gate landed; burn-down item 964.
-function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
-  return {
-    kind: "final",
-    economics: {
-      content: result.reply,
-      reasoning: result.reasoning || null,
-      model: req.connection.model,
-      // ATTRIBUTION (§5.3b): the provider REGISTRY id and the connection row that generated this swipe —
-      // denormalised on purpose so a read outlives an edited or deleted connection.
-      provider: req.connection.provider.id,
-      connectionId: req.connection.connectionId,
-      servedModel: result.usage.servedModel,
-      tokenDetails: result.usage.tokenDetails,
-      ...(result.usage.responseCache === undefined ? {} : { responseCache: result.usage.responseCache }),
-      tokensIn: result.usage.tokensIn,
-      tokensOut: result.usage.tokensOut,
-      cacheReadTokens: result.usage.cacheReadTokens,
-      cacheWriteTokens: result.usage.cacheWriteTokens,
-      reasoningTokens: result.usage.reasoningTokens,
-      contextWindow: result.usage.contextWindow,
-      costUsd: result.usage.costUsd,
-      costProvenance: result.usage.costProvenance,
-      costDetails: result.usage.costDetails,
-      // The replayable reasoning blocks (A1) — stored on the variant; the assembly reads them back.
-      reasoningParts: result.reasoningParts ?? null,
-      ...(result.textSignatures === undefined ? {} : { textSignatures: result.textSignatures }),
-      maxOutputTokens: result.usage.maxOutputTokens,
-      // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
-      // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
-      // over the calls) legible against `maxOutputTokens` (a per-call ceiling).
-      modelCalls: result.numTurns,
-      // The APPLIED effort the wire reported (inference audit B1) — never `req.intent.effort`, which a transport may
-      // have dropped or a mandatory clamp raised; the requested value already rides `params`.
-      reasoningEffort: result.appliedEffort,
-      ttftMs: result.ttftMs,
-      finishReason: result.finishReason,
-      stopReason: result.stopReason,
-      terminalReason: result.terminalReason,
-      generationId: result.generationId ?? null,
-      // §5.3c class 3 — the per-provider sidecar, already NARROWED by the runtime to the closed union
-      // (`backends/wire/provider-metadata.ts`). This seam carries it and decides nothing about its shape: the
-      // per-vendor spelling is backend knowledge, and re-deriving it here would put provider shape above the
-      // package boundary. Absent on a provider with no first-party arm.
-      ...(result.providerMetadata !== undefined ? { providerMetadata: result.providerMetadata } : {}),
-      ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
-      // §6.7: the pictures a modalities-capable chat model emitted inside this completion, forwarded RAW.
-      // The engine owns materialize + CAS store (the bytes must land under the room HOST, which this seam
-      // does not know) and the span emission; carrying them is all this bridge may honestly do.
-      ...(result.images !== undefined ? { replyImages: result.images } : {}),
-      // §8.8: the depth's replayable thinking, carried across the seam so the engine's tool loop can hand it
-      // back on the next leg. The wire produced them honestly (never gated on the carry knob) — WHETHER they
-      // ride back is the pipeline's decision, off the one funnel answer.
-      ...(result.reasoningParts !== undefined ? { reasoningParts: result.reasoningParts } : {}),
-    },
-  };
-}
-
-/** A PUSH→PULL adapter: the infra runner reports progress by callback (`onDelta`) and completion by promise,
- *  while the chat role consumes an AsyncIterable. The pump buffers pushed chunks and parks the consumer on a
- *  one-shot arrival promise while the buffer is empty, so no delta is dropped between two `next()` calls and a
- *  slow consumer never blocks the producer. `fail` is terminal and rethrows into the consumer AFTER the
- *  already-buffered chunks drain (a mid-stream failure must not swallow the text the user already saw). */
-function createChunkPump<T>(): {
-  readonly push: (...chunks: readonly T[]) => void;
-  readonly close: () => void;
-  readonly fail: (err: unknown) => void;
-  readonly drain: () => AsyncGenerator<T>;
-} {
-  const queue: T[] = [];
-  let done = false;
-  // BOXED, not a bare `unknown`: a rejection value is compared for PRESENCE, and `null`/`undefined` are
-  // legal rejection values. The box makes "a failure was recorded" a different question from "the failure
-  // is truthy" — the pre-extraction inline pump answered the second and silently ended the stream instead
-  // of rethrowing when a runner rejected with a nullish value.
-  let failure: { readonly err: unknown } | null = null;
-  let notify: (() => void) | null = null;
-  // @orb-waive compose-wiring-only(wake): baselined when the gate landed; burn-down item 964.
-  const wake = (): void => {
-    notify?.();
-    notify = null;
-  };
-  const push = (...chunks: readonly T[]): void => {
-    queue.push(...chunks);
-    wake();
-  };
-  const close = (): void => {
-    done = true;
-    wake();
-  };
-  const fail = (err: unknown): void => {
-    failure = { err };
-    done = true;
-    wake();
-  };
-  // @orb-waive compose-wiring-only(drain): baselined when the gate landed; burn-down item 964.
-  async function* drain(): AsyncGenerator<T> {
-    for (;;) {
-      if (queue.length > 0) {
-        yield queue.shift() as T;
-        continue;
-      }
-      if (done) {
-        if (failure !== null) {
-          throw failure.err;
-        }
-        return;
-      }
-      const arrival = Promise.withResolvers<void>();
-      notify = arrival.resolve;
-      await arrival.promise;
-    }
-  }
-  return { push, close, fail, drain };
-}
-
-/** The domain→infra turn bridge: maps a domain {@link TurnRequest} to the neutral turn and through `toChatRequest`
- *  to the infra {@link ChatRequest} (the per-wire delivery of history and tools is inference's; this seam adds the
- *  admin cache-depth floor), runs it through the injected infra `runChatTurn`, and adapts its
- *  Promise+onDelta shape back onto the chat role's streaming AsyncIterable. Extracted so the four-layer
- *  fidelity harness drives THIS real mapping (injecting only the leaf infra surface), not a facsimile. */
-export function createRunChatTurnBridge(deps: {
-  readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
-  /** The deployment's prompt-cache depth FLOOR (`AppSettings.promptCacheMinDepth`, Settings › Admin › System
-   *  tuning) — read PER TURN so an admin flip governs the next request with no restart (the D126 thunk
-   *  precedent). Optional: absent reads as the born-in-DB floor 0, which is `Math.max`'s identity, so a
-   *  harness that omits it produces byte-identical wire bodies. */
-  readonly promptCacheMinDepth?: () => number;
-}): (req: TurnRequest) => AsyncIterable<TurnStreamChunk> {
-  return async function* runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
-    const pump = createChunkPump<TurnStreamChunk>();
-    const onDelta = (delta: ChatDeltaEvent): void => {
-      pump.push({ kind: delta.kind, text: delta.text });
-    };
-
-    // The wire SHAPE is `@orb/inference`'s to decide off the connection's own `api` (validated ∈ the provider's
-    // `apis` on write and at resolve, §7.3) — including the refusal of a chat row with no chat api.
-    const chatReq = toChatRequest(chatTurnInputOf({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 }));
-
-    // @orb-waive caught-failure-ownership(runChatTurn): propagated — the rejection reaches
-    // `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the
-    // caller; never swallowed. Ends if `pump.fail` stops being read by the drain.
-    void deps
-      .runChatTurn(chatReq)
-      .then((result) => {
-        // BEFORE the terminal `final` (which ends the drain): the turn's honest-degrade warnings. Without this
-        // the runner's `events` died at this seam and D41 held only in the logs, never in the product.
-        pump.push(...outOfBandChunks(result.events), finalTurnChunk(req, result));
-        pump.close();
-      })
-      .catch((err: unknown) => {
-        pump.fail(err);
-      });
-
-    yield* pump.drain();
-  };
-}
-
-/** The two model-window FACTS memory reads off the funder's role clients (§7.5-1b): the summarize model's window
- *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
- *  `NoConnectionError` — the honest refusal, never a default window. The summarize window is the one the call sends:
- *  on a route whose window the request sets, the Utility preset's Max context (`windowForPreset`).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function createTaskWindowReaders(deps: {
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
-  readonly availability: ConnectionService["availability"];
-  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
-  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<Pick<UserIntent, "maxContextTokens"> | undefined>;
-}): { readonly summarize: (funderUserId: UserId) => Promise<number>; readonly embed: (funderUserId: UserId) => Promise<number> } {
-  // `resolved()` reads null for every reason the task cannot run; the availability verdict names the first one,
-  // so the funder is told what to fix instead of always "nothing is bound".
-  // @orb-waive compose-wiring-only(refusalFor): baselined when the gate landed; burn-down item 964.
-  const refusalFor = async (funderUserId: UserId, task: "summarize" | "embed"): Promise<NoConnectionError> => {
-    const verdict = await deps.availability({ task, principal: await deps.resolveHostPrincipal(funderUserId) });
-    return unavailableRefusal(task, verdict.available ? "no-connection" : verdict.cause);
-  };
-  return {
-    // @orb-waive compose-wiring-only(summarize): baselined when the gate landed; burn-down item 964.
-    summarize: async (funderUserId): Promise<number> => {
-      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("summarize");
-      if (resolved === null) {
-        throw await refusalFor(funderUserId, "summarize");
-      }
-      if (resolved.capability.kind !== "generation") {
-        throw unavailableRefusal("summarize", "requirement-unmet");
-      }
-      const preset = await deps.resolveUtilityPresetParams(funderUserId);
-      return windowForPreset(resolved.capability.generation, preset?.maxContextTokens).context.window;
-    },
-    // @orb-waive compose-wiring-only(embed): baselined when the gate landed; burn-down item 964.
-    embed: async (funderUserId): Promise<number> => {
-      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("embed");
-      if (resolved === null) {
-        throw await refusalFor(funderUserId, "embed");
-      }
-      if (resolved.capability.kind !== "embedding") {
-        throw unavailableRefusal("embed", "requirement-unmet");
-      }
-      return resolved.capability.embedding.maxInputTokens;
-    },
-  };
-}
-
-/**
- * Chat's `generatePicture` op over imagery's orchestrator: forwards the request and maps imagery's
- * `GeneratedPicture` onto chat's chat-local structural result (chat cannot import imagery's types).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function createGeneratePictureOp(generatePicture: ImageryService["generatePicture"]): GeneratePictureOp {
-  return async (p) => {
-    const picture = await generatePicture({
-      caller: p.caller,
-      runAsUserId: p.runAsUserId,
-      chatId: p.chatId,
-      mode: p.mode,
-      ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
-      ...(p.n !== undefined ? { n: p.n } : {}),
-      ...(p.size !== undefined ? { size: p.size } : {}),
-      ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),
-      ...(p.timeZone !== undefined ? { timeZone: p.timeZone } : {}),
-    });
-    return {
-      images: picture.images.map((img) => ({ assetId: img.assetId })),
-      warnings: picture.warnings.map((w) => ({ code: w.code, detail: w.detail })),
-    };
-  };
-}
-
-/**
- * Smart's Utility arbiter on the funder's bound row, or null when that row cannot answer it. The arbiter is
- * structured output only, so the row must carry a structured payload at all (`carriesStructured`, the planner's
- * answer). Null is the round's visible degrade, never a free-text call. How it rides is the plan's. Its window is
- * the one its call sends: the Utility preset's Max context on a route whose window the request sets.
- *
- * @public Test-anchored module surface; the three routes are pinned at `tests/legacy/server/entry/compose/speaker-arbiter.suite.test.ts`.
- */
-// @orb-waive compose-wiring-only(speakerArbiterFor): baselined when the gate landed; burn-down item 964.
-export async function speakerArbiterFor(
-  roles: Pick<RoleClientsWithSignal, "resolved" | "structured">,
-  maxContextTokens?: number | undefined,
-): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
-  const view = await roles.resolved("structured");
-  if (view?.capability.kind !== "generation" || !carriesStructured(view)) {
-    return null;
-  }
-  return {
-    structured: (inputs, opts) => roles.structured(inputs, opts),
-    contextTokens: windowForPreset(view.capability.generation, maxContextTokens).context.window,
-  };
-}
-
 /**
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
  * collaborator. Returns the service AND the bus emit.
@@ -839,180 +328,49 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // owner's own privileged turn, so this read is injected rather than faked.
   const realHostPrincipal = input.resolveHostPrincipal;
 
-  // THE FUNDER'S connection (§8.4-3): `funderUserId` selects the WHOLE connection — provider, model, credential,
-  // declared capability — through the runtime's user-binding fold. There is no per-chat routing overlay
-  // (`chats.metadata.providerRouting` was deleted with `RouteChatAssignment`, §7.1: a routing preference is a
-  // property of the connection you picked, never of the room).
-  const resolveChatFor = async (funderUserId: UserId, signal?: AbortSignal, actor?: BindingActor): Promise<Resolved<"chat">> => {
-    const { resolved } = await input.connection.resolve({
-      task: "chat",
-      principal: await realHostPrincipal(funderUserId),
-      ...(signal === undefined ? {} : { signal }),
-      ...(actor === undefined ? {} : { actor }),
-    });
-    return resolved as Resolved<"chat">;
-  };
-  const taskWindows = createTaskWindowReaders({
+  const newChatTurnId = minter(ID_PREFIX.chatTurn);
+  const inferenceOps = createChatInferenceOps({
+    connection: input.connection,
     roleClientsFor: input.roleClientsFor,
-    availability: input.connection.availability,
     resolveHostPrincipal: realHostPrincipal,
     resolveUtilityPresetParams: input.resolveUtilityPresetParams,
+    beginObservation: (parent) => createGenerationObservationSession({ db, now, applyStatsDelta }, parent, chatCtx).onObservedResult,
+    newChatTurnId,
   });
-
-  // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
-  // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
-  // can't drift; takes the id (not the whole settings read) so a caller that already loaded it doesn't double-read.
-  //
-  // It returns the resolved row's NAME beside its config (#1754), and the two travel together by
-  // construction: the name comes off the very `PresetDetail` the config did, so nothing downstream can
-  // name one preset while assembling another. `null` = the system default stood in (there is no row to name).
-  // @orb-waive compose-wiring-only(resolvePromptConfigFor): baselined when the gate landed; burn-down item 964.
-  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<{ config: PromptConfig; name: string | null }> => {
-    if (defaultPresetId === null) {
-      return { config: DEFAULT_PROMPT_CONFIG, name: null };
-    }
-    try {
-      const detail = await input.preset.get({
-        userId: runAsUserId,
-        id: castId<PresetId>(defaultPresetId),
-      });
-      return { config: detail.config, name: detail.name };
-    } catch (err) {
-      // Only a genuinely stale/unowned/missing preset id degrades to the system default — a database,
-      // I/O, or program failure must surface, never run the turn with the wrong prompt (#759).
-      if (err instanceof PresetNotFoundError) {
-        return { config: DEFAULT_PROMPT_CONFIG, name: null };
-      }
-      throw err;
-    }
-  };
-
-  // The GM-voice preset REDIRECT (docs/plans/rpg/design.md): a present override that resolves owned/system under
-  // the host wins; a stale/unowned override (or absent) degrades to the host's normal default — the lenient-id
-  // rule (never a broken turn). One home with `resolvePromptConfigFor` so the fallback can't drift. Returns the
-  // RESOLVED preset id alongside the config (WAVE MU user-macro source attribution) — the override id when it
-  // resolved, else the host default id, else null when the system `DEFAULT_PROMPT_CONFIG` stood in.
-  // @orb-waive compose-wiring-only(resolvePromptConfigWithOverride): baselined when the gate landed; burn-down item 964.
-  const resolvePromptConfigWithOverride = async (
-    runAsUserId: UserId,
-    presetOverride: PresetId | undefined,
-    defaultPresetId: string | null,
-  ): Promise<{ config: PromptConfig; presetId: PresetId | null; presetName: string | null }> => {
-    if (presetOverride !== undefined) {
-      // @orb-waive caught-failure-ownership(err): narrow rethrow — documented below: only a
-      // genuinely stale/unowned/missing override falls through to the host's default (the lenient-id rule,
-      // #759); a database/I/O/program failure rethrows below unhandled. Ends if #759's ruling changes.
-      try {
-        const detail = await input.preset.get({ userId: runAsUserId, id: presetOverride });
-        return { config: detail.config, presetId: presetOverride, presetName: detail.name };
-      } catch (err) {
-        // Only a genuinely stale/unowned/missing override falls through to the host's normal default (the
-        // lenient-id rule) — a database, I/O, or program failure must surface (#759).
-        if (!(err instanceof PresetNotFoundError)) {
-          throw err;
-        }
-      }
-    }
-    const { config, name } = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
-    // The effective id is the host default only when it actually resolved a preset (not the DEFAULT fallback).
-    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null), presetName: name };
-  };
-
   const personaOwned = createPersonaOwned(db);
-
-  // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
-  // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
   const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
-
-  // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
-  // ⇒ no declared variables.
-  // @orb-waive compose-wiring-only(resolvePromptVariables): baselined when the gate landed; burn-down item 964.
-  const resolvePromptVariables = async (chatId: ChatId): Promise<readonly ChoiceBlockSpec[]> => {
-    const hostUserId = await resolveChatHostUserId(chatId);
-    if (hostUserId === null) {
-      return [];
-    }
-    const us = await input.settings.loadUserSettings(hostUserId);
-    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
-    return config.variables;
-  };
-
-  // The chat's active preset's authored USER MACROS (#24) — the picks pane's declaration half, resolved
-  // under the chat's host exactly like `resolvePromptVariables` (its ChoiceBlock sibling). A feature preset
-  // OVERRIDE is deliberately not applied: it is a per-turn redirect (the rpg GM voice) no pane read can
-  // anticipate. Hostless/stale room ⇒ no declared macros.
-  // @orb-waive compose-wiring-only(resolvePromptUserMacros): baselined when the gate landed; burn-down item 964.
-  const resolvePromptUserMacros = async (chatId: ChatId): Promise<readonly UserMacroSpec[]> => {
-    const hostUserId = await resolveChatHostUserId(chatId);
-    if (hostUserId === null) {
-      return [];
-    }
-    const us = await input.settings.loadUserSettings(hostUserId);
-    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
-    return config.userMacros;
-  };
-
-  // The chat's app-tier PROSE overrides, resolved under the chat's HOST (PROSE-1 owner-decision 8, option
-  // (a) — the room's side generations read one stable voice, not the speaker-of-the-moment's). One home with
-  // `resolvePromptVariables`: same host resolution, same hostless degrade — an
-  // empty record, which resolves every slot to its shipped default (byte-identical to pre-PROSE-1).
-  // @orb-waive compose-wiring-only(resolveChatProse): baselined when the gate landed; burn-down item 964.
-  const resolveChatProse = async (chatId: ChatId): Promise<ProseOverrides> => {
-    const hostUserId = await resolveChatHostUserId(chatId);
-    if (hostUserId === null) {
-      return {};
-    }
-    return (await input.settings.loadUserSettings(hostUserId)).prose;
-  };
-
-  // The chat's PRESET-tier prose (PROSE-1 S4) — the rpg host doors' own resolution moment (see the field's
-  // doc on `ChatComposeResult.rpgChatOps`). It walks the SAME ladder a game TURN walks, in the same order:
-  // the GM-voice preset REDIRECT first (`input.rpg.resolvePresetOverride`, the early hop `buildTurnContext`
-  // runs before its foreign read), then `resolvePromptConfigWithOverride`'s lenient resolve, then
-  // `composeProse` by home. That sameness IS the inherited-preview rule: a host who edits a plane teach on
-  // the table's GM preset sees the SAME bytes on a resync/populate that they see on a turn. Diverging here —
-  // e.g. reading the host's default preset — is precisely the defect the `resolvePreviewInputs` GM redirect
-  // was landed to fix, in a different jacket.
-  // The room's preset as a TURN resolves it: the GM-voice redirect first, then the host's default.
-  // @orb-waive compose-wiring-only(resolveChatTurnPresetConfig): baselined when the gate landed; burn-down item 964.
-  const resolveChatTurnPresetConfig = async (chatId: ChatId): Promise<PromptConfig | null> => {
-    const hostUserId = await resolveChatHostUserId(chatId);
-    if (hostUserId === null) {
-      return null;
-    }
-    const presetOverride = (await input.rpg?.resolvePresetOverride(chatId)) ?? null;
-    const us = await input.settings.loadUserSettings(hostUserId);
-    return (await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId)).config;
-  };
-  // @orb-waive compose-wiring-only(resolveChatPresetProse): baselined when the gate landed; burn-down item 964.
-  const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
-    const config = await resolveChatTurnPresetConfig(chatId);
-    return config === null ? {} : composeProse({ preset: config.prose });
-  };
-  // The room's preset generation params, by the SAME ladder the turn walks: every send on the chat connection outside
-  // the turn (quiet generation and compaction, the host's resync and populate, the overflow notice) reads its sampling
-  // and its Max context here, so it runs the window the turn sends. A hostless room degrades to the system default.
-  // @orb-waive compose-wiring-only(resolveChatPresetParams): baselined when the gate landed; burn-down item 964.
-  const resolveChatPresetParams = async (chatId: ChatId): Promise<UserIntent> =>
-    (await resolveChatTurnPresetConfig(chatId))?.params ?? DEFAULT_PROMPT_CONFIG.params;
-
-  // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
-  // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
-  // re-reading settings — the opt-out can't be honored on the turn and dropped on the sweep.
-  // @orb-waive compose-wiring-only(withMemoryOptOut): baselined when the gate landed; burn-down item 964.
-  const withMemoryOptOut = (disabled: boolean, defaults: MemoryConfig): MemoryConfig => (disabled ? { ...defaults, mode: "off" } : defaults);
-
-  // @orb-waive compose-wiring-only(resolveMemoryConfig): baselined when the gate landed; burn-down item 964.
-  const resolveMemoryConfig = async (hostUserId: UserId): Promise<MemoryConfig> => {
-    const us = await input.settings.loadUserSettings(hostUserId);
-    const defaults = input.settings.getEffectiveConfig().memoryDefaults;
-    return withMemoryOptOut(us.memory.enabled === false, defaults);
-  };
-
+  const roomInputs = createChatRoomInputs({
+    loadUserSettings: input.settings.loadUserSettings,
+    getEffectiveConfig: input.settings.getEffectiveConfig,
+    loadOptionalPreset: createLoadOptionalPreset(input.preset.get),
+    resolveHostUserId: resolveChatHostUserId,
+    resolvePersonasForParticipants: input.resolvePersonasForParticipants,
+    rpg: input.rpg ?? null,
+  });
+  const { resolvePromptVariables, resolvePromptUserMacros, resolveChatProse, resolveChatPresetProse, resolveChatPresetParams, resolveMemoryConfig } =
+    roomInputs;
   // The D50 PromptTransform registrar — one per deploy. Zero registrants today
   // (automation A7 + the plugin host register onto it later); its `apply` is the `ChatContext.promptTransforms`
   // op, so a chat with no transforms assembles + streams byte-identically.
   // Item 2: the per-transform deadline is a live admin knob (promptTransformDeadlineMs) — read per apply.
+  const assetOps = createChatAssetOps({ assets: input.assets, resolvePrincipal: input.resolveHostPrincipal });
+  const characterProjections = createCharacterRoomProjections({
+    get: input.character.get,
+    loadSeatCards: createLoadSeatCards(db),
+    principalForUser: hostPrincipal,
+    readRenderPolicy: () => input.settings.getEffectiveConfig(),
+  });
+  const personaPointers = createResolvePersonaSeedPointers({
+    get: input.persona.get,
+    loadUserSettings: input.settings.loadUserSettings,
+    principalForUser: hostPrincipal,
+  });
+  const memorySearch = createChatMemorySearchOps({
+    resolveHostUserId: resolveChatHostUserId,
+    digests: input.search.digests,
+    corpus: input.search.corpus,
+    withRetrievalDegrade,
+  });
   const promptTransformRegistry = createPromptTransformRegistry(emitChatEvent, () => input.settings.getEffectiveConfig().promptTransformDeadlineMs);
 
   const chatCtx: ChatContext = {
@@ -1032,7 +390,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newStreamGenerationId: minter(ID_PREFIX.chatStreamGeneration),
     newInviteId: minter(ID_PREFIX.chatInvite),
     newPendingTurnId: minter(ID_PREFIX.pendingTurn),
-    newChatTurnId: minter(ID_PREFIX.chatTurn),
+    newChatTurnId,
     newCompactionSpendId: minter(ID_PREFIX.compactionSpend),
     hashToken: createTokenHasher(input.sessionSecret),
     signupInvites: { mode: input.authMode, mintable: SIGNUP_INVITES_MINTABLE[input.authMode] },
@@ -1055,7 +413,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     }),
     resolveChatPresetParams,
     resolveChatProse,
-    resolveChat: (params) => resolveChatFor(params.funderUserId, params.signal),
+    resolveChat: inferenceOps.resolveChat,
     // THE POST-GENERATION CREDENTIAL STRIKE-OUT (#1373) — a DIRECT wire, deliberately not an adapter. The
     // adapter that used to sit here was the whole defect: it re-derived the classification from the HTTP
     // status (`401 → "unauthorized"`, `403 → "forbidden"`) against a verb that gates on `auth_failed`, so the
@@ -1066,8 +424,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
     maybeRevokeOnAuthFailed: input.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
-    resolveCharacterDistillates: async (ownerId, characterIds) =>
-      new Map((await readOwnedDistillates(db, ownerId, characterIds)).map((row) => [row.characterId, row] as const)),
+    resolveCharacterDistillates: createResolveOwnedDistillates(db),
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
     // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
     // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`
@@ -1086,24 +443,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // those bytes). Ownership is PROVEN here: an asset that is not the departing host's yields `null` and
       // the copy lands without that picture rather than borrowing a stranger's blob. `kind` comes from the
       // CALLER because the CAS index is per-kind and the two carried pictures are genuinely different kinds.
-      // @orb-waive compose-wiring-only(copyAsset): baselined when the gate landed; burn-down item 964.
-      copyAsset: async ({ fromOwnerId, toOwnerId, assetId, kind }) => {
-        const ref = await input.assets.assetCasRefById(assetId);
-        if (ref === undefined || ref.ownerId !== fromOwnerId) {
-          return null;
-        }
-        const bytes = await input.assets.loadAssetBytes(assetId);
-        if (bytes === null) {
-          return null;
-        }
-        const stored = await input.assets.store({
-          principal: await input.resolveHostPrincipal(toOwnerId),
-          bytes,
-          kind,
-          mime: ref.mime,
-        });
-        return stored.assetId;
-      },
+      copyAsset: assetOps.copyAsset,
     }),
     copyHandoffBooks: createCopyHandoffBooks({
       db: input.db,
@@ -1122,69 +462,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     countHandoffBooks: createCountHandoffBooks(input.db),
     countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
-    // D22 member card — accepted tag identities under the host's ownership. Resolved
-    // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
-    // fail-closes to [] rather than throwing into the member-card read.
-    // @orb-waive compose-wiring-only(resolveCharacterTags): baselined when the gate landed; burn-down item 964.
-    resolveCharacterTags: async ({ ownerId, characterId }) => {
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
-      try {
-        const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
-        return detail.tags.map(({ id, name }) => ({ id, name }));
-      } catch {
-        return [];
-      }
-    },
-    // ONE character read → the whole per-seat decoration (render policy layered over the deployment floor,
-    // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
-    // or an unreadable card resolves to the bare global floor + a null card (fail-closed, never a throw into
-    // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
-    // The tier combine is the ONE contracts resolver (`resolveRenderPolicy`) — external media is
-    // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
-    // deployment (which the app-document CSP enforces independently), and the ladder's top rung needs the
-    // `allowInteractiveCards` ceiling, which is also the default rung of a card that inherits.
-    // @orb-waive compose-wiring-only(resolveSeatDeco): baselined when the gate landed; burn-down item 964.
-    resolveSeatDeco: async ({ ownerId, characterId }) => {
-      const cfg = input.settings.getEffectiveConfig();
-      const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
-      // The deployment floor AS A RESOLVED policy — what a seat with no readable card gets. Produced by the
-      // SAME resolver with no override rather than hand-built, so the no-card arm can never spell a step
-      // the resolver would not (#111: the html-trust ladder is folded in exactly one place).
-      const resolvedFloor = resolveRenderPolicy(floor, null);
-      if (characterId === null || ownerId === null) {
-        return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
-      }
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the comment block above states
-      // the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never
-      // a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence.
-      try {
-        const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
-        return {
-          renderPolicy: resolveRenderPolicy(floor, detail),
-          themeOverride: detail.themeOverride,
-          backgroundOverride: detail.backgroundOverride,
-          card: { name: detail.name, avatarAssetId: detail.avatarAssetId },
-        };
-      } catch {
-        return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
-      }
-    },
-    resolveSeatDecos: async ({ ownerId, characterIds }) => {
-      const cfg = input.settings.getEffectiveConfig();
-      const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
-      const cards = await createLoadSeatCards(db)(ownerId, characterIds);
-      return new Map(
-        cards.map((card) => [
-          card.id,
-          {
-            renderPolicy: resolveRenderPolicy(floor, card),
-            themeOverride: card.themeOverride,
-            backgroundOverride: card.backgroundOverride,
-            card: { name: card.name, avatarAssetId: card.avatarAssetId },
-          },
-        ]),
-      );
-    },
+    ...characterProjections,
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
     resolveUserPublics: createResolveUserPublics(
@@ -1201,16 +479,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         params,
       ),
     // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
-    // @orb-waive compose-wiring-only(resolveAssetHash): baselined when the gate landed; burn-down item 964.
-    resolveAssetHash: async (assetId) => {
-      if (assetId === null) {
-        return null;
-      }
-      const ref = await input.assets.assetCasRefById(assetId);
-      return ref?.hash ?? null;
-    },
-    // Owner-scoped: a foreign/gone id is simply absent from the result.
-    filterOwnedAssetIds: async (userId, assetIds) => (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
+    resolveAssetHash: assetOps.resolveAssetHash,
+    filterOwnedAssetIds: assetOps.filterOwnedAssetIds,
     materializeBackground: input.materializeBackground,
     storeInlineReplyImage: input.storeInlineReplyImage,
     // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
@@ -1228,48 +498,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     bumpStatsCanonVersion: (batch, opDb, ownerId) => {
       bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId);
     },
-    // Every summarize call names its FUNDER (§8.5b): the arbiter and extract-quiet spend the round's trigger,
-    // the digests the trigger under `allowBackground` — never a box owner's bundle.
-    summarize: async (funderUserId, ...args) => (await input.roleClientsFor(funderUserId)).summarize(...args),
-    // @orb-waive compose-wiring-only(resolveSpeakerReranker): baselined when the gate landed; burn-down item 964.
-    resolveSpeakerReranker: async (funderUserId) => {
-      const roles = await input.roleClientsFor(funderUserId);
-      const view = await roles.resolved("rerank");
-      if (view === null) {
-        return null;
-      }
-      // A rerank binding always carries a rerank capability; the floor stands in only if one ever does not.
-      const capability = view.capability.kind === "rerank" ? view.capability.rerank : RERANK_FLOOR;
-      return { capability, rerank: (query, documents, opts) => roles.rerank(query, documents, opts) };
-    },
-    // The arbiter is structured output only: a row that carries no structured payload cannot serve it, so the round
-    // degrades visibly instead of reading free text.
-    // @orb-waive compose-wiring-only(resolveSpeakerArbiter): baselined when the gate landed; burn-down item 964.
-    resolveSpeakerArbiter: async (funderUserId, chatId) => {
-      const arbiter = await speakerArbiterFor(
-        await input.roleClientsFor(funderUserId),
-        (await input.resolveUtilityPresetParams(funderUserId))?.maxContextTokens,
-      );
-      if (arbiter === null) {
-        return null;
-      }
-      const observations = createGenerationObservationSession(
-        { db, now, applyStatsDelta },
-        {
-          chatId,
-          turnId: chatCtx.newChatTurnId(),
-          sourceMessageId: null,
-          sourceVariantId: null,
-        },
-      );
-      return { ...arbiter, structured: (inputs, opts) => arbiter.structured(inputs, { ...opts, onObservedResult: observations.onObservedResult }) };
-    },
-    summarizerContextTokens: taskWindows.summarize,
-    summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
-    // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the
-    // SAME fact the transport's belt clamp reads, so the segment build's skip boundary and the wire's
-    // last-resort cut can't disagree.
-    embedContextTokens: taskWindows.embed,
+    summarize: inferenceOps.summarize,
+    resolveSpeakerReranker: inferenceOps.resolveSpeakerReranker,
+    resolveSpeakerArbiter: inferenceOps.resolveSpeakerArbiter,
+    summarizerContextTokens: inferenceOps.summarizerContextTokens,
+    summarizeAvailability: inferenceOps.summarizeAvailability,
+    embedContextTokens: inferenceOps.embedContextTokens,
     resolveUtilityPresetParams: input.resolveUtilityPresetParams,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
@@ -1281,58 +515,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
     resolveConnectedPersona: createResolveConnectedPersona({ db }),
-    // @orb-waive compose-wiring-only(resolveDefaultPersona): baselined when the gate landed; burn-down item 964.
-    resolveDefaultPersona: async (userId) => {
-      const us = await input.settings.loadUserSettings(userId);
-      const raw = us.seeds.defaultPersonaId;
-      if (raw === null) {
-        return null;
-      }
-      try {
-        const persona = await input.persona.get({
-          principal: hostPrincipal(userId),
-          personaId: castId<PersonaId>(raw),
-        });
-        return persona.id;
-      } catch (err) {
-        // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
-        // must surface, never silently seat the room with no active persona (#760).
-        if (err instanceof PersonaNotFoundError) {
-          return null;
-        }
-        throw err;
-      }
-    },
-    // @orb-waive compose-wiring-only(resolveCurrentPersona): baselined when the gate landed; burn-down item 964.
-    resolveCurrentPersona: async (userId) => {
-      const us = await input.settings.loadUserSettings(userId);
-      const raw = us.seeds.currentPersonaId;
-      if (raw === null) {
-        return null;
-      }
-      try {
-        const persona = await input.persona.get({
-          principal: hostPrincipal(userId),
-          personaId: castId<PersonaId>(raw),
-        });
-        return persona.id;
-      } catch (err) {
-        // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
-        // must surface, never silently seat the room with no active persona (#760).
-        if (err instanceof PersonaNotFoundError) {
-          return null;
-        }
-        throw err;
-      }
-    },
+    ...personaPointers,
     verifyPersonaOwned: ({ ownerId, personaId }) => personaOwned(ownerId, personaId),
-    emitNotification: async (event, coStatements) => {
-      const view = await input.notifications.record({
-        event,
-        ...(coStatements !== undefined ? { coStatements } : {}),
-      });
-      publishNotification(view);
-    },
+    emitNotification: createRecordAndPublishNotification(input.notifications.record, publishNotification),
     // Server-derived — never a client-asserted (spoofable) heartbeat.
     readPresence: input.readPresence,
     // Maps imagery's GeneratedPicture → chat's chat-local structural result (chat can't import
@@ -1342,47 +527,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     ...createMemoryEmbeddingOps({ embeddings: input.embeddings, resolveChatHostUserId }),
     // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
-    // The scored projection: identity + BOTH ranking numbers, and deliberately NOT the hit's `text` (memory
-    // resolves its own digest bodies from the pool it already loaded — the seam carries what recall must
-    // EXPLAIN, never a second copy of the content).
-    // The digest SPACE is the host's (their `embed`/`rerank` bindings wrote it — vector tasks are owner-scoped,
-    // inference program §7.5); `MemoryQueryOptions` carries no owner by D20, so the host is resolved from the
-    // chat FK here, exactly as `searchCorpus` below does. Hostless room ⇒ nothing to recall (leak-free).
-    // The SPACE refusals degrade here rather than faulting the turn (#2510 — `retrieval-degrade.ts` states
-    // the whole boundary): a mid-move or unbound vector space is an ordinary owner state, and the user hears
-    // about it through the episode this reports into. Every other search failure still propagates.
-    // @orb-waive compose-wiring-only(searchDigests): baselined when the gate landed; burn-down item 964.
-    searchDigests: async (query, events) => {
-      const hostUserId = await resolveChatHostUserId(query.scope.chat);
-      if (hostUserId === null) {
-        return [];
-      }
-      const onRerankUnavailable = events?.onRerankUnavailable;
-      const hits = await withRetrievalDegrade(
-        async () => await input.search.digests({ ...query, ownerId: hostUserId }, onRerankUnavailable === undefined ? undefined : { onRerankUnavailable }),
-        { empty: [], onIndexUnavailable: events?.onIndexUnavailable },
-      );
-      return hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }));
-    },
-    // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
-    // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority). The memory bridge
-    // keeps stored digest identities; standalone transcript sources remain search evidence. Hostless/stale room ⇒ empty
-    // (leak-free unknown-owner, the resolvePromptVariables posture); an empty queryText propagates the
-    // corpus verb's own SEARCH_EMPTY_QUERY refusal (flag-don't-fake).
-    // @orb-waive compose-wiring-only(searchCorpus): baselined when the gate landed; burn-down item 964.
-    searchCorpus: async (query) => {
-      const hostUserId = await resolveChatHostUserId(query.scope.chat);
-      if (hostUserId === null) {
-        return [];
-      }
-      const hits = await input.search.corpus({
-        ownerId: hostUserId,
-        queryText: query.queryText ?? "",
-        mode: query.mode,
-        minScore: query.minScore,
-      });
-      return hits.flatMap((h) => h.blockKeys);
-    },
+    ...memorySearch,
     log: (entry) => recordMemoryLog(entry),
     // #250 — absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.
     ...(input.recallRecorder !== undefined ? { recordRecall: input.recallRecorder.sink } : {}),
@@ -1393,20 +538,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     emitRecallPhase: input.emitChatEventLive,
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
-    // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.
-    resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
-    // @orb-waive compose-wiring-only(resolveWelcomeAssistantId): baselined when the gate landed; burn-down item 964.
-    resolveWelcomeAssistantId: async (userId) => {
-      const id = (await input.settings.loadUserSettings(userId)).seeds.welcomeAssistantCharacterId;
-      return id === null ? null : castId<CharacterId>(id);
-    },
-    // B7 — the VERB-TIME half of the reaction-posture resolve (the reaction verbs gate on the PRESENT
-    // host's per-user defaults; the turn path reads the same two fields off `chatBehavior` below). The
-    // same settings FOREIGN op as its TTL neighbour — chat never imports settings.
-    readReactionDefaults: async (userId) => {
-      const us = await input.settings.loadUserSettings(userId);
-      return { charactersCanReact: us.chat.charactersCanReact, reactionsEnabled: us.chat.reactionsEnabled };
-    },
+    resolveTempChatTtlHours: roomInputs.resolveTempChatTtlHours,
+    resolveWelcomeAssistantId: roomInputs.resolveWelcomeAssistantId,
+    readReactionDefaults: roomInputs.readReactionDefaults,
     resolvePromptVariables,
     resolvePromptUserMacros,
     // Null ⇒ rpg not wired (byte-identical no-op — the `tools` precedent). The 5 injected rpg
@@ -1423,7 +557,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     pluginMacros: input.pluginMacros ?? null,
   };
 
-  const resolveTurnPersonas = createTurnPersonaResolver(input.resolvePersonasForParticipants);
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
     emitChecked: input.emitChatEventChecked,
@@ -1432,68 +565,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     activeTurns: createActiveTurns(),
     prng: () => Math.random(),
     delay: sleep,
-    // THE TURN'S OWN RESOLVE and the #54 pre-send gate are both keyed on the room's resolved FUNDER
-    // (§8.4-3): today that is the current host, and the next-turn read below reports that same binding.
-    resolveConnection: ({ funderUserId, actor }) => resolveChatFor(funderUserId, undefined, actor),
-    checkSendAvailability: async ({ funderUserId }) => input.connection.availability({ task: "chat", principal: await realHostPrincipal(funderUserId) }),
-    // @orb-waive compose-wiring-only(getNextTurnConnection): baselined when the gate landed; burn-down item 964.
-    getNextTurnConnection: async ({ funderUserId }) => {
-      const row = await input.connection.getBoundConnection({ task: "chat", principal: await realHostPrincipal(funderUserId) });
-      return row === null
-        ? { state: "unset" }
-        : { state: "configured", connectionLabel: row.label, provider: row.providerId, providerLabel: row.providerLabel, model: row.model };
-    },
-    // @orb-waive compose-wiring-only(resolveForeignInputs): baselined when the gate landed; burn-down item 964.
-    resolveForeignInputs: async ({ chatId, runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
-      const us = await input.settings.loadUserSettings(runAsUserId);
-
-      // A feature-supplied GM-voice preset REDIRECT (docs/plans/rpg/design.md) wins over the host's default when it
-      // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
-      // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
-      const { config: promptConfig, presetId, presetName } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
-
-      // THE ROOM-PLANE PERSONA READ (the multi-human widening). NOT `persona.get` under a host Principal:
-      // that owner-scoped keyhole silently nulled every NON-HOST member's persona, so a member's own turn
-      // rendered `{{user}}` as the kit floor "User" and a host-pinned member-owned anchor was a dead pin —
-      // both violating FINAL-Persona §A.1 in exactly the multi-human room the D16/D18 spine exists for. The
-      // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
-      // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
-      const turnPersonas = await resolveTurnPersonas({ chatId, runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice });
-
-      const memoryConfig = withMemoryOptOut(us.memory.enabled === false, input.settings.getEffectiveConfig().memoryDefaults);
-
-      return {
-        promptConfig,
-        // WAVE MU — the resolved preset id for user-macro source attribution (override id / host default / null).
-        presetId,
-        // #1754 — the SAME resolution's NAME, so the room's Regex section can say WHICH preset it is showing
-        // (the GM redirect's on a game chat) instead of falling back to the viewer's own active preset.
-        presetName,
-        personas: turnPersonas,
-        scanDepth: us.worldInfo.scanDepth,
-        injectionTokenBudget: us.worldInfo.tokenBudget,
-        memoryConfig,
-        // The host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
-        chatBehavior: {
-          attachmentQuality: us.chat.attachmentQuality,
-          autoContinue: us.chat.autoContinue,
-          autoContinueRounds: us.chat.autoContinueRounds,
-          autoSwipe: us.chat.autoSwipe,
-          customStoppingStrings: us.chat.customStoppingStrings,
-          // B1 — the host's per-user offer-choices DEFAULT; the room's own `chatMetadata.offerChoices`
-          // overrides it at `resolveTeachingKnobs`. Under the frozen host (D19), like every other field here.
-          offerChoices: us.chat.offerChoices,
-          // B7 — the two reaction defaults, the same seam + meeting point (their room halves override at
-          // `resolveTeachingKnobs`; the verb-time gates read them via `readReactionDefaults` above).
-          charactersCanReact: us.chat.charactersCanReact,
-          reactionsEnabled: us.chat.reactionsEnabled,
-        },
-        // DB6: the host's databank retrieval params (k/minScore/rerank) the gather passes to search.documents,
-        // plus the {{databank}} slot budget — the FOREIGN-inputs seam (settings read chat delegates).
-        databankRetrieval: us.databank.retrieval,
-        databankSlotTokenBudget: us.databank.slotTokenBudget,
-      };
-    },
+    resolveConnection: inferenceOps.resolveConnection,
+    checkSendAvailability: inferenceOps.checkSendAvailability,
+    getNextTurnConnection: inferenceOps.getNextTurnConnection,
+    resolveForeignInputs: roomInputs.resolveForeignInputs,
     holder: input.holder,
     lockTtlMs: CHAT_LOCK_TTL_MS,
     signup: {
@@ -1537,22 +612,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
     signupInvites: chatBundle.signupInvites,
-    // @orb-waive compose-wiring-only(isMemoryEnabled): baselined when the gate landed; burn-down item 964.
-    isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",
-    backfill: {
-      memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),
-      groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
-      // A host asks for their own estimate BEFORE turning memory on (the switch's confirm), so the singular count
-      // reads the admin defaults without the host's opt-out; the bulk count honours each host's switch, as the sweep does.
-      // A retry or a start is counted only if the workloads door would admit it (`admit` above), so only the
-      // switch's confirm sees this count while the host's switch is still off.
-      // @orb-waive compose-wiring-only(estimateMemory): baselined when the gate landed; burn-down item 964.
-      estimateMemory: (args) =>
-        estimateMemoryBackfillCalls(
-          chatCtx,
-          args,
-          args.ownerId === null ? resolveMemoryConfig : (): Promise<MemoryConfig> => Promise.resolve(input.settings.getEffectiveConfig().memoryDefaults),
-        ),
-    },
+    ...createChatBoundBackfillOps(chatCtx, resolveMemoryConfig, () => input.settings.getEffectiveConfig().memoryDefaults),
   };
 }

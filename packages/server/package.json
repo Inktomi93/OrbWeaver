@@ -11,6 +11,7 @@
     "./domain/assets": "./src/domain/assets/index.ts",
     "./domain/character": "./src/domain/character/index.ts",
     "./domain/chat": "./src/domain/chat/index.ts",
+    "./domain/persona": "./src/domain/persona/index.ts",
     "./domain/preset": "./src/domain/preset/index.ts",
     "./domain/sessions": "./src/domain/sessions/index.ts",
     "./entry/boot": "./src/entry/boot/index.ts",

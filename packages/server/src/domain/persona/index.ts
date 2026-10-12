@@ -26,4 +26,5 @@ export { createResolveConnectedPersona } from "./verbs/resolve-connected-persona
 // The PRINCIPAL-LESS room-plane op (contract/ops.ts) — compose-built, injected into the chat FOREIGN-inputs
 // resolver. Deliberately NOT on `PersonaService` (which is Principal-scoped by contract).
 export { createResolvePersonasForParticipants } from "./verbs/resolve-personas-for-participants.ts";
+export { createResolvePersonaSeedPointers } from "./verbs/resolve-seed-pointers.ts";
 export { createResolveUserPublics } from "./verbs/resolve-user-publics.ts";

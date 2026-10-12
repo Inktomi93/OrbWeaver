@@ -49,7 +49,7 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       throw new PersonaNotFoundError(personaId);
     }
 
-    const seeds = await ctx.repointSeedsAfterPersonaDelete(ownerId, personaId);
+    const seeds = await ctx.repointSeedsAfterPersonaDelete(principal, personaId);
     // A seat the delete emptied would stamp every later line with no persona; it takes the owner's default
     // persona, then the last-played one, the same order a join uses.
     const reseatWith = seeds.defaultPersonaId ?? seeds.currentPersonaId;

@@ -699,8 +699,11 @@ describe("persona.remove seed re-point (owner invariant)", () => {
       },
     });
 
+    const seedWrite = vi.spyOn(result.services.settings, "updateUserSettingsSection");
     await result.services.persona.remove({ principal: actor, personaId: doomed.id });
 
+    expect(seedWrite).toHaveBeenCalledTimes(1);
+    expect(seedWrite.mock.calls[0]?.[0].principal).toBe(actor);
     const { seeds } = (await result.services.settings.getUserSettings({ principal: actor })).config;
     expect(seeds.currentPersonaId).toBe(keeper.id); // re-pointed to the (surviving) default
     expect(seeds.defaultPersonaId).toBe(keeper.id); // default untouched (it wasn't the deleted one)

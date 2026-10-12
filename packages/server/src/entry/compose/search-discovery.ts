@@ -227,7 +227,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     repointSeedsAfterPersonaDelete: createRepointSeedsAfterPersonaDelete({
       db,
       loadUserSettings: (ownerId) => settings.loadUserSettings(ownerId),
-      updateUserSettingsSection: (params) => settings.updateUserSettingsSection(params),
+      writeSeeds: async (principal, patch) => {
+        await settings.updateUserSettingsSection({ principal, input: { section: "seeds", patch } });
+      },
     }),
     captureSeatsForDelete: createCapturePersonaSeatsForDelete({
       db,
