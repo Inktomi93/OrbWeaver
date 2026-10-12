@@ -9,11 +9,11 @@ import { characters } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery } from "@orb/server/domain/assets";
-import { parseGallery } from "@orb/server/primitives/serde/gallery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
+import { parseGallery } from "#server/primitives/serde/gallery/index.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser, withGalleryCharacterOps } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

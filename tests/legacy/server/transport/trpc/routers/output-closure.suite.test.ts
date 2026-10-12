@@ -11,10 +11,10 @@ import { themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import type { SettingsService } from "@orb/server/domain/settings";
-import type { WorkloadService } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
+import type { SettingsService } from "#server/domain/settings/index.ts";
+import type { WorkloadService } from "#server/domain/workloads/index.ts";
 import { appRouter } from "#server/transport/trpc/router.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 

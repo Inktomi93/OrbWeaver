@@ -2,11 +2,11 @@
 // resolve a ref by slug OR id through the production `plugin.getLog` read, and REFUSE loudly (never a silent
 // empty) on no match or an ambiguous one — the same loud-refusal contract `__orb.nav` carries.
 
-import { buildAgentPlugin } from "@orb/client/agent-plugin";
 import { typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
+import { buildAgentPlugin } from "#client/agent-plugin/index.ts";
 
 type AgentPluginClient = Parameters<typeof buildAgentPlugin>[0];
 type InstalledPlugins = Awaited<ReturnType<AgentPluginClient["plugin"]["list"]["query"]>>;

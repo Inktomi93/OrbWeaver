@@ -10,8 +10,6 @@
 // this file loudly (both the `buildCanonEvent` switch — compile-time — and the generated `test()` —
 // runtime) exactly like the reducer's own `assertNever` discipline.
 
-import type { ChatBusDeps } from "@orb/client/data/bus";
-import { applyChatBusEvent } from "@orb/client/data/bus";
 import type { TurnSlot } from "@orb/client/state";
 import { chatStream, subscribeTurnSlot } from "@orb/client/state";
 import type { ChatBusEvent, ChatDeltaEvent, ChatWarning, TurnIntent } from "@orb/contracts/chat";
@@ -21,6 +19,8 @@ import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, World
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { ChatBusDeps } from "#client/data/bus/index.ts";
+import { applyChatBusEvent } from "#client/data/bus/index.ts";
 import { makeMessageView } from "../../features/chat/fixtures.ts";
 
 // ── Harness: real store, spy-wrapped deps ──────────────────────────────────────────────────────────

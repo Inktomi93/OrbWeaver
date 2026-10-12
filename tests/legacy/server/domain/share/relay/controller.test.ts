@@ -2,13 +2,12 @@
 // relay host registry, so what the Host allowlist would admit is read from the same `hosts()` the app reads.
 
 import { DomainOperationError } from "@orb/kit/errors";
-import type { RelayControllerDeps } from "@orb/server/domain/share";
-import { createRelayController } from "@orb/server/domain/share";
-import { createRelayHostRegistry } from "@orb/server/infra/auth";
 import type { RelayEvents, RelayLauncher } from "@orb/server/infra/relay";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { RelayControllerDeps } from "#server/domain/share/index.ts";
+import { createRelayController } from "#server/domain/share/index.ts";
 import {
   RELAY_RESTART_BACKOFF,
   RELAY_RESTART_FIRST_DELAY_MS,
@@ -16,6 +15,7 @@ import {
   RELAY_STABLE_UP_MS,
   RELAY_URL_WAIT_MS,
 } from "#server/domain/share/relay/controller.ts";
+import { createRelayHostRegistry } from "#server/infra/auth/index.ts";
 
 const ORIGIN = "http://127.0.0.1:8788";
 const FIRST = "https://calm-river-four-birds.trycloudflare.com";

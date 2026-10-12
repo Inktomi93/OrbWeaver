@@ -2,8 +2,8 @@
 // only), so a write call through it is a `tsc` error, not merely a behavioral convention. Runtime
 // behavior (the verbs never issue a write) is covered by the existing `.int.test.ts` siblings.
 
-import type { SearchContext } from "@orb/server/domain/search";
 import { expectTypeOf, test } from "vitest";
+import type { SearchContext } from "#server/domain/search/index.ts";
 
 declare const ctx: SearchContext;
 

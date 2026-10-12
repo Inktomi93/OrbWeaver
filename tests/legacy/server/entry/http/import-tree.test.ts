@@ -17,10 +17,10 @@ import type { PortabilityRegistry, PortableEntity, PortableFile, PortableKind } 
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImportTreeDeps } from "@orb/server/entry/http";
-import { registerImportTree } from "@orb/server/entry/http";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
+import type { ImportTreeDeps } from "#server/entry/http/index.ts";
+import { registerImportTree } from "#server/entry/http/index.ts";
 
 const TREE_ROUTE = "POST /api/import/tree";
 const REVIEW_ROUTE = "POST /api/import/tree/review";

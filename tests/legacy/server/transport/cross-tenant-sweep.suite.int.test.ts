@@ -64,10 +64,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AutomationService } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
-import type { ConnectionService } from "@orb/server/domain/connection";
-import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
@@ -75,6 +72,9 @@ import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fi
 import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { describe, onTestFinished } from "vitest";
+import type { AutomationService } from "#server/domain/automation/index.ts";
+import type { ConnectionService } from "#server/domain/connection/index.ts";
+import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/index.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 import { seedTurns } from "../domain/chat/memory/_support.ts";

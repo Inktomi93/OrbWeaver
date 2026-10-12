@@ -6,11 +6,11 @@ import { characters, chats, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { tableCounts } from "@orb/server/foundation/observability/debug";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { getTableName } from "drizzle-orm";
+import { tableCounts } from "#server/foundation/observability/debug/index.ts";
 
 test("a fresh db reports zero for every backbone table (labels = schema names)", async () => {
   const db = await freshDb();

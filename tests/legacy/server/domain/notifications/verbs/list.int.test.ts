@@ -5,12 +5,12 @@ import type { Db } from "@orb/db";
 import { chatInvites } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import type { NotificationsService } from "#server/domain/notifications/index.ts";
 import { ALICE, BOB, inviteEvent, kickedEvent, makeNotificationsService, principal, seedUser } from "../_support.ts";
 
 let db: Db;

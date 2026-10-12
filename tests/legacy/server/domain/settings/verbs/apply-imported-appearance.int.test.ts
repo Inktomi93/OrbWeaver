@@ -12,10 +12,10 @@ import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createApplyImportedAppearance, createSettingsContext } from "@orb/server/domain/settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createApplyImportedAppearance, createSettingsContext } from "#server/domain/settings/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 const DEFAULTS = parseUserSettings({}).appearance;

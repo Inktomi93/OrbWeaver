@@ -28,9 +28,9 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { can } from "#server/domain/admin/index.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import { viewerReadsHidden } from "#server/domain/chat/index.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "#server/domain/rpg/contract/params.ts";

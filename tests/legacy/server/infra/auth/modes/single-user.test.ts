@@ -1,6 +1,6 @@
-import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { MODE_RESOLVERS } from "#server/infra/auth/index.ts";
 import { headers, makeAuthConfig } from "../_support.ts";
 
 // `single-user` mode resolver — ALWAYS null: it never gates, never reads a cookie/header, and delegates

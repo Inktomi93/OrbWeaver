@@ -6,11 +6,11 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
-import { parsePersonaBackup } from "@orb/server/primitives/serde/persona";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createPersonaService, PersonaNotFoundError } from "#server/domain/persona/index.ts";
+import { parsePersonaBackup } from "#server/primitives/serde/persona/index.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

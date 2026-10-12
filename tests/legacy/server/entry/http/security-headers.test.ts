@@ -12,10 +12,10 @@
 import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, resolveRenderPolicy } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
-import { normalizeThrownErrors, securityHeaders } from "@orb/server/entry/http";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
+import { normalizeThrownErrors, securityHeaders } from "#server/entry/http/index.ts";
 
 async function headersFor(dev: boolean, allowExternalMedia = false): Promise<Headers> {
   const app = new Hono();

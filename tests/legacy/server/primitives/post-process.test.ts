@@ -2,7 +2,9 @@
 // `applyReceivePostProcess` orchestrator reading a `PromptConfig.postProcess` block: each flag in isolation,
 // the all-off no-op, and the combined order (single-line FIRST, then drop-incomplete, then trim).
 
-import type { PostProcessConfig } from "@orb/server/primitives/post-process";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
+import type { PostProcessConfig } from "#server/primitives/post-process/index.ts";
 import {
   applyAssemblePostProcess,
   applyReceivePostProcess,
@@ -10,9 +12,7 @@ import {
   collapseToSingleLine,
   dropIncompleteSentence,
   trimTrailingWhitespace,
-} from "@orb/server/primitives/post-process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+} from "#server/primitives/post-process/index.ts";
 
 function cfg(over: Partial<PostProcessConfig> = {}): PostProcessConfig {
   return {

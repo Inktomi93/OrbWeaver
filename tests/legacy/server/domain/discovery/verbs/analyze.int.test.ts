@@ -9,12 +9,12 @@ import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import type { SummarizeRecorder } from "../_support.ts";
 import { makeDiscoveryHarness, makeSummarizeRecorder, seedCharacter, seedHostedChat, seedMessage, seedUser } from "../_support.ts";
 

@@ -5,10 +5,10 @@
 import { characterEmbeddings, imageEmbeddings } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { EMBED_MODEL, IMAGE_EMBED_MODEL, makeStoreHarness, seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 const IMG = new Uint8Array([1, 2, 3, 4]);

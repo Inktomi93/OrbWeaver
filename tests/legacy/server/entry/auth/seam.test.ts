@@ -25,11 +25,11 @@ import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
-import type { PerRequestSeamDeps } from "@orb/server/entry/auth";
-import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
-import type { AuthConfig } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
+import type { PerRequestSeamDeps } from "#server/entry/auth/index.ts";
+import { createAuthSeam, createHostPrincipalResolver } from "#server/entry/auth/index.ts";
+import type { AuthConfig } from "#server/infra/auth/index.ts";
 
 /** Verification's placeholder handle (`DEFAULT_USER_HANDLE`, whose schema default is this literal). */
 const OWNER_HANDLE = "owner";

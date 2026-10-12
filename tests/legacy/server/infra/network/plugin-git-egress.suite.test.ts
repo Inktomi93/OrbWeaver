@@ -2,10 +2,10 @@
 // safeFetch. This pins the sharp redirect case at the adapter door: public first hop, private second hop,
 // refused before the redirected socket.
 
-// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
-import { __setEgressResolverForTest, guardedGitHttp } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
+import { __setEgressResolverForTest, guardedGitHttp } from "#server/infra/network/index.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

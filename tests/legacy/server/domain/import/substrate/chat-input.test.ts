@@ -8,11 +8,11 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { CollectedChat } from "#server/domain/import/contract/views.ts";
 import { buildBulkImportChatInput, buildGroupChatInput, disambiguateChatTitles } from "#server/domain/import/substrate/chat-input.ts";
+import { parseChatJsonl } from "#server/primitives/serde/chat/index.ts";
 
 const NOW = 1_700_000_000_000;
 const DEPS = { now: (): number => NOW, personaByUserName: new Map<string, PersonaId>() };

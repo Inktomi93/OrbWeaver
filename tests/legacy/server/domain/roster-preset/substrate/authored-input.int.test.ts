@@ -4,7 +4,6 @@
 // behavior against a real db.
 
 import type { GroupConfigInput } from "@orb/contracts/chat";
-import { RosterPresetCharacterNotFoundError, RosterPresetPersonaNotFoundError } from "@orb/server/domain/roster-preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
@@ -12,6 +11,7 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ZodError } from "zod";
+import { RosterPresetCharacterNotFoundError, RosterPresetPersonaNotFoundError } from "#server/domain/roster-preset/index.ts";
 import { ensureAnchorOwned, ensureMembersOwned, parsedGroupConfig } from "#server/domain/roster-preset/substrate/authored-input.ts";
 import { makeHarness } from "../_support.ts";
 

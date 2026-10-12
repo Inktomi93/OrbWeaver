@@ -15,10 +15,10 @@
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createStoreInlineReplyImage } from "@orb/server/entry/compose";
-import type { SafeFetchResult } from "@orb/server/infra/network";
-import { EgressBlockedError } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { SafeFetchResult } from "#server/infra/network/index.ts";
+import { EgressBlockedError } from "#server/infra/network/index.ts";
 
 /** A header-PARSEABLE 1×1 PNG — the magic belt requires real dimensions, so a bare signature is refused. */
 const PNG_ONE_BY_ONE = Uint8Array.from([

@@ -7,7 +7,7 @@ export const APPLICATION_TEST_CONFIGS = {
   e2e: "playwright.config.ts",
 } as const;
 
-export const APPLICATION_STATIC_CHECKERS = ["biome", "eslint", "imports", "knip", "knip-prod", "cpd"] as const;
+export const APPLICATION_STATIC_CHECKERS = ["biome", "eslint", "imports", "knip", "cpd"] as const;
 
 export interface ApplicationProgram {
   readonly owner: CompilerProgram;

@@ -20,7 +20,6 @@ export const VERIFY_VERBS = [
   "tests-execution-membership",
   "db-baseline",
   "asset-refs",
-  "orphan-ratchet",
   "boot-chunk",
   "ledgers-fresh",
   "debt",

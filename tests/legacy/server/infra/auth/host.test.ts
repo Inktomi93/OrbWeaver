@@ -1,6 +1,6 @@
-import { normalizeHost } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { normalizeHost } from "#server/infra/auth/index.ts";
 
 // Pure host normalize — lowercase + strip `:port`, with the bracketed-IPv6 form unwrapped and the bare
 // IPv6 literal left intact. Load-bearing for the owner-fallback origin gate (a mis-normalized host could

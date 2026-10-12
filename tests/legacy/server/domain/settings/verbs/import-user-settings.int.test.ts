@@ -4,11 +4,11 @@
 // non-settings file returns {ok:false} without throwing.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createImportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
-import { buildUserSettingsBackup } from "@orb/server/primitives/serde/user-settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createImportUserSettings, createSettingsContext } from "#server/domain/settings/index.ts";
+import { buildUserSettingsBackup } from "#server/primitives/serde/user-settings/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("importUserSettings", () => {

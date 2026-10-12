@@ -25,12 +25,12 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";
 import type { AutomationRuleId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { AutomationService } from "@orb/server/domain/automation";
-import { AutomationChatNotFoundError } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishAutomationEvent, publishUserEvent } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { AutomationService } from "#server/domain/automation/index.ts";
+import { AutomationChatNotFoundError } from "#server/domain/automation/index.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 import { consumeServerReady } from "../_support.ts";
 

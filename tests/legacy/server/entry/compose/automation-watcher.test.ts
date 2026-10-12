@@ -4,10 +4,10 @@
 import type { AssetCreatedEvent } from "@orb/contracts/events";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { createDomainEventBus } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
+import { startAutomationWatcher } from "#server/domain/automation/index.ts";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 
 test("stop detaches the domain-event handler from the composed watcher", async () => {

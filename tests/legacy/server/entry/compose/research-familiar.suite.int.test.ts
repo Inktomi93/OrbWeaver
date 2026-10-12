@@ -12,15 +12,15 @@ import type { PluginCapability, PluginSurfaceSpec } from "@orb/contracts/plugin"
 import { connectionBindings, userConnections } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
-import { startAutomationWatcher } from "@orb/server/domain/automation";
-import { __setEgressResolverForTest } from "@orb/server/infra/network";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { unzipSync } from "fflate";
 import { afterEach, beforeEach, vi } from "vitest";
+import { startAutomationWatcher } from "#server/domain/automation/index.ts";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/index.ts";
 
 const fetches: string[] = [];
 beforeEach(() => {

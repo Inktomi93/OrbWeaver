@@ -15,7 +15,6 @@ import { assets, chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import type { Mock } from "vitest";
@@ -32,6 +31,7 @@ import {
   createFanDatabankDocumentRooms,
   createFanDatabankMemberRooms,
 } from "#server/entry/compose/room-reach.ts";
+import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../embeddings/_support.ts";
 
 // `seedUser` seeds the `users` row AND the `user_connections` row the harness's fake embed connection

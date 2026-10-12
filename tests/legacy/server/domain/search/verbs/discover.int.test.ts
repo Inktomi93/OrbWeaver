@@ -9,10 +9,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { SearchError } from "@orb/server/domain/search";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { SearchError } from "#server/domain/search/index.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatDigestSpeaker, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("discover", () => {

@@ -12,26 +12,7 @@ import type { Db } from "@orb/db";
 import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
-import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps, SessionSocketEviction } from "@orb/server/entry/http";
-import {
-  deriveRedirectUri,
-  identityFromClaims,
-  oidcSessionIdentity,
-  registerAuthRoutes,
-  serializeClearedSessionCookies,
-  serializeSessionCookie,
-} from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
-import type { OidcTransaction, OidcVerifiedTokens, OwnerClaimCode } from "@orb/server/infra/auth";
-import {
-  createOwnerClaimCode,
-  OIDC_BINDING_COOKIE_NAME_INSECURE,
-  OIDC_BINDING_COOKIE_NAME_SECURE,
-  OIDC_TRANSACTION_TTL_MS,
-  SESSION_COOKIE_NAME_INSECURE,
-  SESSION_COOKIE_NAME_SECURE,
-  SESSION_COOKIES,
-} from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Configuration } from "openid-client";
 import { describe, vi } from "vitest";
@@ -40,6 +21,25 @@ import { describe, vi } from "vitest";
 // `castId` is type-only and carries no runtime guarantee, so what they must exercise is what production
 // actually writes into a cookie.
 import { mintSessionToken } from "#server/domain/sessions/tokens/tokens.ts";
+import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps, SessionSocketEviction } from "#server/entry/http/index.ts";
+import {
+  deriveRedirectUri,
+  identityFromClaims,
+  oidcSessionIdentity,
+  registerAuthRoutes,
+  serializeClearedSessionCookies,
+  serializeSessionCookie,
+} from "#server/entry/http/index.ts";
+import type { OidcTransaction, OidcVerifiedTokens, OwnerClaimCode } from "#server/infra/auth/index.ts";
+import {
+  createOwnerClaimCode,
+  OIDC_BINDING_COOKIE_NAME_INSECURE,
+  OIDC_BINDING_COOKIE_NAME_SECURE,
+  OIDC_TRANSACTION_TTL_MS,
+  SESSION_COOKIE_NAME_INSECURE,
+  SESSION_COOKIE_NAME_SECURE,
+  SESSION_COOKIES,
+} from "#server/infra/auth/index.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

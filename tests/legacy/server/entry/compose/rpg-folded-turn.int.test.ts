@@ -8,11 +8,11 @@ import "@orb/testkit/node/composed-real.ts";
 import type { RpgTraceEvent } from "@orb/contracts/rpg";
 import { messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
+import { createRpgTraceRecorder } from "#server/domain/rpg/index.ts";
 import { seedMessage } from "../../domain/chat/_support.ts";
 import {
   buildCannedRpg,

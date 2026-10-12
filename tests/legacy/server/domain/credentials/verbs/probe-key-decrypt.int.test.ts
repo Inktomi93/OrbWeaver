@@ -4,11 +4,11 @@
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createCredentialsService } from "@orb/server/domain/credentials";
-import { createSecretBox } from "@orb/server/infra/crypto";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createCredentialsService } from "#server/domain/credentials/index.ts";
+import { createSecretBox } from "#server/infra/crypto/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 // A different key to simulate a rotation (all-42s vs the harness all-7s key).

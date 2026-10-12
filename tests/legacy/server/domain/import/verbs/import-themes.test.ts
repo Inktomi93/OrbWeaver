@@ -13,11 +13,11 @@
 // @orb-waive-file no-test-fabrication({ themes?: { name?: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CollectedTheme, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
-import { createImportService } from "@orb/server/domain/import";
-import { stThemeFromJson } from "@orb/server/primitives/serde/theme";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { CollectedTheme, ImportContext, ImportProfileDeps } from "#server/domain/import/index.ts";
+import { createImportService } from "#server/domain/import/index.ts";
+import { stThemeFromJson } from "#server/primitives/serde/theme/index.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

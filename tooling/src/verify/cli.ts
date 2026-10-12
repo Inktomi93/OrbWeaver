@@ -15,7 +15,6 @@
 //   check:tests-execution-membership → cli.ts tests-execution-membership
 //   check:db-baseline        → cli.ts db-baseline
 //   check:asset-refs         → cli.ts asset-refs
-//   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
@@ -49,7 +48,6 @@ import {
   runKnipNegativeLiveness,
   runLedgersFresh,
   runNewGate,
-  runOrphanRatchet,
   runPolicyConformance,
   runRatchetGateCli,
   runScopedCli,
@@ -125,8 +123,6 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runDbBaselineParity(root);
     case "asset-refs":
       return await runAssetRefsCoverage(root);
-    case "orphan-ratchet":
-      return runOrphanRatchet(root, rest);
     case "boot-chunk":
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":

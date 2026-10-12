@@ -3,12 +3,12 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ManifestInvalidError, parseBundle } from "@orb/server/domain/plugin";
 import { createShowcaseBundleReader, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { zipSync } from "fflate";
+import { ManifestInvalidError, parseBundle } from "#server/domain/plugin/index.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 

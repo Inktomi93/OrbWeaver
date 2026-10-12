@@ -18,13 +18,13 @@ import { characterSummaries, characterTags, tags as tagsTable } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDiscoveryService, DistillFailedError } from "@orb/server/domain/discovery";
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createDiscoveryService, DistillFailedError } from "#server/domain/discovery/index.ts";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness } from "../../tag/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 

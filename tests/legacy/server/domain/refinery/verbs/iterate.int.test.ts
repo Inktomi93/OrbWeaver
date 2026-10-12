@@ -8,10 +8,10 @@
 import type { Db } from "@orb/db";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import type { RefinerySessionId } from "@orb/kit/ids";
-import { RefineryRoundInFlightError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { RefineryRoundInFlightError, RefineryRunFailedError, RefineryStageNotReadyError } from "#server/domain/refinery/index.ts";
 import { REFINERY_ROUND_LEASE_MS } from "#server/domain/refinery/substrate/round-claim.ts";
 import { analyzeReply, makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 

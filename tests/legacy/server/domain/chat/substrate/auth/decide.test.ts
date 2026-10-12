@@ -5,10 +5,10 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { can } from "#server/domain/admin/index.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { assertAuthorOrHost, assertHost, assertParticipant } from "#server/domain/chat/substrate/auth/index.ts";
 

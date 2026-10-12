@@ -31,14 +31,14 @@ import { automationRules, chatParticipants, chats } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
-import { RuleValidationError } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
-import type { PluginToolHandle } from "@orb/server/domain/tool-use";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import type { MockInstance } from "vitest";
 import { vi } from "vitest";
+import { RuleValidationError } from "#server/domain/automation/index.ts";
+import type { PluginToolHandle } from "#server/domain/tool-use/index.ts";
 import { principal, seedHostChat, seedUser } from "../../domain/automation/_support.ts";
 import { seedParticipant } from "../../domain/chat/_support.ts";
 

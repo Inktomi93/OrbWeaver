@@ -11,11 +11,11 @@ import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginSnippetBusyError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { PluginHostPort } from "#server/domain/plugin/contract/service.ts";
+import { PluginSnippetBusyError } from "#server/domain/plugin/index.ts";
 import { createRunSnippet } from "#server/domain/plugin/verbs/run-snippet.ts";
 import { makePluginHarness, principalFor, seedUser } from "../_support.ts";
 

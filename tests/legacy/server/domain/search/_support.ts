@@ -52,8 +52,6 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { consolidationHash, createResolveViewerVisibility, loadPresentHostUserId, resolveTier0Range } from "@orb/server/domain/chat";
-import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
-import { createEmbeddingsService, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
@@ -63,6 +61,8 @@ import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { and, eq, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
+import type { ResolveEmbeddingConnection } from "#server/domain/embeddings/index.ts";
+import { createEmbeddingsService, SpaceMismatchError } from "#server/domain/embeddings/index.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
 import { makeStoreHarness } from "../embeddings/_support.ts";

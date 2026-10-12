@@ -4,9 +4,9 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { foldPersonaName } from "@orb/server/primitives/serde/persona";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { indexByDedupName } from "#server/domain/persona/substrate/dedup-name.ts";
+import { foldPersonaName } from "#server/primitives/serde/persona/index.ts";
 
 const id = (n: string): PersonaId => castId<PersonaId>(`persona_${n}`);
 

@@ -6,10 +6,10 @@ import { historyFloor } from "@orb/contracts/chat";
 import type { PluginCapability } from "@orb/contracts/plugin";
 import type { AssetId, ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginHostOps } from "@orb/server/domain/plugin";
-import { createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { PluginHostOps } from "#server/domain/plugin/index.ts";
+import { createSurfaceStatePublisher } from "#server/domain/plugin/index.ts";
 import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
 import {

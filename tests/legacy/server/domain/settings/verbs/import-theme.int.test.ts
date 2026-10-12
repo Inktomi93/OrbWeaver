@@ -4,11 +4,11 @@
 // drops unsafe CSS to null (the palette still restores); a raw SillyTavern theme converts through the same
 // op; and a non-theme file returns {ok:false} without throwing.
 
-import { createImportTheme, createSettingsContext } from "@orb/server/domain/settings";
-import { buildThemeBackup } from "@orb/server/primitives/serde/theme";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createImportTheme, createSettingsContext } from "#server/domain/settings/index.ts";
+import { buildThemeBackup } from "#server/primitives/serde/theme/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 const ENC = new TextEncoder();

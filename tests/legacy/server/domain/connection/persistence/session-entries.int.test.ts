@@ -14,12 +14,12 @@ import { chats, sessionEntries, userConnections } from "@orb/db";
 import { agentSdkSessionIdSchema } from "@orb/inference";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSessionEntryWriter } from "@orb/server/domain/connection";
-import { tableCounts } from "@orb/server/foundation/observability/debug";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
+import { createSessionEntryWriter } from "#server/domain/connection/index.ts";
+import { tableCounts } from "#server/foundation/observability/debug/index.ts";
 
 const SEEDED_THROUGH_SEQ = 2;
 const CANON_HASH = "canon-hash-abc";

@@ -9,11 +9,11 @@
 // @subject packages/server/src/domain/tag/verbs/attach-chat-tag-by-name.ts
 
 import { chatTags, tags } from "@orb/db";
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("attach chat tag by name", () => {

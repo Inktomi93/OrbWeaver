@@ -1,7 +1,7 @@
 // @orb/server/primitives/abort — the live abort read a `catch` uses to tell a cancel from a fault.
 
-import { isAborted } from "@orb/server/primitives/abort";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { isAborted } from "#server/primitives/abort/index.ts";
 
 test("a signal that fires after the first check reads as aborted on the next call", async () => {
   const controller = new AbortController();

@@ -9,10 +9,10 @@
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createCredentialsService } from "@orb/server/domain/credentials";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { makeHarness as makeCredentialHarness } from "../../credentials/_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 

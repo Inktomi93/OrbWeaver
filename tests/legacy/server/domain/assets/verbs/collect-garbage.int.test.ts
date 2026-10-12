@@ -25,13 +25,13 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, ChatId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
-import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
-import type { Cas } from "@orb/server/infra/storage";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
+import { recordPluginFetchedAsset } from "#server/domain/plugin/index.ts";
+import type { Cas } from "#server/infra/storage/index.ts";
 import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacterAvatar } from "../_support.ts";
 

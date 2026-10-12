@@ -4,8 +4,6 @@
 // session boundary over a real save spy and mirrors the last-saved array length + save count to `<output>`s
 // so the CT can assert add AND remove PERSIST. A CT only mounts from a NON-test module (Spine-Testing §7).
 
-import type { AppFormInstance } from "@orb/client/forms/editor";
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -15,6 +13,8 @@ import { useState } from "react";
 import { ParamsDeck } from "#client/features/preset/components/params-deck.tsx";
 import { UserMacrosTab } from "#client/features/preset/components/user-macros-tab.tsx";
 import { VariablesTab } from "#client/features/preset/components/variables-tab.tsx";
+import type { AppFormInstance } from "#client/forms/editor/index.ts";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_addflowstoryy");
 

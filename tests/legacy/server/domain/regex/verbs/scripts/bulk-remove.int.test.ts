@@ -11,11 +11,11 @@ import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
 import type { ChatId, Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRegexService } from "@orb/server/domain/regex";
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createRegexService } from "#server/domain/regex/index.ts";
 import { allowChat, makeHarness, principal, seedCharacter, seedChat, seedScript, seedUser } from "../../_support.ts";
 
 /** The rooms a spy heard about, as a SET — the fan promises no order (each case that cares also asserts the

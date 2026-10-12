@@ -23,8 +23,6 @@ import type { BatchStmt } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AdminService } from "@orb/server/domain/admin";
-import { createAdminService } from "@orb/server/domain/admin";
 import { createSessionsService, isReservedSignupHandle } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
@@ -36,6 +34,8 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AdminContext } from "#server/domain/admin/context.ts";
 import type { UnclaimedLinkOutcome } from "#server/domain/admin/contract/results.ts";
 import type { SessionAdminView } from "#server/domain/admin/contract/views.ts";
+import type { AdminService } from "#server/domain/admin/index.ts";
+import { createAdminService } from "#server/domain/admin/index.ts";
 import { insertSession, revokeAllForUserStatement } from "#server/domain/sessions/persistence/sessions.ts";
 
 interface AuditCall {

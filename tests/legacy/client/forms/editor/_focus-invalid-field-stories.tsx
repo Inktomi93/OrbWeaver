@@ -1,8 +1,8 @@
 // CT story for focus-invalid-field.ct.tsx. It mounts the public saved-editor factory with the same
 // bound fields and onDynamic validation used by production editors, then submits through a real form.
 
-import { createSavedEntityForm } from "@orb/client/forms/editor";
 import type { ReactElement } from "react";
+import { createSavedEntityForm } from "#client/forms/editor/index.ts";
 
 interface InvalidFocusValues {
   readonly name: string;

@@ -14,9 +14,9 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginInstance } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { PluginInstance } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const BOARD = { html: "<canvas id='board'></canvas><script>drawChess()</script>", css: "body{margin:0}" };

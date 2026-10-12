@@ -18,10 +18,10 @@
 // @orb-waive-file no-test-fabrication({ errors?: Record<string, unknown>[]; logs?: Record<string, unknown>[] }): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import { getLog } from "@orb/server/foundation/observability";
-import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { afterAll, describe, vi } from "vitest";
+import { registerDebugRoutes } from "#server/foundation/observability/debug/index.ts";
 
 // `globalThis.process`, not the `node:process` import: a `vi.hoisted` body runs BEFORE this file's import
 // bindings are initialized (that is the whole point of it), so touching the imported binding here throws

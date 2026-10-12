@@ -3,12 +3,12 @@ import { ChildProcess, spawn } from "node:child_process";
 import { getEventListeners } from "node:events";
 import { readFile, stat } from "node:fs/promises";
 import { PassThrough } from "node:stream";
-import type { prepareVideo } from "@orb/server/infra/media";
-import { createVideoPreparer } from "@orb/server/infra/media";
 import type { ManualTimer } from "@orb/testkit/iso/clock.ts";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
+import type { prepareVideo } from "#server/infra/media/index.ts";
+import { createVideoPreparer } from "#server/infra/media/index.ts";
 
 // FFmpeg is the external process boundary; no internal collaborator is mocked.
 vi.mock("node:child_process", async (original) => ({ ...(await original<typeof import("node:child_process")>()), spawn: vi.fn() }));

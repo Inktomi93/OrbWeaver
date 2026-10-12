@@ -14,12 +14,12 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { TLSSocket } from "node:tls";
 import { connect as tlsConnect } from "node:tls";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { TlsTerminator } from "@orb/server/infra/network";
-import { startTlsTerminator } from "@orb/server/infra/network";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ipCertificatePem } from "@orb/testkit/node/x509.ts";
 import { afterEach, describe } from "vitest";
+import type { TlsTerminator } from "#server/infra/network/index.ts";
+import { startTlsTerminator } from "#server/infra/network/index.ts";
 
 const LOOPBACK = "127.0.0.1";
 const LIFETIME_MS = 160 * 3_600_000;

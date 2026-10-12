@@ -11,7 +11,6 @@
 // actions the arm dispatches are the production ones, so the write really happens — nothing in this story
 // reads the store back, which is exactly the "wrote it, nothing landed" state the refusal describes.
 
-import { buildAgentNav } from "@orb/client/agent-nav";
 import { useTRPC } from "@orb/client/data";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
@@ -20,6 +19,7 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { buildAgentNav } from "#client/agent-nav/index.ts";
 
 /** The three declarations one `.shell-panel` can publish — the tri-state `panelAvailability` parses. */
 const DECLARATIONS = ["declared", "unavailable", "unpublished"] as const;

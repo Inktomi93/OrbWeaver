@@ -56,13 +56,13 @@ import type {
   WorkloadId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
+import { loadWorkload, runWorkload } from "#server/domain/workloads/index.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 import { bundleHandler, libraryHandler, makeCtx, principalOf } from "./_bundle-support.ts";
 

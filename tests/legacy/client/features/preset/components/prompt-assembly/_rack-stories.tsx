@@ -12,8 +12,6 @@
 // carry `trigger`, #1462/#1736, so its Triggers cluster renders like every other non-pivot section), and
 // the PIVOT (no switch at all, no menu).
 
-import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { closePresetSectionDrill, retargetPresetSectionDrill } from "@orb/client/state";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, parsePromptConfig } from "@orb/contracts/preset";
@@ -23,6 +21,8 @@ import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
+import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_delundostoryy");
 

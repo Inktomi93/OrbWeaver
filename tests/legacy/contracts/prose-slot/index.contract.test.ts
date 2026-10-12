@@ -1,6 +1,8 @@
 // PROSE-1 §10 — the SHAPE half: the override storage schema and the legacy bare-string adapter. The
 // composed registry, the resolver and the baseline manifest are exercised in `tests/legacy/contracts/prose/`.
-import type { ProseSlotId } from "@orb/contracts/prose-slot";
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { ProseSlotId } from "#contracts/prose-slot/index.ts";
 import {
   hasProseToken,
   isProseSlotId,
@@ -12,8 +14,7 @@ import {
   proseOverrideFromLegacy,
   proseOverridesSchema,
   spliceProseTokens,
-} from "@orb/contracts/prose-slot";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "#contracts/prose-slot/index.ts";
 
 const SOME_ID: ProseSlotId = "preset.format.impersonateNudge";
 

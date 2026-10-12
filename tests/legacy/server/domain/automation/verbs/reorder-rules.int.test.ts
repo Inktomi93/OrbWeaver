@@ -6,11 +6,11 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createAutomationService } from "@orb/server/domain/automation";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createAutomationService } from "#server/domain/automation/index.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedUser } from "../_support.ts";
 
 const REORDER_NOW = FIXED_NOW_MS + 1000;

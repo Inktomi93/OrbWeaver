@@ -8,10 +8,10 @@
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ConnectionWorkloadDeps } from "@orb/server/domain/connection";
-import { createConnectionWorkloadContributions } from "@orb/server/domain/connection";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ConnectionWorkloadDeps } from "#server/domain/connection/index.ts";
+import { createConnectionWorkloadContributions } from "#server/domain/connection/index.ts";
 
 const T0 = 1_700_000_000_000;
 // A catalog refresh is deployment-wide (bulk-only): the row carries no owner.

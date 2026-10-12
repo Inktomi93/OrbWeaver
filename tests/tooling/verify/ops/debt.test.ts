@@ -104,7 +104,7 @@ describe("debt walk — row extraction", () => {
     // conversions landed, so the assertion failed at the merge with `EXIT.misuse` where it expected `EXIT.clean`.
     //
     // GUARANTEE RETIRED WITH ITS LAST CARRIER, stated rather than quietly dropped: NO live ledger carries a
-    // ratified row any more (`ct-unfed-reads` holds zero rows, `orphan-export-ratchet`'s `entries` is `{}`),
+    // ratified row any more (`ct-unfed-reads` holds zero rows),
     // so the CLI's *rendering* of a RATIFIED section has no real subject to exercise and this row cannot be
     // re-pointed a third time. The PARTITION LOGIC it was really about is still pinned, synthetically and
     // durably, by "a CLASSIFIED ledger yields the DEBT/RATIFIED partition, and the halves sum to the budget

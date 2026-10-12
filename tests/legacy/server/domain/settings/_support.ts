@@ -12,14 +12,14 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
-import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
-import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
-import { createSettingsService } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
+import { requireAdmin, requireOwner } from "#server/domain/admin/index.ts";
+import type { SettingsServiceDeps, ThemeView } from "#server/domain/settings/index.ts";
+import { createSettingsService } from "#server/domain/settings/index.ts";
 
 interface AuditCall {
   readonly entry: AuditEntry;

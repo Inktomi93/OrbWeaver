@@ -10,9 +10,6 @@ import { auditLogs, chatInvites, chatParticipants, oidcPendingSignups, oidcTrans
 import type { ChatId, ChatInviteId, ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSessionsService, createTokenHasher } from "@orb/server/domain/sessions";
-import type { OidcRoutesDeps } from "@orb/server/entry/http";
-import { registerAuthRoutes } from "@orb/server/entry/http";
-import { createOwnerClaimCode } from "@orb/server/infra/auth";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedChat, seedUser } from "@orb/testkit/node/factories/index.ts";
@@ -27,7 +24,10 @@ import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.
 import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
+import type { OidcRoutesDeps } from "#server/entry/http/index.ts";
+import { registerAuthRoutes } from "#server/entry/http/index.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
+import { createOwnerClaimCode } from "#server/infra/auth/index.ts";
 
 const MINUTE_MS = 60_000;
 const PENDING_TTL_MS = 10 * MINUTE_MS;

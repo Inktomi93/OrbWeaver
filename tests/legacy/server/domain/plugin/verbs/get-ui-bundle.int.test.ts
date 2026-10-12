@@ -18,10 +18,10 @@
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const UI_SOURCE = "orb.ui(1).render('panel', { kind: 'text', value: 'hi' });";

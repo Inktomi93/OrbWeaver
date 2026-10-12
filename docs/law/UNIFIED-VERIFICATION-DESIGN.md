@@ -457,18 +457,9 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   `tests/tooling/verify/ops/boot-chunk-ratchet.test.ts` (the summing case over a planted split-dist fixture,
   the split-is-not-a-win symmetry, over/under, and every unmeasurable case) — the registry pin in
   `run.int.test.ts`.
-- **`deps:orphan-ratchet`** (`tooling/src/verify/ops/orphan-export-ratchet.ts`) — the export-rot
-  view as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
-  (prod or test) and that is unused in its own file, judged against a checked-in baseline
-  (`tooling/src/verify/ops/orphan-export-ratchet.baseline.json` — one row per deliberately-undecided
-  export). Both directions RED: a NEW orphan, and a baseline row that is no longer one (consumed / tagged
-  / deleted ⇒ remove the row). It shares the `pnpm ast orphans` substrate
-  (`collectOrphanCandidates`) rather than re-deriving liveness. **It cannot lean on `deps:knip`** — the
-  package `exports` maps already make these subpaths public API to knip, so knip flags none of
-  them and its `tags: ["-@public"]` exemption never fires; this stage therefore reads
-  `/** @public <reason> */` itself (a bare tag with no reason does NOT exempt). `packages/ui` is exempt as a
-  whole (`ui-package-design.md` R2 — a sealed surface exists to be available), and star-suppressed
-  candidates are reported but never ratcheted (an `export *` chain may hide a namespace consumer).
+- **`deps:knip-prod`** reads explicit package exports and reports production-only liveness (D318).
+  `knip-baseline.config.ts` applies the shrink-only `knip-production.baseline.json` and preserves all findings in `reports/knip-production-findings.json`.
+  New findings and stale baseline keys fail. Dependency, unresolved-import and configuration findings remain blocking.
 
 ## 4. Hook + CI wiring
 

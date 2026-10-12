@@ -8,7 +8,21 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*/index.ts"
+    "./domain/assets": "./src/domain/assets/index.ts",
+    "./domain/character": "./src/domain/character/index.ts",
+    "./domain/chat": "./src/domain/chat/index.ts",
+    "./domain/preset": "./src/domain/preset/index.ts",
+    "./domain/sessions": "./src/domain/sessions/index.ts",
+    "./entry/boot": "./src/entry/boot/index.ts",
+    "./entry/compose": "./src/entry/compose/index.ts",
+    "./foundation/data-layout": "./src/foundation/data-layout/index.ts",
+    "./foundation/env": "./src/foundation/env/index.ts",
+    "./foundation/env/refusal": "./src/foundation/env/refusal/index.ts",
+    "./foundation/observability": "./src/foundation/observability/index.ts",
+    "./infra/plugin-host": "./src/infra/plugin-host/index.ts",
+    "./infra/relay": "./src/infra/relay/index.ts",
+    "./primitives/serde/card": "./src/primitives/serde/card/index.ts",
+    "./transport/trpc": "./src/transport/trpc/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts",

@@ -3,11 +3,11 @@
 // hash (sha256 of the bytes the run would store), the tolerance (an unreadable settings file yields none) and
 // the multi-profile read.
 
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { UploadedFile } from "#server/domain/import/contract/views.ts";
 import { incomingPersonasOf } from "#server/domain/import/substrate/persona-review.ts";
+import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 
 const ENC = new TextEncoder();
 // Raw JSON: the ST wire keys are snake_case and stay verbatim.

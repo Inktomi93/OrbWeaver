@@ -3,11 +3,11 @@
 // AAD, key material, or the raw crypto cause.
 
 import { getLog } from "@orb/server/foundation/observability";
-import type { SecretBox } from "@orb/server/infra/crypto";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { CredentialsDecryptError } from "#server/domain/credentials/contract/errors.ts";
 import { decryptSealed } from "#server/domain/credentials/substrate/decrypt.ts";
+import type { SecretBox } from "#server/infra/crypto/index.ts";
 
 describe("decryptSealed", () => {
   test("fails typed + non-retryable and scrubs short/overlapping sealed values from error and log serialization", () => {

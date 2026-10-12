@@ -11,7 +11,6 @@ import { pluginProviderClaims, plugins, providerRows, userConnections, userCrede
 import { NoConnectionError } from "@orb/inference";
 import type { ConnectionBindingId, Handle, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PLUGIN_CRASH_DISABLE_THRESHOLD, PluginCrashedError } from "@orb/server/domain/plugin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -20,6 +19,7 @@ import { count, eq, isNotNull } from "drizzle-orm";
 import { describe } from "vitest";
 import { upsertBinding } from "#server/domain/connection/persistence/bindings.ts";
 import { createCrashPolicy } from "#server/domain/plugin/activation/crash-policy.ts";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD, PluginCrashedError } from "#server/domain/plugin/index.ts";
 import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
 import { makeHarness } from "../../connection/_support.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";

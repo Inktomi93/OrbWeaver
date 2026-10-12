@@ -6,12 +6,12 @@ import type { Db } from "@orb/db";
 import { characterSummaries, digestThemeAssignments, themeClusters } from "@orb/db";
 import type { CharacterId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "@orb/server/domain/discovery";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshCountedDb, freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { DiscoveryContext } from "#server/domain/discovery/index.ts";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import {
   makeDiscoveryHarness,
   seedAsset,

@@ -5,12 +5,12 @@
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { createCrashPolicy } from "#server/domain/plugin/activation/crash-policy.ts";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "#server/domain/plugin/index.ts";
 import { getById } from "#server/domain/plugin/persistence/plugins.ts";
 import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";

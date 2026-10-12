@@ -136,7 +136,7 @@ removed a second time.
 | `cache-check/` | the live prompt-cache check per route and turn shape, on an isolated stage; run on demand and before releases, never in CI or `pnpm check` | `cache:check` |
 | `ast/` | the structural-search + rot-detection engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
 | `codemod/` | the ts-morph codemod kit | `codemod` |
-| `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
+| `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` |
 | `doc/` | the docs system's structural writer — ADR/plan/item minting, status and supersession, work-item transitions and landing, archiving with link rewrites, the generated indexes, the soft freshness report; its rules are what `check:agents` runs over `docs/**` and `check:docs`/`format:docs` run over the governed tree | `doc` |
 | `agent-sync/` | Codex agent-manifest sync + the instruction-layer and docs-tree check | `agents:sync` `check:agents` |
 | `seed/` | demo · chat · multi-user seeding (three verbs) | `seed:demo` |

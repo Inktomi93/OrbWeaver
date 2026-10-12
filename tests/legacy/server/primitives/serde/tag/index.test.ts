@@ -6,10 +6,10 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { PortableParse } from "@orb/contracts/portability";
-import type { CanonicalTag, TagLibrary } from "@orb/server/primitives/serde/tag";
-import { buildTagLibrary, parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND, TAG_LIBRARY_SCHEMA_VERSION } from "@orb/server/primitives/serde/tag";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { CanonicalTag, TagLibrary } from "#server/primitives/serde/tag/index.ts";
+import { buildTagLibrary, parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND, TAG_LIBRARY_SCHEMA_VERSION } from "#server/primitives/serde/tag/index.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

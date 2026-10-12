@@ -1,10 +1,10 @@
 // verb: listGlobalVariables — owner-scoped, key-sorted enumeration + prefix filter; cross-user isolation.
 // @subject packages/server/src/domain/automation/verbs/list-global-variables.ts
 
-import { createAutomationService } from "@orb/server/domain/automation";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createAutomationService } from "#server/domain/automation/index.ts";
 import { makeAutomationHarness, principal, seedUser } from "../_support.ts";
 
 describe("listGlobalVariables", () => {

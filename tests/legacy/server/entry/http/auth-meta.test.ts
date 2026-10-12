@@ -10,11 +10,11 @@ import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AuthMetaDeps } from "@orb/server/entry/http";
-import { registerAuthMeta } from "@orb/server/entry/http";
-import { ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { AuthMetaDeps } from "#server/entry/http/index.ts";
+import { registerAuthMeta } from "#server/entry/http/index.ts";
+import { ownerFallbackAllowed } from "#server/infra/auth/index.ts";
 
 interface MockResult {
   readonly body: Record<string, unknown>;

@@ -11,12 +11,12 @@
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
 import type { ChatId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import { requireHost } from "@orb/server/domain/chat";
-import { resolveActiveDocumentIds } from "@orb/server/domain/databank";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
+import { can } from "#server/domain/admin/index.ts";
+import { resolveActiveDocumentIds } from "#server/domain/databank/index.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedRosterCharacter, seedUser } from "../_support.ts";
 
 for (const door of ["upload", "paste", "link"] as const) {

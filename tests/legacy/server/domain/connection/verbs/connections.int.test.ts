@@ -14,17 +14,17 @@ import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@
 import { characterEmbeddings, userCredentials } from "@orb/db";
 import type { PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
-import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { SEARCH_SPACE_REINDEXING } from "#server/domain/search/contract/errors.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
+import { endpointAdmission, publishPrivateEndpointAllowlist } from "#server/infra/network/index.ts";
 import { makeStoreHarness, seedCharacter } from "../../embeddings/_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedPlugin, seedUser } from "../_support.ts";
 

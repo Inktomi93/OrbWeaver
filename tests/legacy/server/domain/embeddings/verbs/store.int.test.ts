@@ -15,11 +15,11 @@ import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, i
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "#server/domain/embeddings/index.ts";
 import { saveImageAnalysis } from "#server/domain/embeddings/persistence/image-analysis.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { assertRefusedBindingRace } from "../_binding-race-support.ts";

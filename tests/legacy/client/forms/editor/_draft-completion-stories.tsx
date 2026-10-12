@@ -1,10 +1,10 @@
 import { hashServerBaseline } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { createEntityDraftStore } from "@orb/client/state";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { z } from "zod";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const draftSchema = z.object({ text: z.string() });
 type Values = z.infer<typeof draftSchema>;

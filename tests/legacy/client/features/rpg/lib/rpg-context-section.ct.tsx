@@ -15,7 +15,6 @@ import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedT
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { deriveEffectiveDelivery } from "@orb/server/domain/rpg";
 import { ariaTreeFindings } from "@orb/testkit/browser/accessible-names.ts";
 import { expectCircle } from "@orb/testkit/browser/expect-circle.ts";
 import { hitBoxes, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
@@ -29,6 +28,7 @@ import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { EXTRACTION_CONTEXT_LABEL } from "#client/features/rpg/lib/host-console-labels.ts";
+import { deriveEffectiveDelivery } from "#server/domain/rpg/index.ts";
 import { revealActionName } from "#ui/lib/action-names.ts";
 import { makeMessageView } from "../../chat/fixtures.ts";
 import {

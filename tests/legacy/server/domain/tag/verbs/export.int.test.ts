@@ -2,11 +2,11 @@
 // owner-scoped (a foreign owner's tags never travel), and the bytes parse back to the same name set.
 
 import type { PortableParse } from "@orb/contracts/portability";
-import { createTagLibraryExport, createTagService } from "@orb/server/domain/tag";
-import { parseTagLibrary } from "@orb/server/primitives/serde/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createTagLibraryExport, createTagService } from "#server/domain/tag/index.ts";
+import { parseTagLibrary } from "#server/primitives/serde/tag/index.ts";
 import { makeTagHarness, principal, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

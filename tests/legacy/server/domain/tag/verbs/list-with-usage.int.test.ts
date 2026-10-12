@@ -1,10 +1,10 @@
 // verb: listTagsWithUsage — the five-junction usage rollup per owned tag.
 // @subject packages/server/src/domain/tag/verbs/list-with-usage.ts
 
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedCharacter, seedPersona, seedTag, seedUser } from "../_support.ts";
 
 describe("listTagsWithUsage", () => {

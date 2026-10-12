@@ -1,6 +1,6 @@
 // Shared scaffolding for the auth infra tests — the `cfg(over)` `AuthConfig` builder + `headers()`
 // hoisted from 5 byte-identical local copies (dispatch/index/modes: cookie-session/local/single-user).
-import type { AuthConfig } from "@orb/server/infra/auth";
+import type { AuthConfig } from "#server/infra/auth/index.ts";
 
 /** A complete `AuthConfig` seeded with the single-user/owner-fallback defaults, `over` applied on top. */
 export function makeAuthConfig(over: Partial<AuthConfig> = {}): AuthConfig {

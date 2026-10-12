@@ -34,9 +34,6 @@ import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
 import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
-// B8/D269: the REAL rpg dice composer contribution + in-thread RESULT renderer, through the
-// same front door the providers use (a relative import gets a different React context instance).
-import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "@orb/client/features/rpg";
 import type {
   ChatContextState,
   ChatControl,
@@ -203,6 +200,9 @@ import { useChatsSelectionTitle } from "#client/features/chat/lib/chats-selectio
 import type { MemberCharacterRow, MemberPersonRow } from "#client/features/chat/lib/member-rows.ts";
 import { SWIPE_FOOT_INSIDE } from "#client/features/chat/lib/pager-chrome.ts";
 import { createWarningSurface } from "#client/features/chat/lib/turn-warning-surface.ts";
+// B8/D269: the REAL rpg dice composer contribution + in-thread RESULT renderer, through the
+// same front door the providers use (a relative import gets a different React context instance).
+import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "#client/features/rpg/index.ts";
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";

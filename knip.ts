@@ -1,24 +1,11 @@
 import type { KnipConfig, KnipConfiguration } from "knip";
 
-// knip — the dead-code/dead-export/dead-dependency authority (flipped on 2026-07-13; the
-// dep-cruiser no-orphans warn is the cheap in-graph tripwire, THIS is the deep scan).
-//
-// Posture: maximal. Every issue type on, config hints are errors, member-level analysis on.
-// `entry!`/`project!` (production markers) make `pnpm knip:prod` the SHIPPABLE-ONLY view:
-// anything reported there but not in the default run is alive purely via tests/tooling —
-// the "kept alive by a test" rot lens, mechanized.
-//
-// Deliberate-API escape hatch: tag an export `/** @public */` and it is exempt from unused-
-// export reporting (tags below) — the honest way to keep a real public surface, instead of
-// ignores nobody re-audits.
-//
-// A LITERAL negative pattern (`!path`, no glob character) must name a git-tracked file; knip's own hints
-// never report a negation that matches nothing. `pnpm check:knip-negative-liveness` enforces it.
+// The resolver owns public doors; Knip owns unused files, symbols and dependencies (D318).
 export const config = {
   tags: ["-@public"],
   // The trailing ! applies only in production mode: tooling stays fully checked by the default run,
   // while developer tools must not keep application exports alive in the shippable-only view.
-  ignoreWorkspaces: ["tooling!"],
+  ignoreWorkspaces: ["tooling!", "tests/support!"],
   treatConfigHintsAsErrors: true,
   rules: {
     files: "error",
@@ -110,20 +97,10 @@ export const config = {
       // the installed module and its exact-version compatibility fence.
       ignoreDependencies: ["chrome-devtools-mcp"],
     },
-    "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
-    "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
-    // @orb/db + @orb/inference KEEP their `entry: ["src/**/index.ts!"]` rows even though both exports maps
-    // were ENUMERATED on 2026-09-20 (`@orb/db` → `.`/`./kit`/`./schema`; `@orb/inference` → `.` alone), so the
-    // rows now over-declare relative to the published surface. That is deliberate and was MEASURED, not
-    // assumed: dropping them makes every same-package barrel re-export a knip finding — 32 of them in
-    // `inference` on the narrowed tree — which is the internal-composition false positive the 2026-08-09
-    // `includeEntryExports` pivot already evaluated and REJECTED (146 in `contracts` alone; the reasoning is
-    // in tooling/src/verify/ops/orphan-export-ratchet.ts's header, "WHY IT CANNOT LEAN ON KNIP"). The
-    // instrument that owns unreached exports is that ratchet, whose population now covers `inference` by
-    // derivation rather than by a hand-kept opt-in list.
-    "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
+    "packages/kit": { project: ["src/**/*.ts!"] },
+    "packages/contracts": { project: ["src/**/*.ts!"] },
+    "packages/db": { project: ["src/**/*.ts!"] },
     "packages/inference": {
-      entry: ["src/**/index.ts!"],
       project: ["src/**/*.ts!"],
       // @ai-sdk/provider is imported 15 times and EVERY import is `import type` (the V4 model/call-option
       // interfaces the three hosted backends implement). knip's production view drops type-only imports, so
@@ -140,8 +117,8 @@ export const config = {
     // @orb/default-content: same shape as showcase-plugins — one reader module under src/, while
     // `avatars/**` + `demo-chats/**` are shipped BYTES no import graph reaches, so the project glob stays
     // scoped to src/ rather than accusing the content of being dead files.
-    "packages/default-content": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
-    "packages/showcase-plugins": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
+    "packages/default-content": { project: ["src/**/*.ts!"] },
+    "packages/showcase-plugins": { project: ["src/**/*.ts!"] },
     "packages/plugin-sdk": {},
     "packages/plugin-toolchain": { project: ["src/**/*.ts"] },
     "packages/ui": {
@@ -157,16 +134,15 @@ export const config = {
       project: ["src/**/*.{ts,tsx,css}!", "*.ts"],
     },
     "packages/server": {
-      // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
+      entry: ["src/entry/index.ts!"],
+      // Public entries come from package.json exports.
       // The shipped script entries are added for the production view below (PRODUCTION_SCRIPT_ENTRIES).
       project: ["src/**/*.ts!"],
     },
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      // compose/index.ts is the test kit's door to the registry lists (`client-compose-door-only`); production
-      // imports the sibling files directly, so the barrel is outside the production project.
-      project: ["src/**/*.{ts,tsx,css}!", "!src/compose/index.ts!"],
+      project: ["src/**/*.{ts,tsx,css}!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],
@@ -206,7 +182,7 @@ function configFor({ production = false, strict = false }: KnipModeArgs): KnipCo
     const workspace = workspaces[name] ?? {};
     workspaces[name] = { ...workspace, entry: [...patternList(workspace.entry), ...entries] };
   }
-  return { ...config, workspaces };
+  return { ...config, tags: [], includeEntryExports: true, workspaces };
 }
 
 // knip's config loader requires the default export; biome.json's config-file block admits it for this file.

@@ -7,11 +7,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createCas } from "@orb/server/infra/storage";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
+import { createCas } from "#server/infra/storage/index.ts";
+import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 
 const OWNER_A = castId<UserId>("user_alpha");
 const OWNER_B = castId<UserId>("user_beta");

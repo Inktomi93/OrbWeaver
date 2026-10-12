@@ -12,9 +12,9 @@
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginBundlePreviewStaleError, PluginNoSourceUrlError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PluginBundlePreviewStaleError, PluginNoSourceUrlError, PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { hashBundle, makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const URL = "https://plugins.example.com/my-plugin.zip";

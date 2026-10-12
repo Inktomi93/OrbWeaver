@@ -9,17 +9,7 @@ import { users } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
-import type { OidcRoutesDeps } from "@orb/server/entry/http";
-import { registerAuthRoutes } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
-import type { OwnerClaimCode } from "@orb/server/infra/auth";
-import {
-  createOwnerClaimCode,
-  OIDC_BINDING_COOKIE_NAME_INSECURE,
-  OIDC_BINDING_COOKIE_NAME_SECURE,
-  SESSION_COOKIE_NAME_INSECURE,
-  SESSION_COOKIE_NAME_SECURE,
-} from "@orb/server/infra/auth";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -27,6 +17,16 @@ import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
+import type { OidcRoutesDeps } from "#server/entry/http/index.ts";
+import { registerAuthRoutes } from "#server/entry/http/index.ts";
+import type { OwnerClaimCode } from "#server/infra/auth/index.ts";
+import {
+  createOwnerClaimCode,
+  OIDC_BINDING_COOKIE_NAME_INSECURE,
+  OIDC_BINDING_COOKIE_NAME_SECURE,
+  SESSION_COOKIE_NAME_INSECURE,
+  SESSION_COOKIE_NAME_SECURE,
+} from "#server/infra/auth/index.ts";
 
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const PUBLIC_CALLBACK = "https://app.example/api/auth/oidc/callback";

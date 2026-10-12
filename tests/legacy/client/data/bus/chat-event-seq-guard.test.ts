@@ -9,12 +9,12 @@
 // per-attach re-fire is the sole reopen invalidate (staleTime is Infinity). They must be admitted BY TYPE
 // even when their id does not advance the mark — dropping them regresses to a stale-transcript-on-reopen.
 
-import { createChatEventSeqGuard } from "@orb/client/data/bus";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createChatEventSeqGuard } from "#client/data/bus/index.ts";
 
 const CHAT_A = castId<ChatId>("chat_seqguard_aaaaaaaa");
 const CHAT_B = castId<ChatId>("chat_seqguard_bbbbbbbb");

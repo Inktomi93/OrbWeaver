@@ -26,8 +26,8 @@ import type { RpgEffectiveDelivery, RpgGameConfig, RpgGameView } from "@orb/cont
 import { RPG_RULESET_DEFAULT, RPG_RULESET_PROFILE, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { deriveEffectiveDelivery } from "@orb/server/domain/rpg";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { deriveEffectiveDelivery } from "#server/domain/rpg/index.ts";
 
 /**
  * A `rpg.getGame` view for a BORN lite game on `chatId`.

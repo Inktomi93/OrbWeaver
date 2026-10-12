@@ -2,11 +2,11 @@
 // @subject packages/server/src/domain/tag/verbs/prune.ts
 
 import { characterTags } from "@orb/db";
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 const TAG_DELETE = /delete from "tags"/iu;

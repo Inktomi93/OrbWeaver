@@ -1,8 +1,8 @@
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { RosterPresetService } from "@orb/server/domain/roster-preset";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
+import type { RosterPresetService } from "#server/domain/roster-preset/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const view = {

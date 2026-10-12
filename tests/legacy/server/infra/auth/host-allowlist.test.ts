@@ -4,10 +4,17 @@
 import { ENVIRONMENT_BLOCK_WINS } from "@orb/contracts/identity";
 import { resolveAllowedHosts } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
-import type { HostFacts } from "@orb/server/infra/auth";
-import { allowedHostsReader, canonicalHost, createHostNotAllowedNotice, createRelayHostRegistry, isHostAllowed, refusedHost } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { HostFacts } from "#server/infra/auth/index.ts";
+import {
+  allowedHostsReader,
+  canonicalHost,
+  createHostNotAllowedNotice,
+  createRelayHostRegistry,
+  isHostAllowed,
+  refusedHost,
+} from "#server/infra/auth/index.ts";
 
 const T0 = 1_700_000_000_000;
 // The throttle's window and key cap, mirrored so the tests can step past them (`notice-throttle.test.ts`).

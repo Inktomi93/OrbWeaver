@@ -7,7 +7,6 @@ import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import process from "node:process";
 import { assetIdSchema, assetKindSchema, characterIdSchema, galleryItemIdSchema } from "@orb/contracts/assets";
-import { cardFaceFields } from "@orb/contracts/card-face";
 import { CHARACTER_PROVENANCES, characterCardSchema, characterHandleSchema } from "@orb/contracts/character";
 import {
   chatDetailSchema,
@@ -73,6 +72,7 @@ import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, vi } from "vitest";
 import { z } from "zod";
+import { cardFaceFields } from "#contracts/card-face/index.ts";
 
 // A fresh checkout has no release zips; this suite must not borrow another file's artifact build.
 beforeAll(async () => {

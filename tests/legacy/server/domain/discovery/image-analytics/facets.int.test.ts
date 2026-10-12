@@ -4,10 +4,10 @@
 
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { makeDiscoveryHarness, seedAsset, seedCharacter, seedCharacterEmbedding, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 // Seed a character with a card-text vector + an image-raw avatar vector (same model) + a captioned lens.

@@ -14,14 +14,14 @@ import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
-import type { RosterPresetService } from "@orb/server/domain/roster-preset";
-import { createRosterPresetService, RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import type { RosterPresetService } from "#server/domain/roster-preset/index.ts";
+import { createRosterPresetService, RosterPresetNotFoundError } from "#server/domain/roster-preset/index.ts";
 import { makeHarness, memberSpec, principal, seededRuleView } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_target");

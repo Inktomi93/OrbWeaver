@@ -11,9 +11,9 @@
 // layer above turns a missing reason into a verdict that looks like "you are current".
 
 import { createUpstreamProbes, parseLatestRelease, parseMainHead } from "@orb/server/entry/compose";
-import type { SafeFetchOptions, SafeFetchResult } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { SafeFetchOptions, SafeFetchResult } from "#server/infra/network/index.ts";
 
 const NOW = 1_700_000_000_000;
 const SHA = "f00dcafe1234567890abcdef1234567890abcdef";

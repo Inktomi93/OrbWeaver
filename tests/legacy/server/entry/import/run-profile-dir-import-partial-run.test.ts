@@ -2,9 +2,9 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { runProfileDirImport } from "@orb/server/entry/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { runProfileDirImport } from "#server/entry/import/index.ts";
 import { chatJsonl, deps, ENC, fakes, fixtureFiles, MINIMAL_PNG, memoryFs, openAiPresetJson } from "./_profile-dir-import-support.ts";
 
 // ── #1469, the ENTRY half of the silent-loss sweep ───────────────────────────────────────────────────────

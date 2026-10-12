@@ -84,7 +84,6 @@ test("product is exactly the complete full roster minus instrument proofs and mu
     "imports:depcruise",
     "deps:knip",
     "deps:knip-prod",
-    "deps:orphan-ratchet",
     "docs:format",
     "tests:node",
     "browser:ct",

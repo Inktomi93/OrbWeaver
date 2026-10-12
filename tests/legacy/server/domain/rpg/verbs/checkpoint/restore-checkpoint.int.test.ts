@@ -8,11 +8,11 @@ import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgS
 import { castId } from "@orb/kit/ids";
 import type { PostNarratorMessage } from "@orb/server/domain/chat";
 import { createPostNarratorMessage } from "@orb/server/domain/chat";
-import { createRpgService } from "@orb/server/domain/rpg";
 import { createRpgRestorePost } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { createRpgService } from "#server/domain/rpg/index.ts";
 import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
 import { makeChatContext, noClaim, seedCharacter, seedParticipant, seedUser } from "../../../chat/_support.ts";
 import type { RpgHarness } from "../../_support.ts";

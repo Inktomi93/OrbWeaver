@@ -20,12 +20,12 @@ import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@or
 import { createInferenceRuntime } from "@orb/inference";
 import type { CharacterId, ChatId, ConnectionBindingId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { ConnectionContext, ConnectionService } from "@orb/server/domain/connection";
-import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { and, eq } from "drizzle-orm";
+import type { ConnectionContext, ConnectionService } from "#server/domain/connection/index.ts";
+import { createConnectionPorts, createConnectionService } from "#server/domain/connection/index.ts";
 import { localLightRows } from "../../../packages/inference/src/capability/sources/curated/local-light.ts";
 import { rerankPick } from "../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
 import { recallMemory } from "../../../packages/server/src/domain/chat/memory/recall/recall.ts";

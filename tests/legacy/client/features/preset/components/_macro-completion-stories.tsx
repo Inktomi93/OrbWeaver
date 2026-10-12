@@ -7,9 +7,6 @@
 // The macro is deliberately named so no builtin is a fuzzy match for its prefix — a popover row proving the
 // plane landed must not be satisfiable by the builtin catalog alone.
 
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
-import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -19,6 +16,9 @@ import type { ReactElement } from "react";
 import { ActionsView } from "#client/features/preset/components/actions-view.tsx";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
 import { UserMacrosTab } from "#client/features/preset/components/user-macros-tab.tsx";
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
+import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_macrounionsy");
 

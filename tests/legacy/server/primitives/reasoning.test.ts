@@ -4,9 +4,9 @@
 // GATING (skip when native reasoning exists / autoParse off) lives at the RECEIVE seam (pipeline.test.ts), not
 // here — this is the pure parser.
 
-import { parseReasoningTags } from "@orb/server/primitives/reasoning";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { parseReasoningTags } from "#server/primitives/reasoning/index.ts";
 
 const TAGS = { prefix: "<think>", suffix: "</think>" } as const;
 

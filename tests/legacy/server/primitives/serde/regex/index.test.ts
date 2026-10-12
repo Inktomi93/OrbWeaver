@@ -7,9 +7,9 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import type { PortableRegexScript } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";
-import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "@orb/server/primitives/serde/regex";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#server/primitives/serde/regex/index.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

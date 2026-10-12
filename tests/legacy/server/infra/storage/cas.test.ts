@@ -67,7 +67,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   };
 });
 
-const { createCas } = await import("@orb/server/infra/storage");
+const { createCas } = await import("#server/infra/storage/index.ts");
 const OWNER = castId<UserId>("user_cas_failure");
 const BYTES = new TextEncoder().encode("cas failure plant");
 const HASH = "a".repeat(64);

@@ -8,10 +8,10 @@
 // @orb-waive-file no-test-fabrication({ schemaKind?: string; name?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CollectedPreset, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
-import { createImportService, stPresetFromJson } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { CollectedPreset, ImportContext, ImportProfileDeps } from "#server/domain/import/index.ts";
+import { createImportService, stPresetFromJson } from "#server/domain/import/index.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

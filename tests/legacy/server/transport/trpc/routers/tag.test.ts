@@ -1,8 +1,8 @@
 import type { TagWithUsage } from "@orb/contracts/tag";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { TagService } from "@orb/server/domain/tag";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { TagService } from "#server/domain/tag/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const tag = {

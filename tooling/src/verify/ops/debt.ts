@@ -51,7 +51,6 @@ import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "
 import type { LiveAdmission } from "../contract/debt.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
-import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm debt");
 
@@ -80,12 +79,6 @@ export const LEDGERS: readonly Ledger[] = [
   // the 2026-09-12 authority migration (#2063), which moved every ruled rule class to an exact reviewed
   // grant in `lib/reviewed-grants.ts`. Suppression debt is no longer a BUDGET this walk can total — an
   // un-granted rule class is a blocking finding with no door, so it shows up as a violation, never as debt.
-  {
-    owner: "orphan-export-ratchet (push tier)",
-    rel: ORPHAN_BASELINE_REL,
-    unit: "orphan export",
-    why: "the 2026-08-03 export-rot sweep's UNDECIDED rows — the swept tree, NOT a permission slip. Ends per row when the export is consumed, `@public`-tagged, or deleted.",
-  },
   {
     owner: "ct-unfed-reads (CT tier)",
     rel: CT_UNFED_BASELINE_REL,

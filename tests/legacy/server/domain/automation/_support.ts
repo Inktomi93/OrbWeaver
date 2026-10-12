@@ -10,13 +10,12 @@ import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
 import type { AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { createResolveUserEnabled } from "@orb/server/domain/sessions";
-import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { can } from "#server/domain/admin/index.ts";
 import type {
   ApplyProseRewrite,
   ArmDispatch,
@@ -37,6 +36,7 @@ import {
   createSuggestionStore,
 } from "#server/domain/automation/index.ts";
 import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
+import { createHostPrincipalResolver } from "#server/entry/auth/index.ts";
 import type { AutomationActionOpsDeps } from "#server/entry/compose/automation-watcher.ts";
 import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";

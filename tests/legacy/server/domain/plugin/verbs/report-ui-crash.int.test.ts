@@ -11,10 +11,10 @@
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PLUGIN_CRASH_DISABLE_THRESHOLD, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD, PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 describe("reportUiCrash", () => {

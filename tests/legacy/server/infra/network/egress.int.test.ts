@@ -45,6 +45,10 @@ import { createServer } from "node:http";
 import type { LookupFunction, Socket } from "node:net";
 import process from "node:process";
 import { setImmediate } from "node:timers/promises";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { Dispatcher } from "undici";
+import { getGlobalDispatcher, request, setGlobalDispatcher } from "undici";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
 import {
   __firewallConnectForTest,
   __setFirewallLookupForTest,
@@ -52,11 +56,7 @@ import {
   installEgressFirewall,
   publishPrivateEndpointAllowlist,
   resolvedEndpointAdmission,
-} from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { Dispatcher } from "undici";
-import { getGlobalDispatcher, request, setGlobalDispatcher } from "undici";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
+} from "#server/infra/network/index.ts";
 
 // Capture/restore the process-global dispatcher through undici's PUBLIC accessors. Restoring is MANDATORY:
 // leaving the firewall installed would block a sibling integration test's real 127.0.0.1 healthz fetch
@@ -548,7 +548,7 @@ describe("the BORN private-endpoint allowlist — single-user admits its own box
     }
     vi.resetModules();
     const { layer } = await import("#server/domain/settings/effective-config/layer.ts");
-    const network = await import("@orb/server/infra/network");
+    const network = await import("#server/infra/network/index.ts");
     // Exactly what the composition root does at boot: resolve the config with NO stored overrides (a fresh
     // db has none), then hand the guard the resolved list.
     network.publishPrivateEndpointAllowlist(layer({}).privateEndpointAllowlist);

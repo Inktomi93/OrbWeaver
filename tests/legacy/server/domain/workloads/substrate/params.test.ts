@@ -9,9 +9,9 @@ import { databankIngestWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
-import type { WorkloadContribution, WorkloadContributions } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { WorkloadContribution, WorkloadContributions } from "#server/domain/workloads/index.ts";
 import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "#server/domain/workloads/substrate/params.ts";
 
 const OWNER: UserId = castId("user_owner");

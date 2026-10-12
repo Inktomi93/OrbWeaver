@@ -2,7 +2,7 @@
 // authority; this ordinary import keeps the server reader visible to TypeScript and the AST liveness graph.
 
 import process from "node:process";
-import { buildVersionStamp } from "@orb/server/foundation/version";
+import { buildVersionStamp } from "#server/foundation/version/index.ts";
 
 function requiredEnvironment(name: "ORB_STAMP_ROOT" | "ORB_STAMP_BUILT_AT"): string {
   // biome-ignore lint/style/noProcessEnv: these two values are the package script's explicit shell contract.

@@ -16,13 +16,13 @@ import type { Db, LibSqlWrap } from "@orb/db";
 import { createDb, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls, runMigrations } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgGameId, RpgSheetId, RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { RpgPortabilityContext } from "@orb/server/domain/rpg";
-import { createExportRpgGame, createImportRpgGame } from "@orb/server/domain/rpg";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import type { RpgPortabilityContext } from "#server/domain/rpg/index.ts";
+import { createExportRpgGame, createImportRpgGame } from "#server/domain/rpg/index.ts";
 import { seedChat, seedMessage, seedUser } from "../../chat/_support.ts";
 import { seedGame, snapshotId } from "../_support.ts";
 

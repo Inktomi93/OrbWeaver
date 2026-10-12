@@ -1,8 +1,8 @@
 // entry/import/run-profile-dir-import — the ST chat-completion presets in the profile directory.
 
-import { runProfileDirImport } from "@orb/server/entry/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { runProfileDirImport } from "#server/entry/import/index.ts";
 import { cardPng, deps, ENC, fakes, memoryFs, openAiPresetJson, presetAndGroupFiles } from "./_profile-dir-import-support.ts";
 
 describe("runProfileDirImport — ST chat-completion presets", () => {

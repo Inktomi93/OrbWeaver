@@ -20,6 +20,10 @@
 // pins) and at exactly the named port(s) for the OPTIONAL `host:port` spelling (2026-09-20) — so the
 // operator who needs one engine port can stop handing out `:22` and `:5432` along with it.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { Dispatcher } from "undici";
+import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
+import { afterAll, afterEach, beforeAll, describe, vi } from "vitest";
 // @orb-waive-file no-test-fabrication(EgressBlockedError): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import {
@@ -31,11 +35,7 @@ import {
   publishPrivateEndpointAllowlist,
   safeFetch,
   shouldBlockEgress,
-} from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { Dispatcher } from "undici";
-import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
-import { afterAll, afterEach, beforeAll, describe, vi } from "vitest";
+} from "#server/infra/network/index.ts";
 
 // Capture/restore via undici's PUBLIC accessors — NEVER a hardcoded `Symbol.for("undici.globalDispatcher.N")`.
 // undici 8 moved that slot from `.1` to `.2` and kept `.1` as a legacy alias nothing reads, so the old

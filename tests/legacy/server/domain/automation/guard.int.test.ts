@@ -6,9 +6,9 @@
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { can } from "@orb/server/domain/admin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { can } from "#server/domain/admin/index.ts";
 import { AutomationChatNotFoundError, RuleNotFoundError } from "#server/domain/automation/contract/errors.ts";
 import { requireChatHost, requireRuleAuthority } from "#server/domain/automation/guard.ts";
 import { insertRule } from "#server/domain/automation/persistence/rules.ts";

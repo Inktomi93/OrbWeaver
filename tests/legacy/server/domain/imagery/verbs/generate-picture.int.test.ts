@@ -12,14 +12,14 @@ import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
-import type { ImageryContext } from "@orb/server/domain/imagery";
-import { createImageryService } from "@orb/server/domain/imagery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
+import type { ImageryContext } from "#server/domain/imagery/index.ts";
+import { createImageryService } from "#server/domain/imagery/index.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
 import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner, seedOwner } from "../_support.ts";
 

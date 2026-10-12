@@ -3,10 +3,10 @@
 // allowlist identity) and the allowlist decision (loopback/private always allowed; null ip degrades to
 // allowed — a belt, not the auth layer). The Hono middleware/context wrappers are thin shells over these.
 
-import { addressThrottleKey, ipAllowlistMiddleware, isIngressAllowed, parseAllowlist, resolveClientIp } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
+import { addressThrottleKey, ipAllowlistMiddleware, isIngressAllowed, parseAllowlist, resolveClientIp } from "#server/infra/network/index.ts";
 
 describe("parseAllowlist", () => {
   test("splits, trims, and drops empties; unset is the empty belt-off list", () => {

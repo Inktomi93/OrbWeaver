@@ -53,17 +53,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { can } from "@orb/server/domain/admin";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
-import { createPersonaOwned } from "@orb/server/domain/persona";
-import { createSourceState } from "@orb/server/domain/search";
-import {
-  applyCharacterStatsDelta,
-  createResolveRetainedChatAccountingScope,
-  createResolveRetainedChatRebase,
-  settleRetainedChatRebase,
-} from "@orb/server/domain/stats";
 import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -71,11 +61,21 @@ import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { can } from "#server/domain/admin/index.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { ClaimChatOp, SummarizeOp } from "#server/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "#server/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
+import { createPersonaOwned } from "#server/domain/persona/index.ts";
+import { createSourceState } from "#server/domain/search/index.ts";
+import {
+  applyCharacterStatsDelta,
+  createResolveRetainedChatAccountingScope,
+  createResolveRetainedChatRebase,
+  settleRetainedChatRebase,
+} from "#server/domain/stats/index.ts";
 import { makeStoreHarness, seedVectorConnection } from "../embeddings/_support.ts";
 
 /** A CLAIM chokepoint that does nothing (R0). Every chat these suites seed is born CLAIMED (the `seedChat`

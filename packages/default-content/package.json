@@ -7,11 +7,32 @@
     "node": ">=26.3.0"
   },
   "sideEffects": false,
-  "scripts": { "generate:embeddings": "node ../../scripts/generate-seed-vectors.ts" },
+  "scripts": {
+    "generate:embeddings": "node ../../scripts/generate-seed-vectors.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
-    "./avatars/*": "./avatars/*",
-    "./backgrounds/*": "./backgrounds/*"
+    "./avatars/birdie.png": "./avatars/birdie.png",
+    "./avatars/calamity.png": "./avatars/calamity.png",
+    "./avatars/charlotte.png": "./avatars/charlotte.png",
+    "./avatars/elias.png": "./avatars/elias.png",
+    "./avatars/hana.png": "./avatars/hana.png",
+    "./avatars/jfc-coder.png": "./avatars/jfc-coder.png",
+    "./avatars/kohaku.png": "./avatars/kohaku.png",
+    "./avatars/morgatha.png": "./avatars/morgatha.png",
+    "./avatars/niko.png": "./avatars/niko.png",
+    "./avatars/persona-you.png": "./avatars/persona-you.png",
+    "./avatars/sabine.png": "./avatars/sabine.png",
+    "./backgrounds/birdie-bg.jpg": "./backgrounds/birdie-bg.jpg",
+    "./backgrounds/calamity-bg.jpg": "./backgrounds/calamity-bg.jpg",
+    "./backgrounds/charlotte-bg.jpg": "./backgrounds/charlotte-bg.jpg",
+    "./backgrounds/elias-bg.jpg": "./backgrounds/elias-bg.jpg",
+    "./backgrounds/hana-bg.jpg": "./backgrounds/hana-bg.jpg",
+    "./backgrounds/jfc-coder-bg.jpg": "./backgrounds/jfc-coder-bg.jpg",
+    "./backgrounds/kohaku-bg.jpg": "./backgrounds/kohaku-bg.jpg",
+    "./backgrounds/morgatha-bg.jpg": "./backgrounds/morgatha-bg.jpg",
+    "./backgrounds/niko-bg.jpg": "./backgrounds/niko-bg.jpg",
+    "./backgrounds/sabine-bg.jpg": "./backgrounds/sabine-bg.jpg"
   },
   "dependencies": {
     "@orb/kit": "workspace:*"

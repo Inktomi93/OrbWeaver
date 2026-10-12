@@ -5,10 +5,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createWorldInfoService } from "#server/domain/world-info/index.ts";
 import { makeHarness, principal, seedChat, seedUser } from "../../_support.ts";
 
 describe("listForChat", () => {

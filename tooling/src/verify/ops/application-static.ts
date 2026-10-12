@@ -47,5 +47,5 @@ export async function runApplicationStatic(root: string, args: readonly string[]
       runNicedSync(process.execPath, ["scripts/cpd.ts", "-c", "jscpd.json", ...implementation, "--fail-on-empty"], { cwd: root, stdio: "inherit" }).status,
     );
   }
-  return runApplicationKnip(root, population, checker === "knip-prod");
+  return runApplicationKnip(root, population);
 }

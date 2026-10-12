@@ -13,13 +13,13 @@ import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createImportService } from "@orb/server/domain/import";
-import { createBulkImportLorebook, createHasPrimaryBook } from "@orb/server/domain/world-info";
 import { seedCharacter, seedUser } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ImportContext } from "#server/domain/import/context.ts";
+import { createImportService } from "#server/domain/import/index.ts";
+import { createBulkImportLorebook, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
 
 const NOW = 1_700_000_000_000;
 const CARD_ENTRY_CONTENT = "A realm of eternal dusk.";

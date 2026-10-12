@@ -7,10 +7,10 @@ import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
-import type { AutomationOps } from "@orb/server/domain/automation";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { applyRuleLoreWrite } from "#server/domain/automation/engine/lore-write.ts";
+import type { AutomationOps } from "#server/domain/automation/index.ts";
 import { listRuleEntryTitles } from "#server/domain/automation/persistence/canon-reads.ts";
 import { ruleFixture, seedUser } from "../_support.ts";
 

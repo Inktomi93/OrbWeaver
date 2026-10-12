@@ -16,10 +16,10 @@ import { PLUGIN_TEXT_MAX_CHARS } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { CreateInstanceOutcome, PluginHandlerRef, PluginHostPort, PluginInstance } from "@orb/server/domain/plugin";
-import { PluginActionFailedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { CreateInstanceOutcome, PluginHandlerRef, PluginHostPort, PluginInstance } from "#server/domain/plugin/index.ts";
+import { PluginActionFailedError, PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const CHAT_ID = mintTypeId(ID_PREFIX.chat) as ChatId;

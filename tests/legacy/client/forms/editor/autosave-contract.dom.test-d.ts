@@ -8,9 +8,9 @@
 // `create-autosave-entity-form.ct.tsx` sibling. The public factory overloads pair the arms declared in
 // `autosave-contract.ts`; this proof checks their composed browser-facing contract.
 
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { ReactNode } from "react";
 import { expectTypeOf, test } from "vitest";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 interface Values {
   readonly text: string;

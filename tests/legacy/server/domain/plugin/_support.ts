@@ -15,13 +15,13 @@ import type { Db } from "@orb/db";
 import { assets, pluginAssets, plugins } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
+import { can } from "#server/domain/admin/index.ts";
 import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
 import type { PluginLogView } from "#server/domain/plugin/contract/results.ts";
 import type {

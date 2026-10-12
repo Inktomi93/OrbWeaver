@@ -35,7 +35,6 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { createCharacterOwned, createCharacterService, createLinkCharacterAvatars } from "@orb/server/domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "@orb/server/domain/chat";
-import { createCas, createVariantCache } from "@orb/server/infra/storage";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
@@ -46,6 +45,7 @@ import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/context.ts";
 import { createGalleryCharacterOps } from "#server/entry/compose/gallery-character-ops.ts";
+import { createCas, createVariantCache } from "#server/infra/storage/index.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 
 // The PNG magic bytes — every `pngBytes(...)` starts here so `sniffMime` returns image/png. The tail makes

@@ -9,12 +9,12 @@ import type { Db } from "@orb/db";
 import { worldBooks, worldEntries } from "@orb/db";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { parseWorldBookFile } from "@orb/server/primitives/serde/world-info";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createExport } from "#server/domain/world-info/verbs/export.ts";
+import { parseWorldBookFile } from "#server/primitives/serde/world-info/index.ts";
 
 const NOW = 1_700_000_000_000;
 

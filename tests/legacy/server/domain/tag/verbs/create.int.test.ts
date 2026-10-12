@@ -3,10 +3,10 @@
 
 // @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedUser } from "../_support.ts";
 
 describe("createTag", () => {

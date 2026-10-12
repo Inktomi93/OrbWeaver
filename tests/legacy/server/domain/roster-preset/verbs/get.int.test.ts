@@ -6,7 +6,6 @@ import { rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { rosterPresets } from "@orb/db";
 import type { RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRosterPresetService, RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
@@ -14,6 +13,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { ZodError } from "zod";
+import { createRosterPresetService, RosterPresetNotFoundError } from "#server/domain/roster-preset/index.ts";
 import { makeHarness, memberSpec, principal } from "../_support.ts";
 
 describe("get", () => {

@@ -25,7 +25,6 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createRegexApplyReplace } from "@orb/server/primitives/regex";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc } from "drizzle-orm";
@@ -36,6 +35,7 @@ import { toShapeCanon } from "#server/domain/chat/assembly/shape.ts";
 import type { PromptHistoryRegexEnv } from "#server/domain/chat/contract/regex.ts";
 import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
+import { createRegexApplyReplace } from "#server/primitives/regex/index.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;

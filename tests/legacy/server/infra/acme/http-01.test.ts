@@ -1,11 +1,11 @@
 // infra/acme/http-01 — the HTTP-01 responder answers the one pending token and 404s everything else (D275). A real
 // listener on an ephemeral loopback port, read with a plain fetch, as the certificate authority reads it.
 
-import type { OpenChallenge } from "@orb/server/infra/acme";
-import { openChallengeResponder } from "@orb/server/infra/acme";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { freeLoopbackPort } from "@orb/testkit/node/free-port.ts";
 import { afterEach, describe } from "vitest";
+import type { OpenChallenge } from "#server/infra/acme/index.ts";
+import { openChallengeResponder } from "#server/infra/acme/index.ts";
 
 const TOKEN = "tok_Abc123-xyz";
 const KEY_AUTHORIZATION = `${TOKEN}.thumbprint_Q1w2e3`;

@@ -7,15 +7,15 @@
 // wire under D143 — the note must not appear at all). Both go through the REAL `createAutosaveEntityForm`
 // boundary the production editor mounts the section under.
 
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
-import type { AppFormInstance } from "@orb/client/forms/editor";
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { GenerationCapability, UserRoleHandling } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { MessageHandlingSection } from "#client/features/preset/components/message-handling-section.tsx";
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
+import type { AppFormInstance } from "#client/forms/editor/index.ts";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = "preset_msghandlingaaa";
 

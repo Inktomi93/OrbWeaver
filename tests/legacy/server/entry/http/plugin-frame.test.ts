@@ -25,11 +25,11 @@ import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
 import type { Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginFrameDeps, PrincipalEnv } from "@orb/server/entry/http";
-import { registerPluginFrame, securityHeaders } from "@orb/server/entry/http";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
+import type { PluginFrameDeps, PrincipalEnv } from "#server/entry/http/index.ts";
+import { registerPluginFrame, securityHeaders } from "#server/entry/http/index.ts";
 
 const PLUGIN = castId<PluginId>("plugin_01h455vb4pex5vsknk084sn02q");
 

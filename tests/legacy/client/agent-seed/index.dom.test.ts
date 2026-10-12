@@ -7,11 +7,11 @@
 // throws instead of silently swallowing an `{ok:false}` from `editSnapshot`/`patchActor` — the seeder's
 // own "closed vocabulary" analogue (a legible refusal, never a silent no-op).
 
-import { buildAgentSeed } from "@orb/client/agent-seed";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
+import { buildAgentSeed } from "#client/agent-seed/index.ts";
 
 const CHARACTER_ID = castId<CharacterId>("character_seed_a");
 const CHAT_ID = castId<ChatId>("chat_seed_a");

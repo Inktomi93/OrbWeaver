@@ -4,10 +4,10 @@
 // the pinned size caps the bytes. The full SSRF matrix is `safefetch-selfenforcing.suite.test.ts`. Injected
 // resolver + stubbed transport: no live DNS, no live network.
 
-import { __setEgressResolverForTest, EgressBlockedError, fetchPinnedDownload } from "@orb/server/infra/network";
 import { CLOUDFLARED_PIN } from "@orb/server/infra/relay";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
+import { __setEgressResolverForTest, EgressBlockedError, fetchPinnedDownload } from "#server/infra/network/index.ts";
 
 const PUBLIC_ADDR = "140.82.112.3";
 const RELEASE_URL = `${CLOUDFLARED_PIN.releaseBase}/${CLOUDFLARED_PIN.version}/cloudflared-linux-amd64`;

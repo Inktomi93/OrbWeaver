@@ -9,10 +9,10 @@
 import type { AutomationRuleId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AutomationService, RuleView } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { AutomationService, RuleView } from "#server/domain/automation/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.

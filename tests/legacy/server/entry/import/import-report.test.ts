@@ -24,9 +24,9 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import type { ImportReport } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
+import type { ImportReport } from "#server/domain/import/index.ts";
 // Not on the `entry/import` barrel — `portability-runner.ts` is its only production importer, by path.
 import { writeImportReport } from "#server/entry/import/import-report.ts";
 

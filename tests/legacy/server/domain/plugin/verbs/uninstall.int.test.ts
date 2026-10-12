@@ -7,11 +7,11 @@ import type { Db } from "@orb/db";
 import { assets, pluginAssets, pluginKv } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import { eq } from "drizzle-orm";
+import { PluginNotFoundError, recordPluginFetchedAsset } from "#server/domain/plugin/index.ts";
 import { upsertKvUnderCap } from "#server/domain/plugin/persistence/plugin-kv.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 

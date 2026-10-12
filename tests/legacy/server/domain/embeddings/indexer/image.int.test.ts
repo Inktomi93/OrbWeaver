@@ -1,10 +1,10 @@
 import { imageAnalyses, imageEmbeddings } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { makeStoreHarness, seedAsset, seedUser } from "../_support.ts";
 

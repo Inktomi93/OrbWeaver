@@ -1,11 +1,11 @@
 // Unit: `buildAgentRpg` — the read-only half of `__orb.rpg()`. It must report the active chat's authoritative
 // production views and stay inert on the landing surface; mutations deliberately have no bridge here.
 
-import { buildAgentRpg } from "@orb/client/agent-rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
+import { buildAgentRpg } from "#client/agent-rpg/index.ts";
 
 const CHAT_ID = castId<ChatId>("chat_agent_rpg_a");
 

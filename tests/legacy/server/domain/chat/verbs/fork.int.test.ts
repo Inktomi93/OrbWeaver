@@ -16,7 +16,6 @@ import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
@@ -30,6 +29,7 @@ import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
 import { createFork } from "#server/domain/chat/verbs/fork.ts";
 import { createExportChatBundle } from "#server/domain/export/verbs/export-chat-bundle.ts";
+import { parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
 import { makeHarness } from "../../export/_support.ts";
 import {
   addVariant,

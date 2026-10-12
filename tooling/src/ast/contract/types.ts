@@ -6,7 +6,7 @@ import type { ColumnClass } from "./scan-types.ts";
 export type * from "./scan-types.ts";
 
 /** What ONE `buildLiveness` call is asked to produce beyond the liveness sets. `edges` turns on the
- *  DECLARATION-GRANULAR consumption map (`Liveness.consumers`) — off by default so the push-tier ratchet
+ *  DECLARATION-GRANULAR consumption map (`Liveness.consumers`) — off by default so other AST callers
  *  pays neither its cost nor its risk. */
 export interface LivenessOptions {
   readonly edges: boolean;
@@ -22,7 +22,7 @@ export type AntipatternVerdict =
  *  on, and the node a reader of leading comments needs). `starSuppressed` = the declaring file is the
  *  target of an `export *` somewhere, so a namespace consumer we cannot cheaply name MIGHT reach it: the
  *  candidate is reported and NAMED, but never counted as a hit. This is the SHARED substrate — the
- *  `orphans` verb prints it and the push-tier ratchet (`tooling/src/verify/ops/orphan-export-ratchet.ts`) judges
+ *  `orphans` verb prints it and the API surface lens classifies
  *  it, so there is exactly one definition of "orphan candidate" in the repo. */
 export interface OrphanCandidate {
   readonly name: string;
@@ -30,9 +30,7 @@ export interface OrphanCandidate {
   readonly starSuppressed: boolean;
 }
 
-/** A resolved `@public`-family marker on a declaration: the two named exemptions plus the legacy `bare` form
- *  (kept distinct so the ratchet can red it with a precise remedy). `twin.value` is the NAMED value the type
- *  faces (verified PUBLIC by the caller); `future.reason`/`bare.reason` carry the stated rationale. */
+/** A resolved marker for an AST lens: named value, named future consumer, or a prose reason. */
 export type PublicMarker =
   | { readonly kind: "twin"; readonly value: string }
   | { readonly kind: "future"; readonly reason: string }
@@ -61,7 +59,7 @@ export interface SwallowedCandidate {
 // delete signal ("unwired ≠ worthless", AGENTS.md "Posture"). Evidence PRIORITY, not accumulation: a single
 // production reference outranks everything else (ALIVE); a namespace-only reach may still be load-bearing
 // THROUGH the swallowing API (SWALLOWED-ONLY); a reasoned `@public`-family marker is the author's
-// unadjudicated keep claim (TAGGED-KEEP in this conservative lens; the ratchet separately judges legality);
+// unadjudicated keep claim (TAGGED-KEEP in this conservative lens; not an exemption from production Knip);
 // reach from a tool/script alone is TOOL-ANCHORED; reach from a test alone is `testonly`'s class
 // (TEST-ANCHORED); only when none apply is it a CANDIDATE.
 /** The six-way verdict `dead` renders — evidence PRIORITY order (see the header above), not a tally. */

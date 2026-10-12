@@ -1,11 +1,11 @@
 // infra/image — the sharp adapter against real sharp encode/decode (integration lane). Pins resize→variant,
 // the privacy metadata-strip (EXIF dropped on transform), format normalization, and non-image rejection.
 
-import { createImageAdapter } from "@orb/server/infra/image";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import sharp from "sharp";
 import { beforeAll, describe } from "vitest";
 import { BANNER_WIDTHS, snapBannerWidth } from "#server/domain/assets/substrate/variant-policy.ts";
+import { createImageAdapter } from "#server/infra/image/index.ts";
 
 const SRC_WIDTH = 400;
 const SRC_HEIGHT = 300;

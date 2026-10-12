@@ -2,10 +2,10 @@
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { assets, embedGenerationTargets, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { readImageAnalysis, saveImageAnalysis } from "#server/domain/embeddings/persistence/image-analysis.ts";
 import { upsertImageEmbedding } from "#server/domain/embeddings/persistence/queries.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";

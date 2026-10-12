@@ -5,9 +5,9 @@
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginCrashedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PluginCrashedError, PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("enable activates on the CAS bundle under the granted subset; the row is enabled", async () => {

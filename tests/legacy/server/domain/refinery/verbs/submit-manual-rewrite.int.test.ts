@@ -7,10 +7,10 @@ import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RefineryRunId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRefineryService } from "@orb/server/domain/refinery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { createRefineryService } from "#server/domain/refinery/index.ts";
 import { analyzeReply, makeRefineryHarness, principal, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("a hand edit lands as a {kind:manual} run analyze can judge; out-of-scope entries refuse LOUD", async () => {
