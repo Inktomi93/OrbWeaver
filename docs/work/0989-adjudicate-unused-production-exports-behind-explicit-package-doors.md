@@ -24,7 +24,7 @@ The recorded production inventory is fully adjudicated in package/domain batches
 
 ## Evidence
 
-Native production Knip completes on `d4f3734dc1` with additional composition-facade findings and a stale baseline entry. This is a findings verdict, not a tool error or deletion approval. Both shared typed inventory attempts exhaust their heaps without a complete artifact. The memory work item owns the compiler/fact lifecycle blocker. Preserve codemod preparation; apply no candidate or baseline change from incomplete typed evidence.
+Native production Knip completes on `d4f3734dc1` with additional composition-facade findings and a stale baseline entry. This is a findings verdict, not deletion approval. The custom typed inventory attempts use the wrong runtime and fail without a complete artifact; they do not establish failure of shipped AST commands. The memory work item owns invocation and retention diagnosis. Preserve codemod preparation; apply no candidate or baseline change from incomplete evidence.
 
 Use existing `pnpm ast apisurface` results for package-boundary consumption and alias-resolved origin identity. Use `rot`, `dead` and their existing collectors for chains, type-only value references and namespace consumption. These report candidates: scripts/tooling can count as public consumers there, but cannot establish application production use.
 
