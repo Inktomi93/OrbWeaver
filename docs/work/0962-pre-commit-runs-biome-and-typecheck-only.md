@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Change the pre-commit and pre-merge-commit selection to Biome and the native typecheck over the staged change, plus the commit-message check, per D317. ESLint, dependency-cruiser and the structure walk leave the commit selection; CI's static job owns them.
+Change the pre-commit and pre-merge-commit selection to Biome and the native typecheck over the staged change, plus the commit-message check, per D317. ESLint, dependency-cruiser and the structure walk leave the commit selection; CI's static job owns them. Align the tooling strings and comments that still state a per-train cadence: `tooling/src/verify/lib/history.ts` (its user-facing "once per merge train" message), `lib/registry-manual.ts`, `ops/ratchet-gate.ts`, `ops/run.ts`, `ops/gen/active-gates-index.ts`, `gates/caught-failure-census-row.ts` and `ops/new-gate.ts`.
 
 ## Why
 
