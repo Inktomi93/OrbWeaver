@@ -3,7 +3,6 @@
 // FAKES and drive the REAL `HomeSurface` — proving order, `useVisible` gating, the dormant arm, and the
 // zero-tile empty state against the shipped grid, not a bespoke double.
 
-// @orb-waive-file testid-typed-only-stories("also-open-box"): baselined when the gate widened; burn-down item 906.
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatQuickPicksTile } from "@orb/client/features/chat";
 import { HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
@@ -12,6 +11,7 @@ import { __readSurfaceBoxForTest, rememberHomeRegion, rememberSurfaceBox, useAct
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { homeTiles } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -450,7 +450,7 @@ export function HomeRememberedAlsoOpenStory({ alsoOpenBox }: { readonly alsoOpen
       <button type="button" onClick={(): void => setProbe(String(__readSurfaceBoxForTest(chatAlsoOpenTile.id)))}>
         probe
       </button>
-      <output data-testid="also-open-box">{probe}</output>
+      <output data-testid={storyTestId("alsoOpenBox")}>{probe}</output>
       <HomeShippedFirstBootStory />
     </>
   );

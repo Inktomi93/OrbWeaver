@@ -7,14 +7,12 @@
 // JOINS the `notifications` ROOM on the tab's one socket, so the socket has to be mounted above the bell for
 // the stream to exist at all.
 
-// @orb-waive-file testid-typed-only-stories("ct-plugin-target"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-sheet-badge"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-shell-destination"): baselined when the gate widened; burn-down item 906.
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
 import { closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
 import { CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
@@ -106,8 +104,8 @@ function ShellDestinationProbe(): ReactElement {
   const target = useConfigTarget();
   return (
     <>
-      <output data-testid="ct-shell-destination">{`${section}/${group ?? "none"}`}</output>
-      <output data-testid="ct-plugin-target">{target === null ? "none" : `${target.group}/${target.sub}/${target.setting}`}</output>
+      <output data-testid={storyTestId("ctShellDestination")}>{`${section}/${group ?? "none"}`}</output>
+      <output data-testid={storyTestId("ctPluginTarget")}>{target === null ? "none" : `${target.group}/${target.sub}/${target.setting}`}</output>
     </>
   );
 }
@@ -161,7 +159,7 @@ export function NotificationPhonePluginDestinationStory(): ReactElement {
  *  Appended as a component (a `_ct-stories` module may export ONLY components; a probe is one). */
 function SheetBadgeProbe(): ReactElement {
   const waiting = notificationsChrome.useBadge?.() ?? 0;
-  return <output data-testid="ct-sheet-badge">{String(waiting)}</output>;
+  return <output data-testid={storyTestId("ctSheetBadge")}>{String(waiting)}</output>;
 }
 
 /** The SHEET lens beside that probe — the exact composition the ruling is about. Mounting the sheet is what

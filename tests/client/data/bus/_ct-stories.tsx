@@ -11,16 +11,6 @@
 // gap-heal probe wraps in it too: since SSE-1 the user bus has no subscription of its own, it JOINS a room
 // on the tab's one socket, so the socket has to exist for the bus to be live at all.
 
-// @orb-waive-file testid-typed-only-stories("chat-bus-mounted"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("probe-barrier"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("remount-room"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("room-generation"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rpg-events"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rpg-heals"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rpg-pointer"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("user-bus-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("user-events"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("user-heals"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { useChatBus, useChatBusDeps, useGatedQuery, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUserBus } from "@orb/client/data";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
@@ -28,6 +18,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
@@ -67,7 +58,7 @@ function RpgPointerSettle({ chatId }: { readonly chatId: ChatId | null }): React
     }
     return `engaged=${String(isRpgEngaged(chat.data.rpg))}`;
   }
-  return <output data-testid="rpg-pointer">{readout()}</output>;
+  return <output data-testid={storyTestId("rpgPointer")}>{readout()}</output>;
 }
 
 function RpgBusProbe({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
@@ -83,8 +74,8 @@ function RpgBusProbe({ chatId }: { readonly chatId: ChatId | null }): ReactEleme
   });
   return (
     <>
-      <output data-testid="rpg-events">{seen.join(",")}</output>
-      <output data-testid="rpg-heals">{String(heals)}</output>
+      <output data-testid={storyTestId("rpgEvents")}>{seen.join(",")}</output>
+      <output data-testid={storyTestId("rpgHeals")}>{String(heals)}</output>
       <RpgPointerSettle chatId={chatId} />
     </>
   );
@@ -103,8 +94,8 @@ function UserBusProbe(): ReactElement {
   });
   return (
     <>
-      <output data-testid="user-events">{seen.join(",")}</output>
-      <output data-testid="user-heals">{String(heals)}</output>
+      <output data-testid={storyTestId("userEvents")}>{seen.join(",")}</output>
+      <output data-testid={storyTestId("userHeals")}>{String(heals)}</output>
     </>
   );
 }
@@ -145,13 +136,13 @@ function RemountableRoomProbe(): ReactElement {
   const [generation, setGeneration] = useState(0);
   return (
     <>
-      <button type="button" data-testid="remount-room" onClick={(): void => setGeneration((prev) => prev + 1)}>
+      <button type="button" data-testid={storyTestId("remountRoom")} onClick={(): void => setGeneration((prev) => prev + 1)}>
         remount
       </button>
-      <button type="button" data-testid="probe-barrier" onClick={(): void => void tags.refetch()}>
+      <button type="button" data-testid={storyTestId("probeBarrier")} onClick={(): void => void tags.refetch()}>
         barrier
       </button>
-      <output data-testid="room-generation">{String(generation)}</output>
+      <output data-testid={storyTestId("roomGeneration")}>{String(generation)}</output>
       <UserBusProbe key={generation} />
     </>
   );
@@ -175,7 +166,7 @@ export function UserBusRemountStory(): ReactElement {
 //    the assertion is on the WIRE (`attachRequests()`), not on rendered state.
 function ChatBusAttachFloorProbe({ chatId }: { readonly chatId: ChatId }): ReactElement {
   useChatBus(chatId, useChatBusDeps());
-  return <output data-testid="chat-bus-mounted">{chatId}</output>;
+  return <output data-testid={storyTestId("chatBusMounted")}>{chatId}</output>;
 }
 
 /** The chat room joined for real, so its re-announce carries whatever cursor the hook decided on. */
@@ -239,7 +230,7 @@ function UserBusGapHealProbe(): ReactElement {
     invalidateUser: invalidation.invalidateUser,
     invalidateAllUserRoots: invalidation.invalidateAllUserRoots,
   });
-  return <p data-testid="user-bus-state">{`personas=${personas.data.length} tags=${tags.data.length}`}</p>;
+  return <p data-testid={storyTestId("userBusState")}>{`personas=${personas.data.length} tags=${tags.data.length}`}</p>;
 }
 
 export function UserBusGapHealStory(): ReactElement {

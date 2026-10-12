@@ -2,9 +2,6 @@
 // through its registered chrome entry, the Settings list and row, the editor, the first-run gate and the
 // notifications section. Rows instantiate entity mutations, so every story mounts under `CtDataProviders`.
 
-// @orb-waive-file testid-typed-only-stories("fired"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("personas-notifications-tail"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
 import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
@@ -14,6 +11,7 @@ import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { realConfigGroups } from "@orb/testkit/browser/ct-config-groups.ts";
 import { CtDataProviders, CtRealConfigSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
@@ -113,7 +111,7 @@ export function PersonaYouSheetStory({ chatId }: { readonly chatId?: ChatId } = 
   return (
     <CtDataProviders>
       <div style={{ width: 320 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("sheet") : null}</div>
-      <p data-testid="notified">{notice?.title ?? ""}</p>
+      <p data-testid={storyTestId("notified")}>{notice?.title ?? ""}</p>
       {notice?.action === undefined ? null : (
         <button onClick={notice.action.onClick} type="button">
           {notice.action.label}
@@ -223,7 +221,7 @@ export function PersonaListStory({ width = 360 }: { readonly width?: number } = 
           <PersonaList />
         </QueryBoundary>
       </div>
-      <p data-testid="notified">{notified}</p>
+      <p data-testid={storyTestId("notified")}>{notified}</p>
     </CtDataProviders>
   );
 }
@@ -248,7 +246,7 @@ export function PersonaPanelRowStory(): ReactElement {
           }}
           persona={PERSONA}
         />
-        <p data-testid="fired">{fired}</p>
+        <p data-testid={storyTestId("fired")}>{fired}</p>
       </div>
     </CtDataProviders>
   );
@@ -282,7 +280,7 @@ export function PersonaNotificationsReopenStory(): ReactElement {
       <CtDataProviders key={open}>
         <div style={{ width: 720, padding: 16 }}>
           <PersonaNotificationsSection />
-          <div data-testid="personas-notifications-tail" style={{ height: 8 }} />
+          <div data-testid={storyTestId("personasNotificationsTail")} style={{ height: 8 }} />
         </div>
       </CtDataProviders>
     </>
