@@ -82,7 +82,7 @@
 // property-access-keyed, which is committed, measured blindness rather than growth.
 //
 // The remedy for a red is never a ledger row: it is `tooling/src/floor/code-facts/reference-fact.ts#staticMemberAccess`
-// or `tooling/src/verify/lib/symbol-reference.ts` (`moduleMemberReference` / `readStringConstant`), which resolve
+// or `tooling/src/verify/lib/symbol-reference.ts` (`moduleMemberReference`), which resolve
 // a reference however it is spelled.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

@@ -13,8 +13,6 @@ import {
   moduleMemberReference,
   namedImportLocalNames,
   namespaceImportSpecifier,
-  readNumericConstant,
-  readStringConstant,
   readsMemberNamed,
   referencesModuleExport,
 } from "../../../../tooling/src/verify/lib/symbol-reference.ts";
@@ -42,29 +40,6 @@ test("readsMemberNamed answers a fixed vocabulary across spellings, and refuses 
     "update",
     undefined,
   ]);
-});
-
-test("readStringConstant sees a literal through wrappers and through a same-file const", () => {
-  const values = elementsIn('const ROLE = "button";\nconst WRAPPED = "button" as const;\nexport const a = ["button", ROLE, WRAPPED, `button`];\n').map((e) =>
-    readStringConstant(e),
-  );
-  // THE DEFECT: a StringLiteral-kind check answers ["button", undefined, undefined, undefined] — which is
-  // how `role={ROLE}` resolving to "button" walked past no-interactive-role-in-features.
-  expect(values).toEqual(["button", "button", "button", "button"]);
-});
-
-test("readStringConstant refuses a value it cannot establish, rather than guessing one", () => {
-  expect(elementsIn("export const a = [maybe, compute(), `x${y}`];\n").map((e) => readStringConstant(e))).toEqual([undefined, undefined, undefined]);
-});
-
-test("readNumericConstant reads a bare literal, a NEGATIVE literal, and a const-named number", () => {
-  // THE DEFECT: `-8` is a PrefixUnaryExpression, so a NumericLiteral-kind check answers undefined for it —
-  // which is how `margin: -8` walked past no-off-token-inline-style.
-  expect(elementsIn("const GAP = -8;\nexport const a = [8, -8, +8, GAP];\n").map((e) => readNumericConstant(e))).toEqual([8, -8, 8, -8]);
-});
-
-test("readNumericConstant refuses a non-numeric operand, never a silent zero", () => {
-  expect(elementsIn("export const a = [!flag, -x, compute()];\n").map((e) => readNumericConstant(e))).toEqual([undefined, undefined, undefined]);
 });
 
 test("namespaceImportSpecifier resolves an `import * as` binding syntactically, and only that binding", () => {

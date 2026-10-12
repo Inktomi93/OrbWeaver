@@ -9,6 +9,7 @@
 // `docker/*.sh` runs only in the Linux container and `.claude/hooks` is not TypeScript. RETIRED MARKERS: none.
 
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import { staticString } from "@orb/tooling/floor/code-facts/reference-fact-static";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { OsNeutralCase } from "../contract/os-neutral.ts";
@@ -30,7 +31,6 @@ import {
   pairKey,
 } from "../lib/os-neutral.ts";
 import { classifyProjectHomeOrigin, locateProjectHome, readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { readStringConstant } from "../lib/symbol-reference.ts";
 
 /** The platform module: the spawns and openers, and the leaf that holds the `/proc` and `/sys` reads. */
 const PLATFORM_HOME: ReadonlySet<string> = new Set(["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts"]);
@@ -68,7 +68,7 @@ const FIX =
 /** The string values of an argv array literal; a non-literal element is `undefined`. */
 function argvOf(node: Node | undefined): readonly (string | undefined)[] {
   const array = node === undefined ? undefined : unwrapExpression(node);
-  return array?.isKind(SyntaxKind.ArrayLiteralExpression) === true ? array.getElements().map((element) => readStringConstant(element)) : [];
+  return array?.isKind(SyntaxKind.ArrayLiteralExpression) === true ? array.getElements().map((element) => staticString(element)) : [];
 }
 
 /** Does an options object literal set `shell` to anything but `false`? */
@@ -144,7 +144,7 @@ export const gate = defineGate({
         return;
       }
       const [first, ...rest] = call.getArguments();
-      const command = first === undefined ? undefined : readStringConstant(first);
+      const command = first === undefined ? undefined : staticString(first);
       // The literal is the cheap test; a door's identity needs the checker, so it is asked only behind it.
       const door = command !== undefined && isJudgedProgram(command.trim().split(WHITESPACE_RE)[0] ?? "") ? doorOf(call.getExpression()) : null;
       if (door !== null && first !== undefined && command !== undefined) {
@@ -209,7 +209,7 @@ export const gate = defineGate({
               return;
             }
             const elements = node.getElements();
-            if (isLinuxOnlyArgvTable(elements.map((element) => readStringConstant(element)))) {
+            if (isLinuxOnlyArgvTable(elements.map((element) => staticString(element)))) {
               report(node, "linux-spawn");
             }
             const pairs = elements.map((element) => ({ node: element, key: pairKey(element) }));

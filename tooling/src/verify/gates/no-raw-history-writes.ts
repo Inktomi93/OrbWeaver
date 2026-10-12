@@ -1,12 +1,13 @@
 // Browser History mutations belong to the router, including URL-only handoffs. Captures are judged at the read.
 // Singleton: one client API boundary; shared global and type-member readers own identity and spelling.
 // AST-safe. Local implementations pass; unreadable signatures fail closed. Dynamic reflection is not covered.
+
+import { staticString } from "@orb/tooling/floor/code-facts/reference-fact-static";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveGlobalMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyPackageMemberOrigin, readsAmbientGlobalPath, uncastPropertyDeclaredByPackage } from "../lib/project-home-origin.ts";
-import { readStringConstant } from "../lib/symbol-reference.ts";
 import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 
 const MUTATORS: ReadonlySet<string> = new Set(["pushState", "replaceState"]);
@@ -24,7 +25,7 @@ function capturedMutation(node: MorphNode): string | undefined {
   if (Node.isIdentifier(key)) {
     return key.getText();
   }
-  return readStringConstant(Node.isComputedPropertyName(key) ? key.getExpression() : key);
+  return staticString(Node.isComputedPropertyName(key) ? key.getExpression() : key);
 }
 
 function hasLocalImplementation(declaration: MorphNode): boolean {
@@ -176,6 +177,12 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "a `let` key never reassigned names one member exactly as a `const` does, so the shared reader resolves it by declaration",
     },
+    {
+      mode: "types",
+      files: { "packages/client/src/data/x.ts": 'let K = "pushState"; const { [K]: push } = history; push(null, "", "/");' },
+      expect: { count: 1 },
+      why: "a computed destructure key follows the same never-reassigned `let` as a computed member key: both read one shared resolver",
+    },
   ],
   mustPass: [
     {
@@ -201,7 +208,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/x.ts": 'let other = "x"; other = "replaceState"; history[other]();',
+        "packages/client/src/data/x.ts":
+          'let other = "x"; other = "replaceState"; history[other](); let K = "pushState"; K = "x"; const { [K]: push } = history; push();',
       },
       why: "declared limit: a `let` key that is reassigned names no ONE member, so it is unresolved (the never-reassigned `let` is a mustFlag row)",
     },

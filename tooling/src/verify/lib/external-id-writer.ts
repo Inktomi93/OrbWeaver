@@ -6,10 +6,11 @@
 // (docs/law/gate-runtime-standardization.md).
 
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import { staticString } from "@orb/tooling/floor/code-facts/reference-fact-static";
 import type { Node } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
-import { readStringConstant, referencesModuleExport } from "./symbol-reference.ts";
+import { referencesModuleExport } from "./symbol-reference.ts";
 
 const EXTERNAL_ID_KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
 /** The users-row write verbs: the two sessions persistence wrappers + the raw drizzle write surface. An
@@ -73,7 +74,7 @@ function isNullish(value: Node | undefined): boolean {
 // A property's key as written: `externalId`, `"externalId"`, or a computed `["externalId"]` / `[KEY]`.
 function propertyKey(nameNode: Node): string | undefined {
   if (nameNode.isKind(SyntaxKind.ComputedPropertyName)) {
-    return readStringConstant(nameNode.getExpression());
+    return staticString(nameNode.getExpression());
   }
   return nameNode.getText().replace(/["']/gu, "");
 }
@@ -298,7 +299,7 @@ export function rawUsersWrite(node: Node, rel: string): { readonly node: Node; r
   if (tag === undefined || text === undefined) {
     return;
   }
-  return RAW_USERS_WRITE.test(readStringConstant(text) ?? "") ? { node: tag, token: tag.getText() } : undefined;
+  return RAW_USERS_WRITE.test(staticString(text) ?? "") ? { node: tag, token: tag.getText() } : undefined;
 }
 
 // Does a positional insert's rows argument read an externalId (`${row.externalId}`, `{ externalId }`)?

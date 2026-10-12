@@ -10,7 +10,7 @@
 // no-off-token-inline-style(<position>): <reason>` at the exact offending property, not a re-grown file
 // table. FAMILY: singleton — this policy's own logic is intent (which token-backed property, which
 // carrier), and it consumes three already-shared `lib/` readers for identity (`unwrapExpression`,
-// `staticMemberAccess`, `readNumericConstant`, `readStringConstant` — `lib/ast-read.ts` +
+// `staticMemberAccess`, `staticNumber`, `staticString` — `lib/ast-read.ts` +
 // `lib/symbol-reference.ts`), which is exactly the shared-reader boundary the final contract asks for;
 // it has no sibling gate reusing those SAME readers for a related off-token-style intent, so it is not
 // merged with anything.
@@ -32,11 +32,11 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import { staticNumber, staticString } from "@orb/tooling/floor/code-facts/reference-fact-static";
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { readNumericConstant, readStringConstant } from "../lib/symbol-reference.ts";
 
 const MESSAGE =
   "off-token raw-literal inline style (tokens: packages/ui/src/tokens/tokens.json) — a token-backed CSS property " +
@@ -120,18 +120,18 @@ function isRawLiteralValue(value: string): boolean {
  *
  *  #1506: a NEGATIVE number is a `PrefixUnaryExpression`, not a NumericLiteral — `margin: -8` produced
  *  ZERO findings while `margin: 8` flagged, which made every off-token NEGATIVE offset invisible to this
- *  gate. `readNumericConstant` reads the sign (and a same-file `const GAP = -8`) and still refuses a
+ *  gate. `staticNumber` reads the sign (and a same-file `const GAP = -8`) and still refuses a
  *  value it cannot establish. */
 function staticLiteral(raw: Node | undefined): string {
   if (raw === undefined) {
     return "";
   }
   const node = unwrapExpression(raw); // see through `"8px" as string` / `("8px")` / `"8px" satisfies X`
-  const text = readStringConstant(node);
+  const text = staticString(node);
   if (text !== undefined) {
     return text;
   }
-  const numeric = readNumericConstant(node);
+  const numeric = staticNumber(node);
   return numeric === undefined ? "" : String(numeric);
 }
 
