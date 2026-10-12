@@ -18,27 +18,16 @@
 //      `domain/rpg/game-mint.ts#planLiteGameBirth` passes, so every knob is the schema's own default and the
 //      stat vocabulary is the ruleset's data. A fixture cannot invent a config a born game does not carry.
 //
-// `effectiveDelivery` is the one field mirrored by hand: its derivation (`deriveEffectiveDelivery`) lives in
-// `@orb/server/domain/rpg/substrate/readonly-axis.ts`, and client → server is an illegal import direction, so
-// this file restates the three-arm rule and cites it. That is a mirror, not a second law — if the arms move,
-// this comment is the grep target.
+// `effectiveDelivery` is the server's own `deriveEffectiveDelivery`, fed an unguarded connection whose
+// structured path is available: the `local-engine-fold-guard` and `structuredUnavailable` arms need a
+// connection no CT fixture models, so a story that wants one states `effectiveDelivery` and wins.
 
 import type { RpgEffectiveDelivery, RpgGameConfig, RpgGameView } from "@orb/contracts/rpg";
 import { RPG_RULESET_DEFAULT, RPG_RULESET_PROFILE, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { deriveEffectiveDelivery } from "@orb/server/domain/rpg";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
-
-/** The `deriveEffectiveDelivery` mirror (see header) — read-only wins outright (nothing writes, so neither
- *  "Live" nor "one beat behind" is true), otherwise the path is the mode. The `local-engine-fold-guard`
- *  fallback arm needs a guarded connection, which no CT fixture models; a story that wants it states
- *  `effectiveDelivery` and wins. */
-function effectiveDeliveryOf(mode: RpgGameConfig["extractionMode"], trackersReadOnly: boolean): RpgEffectiveDelivery {
-  if (trackersReadOnly) {
-    return { path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null };
-  }
-  return { path: mode === "folded" ? "folded" : "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null };
-}
 
 /**
  * A `rpg.getGame` view for a BORN lite game on `chatId`.
@@ -81,7 +70,9 @@ export function makeRpgGameView(
     trackersReadOnly,
     canPopulate: overrides.canPopulate ?? false,
     extractionMode: config.extractionMode,
-    effectiveDelivery: overrides.effectiveDelivery ?? effectiveDeliveryOf(config.extractionMode, trackersReadOnly),
+    effectiveDelivery:
+      overrides.effectiveDelivery ??
+      deriveEffectiveDelivery(config.extractionMode, { trackersReadOnly, foldGuarded: false, structuredUnavailable: false, stateRoundOverflow: null }),
     publicConfig: {
       statProfile: config.statProfile,
       ruleset: config.ruleset,

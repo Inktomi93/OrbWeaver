@@ -8,7 +8,7 @@
 
 import type { USER_ROLES } from "@orb/contracts/identity";
 import type { ProviderAvailability } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, ROUTABLE_TASKS } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, mintConnectionLabel, providerDisplayLabel, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -44,12 +44,12 @@ export const SUBSCRIPTION_RUNTIME_MISSING: readonly AvailabilityRow[] = BUILTIN_
   (provider): ProviderAvailability => (provider.id === "claude-sub" ? { provider, available: false, cause: "runtime-missing" } : { provider, available: true }),
 );
 
-function providerLabelOf(providerId: string): string {
+function builtinProvider(providerId: string): (typeof BUILTIN_PROVIDERS)[number] {
   const provider = BUILTIN_PROVIDERS.find((row) => row.id === providerId);
   if (provider === undefined) {
     throw new Error(`no built-in provider ${providerId}`);
   }
-  return provider.label;
+  return provider;
 }
 
 export function catalogEntry(id: string, name = id): CatalogEntry {
@@ -161,11 +161,17 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     return row;
   };
   const createConnection = (input: TrpcInput<"connection.create">): ConnectionRow => {
+    const provider = builtinProvider(input.providerId);
     const row = connectionRow({
       id: `user_connection_ctcreated0${connections.length + 1}`,
-      label: input.label ?? `${providerLabelOf(input.providerId)} · ${input.model}`,
+      label: mintConnectionLabel(
+        provider,
+        input.model,
+        connections.map((existing) => existing.label),
+        input.label,
+      ),
       providerId: input.providerId,
-      providerLabel: providerLabelOf(input.providerId),
+      providerLabel: providerDisplayLabel(provider),
       credentialId: input.credentialId,
       baseUrl: input.baseUrl,
       model: input.model,

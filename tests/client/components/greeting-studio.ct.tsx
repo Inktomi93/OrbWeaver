@@ -1,9 +1,8 @@
 // CT: the greeting studio (audit §3) — the tier-2 `components/` composite mounted by both the character
-// editor and the chat draft greeting row. Regression guards: (1) the transform chips render BLIND from the
-// `GREETING_TRANSFORMS` catalog (a card per contract entry, grouped by axis), and (2) the accept path fires
-// the character-update mutation ONCE (asserting the MUTATION count via routeTrpc's recorder, not a UI
-// reaction — the "assert the mutation fired" doctrine). The studio's own rewrite generation is a real
-// routeTrpc-stubbed mutation returning text; Accept then persists via character.update.
+// editor. Regression guards: (1) the transform chips render BLIND from the `GREETING_TRANSFORMS` catalog (a
+// card per contract entry, grouped by axis), and (2) Accept hands the generated text to `onAccept` ONCE. The
+// studio's own rewrite generation is a real routeTrpc-stubbed mutation returning text; what the editor does
+// with the accepted text (a form edit that autosaves) belongs to the editor, not to this component.
 
 import { GREETING_TRANSFORMS } from "@orb/contracts/preset";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -11,7 +10,6 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { makeCharacterDetail } from "../features/character/fixtures.ts";
 import { GreetingStudioStory } from "./greeting-studio.fixtures.tsx";
 
 test("chips render BLIND from the GREETING_TRANSFORMS catalog (one toggle per contract entry)", async ({ mount, page }) => {
@@ -27,14 +25,10 @@ test("chips render BLIND from the GREETING_TRANSFORMS catalog (one toggle per co
   await expect(page.locator('[data-slot="toggle"]')).toHaveCount(GREETING_TRANSFORMS.length);
 });
 
-test("Rewrite generates, then Accept fires the character-update mutation exactly once", async ({ mount, page }) => {
+test("Rewrite generates, then Accept hands the result to onAccept exactly once", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.getUserSettings": () => settingsStub(false),
-    // The studio's rewrite generation returns text; character.update is the accept-persist target. Its
-    // result is never read (`StudioHarness`'s mutation has no `optimistic`/`echo` config — `busDriven`
-    // invalidation is what refreshes the cache), but the wire answer is still the full updated row.
     "character.rewriteGreeting": { text: "A revised, formal greeting.", costUsd: null },
-    "character.update": makeCharacterDetail({ id: "character_ct_greeting" }),
   });
   await mount(<GreetingStudioStory />);
 
@@ -44,9 +38,9 @@ test("Rewrite generates, then Accept fires the character-update mutation exactly
   await expect(page.getByText("A revised, formal greeting.")).toBeVisible();
   await expect.poll(() => trpc.count("character.rewriteGreeting")).toBe(1);
 
-  // Accept → the character-update mutation fires ONCE (the durable append). Assert the MUTATION count.
+  // Accept → `onAccept` receives the previewed text ONCE.
   await page.getByRole("button", { name: "Accept", exact: true }).click();
-  await expect.poll(() => trpc.count("character.update"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.getByRole("list", { name: "Accepted greetings" }).getByRole("listitem")).toHaveText(["A revised, formal greeting."]);
 });
 
 // ARM B (the templating fork, rows 53-73): the transform picks ride the wire as KINDS — the fragment BYTES

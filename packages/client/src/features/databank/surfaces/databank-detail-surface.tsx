@@ -16,6 +16,7 @@
 // (`get({includeText:true})`, legacy's own good call) so revealing megabytes never re-suspends the header.
 // Chunk-boundary visualization is deliberately NOT designed — no server read exposes chunk text.
 
+import { ingestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
@@ -35,16 +36,7 @@ import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
-import {
-  characterCount,
-  documentTypeLabel,
-  ingestBadge,
-  ingestEmptyHint,
-  ingestPhase,
-  ingestStallHint,
-  originLabel,
-  passageTally,
-} from "../lib/databank-model.ts";
+import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);

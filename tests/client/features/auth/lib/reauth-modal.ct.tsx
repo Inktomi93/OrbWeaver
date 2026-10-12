@@ -7,10 +7,17 @@
 // `ct-resumes` counter is the proof of the new behavior: the session came back and this mount was NEVER
 // navigated away from (a rung-2 redirect would tear the whole component tree out from under the assertion).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { ReauthDismissalStory, ReauthLadderStory } from "../_ct-stories.tsx";
+
+/** The identity the mounted tree holds; the ladder compares the re-authed handle against it. */
+const VIEWER: TrpcWireOutput<"sessions.me"> = { userId: "usr_ct_owner", handle: castId<Handle>("owner"), globalRole: "owner" };
 
 /** `/api/auth/me` answers DEAD until the login POST lands, then ALIVE — the real sequence the ladder walks. */
 async function stubLocalAuth(page: Page): Promise<() => number> {
@@ -32,6 +39,7 @@ async function stubLocalAuth(page: Page): Promise<() => number> {
     }),
   );
   await stubAuthMe(page, () => (alive ? SIGNED_IN_OWNER_ME : SIGNED_OUT_ME));
+  await routeTrpc(page, { "sessions.me": () => VIEWER });
   await page.route("**/api/auth/login", (route) => {
     logins += 1;
     alive = true;
