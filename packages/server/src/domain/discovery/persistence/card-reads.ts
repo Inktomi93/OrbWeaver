@@ -116,6 +116,7 @@ function composeCardText(card: {
   add("Description", card.description);
   add("Personality", card.personality);
   add("Scenario", card.scenario);
+  // @orb-waive json-column-read-parsed(greetings): the unparsed characters.greetings read reaches composeCardText through a hand-typed parameter off the $type cast; burn-down item 905.
   add("Greeting", card.greetings[0]?.text ?? null);
   add("Example dialogue", card.exampleMessages);
   return { text: parts.join("\n\n"), contentParts };

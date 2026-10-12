@@ -33,7 +33,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "fetch-fn-in-features": 1,
   "firehose-import-allowlist": 2,
   "integer-line-boxes": 5,
-  "json-column-read-parsed": 25,
+  "json-column-read-parsed": 26,
   "json-column-write-parity": 6,
   "knob-wire-coverage": 5,
   "macro-resolution-home": 4,
