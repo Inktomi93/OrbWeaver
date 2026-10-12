@@ -19,6 +19,7 @@ import {
   allocateStageBand,
   DEFAULT_STAGE_CAP,
   DEFAULT_STAGE_TTL_MIN,
+  isSharedReuseCandidate,
   liveHoldersOf,
   resolveStageLimits,
   rowIsDangling,
@@ -197,6 +198,19 @@ test("a named session in the SAME checkout is a sibling: a rebuild gets its own 
   // Positive control: the same row under its own owner key is still "ours" and rebuilt in place.
   const own = allocateStageBand({ ...ALLOC, checkout: `${MAIN_CHECKOUT}#side-eye-a`, fresh: true, views: views([{ row: siblingSession }]) });
   expect(own).toEqual({ kind: "ours", band: 0, row: siblingSession });
+});
+
+test("another owner's --stage-db clone is never a shared-reuse candidate, whatever its health", () => {
+  const ask = { owner: `${MAIN_CHECKOUT}#side-eye-b`, targetSha: SHA, bandBound: true };
+  const theirs = row(0, { owner: `${MAIN_CHECKOUT}#side-eye-a` });
+  const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
+  expect(isSharedReuseCandidate(theirs, ask)).toBe(true);
+  expect(isSharedReuseCandidate({ ...theirs, dbProvenance: clone }, ask)).toBe(false);
+  // The clone's own owner, a different sha and an unbound band are not candidates either.
+  expect(isSharedReuseCandidate({ ...theirs, dbProvenance: clone }, { ...ask, owner: `${MAIN_CHECKOUT}#side-eye-a` })).toBe(false);
+  expect(isSharedReuseCandidate({ ...theirs, sha: OTHER_SHA }, ask)).toBe(false);
+  expect(isSharedReuseCandidate(theirs, { ...ask, bandBound: false })).toBe(false);
+  expect(isSharedReuseCandidate(null, ask)).toBe(false);
 });
 
 test("a sibling's HEALTHY row at our sha is a shared-reuse before any free band is taken", () => {

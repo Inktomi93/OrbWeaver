@@ -90,7 +90,7 @@ import {
   stageRowBaseUrl,
 } from "../lib/stage-plan.ts";
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
-import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
+import { acquireStageBand, claimRow, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef, stageCallerOwner } from "./stage-git.ts";
 import { holdStageUse } from "./stage-holders.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
@@ -189,37 +189,6 @@ function seedStageHumans(paths: StagePaths, ports: StagePorts): void {
 }
 
 // ── Orchestration ──────────────────────────────────────────────────────────────────────────────────────
-
-/** The PROVISIONAL row written inside the allocation lock, before the 55 s boot: it claims the band by
- *  name so a sibling entering the lock a millisecond later sees it occupied and takes the next one. The
- *  boot rewrites it with the real pid and the db provenance; a boot that throws clears it. */
-function claimRow(claim: {
-  readonly band: number;
-  readonly checkout: string;
-  readonly owner: string;
-  readonly targetSha: string;
-  readonly dir: string;
-  readonly nowIso: string;
-}): StageRow {
-  const { band, targetSha, dir, nowIso } = claim;
-  const ports = stageBandPorts(band);
-  return {
-    band,
-    sha: targetSha,
-    dir,
-    serverPort: ports.server,
-    vitePort: ports.vite,
-    checkout: claim.checkout,
-    owner: claim.owner,
-    ownerPid: null,
-    startedAt: nowIso,
-    lastUsedAt: nowIso,
-    holders: [],
-    sessions: [],
-    dbProvenance: null,
-    rsyncs: 0,
-  };
-}
 
 /** A boot onto a band whose old stack may still hold the ports would fail against it, or serve the old stack:
  *  an unconfirmed stop ends this run as a tool error. */

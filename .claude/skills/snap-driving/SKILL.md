@@ -237,9 +237,9 @@ label/value mid-transition.
 band from the repo-shared registry (`<main-checkout>/.cache/snap-stage/bands.json`); `--fresh` forces a
 rebuild. Stage when a drive window overlaps active lanes. Band `k` owns server `8888 + 10k` and Vite
 `5273 + 10k`; `--stage-status` shows the table, `--stage-sweep` reaps dead/idle rows. A foreign dirty
-rebuild or a full table refuses (exit 2) naming owners and never kills an incumbent. Concurrent sessions
-in one checkout set `ORB_SNAP_OWNER=<label>` so each gets its own stage dir and band; unset, the
-checkout is the owner. `--stage-down` targets the caller's rows; a checkout-wide or cross-checkout
+rebuild or a full table refuses (exit 2) naming owners and never kills an incumbent. A concurrent reviewer
+runs from its own worktree or sets `ORB_SNAP_OWNER=<label>`; the checkout (or label) is the owner that
+gets its own stage dir and band. `--stage-down` targets the caller's rows; a checkout-wide or cross-checkout
 teardown needs `--stage-owner <checkout> --force`. A run refuses (exit 2) when its stage's db changed
 after it bound the band. Never
 hand-kill stage pids; that strands registry ownership instead of releasing the band. When the band is

@@ -20,10 +20,10 @@ import type { PortOwner } from "../../floor/host/platform.ts";
 import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
 import type { StageAllocation, StageAuthMode, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
-import { rowOwner } from "../contract/stage.ts";
-import { allocateStageBand, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
+import { allocateStageBand, isSharedReuseCandidate, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";
 import { liveSessionNames } from "./session-registry.ts";
+import { currentHolder } from "./stage-holders.ts";
 import { readBands, withBandsLock, writeRow } from "./stage-marker.ts";
 import { bandIsBound, holderProcessRunning, pidIsStageRooted, stageHealthzOk, stageServedState, stageViteOk } from "./stage-probe.ts";
 
@@ -99,7 +99,6 @@ export function stageBandViews(input: {
     const ports = stageBandPorts(band);
     const bandBound = bandIsBound(ports, bound);
     const owners = [bound.get(ports.server), bound.get(ports.vite)].filter((owner): owner is PortOwner => owner !== undefined);
-    const sharedCandidate = row !== null && rowOwner(row) !== input.checkout && row.sha === input.targetSha && bandBound;
     return {
       band,
       row,
@@ -108,11 +107,42 @@ export function stageBandViews(input: {
       // band entirely, because killing its group could take an unrelated server with it (#324's fence). An
       // owner the OS will not name is such a holder.
       bandIsStageRooted: owners.length > 0 && owners.every((owner) => owner.kind === "pid" && pidIsStageRooted(owner.pid)),
-      healthy: sharedCandidate && stageRowHealth(row, input.nowMs) === "warm",
+      healthy: isSharedReuseCandidate(row, { owner: input.checkout, targetSha: input.targetSha, bandBound }) && stageRowHealth(row, input.nowMs) === "warm",
       liveSessions: row === null ? [] : row.sessions.filter((name) => live.has(name)),
       liveHolders: row === null ? [] : liveHoldersOf(row, input.nowMs, holderProcessRunning),
     };
   });
+}
+
+/** The PROVISIONAL row written inside the allocation lock, before the 55 s boot: it claims the band by
+ *  name so a sibling entering the lock a millisecond later sees it occupied and takes the next one. The
+ *  boot rewrites it with the real pid and the db provenance; a boot that throws clears it. */
+export function claimRow(claim: {
+  readonly band: number;
+  readonly checkout: string;
+  readonly owner: string;
+  readonly targetSha: string;
+  readonly dir: string;
+  readonly nowIso: string;
+}): StageRow {
+  const { band, targetSha, dir, nowIso } = claim;
+  const ports = stageBandPorts(band);
+  return {
+    band,
+    sha: targetSha,
+    dir,
+    serverPort: ports.server,
+    vitePort: ports.vite,
+    checkout: claim.checkout,
+    owner: claim.owner,
+    ownerPid: null,
+    startedAt: nowIso,
+    lastUsedAt: nowIso,
+    holders: [currentHolder(claim.owner)],
+    sessions: [],
+    dbProvenance: null,
+    rsyncs: 0,
+  };
 }
 
 /** Read the table, judge every band, decide, and — for the two arms that take a band we do not already
