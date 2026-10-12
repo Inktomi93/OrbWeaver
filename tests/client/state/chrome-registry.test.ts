@@ -5,7 +5,7 @@
 // their `body("sheet")` lens, the You tab badges their `useBadge` count). `mobileBarCuration` decides who
 // is a TAB right now: the current section always holds a bar slot (#484), borrowing the last standing one.
 
-import type { ChromeEntry, SectionId } from "@orb/client/state";
+import type { ChromeEntry, RailZone, SectionId } from "@orb/client/state";
 import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -25,7 +25,7 @@ function section(
   sectionId: SectionId,
   group: NonNullable<ChromeEntry["group"]>,
   mobile: NonNullable<ChromeEntry["mobile"]>,
-  zone: ChromeEntry["zone"] = "rail.nav",
+  zone: RailZone = "rail.nav",
 ): ChromeEntry {
   return { id: sectionId, label: sectionId, zone, group, mobile, behavior: { kind: "section", sectionId } };
 }

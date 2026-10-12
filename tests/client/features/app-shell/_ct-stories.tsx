@@ -864,7 +864,7 @@ export function YouSheetProjectionStory(): ReactElement {
       icon: Command,
       zone: "topbar.trail",
       mobile: "sheet",
-      behavior: { kind: "modal", modalId: "command" },
+      behavior: { kind: "modal", modalId: "command", icon: Command },
     },
     {
       // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).

@@ -13,9 +13,9 @@
 // topbar rendering a bespoke ⌘K chip off its own `useModalRegistry()` lookup — the §E-2 note called that a
 // VISIBLE change deferred to N1's skin pass. It is no longer deferred, and the deferral had a cost D73 does
 // not tolerate: the zone's CONTENTS and its ORDER came from a second place, so the ONE registry could not
-// answer for the affordance its own lens was supposed to own. The chip's rendered anatomy is unchanged —
-// `CommandChip` is now the presentation the trail's MODAL arm draws (topbar-trail.tsx), reached through the
-// entry, and its lead position is `commandModal.trigger.order` (-10) rather than a JSX position.
+// answer for the affordance its own lens was supposed to own. `CommandChip` is the presentation the trail's
+// MODAL arm draws (topbar-trail.tsx), reached through the entry, and its lead position is
+// `commandModal.trigger.order` (-10) rather than a JSX position.
 //
 // The other two placements are NOT chrome, by ruling: `surface` is reached only by an explicit
 // `openModal(id)` from inside a feature surface, and `mobile-tab` is the You sheet — whose bar button is the
@@ -64,7 +64,7 @@ function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
  *  a trigger whose position is a DECISION declares it (⌘K's `-10` leads `topbar.trail`); `mobile` is spread
  *  only when declared (exactOptionalPropertyTypes: an explicit `undefined` is not the same as absent, and
  *  absent is what `ChromeEntry` documents as "the zone's default"). The affordance opens the modal (the
- *  behavior arm carries only the id). */
+ *  behavior arm carries the id and the trigger's glyph, which the trail draws). */
 function modalEntry(def: ModalDefinition, zone: ChromeZone, index: number): ChromeEntry {
   return {
     id: def.id,
@@ -73,7 +73,7 @@ function modalEntry(def: ModalDefinition, zone: ChromeZone, index: number): Chro
     zone,
     order: def.trigger.order ?? index,
     ...(def.trigger.mobile === undefined ? {} : { mobile: def.trigger.mobile }),
-    behavior: { kind: "modal", modalId: def.id },
+    behavior: { kind: "modal", modalId: def.id, icon: def.trigger.icon },
   };
 }
 
