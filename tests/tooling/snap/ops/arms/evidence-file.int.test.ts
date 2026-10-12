@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
+
 // EVERY PAGE ARM FILES WHAT IT PRINTS (#1342). A run's end card names `EVIDENCE <run.json>` as the receipt
 // a review cites; before this, the values behind that receipt were on the reviewer's terminal and nowhere
 // else.

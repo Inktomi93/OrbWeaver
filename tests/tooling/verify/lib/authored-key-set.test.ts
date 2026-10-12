@@ -2,10 +2,10 @@
 // with a reason rather than with an empty set. A resolved empty set and an `unresolved` fact are different
 // answers, and a consumer that fails closed depends on the difference.
 
-import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { CallExpression, Node, SourceFile } from "ts-morph";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
+import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { readAuthoredKeySet, readCallReturns } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
+import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function sourceOf(files: Readonly<Record<string, string>>, entry = "use.ts"): SourceFile {
@@ -186,20 +186,4 @@ test("REFUSES an expression that authors no properties at all", () => {
   const sf = one('export const payload = "just a string";');
 
   expect(refusal(payload(sf))).toEqual({ reason: "unsupported", detail: expect.stringContaining("authors no statically readable property names") });
-});
-
-test("readCallReturns hands back every return of a local factory and refuses an unreachable one", () => {
-  const sf = one(`
-    function two(flag: boolean) {
-      if (flag) { return { a: 1 }; }
-      return { b: 2 };
-    }
-    export const both = two(true);
-    export const missing = notDeclaredAnywhere();
-  `);
-  const call = (name: string): CallExpression => payload(sf, name).asKindOrThrow(SyntaxKind.CallExpression);
-  const returns: ReferenceFact<readonly Node[]> = readCallReturns(call("both"));
-
-  expect(returns.kind === "resolved" ? returns.value.map((node) => node.getText()) : returns.detail).toEqual(["{ a: 1 }", "{ b: 2 }"]);
-  expect(readCallReturns(call("missing")).kind).toBe("unresolved");
 });

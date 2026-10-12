@@ -7,6 +7,7 @@
 // The macro is deliberately named so no builtin is a fuzzy match for its prefix — a popover row proving the
 // plane landed must not be satisfiable by the builtin catalog alone.
 
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";

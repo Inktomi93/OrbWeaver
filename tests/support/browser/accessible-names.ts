@@ -27,6 +27,7 @@
 //   Indentation is two spaces per level and encodes ancestry, which is what makes the duplicate-name
 //   probe scope-aware instead of page-global.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import type { Locator, Page } from "@playwright/test";
 
 /** One node of the parsed ARIA tree. `scope` is the ancestor chain that disambiguates a repeated name. */

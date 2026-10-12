@@ -20,6 +20,7 @@
 // harness's rendering context is not the app's, and a literal both fails correct fixes and survives a token
 // retune.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import type { Locator, Page } from "@playwright/test";
 import { pseudoHitEnvelope, readPseudoGeometry, walkFrom } from "../iso/hit-extent-walk.ts";
 

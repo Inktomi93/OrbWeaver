@@ -25,7 +25,9 @@ function tokens(colors: Record<string, unknown>): Record<string, unknown> {
 }
 
 test("the real tokens.json carries no un-referenced near-duplicate colours", () => {
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const source = JSON.parse(readFileSync(TOKENS_JSON, "utf8")) as Record<string, unknown>;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const lightSource = JSON.parse(readFileSync(LIGHT_JSON, "utf8")) as Record<string, unknown>;
   expect(() => assertNoNearDuplicateColors(source, { lightSource })).not.toThrow();
 });
@@ -59,12 +61,14 @@ test("the epsilon clears the DELIBERATE elevation ladder (0.010 L steps) and cat
 
 test("split light-dark values are duplicates only when BOTH polarity arms coincide", () => {
   const base = tokens({ destructive: color(0.65, 0.19, 25), other: color(0.3, 0.19, 25) });
+  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   for (const node of Object.values(base["color"] as Record<string, Record<string, unknown>>)) {
     node["$extensions"] = { "orb.output": { kind: "light-dark" } };
   }
   const oneArmLight = tokens({ destructive: color(0.5, 0.19, 25), other: color(0.5, 0.19, 25) });
   expect(() => assertNoNearDuplicateColors(base, { lightSource: oneArmLight })).not.toThrow();
 
+  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   ((base["color"] as Record<string, Record<string, unknown>>)["other"] ?? {})["$value"] = color(0.653, 0.19, 25);
   const bothArmsLight = tokens({ destructive: color(0.5, 0.19, 25), other: color(0.503, 0.19, 25) });
   expect(() => assertNoNearDuplicateColors(base, { lightSource: bothArmsLight })).toThrow(NEAR_DUPLICATE_RED);
@@ -72,6 +76,7 @@ test("split light-dark values are duplicates only when BOTH polarity arms coinci
 
 test("a plain value and a split light-dark value are different value-spaces — never compared", () => {
   const base = tokens({ plain: color(0.5, 0.19, 25), polar: color(0.5, 0.19, 25) });
+  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const polar = (base["color"] as Record<string, Record<string, unknown>>)["polar"];
   if (polar === undefined) {
     throw new Error("fixture missing polar token");

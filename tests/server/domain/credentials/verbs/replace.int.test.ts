@@ -1,4 +1,5 @@
 // verb: replace — the one explicit way a stored key's secret changes: in place by id, owner-scoped.
+// @subject packages/server/src/domain/credentials/verbs/replace.ts
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";

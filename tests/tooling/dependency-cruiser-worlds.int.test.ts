@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(typeof report): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+
 // Test-helper world boundaries include erased type imports; native resolution owns the edge identity.
 import { copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

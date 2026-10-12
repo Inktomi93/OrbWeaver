@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ run: { verdict: string; nonVerdictReason: string | null } }): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE PER-POLICY DELTA'S OWN REFUSALS (#2110, #2223) — `pnpm check:structure-delta`.
 //
 // WHY THIS FILE EXISTS. The instrument's stated contract is "a calm zero from a broken read is worse than
@@ -148,6 +150,7 @@ function plantSlot(root: string, id: string, startedAt: string, policies: readon
 function plantSourceScopedSlot(root: string, id: string, startedAt: string, policies: readonly PlantedPolicy[]): void {
   plantSlot(root, id, startedAt, policies);
   const path = join(root, "reports", "runs", "structure", id, "check-structure.json");
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(readFileSync(path, "utf8")) as {
     run: {
       scope: {
@@ -165,6 +168,7 @@ function plantSourceScopedSlot(root: string, id: string, startedAt: string, poli
 
 function plantErrors(root: string, id: string, errors: PlantedErrors): void {
   const path = join(root, "reports", "runs", "structure", id, "check-structure.json");
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(readFileSync(path, "utf8")) as {
     toolErrors: unknown[];
     policy: { toolErrors: unknown[]; factErrors: unknown[]; authority: { toolErrors: unknown[] } };

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+
 // @instrument-proof: every completed Snap run after slot open creates one immutable versioned run index,
 // prints a bounded receipt card, and can be read browser-free by absolute path, exact id, or local latest.
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
@@ -291,6 +293,7 @@ test("a completed run writes a self-consistent index and its receipt READ comman
     env: { [RUN_LANE_ENV]: lane, [RUN_AGENT_ENV]: "bundle-agent", [BOX_LOAD_ENV]: QUIET_BOX },
   });
   const path = indexPath(run.stdout);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.v).toBe(1);
   expect(path).toContain(index.identity.runId);
@@ -448,6 +451,7 @@ test("THE INVERSE: a load-suspect arm annotates the same clean run — one uncou
     "--no-shot",
     "--no-deadcss",
   ]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   const annotations = index.findings.filter((finding) => finding.severity === "annotation");
@@ -486,7 +490,9 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
   const linkedSlot = await openSlot(linked, "collision");
   registerSnapResultPairs([["app-snapshot", "measured"]]);
   const linkedPath = await completeSnapRun(linkedSlot.completion, parseSnapArgs([]), ["snap"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const main = JSON.parse(await readFile(mainPath, "utf8")) as RunIndex;
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const sibling = JSON.parse(await readFile(linkedPath, "utf8")) as RunIndex;
 
   expect(main.identity.sha).toBe(sibling.identity.sha);
@@ -519,6 +525,7 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
   const absentSlot = await openSlot(root, "static-absent");
   registerSnapResultPairs([["app-snapshot", "absent"]]);
   const absentPath = await completeSnapRun(absentSlot.completion, parseSnapArgs([]), ["snap", "--file", "static.html"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const absent = JSON.parse(await readFile(absentPath, "utf8")) as RunIndex;
   expect(absent.verdict.arms.find((arm) => arm.arm === "app-snapshot")).toMatchObject({
     state: "refused",
@@ -607,6 +614,7 @@ test("failed Git identity reads are unknown with field-level failures rather tha
   const slot = await openSlot(root, "unknown-source");
   registerSnapResultPairs([["app-snapshot", "measured"]]);
   const path = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.identity).toMatchObject({
     sha: "unavailable",
@@ -635,13 +643,17 @@ test("browser-free reader preserves explicit early-v1 compatibility while curren
   const slot = await openSlot(root, "legacy-v1");
   registerSnapResultPairs([["app-snapshot", "absent"]]);
   const path = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap"]);
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const current = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const identity = current["identity"] as Record<string, unknown>;
   identity["indexPath"] = undefined;
   identity["slotPath"] = undefined;
   identity["checkouts"] = undefined;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const provenance = current["provenance"] as Record<string, unknown>;
   provenance["stage"] = "live";
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const diagnostics = current["diagnostics"] as Record<string, unknown>;
   diagnostics["counts"] = undefined;
   diagnostics["rawChannels"] = undefined;
@@ -785,6 +797,7 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
   } finally {
     releaseReceipt();
   }
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   expect(index.diagnostics).toMatchObject({ state: "incomplete", totals: { dropped: 4, complete: false }, records: { total: 25 } });
@@ -931,6 +944,7 @@ test("named session on an isolated stage preserves multi-context diagnostic iden
   });
   registerSnapResultPairs([["app-snapshot", "measured"]]);
   const path = await completeSnapRun(slot.completion, parseSnapArgs(["--session", "p-isolated"]), ["snap", "--session", "p-isolated"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   expect(index.identity).toMatchObject({
@@ -1000,6 +1014,7 @@ test("a slot holds one diagnostic artifact per capture — distinct names, a rep
 
   registerSnapResultPairs([["app-snapshot", "measured"]]);
   const runIndexPath = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap", "--matrix"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(runIndexPath, "utf8")) as RunIndex;
   expect(index.diagnostics.recordArtifacts).toEqual(expect.arrayContaining([...paths]));
   expect(index.diagnostics.records.total).toBe(3);
@@ -1187,6 +1202,7 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
   ]);
   const opts = { ...parseSnapArgs(["--requests"]), interactionPerf: true } satisfies Args;
   const path = await completeSnapRun({ ...slot.completion, exit: EXIT.violations }, opts, ["snap", "--requests", "--perf"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   const unsafe = index.findings.find((finding) => finding.what.includes("ERR_UNSAFE_PORT"));
@@ -1287,6 +1303,7 @@ test("a malformed core completeness receipt is an explicit indexed problem rathe
   }
   registerSnapResultPairs([["app-snapshot", "measured"]]);
   const path = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.verdict).toMatchObject({ exit: EXIT.clean, state: "passed" });
   expect(index.findings).toEqual([
@@ -1328,6 +1345,7 @@ test("interrupted session runs synthesize terminal evidence, indices are immutab
     },
   });
   const path = await completeSnapRun(interrupted, opts, ["snap", "--react-profile"]);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   expect(index.verdict).toMatchObject({ exit: EXIT.toolError, state: "refused" });
@@ -1422,6 +1440,7 @@ test("refusal after slot is indexed with a truthful terminal verdict", async ({ 
   const run = await runCli("snap", ["--file", missing, "--text"], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(run).toExitWith(EXIT.violations);
   const path = indexPath(run.stdout);
+  // @orb-waive no-test-fabrication(RunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.verdict.exit).not.toBe(EXIT.clean);
   expect(index.verdict.arms.some((arm) => arm.state === "refused" || arm.state === "failed")).toBe(true);
@@ -1536,6 +1555,7 @@ function firstDiagnosticRecord(artifact: Record<string, unknown>): Record<string
   if (typeof first !== "object" || first === null) {
     throw new Error("planted diagnostic artifact has no first record");
   }
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return first as Record<string, unknown>;
 }
 
@@ -1569,6 +1589,7 @@ test("diagnostic disk evidence rejects noncanonical identity and incomplete meas
     [
       "policy",
       (artifact): void => {
+        // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
         const receipt = firstDiagnosticRecord(artifact)["_orbMeasuredLimit"] as Record<string, unknown>;
         receipt["policy"] = { maxDepth: 1 };
       },
@@ -1576,6 +1597,7 @@ test("diagnostic disk evidence rejects noncanonical identity and incomplete meas
     [
       "event",
       (artifact): void => {
+        // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
         const receipt = firstDiagnosticRecord(artifact)["_orbMeasuredLimit"] as Record<string, unknown>;
         receipt["events"] = [{ kind: "unknown", path: "$.text", original: 1, retained: 1, omitted: -1 }];
       },
@@ -1583,6 +1605,7 @@ test("diagnostic disk evidence rejects noncanonical identity and incomplete meas
     [
       "batch-policy",
       (artifact): void => {
+        // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
         const receipt = artifact["_orbMeasuredLimit"] as Record<string, unknown>;
         receipt["policy"] = { maxDepth: 1 };
       },

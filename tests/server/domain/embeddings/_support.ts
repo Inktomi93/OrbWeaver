@@ -11,6 +11,8 @@
 // Seeds the FK parents (`users` → `characters` / `assets`) directly — a fixture may read/write `users` (the
 // `no-direct-users-read` gate scopes only `packages/server/src/domain`).
 
+// @orb-waive-file no-test-fabrication(AssetId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
@@ -47,6 +49,7 @@ import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 
 /** The test embed space `(model, dim)`. Small dim keeps vectors cheap; the model strings are the space tag. */

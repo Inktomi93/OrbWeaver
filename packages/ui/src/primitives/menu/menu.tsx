@@ -25,6 +25,7 @@ import { menuVariants } from "./variants.ts";
 
 const slots = menuVariants();
 
+// @orb-waive no-vanity-alias(DEFAULT_SIDE_OFFSET): baselined when the gate widened; burn-down item 906.
 // = --spacing-row (0.5rem); Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 

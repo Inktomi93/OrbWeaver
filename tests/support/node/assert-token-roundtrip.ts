@@ -21,6 +21,7 @@
 // user-macro bodies calls `assertTokenRoundtrip` on its template-text field — no per-editor re-spelling of
 // the assertion, so the invariant cannot drift editor to editor.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { TrpcProcedurePath, TrpcRecorder } from "./route-trpc.ts";

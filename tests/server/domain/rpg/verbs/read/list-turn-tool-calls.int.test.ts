@@ -6,6 +6,7 @@
 // (`getConfigView`, `revealHidden`) exists to keep something from a member; this one deliberately does not —
 // a tool call is the mechanical record of a turn everyone at the table watched. So the cross-tenant belt
 // carries the whole load, and these pin both halves: a MEMBER sees it, a STRANGER gets leak-free NOT_FOUND.
+// @subject packages/server/src/domain/rpg/verbs/read/list-turn-tool-calls.ts
 
 import type { Db } from "@orb/db";
 import type { Handle, RpgTurnToolCallsId } from "@orb/kit/ids";

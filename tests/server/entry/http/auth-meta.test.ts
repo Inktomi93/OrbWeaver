@@ -5,6 +5,7 @@
 // middleware-resolved principal (authenticated/handle/role) and never resolves a second time. Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context (the healthz.test.ts pattern).
 
+// @orb-waive-file no-test-fabrication({ image: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Handle, UserId } from "@orb/kit/ids";

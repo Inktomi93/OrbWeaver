@@ -75,6 +75,7 @@ import { makeCharacter } from "../../../support/factories/character.ts";
 import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 export const FROZEN_AT = FROZEN_AT_MS;
 
 /** A CLAIM chokepoint that does nothing (R0). Every chat these suites seed is born CLAIMED (the `seedChat`
@@ -557,11 +558,13 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // verbs push on every write path now; a test that asserts stats overrides with a recorder).
     applyStatsDelta: () => undefined,
     applyCharacterStatsDelta: (batch, opDb, delta) => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyCharacterStatsDelta(batch as BatchStmt[], opDb, delta);
     },
     resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(db),
     resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
     settleRetainedChatRebase: (batch, opDb, scope) => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
     },
     bumpStatsCanonVersion: () => undefined,
@@ -583,6 +586,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // transition still lands; a test that asserts events overrides with a recorder that does the same.
     emitNotification: async (_event, coStatements) => {
       if (coStatements !== undefined && coStatements.length > 0) {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         await db.batch(batchMany(coStatements as BatchStmt[]));
       }
     },

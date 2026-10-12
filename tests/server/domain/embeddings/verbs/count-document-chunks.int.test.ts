@@ -1,6 +1,7 @@
 // verb: countDocumentChunks — the DocumentView chunk-count read the databank domain injects (embeddings owns
 // `document_chunks`). Returns a Map keyed by documentId for the active model; documents with zero chunks are
 // absent (the caller defaults to 0); a different model scopes to zero; empty input → empty map.
+// @subject packages/server/src/domain/embeddings/verbs/count-document-chunks.ts
 
 import type { DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

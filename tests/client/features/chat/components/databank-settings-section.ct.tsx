@@ -4,6 +4,7 @@
 // updateUserSettingsSection("databank") with the section patch (retrieval leaf re-nested + the slot budget).
 // Proves the previously-dormant databank retrieval knobs now have a real write path.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -44,6 +45,7 @@ test("stepping k fires updateUserSettingsSection('databank') with the re-nested 
   await page.getByRole("button", { name: "Increase" }).first().click();
   await expect(page.getByRole("textbox", { name: "Documents retrieved" })).toHaveValue("6");
   // The autosave form submits the whole section — the retrieval leaf carries k (moved) + minScore/rerank.
+  // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
   await expect
     .poll(() => (lastSettingsPatch(trpc, "databank")?.["retrieval"] as Record<string, unknown> | undefined)?.["k"], { intervals: [20, 50, 100] })
     .toBe(6);
@@ -54,6 +56,7 @@ test("toggling rerank fires the databank patch with rerank=true", async ({ mount
   const trpc = await stub(page);
   await mount(<DatabankSettingsSectionStory />);
   await page.getByRole("switch", { name: "Rerank results" }).click();
+  // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
   await expect
     .poll(() => (lastSettingsPatch(trpc, "databank")?.["retrieval"] as Record<string, unknown> | undefined)?.["rerank"], { intervals: [20, 50, 100] })
     .toBe(true);

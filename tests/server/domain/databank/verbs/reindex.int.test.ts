@@ -1,5 +1,6 @@
 // verb: reindex — enqueue a databank-reindex workload (owner-gated). A `document` scope verifies ownership
 // before enqueue (foreign → NotFound, no enqueue); an `owner` scope enqueues over the caller's whole bank.
+// @subject packages/server/src/domain/databank/verbs/reindex.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

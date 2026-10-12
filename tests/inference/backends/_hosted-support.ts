@@ -37,6 +37,7 @@ export function scriptedSseFetch(
     const events = streams[Math.min(call, streams.length - 1)] ?? [];
     call += 1;
     const raw = typeof init?.body === "string" ? init.body : "{}";
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown>, headers: Object.fromEntries(new Headers(init?.headers).entries()) });
     return Promise.resolve(new Response(sseBody(events), { status: 200, headers: { "content-type": "text/event-stream", ...headers } }));
   };
@@ -275,6 +276,7 @@ export function scriptedJsonFetch(bodies: readonly string[], recorded: RecordedR
     const body = bodies[Math.min(call, bodies.length - 1)] ?? "{}";
     call += 1;
     const raw = typeof init?.body === "string" ? init.body : "{}";
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
     return Promise.resolve(new Response(body, { status, headers: { "content-type": "application/json" } }));
   };

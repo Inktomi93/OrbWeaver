@@ -7,6 +7,8 @@
 // DTCG ramp to live values via `useChartTheme` and passes them in, because ECharts' canvas can't resolve
 // `var()`. This pins the pass-through + palette-by-index contract with a fixture palette.
 
+// @orb-waive-file no-test-fabrication({ itemStyle: { color: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ itemStyle: { color: string }; data: { name: string; value: [number, number, string] }[] }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChartColors } from "#ui/charts/chart/use-chart-theme.ts";
 import { buildScatterOption, pointId } from "#ui/charts/scatter/option.ts";
 import { expect, test } from "../../../support/fixtures.ts";

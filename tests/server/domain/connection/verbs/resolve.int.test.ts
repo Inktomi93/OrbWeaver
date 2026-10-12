@@ -3,6 +3,7 @@
 // included — it is the turn's input), while `resolveChatCapability` hands back the credential-free view;
 // `availability` answers a VERDICT where `resolve` throws; and `capabilities` refuses a row that is not the
 // caller's rather than describing a stranger's model.
+// @subject packages/server/src/domain/connection/verbs/resolve.ts
 
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, requireGenerationCapability, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

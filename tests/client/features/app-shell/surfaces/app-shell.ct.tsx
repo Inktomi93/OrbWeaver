@@ -23,6 +23,13 @@
 // `tests/client/routes/app-root.ct.tsx`; a defect in title composition must be pinned THERE. Do not restate
 // that file's pins here — a duplicate over a fake registry proves the fake, not the product.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(KeyframeEffect | null): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(number[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(typeof globalThis & { __commandListenerProbe: { active: Set<EventListenerOrEventListenerObject>; adds: number; removes: number } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(typeof globalThis & { __ctPanelTasks: { tick: number; mode: boolean; body: boolean }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ state?: { panelOverrides?: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -3191,6 +3198,7 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
     // two-totals note — that exclusion is precisely what hid this defect).
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
+        // @orb-waive no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
         bag.__shiftTotal += (entry as PerformanceEntry & { value: number }).value;
       }
     }).observe({ type: "layout-shift" });
@@ -4653,6 +4661,7 @@ test("#262 reduced motion: the section swap records no meaningful layout shift",
     bag.__settleShift = 0;
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
+        // @orb-waive no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
         bag.__settleShift += (entry as PerformanceEntry & { value: number }).value;
       }
     }).observe({ type: "layout-shift" });
@@ -5509,6 +5518,7 @@ async function samplePixel(page: Page, x: number, y: number): Promise<Rgb> {
 async function listPanelEdgeRatio(page: Page, panel: Locator): Promise<number> {
   const box = await panel.boundingBox();
   expect(box, "the list panel probe must be laid out before its edge can be sampled").not.toBeNull();
+  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const midY = Math.floor(y + height / 2);
   const [edge, interior] = await Promise.all([samplePixel(page, Math.floor(x + width) - 1, midY), samplePixel(page, Math.floor(x + width) - 8, midY)]);
@@ -7322,6 +7332,7 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
   const panel = light.getByTestId("panel-probe");
   const box = await panel.boundingBox();
   expect(box, "the pane must be laid out before its fill can be sampled").not.toBeNull();
+  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await panel.evaluate((el) => {
@@ -7405,6 +7416,7 @@ function tokenInk(probe: Locator, varName: string): Promise<Rgb> {
 async function landedMutedContrast(page: Page, probe: Locator): Promise<{ readonly ratio: number; readonly landed: Rgb; readonly ink: Rgb }> {
   const box = await probe.boundingBox();
   expect(box, "the probe must be laid out before its pixels can be sampled").not.toBeNull();
+  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await tokenInk(probe, "--color-muted-foreground");

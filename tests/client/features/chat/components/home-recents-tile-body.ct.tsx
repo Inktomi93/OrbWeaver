@@ -15,6 +15,7 @@
 // it is. The map's `chat.listMessages` row rides along because the two are one feed â€” the owner ruled that
 // read is NOT warmed (`use-prefetch-room.ts` carries the numbers), so nothing here requests it.
 
+// @orb-waive-file no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatRecentsHeroArtStory, ChatRecentsMobileStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
@@ -239,7 +240,9 @@ test("#102/P2-5 CD3: the hero's focal is an elevated island + a ::before glow â€
       probe.remove();
       /** One edge, as the accent-border checker reads it: its width and its resolved colour. */
       const edges = (["Top", "Right", "Bottom", "Left"] as const).map((side) => ({
+        // @orb-waive no-test-fabrication("borderTopWidth"): baselined when the gate widened to value casts; burn-down item 906.
         width: Number.parseFloat(own[`border${side}Width` as "borderTopWidth"]),
+        // @orb-waive no-test-fabrication("borderTopColor"): baselined when the gate widened to value casts; burn-down item 906.
         color: own[`border${side}Color` as "borderTopColor"],
       }));
       return { edges, ownShadow: own.boxShadow, haloShadow: halo.boxShadow, background: own.backgroundColor, speaker };
@@ -254,7 +257,9 @@ test("#102/P2-5 CD3: the hero's focal is an elevated island + a ::before glow â€
     probe.remove();
     /** One edge, as the accent-border checker reads it: its width and its resolved colour. */
     const edges = (["Top", "Right", "Bottom", "Left"] as const).map((side) => ({
+      // @orb-waive no-test-fabrication("borderTopWidth"): baselined when the gate widened to value casts; burn-down item 906.
       width: Number.parseFloat(own[`border${side}Width` as "borderTopWidth"]),
+      // @orb-waive no-test-fabrication("borderTopColor"): baselined when the gate widened to value casts; burn-down item 906.
       color: own[`border${side}Color` as "borderTopColor"],
     }));
     return { edges, ownShadow: own.boxShadow, haloShadow: halo.boxShadow, background: own.backgroundColor, speaker };

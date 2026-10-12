@@ -7,6 +7,7 @@
 // credential 401, a store failure or a malformed query here would turn a real fault into a silent empty
 // recall that no surface reports. Only the owner's SPACE being unqueryable is an ordinary state.
 
+// @orb-waive-file no-test-fabrication(SearchError): baselined when the gate widened to value casts; burn-down item 906.
 import { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { withRetrievalDegrade } from "#server/entry/compose/retrieval-degrade.ts";

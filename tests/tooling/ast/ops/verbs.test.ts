@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication(readonly { label: string }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ total: number; hits: { file: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ total: number; shown: number; hits: Hit[]; meta: { matches: number; status: string } }): baselined when the gate widened to value casts; burn-down item 906.
+
 // Command-level lens and formatting proofs over tiny projects. These call the production VERBS table,
 // ledger, emitter, TypeScript checker, and module resolver; only repository bootstrap/process behavior
 // remains in cli.repo.int.test.ts.
@@ -145,6 +149,7 @@ describe("ast command output over bounded projects", () => {
   test("a narrated single-result verb emits exactly one parseable JSON value", () => {
     const project = projectOf({ "packages/client/src/probe.ts": "export const present = 1;" });
     const run = runVerb(project, { verb: "dead", arg: "missing", argv: ["--json"], corpus: CORPUS_TYPED });
+    // @orb-waive no-test-fabrication({ label: string; total: number; hits: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
     const parsed = JSON.parse(run.stdout) as { label: string; total: number; hits: unknown[] };
     expect(parsed).toMatchObject({ label: "dead missing", total: 0, hits: [] });
     expect(run.stderr).toContain("dead missing: no declaration found");
@@ -475,6 +480,7 @@ db.select().from(healthy);`,
     expect(run.stdout).toContain("columns: 4 column(s) across 2 table(s)");
 
     const jsonRun = runVerb(project, { verb: "columns", arg: "", argv: ["--all", "--json", "--max", "20"], corpus: CORPUS_TYPED });
+    // @orb-waive no-test-fabrication({ label: string; total: number; hits: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(jsonRun.stdout) as { label: string; total: number; hits: unknown[] };
     expect(payload).toMatchObject({ label: "columns (all tables)", total: 1 });
     expect(payload.hits).toHaveLength(1);
@@ -501,11 +507,13 @@ export const read = (): unknown => widgets.live;`,
     const tableHits = (files: Readonly<Record<string, string>>): readonly Hit[] => {
       const run = runVerb(projectOf({ ...base, ...files }), { verb: "columns", arg: "widgets", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
       expect(run.status).toBe(0);
+      // @orb-waive no-test-fabrication({ hits: Hit[] }): baselined when the gate widened to value casts; burn-down item 906.
       const payload = JSON.parse(run.stdout) as { hits: Hit[] };
       return payload.hits.filter(({ kind }) => kind === "column-table-producerless");
     };
 
     const missingWriter = runVerb(projectOf(base), { verb: "columns", arg: "widgets", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
+    // @orb-waive no-test-fabrication({ hits: Hit[] }): baselined when the gate widened to value casts; burn-down item 906.
     const missingPayload = JSON.parse(missingWriter.stdout) as { hits: Hit[] };
     expect(missingPayload.hits.filter(({ kind }) => kind === "column-table-producerless")).toHaveLength(1);
     expect(new Set(missingPayload.hits.map(({ kind }) => kind))).toEqual(new Set(["column-table-producerless", "column-read-only", "column-neither"]));
@@ -593,6 +601,7 @@ export const readGhost = (): unknown => widgets.ghost;`,
       argv: ["--json", "--max", "20"],
       corpus: CORPUS_TYPED,
     });
+    // @orb-waive no-test-fabrication({ hits: Hit[] }): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(healthyRun.stdout) as { hits: Hit[] }).hits).toEqual([]);
     expect(
       tableHits({
@@ -645,6 +654,7 @@ export function readAll(): unknown[] { return db.select().from(selected); }`,
     });
 
     const run = runVerb(project, { verb: "columns", arg: "", argv: ["--json", "--max", "20"], corpus: CORPUS_TYPED });
+    // @orb-waive no-test-fabrication({ hits: Hit[] }): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(run.stdout) as { hits: Hit[] };
     expect(payload.hits.filter(({ kind }) => kind === "column-table-producerless").map(({ text }) => text)).toEqual([expect.stringContaining("selected")]);
     expect(payload.hits.filter(({ text }) => text.includes("selected.value"))).toEqual([expect.objectContaining({ kind: "column-neither" })]);

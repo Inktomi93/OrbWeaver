@@ -70,6 +70,7 @@ describe("requireHost — host authority", () => {
 
     const err = await requireHost(ctx(), principal(member), chatId).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -104,6 +105,7 @@ describe("requireAuthorOrHost — edit/delete", () => {
   test("a member is refused a foreign slot with not_author (no longer collapsed onto not_host)", async () => {
     const err = await requireAuthorOrHost(ctx(), principal(member), chatId, host).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_author");
   });
 });

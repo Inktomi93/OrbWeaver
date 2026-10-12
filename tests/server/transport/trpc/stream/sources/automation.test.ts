@@ -18,6 +18,7 @@
 // Since #1407 it re-runs PER EVENT as well, not only at pump start: the tier is a live role, and a cached
 // boolean kept feeding a demoted host the hidden hand until reconnect. That pair of rows is at the foot.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";

@@ -4,6 +4,7 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("burst-state"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("cache-state"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("carried-cast"): baselined when the gate widened; burn-down item 906.

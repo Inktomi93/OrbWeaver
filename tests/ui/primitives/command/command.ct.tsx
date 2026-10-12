@@ -35,7 +35,7 @@ test("groups render with their headings", async ({ mount, page }) => {
 });
 
 // The patched cmdk (patches/cmdk@1.1.1.patch) reorders GROUPS by their best row, not only rows inside a group:
-// "de" starts "Delete file" but only falls mid-word in "readme.md", so Actions leads although Files renders first.
+// "de" starts "Delete file" but only falls mid-word in the readme row, so Actions leads although Files renders first.
 test("a query ranks the groups by their best row", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   await page.getByRole("combobox").fill("de");

@@ -15,6 +15,7 @@
 // tests/server/infra/plugin-host/; the atlas's registration + activation publish in the real sandbox is
 // `seed-example-plugins.int.test.ts` (which cannot reach the wire halves — `safeFetch` has no seam).
 
+// @orb-waive-file no-test-fabrication({ stats: readonly { key: string; value: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 import type { CannedResponse } from "../../../support/atlas-guest.ts";
 import { bootAtlas, lastAtlasState } from "../../../support/atlas-guest.ts";

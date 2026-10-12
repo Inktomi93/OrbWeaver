@@ -13,6 +13,7 @@
 //   • A no-op round writes NOTHING (no slot, no sheet row, no emit).
 // The STRUCTURAL "populate can never touch a live-play plane" proof is a contract test (`salvagePopulate`
 // rebuilds those planes empty), which is where it belongs — it is a property of the parse, not of this verb.
+// @subject packages/server/src/domain/rpg/verbs/game/populate-from-character.ts
 
 import type { RpgActorEntry, RpgQuest } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";

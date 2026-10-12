@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(readonly { readonly result: { readonly data: { readonly chat: { readonly id: ChatId } } } }[]): baselined when the gate widened to value casts; burn-down item 906.
+
 // Composed smoke: browser sends, external provider streams, native SSE settles and canon survives reload.
 // Only synthetic prompts leave the app; the held endpoint is not a provider-quality certification.
 // @orb-waive-file platform-spellings(before): baselined when the gate widened; burn-down item 906.

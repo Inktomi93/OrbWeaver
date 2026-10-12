@@ -1,6 +1,7 @@
 // verb: mergeTags — fold one owned tag into another. Attachments move across all five junctions, dupes
 // collapse (strongest character status survives), the source tag is gone, and a foreign/self merge is
 // refused.
+// @subject packages/server/src/domain/tag/verbs/merge.ts
 
 import type { TagTargetType } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";

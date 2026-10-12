@@ -1,6 +1,7 @@
 // verb: findByName — the import re-link by display name. Pins that the match is the name the user sees
 // (not the handle), owner-scoped, blind to synthetic group identities, and returns every same-named card so
 // the caller can refuse an ambiguity.
+// @subject packages/server/src/domain/character/verbs/find-by-name.ts
 
 // @orb-waive-file no-vanity-alias(FROZEN_AT_MS): baselined when the gate widened; burn-down item 906.
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

@@ -3,6 +3,7 @@
 // estimate measures the REAL assembled prompt, and the per-stage output arithmetic follows the design's
 // mode factors. Advisory numbers — the pins here are about SEAMS (resolution freshness, monotonicity),
 // never about blessing a magic constant.
+// @subject packages/server/src/domain/refinery/verbs/preflight.ts
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SideGenSampling } from "@orb/inference";
@@ -80,6 +81,7 @@ test("a preset-params edit reaches the NEXT preflight read (resolved per call, n
   const p = principal(owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   // The harness's resolver is swappable through the context object — simulate a preset edit between reads.
+  // @orb-waive no-test-fabrication({ resolveUtilityPresetParams:): baselined when the gate widened to value casts; burn-down item 906.
   const ctx = h.ctx as { resolveUtilityPresetParams: (userId: unknown) => Promise<SideGenSampling> };
   const before = await h.svc.preflight({ principal: p, sessionId: session.id });
   expect(before.stages.find((s) => s.stage === "score")?.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);

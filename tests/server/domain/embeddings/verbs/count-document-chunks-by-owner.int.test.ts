@@ -3,6 +3,7 @@
 // (the sums). Load-bearing: the owner scope is real (another user's chunked documents never appear — the
 // vector table has no ownerId, so the scope derives through the join to `documents`), the space tag scopes
 // (a retired model's rows are not live chunks), and an un-chunked document is absent rather than zero.
+// @subject packages/server/src/domain/embeddings/verbs/count-document-chunks-by-owner.ts
 
 import type { DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

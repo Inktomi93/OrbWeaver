@@ -2,6 +2,8 @@
 // composer's empty-Enter classifier: the W-E unified {continue|generate|null} action the Send/empty-Enter
 // branch dispatches (continue an assistant tail · generate on a committed non-assistant tail · nothing).
 
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(MessageId): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { isContinueEligible, resolveEmptySendAction } from "#client/features/chat/lib/continue-on-empty.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

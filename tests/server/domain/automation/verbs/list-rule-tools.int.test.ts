@@ -1,3 +1,6 @@
+// verb: listRuleTools — the caller-scoped catalog of installed plugin tools, driven through the composed service.
+// @subject packages/server/src/domain/automation/verbs/list-rule-tools.ts
+
 import "../../../../support/composed-real.ts";
 import type { AutomationRuleToolView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";

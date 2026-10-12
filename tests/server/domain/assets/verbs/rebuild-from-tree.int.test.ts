@@ -2,6 +2,7 @@
 //   • an ORPHAN BLOB gets a fresh index row (the `kind` stamped, the mime sniffed from the bytes).
 //   • a blob that ALREADY has a row is counted `existing`, not re-created.
 //   • rebuild does NOT emit `asset.created` — the embeddings content_hash sweep re-covers it.
+// @subject packages/server/src/domain/assets/verbs/rebuild-from-tree.ts
 
 import { assets } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(ImportResult): baselined when the gate widened to value casts; burn-down item 906.
+
 // Bounded ingress smoke: real multipart import, an embedded book, deduplication and reload.
 import type { CharacterId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";

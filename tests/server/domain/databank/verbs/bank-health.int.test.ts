@@ -6,6 +6,7 @@
 // So the population here is DEEPER THAN A PAGE on purpose, and the wedged/blank documents sit at the BOTTOM
 // of it — under the old page-derived reading they were invisible, and every assertion below would have been
 // off by exactly the rows the page could not see.
+// @subject packages/server/src/domain/databank/verbs/bank-health.ts
 
 import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/databank";
 import { documents } from "@orb/db";

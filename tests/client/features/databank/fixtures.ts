@@ -29,6 +29,7 @@ import { chatListResponder } from "../chat/fixtures.ts";
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
 const WEDGED_AGO_MS = 3_600_000;
 
+// @orb-waive no-vanity-alias(NOW): baselined when the gate widened; burn-down item 906.
 /** The instant every databank CT's page believes it is — the SAME instant the server suites freeze at. */
 const NOW = FROZEN_AT_MS;
 

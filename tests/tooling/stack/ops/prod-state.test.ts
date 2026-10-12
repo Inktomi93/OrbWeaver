@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
+
 import { once } from "node:events";
 import type * as Fs from "node:fs";
 import { createServer as createHttpServer } from "node:http";

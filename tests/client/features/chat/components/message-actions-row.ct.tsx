@@ -22,6 +22,7 @@ const REST_INERT_RE = /\bpointer-events-none\b/u;
 const HOVER_REVEAL_RE = /group-hover:opacity-100/u;
 const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
 const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
+// @orb-waive no-vanity-alias(MENU_TRIGGER): baselined when the gate widened; burn-down item 906.
 const MENU_TRIGGER = MESSAGE_ACTIONS_MENU_NAME;
 const UNDO_CONTINUE = "Undo last continuation";
 const REVERT_CONTINUE = "Re-apply continuation";

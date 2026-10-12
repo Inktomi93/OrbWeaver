@@ -2,6 +2,7 @@
 // Load-bearing: insert-by-title, replace-same-title (idempotent re-run), and the HAND-EDIT GUARD — an entry a
 // human curated (its content no longer hashes to the stored `metadata.provenance.contentHash`) is SKIPPED, never
 // overwritten. A foreign book is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/entries/upsert-entries.ts
 
 import type { UpsertEntriesResult } from "@orb/contracts/world-info";
 import type { Handle } from "@orb/kit/ids";

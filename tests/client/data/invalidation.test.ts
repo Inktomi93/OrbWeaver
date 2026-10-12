@@ -9,6 +9,11 @@
 // with no active observer (only the optional refetch needs one) — so this needs no mounted query,
 // no network: `createTrpcClient()` never fires a request until something actually queries.
 
+// @orb-waive-file no-test-fabrication(AutomationBusEvent["type"][]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ChatBusEvent["type"][]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(UserBusEvent["type"][]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly queryKey?: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast(seeded): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";

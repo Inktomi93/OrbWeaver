@@ -42,6 +42,7 @@ test("truncated text instances collapse by authored decision without erasing a l
   const auditRun = await runCli("snap", ["--file", join(scratch, "truncated-populations.html"), "--viewport", "1000x3000", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(2);
   expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({
@@ -76,6 +77,7 @@ auditRuleTest(
       '<canvas id="chart-canvas" width="200" height="120" style="display:block"></canvas>';
     await writeFile(join(scratch, "canvas-ink-fires.html"), relationalDocument(body));
     const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-fires.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 1, judged: 0, excluded: { canvasPaint: 1 } });
   },
@@ -94,6 +96,7 @@ auditRuleTest(
     const body = '<label for="anchor2">Anchor</label><input id="anchor2" style="width:64px;height:32px" />';
     await writeFile(join(scratch, "canvas-ink-silent.html"), relationalDocument(body));
     const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-silent.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 0, excluded: {} });
   },

@@ -1,6 +1,7 @@
 // verb: disconnectFromCharacter — idempotent junction delete. Load-bearing: a real disconnect reports
 // {disconnected:true} + audits; disconnecting an absent link reports {disconnected:false} + does NOT audit;
 // both ownership gates fire.
+// @subject packages/server/src/domain/persona/verbs/connection/disconnect.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";

@@ -7,6 +7,7 @@
 //     the server ever egressing on their behalf (the ordering the cross-tenant sweep probes).
 //
 // The domain funnel is driven with an injected `fetchBundle` so the outcomes are provable without live DNS.
+// @subject packages/server/src/domain/plugin/verbs/upgrade-from-url.ts
 
 import { plugins } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";

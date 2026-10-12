@@ -11,6 +11,7 @@
 // under the generous per-test deadline; a guard that failed to interrupt would never make the throw
 // assertion pass.
 
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import type { RegexReplacer } from "@orb/kit/regex";
 import { matchEntryKeys } from "@orb/kit/world-info";
 import { createRegexApplyReplace, createRegexTest, REGEX_APPLY_TIMEOUT_MS } from "@orb/server/primitives/regex";

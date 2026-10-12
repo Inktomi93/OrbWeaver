@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
+
 import { z } from "zod";
 // contracts/refinery/schema-authoring — the SF0 document belt (lift + refinery tightenings + the
 // well-known core) and the render-hint vocabulary. The belt's REFUSALS are the contract: each arm is

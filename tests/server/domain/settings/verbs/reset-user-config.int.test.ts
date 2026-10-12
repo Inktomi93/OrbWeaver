@@ -11,6 +11,7 @@
 //   3. TWO PRINCIPALS. The verb takes no id at all, so the wire cannot express "reset someone else's
 //      settings"; the pin shows a second user's row is byte-identical after the first user resets, and that
 //      the ONLY input the verb has (the principal) is what scopes it.
+// @subject packages/server/src/domain/settings/verbs/reset-user-config.ts
 
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { userSettings } from "@orb/db";

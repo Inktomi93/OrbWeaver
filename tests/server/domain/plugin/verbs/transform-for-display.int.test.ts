@@ -7,6 +7,7 @@
 //   • THE D53 REFUSAL POSTURE — a transform that throws or overruns is SKIPPED: the row keeps the text it had
 //     and its SIBLINGS still run. A display transform can never blank a message and never blocks one.
 //   • OWNER SCOPE — a stranger's transforms never run and never appear, by the `listOwned` read alone.
+// @subject packages/server/src/domain/plugin/verbs/transform-for-display.ts
 
 import type { ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -50,6 +51,7 @@ function scriptedPort(answers: Record<string, (text: string) => Promise<string>>
         // calls). A display transform is chat-null, so it is always the string form — resolve it the way
         // `infra/plugin-host/port.ts` does before parsing.
         const json = typeof argsJson === "string" ? argsJson : argsJson(null);
+        // @orb-waive no-test-fabrication({ text: string; env: { chatId: ChatId; messageId: MessageId } }): baselined when the gate widened to value casts; burn-down item 906.
         const parsed = JSON.parse(json) as { text: string; env: { chatId: ChatId; messageId: MessageId } };
         const answer = answers[handler];
         if (answer === undefined) {
@@ -111,6 +113,7 @@ test("the guest receives the row's identity as its `env` (a transform routinely 
       // `argsJson` is `PluginInvokeArgs` (string | lazy fn); a display transform is chat-null, so it is the
       // string form — resolve it the way `port.ts` does before peeking.
       const json = typeof argsJson === "string" ? argsJson : argsJson(null);
+      // @orb-waive no-test-fabrication({ text: string; env: { chatId: ChatId; messageId: MessageId } }): baselined when the gate widened to value casts; burn-down item 906.
       const parsed = JSON.parse(json) as { text: string; env: { chatId: ChatId; messageId: MessageId } };
       seen = parsed.env;
       // A display transform reads the text it was handed and nothing else — admitting a room would open a

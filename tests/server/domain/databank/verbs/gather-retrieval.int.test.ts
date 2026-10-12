@@ -3,6 +3,7 @@
 // small ⇒ null — the byte-identity pin), and BUDGET fitting (whole-chunk drop from the tail, reading order
 // preserved, `tokensEstimated <= tokenBudget`). The `search.documents` lens is a scripted fake — the lens's
 // own scope-gating is proven in the search-domain gate-8 test; here we drive the fit/format/null logic.
+// @subject packages/server/src/domain/databank/verbs/gather-retrieval.ts
 
 import { databankRetrievalSettingsSchema } from "@orb/contracts/databank";
 import type { ChatId, DocumentId, UserId } from "@orb/kit/ids";

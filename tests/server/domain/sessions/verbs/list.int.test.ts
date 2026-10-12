@@ -1,3 +1,6 @@
+// verb: sessions.listForUser — a user's sessions as secret-free views, scoped to the requested user.
+// @subject packages/server/src/domain/sessions/verbs/list.ts
+
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
