@@ -2,7 +2,7 @@
 // value or a field against a type. Each caller refuses in its own voice when the primitive is absent or the native
 // programs disagree; none may answer a silent zero, because a comparison that quietly stops running reads as a
 // clean result.
-import type { Node, Project, Type, TypeChecker } from "ts-morph";
+import type { Node, Project, Symbol as TsSymbol, Type, TypeChecker } from "ts-morph";
 import { coLocatedSemanticNodes } from "../compiler/ts-workspace.ts";
 
 export interface AssignabilityChecker {
@@ -31,8 +31,8 @@ export interface AgreementContext {
   /** Judges the single-Project path; a co-located program judges with its own checker. */
   readonly checker: AssignabilityChecker;
   readonly refuse: RefuseAssignability;
-  /** Optionality and array readonly-ness are not type differences: `T?` agrees with `T`, and `readonly T[]` with `T[]`.
-   *  A copy that differs only there is still a copy. */
+  /** Optionality and `readonly` are not type differences at any depth: `T?` agrees with `T`, `readonly T[]` with `T[]`,
+   *  and `{ readonly a: T }` with `{ a: T }`. A copy that differs only there is still a copy. */
   readonly lenient?: boolean;
 }
 
@@ -48,23 +48,69 @@ function isArrayLike(type: Type): boolean {
   return type.isArray() || type.isReadonlyArray();
 }
 
-/** One non-union constituent against another: arrays agree by element, so `readonly T[]` agrees with `T[]`. */
-function partsAgree(checker: AssignabilityChecker, left: Type, right: Type): boolean {
-  const leftElement = isArrayLike(left) ? left.getTypeArguments()[0] : undefined;
-  const rightElement = isArrayLike(right) ? right.getTypeArguments()[0] : undefined;
-  return leftElement !== undefined && rightElement !== undefined ? typesAgree(checker, leftElement, rightElement, true) : mutual(checker, left, right);
+/** The named properties of a plain data object; undefined for arrays, tuples, callables and empty objects. */
+function plainProperties(type: Type): readonly TsSymbol[] | undefined {
+  const plain = type.isObject() && !isArrayLike(type) && !type.isTuple() && type.getCallSignatures().length === 0 && type.getConstructSignatures().length === 0;
+  const properties = plain ? type.getProperties() : [];
+  return properties.length > 0 ? properties : undefined;
 }
 
-function typesAgree(checker: AssignabilityChecker, left: Type, right: Type, lenient: boolean): boolean {
-  if (!lenient) {
-    return mutual(checker, left, right);
+/** A type and a node to read its members' types at. */
+interface Side {
+  readonly type: Type;
+  readonly at: Node;
+}
+
+/** Pairs already under comparison, so a recursive type is assumed to agree on the way back in. */
+type Seen = Map<unknown, Set<unknown>>;
+
+function revisits(seen: Seen, left: Type, right: Type): boolean {
+  const known = seen.get(left.compilerType) ?? new Set<unknown>();
+  seen.set(left.compilerType, known);
+  const revisit = known.has(right.compilerType);
+  known.add(right.compilerType);
+  return revisit;
+}
+
+function objectsAgree(checker: AssignabilityChecker, left: Side, right: Side, seen: Seen): boolean {
+  const leftProperties = plainProperties(left.type);
+  const rightProperties = plainProperties(right.type);
+  if (leftProperties === undefined || rightProperties === undefined || leftProperties.length !== rightProperties.length) {
+    return false;
   }
-  // Two unions agree when every non-undefined constituent has an agreeing twin on the other side.
-  const leftParts = definedParts(left);
-  const rightParts = definedParts(right);
+  if (revisits(seen, left.type, right.type)) {
+    return true;
+  }
+  return leftProperties.every((property) => {
+    const twin = rightProperties.find((candidate) => candidate.getName() === property.getName());
+    return (
+      twin !== undefined &&
+      typesAgree(checker, { type: property.getTypeAtLocation(left.at), at: left.at }, { type: twin.getTypeAtLocation(right.at), at: right.at }, seen)
+    );
+  });
+}
+
+/** One non-union constituent against another. Exact assignability agrees. Otherwise arrays agree by element and plain
+ *  objects by property, so `readonly` and `?` relax at every depth. */
+function partsAgree(checker: AssignabilityChecker, left: Side, right: Side, seen: Seen): boolean {
+  if (mutual(checker, left.type, right.type)) {
+    return true;
+  }
+  const leftElement = isArrayLike(left.type) ? left.type.getTypeArguments()[0] : undefined;
+  const rightElement = isArrayLike(right.type) ? right.type.getTypeArguments()[0] : undefined;
+  if (leftElement !== undefined && rightElement !== undefined) {
+    return typesAgree(checker, { type: leftElement, at: left.at }, { type: rightElement, at: right.at }, seen);
+  }
+  return objectsAgree(checker, left, right, seen);
+}
+
+/** Lenient agreement. Two unions agree when every non-undefined constituent has an agreeing twin on the other side. */
+function typesAgree(checker: AssignabilityChecker, left: Side, right: Side, seen: Seen): boolean {
+  const leftParts = definedParts(left.type);
+  const rightParts = definedParts(right.type);
   return (
-    leftParts.every((part) => rightParts.some((twin) => partsAgree(checker, part, twin))) &&
-    rightParts.every((part) => leftParts.some((twin) => partsAgree(checker, twin, part)))
+    leftParts.every((part) => rightParts.some((twin) => partsAgree(checker, { ...left, type: part }, { ...right, type: twin }, seen))) &&
+    rightParts.every((part) => leftParts.some((twin) => partsAgree(checker, { ...left, type: twin }, { ...right, type: part }, seen)))
   );
 }
 
@@ -79,7 +125,10 @@ export function mutuallyAssignableAcross(context: AgreementContext, left: Node, 
   const { checker, refuse, lenient = false } = context;
   const judge = (effective: AssignabilityChecker, a: Node, b: Node): boolean => {
     const pair = read(a, b);
-    return pair !== undefined && typesAgree(effective, pair[0], pair[1], lenient);
+    if (pair === undefined) {
+      return false;
+    }
+    return lenient ? typesAgree(effective, { type: pair[0], at: a }, { type: pair[1], at: b }, new Map()) : mutual(effective, pair[0], pair[1]);
   };
   const colocated = coLocatedSemanticNodes(left, right);
   if (colocated.length === 0) {

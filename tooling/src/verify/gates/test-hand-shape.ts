@@ -156,6 +156,16 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        [MESSAGES_HOME]: MESSAGES_PAGE("MessagesPage"),
+        "tests/client/features/chat/_ct-stories.tsx":
+          "export interface PageRows {\n  readonly chatId: string;\n  readonly items: string[];\n  readonly nextCursor: string | null;\n  readonly total: number;\n}\n",
+      },
+      expect: { count: 1, token: "PageRows", messageIncludes: "declares 4 of the fields of `MessagesPage`" },
+      why: "A READONLY ARRAY IS NOT A RETYPE: the copy spells `items` as a mutable array, and the whole-field verdict (not the drifted-overlap one) needs that field to agree",
+    },
+    {
+      mode: "types",
+      files: {
         [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", ""),
         "tests/e2e/rpg-lite-loop.spec.ts":
           "type Capture = { readonly chatId: string; readonly api: string; readonly backend: string; readonly model: string; readonly body: string };\nexport const read = (capture: Capture): string => capture.backend;\n",

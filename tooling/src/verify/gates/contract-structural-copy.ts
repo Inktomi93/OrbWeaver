@@ -207,6 +207,28 @@ export const gate = defineGate({
       expect: { count: 1, token: "SeatCopy", messageIncludes: "the same fields as `Seat`" },
       why: "an OPTIONAL field is still the contract's field: `label?: string` and `label: string` differ only in whether undefined is allowed, and the copy drifts the same way",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/seat.ts":
+          "export interface Seat {\n  readonly id: string;\n  readonly label: string;\n  readonly order: number;\n  readonly tags: readonly string[];\n}\n",
+        "packages/client/src/features/chat/seat-copy.ts":
+          "export interface SeatCopy {\n  readonly id: string;\n  readonly label: string;\n  readonly order: number;\n  readonly tags: string[];\n}\n",
+      },
+      expect: { count: 1, token: "SeatCopy", messageIncludes: "the same fields as `Seat`" },
+      why: "A READONLY ARRAY: `readonly string[]` and `string[]` are not mutually assignable, yet the copy is the contract's field; four fields make one retype fall under the 80% floor, so only array leniency flags it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/seat.ts":
+          "export interface Seat {\n  readonly id: string;\n  readonly label: string;\n  readonly order: number;\n  readonly meta: { readonly tags: readonly string[] };\n}\n",
+        "packages/client/src/features/chat/seat-copy.ts":
+          "export interface SeatCopy {\n  readonly id: string;\n  readonly label: string;\n  readonly order: number;\n  readonly meta: { tags: string[] };\n}\n",
+      },
+      expect: { count: 1, token: "SeatCopy", messageIncludes: "the same fields as `Seat`" },
+      why: "A NESTED READONLY: the modifier differs inside an object-typed field, and relaxing it only at the top level misses a copy the type text caught",
+    },
   ],
   mustPass: [
     {
