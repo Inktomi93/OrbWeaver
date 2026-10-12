@@ -536,7 +536,7 @@ describe("the BORN private-endpoint allowlist — single-user admits its own box
    *  network module (its `endpointAdmission` reads the state `publish` just wrote). `extra` is TUPLES rather
    *  than an object literal because env keys are SCREAMING_SNAKE and an object key would be a naming-rule
    *  violation the assignment form does not have. */
-  async function freshInstall(mode: string, extra: readonly (readonly [string, string])[] = []): Promise<typeof import("@orb/server/infra/network")> {
+  async function freshInstall(mode: string, extra: readonly (readonly [string, string])[] = []): Promise<typeof import("#server/infra/network/index.ts")> {
     for (const key of Object.keys(process.env)) {
       delete process.env[key];
     }

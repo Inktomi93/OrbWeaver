@@ -116,16 +116,8 @@ const AUTO_MODE_DELAY_MS_MAX = 60_000;
 const AUTO_MODE_DELAY_MS_DEFAULT = 1500;
 const autoModeFields = {
   autoMode: z.boolean().catch(false).default(false),
-  autoModeMaxTurns: z.int()
-    .min(AUTO_MODE_MAX_TURNS_MIN)
-    .max(AUTO_MODE_MAX_TURNS_MAX)
-    .catch(AUTO_MODE_MAX_TURNS_DEFAULT)
-    .default(AUTO_MODE_MAX_TURNS_DEFAULT),
-  autoModeDelayMs: z.int()
-    .min(AUTO_MODE_DELAY_MS_MIN)
-    .max(AUTO_MODE_DELAY_MS_MAX)
-    .catch(AUTO_MODE_DELAY_MS_DEFAULT)
-    .default(AUTO_MODE_DELAY_MS_DEFAULT),
+  autoModeMaxTurns: z.int().min(AUTO_MODE_MAX_TURNS_MIN).max(AUTO_MODE_MAX_TURNS_MAX).catch(AUTO_MODE_MAX_TURNS_DEFAULT).default(AUTO_MODE_MAX_TURNS_DEFAULT),
+  autoModeDelayMs: z.int().min(AUTO_MODE_DELAY_MS_MIN).max(AUTO_MODE_DELAY_MS_MAX).catch(AUTO_MODE_DELAY_MS_DEFAULT).default(AUTO_MODE_DELAY_MS_DEFAULT),
   allowSelfResponses: z.boolean().catch(false).default(false),
 } as const;
 
