@@ -17,10 +17,13 @@ export interface GenerationCreditProps {
   readonly message: Pick<MessageView, "model" | "provider" | "connectionId" | "connectionAttributionProvenance">;
 }
 
-/** The credit's box. The streaming row renders it with no sentence to reserve the width the settled credit takes. */
-export function GenerationCreditGlyph({ sentence }: { readonly sentence?: string }): ReactElement {
+const CREDIT_SLOT = "message-metadata-model";
+
+/** The credit's box. The streaming row's footprint renders it with no sentence, under its own `slot`, to reserve the
+ *  width the settled credit takes without a second `message-metadata-model` on the page. */
+export function GenerationCreditGlyph({ sentence, slot = CREDIT_SLOT }: { readonly sentence?: string; readonly slot?: string }): ReactElement {
   return (
-    <Text as="span" voice="gloss" className={cn("inline-flex items-center", HIDE_AT_COARSE)} data-slot="message-metadata-model" title={sentence}>
+    <Text as="span" voice="gloss" className={cn("inline-flex items-center", HIDE_AT_COARSE)} data-slot={slot} title={sentence}>
       <Icon aria-hidden={true} className={MESSAGE_ACTION_ICON_CLASS} icon={Cpu} size="sm" />
       <Text as="span" className="sr-only">
         {sentence}

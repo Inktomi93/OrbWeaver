@@ -630,3 +630,26 @@ for (const parity of [
     });
   }
 }
+
+// The footprint only reserves room: it is hidden from assistive tech, inert so nothing in it takes focus, and it
+// carries no copy of the real credit's slot (a page-level count of that slot sees the settled row's alone).
+test("the streaming row's action footprint is aria-hidden, inert and unfocusable, and adds no credit slot", async ({ mount }) => {
+  const component = await mount(<RowParityStory chatStyle="bubble" showModelIcon={true} />);
+  const footprint = component.getByTestId("parity-ghost").locator('[data-slot="message-actions-footprint"]');
+  await expect(footprint).toHaveAttribute("aria-hidden", "true");
+  await expect(footprint).toHaveAttribute("inert", "");
+  await expect(footprint.locator("button")).not.toHaveCount(0);
+  await expect
+    .poll(() =>
+      footprint.evaluate((root) => {
+        const controls = [...root.querySelectorAll<HTMLElement>("button, a[href], input, select, textarea, [tabindex]")];
+        return controls.filter((control) => {
+          control.focus();
+          return document.activeElement === control;
+        }).length;
+      }),
+    )
+    .toBe(0);
+  await expect(footprint.locator('[data-slot="message-metadata-model"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveCount(1);
+});

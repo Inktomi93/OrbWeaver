@@ -106,7 +106,7 @@ export function GhostActionsFootprint({
   return (
     <Row aria-hidden="true" align="center" className={`invisible ${surface}`} data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
       <MessageActionsCluster
-        credit={generationCredit ? <GenerationCreditGlyph /> : null}
+        credit={generationCredit ? <GenerationCreditGlyph slot="message-actions-footprint-credit" /> : null}
         editable={true}
         reactionsEnabled={reactionsEnabled}
         onEdit={INERT}
