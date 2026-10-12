@@ -4,7 +4,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { holdPortraitImage, layoutBox, PORTRAIT_H, PORTRAIT_RATIO, PORTRAIT_W } from "@orb/testkit/browser/held-portrait-image.ts";
+import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_H, PORTRAIT_RATIO, PORTRAIT_W } from "@orb/testkit/browser/held-portrait-image.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { seedActiveChat } from "@orb/testkit/node/seed-active-chat.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -39,9 +39,7 @@ for (const vp of VIEWPORTS) {
     const cmp = await mount(<EditFlowStory assetId={assetId} chatId={chatId} url={PORTRAIT_SVG} />);
     const img = cmp.locator('[data-slot="message-media"]');
     // Barrier on the SETTLED (decoded) image — an <img> with no intrinsic size yet lays out at 0×0.
-    await expect
-      .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth / (el as HTMLImageElement).naturalHeight))
-      .toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    await expect.poll(() => naturalRatio(img)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
     const box = await img.boundingBox();
     expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
   });

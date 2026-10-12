@@ -40,6 +40,7 @@ import {
   stageInheritedEnv,
   stageLauncher,
   stageLauncherSpawn,
+  stageOwnerKey,
   stagePaths,
   stageServedProbeSpawn,
   teardownConsent,
@@ -89,7 +90,22 @@ test("stagePaths keys every artifact off the short sha under .cache/snap-stage, 
   expect(paths.secretsDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data/secrets`);
 });
 
-// ── stageDecision (the staleness rule) ──────────────────────────────────────────────────────────────────
+test("two sessions of one checkout at one sha get separate stage dirs, so --stage-db never shares a data dir", () => {
+  const a = stagePaths("/repo", SHA, "single-user", stageOwnerKey("/repo", "side-eye-a"));
+  const b = stagePaths("/repo", SHA, "single-user", stageOwnerKey("/repo", "side-eye-b"));
+  expect(a.dir).not.toBe(b.dir);
+  expect(a.dataDir).not.toBe(b.dataDir);
+  expect(a.databaseUrl).not.toBe(b.databaseUrl);
+  // The same session lands on the same dir every call, or its warm stage could never be reused.
+  expect(stagePaths("/repo", SHA, "single-user", stageOwnerKey("/repo", "side-eye-a")).dir).toBe(a.dir);
+  // A caller that names no session keeps the sha-keyed dir the table has always used.
+  expect(stagePaths("/repo", SHA, "single-user", stageOwnerKey("/repo", undefined)).dir).toBe(stagePaths("/repo", SHA).dir);
+  expect(stageOwnerKey("/repo", "")).toBe("/repo");
+  // A local-auth stage still ends in the suffix its auth mode is derived from.
+  expect(stagePaths("/repo", SHA, "local", stageOwnerKey("/repo", "side-eye-a")).dir).toMatch(/-local$/u);
+});
+
+// ── stageDecision (the staleness rule)──────────────────────────────────────────────────────────────────
 
 /** One band-table ROW. `shortSha`/`baseUrl` are gone on purpose (#1276): they are functions of `sha` and
  *  `vitePort`, and a serialized copy of a derived value is a second home that drifts. */
@@ -359,6 +375,20 @@ test("F7 teardown selection is owner-targeted per band — bare --force never wi
   expect(selectsTeardownRow(sibling, MAIN_CHECKOUT, LANE_CHECKOUT)).toBe(true);
 });
 
+test("--stage-down without a selector releases only the CALLER's session, not every row of its checkout", () => {
+  const mine = `${MAIN_CHECKOUT}#side-eye-a`;
+  const rowA = active({ owner: mine });
+  const rowB = active({ band: 1, owner: `${MAIN_CHECKOUT}#side-eye-b` });
+  const legacy = active({ band: 2 });
+  expect(selectsTeardownRow(rowA, mine, null)).toBe(true);
+  expect(selectsTeardownRow(rowB, mine, null)).toBe(false);
+  expect(selectsTeardownRow(legacy, mine, null)).toBe(false);
+  // The checkout-wide teardown stays one explicit flag away: `--stage-owner <checkout>` takes every session's row.
+  expect(selectsTeardownRow(rowA, mine, MAIN_CHECKOUT)).toBe(true);
+  expect(selectsTeardownRow(rowB, mine, MAIN_CHECKOUT)).toBe(true);
+  expect(selectsTeardownRow(legacy, mine, MAIN_CHECKOUT)).toBe(true);
+});
+
 test("the foreign-teardown refusal names the owner, the idle age, and the flag that overrides it", () => {
   const message = foreignTeardownRefusal(active({ checkout: LANE_CHECKOUT, lastUsedAt: USED_RECENTLY }), NOW);
   expect(message).toContain(LANE_CHECKOUT);
@@ -507,6 +537,20 @@ test("the band verdict door reads this run's binding, and never both refuses and
   expect(refused.claim).toBe("foreign");
   expect(refused.refusal).toContain("nothing was measured");
   expect(refused.note).toBeNull();
+});
+
+test("a stage whose db provenance changed after this run bound it is refused, not served", () => {
+  const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
+  const bound = active({ dbProvenance: clone });
+  const verdict = (table: StageRow): { readonly refusal: string | null } =>
+    stageBandVerdictFor("http://localhost:5273", { checkout: MAIN_CHECKOUT, readTable: () => [table], readBinding: () => bound });
+  // Positive control: the table still carries the stage this run bound.
+  expect(verdict(active({ dbProvenance: clone, lastUsedAt: "2026-10-11T11:00:00.000Z" })).refusal).toBeNull();
+  // The band was rebuilt onto the dev db under us (provenance dropped), or onto another clone.
+  expect(verdict(active({ dbProvenance: null })).refusal).not.toBeNull();
+  expect(verdict(active({ dbProvenance: { ...clone, copiedAt: "2026-10-11T10:30:00.000Z" } })).refusal).not.toBeNull();
+  // A different boot of the band is a different stage, whatever its provenance says.
+  expect(verdict(active({ dbProvenance: clone, startedAt: "2026-10-11T10:45:00.000Z" })).refusal).not.toBeNull();
 });
 
 test("the band refusal names BOTH checkouts — the whole failure was not knowing whose tree answered (#1186)", () => {

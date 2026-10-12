@@ -31,6 +31,7 @@ import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts"
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 import type { StageBandView, StageHolder, StageRow, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
+import { rowOwner } from "../contract/stage.ts";
 import { describeStageBandRow, foreignHolders, rowIsDangling, stageSweepVerdict } from "../lib/stage-bands.ts";
 import { describeStageKeeper } from "../lib/stage-keeper-plan.ts";
 import {
@@ -49,7 +50,7 @@ import {
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { sessionStatusSummary } from "./session-registry.ts";
 import { stageBandViews, stageLimits } from "./stage-census.ts";
-import { repoRoot } from "./stage-git.ts";
+import { repoRoot, stageCallerOwner } from "./stage-git.ts";
 import { clearRow, markerRoot, readBands } from "./stage-marker.ts";
 import { pidElapsedSeconds, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { describeStageReaps, recordStageReap } from "./stage-reap-log.ts";
@@ -216,7 +217,9 @@ function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: 
   return `band ${row.band}: reconciled a dangling row ${shortSha(row.sha)} (band free, last used ${describeStageAge(row.lastUsedAt, nowMs)} ago)`;
 }
 
-/** `--stage-down`: stop the stages THIS CHECKOUT owns and remove their worktrees/dirs.
+/** `--stage-down`: stop the stages THIS CALLER owns and remove their worktrees/dirs. The caller is its owner
+ *  key (`stageCallerOwner`): sessions of one checkout never reach each other's rows, and the checkout-wide
+ *  teardown is the explicit `--stage-owner <checkout> --force`.
  *
  *  THE #108 RULING SURVIVES; ITS INPUT CHANGED (twice, and both texts matter). #108 made teardown work from
  *  ANY checkout; #447 then required `--force` for a foreign stage that was still in use, after a plain
@@ -229,10 +232,11 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   const root = repoRoot();
   const home = markerRoot(root);
   const nowMs = Date.now();
+  const owner = stageCallerOwner(root);
   const { views, verdicts } = bandCensus(root, nowMs);
   const results: string[] = [];
   for (const view of views) {
-    results.push(...teardownView({ root, home, view, verdict: verdicts.get(view.band) ?? "unbound", selection, nowMs }));
+    results.push(...teardownView({ owner, home, view, verdict: verdicts.get(view.band) ?? "unbound", selection, nowMs }));
   }
   // Same fourth residue as the sweep's (#1848): a browser whose snap run is gone survives every kill above,
   // because playwright gives each one its own session. `--stage-down` is a teardown too, so it reaps them.
@@ -248,35 +252,35 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   }
   if (results.length === 0) {
     return selection.owner === null
-      ? `no stage of this checkout to tear down (${root}) — \`--stage-status\` lists every band; name a sibling with \`--stage-owner <checkout> --force\``
+      ? `no stage of yours to tear down (${owner}) — \`--stage-status\` lists every band; name a checkout with \`--stage-owner <checkout> --force\``
       : `no stage owned by ${selection.owner} to tear down — \`--stage-status\` lists every band`;
   }
   return results.join("\n");
 }
 
 function teardownView(input: {
-  readonly root: string;
+  readonly owner: string;
   readonly home: string;
   readonly view: StageBandView;
   readonly verdict: StageSweepVerdict;
   readonly selection: { readonly force: boolean; readonly owner: string | null };
   readonly nowMs: number;
 }): readonly string[] {
-  const { root, home, view, verdict, selection, nowMs } = input;
+  const { owner, home, view, verdict, selection, nowMs } = input;
   if (view.row === null) {
     return selection.owner === null ? tearDownRowlessBand(view) : [];
   }
-  if (!selectsTeardownRow(view.row, root, selection.owner)) {
+  if (!selectsTeardownRow(view.row, owner, selection.owner)) {
     return [];
   }
-  if (view.row.checkout !== root && !selection.force) {
-    return [foreignSkipLine(view.row, verdict === "live", root, nowMs)];
+  if (rowOwner(view.row) !== owner && !selection.force) {
+    return [foreignSkipLine(view.row, verdict === "live", owner, nowMs)];
   }
-  const readers = foreignHolders(view.liveHolders ?? [], root);
+  const readers = foreignHolders(view.liveHolders ?? [], owner);
   if (readers.length > 0 && !selection.force) {
     return [heldTeardownRefusal(view.row, readers)];
   }
-  return [teardownRow(root, home, view.row)];
+  return [teardownRow(owner, home, view.row)];
 }
 
 /** A stage another checkout's run still holds: tearing it down would kill that run's capture. */
@@ -288,8 +292,8 @@ function heldTeardownRefusal(row: StageRow, readers: readonly StageHolder[]): st
 /** What a plain `--stage-down` says about a SIBLING's row instead of touching it: the #447 refusal when it
  *  is still in use, and the skip line (with both remedies) when it is merely somebody else's. Narrowing the
  *  default to "the rows you own" is the table's doing — with one band, "the stage" was unambiguous. */
-function foreignSkipLine(row: StageRow, inUse: boolean, checkout: string, nowMs: number): string {
-  if (teardownConsent({ row, checkout, inUse, force: false }) === "refuse") {
+function foreignSkipLine(row: StageRow, inUse: boolean, owner: string, nowMs: number): string {
+  if (teardownConsent({ row, checkout: owner, inUse, force: false }) === "refuse") {
     return foreignTeardownRefusal(row, nowMs);
   }
   return (
@@ -298,8 +302,8 @@ function foreignSkipLine(row: StageRow, inUse: boolean, checkout: string, nowMs:
   );
 }
 
-function teardownRow(root: string, home: string, row: StageRow): string {
-  const whose = row.checkout === root ? "" : ` owned by ${row.checkout}`;
+function teardownRow(owner: string, home: string, row: StageRow): string {
+  const whose = rowOwner(row) === owner ? "" : ` owned by ${rowOwner(row)}`;
   try {
     const stop = stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
     if (stop.kind === "unconfirmed") {

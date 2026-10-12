@@ -289,10 +289,7 @@ describe("chat component-presence ratchet", () => {
   });
 
   test("every `coveredBy` names a CT that actually exists (the coverage-through is real)", () => {
-    const dangling = Object.entries(WAIVERS)
-      .filter(([, w]) => "coveredBy" in w)
-      .filter(([, w]) => !cts.has((w as { readonly coveredBy: string }).coveredBy))
-      .map(([name, w]) => `${name} → ${(w as { readonly coveredBy: string }).coveredBy}`);
+    const dangling = Object.entries(WAIVERS).flatMap(([name, w]) => ("coveredBy" in w && !cts.has(w.coveredBy) ? [`${name} → ${w.coveredBy}`] : []));
     // A `coveredBy` pointing at a CT that no longer exists — the sub-part lost its coverage-through.
     expect(dangling, "coveredBy targets whose CT disappeared — the sub-part is now uncovered").toEqual([]);
   });

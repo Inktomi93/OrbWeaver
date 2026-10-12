@@ -86,6 +86,15 @@ export function stageRowAuth(row: Pick<StageRow, "dir">): StageAuthMode {
   return row.dir.endsWith(LOCAL_STAGE_DIR_SUFFIX) ? "local" : "single-user";
 }
 
+/** What a run or session binds of a stage when it takes it, so a later call can tell the band was rebuilt or
+ *  re-let underneath it: the boot, the tree and the database. */
+export type StageBoundIdentity = Pick<StageRow, "sha" | "dir" | "startedAt" | "dbProvenance">;
+
+/** The owner key a row answers to, for every "is this stage mine" question. */
+export function rowOwner(row: Pick<StageRow, "checkout" | "owner">): string {
+  return row.owner ?? row.checkout;
+}
+
 /** One process holding a stage: it re-stamps `stampedAt` on a heartbeat while it runs. A holder is live
  *  while its process runs (same pid and start time), or otherwise until its stamp ages past the idle threshold. */
 export interface StageHolder {
@@ -93,6 +102,8 @@ export interface StageHolder {
   /** The process's start time as the OS reports it (Linux `/proc/<pid>/stat` starttime). A pid alive with a
    *  different start time is another process that reused the number. Absent where it cannot be read. */
   readonly pidStart?: string;
+  /** The holder's OWNER KEY ({@link rowOwner}), stored under the field's original name: the checkout path
+   *  unless the holder named its session. */
   readonly checkout: string;
   readonly stampedAt: string;
 }
@@ -115,6 +126,10 @@ export interface StageRow {
   /** The repo root snap ran from when this stage was booted — the OWNER (issue #108). A row whose
    *  checkout is not yours means a sibling holds that band; that is a refusal, never a teardown. */
   readonly checkout: string;
+  /** Who owns the stage INSIDE its checkout: the checkout path itself, or `<checkout>#<label>` when the caller
+   *  named its session (`ORB_SNAP_OWNER`). Concurrent sessions of one checkout (three side-eyes on main) are
+   *  told apart by this key; absent on a row an older snap wrote, which {@link rowOwner} reads as the checkout. */
+  readonly owner?: string;
   /** The pid bound to the stage SERVER port at boot, or null when `ss` could not name one. Recorded for
    *  provenance; the refusal also reads the LIVE band pid, which is what a human can actually inspect. */
   readonly ownerPid: number | null;

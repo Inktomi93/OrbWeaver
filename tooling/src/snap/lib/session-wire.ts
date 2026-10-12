@@ -8,6 +8,7 @@ import type { OrbConsoleCompleteness, OrbConsoleCompletenessSummary } from "../.
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";
 import type { SessionBinding, SessionEvent, SessionPageInfo, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION, SESSION_REQUEST_KINDS } from "../contract/session.ts";
+import { parseStageBoundIdentity } from "./stage-identity.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,12 +104,18 @@ function sessionEnvironment(value: unknown): SessionRow["environment"] | null {
   };
 }
 
+function absentOrRead<T>(raw: unknown, read: (value: unknown) => T | null): T | null | undefined {
+  return raw === undefined ? undefined : read(raw);
+}
+
 function sessionStageState(value: unknown): NonNullable<SessionRow["stage"]> | null {
   if (!isRecord(value)) {
     return null;
   }
-  const { band, status, detectedAt, op, ownerCheckout, ref, binding: rawBinding } = value;
-  const binding = rawBinding === undefined ? undefined : sessionBinding(rawBinding);
+  const { band, status, detectedAt, op, ownerCheckout, ref } = value;
+  // `undefined` = absent, `null` = present but off-grammar.
+  const binding = absentOrRead(value["binding"], sessionBinding);
+  const bound = absentOrRead(value["bound"], parseStageBoundIdentity);
   if (
     !Number.isInteger(band) ||
     Number(band) < 0 ||
@@ -117,7 +124,8 @@ function sessionStageState(value: unknown): NonNullable<SessionRow["stage"]> | n
     !nullableString(op) ||
     !(ownerCheckout === undefined || typeof ownerCheckout === "string") ||
     !(ref === undefined || typeof ref === "string") ||
-    (rawBinding !== undefined && binding === null)
+    binding === null ||
+    bound === null
   ) {
     return null;
   }
@@ -128,7 +136,8 @@ function sessionStageState(value: unknown): NonNullable<SessionRow["stage"]> | n
     op,
     ...(ownerCheckout === undefined ? {} : { ownerCheckout }),
     ...(ref === undefined ? {} : { ref }),
-    ...(binding === undefined || binding === null ? {} : { binding }),
+    ...(binding === undefined ? {} : { binding }),
+    ...(bound === undefined ? {} : { bound }),
   };
 }
 

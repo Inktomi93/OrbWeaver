@@ -2933,7 +2933,7 @@
     {
       "siteId": "tooling/src/snap/ops/guards.ts::configureStage::e::1",
       "verdict": "deliberate-absorb",
-      "reason": "printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced."
+      "reason": "printed as STAGE ERROR and returned as exit code 2 (tool error: nothing was measured), which the CLI process exits with. Ends if that exit code stops being surfaced."
     },
     {
       "siteId": "tooling/src/snap/ops/heap-capture.ts::captureRawHeap::detachError::1",

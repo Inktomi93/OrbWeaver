@@ -21,6 +21,7 @@ import {
   allocateStageBand,
   DEFAULT_STAGE_CAP,
   DEFAULT_STAGE_TTL_MIN,
+  isSharedReuseCandidate,
   liveHoldersOf,
   resolveStageLimits,
   rowIsDangling,
@@ -188,6 +189,31 @@ test("our OWN row for (checkout, sha) wins over every free band — a lane re-dr
   expect(allocateStageBand({ ...ALLOC, views: views([{ row: ours }]) })).toEqual({ kind: "ours", band: 4, row: ours });
 });
 
+test("a named session in the SAME checkout is a sibling: a rebuild gets its own band, never the other session's row", () => {
+  // Three side-eyes on one checkout share its path. Their rows differ only by owner key, and a `--stage-db`
+  // run (which implies --fresh) must not be handed — and then rebuild — the row a sibling session booted.
+  const siblingSession = row(0, { owner: `${MAIN_CHECKOUT}#side-eye-a` });
+  expect(allocateStageBand({ ...ALLOC, fresh: true, views: views([{ row: siblingSession }]) })).toEqual({ kind: "free", band: 1 });
+  // Without a rebuild, the sibling's healthy stage at our sha is a read-only shared-reuse, not "ours".
+  expect(allocateStageBand({ ...ALLOC, views: views([{ row: siblingSession }]) })).toEqual({ kind: "shared-reuse", band: 0, row: siblingSession });
+  // Positive control: the same row under its own owner key is still "ours" and rebuilt in place.
+  const own = allocateStageBand({ ...ALLOC, checkout: `${MAIN_CHECKOUT}#side-eye-a`, fresh: true, views: views([{ row: siblingSession }]) });
+  expect(own).toEqual({ kind: "ours", band: 0, row: siblingSession });
+});
+
+test("another owner's --stage-db clone is never a shared-reuse candidate, whatever its health", () => {
+  const ask = { owner: `${MAIN_CHECKOUT}#side-eye-b`, targetSha: SHA, bandBound: true };
+  const theirs = row(0, { owner: `${MAIN_CHECKOUT}#side-eye-a` });
+  const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
+  expect(isSharedReuseCandidate(theirs, ask)).toBe(true);
+  expect(isSharedReuseCandidate({ ...theirs, dbProvenance: clone }, ask)).toBe(false);
+  // The clone's own owner, a different sha and an unbound band are not candidates either.
+  expect(isSharedReuseCandidate({ ...theirs, dbProvenance: clone }, { ...ask, owner: `${MAIN_CHECKOUT}#side-eye-a` })).toBe(false);
+  expect(isSharedReuseCandidate({ ...theirs, sha: OTHER_SHA }, ask)).toBe(false);
+  expect(isSharedReuseCandidate(theirs, { ...ask, bandBound: false })).toBe(false);
+  expect(isSharedReuseCandidate(null, ask)).toBe(false);
+});
+
 test("a sibling's HEALTHY row at our sha is a shared-reuse before any free band is taken", () => {
   const theirs = row(3, { checkout: LANE_CHECKOUT });
   expect(allocateStageBand({ ...ALLOC, views: views([{ row: theirs }]) })).toEqual({ kind: "shared-reuse", band: 3, row: theirs });
@@ -293,6 +319,22 @@ test("AT THE CAP, a lane's own idle stage nobody else holds is rebuilt in place;
   expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: unknownHolders }]) }).kind).toBe("exhausted");
   // Below the cap nothing changes: the lane gets a new band and keeps its old stage.
   expect(allocateStageBand({ ...atCap, views: views([siblings[0] ?? { row: row(1) }, { row: ourOldStage }]) }).kind).toBe("free");
+});
+
+test("two unlabelled runs of one checkout: a --fresh rebuild refuses while the other RUN holds the stage (no tear-down under it)", () => {
+  // Reviewer A holds a live --stage-db clone; reviewer B, same checkout and sha and no label, asks --stage-db
+  // (which implies --fresh). Both are the same owner key, so only the holder's process tells them apart.
+  const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
+  const reviewerA = { pid: 111, checkout: MAIN_CHECKOUT, stampedAt: new Date(NOW - 1000).toISOString() };
+  const stage = row(0, { dbProvenance: clone, holders: [reviewerA], lastUsedAt: new Date(NOW - 1000).toISOString() });
+  const live = liveHoldersOf(stage, NOW, () => true);
+  expect(allocateStageBand({ ...ALLOC, fresh: true, views: views([{ row: stage, over: { liveHolders: live } }]) }).kind).toBe("ours");
+  const ask = { targetSha: SHA, checkout: MAIN_CHECKOUT, nowMs: NOW, row: stage, fresh: true, healthy: true, liveHolders: live };
+  expect(stageDecision({ ...ask, selfPid: 222 })).toBe("refuse");
+  // Controls: the holder is this very process, or is no longer running and has gone stale — the owner rebuilds.
+  expect(stageDecision({ ...ask, selfPid: 111 })).toBe("rebuild");
+  const stale = { ...reviewerA, stampedAt: USED_LONG_AGO };
+  expect(stageDecision({ ...ask, selfPid: 222, liveHolders: liveHoldersOf({ ...stage, holders: [stale] }, NOW, () => false) })).toBe("rebuild");
 });
 
 test("a same-sha --fresh or unhealthy rebuild refuses while another checkout holds the stage", () => {

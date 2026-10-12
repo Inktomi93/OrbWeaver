@@ -114,7 +114,7 @@ test("a FOREIGN pluginId is refused exactly like a fabricated one — no existen
     .getFrameBody({ caller: mallory, pluginId: castId<typeof installed.id>("plugin_00000000000000000000000000"), surfaceId: "board" })
     .catch((e: unknown) => e);
   expect(stolen).toBeInstanceOf(Error);
-  expect((stolen as Error).name).toBe((bogus as Error).name);
+  expect(bogus).toHaveProperty("name", stolen instanceof Error ? stolen.name : "<stolen is not an Error>");
 });
 
 test("a DECLARATIVE surface named by a frame read, an unknown surfaceId, and a DISABLED plugin are ONE answer", async () => {

@@ -3027,7 +3027,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       expect(err).toBeInstanceOf(ChatNotFoundError);
       // The refusal is byte-identical to an UNKNOWN id — never "wrong chat", which would confirm it exists.
       const unknown = await getVariantWire({ principal: principal(hostA), chatId: mine.chatId, variantId: castId("variant_nope") }).catch((e: unknown) => e);
-      expect((unknown as Error).message).toBe((err as Error).message);
+      expect(unknown).toEqual(err);
     });
 
     test("a variant that captured nothing reads as an honest null prompt, never an error", async () => {

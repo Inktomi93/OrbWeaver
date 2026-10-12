@@ -4,6 +4,7 @@
 // @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import {
@@ -124,6 +125,15 @@ function validFixture(): TokenContractTexts {
   };
 }
 
+// Walks one level down a parsed token document; a missing or non-object level is a lost fixture, not a quiet no-op.
+function descend(parent: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = parent[key];
+  if (!isPlainObject(value)) {
+    throw new Error(`token fixture lost ${key}`);
+  }
+  return value;
+}
+
 function mutate(
   texts: TokenContractTexts,
   file: "base" | "light" | "mocha" | "resolver" | "removed",
@@ -186,15 +196,12 @@ describe("official schema controls", () => {
     expect(codes(unknown)).toContain("token.type.unknown");
 
     const unit = mutate(validFixture(), "base", (base) => {
-      (((base["dimension"] as Record<string, unknown>)["gap"] as Record<string, unknown>)["$value"] as Record<string, unknown>)["unit"] = "ch";
+      descend(descend(descend(base, "dimension"), "gap"), "$value")["unit"] = "ch";
     });
     expect(codes(unit)).toContain("format.schema");
 
     const components = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
-      ((((base["color"] as Record<string, unknown>)["background"] as Record<string, unknown>)["$value"] as Record<string, unknown>)[
-        "components"
-      ] as unknown[]) = [0.2, 0.01];
+      descend(descend(descend(base, "color"), "background"), "$value")["components"] = [0.2, 0.01];
     });
     expect(codes(components)).toContain("format.schema");
   });
@@ -212,7 +219,7 @@ describe("Orb semantic controls", () => {
 
   test("comma-packed font members, alias cycles, and terminal type mismatches are refused", () => {
     const font = mutate(validFixture(), "base", (base) => {
-      ((base["font"] as Record<string, unknown>)["sans"] as Record<string, unknown>)["$value"] = ["Geist, system-ui"];
+      descend(descend(base, "font"), "sans")["$value"] = ["Geist, system-ui"];
     });
     expect(codes(font)).toContain("fontFamily.member");
 
@@ -225,7 +232,7 @@ describe("Orb semantic controls", () => {
     expect(codes(cycle)).toContain("alias.cycle");
 
     const wrongType = mutate(validFixture(), "base", (base) => {
-      ((base["color"] as Record<string, unknown>)["alias"] as Record<string, unknown>)["$value"] = "{number.scalar}";
+      descend(descend(base, "color"), "alias")["$value"] = "{number.scalar}";
     });
     expect(codes(wrongType)).toContain("alias.type");
   });
@@ -236,13 +243,13 @@ describe("Orb semantic controls", () => {
   // token carrying it is refused by its own code.
   test("orb.rootFloor is an admitted extension, and only on a rem dimension", () => {
     const admitted = mutate(validFixture(), "base", (base) => {
-      ((base["dimension"] as Record<string, unknown>)["gap"] as Record<string, unknown>)["$extensions"] = { "orb.rootFloor": true };
+      descend(descend(base, "dimension"), "gap")["$extensions"] = { "orb.rootFloor": true };
     });
     expect(codes(admitted)).not.toContain("orb.extension.unknown");
     expect(codes(admitted)).not.toContain("orb.rootFloor.type");
 
     const onPx = mutate(validFixture(), "base", (base) => {
-      const gap = (base["dimension"] as Record<string, unknown>)["gap"] as Record<string, unknown>;
+      const gap = descend(descend(base, "dimension"), "gap");
       gap["$value"] = { value: 16, unit: "px" };
       gap["$extensions"] = { "orb.rootFloor": true };
     });
@@ -257,15 +264,14 @@ describe("Orb semantic controls", () => {
     expect(codes(extension)).toContain("orb.extension.unknown");
 
     const duplicate = mutate(validFixture(), "base", (base) => {
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
       css["--color-background"] = { value: "red", placement: "theme", description: "plant", provenance: ["color.background"] };
     });
     expect(codes(duplicate)).toContain("output.duplicate");
 
     const operand = mutate(validFixture(), "base", (base) => {
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      (css["--shadow-runtime"] as Record<string, unknown>)["value"] = "0 0 1rem var(--missing)";
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      descend(css, "--shadow-runtime")["value"] = "0 0 1rem var(--missing)";
     });
     expect(codes(operand)).toContain("orb.cssValues.var");
 
@@ -362,7 +368,7 @@ describe("Orb semantic controls", () => {
     const current = readTokenContractTexts(UI_ROOT);
     const original = validateTokenContractTexts(current, REPO_ROOT);
     const swapped = mutate(current, "base", (base) => {
-      const cssValues = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
+      const cssValues = descend(descend(base, "$extensions"), "orb.cssValues");
       const portrait = cssValues["--aspect-portrait"];
       if (portrait === undefined) {
         throw new Error("fixture lost --aspect-portrait");
