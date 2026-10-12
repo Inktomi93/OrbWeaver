@@ -662,9 +662,11 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // The compose-root wrappers: the chat op type erases the batch to `unknown`.
     const chatCtx = makeChatContext(db, {
       applyStatsDelta: (batch, opDb, delta) => {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta(batch as BatchStmt[], opDb, delta);
       },
       bumpStatsCanonVersion: (batch, opDb, owner) => {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         bumpStatsCanonVersion(batch as BatchStmt[], opDb, owner);
       },
     });

@@ -22,6 +22,7 @@
 // across the guest bundle + the host's toast budget — it mirrors no single module. The harness is the shared
 // `tests/support/atlas-guest.ts`, so the realm denial these tests run under is the realm's own.
 
+// @orb-waive-file no-test-fabrication({ owned?: unknown } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 import type { AtlasBootOptions, CannedResponse } from "../../../support/atlas-guest.ts";
 import { bootAtlas, lastAtlasState } from "../../../support/atlas-guest.ts";

@@ -136,6 +136,7 @@ describe("safeFetch (staged response-side controls)", () => {
     vi.stubGlobal("fetch", () => new Response("hi", { status: 200, headers: { "content-type": "text/html" } }));
     const err = await safeFetch("https://example.com", { allowedHosts: ANY_HOST, allowedContentTypes: ["image/png"] }).catch((e) => e);
     expect(err).toBeInstanceOf(EgressBlockedError);
+    // @orb-waive no-test-fabrication(EgressBlockedError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as EgressBlockedError).reason).toBe("content-type");
   });
 
@@ -145,6 +146,7 @@ describe("safeFetch (staged response-side controls)", () => {
     const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST, maxBytes: 100 });
     const err = await res.bytes().catch((e) => e);
     expect(err).toBeInstanceOf(EgressBlockedError);
+    // @orb-waive no-test-fabrication(EgressBlockedError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as EgressBlockedError).reason).toBe("too-large");
   });
 
@@ -154,6 +156,7 @@ describe("safeFetch (staged response-side controls)", () => {
     await res.bytes();
     const err = await res.bytes().catch((e) => e);
     expect(err).toBeInstanceOf(EgressBlockedError);
+    // @orb-waive no-test-fabrication(EgressBlockedError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as EgressBlockedError).reason).toBe("consumed");
     vi.unstubAllGlobals();
   });

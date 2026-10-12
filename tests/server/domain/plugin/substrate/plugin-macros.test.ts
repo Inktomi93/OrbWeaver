@@ -23,7 +23,9 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const ALICE = castId<UserId>("usr_alice");
 const BOB = castId<UserId>("usr_bob");
 const CHAT = castId<ChatId>("chat_macros");
+// @orb-waive no-test-fabrication(PluginHandlerRef): baselined when the gate widened to value casts; burn-down item 906.
 const HANDLER = "plugin-handler-0" as PluginHandlerRef;
+// @orb-waive no-test-fabrication(PluginHandlerRef): baselined when the gate widened to value casts; burn-down item 906.
 const OTHER_HANDLER = "plugin-handler-1" as PluginHandlerRef;
 
 /** An invoker that answers with a scripted string per handler ref (and records the chat scope it was given). */

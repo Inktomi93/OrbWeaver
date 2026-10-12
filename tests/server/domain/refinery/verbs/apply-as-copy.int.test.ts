@@ -3,6 +3,7 @@
 // is byte-untouched; no snapshot is minted (nothing existing was written); the zero-write arm mints no
 // copy; a diverged field drops without `confirmDiverged` and lands with it.
 
+// @orb-waive-file no-test-fabrication(NonNullable<typeof copyId>): baselined when the gate widened to value casts; burn-down item 906.
 import { characterSnapshots, characters } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";

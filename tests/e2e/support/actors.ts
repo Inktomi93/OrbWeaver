@@ -23,6 +23,7 @@
 // stay `string` (the `no-inline-union-redecl` gate bans re-spelling a homed tuple here, and specs compare to
 // literals).
 
+// @orb-waive-file no-test-fabrication(Whoami): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
@@ -80,11 +81,13 @@ interface TrpcEnvelope<T> {
 function makeActorClient(baseUrl: string, headers: Readonly<Record<string, string>>): ActorClient {
   async function query<T>(procedure: string, input: unknown): Promise<T> {
     const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`, { headers });
+    // @orb-waive no-test-fabrication(readonly TrpcEnvelope<T>[]): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await res.json()) as readonly TrpcEnvelope<T>[];
     const entry = body[0];
     if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
       throw new Error(`actor trpc: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
     }
+    // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
     return entry.result.data as T;
   }
 
@@ -94,11 +97,13 @@ function makeActorClient(baseUrl: string, headers: Readonly<Record<string, strin
       headers: { ...headers, "content-type": "application/json" },
       body: JSON.stringify({ 0: input }),
     });
+    // @orb-waive no-test-fabrication(readonly TrpcEnvelope<T>[]): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await res.json()) as readonly TrpcEnvelope<T>[];
     const entry = body[0];
     if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
       throw new Error(`actor trpc: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
     }
+    // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
     return entry.result.data as T;
   }
 

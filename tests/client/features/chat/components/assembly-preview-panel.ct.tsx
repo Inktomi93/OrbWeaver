@@ -4,6 +4,7 @@
 // source with its count, the drill-in reveals that source's assembled text, plain-chat vs game-chat row sets,
 // the a11y model (text is the datum, the bar is hidden), plus the error + retry paths.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";

@@ -2,6 +2,12 @@
 // It records every signed request's protected header and payload, validates HTTP-01 by fetching the challenge from
 // the issuer's own responder, and signs a leaf over the CSR's key for the order's IP identifier.
 
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Buffer): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ protected: string; payload: string }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ type: string; value: string }[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { createHash, generateKeyPairSync } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";

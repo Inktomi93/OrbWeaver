@@ -129,6 +129,7 @@ function mutate(
   file: "base" | "light" | "mocha" | "resolver" | "removed",
   change: (value: Record<string, unknown>) => void,
 ): TokenContractTexts {
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const value = JSON.parse(texts[file]) as Record<string, unknown>;
   change(value);
   return { ...texts, [file]: JSON.stringify(value) };
@@ -150,6 +151,7 @@ test("the real vault is conformant and preserves the exact generated target surf
     if (typeof value !== "object" || value === null) {
       return 0;
     }
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const record = value as Record<string, unknown>;
     return "$value" in record ? 1 : Object.values(record).reduce<number>((total, child) => total + countTokens(child), 0);
   };
@@ -178,6 +180,7 @@ describe("official schema controls", () => {
 
   test("unknown type, invalid unit, and wrong color component count are refused", () => {
     const unknown = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       (base["number"] as Record<string, unknown>)["$type"] = "string";
     });
     expect(codes(unknown)).toContain("token.type.unknown");
@@ -188,6 +191,7 @@ describe("official schema controls", () => {
     expect(codes(unit)).toContain("format.schema");
 
     const components = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
       ((((base["color"] as Record<string, unknown>)["background"] as Record<string, unknown>)["$value"] as Record<string, unknown>)[
         "components"
       ] as unknown[]) = [0.2, 0.01];
@@ -213,6 +217,7 @@ describe("Orb semantic controls", () => {
     expect(codes(font)).toContain("fontFamily.member");
 
     const cycle = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const group = base["color"] as Record<string, unknown>;
       group["a"] = { $value: "{color.b}" };
       group["b"] = { $value: "{color.a}" };
@@ -246,6 +251,7 @@ describe("Orb semantic controls", () => {
 
   test("closed extensions, duplicate outputs, missing var operands, and stale removed rows are refused", () => {
     const extension = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       (base["$extensions"] as Record<string, unknown>)["orb.unknown"] = {};
     });
     expect(codes(extension)).toContain("orb.extension.unknown");
@@ -258,6 +264,7 @@ describe("Orb semantic controls", () => {
 
     const operand = mutate(validFixture(), "base", (base) => {
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       (css["--shadow-runtime"] as Record<string, unknown>)["value"] = "0 0 1rem var(--missing)";
     });
     expect(codes(operand)).toContain("orb.cssValues.var");
@@ -270,6 +277,8 @@ describe("Orb semantic controls", () => {
 
   test("every runtime CSS output declares whether Tailwind or :root owns its placement", () => {
     const missing = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
       const runtime = css["--shadow-runtime"];
       if (runtime !== undefined) {
@@ -280,6 +289,8 @@ describe("Orb semantic controls", () => {
     expect(codes(missing)).toContain("orb.cssValues");
 
     const invalid = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
       const runtime = css["--shadow-runtime"];
       if (runtime !== undefined) {
@@ -289,6 +300,8 @@ describe("Orb semantic controls", () => {
     expect(codes(invalid)).toContain("orb.cssValues");
 
     const root = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
       const runtime = css["--shadow-runtime"];
       if (runtime !== undefined) {
@@ -300,6 +313,8 @@ describe("Orb semantic controls", () => {
 
   test("runtime CSS may derive a concrete output only from a portable DTCG alias", () => {
     const portable = mutate(validFixture(), "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
       const runtime = css["--shadow-runtime"];
       if (runtime !== undefined) {
@@ -310,6 +325,8 @@ describe("Orb semantic controls", () => {
     expect(validateTokenContractTexts(portable).diagnostics).toEqual([]);
 
     const missing = mutate(portable, "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
       const runtime = css["--shadow-runtime"];
       if (runtime !== undefined) {
@@ -319,6 +336,8 @@ describe("Orb semantic controls", () => {
     expect(codes(missing)).toContain("orb.cssValues.alias.missing");
 
     const inputOnly = mutate(portable, "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
       const runtime = css["--shadow-runtime"];
       if (runtime !== undefined) {
@@ -331,6 +350,7 @@ describe("Orb semantic controls", () => {
   test("the Git merge-base ratchet refuses a portable token deletion without a removed-ledger row", () => {
     const current = readTokenContractTexts(UI_ROOT);
     const deleted = mutate(current, "base", (base) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       (base["motion"] as Record<string, unknown>)["ambient"] = undefined;
     });
     const result = validateTokenContractTexts(deleted, REPO_ROOT);
@@ -379,6 +399,7 @@ describe("bounded Resolver controls", () => {
     const current = readTokenContractTexts(UI_ROOT);
     const original = validateTokenContractTexts(current);
     const swapped = mutate(current, "light", (light) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const colors = light["color"] as Record<string, unknown>;
       const background = colors["background"];
       if (background === undefined) {
@@ -395,18 +416,22 @@ describe("bounded Resolver controls", () => {
 
   test("missing sets, mispaired seed metadata, extra modifiers, and reversed source order are refused", () => {
     const missing = mutate(validFixture(), "resolver", (resolver) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       (resolver["sets"] as Record<string, unknown>)["mocha"] = undefined;
     });
     expect(codes(missing)).toContain("resolver.sets");
 
     const mispaired = mutate(validFixture(), "resolver", (resolver) => {
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const light = (resolver["sets"] as Record<string, Record<string, unknown>>)["light"];
+      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const extensions = light?.["$extensions"] as Record<string, Record<string, unknown>>;
       (extensions["orb.theme"] ?? {})["id"] = "hearth";
     });
     expect(codes(mispaired)).toContain("resolver.theme");
 
     const modifier = mutate(validFixture(), "resolver", (resolver) => {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       (resolver["modifiers"] as Record<string, unknown>)["density"] = {
         default: "comfortable",
         contexts: { comfortable: [], compact: [] },
@@ -415,6 +440,7 @@ describe("bounded Resolver controls", () => {
     expect(codes(modifier)).toContain("resolver.modifiers");
 
     const order = mutate(validFixture(), "resolver", (resolver) => {
+      // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
       (resolver["resolutionOrder"] as unknown[]).reverse();
     });
     expect(codes(order)).toContain("resolver.order");

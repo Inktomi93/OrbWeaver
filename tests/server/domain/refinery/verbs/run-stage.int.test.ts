@@ -265,6 +265,7 @@ test("a run whose own preset cap sits under its payload is REFUSED with the fit 
 
   // The caller's explicit cap, one token under what the surface already told them the run needs.
   const cap = need - 1;
+  // @orb-waive no-test-fabrication({ resolveUtilityPresetParams:): baselined when the gate widened to value casts; burn-down item 906.
   const ctx = h.ctx as { resolveUtilityPresetParams: (userId: unknown) => Promise<SideGenSampling> };
   ctx.resolveUtilityPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: cap });
 

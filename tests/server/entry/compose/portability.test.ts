@@ -18,6 +18,7 @@
 // ones built from a domain ctx (assets/gallery/tag/theme/user-settings/preset/world-info/databank) are
 // pinned at their layout + wiring, since their behaviour is the domain verb's and is tested there.
 
+// @orb-waive-file no-test-fabrication({ principal: { userId: UserId } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile, PortableKind } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";

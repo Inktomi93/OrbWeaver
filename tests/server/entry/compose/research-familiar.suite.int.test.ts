@@ -1,5 +1,6 @@
 /// <reference path="../../../../packages/plugin-sdk/shared.d.ts" />
 
+// @orb-waive-file no-test-fabrication(string | null): baselined when the gate widened to value casts; burn-down item 906.
 // The shipped UI action and lookup guest cross the real installer-variable, room-attachment and lore
 // persistence boundaries. Only the external DNS/HTTP edges are scripted; no provider/model is called.
 import "../../../support/composed-real.ts";

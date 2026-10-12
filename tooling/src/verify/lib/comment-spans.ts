@@ -11,7 +11,8 @@ const CSS_COMMENT_CLOSE = "*/";
 
 /** Replace `[start,end)` with spaces, keeping every newline (line count + offsets are invariant). */
 function blankRange(text: string, start: number, end: number): string {
-  const span = text.slice(start, end).replace(/[^\n]/gu, SPACE);
+  // One space per UTF-16 unit: a `u`-flag match is a whole code point, and an astral one is two units long.
+  const span = text.slice(start, end).replace(/[^\n]/gu, (char) => SPACE.repeat(char.length));
   return text.slice(0, start) + span + text.slice(end);
 }
 

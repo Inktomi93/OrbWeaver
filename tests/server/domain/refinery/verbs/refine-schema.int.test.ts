@@ -3,6 +3,7 @@
 // answers in the forge's leaf language, so the CURRENT schema is prompt material rather than a typed input —
 // which is what lets a hand-authored raw-door schema (outside the leaf language) still be refined.
 
+// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";

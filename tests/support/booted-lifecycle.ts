@@ -1,6 +1,7 @@
 // A real lifecycle booted on a throwaway data dir, and the boot log it wrote. The env is stubbed before the
 // server graph is imported, so call `bootLifecycle` once per file, before anything imports that graph.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

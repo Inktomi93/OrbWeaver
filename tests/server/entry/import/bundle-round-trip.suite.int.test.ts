@@ -435,11 +435,13 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         const req = new Request("http://t/api/import/bundle", { method: "POST", body: zip });
         const res = await importH(makeCtx(target, req));
         expect(res.status).toBe(202);
+        // @orb-waive no-test-fabrication({ workloadId: WorkloadId }): baselined when the gate widened to value casts; burn-down item 906.
         const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
         const row = await loadRunnableWorkload(freshDatabase, fresh.workloadContributions, workloadId);
         await runWorkload(makeRunnerDeps(freshDatabase, fresh.workloadContributions), row, new AbortController().signal);
         const done = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
         expect(done?.status).toBe("succeeded");
+        // @orb-waive no-test-fabrication({ imported: number; skipped: number; failed: number }): baselined when the gate widened to value casts; burn-down item 906.
         return done?.result as { imported: number; skipped: number; failed: number };
       };
 
@@ -923,11 +925,13 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       const req = new Request("http://t/api/import/bundle", { method: "POST", body: zip });
       const res = await importH(makeCtx(target, req));
       expect(res.status).toBe(202);
+      // @orb-waive no-test-fabrication({ workloadId: WorkloadId }): baselined when the gate widened to value casts; burn-down item 906.
       const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
       const row = await loadRunnableWorkload(freshDatabase, fresh.workloadContributions, workloadId);
       await runWorkload(makeRunnerDeps(freshDatabase, fresh.workloadContributions), row, new AbortController().signal);
       const done = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
       expect(done?.status).toBe("succeeded");
+      // @orb-waive no-test-fabrication({ imported: number; skipped: number; failed: number }): baselined when the gate widened to value casts; burn-down item 906.
       const report = done?.result as { imported: number; skipped: number; failed: number };
       expect(report.failed).toBe(0);
 

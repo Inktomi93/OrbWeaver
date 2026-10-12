@@ -1,6 +1,8 @@
 // Full-stack room reads, multiplexed attachment and bus-driven rename reconciliation.
 // Ordinary tRPC queries and mutations share JSON POST batches; the tab's SSE socket is separate.
 
+// @orb-waive-file no-test-fabrication(BatchInputs): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Pick<typeof import): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamAttachInput, StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";

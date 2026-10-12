@@ -11,6 +11,15 @@
 // `deps:orphan-ratchet` also reads — so that suite pins the six liveness sets identical with the edge flag
 // off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
+// @orb-waive-file no-test-fabrication(ApiSurfaceEntry): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ChainCandidate): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Parameters<typeof isUnwiredExempt>[0]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(SwallowedCandidate): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ViewFieldCandidate): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ label: string; malformedMarkers?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ label: string; total: number; exemptions?: { target: string }[]; malformedMarkers?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ label: string; total: number; hits: Hit[]; exemptions?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-vanity-alias(REPO_ROOT): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file platform-spellings(byName): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
@@ -486,6 +495,7 @@ describe("ast prodonly lens (tooling entry points)", () => {
     } finally {
       release();
     }
+    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     const hitFiles = payload?.hits.map(({ file }) => file) ?? [];
     expect(hitFiles).not.toContain("packages/client/src/internal/lazy-target.ts");
@@ -545,6 +555,7 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
       release();
     }
 
+    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     const hitFiles = payload?.hits.map(({ file }) => file) ?? [];
     expect(hitFiles).not.toContain("packages/client/src/live.worker.ts");
@@ -579,6 +590,7 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
     } finally {
       release();
     }
+    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     expect(payload?.hits.map(({ file }) => file)).toContain("packages/inference/src/internal/index.ts");
   });
@@ -2842,6 +2854,7 @@ describe("ast clientgap lens (liveness split)", () => {
     } finally {
       release();
     }
+    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     expect(payload?.hits.map(({ text }) => text)).toEqual([expect.stringContaining("MissingView")]);
   });

@@ -4,6 +4,7 @@
 // `gen-1789884254-ZJVqE4m5N0aChJ7FY0x7`), so the advertised tier never derives verbosity from it; the knob is a
 // curated / measured statement. The sampling NAMES still gate presence (§8.7) — that half is unchanged.
 
+// @orb-waive-file no-test-fabrication({ verbosity?: unknown; sampling?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
 import { advertisedFromOpenRouter } from "#inference/capability/sources/advertised/openrouter.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

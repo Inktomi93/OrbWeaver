@@ -1,3 +1,8 @@
+// @orb-waive-file no-test-fabrication({ data: number[][] }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ data: string[]; inverse: boolean }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ max: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ min: number; max: number; inRange: { color: string[] } }): baselined when the gate widened to value casts; burn-down item 906.
+
 // Unit: <Heatmap>'s pure `buildHeatmapOption` builder. A mounted ECharts instance does not survive the
 // Playwright component-test RPC boundary with its methods intact, so the resolved-color / VisualMap
 // gradient / cell-encoding wiring is proven here as plain data (heatmap.ct.tsx covers what IS

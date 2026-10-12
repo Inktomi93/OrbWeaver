@@ -115,7 +115,9 @@ test("the leak-free ScrapeFailedError never surfaces the resolved private addres
 
   const error = await h.service.scrapeWeb({ principal: principalFor(owner), url: "https://internal.corp/" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ScrapeFailedError);
+  // @orb-waive no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ScrapeFailedError).message).toBe("The web page could not be scraped.");
+  // @orb-waive no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ScrapeFailedError).message).not.toContain("169.254.169.254"); // the address stays server-side
 });
 

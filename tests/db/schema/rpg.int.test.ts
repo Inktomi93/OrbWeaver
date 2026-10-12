@@ -5,6 +5,8 @@
 // checkpoint→snapshot RESTRICT ("restore broken because the snapshot vanished" must be a constraint error).
 // Real libSQL :memory: via freshDb (FK ON).
 
+// @orb-waive-file no-test-fabrication("active"): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication("lite"): baselined when the gate widened to value casts; burn-down item 906.
 import type { RpgGameConfig, RpgQuest } from "@orb/contracts/rpg";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import { characters, chats, messages, messageVariants, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, users } from "@orb/db";
@@ -174,6 +176,7 @@ test("rpg_journal type CHECK guards + variant CASCADE (dead-swipe entries are cl
   await db.insert(rpgJournal).values(hand);
   const modelEntry = castId<RpgJournalId>("rpg_journal_model");
   await db.insert(rpgJournal).values({ id: modelEntry, gameId, type: "event", title: "model", content: "a beat", variantId });
+  // @orb-waive no-test-fabrication("note"): baselined when the gate widened to value casts; burn-down item 906.
   const bad = { id: castId<RpgJournalId>("rpg_journal_bad"), gameId, type: "prophecy" as "note", title: "x", content: "y" };
   await expect(db.insert(rpgJournal).values(bad)).rejects.toSatisfy(isConstraint);
   // Deleting the variant CASCADEs the model entry (leak-free) but NOT the hand entry.
@@ -213,6 +216,7 @@ test("R4c: a `custom` journal entry stores its free label; the type CHECK still 
   await db.insert(rpgJournal).values({ id: plainId, gameId, type: "event", title: "A brawl", content: "It went badly." });
   expect((await db.select().from(rpgJournal).where(eq(rpgJournal.id, plainId)))[0]?.label).toBe("");
   // The enum stays CLOSED — `custom` + label is the escape, never an off-vocab token.
+  // @orb-waive no-test-fabrication("note"): baselined when the gate widened to value casts; burn-down item 906.
   const bad = { id: castId<RpgJournalId>("rpg_journal_bad"), gameId, type: "ritual" as "note", title: "x", content: "y" };
   await expect(db.insert(rpgJournal).values(bad)).rejects.toSatisfy(isConstraint);
 });

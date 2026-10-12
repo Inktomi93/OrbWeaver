@@ -7,6 +7,8 @@
 //     this route is how an e2e/live check asserts it in one request.
 // Both are host-only behind the same debug gate, and both are exercised through a real Hono app + fetch.
 
+// @orb-waive-file no-test-fabrication({ count: number; events: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ count: number; events: { seq: number; event: Record<string, unknown> }[] }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";

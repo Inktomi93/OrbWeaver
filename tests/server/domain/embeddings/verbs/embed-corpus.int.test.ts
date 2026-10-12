@@ -7,6 +7,7 @@
 //     abort during an embed's wait on the model rejects the pass with no partial row;
 //   • an embed failure PROPAGATES (never swallowed) — the completed items' rows survive for the rerun.
 
+// @orb-waive-file no-test-fabrication({ readonly signal?: AbortSignal } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedSpaceState, userConnections } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";

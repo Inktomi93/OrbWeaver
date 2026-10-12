@@ -1,6 +1,7 @@
 // CT: the selection-bar bulk-action chrome — the live-announcing count, Escape/clear firing
 // onClear, and the caller-owned actions slot (ui-package-design §12 Wave 3-C; work-order #21).
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import { TOKENS } from "@orb/ui/tokens";
@@ -11,6 +12,7 @@ async function flushCallbackDelivery(page: Page): Promise<void> {
   await page.exposeFunction("__selectionCallbackBarrier", (): void => undefined);
   // A browser action acknowledges input, not delivery of CT's fire-and-forget Node callbacks.
   await page.evaluate(async () => {
+    // @orb-waive no-test-fabrication(typeof globalThis & { __selectionCallbackBarrier:): baselined when the gate widened to value casts; burn-down item 906.
     const bridge = globalThis as typeof globalThis & { __selectionCallbackBarrier: () => Promise<void> };
     await bridge.__selectionCallbackBarrier();
   });

@@ -2,6 +2,7 @@
 // character_personas rows vanish with it); a not-owned/missing target throws (no cross-user delete); a
 // real delete audits; the caller's LAST persona is refused (`last_persona` — the always-one belt).
 
+// @orb-waive-file no-test-fabrication(LastPersonaError): baselined when the gate widened to value casts; burn-down item 906.
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterPersonas, personas } from "@orb/db";
 import type { Handle, PersonaId } from "@orb/kit/ids";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+
 // @instrument-proof: snap's TERMINAL OUTPUT is an agent-facing contract (#1344 #1345 #1347). Every one of
 // these pins is a call an agent spent re-reading snap's own logs on the 2026-09-04 /chats dogfood: the
 // answer buried at line 61 behind 32 lines of boot console, a failed `--wait-for` visible only as one

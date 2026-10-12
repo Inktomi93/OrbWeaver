@@ -2,6 +2,7 @@
 // circular-FK dance (slot→variant→pointer), the slot⋈selected-variant read-back, append-a-variant (regen),
 // select-active (the pointer flip), and that `buildCommittedMessageView` equals the re-read row byte-for-byte.
 
+// @orb-waive-file no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import type { UserMacroDraws } from "@orb/contracts/chat";
 import { costDetailsSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
@@ -426,6 +427,7 @@ describe("commitCanonAppend — the allocation retry is BOUNDED", () => {
           onAttempt();
           const head = await loadMaxMessageSeq(real, chatId);
           await seedMessage(real, chatId, head + 1, { role: "assistant", content: `sibling ${head + 1}` });
+          // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
           return await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
         };
       },
@@ -475,6 +477,7 @@ describe("commitCanonAppend — the allocation retry is BOUNDED", () => {
             stolen = true;
             await seedMessage(db, chatId, (await loadMaxMessageSeq(db, chatId)) + 1, { role: "assistant", content: "sibling" });
           }
+          // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
           return await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
         };
       },

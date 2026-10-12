@@ -52,6 +52,7 @@ describe("assertHost — host-authority via the injected can() seam", () => {
   test("a member is refused with the not_host code (the seam denied; chat re-expresses)", () => {
     const err = thrown(() => assertHost(can, principal(ALICE), "member", CHAT));
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 });
@@ -69,12 +70,14 @@ describe("assertAuthorOrHost — edit/delete gate via the seam", () => {
   test("a member is refused another member's slot with the not_author code", () => {
     const err = thrown(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "member", authorUserId: BOB }, CHAT));
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_author");
   });
 
   test("a null-authored slot is host-only for a member (not_author)", () => {
     const err = thrown(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "member", authorUserId: null }, CHAT));
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_author");
   });
 });

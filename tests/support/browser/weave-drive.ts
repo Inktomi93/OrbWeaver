@@ -38,6 +38,7 @@ export async function touchDrag(page: Page, from: WeavePoint, to: WeavePoint, st
 /** A coarse whole-frame color fingerprint of a weave canvas — any recolor or deformation shifts it. */
 export function frameFingerprint(canvas: Locator): Promise<string> {
   return canvas.evaluate((el) => {
+    // @orb-waive no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
     const c = el as HTMLCanvasElement;
     const ctx = c.getContext("2d");
     if (ctx === null) {
@@ -61,6 +62,7 @@ export function frameFingerprint(canvas: Locator): Promise<string> {
 export async function frameFingerprintPair(canvases: Locator): Promise<readonly [string, string]> {
   const frames = await canvases.evaluateAll((elements) =>
     elements.map((el) => {
+      // @orb-waive no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
       const c = el as HTMLCanvasElement;
       const ctx = c.getContext("2d");
       if (ctx === null) {

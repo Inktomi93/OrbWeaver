@@ -358,6 +358,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
       expect(winner).toMatchObject({ userId: ownerId, role: "owner" });
 
       // The refusal rides the security trail naming WHICH subject lost and which one holds the row.
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_owner_bind_lost_race");
       expect(line?.["security"]).toBe(true);
       expect(line?.["boundTo"]).toBe(bound);
@@ -436,6 +437,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     const stranger = identity({ externalId: castId<ExternalId>("authentik|stranger"), handle: castId<Handle>("owner"), groups: [] });
 
     function claimWarn(calls: readonly (readonly unknown[])[]): Record<string, unknown> | undefined {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       return calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_owner_claim_unproven");
     }
 
@@ -506,6 +508,7 @@ describe("sessions.provisionIdentity — a member's IdP rename onto the owner se
     const row = (await db.select().from(users).where(eq(users.id, member.userId)))[0];
     expect(row?.handle).toBe("alice");
     expect(row?.role).toBe("user");
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_rename_onto_reserved_handle");
     expect(line).toMatchObject({ security: true, userId: member.userId });
   });
@@ -688,6 +691,7 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
     const nullSubject = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
     expect(nullSubject.userId).toBe(bound.userId); // unchanged outcome — this is a signal, not a gate
     expect(spy).toHaveBeenCalledOnce();
+    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings["security"]).toBe(true);
     expect(bindings["event"]).toBe("sso_null_subject_on_bound_row");
@@ -949,6 +953,7 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
     const spy = vi.spyOn(logger, "info");
     await svc.provisionIdentity(identity({ groups: ["Orb Admins", "eng"] }), PROVEN);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const line = spy.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["handle"] === "alice");
     expect(line?.["groups"]).toEqual(["Orb Admins", "eng"]);
     expect(line?.["groupCount"]).toBe(2);
@@ -959,6 +964,7 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
     const spy = vi.spyOn(logger, "warn");
     expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN)).outcome).toBe("denied");
+    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings["groups"]).toEqual(["outsiders"]);
     expect(bindings["handle"]).toBe("alice");
@@ -1076,7 +1082,9 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     expect(rows).toHaveLength(1);
     expect(rows[0]?.externalId).toBe("authentik|someone-else");
     // …and the refusal rides the security trail, naming the collision rather than a stack trace.
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
+    // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
     const line = call?.[0] as Record<string, unknown> | undefined;
     expect(line?.["security"]).toBe(true);
     // An exact handle match is an account an admin may link to this subject, so the line says how.
@@ -1102,7 +1110,9 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     expect(await pending).toEqual({ outcome: "denied", reason: "account-exists" });
     // A key-only match is a DIFFERENT account that merely looks alike: linking it to this subject would hand
     // the look-alike's row to the wrong person, so the operator line must not suggest it.
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
+    // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
     expect((call?.[0] as Record<string, unknown> | undefined)?.["match"]).toBe("key-only");
     expect(String(call?.[1])).not.toContain("linkSsoIdentity");
   });

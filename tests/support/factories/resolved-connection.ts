@@ -14,6 +14,7 @@
 //     used to default to). `generation` is the convenience override for the chat-shaped capability.
 //   • makeResolvedView — the credential-free `ResolvedConnectionView` (`connection.resolveChatCapability`).
 
+// @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
 import type { CachePolicy, Capability, GenerationCapability, ResolvedCacheConnectionView, ResolvedConnectionView, Task } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";

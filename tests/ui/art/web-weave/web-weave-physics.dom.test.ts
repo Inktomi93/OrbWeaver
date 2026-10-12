@@ -7,6 +7,8 @@
 //   • a hit lands on the strand under the pointer, and never on the bridge.
 // Deterministic: every function takes `now` — no clock, no rAF, no browser.
 
+// @orb-waive-file no-test-fabrication(NonNullable<typeof hit>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { WeavePluck } from "#ui/art/web-weave/web-weave-physics.ts";

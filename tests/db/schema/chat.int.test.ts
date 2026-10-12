@@ -8,6 +8,8 @@
 // canonical tuple); chat_events type CHECK over the ChatBusEvent discriminant; and the chat-children
 // CASCADE on chat delete (all ten dependents vanish).
 
+// @orb-waive-file no-test-fabrication("human"): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication("standard"): baselined when the gate widened to value casts; burn-down item 906.
 import type { OpeningPolicy, ToolCallRecord } from "@orb/contracts/chat";
 import {
   CONNECTION_ATTRIBUTION_PROVENANCES,

@@ -370,6 +370,16 @@ const GATING_STAGES: readonly StageDef[] = [
     classify: ownScheme,
   },
   {
+    name: "quality:cpd-tests",
+    applicationClassify: ownScheme,
+    // The ratchet's threshold was measured over the whole tests tree, so the application run scans the same tree.
+    applicationArgv: ["pnpm", "cpd:tests"],
+    group: "quality",
+    tiers: ["push", "full", "product", "weekly"],
+    argv: ["pnpm", "cpd:tests"],
+    classify: ownScheme,
+  },
+  {
     name: "browser:e2e",
     applicationArgv: ["pnpm", "e2e"],
     group: "browser",

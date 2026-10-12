@@ -308,6 +308,7 @@ describe("importCharacter", () => {
     const first = await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON) } });
 
     // The same card with its top-level keys in another order is a DIFFERENT file and the SAME character.
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const parsed = JSON.parse(V3_JSON) as Record<string, unknown>;
     const reordered = JSON.stringify(Object.fromEntries(Object.entries(parsed).reverse()));
     const same = await svc.importCharacter({ card: { bytes: encoder.encode(reordered) } });
@@ -316,6 +317,7 @@ describe("importCharacter", () => {
     expect(same.importHash).toBe(first.importHash);
 
     // A changed field (a note) is a different character, even under the same name.
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const changed = JSON.stringify({ ...parsed, data: { ...(parsed["data"] as Record<string, unknown>), creator_notes: "second edition" } });
     const other = await svc.importCharacter({ card: { bytes: encoder.encode(changed) } });
     expect(other.created).toBe(true);

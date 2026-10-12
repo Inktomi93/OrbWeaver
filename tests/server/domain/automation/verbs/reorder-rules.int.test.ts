@@ -57,6 +57,7 @@ test("global exact-set reorder rejects delete-C/create-D after admission and nev
   const readComplete = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const read = rulePersistence.listRuleIdsForScope;
+  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
   const gate = vi.spyOn(rulePersistence, "listRuleIdsForScope").mockImplementationOnce(async (db, scope) => {
     const ids = await read(db, scope);
     readComplete.resolve();
@@ -105,6 +106,7 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
     const readComplete = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     const readIds = rulePersistence.listRuleIdsForChat;
+    // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
     const gate = vi.spyOn(rulePersistence, "listRuleIdsForChat").mockImplementationOnce(async (db, chatId) => {
       const ids = await readIds(db, chatId);
       readComplete.resolve();

@@ -48,7 +48,7 @@ export function VariablesTabStory(): ReactElement {
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <VariablesTab form={session.form as AppFormInstance<PromptConfig>} />
+          <VariablesTab form={/* @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906. */ session.form as AppFormInstance<PromptConfig>} />
         </>
       )}
     </StoryForm>
@@ -69,6 +69,7 @@ export function CompactionTabDefaultsStory(): ReactElement {
           capability={undefined}
           capabilityError={null}
           effective={undefined}
+          // @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
           form={session.form as AppFormInstance<PromptConfig>}
           samplerSpelling={undefined}
         />
@@ -90,6 +91,7 @@ export function CompactionTabSetStory(): ReactElement {
           capability={undefined}
           capabilityError={null}
           effective={undefined}
+          // @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
           form={session.form as AppFormInstance<PromptConfig>}
           samplerSpelling={undefined}
         />
@@ -107,7 +109,7 @@ export function UserMacrosTabStory(): ReactElement {
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <UserMacrosTab form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} />
+          <UserMacrosTab form={/* @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906. */ session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} />
         </>
       )}
     </StoryForm>

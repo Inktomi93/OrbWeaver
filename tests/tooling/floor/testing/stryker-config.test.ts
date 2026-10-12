@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly scripts: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -113,6 +115,7 @@ async function importConfig(configName: string, nonce: string): Promise<Record<s
   if (typeof config !== "object" || config === null) {
     throw new TypeError(`${configName} default export must be an object`);
   }
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return config as Record<string, unknown>;
 }
 
@@ -147,6 +150,7 @@ test("each config import owns independent mutable option branches", async () => 
     throw new TypeError("expected mutable plugin and vitest options");
   }
   exploratoryPlugins.push("probe-plugin");
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   (exploratoryVitest as Record<string, unknown>)["configFile"] = "probe.config.ts";
 
   expect(gate).toEqual(EXPECTED_GATE);

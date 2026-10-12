@@ -2,6 +2,7 @@
 // MessageView / bus-event payload BEFORE it leaves the server. Payload-level pins: the instrument is
 // `stripHiddenSpans` (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload".
 
+// @orb-waive-file no-test-fabrication(ChatBusReplayEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
