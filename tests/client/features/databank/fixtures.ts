@@ -3,10 +3,11 @@
 // per-file copy is how the list's "12 chunks" and the detail's "12 / 12 embedded" drift into disagreeing
 // about one document), and so a contract change to `DocumentView` lands in one place.
 //
-// The four rows are the four phases the surface must tell apart: READY (the steady state), INDEXING (a
-// partial embed), EMPTY (a scanned file that extracted to nothing) and STALLED (an in-flight row whose
-// `updatedAt` froze — the one the DBFIX lane added, because that is what a document whose ingest was
-// refused or whose worker died looks like, and it used to read `Queued` on this list forever).
+// The four rows are four phases the surface must tell apart: READY (the steady state), INDEXING (text
+// extracted, nothing chunked yet), EMPTY (a scanned file that extracted to nothing) and STALLED (an in-flight
+// row whose `updatedAt` froze — the one the DBFIX lane added, because that is what a document whose ingest was
+// refused or whose worker died looks like, and it used to read `Queued` on this list forever). Every row is a
+// state the server can hold: a chunk row exists only after its embed, so `embeddedCount` equals `chunkCount`.
 //
 // THE BROWSER CLOCK IS FROZEN at the suite-wide `FROZEN_AT_MS`, and the timestamps below are offsets from
 // it. The stall verdict is `now - updatedAt >= 5 min` where `now` is the query's own `dataUpdatedAt` — i.e.
@@ -16,8 +17,8 @@
 // `stubDatabank` pins the page clock with `page.clock.setFixedTime` — the date reader ONLY, no timer faking,
 // so the surface's own 4s ingest poll and playwright's auto-waiting still run for real.
 
-import type { INGEST_PHASES } from "@orb/contracts/databank";
-import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/databank";
+import type { IngestPhase } from "@orb/contracts/databank";
+import { DATABANK_LIST_DEFAULT_LIMIT, ingestPhase } from "@orb/contracts/databank";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -53,8 +54,8 @@ export const INDEXING_DOC = {
   name: "Duskwater Barony",
   origin: "wiki" as const,
   byteSize: 93_901,
-  chunkCount: 39,
-  embeddedCount: 22,
+  chunkCount: 0,
+  embeddedCount: 0,
 };
 
 const EMPTY_DOC = {
@@ -95,22 +96,6 @@ type StubDocument = TrpcWireOutput<"databank.list">["items"][number];
 
 const DEFAULT_BANK: readonly StubDocument[] = [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC];
 
-/** The SERVER's phase rule, spelled here because this stub stands in for the server
- *  (`domain/databank/persistence/queries.ts` `phasePredicate`, whose arithmetic is the client's `countedPhase` + stall
- *  overlay). Deliberately NOT imported from the client's `databank-model`: a stub that reuses the code under
- *  test can only ever agree with it. */
-type IngestPhase = (typeof INGEST_PHASES)[number];
-
-function phaseOf(doc: StubDocument): IngestPhase {
-  if (doc.charCount === 0) {
-    return "empty";
-  }
-  if (doc.chunkCount === 0) {
-    return NOW - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : "indexing";
-  }
-  return doc.embeddedCount < doc.chunkCount ? "embedding" : "ready";
-}
-
 /**
  * An INPUT-AWARE `databank.list` responder: it PAGES the way the verb pages — keyset on `(updatedAt, id)`,
  * `limit` rows, `nextCursor` only on a FULL page — AND applies the same narrowing (`search` · `phase` ·
@@ -129,7 +114,7 @@ function pagedBank(documents: readonly StubDocument[]): TrpcResponder<"databank.
     const matched = documents.filter(
       (doc) =>
         (needle === "" || doc.name.toLowerCase().includes(needle)) &&
-        (phase === undefined || phaseOf(doc) === phase) &&
+        (phase === undefined || ingestPhase(doc, NOW) === phase) &&
         (origin === undefined || doc.origin === origin),
     );
     const size = limit ?? DATABANK_LIST_DEFAULT_LIMIT;
@@ -166,7 +151,7 @@ export function bankCensus(
     let chunks = 0;
     let passages = 0;
     for (const doc of documents) {
-      byPhase[phaseOf(doc)] = (byPhase[phaseOf(doc)] ?? 0) + 1;
+      byPhase[ingestPhase(doc, NOW)] += 1;
       chunks += doc.chunkCount;
       passages += doc.embeddedCount;
     }

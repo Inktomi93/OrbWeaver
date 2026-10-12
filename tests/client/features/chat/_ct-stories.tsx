@@ -282,7 +282,6 @@ import { useChatsSelectionTitle } from "#client/features/chat/lib/chats-selectio
 import type { MemberCharacterRow, MemberPersonRow } from "#client/features/chat/lib/member-rows.ts";
 import { SWIPE_FOOT_INSIDE } from "#client/features/chat/lib/pager-chrome.ts";
 import { createWarningSurface } from "#client/features/chat/lib/turn-warning-surface.ts";
-import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -1394,15 +1393,28 @@ function MomentHarness({ target }: { readonly target: MessageWindowTarget }): Re
 
 // Capability warnings use the real room bus and document-level toast overlay.
 
+/** The warning seam `chat-content.tsx` wires into the room bus (the turn cadence, then the code→copy mapper),
+ *  with next-step doors that go nowhere: no story asserts where a door leads. */
+function createCtWarningSurface(): ReturnType<typeof createWarningSurface> {
+  return createWarningSurface({
+    warn: (notice): void => notify.warn(notice),
+    openConnections: { label: "Open Connections", onClick: (): void => undefined },
+    openUtilityModel: { label: "Open Model roles", onClick: (): void => undefined },
+    openRerankModel: { label: "Open Model roles", onClick: (): void => undefined },
+  });
+}
+
 function StreamNoticeHarness({ columnHeight }: { readonly columnHeight: number }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const [warningSurface] = useState(createCtWarningSurface);
   const busDeps: ChatBusDeps = {
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
-    // `surfaceWarning`'s body (chat-content.tsx) — module-private there, so the story makes the same two
-    // calls. Its `custom_parameters_ignored` action arm is not in scope for a capability drop.
-    onWarning: (warning): void => notify.warn(warningNotice(warning)),
+    ...warningSurface,
+    // This story measures a transcript under a toast, not the turn cadence (`TurnWarningCadenceStory` owns that):
+    // with no turn opened, the surface raises each warning at once instead of holding it for the turn's end.
+    onTurnStarted: (): void => undefined,
   };
   return (
     <div className="shell-main" style={{ display: "flex", flexDirection: "column", height: columnHeight, minHeight: 0 }}>
@@ -3409,18 +3421,18 @@ export function CharacterGalleryDialogToastStory(): ReactElement {
  *  the REAL production toast outlet (`CtToastSurface` mounts `AppToaster`). What the CT reads is therefore
  *  the rendered notice a user sees, not a mapper return value — the unit test already owns that.
  *
- *  Only `chat-content.tsx`'s one-line `surfaceWarning` is bypassed (it is module-private); its body is the
- *  same two calls this story makes, and its `custom_parameters_ignored` action arm is not in scope here.
+ *  The warning seam is the same `createWarningSurface` factory `chat-content.tsx` wires.
  *
  *  The knob is `topP` because it is the case the toast exists for: the code alone would say "a setting was
  *  adjusted", and the whole point of the carrier is that the user reads the NAME of the setting.
  */
 export function ProviderAdjustmentWarningStory(): ReactElement {
+  const [warningSurface] = useState(createCtWarningSurface);
   const busDeps: ChatBusDeps = {
     stream: chatStream,
     // A warning invalidates nothing — no canon changed — so the seam is deliberately inert here.
     invalidate: (): void => undefined,
-    onWarning: (warning): void => notify.warn(warningNotice(warning)),
+    ...warningSurface,
   };
   return (
     <CtToastSurface>
@@ -3453,14 +3465,7 @@ export function ProviderAdjustmentWarningStory(): ReactElement {
  *  the REAL reducer into the SAME `createWarningSurface` factory `chat-content.tsx` wires, and out through the
  *  real toast outlet. Each button plays one turn on the same connection. */
 export function TurnWarningCadenceStory(): ReactElement {
-  const [surface] = useState(() =>
-    createWarningSurface({
-      warn: (notice): void => notify.warn(notice),
-      openConnections: { label: "Open Connections", onClick: (): void => undefined },
-      openUtilityModel: { label: "Open Model roles", onClick: (): void => undefined },
-      openRerankModel: { label: "Open Model roles", onClick: (): void => undefined },
-    }),
-  );
+  const [surface] = useState(createCtWarningSurface);
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: (): void => undefined, ...surface };
   const playTurn = (adjustments: readonly ("effort_dropped" | "sampling_knob_dropped")[]): void => {
     applyChatBusEvent(

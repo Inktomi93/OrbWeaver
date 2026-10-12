@@ -18,8 +18,7 @@
 // @orb-waive-file testid-typed-only-stories("actions-host"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("picker-host"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("reactions-host"): baselined when the gate widened; burn-down item 906.
-import { useInvalidation, useTRPC } from "@orb/client/data";
-import { chatMessageReactionsSurface } from "@orb/client/features/chat";
+import { chatMessageReactionsSurface, RowReactionPicker } from "@orb/client/features/chat";
 import type { ChatSurfaceContribution } from "@orb/client/lib";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { Button } from "@orb/ui/button";
@@ -28,9 +27,7 @@ import { useState } from "react";
 // The leaf ACTION ROW, the PICKER and the reaction hooks are feature internals the front door does not
 // re-export — the `_ct-stories` precedent for a leaf (`MessageRow`/`MessageActionsRow` both come in this way).
 import { MessageActionsRow } from "#client/features/chat/components/message-actions-row.tsx";
-import { ReactionPicker } from "#client/features/chat/components/reaction-picker.tsx";
 import { useReactionsForVariant, useViewerSeatId } from "#client/features/chat/hooks/use-message-reactions.ts";
-import { useToggleReactionMutation } from "#client/features/chat/lib/reaction-mutations.ts";
 import { makeMessageView } from "./fixtures.ts";
 
 // MODULE-PRIVATE (the playwright-ct constraint: a story module may export COMPONENTS ONLY — a spec that
@@ -111,14 +108,10 @@ export function StandardLabeledDoorsStory(): ReactElement {
   );
 }
 
-/** The picker's own wiring, lifted from `message-actions-row.tsx` verbatim — controlled `open`, the row's
- *  live groups + seat, and the REAL toggle mutation. Lifting it (rather than passing a spy `onPick`) is what
- *  makes the round-trip arm honest: the pick travels the production hook to the production proc, so the CT
- *  can assert the WIRE VARS off `routeTrpc`'s recorder instead of a callback nobody ships. */
+/** The picker as the row mounts it: the row's own `RowReactionPicker`, fed the live groups and seat the row
+ *  feeds it, so the pick travels the production hook to the production proc and the CT can assert the WIRE VARS
+ *  off `routeTrpc`'s recorder instead of a callback nobody ships. */
 function ReactionPickerHarness(): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const toggle = useToggleReactionMutation({ trpc, invalidation });
   const [open, setOpen] = useState(false);
   const { chatId, selectedVariantId } = FOOTER_STATE.message;
   const groups = useReactionsForVariant(chatId, selectedVariantId);
@@ -129,26 +122,7 @@ function ReactionPickerHarness(): ReactElement {
         Open the picker
       </Button>
       {open ? (
-        <ReactionPicker
-          characterNames={[]}
-          chatId={chatId}
-          content={FOOTER_STATE.message.content}
-          groups={groups}
-          onOpenChange={setOpen}
-          onPick={(emoji, segment): void => {
-            if (!toggle.isPending) {
-              toggle.mutate({
-                chatId,
-                variantId: selectedVariantId,
-                emoji,
-                ...(segment !== null ? { segmentIndex: segment.index, segmentSpeaker: segment.speaker } : {}),
-              });
-            }
-          }}
-          open={open}
-          variantId={selectedVariantId}
-          viewerSeatId={viewerSeatId}
-        />
+        <RowReactionPicker characterNames={[]} groups={groups} message={FOOTER_STATE.message} onOpenChange={setOpen} viewerSeatId={viewerSeatId} />
       ) : null}
     </>
   );

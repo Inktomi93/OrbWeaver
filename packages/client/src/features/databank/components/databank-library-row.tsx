@@ -30,13 +30,14 @@
 // INSIDE the subtitle's own span, so its text rides the row's `aria-describedby` and the phase is spoken.
 
 import type { DocumentView } from "@orb/contracts/databank";
+import { ingestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Globe, Icon, RefreshCw } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
-import { documentSubtitle, ingestBadge, ingestEmptyHint, ingestPhase, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
+import { documentSubtitle, ingestBadge, ingestEmptyHint, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
 
 export interface DatabankLibraryRowProps {
   readonly document: DocumentView;

@@ -8,6 +8,7 @@
 // @orb-waive-file no-test-fabrication(Partial<EffectiveAppSettings>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ state?: { handle?: { id?: string } } } | null): baselined when the gate widened to value casts; burn-down item 906.
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
+import type { IpCertificateRefusalNotice } from "@orb/server/domain/share";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { copyActionName } from "@orb/ui/lib";
@@ -17,7 +18,7 @@ import type { AuthConfig } from "#client/data/auth-config.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
-import { signInModeView, stubAuthConfig } from "../auth-config-fixtures.ts";
+import { ipCertificateRefusalFor, signInModeView, stubAuthConfig } from "../auth-config-fixtures.ts";
 
 const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "admin" } satisfies TrpcWireOutput<"sessions.me">;
@@ -81,6 +82,9 @@ interface ShareStub {
   /** The refusal a `null` start answers with. Defaults to a failed relay download. */
   readonly refusal?: { readonly reason: string; readonly message: string };
   readonly users?: readonly ListedUser[];
+  /** What `share.enableIpCertificate` answers each call with, in call order: the server's refusal, or `null` to
+   *  start the order. Past the end the order starts. */
+  readonly certificateRefusals?: readonly (IpCertificateRefusalNotice | null)[];
   /** How the owner's own request reached the server. Defaults to plain http from a private network. */
   readonly reach?: Pick<AuthConfig, "transport" | "clientScope">;
 }
@@ -98,6 +102,7 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
   let current = stub.initial;
   let resolved = stub.resolved ?? SEATING_ON;
   const starts = [...(stub.starts ?? [])];
+  const certificateRefusals = [...(stub.certificateRefusals ?? [])];
   const trpc = await routeTrpc(page, {
     "settings.getAppSettingsWithOverrides": () => appSettingsView(resolved),
     "settings.updateAppSettings": (input) => {
@@ -116,11 +121,11 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
       current = OFF;
       return current;
     },
-    // The IP certificate: a home-network address is the server's coded refusal, anything else starts an order.
-    "share.enableIpCertificate": (input) => {
-      const setting = input;
-      if (setting.address.startsWith("192.168.")) {
-        return trpcError({ code: "BAD_REQUEST", reason: "ip_certificate_not_public", message: `${setting.address} is not a public internet address.` });
+    // The IP certificate: each call takes the next scripted refusal; a call with none left starts an order.
+    "share.enableIpCertificate": (setting) => {
+      const refusal = certificateRefusals.shift();
+      if (refusal !== undefined && refusal !== null) {
+        return trpcError({ code: "BAD_REQUEST", reason: refusal.code, message: refusal.message });
       }
       current = { ...current, certificate: { state: "obtaining", setting } };
       return current;
@@ -641,6 +646,8 @@ test.describe("at the narrowest content width", () => {
 });
 
 const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
+/** A home-network address: the server refuses it for a public certificate. */
+const HOME_ADDRESS = "192.168.1.20";
 const HOUR_MS = 3_600_000;
 const ISSUED_AT = 1_750_000_000_000;
 const ACTIVE: IpCertificateStatus = {
@@ -662,7 +669,11 @@ function certificateBlock(card: Locator): Locator {
 }
 
 test("IP certificate offer: a home-network address is refused in an alert; a public one is sent with the two ports", async ({ mount, page }) => {
-  const { trpc } = await stubShare(page, { mode: "local", initial: OFF });
+  const { trpc } = await stubShare(page, {
+    mode: "local",
+    initial: OFF,
+    certificateRefusals: [await ipCertificateRefusalFor({ ...SETTING, address: HOME_ADDRESS })],
+  });
   await mount(<GovernanceSectionsStory />);
 
   const block = certificateBlock(shareCard(page));
@@ -674,7 +685,7 @@ test("IP certificate offer: a home-network address is refused in an alert; a pub
   await expect(block.getByRole("textbox", { name: "Public IP address" })).toHaveAttribute("aria-invalid", "true");
   await expect.poll(() => trpc.count("share.enableIpCertificate")).toBe(0);
   const address = block.getByRole("textbox", { name: "Public IP address" });
-  await address.fill("192.168.1.20");
+  await address.fill(HOME_ADDRESS);
   await get.click();
   await expect(block.getByRole("alert")).toBeVisible();
   await expect(block).toHaveAttribute("data-ip-certificate-state", "off");

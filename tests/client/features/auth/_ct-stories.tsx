@@ -12,23 +12,21 @@
 // @orb-waive-file testid-typed-only-stories("ct-login-landing"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("ct-login-scene"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("ct-resumes"): baselined when the gate widened; burn-down item 906.
-import { bindSessionRecovery, recoverIfUnauthorizedCode } from "@orb/client/data";
+import { recoverIfUnauthorizedCode, useSessionRecovery, useTRPC } from "@orb/client/data";
 import { LoginShellAnchor } from "@orb/client/features/auth";
-import { closeModal, openModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
-import type { ChatId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { closeModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
 import type { AuthConfig } from "#client/data/auth-config.ts";
-// The shell's modal HOST — the seam a story that renders `reauthModal.body()` directly never exercises.
+// The shell's modal HOST — the seam that owns the re-auth prompt's dismissal verdict.
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { LoginFirstRunForm } from "#client/features/auth/components/login-first-run-form.tsx";
 import { LoginLocalForm } from "#client/features/auth/components/login-local-form.tsx";
-import { reauthModal } from "#client/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "#client/features/auth/surfaces/login-surface.tsx";
 import { LoginPage } from "#client/routes/login-page.tsx";
 
@@ -175,36 +173,29 @@ export function LoginFirstRunFormStory({ ownerHandle }: { readonly ownerHandle: 
   );
 }
 
-/** THE RUNG-1 LOOP, end to end. Not the modal in
- *  isolation: the probe binds a real recovery HOST and then kills the session the way the socket does, so
- *  what the CT drives is the production ladder — UNAUTHORIZED → probe says signed-out → local mode → the
- *  modal opens → a password → resume IN PLACE. The rendered `resumes` counter is the claim: recovery
- *  happened and the surface was never navigated away from (a rung-2 redirect would tear this mount down).
- *  `useEffect` is right here — binding a module-level host IS a subscription. */
-/** The handle the probe's cache "belongs to" — the ladder compares the re-authed handle against it. */
-const REAUTH_HANDLE = castId<Handle>("owner");
-
+/** THE SESSION LADDER, end to end, through the production mount. `useSessionRecovery` binds the recovery host
+ *  exactly as `app-root` does and the shell's real `ModalHost` shows the re-auth prompt, so the probe only kills
+ *  the session the way the socket does: UNAUTHORIZED → probe says signed-out → local mode → the modal opens → a
+ *  password → resume IN PLACE. Resuming re-reads the identity, so the rendered `resumes` counter (completed
+ *  `sessions.me` reads after the first) is the claim: recovery happened and the surface was never navigated away
+ *  from (a rung-2 redirect would tear this mount down). Dismissing the prompt is the other verdict: the wire is
+ *  `Dialog onOpenChange(false)` → `def.onClose()` → `completeReauth("dismissed")` → rung 2, and if it breaks
+ *  NOTHING renders differently while `runLadder` holds the `orb:session-recovery` Web Lock forever, so the CT
+ *  observes the rung-2 navigation itself. */
 function ReauthLadderProbe(): ReactElement {
-  const [open, setOpen] = useState(false);
-  const [resumes, setResumes] = useState(0);
-  useEffect(() => {
-    bindSessionRecovery({
-      resumeInPlace: (): void => setResumes((prev) => prev + 1),
-      openReauthPrompt: (): void => setOpen(true),
-      resumeChatId: (): ChatId | null => null,
-      currentHandle: (): Handle | null => REAUTH_HANDLE,
-    });
-    return (): void => {
-      bindSessionRecovery(null);
-    };
-  }, []);
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const open = useOpenModal();
+  useSessionRecovery();
+  useQuery(trpc.sessions.me.queryOptions());
+  const resumes = Math.max((queryClient.getQueryState(trpc.sessions.me.queryKey())?.dataUpdateCount ?? 0) - 1, 0);
   return (
     <div style={{ width: 420, padding: 16 }}>
       <button type="button" data-testid="ct-kill-session" onClick={(): void => void recoverIfUnauthorizedCode("UNAUTHORIZED")}>
         kill the session
       </button>
       <output data-testid="ct-resumes">{String(resumes)}</output>
-      {open && typeof reauthModal.body === "function" ? reauthModal.body() : null}
+      <ModalHost onClose={closeModal} openModal={open} />
     </div>
   );
 }
@@ -213,45 +204,11 @@ export function ReauthLadderStory(): ReactElement {
   return (
     <StrictMode>
       <CtDataProviders>
-        <ReauthLadderProbe />
+        <CtRealSectionRegistry>
+          <ReauthLadderProbe />
+        </CtRealSectionRegistry>
       </CtDataProviders>
     </StrictMode>
-  );
-}
-
-/** THE DISMISSAL VERDICT, through the REAL `ModalHost` (the story above renders `reauthModal.body()`
- *  directly and so never touches the host that owns the verdict). The wire under test is
- *  `Dialog onOpenChange(false)` → `def.onClose()` → `completeReauth("dismissed")` → rung 2.
- *
- *  WHY IT NEEDS ITS OWN STORY: if that wire ever breaks, NOTHING renders differently — `runLadder` simply
- *  awaits `promptReauth()` forever while holding the `orb:session-recovery` Web Lock, so every other tab in
- *  the browser takes the follower branch and no tab ever recovers. A browser-wide deadlock with no visible
- *  symptom is exactly the class a rendered assertion cannot catch, so the observable is the rung-2
- *  navigation itself.
- *
- *  The host is wired the way production wires it (`use-session-recovery.ts`): the prompt is `openModal`,
- *  and the shell store drives the host — no story-local modal state that could pass while the real seam is
- *  broken. */
-function ReauthDismissalProbe(): ReactElement {
-  useEffect(() => {
-    bindSessionRecovery({
-      resumeInPlace: (): void => undefined,
-      openReauthPrompt: (): void => openModal("reauth"),
-      resumeChatId: (): ChatId | null => null,
-      currentHandle: (): Handle | null => REAUTH_HANDLE,
-    });
-    return (): void => {
-      bindSessionRecovery(null);
-    };
-  }, []);
-  const open = useOpenModal();
-  return (
-    <div style={{ width: 420, padding: 16 }}>
-      <button type="button" data-testid="ct-kill-session" onClick={(): void => void recoverIfUnauthorizedCode("UNAUTHORIZED")}>
-        kill the session
-      </button>
-      <ModalHost onClose={closeModal} openModal={open} />
-    </div>
   );
 }
 
@@ -259,7 +216,7 @@ export function ReauthDismissalStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <ReauthDismissalProbe />
+        <ReauthLadderProbe />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );

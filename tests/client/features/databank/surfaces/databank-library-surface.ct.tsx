@@ -14,9 +14,29 @@
 
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory } from "../_ct-stories.tsx";
 import { bankCensus, INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
+
+/** The chips the bank's act-now (`empty`) and wait (`indexing`) rows wear, as the product labels them. */
+const EMPTY_LABEL = "Empty";
+const QUEUED_LABEL = "Queued";
+
+/** The glyph count and colour of the empty and queued phase chips, read in the page (labels go in as arguments). */
+async function chipReads(page: Page): Promise<readonly { readonly label: string; readonly glyphs: number; readonly color: string }[]> {
+  return await page.evaluate(
+    (labels) =>
+      labels.map((label) => {
+        const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
+        return {
+          label,
+          glyphs: chip?.querySelectorAll("svg").length ?? -1,
+          color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
+        };
+      }),
+    [EMPTY_LABEL, QUEUED_LABEL],
+  );
+}
 
 /** One wheel step of the deep-scroll walks below. The poll IS the scroll loop: each attempt wheels once and
  *  reports whether the target has arrived, so the walk needs no `waitForTimeout` and no awaits inside a `for`
@@ -35,8 +55,8 @@ test("a phase chip renders ONLY for a non-ready row — Ready is the absence of 
 
   await expect(list.getByText("The Crimson Court")).toBeVisible();
   // The two in-flight/degenerate rows say their phase…
-  await expect(list.getByText("Indexing", { exact: true })).toBeVisible();
-  await expect(list.getByText("Empty", { exact: true })).toBeVisible();
+  await expect(list.getByText(QUEUED_LABEL, { exact: true })).toBeVisible();
+  await expect(list.getByText(EMPTY_LABEL, { exact: true })).toBeVisible();
   // …and the steady state says nothing at all. A "Ready" chip on most rows is chrome that costs title width.
   await expect(list.getByText("Ready", { exact: true })).toHaveCount(0);
 });
@@ -97,69 +117,11 @@ test("only the ACT-NOW phase chip carries a glyph — the amber is shared, the m
   const list = await mount(<DatabankLibraryStory />);
   await expect(list.getByText("Empty", { exact: true })).toBeVisible();
 
-  const chips = await page.evaluate(() =>
-    ["Empty", "Indexing"].map((label) => {
-      const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
-      return {
-        label,
-        glyphs: chip?.querySelectorAll("svg").length ?? -1,
-        color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
-      };
-    }),
-  );
-
-  await expect
-    .poll(
-      async () =>
-        (
-          await page.evaluate(() =>
-            ["Empty", "Indexing"].map((label) => {
-              const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
-              return {
-                label,
-                glyphs: chip?.querySelectorAll("svg").length ?? -1,
-                color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
-              };
-            }),
-          )
-        )[0]?.glyphs,
-    )
-    .toBe(1);
-  await expect
-    .poll(
-      async () =>
-        (
-          await page.evaluate(() =>
-            ["Empty", "Indexing"].map((label) => {
-              const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
-              return {
-                label,
-                glyphs: chip?.querySelectorAll("svg").length ?? -1,
-                color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
-              };
-            }),
-          )
-        )[1]?.glyphs,
-    )
-    .toBe(0);
+  const chips = await chipReads(page);
+  await expect.poll(async () => (await chipReads(page))[0]?.glyphs).toBe(1);
+  await expect.poll(async () => (await chipReads(page))[1]?.glyphs).toBe(0);
   // The 2026-08-08 warning ruling is PRESERVED, not reverted: both are still the same amber.
-  await expect
-    .poll(
-      async () =>
-        (
-          await page.evaluate(() =>
-            ["Empty", "Indexing"].map((label) => {
-              const chip = [...document.querySelectorAll('[data-slot="badge"]')].find((el) => el.textContent?.trim() === label);
-              return {
-                label,
-                glyphs: chip?.querySelectorAll("svg").length ?? -1,
-                color: chip === undefined ? "MISSING" : getComputedStyle(chip).color,
-              };
-            }),
-          )
-        )[0]?.color,
-    )
-    .toBe(chips[1]?.color);
+  await expect.poll(async () => (await chipReads(page))[0]?.color).toBe(chips[1]?.color);
 });
 
 // THE MARK MUST RIDE THE LINE (side-eye 2026-08-19 N-1) — the regression the pin above could not see. It
@@ -277,27 +239,21 @@ test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen
   const list = await mount(<DatabankLibraryStory />);
   await expect(list.getByText("The Crimson Court")).toBeVisible();
 
-  // `Heraldry plates` extracted to nothing and `Duskwater Barony` is mid-embed: neither is wedged, and
+  // `Heraldry plates` extracted to nothing and `Duskwater Barony` was just queued: neither is wedged, and
   // exactly one row in the bank earns the danger chip.
   await expect(list.getByText("Stalled", { exact: true })).toHaveCount(1);
-  await expect(list.getByText("Indexing", { exact: true })).toBeVisible();
+  await expect(list.getByText(QUEUED_LABEL, { exact: true })).toBeVisible();
 });
 
 // A PASSAGE IS AN EMBEDDED CHUNK (`@orb/contracts/databank`'s own phase note; `BankHealthView.passages` =
-// "chunks a chat can actually retrieve"). This row printed `chunkCount`, so Duskwater — 22 of 39 embedded —
-// claimed "39 passages": a 77% overstatement of its reach, printed at exactly the moment the number is
-// moving and the user is watching it (side-eye 2026-08-19 P2). The bank-health line was fixed for this same
-// overstatement on 2026-08-08; the row kept the old reading. Both numbers while they differ, one once they
-// cannot — the health line's own shape.
-test("the row subtitle counts EMBEDDED passages, and says so while they are still landing", async ({ mount, page }) => {
+// "chunks a chat can actually retrieve"). The server only holds a chunk after its embed, so a row's subtitle
+// counts what a chat can retrieve: a queued document has none yet, and says so rather than hiding the count.
+test("the row subtitle counts EMBEDDED passages: a finished row its total, a queued row none", async ({ mount, page }) => {
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
 
-  // Fully embedded: one number, because there is nothing left to distinguish.
   await expect(list.getByText("Upload · 24.5 KB · 12 passages")).toBeVisible();
-  // Mid-embed: both, and never the chunk count alone.
-  await expect(list.getByText("Wiki · 91.7 KB · 22 / 39 passages")).toBeVisible();
-  await expect(list.getByText("Wiki · 91.7 KB · 39 passages")).toHaveCount(0);
+  await expect(list.getByText("Wiki · 91.7 KB · 0 passages")).toBeVisible();
 });
 
 test("Everywhere is the row's ONE state toggle: aria-pressed carries the state, from ONE listGlobal read", async ({ mount, page }) => {

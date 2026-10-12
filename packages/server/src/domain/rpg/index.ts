@@ -61,6 +61,7 @@ export { createRpgStagingStore } from "./staging.ts";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
 // `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
 export {
+  deriveEffectiveDelivery,
   deriveTrackersReadOnly,
   fallbackStateRound,
   hasStructuredWriter,
