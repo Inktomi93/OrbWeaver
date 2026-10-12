@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-12
 priority: P1
 area: tooling
-lane: wt/agent-ab0cbbdca22723bff
 plan: test-mirror
 ---
 
@@ -23,6 +22,8 @@ Owner cannot hold these rules in memory; the law only holds if a gate reds the f
 Core-0 section 5 and Spine-Testing sections 2 and 5 state the directory mirror and the reach rule; the file-name presence checks are gone and the reach gate reds a planted unreached verb; each section 10 rule has a gate in check:structure with a planted failing control and a passing control; the existing tree is either fixed or listed with exit conditions; Spine-Testing section 10 names each gate.
 
 ## Evidence
+
+Second half merged in 3399954569 and its follow-ups (lane branch fully merged). Remaining: check each section 10 rule has a gate with planted failing and passing controls, and that the tree is fixed or listed, then land.
 
 Filled at landing: what ran and where its output is.
 
