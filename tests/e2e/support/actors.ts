@@ -18,19 +18,15 @@
 //     `x-authentik-meta-jwks`. No login, no cookie. `actorViaHeader(...)`.
 //   • oidc                       → DEFERRED (owner decision). See the stub in playwright.config.ts.
 //
-// The wire subset shapes are declared LOCALLY (the e2e-support tree stays import-free of the package trees —
-// the `trpc.ts` CanonMessage posture, incl. its type-only `@orb/kit/ids` brand carve-out); string-union axes
-// stay `string` (the `no-inline-union-redecl` gate bans re-spelling a homed tuple here, and specs compare to
-// literals).
+// Procedure results are typed by the router through `trpc.ts`'s `TrpcOutput`, so no wire shape is declared here.
 
-// @orb-waive-file no-test-fabrication(Whoami): baselined when the gate widened to value casts; burn-down item 906.
+import type { AuthMe } from "@orb/contracts/identity";
+import { authMeSchema } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-// TYPE-ONLY: `trpc.ts`'s client is bound to the single-user origin, while an actor carries its own cookie
-// jar — importing the create-input SHAPE keeps the literal in `configureCustomProvider` under that file's
-// mirror pin without borrowing its client.
-import type { NewConnection, TaskBinding } from "./trpc.ts";
+import type { NewConnection, TrpcClient } from "./trpc.ts";
+import { createTrpcClient } from "./trpc.ts";
 
 // Every actor constructor takes the stack's `baseUrl` explicitly — the spec passes Playwright's per-project
 // `baseURL` fixture (its vite origin), so an actor ALWAYS targets the same stack as the project, with no
@@ -48,64 +44,26 @@ export const SESSION_COOKIE = "orb_session_insecure";
  *  SAME shape for every mode, so a spec that holds one is mode-agnostic. */
 export interface ActorClient {
   /** A batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx / error env. */
-  readonly query: <T>(procedure: string, input: unknown) => Promise<T>;
+  readonly query: TrpcClient["query"];
   /** A batch mutation — returns the single procedure's `result.data`. Throws on a non-2xx / error env. */
-  readonly mutation: <T>(procedure: string, input: unknown) => Promise<T>;
+  readonly mutation: TrpcClient["mutation"];
   /** The `expect(...).rejects` twin: run a call and RESOLVE with the error envelope's HTTP status + message
    *  instead of throwing — the "a member is refused an owner-only proc" assertion instrument. */
   readonly expectError: (procedure: string, input: unknown, kind: "query" | "mutation") => Promise<{ readonly status: number; readonly body: string }>;
   /** The resolved principal for THIS actor's headers (`GET /api/auth/me`) — the mode-agnostic whoami: who did
    *  the seam resolve this request AS, and at what role. `authenticated:false` for an unresolved caller. */
-  readonly whoami: () => Promise<Whoami>;
+  readonly whoami: () => Promise<AuthMe>;
   /** This actor's identifying headers (cookie / signed-JWT proxy headers), for a caller that must speak the
    *  wire directly AS this actor — the SSE consumer (`collectChatRoomFrames`) attaches the member's own chat room. */
   readonly headers: Readonly<Record<string, string>>;
 }
 
-/** The `GET /api/auth/me` shape — the seam's resolved principal (handle + role), or unauthenticated. */
-interface Whoami {
-  readonly authenticated: boolean;
-  readonly handle: Handle | null;
-  readonly role: string | null;
-}
-
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
-
-interface TrpcEnvelope<T> {
-  readonly result?: { readonly data?: T };
-  readonly error?: unknown;
-}
 
 /** Build an actor client bound to a stack `baseUrl` + a fixed header set (the actor's session/identity).
  *  Mutations merge the actor's headers with the JSON content-type; queries ride the actor's headers on the GET. */
 function makeActorClient(baseUrl: string, headers: Readonly<Record<string, string>>): ActorClient {
-  async function query<T>(procedure: string, input: unknown): Promise<T> {
-    const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`, { headers });
-    // @orb-waive no-test-fabrication(readonly TrpcEnvelope<T>[]): baselined when the gate widened to value casts; burn-down item 906.
-    const body = (await res.json()) as readonly TrpcEnvelope<T>[];
-    const entry = body[0];
-    if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-      throw new Error(`actor trpc: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
-    }
-    // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
-    return entry.result.data as T;
-  }
-
-  async function mutation<T>(procedure: string, input: unknown): Promise<T> {
-    const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1`, {
-      method: "POST",
-      headers: { ...headers, "content-type": "application/json" },
-      body: JSON.stringify({ 0: input }),
-    });
-    // @orb-waive no-test-fabrication(readonly TrpcEnvelope<T>[]): baselined when the gate widened to value casts; burn-down item 906.
-    const body = (await res.json()) as readonly TrpcEnvelope<T>[];
-    const entry = body[0];
-    if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-      throw new Error(`actor trpc: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
-    }
-    // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
-    return entry.result.data as T;
-  }
+  const { query, mutation } = createTrpcClient(baseUrl, headers);
 
   async function expectError(procedure: string, input: unknown, kind: "query" | "mutation"): Promise<{ readonly status: number; readonly body: string }> {
     const url = kind === "query" ? `${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}` : `${baseUrl}/api/trpc/${procedure}?batch=1`;
@@ -116,12 +74,12 @@ function makeActorClient(baseUrl: string, headers: Readonly<Record<string, strin
     return { status: res.status, body: await res.text() };
   }
 
-  async function whoami(): Promise<Whoami> {
+  async function whoami(): Promise<AuthMe> {
     const res = await fetch(`${baseUrl}/api/auth/me`, { headers });
     if (!res.ok) {
       throw new Error(`actor whoami failed (${res.status})`);
     }
-    return (await res.json()) as Whoami;
+    return authMeSchema.parse(await res.json());
   }
 
   return { query, mutation, expectError, whoami, headers };
@@ -218,26 +176,16 @@ export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Pr
 
 // ── MEMBERSHIP — seat a second human in a chat (the local multi-human primitive) ────────────────────────
 
-/** The `invites.createInvite` return (subset) — the raw `token` is returned exactly once (stored hashed). */
-interface CreatedInvite {
-  readonly token: string;
-}
-
 /** Seat a MEMBER actor into an existing chat: the HOST mints a targeted invite for `memberHandle`, then the
  *  MEMBER redeems the raw token (the one atomic participant-insert chokepoint). After this the member is a
  *  present participant and every member-gated read (`listMessages`/`replayChatEvents`) resolves for them.
  *  The `member` client must already be logged in (`loginLocal`). */
 export async function addMemberToChat(host: ActorClient, member: ActorClient, chatId: ChatId, memberHandle: string): Promise<void> {
-  const invite = await host.mutation<CreatedInvite>("invites.createInvite", { chatId, input: { invitedHandle: memberHandle } });
+  const invite = await host.mutation("invites.createInvite", { chatId, input: { invitedHandle: memberHandle } });
   await member.mutation("invites.redeemInvite", { token: invite.token });
 }
 
 // ── CUSTOM PROVIDER — point the chat role at a BYO OpenAI-compatible endpoint (the fixture provider) ───────
-
-/** The `connection.create` return (subset) — the row id the `chat` binding points at. */
-interface CreatedConnection {
-  readonly id: string;
-}
 
 /**
  * Point the HOST's Chat and Utility roles at a BYO OpenAI-compatible endpoint — the REAL product seam a user uses
@@ -257,9 +205,7 @@ interface CreatedConnection {
  * label here, exactly as before (the openai-compat runner reads capabilities, not a baked model).
  */
 export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<() => Promise<void>> {
-  const previous = (await host.query<readonly TaskBinding[]>("connection.listBindings", undefined)).filter(
-    (binding) => binding.task === "chat" || binding.task === "summarize",
-  );
+  const previous = (await host.query("connection.listBindings", undefined)).filter((binding) => binding.task === "chat" || binding.task === "summarize");
   const input: NewConnection = {
     label: `e2e-fixture-provider-${model}`,
     providerId: "custom-openai",
@@ -268,8 +214,8 @@ export async function configureCustomProvider(host: ActorClient, baseUrl: string
     model,
     allowBackground: true,
   };
-  const connection = await host.mutation<CreatedConnection>("connection.create", input);
-  for (const task of ["chat", "summarize"]) {
+  const connection = await host.mutation("connection.create", input);
+  for (const task of ["chat", "summarize"] as const) {
     await host.mutation("connection.setBinding", { task, connectionId: connection.id });
   }
   return async (): Promise<void> => {

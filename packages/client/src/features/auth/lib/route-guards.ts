@@ -12,8 +12,8 @@
 // an authed owner stays on their route instead of stranding on /login, while a genuinely-down server
 // exhausts the retries and still fails toward /login. We never redirect on a not-yet-known session.
 
+import type { AuthMe } from "@orb/contracts/identity";
 import { redirect } from "@tanstack/react-router";
-import type { AuthMe } from "#data";
 import { fetchAuthMe, stashInboundJoinToken } from "#data";
 
 // Only a transient blip should retry; ~600ms total comfortably covers a vite HMR reconnect without a

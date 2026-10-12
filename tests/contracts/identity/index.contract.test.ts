@@ -2,6 +2,7 @@ import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contr
 import {
   AUTH_MODES,
   authConfigShareSchema,
+  authMeSchema,
   authModeSchema,
   relayStatusSchema,
   SHARE_STATES,
@@ -167,4 +168,11 @@ test("shareStatusSchema is strict, so a status carrying anything else fails the 
 test("authConfigShareSchema carries only the state and a nullable link", () => {
   expect(authConfigShareSchema.parse({ state: "up", url: null })).toEqual({ state: "up", url: null });
   expect(authConfigShareSchema.safeParse({ state: "up", url: null, relay: "quick" }).success).toBe(false);
+});
+
+test("authMeSchema admits both the signed-in and the unauthenticated answer and refuses an unknown role", () => {
+  expect(authMeSchema.safeParse({ authenticated: true, handle: "alice", role: "owner" }).success).toBe(true);
+  expect(authMeSchema.safeParse({ authenticated: false, handle: null, role: null }).success).toBe(true);
+  expect(authMeSchema.safeParse({ authenticated: true, handle: "alice", role: "root" }).success).toBe(false);
+  expect(authMeSchema.safeParse({ authenticated: true, handle: "alice", role: "user", via: "cookie" }).success).toBe(false);
 });

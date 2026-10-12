@@ -19,6 +19,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
@@ -143,7 +144,15 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
 
     // The request sink is UNCONDITIONAL — it writes whenever called, regardless of the flag. Compose is the
     // seam that decides whether to call it at all; the module itself carries no such gate.
-    wc.recordWireCapture({ chatId: CHAT_A, api: "chat-completions", wire: "openai-compat", providerId: "vllm", model: "m", at: 0, body: {} });
+    wc.recordWireCapture({
+      chatId: CHAT_A,
+      api: "chat-completions",
+      wire: "openai-compat",
+      providerId: castId<ProviderId>("vllm"),
+      model: "m",
+      at: 0,
+      body: {},
+    });
     expect(wc.recentWireCaptures({ chatId: CHAT_A })).toHaveLength(1);
   });
 

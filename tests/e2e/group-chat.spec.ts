@@ -28,7 +28,7 @@
 // the navigation to them changed (`openGroupBehaviorSection`).
 
 import { rowActionsName } from "@orb/client/lib";
-import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../support/node/open-context-sections.ts";
@@ -83,6 +83,12 @@ async function mintCharacters(count: number): Promise<SeededCharacters> {
 
 /** The room's PRESENT character seat for one character (the roster read is present-only, so a removed
  *  member is simply absent). */
+/** `cardScope` exists on the per-speaker arm only; the narrator arm carries none. */
+async function cardScope(chatId: ChatId): Promise<string | undefined> {
+  const config = await getGroupConfig(chatId);
+  return config.output === "per-speaker" ? config.cardScope : undefined;
+}
+
 function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): RosterSeat | undefined {
   return seats.find((s) => s.characterId === characterId);
 }
@@ -90,7 +96,7 @@ function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): Roster
 test("a solo room converts to a group: the character bar and Group-behavior section appear live while Members remains available", async ({ page }) => {
   const characters = await mintCharacters(2);
   const title = `e2e-group-convert-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: [characters.characterIds[0] ?? ""], title });
+  const chat = await startGroupChat({ characterIds: characters.characterIds.slice(0, 1), title });
   try {
     await openChatByTitle(page, title);
     await openDetailPanel(page);
@@ -188,7 +194,7 @@ test("group config round-trips through the Group-behavior section: output / spea
       .toEqual({ output: "narrator", policy: "pooled", speakerTags: false, visibility: "full" });
     // The narrator arm carries NO cardScope (the narrator ⇒ merged constraint is unrepresentable, not
     // merely unset) — proof the whole DISCRIMINATED UNION was rewritten, not one field patched.
-    expect((await getGroupConfig(chat.id)).cardScope).toBeUndefined();
+    expect("cardScope" in (await getGroupConfig(chat.id))).toBe(false);
 
     // …and the tab RE-READS it after a full reload (the other half of the lying-setting class: persisted
     // but never re-hydrated).
@@ -209,7 +215,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
   const title = `e2e-group-scope-${Date.now()}`;
   const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
-    expect((await getGroupConfig(chat.id)).cardScope).toBe("merged");
+    expect(await cardScope(chat.id)).toBe("merged");
 
     await openChatByTitle(page, title);
     await openDetailPanel(page);
@@ -219,7 +225,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await page.getByRole("button", { name: "Advanced", exact: true }).click();
     await page.getByRole("switch", { name: "Each character sees only their own card" }).click();
 
-    await expect.poll(async () => (await getGroupConfig(chat.id)).cardScope, { timeout: 20_000 }).toBe("scoped");
+    await expect.poll(() => cardScope(chat.id), { timeout: 20_000 }).toBe("scoped");
 
     await page.reload();
     await openChatByTitle(page, title);

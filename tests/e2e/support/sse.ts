@@ -22,24 +22,15 @@
 // absence assertion (`not.toContain(<the hidden truth>)`) passed on a stream that delivered nothing. Values
 // that feed an assertion are read through `requireSatisfied`, which refuses every other verdict by name.
 
-// @orb-waive-file no-test-fabrication(ChatFrame): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ChatFrame): the socket frame is parsed JSON of a known shape; there is no frame schema to parse it with.
+import type { StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatBusEventLite } from "./sse-types.ts";
+import type { StreamValue } from "../../support/browser/trpc-wire.ts";
 
-/** One collected room value — the durable `seq` cursor carried INSIDE the frame + the yielded event. */
-export interface StreamValue {
-  readonly seq: number;
-  readonly event: ChatBusEventLite;
-}
+export type { StreamValue } from "../../support/browser/trpc-wire.ts";
 
-/** One `chat` frame off the socket (the wire subset this instrument reads — declared locally, the
- *  e2e-support import-free-of-package-trees rule). */
-interface ChatFrame {
-  readonly channel: string;
-  readonly chatId?: ChatId;
-  readonly seq?: number;
-  readonly event?: ChatBusEventLite;
-}
+/** One frame off the socket before it is known to be this room's: every `chat` field may be absent. */
+type ChatFrame = { readonly channel: string } & Partial<Omit<StreamFrameFor<"chat">, "channel">>;
 
 /** How a collection stopped. `satisfied` is the only arm under which the values are evidence: `timed-out` (the
  *  timer fired first) and `stream-ended` (the server closed the socket first) both mean `until` never held. */

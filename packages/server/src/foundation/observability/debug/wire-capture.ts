@@ -64,45 +64,13 @@
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
+import type { WireCapture } from "@orb/contracts/debug";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { ChatId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 
 /** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
 const WIRE_CAPTURE_RING_CAPACITY = 256;
-
-/** One captured provider request. `body` is the backend's OWN wire shape (see the file header) — an opaque
- *  JSON object, never normalized across wires. `api` is the protocol axis; `wire` + `providerId` the runtime's
- *  own two provenance axes (plain strings — foundation imports nothing UP from the package). */
-export interface WireCapture {
-  /** The chat this send belongs to — the harness's correlation key (it opens unique-title chats). Absent on
-   *  a chatless probe turn. */
-  readonly chatId?: ChatId | undefined;
-  /** The axis the request rode: "agent-sdk" (SDK-input shape) | "chat-completions"
-   *  (openai-compat body shape) | "summarize" (the chatless summarization role) | "structured" (the chatless
-   *  schema-constrained-generation role — the rpg structured extraction / the split-out structured surface; both
-   *  vLLM + OR capture their per-item bodies under the summarize/structured tag matching the role served). */
-  readonly api: string;
-  readonly wire: string;
-  readonly providerId: string;
-  /** The resolved model string on the request (provenance cross-check against the DB canon `model` stamp). */
-  readonly model: string;
-  readonly at: number;
-  /** The final request body in the backend's own wire vocabulary (see the header). */
-  readonly body: Record<string, unknown>;
-  /** What came back's ENVELOPE, when the send produced a response: the provider's headers, lower-cased and
-   *  secret-scrubbed at the send boundary. The support handle (`request-id`) and the rate-limit budget live
-   *  here, and without them a captured request cannot be correlated with anything the provider logged.
-   *  Absent on a transport failure (the request is still recorded) and on the agent-sdk wire (no HTTP). */
-  readonly responseHeaders?: Readonly<Record<string, string>> | undefined;
-  /** WHAT CAME BACK'S BODY, as literal wire TEXT — the SSE frame stream or the JSON body, head-capped at the
-   *  send boundary's 64 KiB and secret-scrubbed there by value. Present only with `WIRE_CAPTURE_REPLY=on`
-   *  (or its compose force flag), which is a SEPARATE knob from `WIRE_CAPTURE` for the reason the OUTCOME arm
-   *  keeps no prose at all: this field holds the model's reply, and the operator has to ask for it twice.
-   *  A HEAD cap is the right end — OpenRouter's `debug.echo_upstream_body` payload is the FIRST SSE frame,
-   *  which is the whole reason this field exists (audit D2/D3). Absent on the agent-sdk wire (no HTTP body). */
-  readonly responseBody?: string | undefined;
-}
 
 /** Filter for a host read: by `chatId` and/or `providerId`, newest-first, capped by `limit`. */
 export interface WireCaptureFilter {

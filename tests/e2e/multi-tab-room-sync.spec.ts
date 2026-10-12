@@ -32,6 +32,7 @@ import {
   openMemberRowMenu,
   typeAndSend,
 } from "./support/chat-room.ts";
+import type { GroupConfigInput } from "./support/trpc.ts";
 import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc.ts";
 
 const CHARACTERS = [
@@ -54,7 +55,7 @@ interface Room {
 
 /** Seed the room the two tabs will share: `count` spec-owned characters, `opening: "none"` (empty canon),
  *  a unique title so a list-row locator can only match this chat. */
-async function seedRoom(label: string, count: number, groupConfig?: Record<string, unknown>): Promise<Room> {
+async function seedRoom(label: string, count: number, groupConfig?: GroupConfigInput): Promise<Room> {
   const characterIds: CharacterId[] = [];
   for (const member of CHARACTERS.slice(0, count)) {
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
