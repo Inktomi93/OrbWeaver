@@ -1,6 +1,6 @@
 // The per-message action cluster: Edit / Fork inline, with Hide-from-AI / Copy / View-wire-trace / Delete
 // under a ⋯ menu (D66 A3 collapse — north-star ui-cohesion §4 N3). Only a canon row renders it (the streaming
-// row is a separate component with no actions). Edit/Hide/Fork apply only to user/assistant rows — a system row
+// row reserves its width with `GhostActionsFootprint`, drawn from the same `MessageActionsCluster`). Edit/Hide/Fork apply only to user/assistant rows — a system row
 // is a room notice, not authored prose. This row does not re-derive author-or-host authority client-side; a
 // caller without permission gets the verb's own NOT_FOUND. Edit doesn't mutate here — it only flips the
 // external edit-draft store's mode. The whole cluster's rest/reveal posture is `messageActionsRevealClass`
@@ -32,22 +32,20 @@
 
 import type { ForkResult, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
-import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
-import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
+import { messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
+import { MessageActionsCluster } from "./message-actions-cluster.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
@@ -268,114 +266,76 @@ export function MessageActionsRow({
       data-slot="message-actions-row"
       className={`${messageActionsRevealClass(messageActions)} ${surface}`}
     >
-      {renderGenerationCredit(generationCredit, message)}
-      {/* EDIT IS THE ONE INLINE VERB AT EVERY POINTER. At a touch pointer the bar holds Edit plus the ⋯ and
-          nothing else, so it stays one compact line beside the name; Fork and Add a reaction stand down into
-          the ⋯ there (`ROW_ACTION_INLINE`), where every verb also lives at every pointer (mirror parity). */}
-      {editable ? (
-        <>
-          <Button intent="ghost" size="glyph-lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
-            <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
-          </Button>
-          <Button
-            intent="ghost"
-            size="glyph-lg"
-            shape="pill"
-            className={ROW_ACTION_INLINE}
-            loading={fork.isPending}
-            aria-label={MESSAGE_FORK_NAME}
-            onClick={(): void => void onFork().catch(globalThis.reportError)}
-          >
-            <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
-          </Button>
-        </>
-      ) : null}
-      {/* B6 — the FINE door. `ROW_ACTION_INLINE` stands it down at a coarse pointer, where its `MenuItem`
-          twin below is the one door (the #220 coarse collapse, exactly as Fork uses it). Present on
-          EVERY committed row, not only editable ones: reacting to a system notice is legal and harmless,
-          and the applicability question a reaction asks ("is this canon?") is already answered by the row
-          being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
-          roving Tab stop must reach "Edit message" before "Add a reaction". */}
-      {reactionsEnabled ? (
-        <Button
-          aria-label={MESSAGE_REACTION_ADD_NAME}
-          className={ROW_ACTION_INLINE}
-          intent="ghost"
-          onClick={(): void => setPickerOpen(true)}
-          shape="pill"
-          size="glyph-lg"
-        >
-          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
-        </Button>
-      ) : null}
-      <RowActionsMenu
-        label={MESSAGE_ACTIONS_MENU_NAME}
-        triggerSize="glyph"
-        shape="pill"
-        destructive={{
-          title: "Delete this message?",
-          description: "This can't be undone.",
-          confirmLabel: "Delete",
-          onConfirm: onDelete,
-        }}
-      >
-        {/* The collapsed pair's one door. Present at BOTH pointers by the mirror-parity ruling
+      <MessageActionsCluster
+        credit={renderGenerationCredit(generationCredit, message)}
+        editable={editable}
+        reactionsEnabled={reactionsEnabled}
+        forkPending={fork.isPending}
+        onEdit={onEdit}
+        onFork={(): void => void onFork().catch(globalThis.reportError)}
+        onReact={(): void => setPickerOpen(true)}
+        onDelete={onDelete}
+        menuItems={
+          <>
+            {/* The collapsed pair's one door. Present at BOTH pointers by the mirror-parity ruling
             (chat-list-row-menu.tsx) — a `ROW_ACTION_OVERFLOW` twin here would put a verb in the menu
             twice on touch and nowhere on desktop the moment the inline arm is ever reworked. */}
-        {editable ? (
-          <MenuItem onClick={onEdit}>
-            <Icon icon={Pencil} size="sm" />
-            Edit message
-          </MenuItem>
-        ) : null}
-        {editable ? (
-          <MenuItem onClick={(): void => void onFork().catch(globalThis.reportError)}>
-            <Icon icon={GitFork} size="sm" />
-            Fork chat here
-          </MenuItem>
-        ) : null}
-        {editable ? (
-          <MenuItem onClick={onToggleHidden}>
-            <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
-            {excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
-          </MenuItem>
-        ) : null}
-        {/* B6 — the COARSE door, and by the mirror-parity ruling it is present at EVERY pointer (a
+            {editable ? (
+              <MenuItem onClick={onEdit}>
+                <Icon icon={Pencil} size="sm" />
+                Edit message
+              </MenuItem>
+            ) : null}
+            {editable ? (
+              <MenuItem onClick={(): void => void onFork().catch(globalThis.reportError)}>
+                <Icon icon={GitFork} size="sm" />
+                Fork chat here
+              </MenuItem>
+            ) : null}
+            {editable ? (
+              <MenuItem onClick={onToggleHidden}>
+                <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
+                {excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
+              </MenuItem>
+            ) : null}
+            {/* B6 — the COARSE door, and by the mirror-parity ruling it is present at EVERY pointer (a
             coarse-only twin would put the verb in the menu on touch and nowhere on desktop the moment the
             inline arm is reworked — the same argument the Edit/Fork items above carry). B7: gone entirely
             when the room's reactions posture resolves OFF — applicability, mirroring the inline door. */}
-        {reactionsEnabled ? (
-          <MenuItem onClick={(): void => setPickerOpen(true)}>
-            <Icon icon={SmilePlus} size="sm" />
-            Add a reaction
-          </MenuItem>
-        ) : null}
-        <ReattributeFromHereItem onSelect={(): void => setReattributeOpen(true)} target={reattributeTarget} />
-        <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
-          <Icon icon={Copy} size="sm" />
-          Copy
-        </MenuItem>
-        {/* The continue undo/redo pair (F2) — only on an assistant reply (the sole role that carries a
+            {reactionsEnabled ? (
+              <MenuItem onClick={(): void => setPickerOpen(true)}>
+                <Icon icon={SmilePlus} size="sm" />
+                Add a reaction
+              </MenuItem>
+            ) : null}
+            <ReattributeFromHereItem onSelect={(): void => setReattributeOpen(true)} target={reattributeTarget} />
+            <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
+              <Icon icon={Copy} size="sm" />
+              Copy
+            </MenuItem>
+            {/* The continue undo/redo pair (F2) — only on an assistant reply (the sole role that carries a
             continue snapshot), disabled-with-reason until a continue has run on the shown swipe. */}
-        {showContinueRestore ? (
-          <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onUndoContinue}>
-            <Icon icon={Undo2} size="sm" />
-            Undo last continuation
-          </MenuItem>
-        ) : null}
-        {showContinueRestore ? (
-          <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onRevertContinue}>
-            <Icon icon={Redo2} size="sm" />
-            Re-apply continuation
-          </MenuItem>
-        ) : null}
-        {showWireTrace ? (
-          <MenuItem data-testid={testId("variantWireTrigger")} onClick={(): void => setWireOpen(true)}>
-            <Icon icon={Code} size="sm" />
-            View wire trace…
-          </MenuItem>
-        ) : null}
-      </RowActionsMenu>
+            {showContinueRestore ? (
+              <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onUndoContinue}>
+                <Icon icon={Undo2} size="sm" />
+                Undo last continuation
+              </MenuItem>
+            ) : null}
+            {showContinueRestore ? (
+              <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onRevertContinue}>
+                <Icon icon={Redo2} size="sm" />
+                Re-apply continuation
+              </MenuItem>
+            ) : null}
+            {showWireTrace ? (
+              <MenuItem data-testid={testId("variantWireTrigger")} onClick={(): void => setWireOpen(true)}>
+                <Icon icon={Code} size="sm" />
+                View wire trace…
+              </MenuItem>
+            ) : null}
+          </>
+        }
+      />
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
@@ -385,34 +345,6 @@ export function MessageActionsRow({
       {pickerOpen ? (
         <RowReactionPicker characterNames={characterNames} groups={reactionGroups} message={message} onOpenChange={setPickerOpen} viewerSeatId={viewerSeatId} />
       ) : null}
-    </Row>
-  );
-}
-
-/** The streaming row's stand-in for the action cluster: the same buttons, hidden and inert. A settled card is as
- *  wide as its header, actions included, so the streaming card reserves that footprint and a short reply does not
- *  reflow when it commits. A parity CT holds the two rows to the same boxes. */
-export function GhostActionsFootprint({ chatId, surface }: { readonly chatId: ChatId; readonly surface: string }): ReactElement {
-  const reactionsEnabled = useReactionsEnabled(chatId);
-  return (
-    <Row aria-hidden="true" align="center" className={`invisible ${surface}`} data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
-      <Button aria-label={MESSAGE_EDIT_NAME} intent="ghost" size="glyph-lg" shape="pill" tabIndex={-1}>
-        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
-      </Button>
-      <Button aria-label={MESSAGE_FORK_NAME} className={ROW_ACTION_INLINE} intent="ghost" size="glyph-lg" shape="pill" tabIndex={-1}>
-        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
-      </Button>
-      {reactionsEnabled ? (
-        <Button aria-label={MESSAGE_REACTION_ADD_NAME} className={ROW_ACTION_INLINE} intent="ghost" size="glyph-lg" shape="pill" tabIndex={-1}>
-          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
-        </Button>
-      ) : null}
-      <RowActionsMenu
-        label={MESSAGE_ACTIONS_MENU_NAME}
-        triggerSize="glyph"
-        shape="pill"
-        destructive={{ title: "", description: "", confirmLabel: "", onConfirm: (): Promise<void> => Promise.resolve() }}
-      />
     </Row>
   );
 }
