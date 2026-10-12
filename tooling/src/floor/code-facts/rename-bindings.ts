@@ -2,7 +2,7 @@
 // `const Y = X`. The authored syntax is the subject, never a resolved origin. `pnpm ast aliases` lists every one;
 // `no-vanity-alias` judges the import, export and type arms against its sanctioned-rename rules.
 import type { Node } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
+import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 
 const RENAME_BINDING_KINDS = ["rename-import", "rename-export", "type-rename", "const-rename"] as const;
 export type RenameBindingKind = (typeof RENAME_BINDING_KINDS)[number];
@@ -40,7 +40,7 @@ function specifierRename(node: Node): RenameBinding | undefined {
 }
 
 /** The rename one node authors, or undefined: an aliased import or export specifier, a type alias whose whole body
- *  is an argument-free type reference, or a variable whose initializer is a bare identifier. */
+ *  is an argument-free type reference, or a `const` of a plain name whose initializer is a bare identifier. */
 export function renameBindingOf(node: Node): RenameBinding | undefined {
   if (N.isTypeAliasDeclaration(node)) {
     const typeNode = node.getTypeNode();
@@ -51,7 +51,9 @@ export function renameBindingOf(node: Node): RenameBinding | undefined {
   }
   if (N.isVariableDeclaration(node)) {
     const initializer = node.getInitializer();
-    return initializer !== undefined && N.isIdentifier(initializer)
+    // A `let`/`var` is a new variable and a destructuring pattern binds several names; neither is a second name for one.
+    const isConst = node.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const;
+    return isConst && N.isIdentifier(node.getNameNode()) && initializer !== undefined && N.isIdentifier(initializer)
       ? { kind: "const-rename", node, original: initializer.getText(), alias: node.getName(), moduleSpecifier: undefined, targetName: undefined }
       : undefined;
   }

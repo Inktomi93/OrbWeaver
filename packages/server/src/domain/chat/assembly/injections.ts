@@ -20,6 +20,7 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  it), beside the clamp that gives it meaning. */
 export const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
+// @orb-waive no-vanity-alias(WireRole): baselined when the gate widened; burn-down item 906.
 /** The wire role a spliced history row can take. `system` appears only when the caller keeps system rows
  *  (SHAPE, which then decides per slot whether each run stays a system row or folds); every other caller gets
  *  each system injection folded to user text here. */

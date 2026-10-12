@@ -9,6 +9,7 @@ export const SEARCH_EMPTY_QUERY = "empty_query";
 /** The owner has no `embed`/`imageEmbed` connection bound — nothing defines their vector space. */
 export const SEARCH_NO_SPACE = "search_no_space";
 
+// @orb-waive no-vanity-alias(SEARCH_SPACE_REINDEXING): baselined when the gate widened; burn-down item 906.
 // The owner's corpus has not finished moving into the space their binding now resolves to (§10-5). Not an empty
 // result: scanning the last-complete space with the live model would return meaningless rankings, so the refusal is
 // the only honest answer. Spelled in contracts, because the client branches on it.

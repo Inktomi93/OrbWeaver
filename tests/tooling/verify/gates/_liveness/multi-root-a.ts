@@ -286,7 +286,7 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         "packages/server/src/domain/chat/persistence/liveness-edit.ts",
-        'import { messageVariants } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport function livenessEdit(db: D, id: string, content: string) {\n  return db.update(messageVariants).set({ content }).where(eq(messageVariants.id, id));\n}\n',
+        'import type { Db } from "@orb/db";\nimport { messageVariants } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport function livenessEdit(db: Db, id: string, content: string) {\n  return db.update(messageVariants).set({ content }).where(eq(messageVariants.id, id));\n}\n',
       ),
     ],
     messageIncludes: "must write ALL of it",

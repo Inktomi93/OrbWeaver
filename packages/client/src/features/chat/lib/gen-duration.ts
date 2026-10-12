@@ -5,6 +5,7 @@
 // Kept pure + prop-driven so it unit-tests without a render.
 
 const MS_PER_SECOND = 1000;
+// @orb-waive no-vanity-alias(SUB_SECOND_MAX_MS): baselined when the gate widened; burn-down item 906.
 const SUB_SECOND_MAX_MS = MS_PER_SECOND;
 
 /** The completed generation window in ms (`gf − gs`) when both bounds are present and ordered, else null

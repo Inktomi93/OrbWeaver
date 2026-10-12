@@ -64,16 +64,19 @@ export interface PluginCharacterView {
   readonly avatarAssetId: string | null;
 }
 
+// @orb-waive no-vanity-alias(PluginVariableOp): baselined when the gate widened; burn-down item 906.
 /** The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
  *  `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use. */
 export type PluginVariableOp = VarOp;
 
+// @orb-waive no-vanity-alias(PluginVariablePrecondition): baselined when the gate widened; burn-down item 906.
 /** The OPTIONAL compare-and-set half of a guest variable write (#1555) — the ONE home is
  *  `@orb/contracts/chat`'s {@link VariablePrecondition}, aliased here the way {@link PluginVariableOp} aliases
  *  the kit op. A guest that read a value, computed from it and wants the write to land only if nothing moved
  *  underneath passes its belief; the shape is deliberately NOT an op member (see the one home for why). */
 type PluginVariablePrecondition = VariablePrecondition;
 
+// @orb-waive no-vanity-alias(PluginVariableWriteResult): baselined when the gate widened; burn-down item 906.
 /** What `chat.applyVariableOps` answers (#1555) — `@orb/contracts/chat`'s {@link VariableWriteResult}, aliased.
  *  A lost race is DATA the guest branches on (`outcome === "stale"` + the live values), never a throw: an
  *  uncaught throw here would spend one of the three crash strikes that auto-disable a plugin, and losing a

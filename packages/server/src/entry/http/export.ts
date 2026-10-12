@@ -53,6 +53,7 @@ const ORB_BUNDLE_MIME = "application/json; charset=utf-8";
 
 const CHAT_FORMATS: ReadonlySet<string> = new Set<ExportChatFormat>(["jsonl", "txt"]);
 const CARD_FORMATS: ReadonlySet<string> = new Set<ExportCardFormat>(["png", "json"]);
+// @orb-waive no-vanity-alias(PORTABLE_KIND_VALUES): baselined when the gate widened; burn-down item 906.
 const PORTABLE_KIND_VALUES: readonly string[] = PORTABLE_KINDS;
 
 export interface ExportDeps {

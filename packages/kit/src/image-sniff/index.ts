@@ -79,6 +79,7 @@ const FOURCC_LEN = 4;
 // APNG's `acTL` / WebP's `ANIM`/`ANMF` / AVIF's brands live in the header; a 4 KiB window bounds the scan
 // (the sig is far smaller in a real file, but a padded/annotated header stays covered without a whole-blob scan).
 const ANIM_SCAN_WINDOW = 4096;
+// @orb-waive no-vanity-alias(WEBP_CHUNK_OFFSET): baselined when the gate widened; burn-down item 906.
 // The WebP first-chunk FourCC sits at byte 12 (after `RIFF` + 4-byte size + `WEBP`).
 const WEBP_CHUNK_OFFSET = HEADER_LEN;
 // VP8X flags byte is the first byte of the VP8X chunk payload (byte 20 = 12 + 4 FourCC + 4 size).
