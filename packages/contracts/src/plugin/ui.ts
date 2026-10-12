@@ -175,7 +175,7 @@ export type PluginPageStageKind = (typeof PLUGIN_PAGE_STAGE_KINDS)[number];
 
 /** Every node kind, in the §4.3 table order (the three BROWSE-GENRE kinds appended by U5, §4.5b). This tuple
  *  and {@link PluginSurfaceNode}'s `kind` discriminants are pinned equal at the type level
- *  (tests/contracts/plugin/ui.test-d.ts) and the client renderer's exhaustive `Record<NodeKind, Renderer>`
+ *  (tests/legacy/contracts/plugin/ui.test-d.ts) and the client renderer's exhaustive `Record<NodeKind, Renderer>`
  *  covers it — a new kind fails `tsc` until it is rendered. */
 export const PLUGIN_NODE_KINDS = [
   "stack",
@@ -1433,7 +1433,7 @@ export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistra
 // membrane uses for its own inbound args / outbound results (`HOST_FN_ARGS_MAX_BYTES` /
 // `HOST_FN_RESULT_CAP_BYTES`); they are re-declared here rather than imported because `infra` is above
 // `contracts` in the cake and a client cannot reach it — the numbers are pinned equal by
-// `tests/contracts/plugin/ui-proxy-subset.contract.test.ts`, not by hope.
+// `tests/legacy/contracts/plugin/ui-proxy-subset.contract.test.ts`, not by hope.
 
 /** Max serialized bytes of ONE `plugin.uiHostCall` argument payload (the client→server direction). */
 export const PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES = 1_048_576;

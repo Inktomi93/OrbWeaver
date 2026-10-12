@@ -17,7 +17,7 @@ The host pin in chats.anchorPersonaId and the member active persona in chat_part
 
 Persona pickers, menus and editor surfaces may evolve without freezing unrelated presentation work.
 
-Keep tests/server/domain/chat/persona-resolution.suite.int.test.ts semantically unchanged and green. The owner-approved publication scrub may replace private fixture names, identifiers and their coupled expected identity literals. Preserve every case, authority boundary, resolution order, assertion meaning and failure expectation. This exception does not permit editing tests to fit a behavioral change. Other suite changes remain subject to the existing byte-preservation constraint and owner-gated behavior policy.
+Keep tests/legacy/server/domain/chat/persona-resolution.suite.int.test.ts semantically unchanged and green. The owner-approved publication scrub may replace private fixture names, identifiers and their coupled expected identity literals. Preserve every case, authority boundary, resolution order, assertion meaning and failure expectation. This exception does not permit editing tests to fit a behavioral change. Other suite changes remain subject to the existing byte-preservation constraint and owner-gated behavior policy.
 
 ## Consequences
 

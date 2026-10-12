@@ -7,7 +7,7 @@
 // IMPORT DIRECTION (load-bearing): this namespace imports NOTHING from `#character`. The card contract
 // imports `refineryAnalyzePayloadSchema` from HERE (for the card's derived `refinery` signals field), so
 // a `#character` import in this file would be a module cycle. The `REFINABLE_FIELDS ⊆ CharacterCard`
-// field-name pin therefore lives in the contract TEST (tests/contracts/refinery), which may import both.
+// field-name pin therefore lives in the contract TEST (tests/legacy/contracts/refinery), which may import both.
 //
 // The stage PAYLOADS are the F3 "fixed typed payloads" — ONE schema per stage across every F4 mode
 // (modes are PROMPT-tier variants; the extension's separate quick-score schema is deliberately

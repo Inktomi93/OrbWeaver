@@ -166,7 +166,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
                 `Field.Control`, so the label reaches it through Base UI's `aria-labelledby`, which outranks
                 the attribute — it was the same string, unreachable. `entry-editor.ct.tsx`'s
                 `getByLabel("Keyword triggers")` resolves identically. Measured per family at
-                `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
+                `tests/legacy/client/a11y/field-control-name.suite.ct.tsx`. */}
             <Combobox
               value={keys}
               maxItems={KEYS_MAX}

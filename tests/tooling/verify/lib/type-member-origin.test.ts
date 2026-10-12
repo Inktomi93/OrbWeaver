@@ -334,22 +334,20 @@ test.each([
   );
 });
 
-test.each([
-  "Identity<Row>",
-  "ReturnType<() => Row>",
-  "Table[string]",
-  "Row extends object ? Row : string",
-])("annotation value semantics preserve actual canonical output in %s", (annotation) => {
-  const project = projectOf({
-    "contract.ts": "export interface Row { why: string }\nexport type Table = Readonly<Record<string, Row>>;",
-    "subject.ts": `import type { Row, Table } from "./contract.ts";\ntype Identity<T> = T;\ndeclare const value: ${annotation};`,
-  });
-  const source = file(project, "subject.ts");
-  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
-  expect(
-    facts.some((fact) => fact.kind === "resolved" && fact.value.name === "Row" && declaredByFile(fact.value.declarations, file(project, "contract.ts"))),
-  ).toBe(true);
-});
+test.each(["Identity<Row>", "ReturnType<() => Row>", "Table[string]", "Row extends object ? Row : string"])(
+  "annotation value semantics preserve actual canonical output in %s",
+  (annotation) => {
+    const project = projectOf({
+      "contract.ts": "export interface Row { why: string }\nexport type Table = Readonly<Record<string, Row>>;",
+      "subject.ts": `import type { Row, Table } from "./contract.ts";\ntype Identity<T> = T;\ndeclare const value: ${annotation};`,
+    });
+    const source = file(project, "subject.ts");
+    const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+    expect(
+      facts.some((fact) => fact.kind === "resolved" && fact.value.name === "Row" && declaredByFile(fact.value.declarations, file(project, "contract.ts"))),
+    ).toBe(true);
+  },
+);
 
 test("annotation provenance retains namespace identity and distinguishes the same-named foreign alias", () => {
   const project = projectOf({
@@ -374,21 +372,18 @@ test("annotation provenance retains namespace identity and distinguishes the sam
   expect(atCanonicalHome("fake")).toBe(false);
 });
 
-test.each([
-  "[Row]",
-  "[row: Row]",
-  "[Row?]",
-  "[...Row[]]",
-  "[row?: Row, ...rows: Row[]]",
-])("annotation provenance reads tuple element wrappers in %s", (tuple) => {
-  const project = projectOf({
-    "contract.ts": "export interface Row { readonly why: string }",
-    "subject.ts": `import type { Row } from "./contract.ts";\ntype Rows = readonly ${tuple};\ndeclare const rows: Rows;`,
-  });
-  const source = file(project, "subject.ts");
-  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("rows").getTypeNodeOrThrow());
-  expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(true);
-});
+test.each(["[Row]", "[row: Row]", "[Row?]", "[...Row[]]", "[row?: Row, ...rows: Row[]]"])(
+  "annotation provenance reads tuple element wrappers in %s",
+  (tuple) => {
+    const project = projectOf({
+      "contract.ts": "export interface Row { readonly why: string }",
+      "subject.ts": `import type { Row } from "./contract.ts";\ntype Rows = readonly ${tuple};\ndeclare const rows: Rows;`,
+    });
+    const source = file(project, "subject.ts");
+    const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("rows").getTypeNodeOrThrow());
+    expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(true);
+  },
+);
 
 test("annotation provenance preserves the missing leaf and refuses identities absorbed by its opaque union", () => {
   const project = projectOf({
@@ -404,18 +399,18 @@ test("annotation provenance preserves the missing leaf and refuses identities ab
   expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "present.ts")))).toBe(false);
 });
 
-test.each([
-  "[readonly Local[], Phantom<Local>]",
-  "[Phantom<Local>, readonly Local[]]",
-])("annotation value semantics retains missing alias provenance in each path of %s", (annotation) => {
-  const project = projectOf({
-    "contract.ts": "export interface Present { why: string }",
-    "subject.ts": `import type { Row } from "./contract.ts";\ntype Local = Row;\ntype Phantom<T> = string;\ndeclare const value: ${annotation};`,
-  });
-  const source = file(project, "subject.ts");
-  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
-  expect(facts.some((fact) => fact.kind === "unresolved" && fact.reason === "missing" && fact.node.getText() === "Row")).toBe(true);
-});
+test.each(["[readonly Local[], Phantom<Local>]", "[Phantom<Local>, readonly Local[]]"])(
+  "annotation value semantics retains missing alias provenance in each path of %s",
+  (annotation) => {
+    const project = projectOf({
+      "contract.ts": "export interface Present { why: string }",
+      "subject.ts": `import type { Row } from "./contract.ts";\ntype Local = Row;\ntype Phantom<T> = string;\ndeclare const value: ${annotation};`,
+    });
+    const source = file(project, "subject.ts");
+    const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+    expect(facts.some((fact) => fact.kind === "unresolved" && fact.reason === "missing" && fact.node.getText() === "Row")).toBe(true);
+  },
+);
 
 test("annotation alias recursion refuses an opaque canonical candidate", () => {
   const project = projectOf({

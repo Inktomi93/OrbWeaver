@@ -3,7 +3,7 @@
 // programmatic API and applies the resulting CREATE statements over the real createDb handle), so a slice
 // test always runs against the current schema regardless of whether `0000_baseline.sql` has been
 // regenerated yet — fast + drift-proof for per-table tests. The committed baseline + the `runMigrations`
-// FK-dance + `assertReferentialIntegrity`'s throw path are covered by `tests/db/client.int.test.ts`, and
+// FK-dance + `assertReferentialIntegrity`'s throw path are covered by `tests/legacy/db/client.int.test.ts`, and
 // the committed baseline ↔ schema equivalence by `tests/tooling/verify/ops/db-baseline-parity.int.test.ts`.
 //
 // freshCountedDb adds a QUERY-BUDGET counter over the same handle: the counting proxy rides `createDb`'s

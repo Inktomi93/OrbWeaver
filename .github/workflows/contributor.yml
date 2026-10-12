@@ -105,7 +105,7 @@ jobs:
       - name: Fixed component test
         id: ct
         if: steps.seen.outputs.cache-hit != 'true' && (!cancelled() && steps.stop-dev.outcome == 'success')
-        run: pnpm test:ct tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
+        run: pnpm test:ct --legacy tests/legacy/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
       - name: Restore the Windows Defender scope
         if: always() && runner.os == 'Windows' && steps.defender.outcome == 'success'
         shell: pwsh

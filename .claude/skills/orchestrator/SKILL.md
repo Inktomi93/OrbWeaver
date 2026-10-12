@@ -130,8 +130,8 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 
 - Freeze the batch before the barrier. A merge or edit changes the tested tree and invalidates affected evidence.
 - A merge that combines shared-interface edits needs typechecking. The barrier covers it; run a separate typecheck only for earlier feedback.
-- A merge touching `packages/server/src/transport/trpc/routers/**` runs `tests/server/transport/cross-tenant-sweep.suite.int.test.ts` first.
-- The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/replay-since.int.test.ts`.
+- A merge touching `packages/server/src/transport/trpc/routers/**` runs `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts` first, through `pnpm test:scoped --legacy`.
+- The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/legacy/server/domain/notifications/verbs/replay-since.int.test.ts`.
 - A merge restarts the dev server and clears the in-memory recorders. Never merge while a live drive depends on them.
 - `pnpm check:ledgers-fresh` fails when a merge shifts the lines a ledger row cites. Run the regeneration yourself on the merged tree. Lanes only hand-edit their own row.
 

@@ -18,6 +18,7 @@
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `tooling/src/verify/gates/_proof/__cbbhr_out_client-vendors.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
 import { forEachCommentRange } from "../lib/comment-spans.ts";
 
@@ -29,7 +30,11 @@ export const gate = defineGate({
   family: "commented-code",
   authority: "hard",
   severity: "error",
-  population: { of: "all", why: "parked code is forbidden in every compiler source except gate contract prose", notUnder: ["tooling/src/verify/gates/**"] },
+  population: {
+    of: "all",
+    why: "parked code is forbidden in every compiler source except gate contract prose",
+    notUnder: ["tooling/src/verify/gates/**", `${LEGACY_TEST_ROOT}/**`],
+  },
   analysis: "syntax",
   execution: "selected-files",
   facts: [],

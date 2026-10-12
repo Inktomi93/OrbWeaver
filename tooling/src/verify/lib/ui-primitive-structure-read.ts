@@ -1,6 +1,7 @@
 // UI primitive judgments over one immutable source/resource snapshot. Permission candidates are
 // emitted before authority reconciliation; this reader contains no private exception tables.
 import type { Node } from "ts-morph";
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import type { GateFactValue } from "../contract/fact.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import type { SourceEvidence, uiPrimitiveFact } from "./ui-primitive-fact.ts";
@@ -159,7 +160,9 @@ export function readUiPrimitiveStructure(snapshot: Snapshot): {
       permissions.push({ subject, operation: "primitive-shape", sites: shape });
     }
     const expected = `tests/ui/primitives/${name}/${name}.ct.tsx`;
-    if (!tests.has(expected)) {
+    // A legacy CT still proves the primitive until its rebuilt CT lands at the mirror path.
+    const legacyExpected = `${LEGACY_TEST_ROOT}/${expected.slice("tests/".length)}`;
+    if (![expected, legacyExpected].some((path) => tests.has(path))) {
       permissions.push({ subject, operation: "primitive-ct", sites: [{ file: `${subject}/`, line: 1, message: `no co-located CT — expected ${expected}.` }] });
     }
     health.push(...overlaySites(snapshot.sources, name));

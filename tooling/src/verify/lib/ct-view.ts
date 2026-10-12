@@ -95,8 +95,11 @@ export function ctView(paths: readonly string[], root: string = ROOT): CtView {
       files.add(mirror);
     }
   }
-  if (sweepDirs.size > 0) {
-    return { mode: "sweep", targets: [...sweepDirs] };
+  // A sweep directory exists only once its package has rebuilt CTs in the strict mirror; the legacy folder's CTs
+  // run in CI's legacy job, never in the inner loop.
+  const liveSweepDirs = [...sweepDirs].filter((dir) => existsRel(dir, root));
+  if (liveSweepDirs.length > 0) {
+    return { mode: "sweep", targets: liveSweepDirs };
   }
   return files.size > 0 ? { mode: "files", targets: [...files] } : { mode: "skip", targets: [] };
 }

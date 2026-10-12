@@ -49,7 +49,7 @@ catalog:
   ts7: npm:typescript@7.0.2
   "@eslint/config-array": 0.23.5
   typescript: ^6.0.3
-  "@biomejs/biome": 2.5.1
+  "@biomejs/biome": 2.5.15
   lefthook: ^2.1.14
   dependency-cruiser: ^18.4.0
   ts-morph: ^28.0.0
@@ -190,7 +190,7 @@ catalog:
   # through the SHARED symbol `Symbol.for("undici.globalDispatcher.1")` — our copy WRITES it,
   # node's built-in `fetch` READS it. If that contract ever breaks, the firewall silently stops
   # governing `fetch` and every gate stays green over an open SSRF surface. The tripwire that makes
-  # the break LOUD is `tests/server/infra/network/dispatcher-contract.suite.int.test.ts` — keep it passing,
+  # the break LOUD is `tests/legacy/server/infra/network/dispatcher-contract.suite.int.test.ts` — keep it passing,
   # and re-run it on every node/undici bump. Mirrored into root devDependencies so that test can
   # import this exact package (pnpm-strict hides a packages/server dep from tests/).
   undici: ^8.11.2
@@ -228,7 +228,7 @@ catalog:
   # openai-compatible provider's `transformRequestBody` post-convert hook, which is where the dialects do their
   # body work; the OpenRouter provider FORWARDS per-message `cache_control` as an implementation fact, not a
   # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the
-  # wire-capture byte pins under `tests/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts`
+  # wire-capture byte pins under `tests/legacy/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts`
   # before it is trusted. `ai` is the peer the OpenRouter provider requires (`^7.0.0`); the
   # `@ai-sdk/provider` pin must satisfy every provider
   # package's own `@ai-sdk/provider` dependency at install (4.0.21 on 2026-10-03), so the stack moves together:
@@ -363,6 +363,9 @@ catalog:
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
   eslint-plugin-react-web-api: ^5.20.5
+  # eslint-react's core family: the React-19 migration and legacy-API rules. EXACT, not a caret — the config
+  # lists each rule by name, but a minor must not add or retune a rule without review.
+  eslint-plugin-react-x: 5.20.5
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
   eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2

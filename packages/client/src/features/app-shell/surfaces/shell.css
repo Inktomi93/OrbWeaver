@@ -1301,9 +1301,8 @@
  * It is ONLY the narrow arm. The desktop (wide) identity keeps the room's title and its member and memory chips
  * with both panes docked: the chips collapse to their glyphs and the title truncates last (the container query
  * below), instead of the whole identity vanishing from a row that still has room to shrink. */
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has(
-    [data-slot="context-bracket-band"] :is(h1, h2, h3)
-  ) .shell-topbar-identity[data-identity="narrow"]
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3))
+  .shell-topbar-identity[data-identity="narrow"]
   .shell-topbar-title {
   display: none;
 }
@@ -1853,7 +1852,8 @@
    * action. The action is the band's only direct child that is not the identity cluster, which is what the
    * first clause detects — a `listHeader` that is not a `ListPaneHeader` has no identity slot at all and so
    * never matches, keeping the rule scoped to the composite that declared these slots. */
-  .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"]
+  .shell-grid[data-list-mode="docked"]
+    .shell-panel[data-panel-side="list"]
     .shell-panel-header:not(:has(> *:not([data-slot="list-pane-identity"]))):not(:has([data-slot="list-pane-back"])):not(
       :has([data-slot="list-pane-title"][data-scoped])
     ) {
@@ -1881,5 +1881,5 @@
    * `packages/client/src/styles/globals.css` are themselves scoped to `@media (width > 48rem)`, the exact
    * complement of this block's condition, so at this width the declarations are never emitted at all and
    * every surface keeps its own background. Do not re-add an override here; the two conditions are
-   * sync-enforced by tests/ui/styles/css-structure.suite.test.ts. */
+   * sync-enforced by tests/legacy/ui/styles/css-structure.suite.test.ts. */
 }

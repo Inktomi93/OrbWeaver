@@ -6,7 +6,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-// @orb-waive dialog-via-composite(Dialog): the gallery lightbox owns its root and its destructive confirm; ends if a gallery-dialog composite owns that species.
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";

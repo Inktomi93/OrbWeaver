@@ -9,7 +9,7 @@
 // would mint the guardable-mismatch state D23 exists to kill). Member rows are a REAL FK junction, never
 // a free-form id array: a deleted character cascades out of each roster through its foreign key.
 //
-// Deletion physics (the test surface, tests/server/domain/roster-preset/persistence): character delete →
+// Deletion physics (the test surface, tests/legacy/server/domain/roster-preset/persistence): character delete →
 // seat row gone, preset survives smaller; persona delete → anchor NULL; preset delete → members CASCADE,
 // chats started from it untouched; owner delete → everything CASCADEs.
 

@@ -172,6 +172,8 @@ async function loadWorldInfoSources(
       .innerJoin(worldBooks, eq(worldBooks.id, globalBooks.worldBookId))
       .where(and(eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
     // persona → scoped to the PERSONA'S OWN owner, NOT `target.ownerId` (see FLAG[attachment-scope]).
+    // @orb-waive owner-scoped-reads(personas): the scope is `personaIds`, the room's present human seats' active personas (`memberPersonaIdsOf(humanSeats)`, or the editing/selecting member's own seat persona), resolved by the turn caller after the room authority gate; `setActivePersona` seats only a member's own persona. The personas row has no owner pin because a shared room legitimately carries members' personas. Ends if a caller-supplied persona id reaches the pool.
+    // @orb-waive owner-scoped-reads(worldBooks): each book is pinned to its persona's owner by `eq(worldBooks.ownerId, personas.ownerId)`, and the personas are the room's present seat personas in `personaIds` (see the personas waiver above), so a book joins only when the persona's own owner holds it. Ends if a caller-supplied persona id reaches the pool or the owner match is dropped.
     personaIds.length === 0
       ? Promise.resolve([])
       : db

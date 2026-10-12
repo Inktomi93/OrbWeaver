@@ -1,10 +1,11 @@
-// A renamed or moved firehose declaration cannot silently retire the D162 name-keyed boundary.
+// A renamed or moved firehose declaration cannot silently retire the D162 name-keyed boundary, which is the
+// `orb/firehose-import-allowlist` selector in eslint.config.js.
 import { defineGate } from "../contract/policy.ts";
 import { FIREHOSE_SYMBOL, firehoseImportFact } from "../lib/firehose-import-fact.ts";
 
 export const gate = defineGate({
   id: "firehose-import-allowlist-health",
-  family: "firehose-import-allowlist",
+  family: "firehose-import-allowlist-health",
   authority: "hard",
   severity: "error",
   population: ["@server"],

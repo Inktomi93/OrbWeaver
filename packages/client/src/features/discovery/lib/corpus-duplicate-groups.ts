@@ -14,7 +14,7 @@
 // every sub-identical pair keeps its own row, which is also where a pairwise reading is the honest one:
 // with two members there is nothing to collapse.
 //
-// PURE, and unit-tested (`tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts`): the
+// PURE, and unit-tested (`tests/legacy/client/features/discovery/lib/corpus-duplicate-groups.test.ts`): the
 // grouping is a claim about the DATA, and a CT can only prove that whatever it computed reached the DOM.
 
 /** One near-duplicate art pair as this module reads it — passed structurally by the tab, like

@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-`tests/kit` exists — the mirror rule governs (`packages/kit/src` ⇒ `tests/kit`).
+`tests/legacy/kit` exists — the mirror rule governs (`packages/kit/src` ⇒ `tests/legacy/kit`).
 
 ## Consequences
 

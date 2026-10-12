@@ -18,7 +18,7 @@
  *
  * MEMBERSHIP IS EVIDENCE-BASED, not taste: every name below is rendered at 0 / 0.25 / 0.5 / 0.75 / 1
  * by the gallery story (`IconGalleryStory` → the screenshot receipt in
- * tests/ui/primitives/icons/icon.ct.tsx) and was read from that screenshot. Adding a name is the same
+ * tests/legacy/ui/primitives/icons/icon.ct.tsx) and was read from that screenshot. Adding a name is the same
  * two steps as growing the seal itself (index.ts): add it here, then LOOK at the gallery.
  */
 

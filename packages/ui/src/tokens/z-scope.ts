@@ -32,7 +32,7 @@
 //   · TYPE (live): `satisfies Record<ZTokenPath, ZStackingScope>` — a new `z.*` token regenerates
 //     `TOKENS`, and a row missing here fails `tsc`. A scope is not optional metadata; it is minted with
 //     the token.
-//   · TEST (live): `tests/ui/styles/css-structure.suite.test.ts` reads `shell.css` — the ONE structural
+//   · TEST (live): `tests/legacy/ui/styles/css-structure.suite.test.ts` reads `shell.css` — the ONE structural
 //     shell stylesheet, and the file the drift lived in — and reds on any `portal-float` token in it,
 //     with a planted positive control in the same test.
 //   · GATE (SPEC ONLY, not built here — #1584's gate worker owns it): the TSX half. Every `z-(--z-<name>)`

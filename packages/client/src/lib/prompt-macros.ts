@@ -7,7 +7,7 @@
 //
 // DERIVED, NEVER AUTHORED (the three-home collapse, 2026-08-02). The ONE macro catalog is the kit
 // registry+metadata PAIR (`createDefaultRegistry` × `BUILTIN_MACRO_METADATA`, drift-proofed by the
-// completeness test at tests/kit/macro/metadata.test.ts and by D51's composed `volatile`). Every consumer is
+// completeness test at tests/legacy/kit/macro/metadata.test.ts and by D51's composed `volatile`). Every consumer is
 // a DERIVATION with a stated lens: the macro BROWSER is `queryMacros(registry, {})` verbatim (it documents
 // the whole registry, user macros included), and this AUTOCOMPLETE is that same query put through the
 // CURATION below. A hand-maintained third list is what this module used to be — seven names, drifting, with

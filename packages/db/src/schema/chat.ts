@@ -746,7 +746,7 @@ export const chatParticipants = sqliteTable(
 // a `parseSpeakerSpans` LINE index over the variant's STORED CANON, plus the span's own speaker label and
 // its trimmed-head snippet. All three because the anchoring fitness suite proved the escalation: a bare
 // index is not edit-stable, `(index, speaker)` is defeated by a same-speaker insert, and only a text
-// fingerprint detects that silently-mis-targeting case (`tests/kit/speaker-label/anchoring.suite.test.ts`).
+// fingerprint detects that silently-mis-targeting case (`tests/legacy/kit/speaker-label/anchoring.suite.test.ts`).
 // The trio is written FROM THE SERVER'S OWN PARSE (`verbs/reactions.ts` — a member's claim is validated,
 // never stored), and a stale trio DEGRADES to whole-message at read (kit `resolveSegmentAnchor`), so these
 // columns gate nothing and can never mis-attach. NULL index = a whole-message reaction (the coarse/default

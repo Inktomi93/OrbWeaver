@@ -288,30 +288,6 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     why: "`assertForcedCharacterMember` is the runtime twin of the `chat_participants` CHECK constraint — a persisted-row SHAPE invariant (a character seat can never be the host), not a caller-privilege gate. The legacy reader was blind to it because it hardcoded the `host` literal and this assertion names `member`.",
     endsWhen: "the row shape is guaranteed by the schema alone at every write path, so the runtime twin can be deleted.",
   },
-  {
-    id: "ui-primitive-permissions:colors-color-field",
-    policyId: "ui-primitive-permissions",
-    subject: "tests/ui/primitives/color-field/color-field.ct.tsx",
-    operation: "test-color-values",
-    why: "This component test exercises caller-supplied and hostile color values as data; replacing them with design tokens would remove the color-input boundary proof.",
-    endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
-  },
-  {
-    id: "ui-primitive-permissions:colors-sandbox-frame",
-    policyId: "ui-primitive-permissions",
-    subject: "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx",
-    operation: "test-color-values",
-    why: "This component test exercises caller-supplied and hostile color values as data; replacing them with design tokens would remove the color-input boundary proof.",
-    endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
-  },
-  {
-    id: "ui-primitive-permissions:colors-theme-scope",
-    policyId: "ui-primitive-permissions",
-    subject: "tests/ui/content/theme-scope/theme-scope.ct.tsx",
-    operation: "test-color-values",
-    why: "This component test exercises caller-supplied and hostile color values as data; replacing them with design tokens would remove the color-input boundary proof.",
-    endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
-  },
 
   {
     id: "ui-primitive-permissions:ct-icons",
@@ -319,22 +295,6 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     subject: "packages/ui/src/primitives/icons",
     operation: "primitive-ct",
     why: "The legacy UI primitive contract exempts this nonvisual satellite from the styled-primitive co-located CT obligation.",
-    endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
-  },
-  {
-    id: "ui-primitive-permissions:provider-drawerprovider",
-    policyId: "ui-primitive-permissions",
-    subject: "DrawerProvider",
-    operation: "inline-test-provider",
-    why: "Drawer-local provider behavior is the subject of these component tests; it cannot be replaced by the global CtProviders shell.",
-    endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
-  },
-  {
-    id: "ui-primitive-permissions:provider-drawervirtualkeyboardprovider",
-    policyId: "ui-primitive-permissions",
-    subject: "DrawerVirtualKeyboardProvider",
-    operation: "inline-test-provider",
-    why: "Drawer-local provider behavior is the subject of these component tests; it cannot be replaced by the global CtProviders shell.",
     endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
   },
   {

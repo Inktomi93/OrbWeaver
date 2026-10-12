@@ -2,8 +2,10 @@
 // Typecheck projects use `ignoreSourceErrors` so they judge `.test-d.ts` assertions only.
 // The native typecheck stage owns source diagnostics across every discovered compiler program.
 
+import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { bareCtGrepRefusal, hasCallerProjectFilter, missingBrowserExecutable, nodeConfigModeArgs } from "../../../../tooling/src/verify/ops/scoped-test.ts";
+import { bareCtGrepRefusal, legacyOperandRefusal, resolveOperand, splitLegacyFlag } from "@orb/tooling/floor/testing/scoped-run-paths";
+import { hasCallerProjectFilter, missingBrowserExecutable, nodeConfigModeArgs } from "../../../../tooling/src/verify/ops/scoped-test.ts";
 
 const RUNTIME_ONLY = "--runtime-only";
 
@@ -87,7 +89,7 @@ test("--related is runtime-only whatever the attribution says", () => {
 // ── #2457, second half: a bare CT title filter is refused at PARSE ───────────────────────────────────
 //
 // Measured 2026-09-19 on the unmodified door: `pnpm test:ct -g='aria-expanded follows'` — a title that
-// really does live in tests/client/features/config/components/config-search-input.ct.tsx — printed
+// really does live in tests/legacy/client/features/config/components/config-search-input.ct.tsx — printed
 // `CT SUMMARY — FAILED · 0 passed · 0 failed · 0 flaky · 0 skipped` and exited 1. The preflight cannot
 // catch it: with no path operands it returns early and never collects, so there is no barren path to name.
 test("a bare -g/--grep on the CT tier is refused, and the refusal names the missing path operand", () => {
@@ -104,6 +106,22 @@ test("only a missing-executable launch error names a browser path", () => {
   const path = "/opt/pw/chromium_headless_shell-1228/chrome-linux/headless_shell";
   expect(missingBrowserExecutable(`browserType.launch: Executable doesn't exist at ${path}\n╔═══╗\n║ Looks like Playwright was just installed ║`)).toBe(path);
   expect(missingBrowserExecutable("browserType.launch: Target page, context or browser has been closed")).toBeNull();
+});
+
+// The legacy folder runs in CI's legacy jobs; a lane floor reaches it only by opting in.
+test("a legacy path, or a directory that holds the legacy folder, is refused without --legacy", () => {
+  const root = process.cwd();
+  const refusal = (...args: string[]): string | undefined => legacyOperandRefusal(args.map((arg) => resolveOperand(root, arg)));
+  expect(refusal("tests/legacy/kit/slug/index.test.ts"), "a legacy file").toContain("legacy jobs");
+  expect(refusal("tests/legacy/kit"), "a legacy directory").toContain("legacy jobs");
+  expect(refusal("tests"), "the tests root holds the legacy folder").toContain("legacy jobs");
+  expect(refusal("tests/tooling/verify/ops/scoped-test.test.ts"), "a strict test is the control").toBeUndefined();
+  expect(refusal("tests/support"), "a strict directory beside the legacy folder").toBeUndefined();
+});
+
+test("--legacy is the opt-in, and it never reaches the runner", () => {
+  expect(splitLegacyFlag(["--legacy", "tests/legacy/kit", "-t", "x"])).toEqual({ legacy: true, rest: ["tests/legacy/kit", "-t", "x"] });
+  expect(splitLegacyFlag(["tests/tooling", "-t", "x"])).toEqual({ legacy: false, rest: ["tests/tooling", "-t", "x"] });
 });
 
 test("the negative controls: a title filter WITH a path, and a run with no title filter at all, are not refused", () => {

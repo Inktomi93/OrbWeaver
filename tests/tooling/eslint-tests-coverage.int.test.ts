@@ -1,9 +1,9 @@
 // THE CENSUS PIN for #1590: every tracked `tests/**/*.ts`/`*.tsx` file must resolve to a REAL eslint config
 // block, not just avoid a red on the ones someone remembered to run. Before #1590, 32 `.tsx` story/fixture
-// modules sat outside every `files` glob in `eslint.config.js` — `*.fixtures.tsx` under `tests/client`
-// (only `tests/ui/**/*.fixtures.tsx` had a home), every underscore-prefixed story module other than the
-// exact filename `_ct-stories.tsx`, and `tests/ui/**/*.stories.tsx` / `tests/ui/**/_*.tsx` (neither had a
-// tests/ui equivalent of the client/tooling `_ct-stories.tsx` exemption). `pnpm exec eslint <file>
+// modules sat outside every `files` glob in `eslint.config.js` — `*.fixtures.tsx` under `tests/legacy/client`
+// (only `tests/legacy/ui/**/*.fixtures.tsx` had a home), every underscore-prefixed story module other than the
+// exact filename `_ct-stories.tsx`, and `tests/legacy/ui/**/*.stories.tsx` / `tests/legacy/ui/**/_*.tsx` (neither had a
+// tests/legacy/ui equivalent of the client/tooling `_ct-stories.tsx` exemption). `pnpm exec eslint <file>
 // --max-warnings 0` answered "File ignored because no matching configuration was supplied" for every one of
 // them — a real defect (the CT surface's react-hooks/Compiler/jsx-a11y rules never reached them) that the
 // scoped verify lane could not see (its discovery drops an ignored explicit path silently, per

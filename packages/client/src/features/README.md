@@ -96,4 +96,4 @@ imports ARE allowed (a shape wired at the composition root).
    `QueryBoundary`. Each of these is a sealed gate, not a preference (lockdown §1's table names the wall).
 6. **Ship all three states** — designed EMPTY (with an action), a shape-matched skeleton, and
    `QueryErrorState` with a real retry. A bare spinner or a dead-end empty is a defect (§11).
-7. **Mirror the tests** at `tests/client/<path>` — never beside the source (`test-layout`).
+7. **Mirror the tests** at `tests/legacy/client/<path>` — never beside the source (`test-layout`).

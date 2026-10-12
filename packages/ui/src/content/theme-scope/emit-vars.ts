@@ -4,7 +4,7 @@
 // picked base derives and what a clamp refuses — and it crossed the 450-line primitive cap carrying both).
 // The same seam `color-parse.ts` already cut for the READERS, cut once more for the NAMES.
 //
-// THE ROSTER IS A CLAIM THE SUITES CHECK, not documentation: `tests/ui/content/theme-scope/
+// THE ROSTER IS A CLAIM THE SUITES CHECK, not documentation: `tests/legacy/ui/content/theme-scope/
 // emit-surface.suite.test.ts` asserts the keys `clampThemeTokens` actually writes equal this list exactly,
 // `token-classification.suite.test.ts` pins the two lists against each other, and `packages/ui/
 // tokens.build.ts` reads both at build time. So a var added to the clamp without a row here is RED, and a

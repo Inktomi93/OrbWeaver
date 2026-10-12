@@ -204,20 +204,18 @@ describe("design-audit distorted-image — only input the rule can actually judg
     }
   });
 
-  test.each([
-    "naturalWidth",
-    "naturalHeight",
-    "renderedWidth",
-    "renderedHeight",
-  ] as const)("a non-finite %s is WITHHELD — the `<= 0` range check passes every NaN and printed a NaN deviation verdict", (field) => {
-    for (const value of [Number.NaN, Number.POSITIVE_INFINITY]) {
-      const input = distorted({ [field]: value });
-      expect(checkImageDistortion(input), `${field}=${String(value)}`).toBeNull();
-      const disposition = classifyImageDistortion(input);
-      expect(disposition.kind).toBe("withheld");
-      expect(disposition.kind === "withheld" ? disposition.reason : "").toBe("unreadableExtent");
-    }
-  });
+  test.each(["naturalWidth", "naturalHeight", "renderedWidth", "renderedHeight"] as const)(
+    "a non-finite %s is WITHHELD — the `<= 0` range check passes every NaN and printed a NaN deviation verdict",
+    (field) => {
+      for (const value of [Number.NaN, Number.POSITIVE_INFINITY]) {
+        const input = distorted({ [field]: value });
+        expect(checkImageDistortion(input), `${field}=${String(value)}`).toBeNull();
+        const disposition = classifyImageDistortion(input);
+        expect(disposition.kind).toBe("withheld");
+        expect(disposition.kind === "withheld" ? disposition.reason : "").toBe("unreadableExtent");
+      }
+    },
+  );
 
   test("a zero extent stays the EXCLUDED broken-image case it always was — the new refusal does not swallow it", () => {
     const disposition = classifyImageDistortion(distorted({ naturalWidth: 0 }));

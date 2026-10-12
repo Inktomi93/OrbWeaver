@@ -22,7 +22,7 @@
 //
 // DECLARED LIMIT: the subject is the SNAPSHOT chain, which is what drizzle diffs against. A migration's
 // `.sql` hand-edited WITHOUT its snapshot is invisible here — that pair is guarded from the other two
-// sides: `pnpm check:drizzle-kit` owns journal/snapshot chain integrity, and `tests/db/client.int.test.ts`
+// sides: `pnpm check:drizzle-kit` owns journal/snapshot chain integrity, and `tests/legacy/db/client.int.test.ts`
 // applies the committed chain to a real libSQL db. Post-launch an applied `.sql` must never be edited at
 // all (Tier-1-DB.md §"Regime 2" step 4), and a db that recorded one is boot-FATAL.
 import { readFileSync } from "node:fs";

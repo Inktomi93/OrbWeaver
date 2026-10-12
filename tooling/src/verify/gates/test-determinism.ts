@@ -30,7 +30,7 @@
 // now carry the #828 marker. DECLARED LIMIT, unchanged by #831: a guest-realm probe that reaches a stub
 // via SUBSCRIPT/bracket access (`Date['now']()`, `performance['now']()`) still evades every regex in this
 // file by construction — the probe never spells the dotted member the regex matches on. That is
-// tests/server/infra/plugin-host/realm.test.ts's documented choice (its own header), not a gap this gate
+// tests/legacy/server/infra/plugin-host/realm.test.ts's documented choice (its own header), not a gap this gate
 // closes; a future "flag bracket access too" would need to special-case away from EVERY legitimate bracket
 // property read, which is not this gate's job.
 //

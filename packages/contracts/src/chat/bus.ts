@@ -239,7 +239,7 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
 export type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
 
 /** The knob a `sampling_knob_dropped` adjustment NAMES — a closed subset of `UserIntent`'s own knob field
- *  names (pinned in `tests/contracts/chat/index.test-d.ts`: every member is a `keyof UserIntent`, so this
+ *  names (pinned in `tests/legacy/contracts/chat/index.test-d.ts`: every member is a `keyof UserIntent`, so this
  *  tuple cannot drift into naming a setting that does not exist). A CLOSED union rather than free text
  *  BY CONSTRUCTION: the bus's raw-string pin admits exactly two anchored free-text keys and this is not one
  *  of them — the `ReactionEmoji`/`MemoryRecallPhase` precedent. One home; the union derives from it. */

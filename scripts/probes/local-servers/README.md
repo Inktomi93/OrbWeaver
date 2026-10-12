@@ -36,8 +36,8 @@ Per arm, in order:
 
 1. Record what the server advertises (`/api/show`, `/props`, `/api/extra/version`, `/v1/models`, …) as raw
    JSON under `results/raw/<arm>/`, and, when every arm ran, into
-   `tests/inference/catalog/_local-servers-fixtures.ts` (then run
-   `pnpm exec biome check --write tests/inference/catalog/_local-servers-fixtures.ts` for the house
+   `tests/legacy/inference/catalog/_local-servers-fixtures.ts` (then run
+   `pnpm exec biome check --write tests/legacy/inference/catalog/_local-servers-fixtures.ts` for the house
    formatting and numeric separators). The unit tests parse exactly what the servers said.
 2. Run the real reader (`fetchEndpointModels`) over the live server and log the rows it detected.
 3. Prove each capability against the same server: a tool call comes back as `tool_calls`; an image part is
@@ -53,7 +53,7 @@ Evidence: `results/<arm>.jsonl`, one row per step, append-only.
 
 `node scripts/probes/local-servers/record-facts.ts` records what the server-detect probe and the native readers
 ask each llama.cpp and KoboldCpp arm, with the status and body each answered (a 501 or a 400 is the answer for the
-embeddings and rerank probes), into `tests/inference/catalog/_local-servers-transcripts.ts`. It needs every arm its
+embeddings and rerank probes), into `tests/legacy/inference/catalog/_local-servers-transcripts.ts`. It needs every arm its
 header lists up, including the embedder-only, unpooled, reranker, `--no-prefill-assistant` and stock-template arms,
 and the two Qwen3.8-27B arms (`LOCAL_RIG_MEMORY=24g`), which mount the GGUF directory read-only.
 

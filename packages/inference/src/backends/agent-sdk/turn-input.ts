@@ -86,7 +86,7 @@ function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.c
  * out of position if one ever reached it, so a future cell declaring `historySystemRows` on this wire MUST come
  * here first — the enforcer is the capability cell, and this is the coupling it protects.
  *
- * @public Test-anchored module surface; tests/inference/backends/agent-sdk/turn-input.test.ts and the
+ * @public Test-anchored module surface; tests/legacy/inference/backends/agent-sdk/turn-input.test.ts and the
  *  scripts/probes/f4-cache-proof.ts dev probe call it directly, in addition to the in-file use by
  *  {@link toAgentSdkChatRequest}.
  */
@@ -176,7 +176,7 @@ const AGENT_SEED_FRAMES: Record<ChatHistoryMessage["role"], { readonly frame: Ag
  * AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
  * body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
  *
- * @public Test-anchored module surface; tests/inference/backends/agent-sdk/turn-input.test.ts and the
+ * @public Test-anchored module surface; tests/legacy/inference/backends/agent-sdk/turn-input.test.ts and the
  *  scripts/probes/f4-cache-proof.ts dev probe call it directly, in addition to the in-file use by
  *  {@link toAgentSdkChatRequest}.
  */

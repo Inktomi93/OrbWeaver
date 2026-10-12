@@ -17,7 +17,7 @@
 // is what makes them a family and not two spellings of one question.
 //
 // POPULATION: `@client` + `@ui` SOURCE, the same two packages the sibling walks. That fence is what
-// excludes the tailwind-merge conflict-pair fixture at `tests/ui/lib/class-merge.test.ts:80` — a string
+// excludes the tailwind-merge conflict-pair fixture at `tests/legacy/ui/lib/class-merge.test.ts:80` — a string
 // naming the class, never an application of it. It is excluded BY CONSTRUCTION and must never acquire an
 // exemption: a fixture that must name the token to test the merge behaviour is not a violation of anything.
 // `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).

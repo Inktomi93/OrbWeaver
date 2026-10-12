@@ -2,7 +2,15 @@
 
 import { TEST_KIND_DEFINITIONS } from "../testing/test-kinds.ts";
 import type { World } from "./project-worlds.ts";
-import { authorProgramWorld, BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS, PACKAGE_WORLDS, packageWorld, TEST_WORLD_PROGRAMS } from "./project-worlds.ts";
+import {
+  authorProgramWorld,
+  BROWSER_SURFACE_DIRS,
+  HELPER_WORLD_DIRS,
+  LEGACY_TEST_WORLD_PROGRAMS,
+  PACKAGE_WORLDS,
+  packageWorld,
+  TEST_WORLD_PROGRAMS,
+} from "./project-worlds.ts";
 
 export const TYPE_WORLD_TEMPLATE_PATHS = {
   node: "tsconfig.world-node.json",
@@ -47,7 +55,7 @@ export function programWorldOf(config: string): World | undefined {
   if (config === "tooling/tsconfig.json") {
     return "node";
   }
-  return Object.entries(TEST_WORLD_PROGRAMS).find(([, path]) => path === config)?.[0] as World | undefined;
+  return [...Object.entries(TEST_WORLD_PROGRAMS), ...Object.entries(LEGACY_TEST_WORLD_PROGRAMS)].find(([, path]) => path === config)?.[0] as World | undefined;
 }
 
 /** Ambient scopes admitted by one concrete program. The generator and membership validator consume this
@@ -58,16 +66,19 @@ export function ambientScopesForProgram(config: string): readonly AmbientScope[]
     return;
   }
   const scopes: AmbientScope[] = ["all-programs"];
-  if (config === TEST_WORLD_PROGRAMS.node) {
+  // A legacy program is the split-off half of its world's test program and admits the same ambients.
+  const nodeTests = config === TEST_WORLD_PROGRAMS.node || config === LEGACY_TEST_WORLD_PROGRAMS.node;
+  const browserTests = config === TEST_WORLD_PROGRAMS.browser || config === LEGACY_TEST_WORLD_PROGRAMS.browser;
+  if (nodeTests) {
     scopes.push("graph-only", "vitest-tests");
   }
-  if (config === packageConfigPath("ui") || config === TEST_WORLD_PROGRAMS.browser) {
+  if (config === packageConfigPath("ui") || browserTests) {
     scopes.push("ui-and-browser-tests");
   }
   if (config === packageConfigPath("client")) {
     scopes.push("client-source");
   }
-  if (config === TEST_WORLD_PROGRAMS.browser) {
+  if (browserTests) {
     scopes.push("browser-tests", "vitest-tests");
   }
   return scopes;
@@ -114,9 +125,9 @@ export function rootTestProgram(world: World): string {
   return TEST_WORLD_PROGRAMS[world];
 }
 
-export function browserTestRootPatterns(testKinds: TypeConfigIntentInput["testKinds"]): readonly string[] {
+export function browserTestRootPatterns(testKinds: TypeConfigIntentInput["testKinds"], testRoot = "tests"): readonly string[] {
   const suffixes = testKinds.filter(({ compilerWorld }) => compilerWorld === "browser").map(({ suffix }) => suffix);
-  return suffixes.filter((suffix) => !suffixes.some((other) => suffix !== other && suffix.endsWith(other))).map((suffix) => `tests/**/*${suffix}`);
+  return suffixes.filter((suffix) => !suffixes.some((other) => suffix !== other && suffix.endsWith(other))).map((suffix) => `${testRoot}/**/*${suffix}`);
 }
 
 export function browserSurfaceRootPatterns(): readonly string[] {

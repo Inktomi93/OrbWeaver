@@ -3,7 +3,7 @@
 //
 // The manifest is what makes "bump the version when you change the text" a MECHANISM instead of a discipline:
 //   • this generator REFUSES to write when a slot's text changed while its `version` stayed put;
-//   • the sibling contract test (`tests/contracts/prose/index.contract.test.ts`) REDs on the same condition
+//   • the sibling contract test (`tests/legacy/contracts/prose/index.contract.test.ts`) REDs on the same condition
 //     against the COMMITTED manifest, so an unbumped revision cannot reach a green tree even if nobody runs
 //     this script.
 // Together: a host's stored `baseVersion` is a trustworthy staleness signal, and a revised default never

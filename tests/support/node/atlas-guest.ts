@@ -13,7 +13,7 @@
 // host's real one is rate-limited and throws). Everything that differs between them is an option below;
 // everything that must not drift — the realm denial, the vm floor, the settle discipline — is shared.
 //
-// WHAT THE REAL SANDBOX ADDS (marshalling, caps, the belts) is pinned in `tests/server/infra/plugin-host/`;
+// WHAT THE REAL SANDBOX ADDS (marshalling, caps, the belts) is pinned in `tests/legacy/server/infra/plugin-host/`;
 // the atlas's registration + activation publish in the REAL sandbox is `seed-example-plugins.int.test.ts`.
 
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.

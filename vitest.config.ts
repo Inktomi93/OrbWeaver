@@ -1,8 +1,15 @@
+import { LEGACY_TEST_WORLD_PROGRAMS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/floor/testing/test-kinds";
-import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/floor/testing/test-kinds";
-import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
+import {
+  runtimeForTestFamily,
+  SEMANTIC_CORPUS_RESOURCE,
+  TEST_KIND_DEFINITIONS,
+  vitestLegacyTypecheckGroupName,
+  vitestTypecheckGroupName,
+} from "@orb/tooling/floor/testing/test-kinds";
+import { applicationTestExclusions, LEGACY_TEST_ROOT, legacyTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -10,9 +17,9 @@ import type { TestUserConfig } from "vitest/node";
 
 // Native runner globs compose the registered vocabulary. Browser-subject .dom tests still execute in
 // Node; Playwright owns browser execution. Each project inherits the cleanup and isolation defaults.
-function testGlobs(family: TestFamily, world?: TestCompilerWorld): string[] {
+function testGlobs(family: TestFamily, world?: TestCompilerWorld, root = "tests"): string[] {
   return TEST_KIND_DEFINITIONS.filter((kind) => kind.family === family && (world === undefined || kind.compilerWorld === world)).map(
-    ({ suffix }) => `tests/**/*${suffix}`,
+    ({ suffix }) => `${root}/**/*${suffix}`,
   );
 }
 
@@ -55,6 +62,8 @@ const REPOSITORY_GROUP_ORDER = 1;
 // Each typecheck project runs one whole-program tsc (~4 GB before checkers); side by side they OOM a 16 GB box.
 const SEMANTIC_CORPUS_GROUP_ORDER = 2;
 const BROWSER_TYPECHECK_GROUP_ORDER = 3;
+const LEGACY_TYPECHECK_GROUP_ORDER = 4;
+const LEGACY_BROWSER_TYPECHECK_GROUP_ORDER = 5;
 
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
 const TYPECHECKER = "scripts/ts7.ts";
@@ -82,44 +91,69 @@ const TYPECHECKER = "scripts/ts7.ts";
  *  TEST failure, not a source error, and still reds. */
 const IGNORE_SOURCE_ERRORS = true;
 
+/** One typecheck group: a world's `.test-d.ts` assertions against the program that compiles them. Vitest checks a
+ *  type test only inside its `tsconfig` program, so each group's include must match that program's roots. */
+interface TypecheckGroup {
+  readonly name: string;
+  readonly groupOrder: number;
+  readonly include: readonly string[];
+  readonly exclude: readonly string[];
+  readonly tsconfig: string;
+}
+
+function typecheckProject({ name, groupOrder, include, exclude, tsconfig }: TypecheckGroup): TestProjectConfiguration {
+  return {
+    extends: true,
+    test: {
+      name,
+      sequence: { groupOrder },
+      include: [],
+      typecheck: {
+        enabled: true,
+        only: true,
+        include: [...include],
+        exclude: [...TYPECHECK_DEFAULT_EXCLUDE, ...exclude],
+        tsconfig,
+        checker: TYPECHECKER,
+        ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
+      },
+    },
+  };
+}
+
 function typecheckProjects(applicationOnly: boolean): readonly TestProjectConfiguration[] {
   const applicationExclusions = applicationTestExclusions(applicationOnly);
+  const legacy = legacyTestExclusions();
   return [
-    {
-      extends: true,
-      test: {
-        name: vitestTypecheckGroupName("node"),
-        sequence: { groupOrder: NORMAL_GROUP_ORDER },
-        include: [],
-        typecheck: {
-          enabled: true,
-          only: true,
-          include: testGlobs("type"),
-          exclude: [...TYPECHECK_DEFAULT_EXCLUDE, ...BROWSER_TYPES, ...applicationExclusions],
-          tsconfig: "tsconfig.json",
-          checker: TYPECHECKER,
-          ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
-        },
-      },
-    },
-    {
-      extends: true,
-      test: {
-        name: vitestTypecheckGroupName("browser"),
-        sequence: { groupOrder: BROWSER_TYPECHECK_GROUP_ORDER },
-        include: [],
-        typecheck: {
-          enabled: true,
-          only: true,
-          include: BROWSER_TYPES,
-          exclude: [...TYPECHECK_DEFAULT_EXCLUDE, ...applicationExclusions],
-          tsconfig: "tsconfig.tests-dom.json",
-          checker: TYPECHECKER,
-          ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
-        },
-      },
-    },
-  ] satisfies readonly TestProjectConfiguration[];
+    typecheckProject({
+      name: vitestTypecheckGroupName("node"),
+      groupOrder: NORMAL_GROUP_ORDER,
+      include: testGlobs("type"),
+      exclude: [...BROWSER_TYPES, ...legacy, ...applicationExclusions],
+      tsconfig: TEST_WORLD_PROGRAMS.node,
+    }),
+    typecheckProject({
+      name: vitestTypecheckGroupName("browser"),
+      groupOrder: BROWSER_TYPECHECK_GROUP_ORDER,
+      include: BROWSER_TYPES,
+      exclude: [...legacy, ...applicationExclusions],
+      tsconfig: TEST_WORLD_PROGRAMS.browser,
+    }),
+    typecheckProject({
+      name: vitestLegacyTypecheckGroupName("node"),
+      groupOrder: LEGACY_TYPECHECK_GROUP_ORDER,
+      include: testGlobs("type", undefined, LEGACY_TEST_ROOT),
+      exclude: testGlobs("type", "browser", LEGACY_TEST_ROOT),
+      tsconfig: LEGACY_TEST_WORLD_PROGRAMS.node,
+    }),
+    typecheckProject({
+      name: vitestLegacyTypecheckGroupName("browser"),
+      groupOrder: LEGACY_BROWSER_TYPECHECK_GROUP_ORDER,
+      include: testGlobs("type", "browser", LEGACY_TEST_ROOT),
+      exclude: [],
+      tsconfig: LEGACY_TEST_WORLD_PROGRAMS.browser,
+    }),
+  ];
 }
 
 // docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working

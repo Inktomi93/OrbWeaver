@@ -115,7 +115,7 @@ export const buttonVariants = tv({
       // tailwind-merge, so both heights survived the merge and stylesheet order picked the winner (post-#146
       // it resolves last-wins, i.e. the call site silently beats the seal) — the `media` (F2) and TabsTab
       // `layout="stacked"` precedent. The arm is where the wrapping box is NAMED. Pinned by COMPUTED height in
-      // tests/ui/primitives/button/button.ct.tsx.
+      // tests/legacy/ui/primitives/button/button.ct.tsx.
       wrap: "h-auto min-h-control-sm whitespace-normal px-block py-field text-label leading-label",
       // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
       // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
@@ -135,7 +135,7 @@ export const buttonVariants = tv({
       // pointers, 28px on fine. Layout-neutral (absolutely positioned), so the datum's box is unchanged.
       // It is `::before` for the #1843 reason spelled out on `glyphBox` above: the CTA ring owns `::after`
       // unlayered, so an `inline` PRIMARY button's hit area was being replaced by a ring that cannot be
-      // clicked. Pinned by COMPUTED box in tests/ui/primitives/button/button.ct.tsx.
+      // clicked. Pinned by COMPUTED box in tests/legacy/ui/primitives/button/button.ct.tsx.
       inline: inlineBox("text-label leading-label"),
       // A recovery action inside body prose must keep that sentence's type step and the same touch target.
       "inline-body": inlineBox("text-body leading-body"),
@@ -161,7 +161,7 @@ export const buttonVariants = tv({
       // Four steps, not one: the sweep is geometry-PRESERVING (`done ≠ rendered` — resizing 13 live controls
       // is a design change, not a gate fix), and the four scales are four real roles the token descriptions
       // name. Pinned SITE-BY-SITE against the retired `!size-N` strings by COMPUTED box in
-      // tests/ui/primitives/button/button.ct.tsx.
+      // tests/legacy/ui/primitives/button/button.ct.tsx.
       "glyph-xs": glyphBox("size-glyph-xs"),
       "glyph-sm": glyphBox("size-glyph-sm"),
       "glyph-md": glyphBox("size-glyph-md"),

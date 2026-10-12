@@ -152,6 +152,7 @@
     "eslint-plugin-playwright": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
     "eslint-plugin-react-web-api": "catalog:",
+    "eslint-plugin-react-x": "catalog:",
     "eslint-plugin-react-you-might-not-need-an-effect": "catalog:",
     "eslint-plugin-regexp": "catalog:",
     "eslint-plugin-tsdoc": "catalog:",

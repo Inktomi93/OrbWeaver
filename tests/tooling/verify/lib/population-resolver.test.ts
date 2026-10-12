@@ -18,6 +18,7 @@ test.describe("population vocabulary", () => {
       "@inference": ["packages/inference/src/"],
       "@tooling": ["tooling/src/"],
       "@tests": ["tests/"],
+      "@legacy-tests": ["tests/legacy/"],
       "@scripts": ["scripts/"],
     });
     expect(POPULATION_SETS).toEqual({
@@ -56,6 +57,15 @@ test.describe("populationIncludes", () => {
     expect(populationIncludes("@product", "packages/default-content/src/index.ts")).toBe(true);
     expect(populationIncludes("@product", "packages/default-content/package.json")).toBe(false);
     expect(populationIncludes("@backend", "packages/client/src/api.ts")).toBe(false);
+  });
+
+  test("a nested root carves its subtree out of the enclosing root", () => {
+    expect(populationIncludes("@tests", "tests/server/domain/chat/send.int.test.ts")).toBe(true);
+    expect(populationIncludes("@tests", "tests/legacy/server/domain/chat/send.int.test.ts")).toBe(false);
+    expect(populationIncludes("@authored", "tests/legacy/server/domain/chat/send.int.test.ts")).toBe(false);
+    expect(populationIncludes("@legacy-tests", "tests/legacy/server/domain/chat/send.int.test.ts")).toBe(true);
+    expect(populationIncludes(["@tests", "@legacy-tests"], "tests/legacy/server/domain/chat/send.int.test.ts")).toBe(true);
+    expect(populationIncludes({ in: ["@tests"], depth: "flat" }, "tests/legacy/flat.test.ts")).toBe(false);
   });
 
   test("subtracts named roots and nested zones after expanding sets", () => {

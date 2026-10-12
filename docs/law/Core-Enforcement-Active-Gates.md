@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(365 registered gates)
+(353 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -59,7 +59,7 @@ in its own module header, never restated here.
 | `appearance-carrier-health` | appearance-carrier | hard/error | @client,@contracts,@tooling\* | Appearance carrier graph drift:… |
 | `assets-single-writer` | — | reviewed-grant/error | @server,@db\* | an assets-table write or storeBlob… |
 | `assumes-single-replica` | — | ordinary/error | @server,@inference\* | module-scope mutable per-process… |
-| `audit-client-tests` | — | ordinary/error | @tests\* | a test file carries a structural… |
+| `audit-client-tests` | test-no-stubs | ordinary/error | @tests\* | a test file carries a structural… |
 | `baseui-anatomy-completeness` | baseui-read | hard/error | @ui | the Base UI anatomy ledger and the… |
 | `baseui-derives-not-respells` | baseui-read | ordinary/error | @ui | a @orb/ui seal hand-writes a data… |
 | `baseui-derives-not-respells-health` | baseui-read | hard/error | @ui | a @orb/ui seal hand-writes an EVENT… |
@@ -73,7 +73,6 @@ in its own module header, never restated here.
 | `bounded-list-limit` | — | ordinary/error | @server,@contracts\* | an unbounded limit in a list/paged… |
 | `brand-in-name-position` | id-brand-flow | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@inference,@tests | a parameter or field uses bare string… |
 | `bus-belt-total` | bus-definition | hard/error | @contracts,@client,@server | bus set is not TOTAL over its union —… |
-| `bus-channel-primitive` | — | reviewed-grant/error | @server\* | new EventEmitter() under… |
 | `bus-consumer-belt` | bus-definition | hard/error | @contracts,@client,@server | a bus union has NO consumer coverage… |
 | `bus-definition-belts` | bus-definition | hard/error | @contracts,@client,@server | bus event union in @orb/contracts… |
 | `bus-fact-health` | bus-fact | hard/error | @contracts,@server | shared bus fact is incomplete — bus… |
@@ -138,7 +137,6 @@ in its own module header, never restated here.
 | `detached-work-traced-health` | detached-work-traced | hard/error | @server,@inference | detached-work-traced derived ZERO… |
 | `devtools-frontend-assets` | — | hard/error | none | the revision-matched official… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
-| `dialog-via-composite` | — | ordinary/error | @client | a features/\*\* file imports the raw… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
 | `duplicate-action-doors` | action-doors | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
@@ -151,9 +149,7 @@ in its own module header, never restated here.
 | `external-id-single-writer-health` | external-id-single-writer | hard/error | @server | the U1 externalId single-writer… |
 | `feature-owns-definition` | — | hard/error | none | a features/\* dir owns no registered… |
 | `feature-structure` | — | hard/error | none | a domain feature does not follow the… |
-| `fetch-fn-in-features` | — | ordinary/error | @client\* | a client feature hand-writes a global… |
-| `firehose-import-allowlist` | — | reviewed-grant/error | @server | the all-chats firehose… |
-| `firehose-import-allowlist-health` | firehose-import-allowlist | hard/error | @server | subscribeAllChatEvents is no longer… |
+| `firehose-import-allowlist-health` | — | hard/error | @server | subscribeAllChatEvents is no longer… |
 | `fk-columns-indexed` | drizzle-schema | hard/error | @db\* | a foreign-key column does not LEAD… |
 | `fk-ondelete-stated` | drizzle-schema | ordinary/error | @db\* | a .references(...) has no onDelete… |
 | `floorless-control-vocabulary-health` | floorless-control | hard/error | @client,@ui | the floorless Button vocabulary no… |
@@ -192,10 +188,8 @@ in its own module header, never restated here.
 | `no-caller-user-id` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@inference,@tooling,@tests,@scripts\* | callerUserId is forbidden (D19): the… |
 | `no-chat-trpc-in-surface` | — | ordinary/error | @authored\* | trpc.chat.\<verb>.mutationOptions… |
 | `no-color-literals` | — | ordinary/error | @client,@ui | a hardcoded color class — all three… |
-| `no-context-provider` | react-origin | ordinary/error | @authored | React 19 deprecates \<Context.Provider>… |
 | `no-context-returntype` | — | ordinary/error | @authored\* | ReturnType<> in context.ts — the DI… |
 | `no-direct-reports-write` | — | ordinary/error | @tests | a .screenshot({ path }) call in… |
-| `no-direct-useform` | — | reviewed-grant/error | @authored | TanStack Form's raw mint is called… |
 | `no-direct-users-read` | — | reviewed-grant/error | @server\* | the users table is read/written ONLY… |
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
 | `no-fake-disabled-id` | id-brand-flow | ordinary/error | @client | empty-string branded id creates a… |
@@ -203,7 +197,6 @@ in its own module header, never restated here.
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
 | `no-form-state-in-useeffect` | — | ordinary/error | all | useEffect reading form.state.values /… |
-| `no-forward-ref` | react-origin | ordinary/error | @authored | React 19 deprecates forwardRef. Pass… |
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | model-facing prose hardcoded at a… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
@@ -219,7 +212,6 @@ in its own module header, never restated here.
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
-| `no-legacy-react-api` | react-origin | ordinary/error | @authored | a legacy React API: cloneElement,… |
 | `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
 | `no-manual-autosave-flush` | — | ordinary/error | @client\* | this features/\*\* function body calls… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
@@ -241,22 +233,17 @@ in its own module header, never restated here.
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
-| `no-raw-interactive-intrinsics` | — | reviewed-grant/error | @client\* | a raw interactive intrinsic in a… |
 | `no-raw-intl-time` | — | reviewed-grant/error | @authored | raw Intl API or .toLocale\*() date… |
-| `no-raw-matchmedia` | — | reviewed-grant/error | @client,@ui | a raw matchMedia read outside the… |
 | `no-raw-random` | ambient-determinism | reviewed-grant/error | @product,@tooling\* | ambient Math.random() — determinism:… |
 | `no-raw-spacing-in-features` | raw-spacing-tier | ordinary/error | @client,@ui | raw spacing utility in a class string… |
 | `no-raw-typography-in-features` | raw-typography-tier | ordinary/error | @client,@ui | raw font-size utility in a class… |
 | `no-raw-z-index` | ui-z-index-tier | ordinary/error | @client,@ui | raw z-N or unknown semantic z-index… |
-| `no-raw-zustand-persist` | — | reviewed-grant/error | @client\* | raw zustand persistence outside its… |
 | `no-rejected-cors-proxy` | — | hard/error | @server,@inference | corsproxy.io spelled in server source… |
-| `no-static-staletime` | tanstack-query-origin | ordinary/error | @authored\* | staleTime:'static' silently ignores… |
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
 | `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
 | `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
 | `no-untrusted-html-in-main-dom` | — | reviewed-grant/error | @client,@ui | dangerouslySetInnerHTML in the app… |
 | `no-untyped-soft-ref` | drizzle-schema | reviewed-grant/error | @db\* | an id-shaped column (its JS key ends… |
-| `no-use-context` | react-origin | ordinary/error | @authored | React 19 deprecates useContext. Read… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
 | `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
@@ -352,6 +339,7 @@ in its own module header, never restated here.
 | `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
+| `test-no-stubs` | — | hard/error | @tests | stub test contains no assertions… |
 | `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |
 | `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
 | `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests | a presence-gated module is reached by… |

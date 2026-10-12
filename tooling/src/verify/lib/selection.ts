@@ -5,11 +5,12 @@
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 
 import { BROWSER_PACKAGES, isNodeToolSource, isWorldHelperPath } from "@orb/tooling/floor/compiler/project-worlds";
+import { isLegacyTestPath } from "@orb/tooling/floor/testing/test-population";
 import type { PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
 import { planTypecheckPrograms } from "./program-routing.ts";
-import { classifyExplicitPaths, gitChangedPathClassification, gitLsFiles, gitStagedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
+import { classifyExplicitPaths, existsRel, gitChangedPathClassification, gitLsFiles, gitStagedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the native ESLint config's scoped population — and the mirroring is LOAD-BEARING, not
@@ -88,17 +89,31 @@ function authoredPathsUnder(prefix: string, root: string): readonly string[] {
   return classifyExplicitPaths(paths, root).existingPaths.toSorted();
 }
 
+/** The inner loop leaves the legacy folder to CI's legacy jobs: a Git-derived change drops its legacy paths. An
+ *  explicit `--file` claim keeps them, because the caller named them. */
+function withoutLegacy(classification: ChangedPathClassification): ChangedPathClassification {
+  return {
+    entries: classification.entries.filter((entry) => !isLegacyTestPath(entry.path)),
+    paths: classification.paths.filter((path) => !isLegacyTestPath(path)),
+    existingPaths: classification.existingPaths.filter((path) => !isLegacyTestPath(path)),
+    deletedPaths: classification.deletedPaths.filter((path) => !isLegacyTestPath(path)),
+  };
+}
+
 /** Resolve a `changed`/`file` selection from explicit paths (or git when none given). */
 function resolveChanged(kind: "changed" | "file", explicit: readonly string[], root: string): Selection {
   return explicit.length > 0
     ? classifiedSelection({ kind, labelWord: kind, classification: classifyExplicitPaths(explicit, root), gitRef: undefined }, root)
-    : classifiedSelection({ kind, labelWord: kind, classification: workingChangeClassification(root), gitRef: "HEAD" }, root);
+    : classifiedSelection({ kind, labelWord: kind, classification: withoutLegacy(workingChangeClassification(root)), gitRef: "HEAD" }, root);
 }
 
 // The commit gate's selection. No vitest `--changed` ref: that selector reads the working tree, so the related-test
 // lane takes the staged files as explicit subjects instead.
 function resolveStaged(root: string): Selection {
-  return classifiedSelection({ kind: "staged", labelWord: "staged", classification: gitStagedPathClassification(root), gitRef: undefined }, root);
+  return classifiedSelection(
+    { kind: "staged", labelWord: "staged", classification: withoutLegacy(gitStagedPathClassification(root)), gitRef: undefined },
+    root,
+  );
 }
 
 interface ClassifiedSelectionInput {
@@ -155,7 +170,7 @@ function resolvePackage(name: string, root: string): Selection {
     // A whole-package scope over a BROWSER package sweeps that package's whole mirror tree (the honest floor
     // for "everything in ui/client changed"); a node package contributes no CT. Prefix-based, so it doesn't
     // route through the per-file mirror map (paths here is a bare prefix, not a concrete .tsx file).
-    ct: BROWSER_PACKAGES.has(dir) ? { mode: "sweep", targets: [`tests/${dir}`] } : { mode: "skip", targets: [] },
+    ct: BROWSER_PACKAGES.has(dir) && existsRel(`tests/${dir}`, root) ? { mode: "sweep", targets: [`tests/${dir}`] } : { mode: "skip", targets: [] },
     checkScopeArgv: [...SCOPED_CLI, "--package", dir],
     gitRef: undefined,
   };

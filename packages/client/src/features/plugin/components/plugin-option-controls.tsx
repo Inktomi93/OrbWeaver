@@ -121,7 +121,7 @@ export function TabsStrip({
             `Field.Control`, so the enclosing Field's label reaches NOTHING here and this attribute is the
             radiogroup's ONLY accessible name — where a Switch's identical-looking attribute was dead and was
             removed. Deleting this one for symmetry leaves the group anonymous.
-            Per-family evidence: `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
+            Per-family evidence: `tests/legacy/client/a11y/field-control-name.suite.ct.tsx`. */}
       <ToggleGroup
         aria-label={node.label}
         onValueChange={(groupValue): void => {

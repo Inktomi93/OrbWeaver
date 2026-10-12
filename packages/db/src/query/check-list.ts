@@ -7,7 +7,7 @@
 //
 // THE VALUES ARE COMPILE-TIME TUPLES, NEVER USER INPUT — so this is a DDL-CORRECTNESS floor, not an
 // injection surface, and the escaping below changes NO byte of today's emitted DDL (every live member is
-// ASCII with hyphens/underscores; pinned in `tests/db/query/check-list.test.ts`). What it removes is the
+// ASCII with hyphens/underscores; pinned in `tests/legacy/db/query/check-list.test.ts`). What it removes is the
 // trap: a future enum member containing an apostrophe rendered as `'it's'`, which terminates the literal
 // early and makes the whole CREATE TABLE unparseable — at migration time, in generated DDL nobody reads,
 // which is exactly the moment nothing is watching (#1377 item 2).

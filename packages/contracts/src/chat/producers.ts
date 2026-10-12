@@ -75,7 +75,7 @@ export const chatIdentitySchema = z.discriminatedUnion("kind", [
  *  only WITH its reader — a verdict nobody consumes is decoration. */
 export interface ChatIdentityKindPolicy {
   /** Which macro-subject family this kind's name backs — enacted by {@link buildIdentityNameContext}'s routing
-   *  (its policy↔projection agreement is pinned in `tests/contracts/chat/producers.contract.test.ts`):
+   *  (its policy↔projection agreement is pinned in `tests/legacy/contracts/chat/producers.contract.test.ts`):
    *  `char-subject` → `characterNamesById` (`{{char}}`); `user-subject` → `personaNamesById`
    *  (`{{user}}`/`{{persona}}`). */
   readonly macro: "char-subject" | "user-subject";

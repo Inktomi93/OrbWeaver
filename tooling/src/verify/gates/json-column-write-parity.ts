@@ -1,6 +1,6 @@
 // Gate: json-column-write-parity — a JSON column with BOTH a key-wise writer and a whole-record-replace
 // writer is a silent clobber. FOUNDING DEFECT (`163b93fa10`, red-first at
-// tests/server/domain/refinery/verbs/update-session.int.test.ts): `refinery_sessions.selection` was written
+// tests/legacy/server/domain/refinery/verbs/update-session.int.test.ts): `refinery_sessions.selection` was written
 // two ways — `applyFields` REMAPPED `greetingIndexes` key-wise when an accepted rewrite removed a greeting,
 // while `updateSession` did `set.selection = refinerySelectionSchema.parse(patch.selection)`, a whole value
 // rebuilt from the client's image alone. A scope-dialog save carrying a pre-remap image therefore UNDID the

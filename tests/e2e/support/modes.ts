@@ -337,7 +337,7 @@ const FORWARD_HEADER: ModeProject = {
 //
 // #867 DID NOT DISCHARGE THIS, and the reason is a fence, not a caveat. Injecting the code→token exchange
 // (`OidcRoutesDeps.exchange`) made the whole OIDC callback drivable IN-PROCESS — that coverage now lives in
-// `tests/server/entry/http/auth-routes.test.ts` and `tests/server/entry/oidc-logout-roundtrip.suite.int.test.ts`
+// `tests/legacy/server/entry/http/auth-routes.test.ts` and `tests/legacy/server/entry/oidc-logout-roundtrip.suite.int.test.ts`
 // — but e2e boots the REAL server, whose composition root binds the REAL `openid-client` grant on purpose.
 // The only way a fake exchange could reach an e2e stack is an env-selectable substitute for the token
 // exchange, which is an authentication bypass wearing a test affordance. So this project stays deferred

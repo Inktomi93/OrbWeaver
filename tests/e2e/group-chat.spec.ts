@@ -1,6 +1,6 @@
 // E2E — GROUP CHAT mechanics, DETERMINISTIC (zero model turns, runs in the normal lane). Group chat had
 // no e2e coverage at all before this file; the arbitration ENGINE is pure + exhaustively unit-tested
-// (tests/server/domain/chat/engine/select-speakers.test.ts), so this spec deliberately tests the OTHER
+// (tests/legacy/server/domain/chat/engine/select-speakers.test.ts), so this spec deliberately tests the OTHER
 // half — the mechanics that need no generation and that a unit test cannot reach:
 //   1. a solo room CONVERTS to a group (the roster-size-gated group surfaces appear live, off the bus),
 //   2. the add/remove roster verbs move the real roster (remove is the newly-wired `removeCharacterFromChat`),

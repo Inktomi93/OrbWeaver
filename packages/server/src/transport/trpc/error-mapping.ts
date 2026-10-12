@@ -50,7 +50,7 @@
 // also carries an upstream 4xx body, and that is ACCEPTED on three stated assumptions:
 //   1. the surfaces that produce it are OWNER-SCOPED (a connection, its credential and its baseUrl are the
 //      caller's own; cross-tenant reach is held by the domain pre-gates and probed by
-//      tests/server/transport/cross-tenant-sweep.suite.int.test.ts),
+//      tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts),
 //   2. every upstream-derived message is `sanitizeApiError(redactSecretsFromText(…))` — true of
 //      `providerErrorFromHttp` always, and of `fetchJson` only as of this commit. A THIRD upstream-prose
 //      path added without that composition re-opens this,

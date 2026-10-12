@@ -17,7 +17,7 @@ The test layers and the rebuild plan are in `.claude/rules/node-tests.md`.
 ## Running CT
 
 Run `pnpm test:ct <paths>`. Never invoke `playwright test` directly and never run the whole tree from a
-lane. A second CT run in the same worktree refuses with `CT RUNNER BUSY`; prove a flake from a separate
+lane. A legacy CT runs only with `--legacy` (`.claude/rules/node-tests.md`). A second CT run in the same worktree refuses with `CT RUNNER BUSY`; prove a flake from a separate
 worktree with its own `CT_PORT`.
 
 ## Assertions

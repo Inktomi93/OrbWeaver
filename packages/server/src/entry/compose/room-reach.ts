@@ -133,7 +133,7 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
         and(
           inArray(
             chatParticipants.userId,
-            // @orb-waive owner-scoped-reads(worldBooks): satellite chain from `global_books`; the `bookId` is the book an owner-gated world-info mutation just changed (`captureRoomReachForDelete` and the room-entity fan run after that verb), and the read returns only that book's owner id to pick the host rooms to notify. Ends if a caller-supplied book id reaches the reach resolver.
+            // @orb-waive owner-scoped-reads(worldBooks): satellite chain from `global_books`, and the `bookId` can be caller-supplied and unverified here — `removeBook` captures reach BEFORE its owner-scoped delete. The read returns only that book's owner id, used to pick host room ids held in the capture thunk; the safety is that the verb calls `fanReach()` only after `DELETE … WHERE ownerId` returned the row (a foreign or missing book throws NotFound and the thunk is discarded unfanned), and the content-event fan resolves only after its owner-gated verb committed. Ends if a thunk can fan without its verb's owner-scoped write succeeding, or the resolved ids leave the server another way.
             db
               .select({ ownerId: worldBooks.ownerId })
               .from(globalBooks)

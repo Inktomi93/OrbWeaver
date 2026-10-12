@@ -6,7 +6,6 @@ import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
 import type { CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// @orb-waive dialog-via-composite(Dialog): this character-gallery picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ImagePlus, Images } from "@orb/ui/icons";

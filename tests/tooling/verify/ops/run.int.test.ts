@@ -838,7 +838,7 @@ test("resolveSelection: an import-pulled src file DOES flag the graph (the TS258
   // it must include the root Node program, or the TS2584-class break (a graph consumer of a DOM-typed export) escapes at
   // verify --file. Its per-package owner stays ui (the graph is a separate stage, not a tsc -p owner).
   // THE SUBJECT MOVED (#1231, #1243 fallout): this pinned `primitives/button/variants.ts` until #1243
-  // excluded `tests/ui` from the root program — those two specs were its ONLY graph-rooted importers, so
+  // excluded `tests/legacy/ui` from the root program — those two specs were its ONLY graph-rooted importers, so
   // the file silently left the overlay and this proof went red while `structure:full` stayed clean (a node
   // suite, not a gate). The token vault is the durable choice: `tooling/src` reads it directly, so the
   // overlay membership does not depend on which test tree is in the graph this month.
@@ -1065,7 +1065,7 @@ test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (
 // declared blast-radius sweeps. Scoped CT UNDER-selects on purpose; the push bar is the coverage verdict. ──
 
 test("ct view: a ui primitive source selects EXACTLY its test-layout mirror .ct.tsx", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  // badge.tsx mirrors to tests/ui/primitives/badge/badge.ct.tsx (exists on disk) — mode "files", that one.
+  // badge.tsx mirrors to tests/legacy/ui/primitives/badge/badge.ct.tsx (exists on disk) — mode "files", that one.
   const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
   expect(sel.ct).toEqual({ mode: "files", targets: ["tests/ui/primitives/badge/badge.ct.tsx"] });
 });

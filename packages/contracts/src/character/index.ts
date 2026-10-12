@@ -643,7 +643,7 @@ export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema
 
 /** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
  *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description
- *  `ResolvedCardFace` structurally (pinned in `tests/contracts/card-face/index.contract.test.ts` — a
+ *  `ResolvedCardFace` structurally (pinned in `tests/legacy/contracts/card-face/index.contract.test.ts` — a
  *  zod-inferred card's mutable members cannot `extends` a readonly interface identically, so the pin is
  *  the belt). (`CharacterSummary` below is deliberately NOT a face carrier: the list row omits
  *  `description`.) */

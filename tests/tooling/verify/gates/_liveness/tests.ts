@@ -12,7 +12,7 @@ export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: ctPollHealth,
     // The population is exactly one named anchor file; the health arm derives its facts from that file, so
     // blanking it is the whole control.
-    overlays: [{ kind: "neutralise", path: "tests/client/lib/motion-stats.ct.tsx", source: "export const neutralised = 1;\n" }],
+    overlays: [{ kind: "neutralise", path: "tests/legacy/client/lib/motion-stats.ct.tsx", source: "export const neutralised = 1;\n" }],
     messageIncludes: "no freshly-minted poll schedule",
   },
   {

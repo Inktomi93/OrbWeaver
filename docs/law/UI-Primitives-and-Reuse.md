@@ -60,7 +60,7 @@ updated: 2026-08-07
 
 ### 13.3 The new gates (machine-enforced — added by D54)
 
-Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · `persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.js`; the Compiler's Rules-of-React enforcement is mandatory, not optional).
+Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `orb/no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · `persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.js`; the Compiler's Rules-of-React enforcement is mandatory, not optional).
 
 The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldValuesEqual`** (lib does deep compare) · post-submit-effect `reset(saved)` · version-locked `dontUpdateMeta` + a guard test · `useSelector` (not `useStore`).
 
@@ -197,7 +197,7 @@ every reader in the same commit.
 identity (an invite handle, a persona name, an API-key label). `off` is a decision, not an omission.
 
 **Enforcement.** N2/N5/N6 plus "every interactive role has a non-empty name" are machine-checked by
-`tests/client/a11y/accessible-name-quality.suite.ct.tsx` over a growing roster of real feature stories;
+`tests/legacy/client/a11y/accessible-name-quality.suite.ct.tsx` over a growing roster of real feature stories;
 adding a surface there is how a new pane joins the contract. N1/N3/N4/N7/N8/N9 are REVIEW rules — a CT that
 tried to score whether a verb is the user's verb would be vacuous or wrong. The suite plants each defect class
 as its own negative control, so a silently-broken predicate cannot make every surface pass.

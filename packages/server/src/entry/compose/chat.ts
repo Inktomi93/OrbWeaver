@@ -807,7 +807,7 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
  * answer). Null is the round's visible degrade, never a free-text call. How it rides is the plan's. Its window is
  * the one its call sends: the Utility preset's Max context on a route whose window the request sets.
  *
- * @public Test-anchored module surface; the three routes are pinned at `tests/server/entry/compose/speaker-arbiter.suite.test.ts`.
+ * @public Test-anchored module surface; the three routes are pinned at `tests/legacy/server/entry/compose/speaker-arbiter.suite.test.ts`.
  */
 // @orb-waive compose-wiring-only(speakerArbiterFor): baselined when the gate landed; burn-down item 964.
 export async function speakerArbiterFor(

@@ -21,7 +21,8 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const CLIENT_ENTRY_ANCHOR = "packages/client/src/index.ts";
 const WORST_ART_ANCHOR = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
-const WORST_ART_STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
+// The standing CT is a legacy file until its rebuilt suite lands; the floor holds it wherever it lives.
+const WORST_ART_STANDING_CT = "tests/legacy/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 
 /** The missing filename rides the MESSAGE because the finding cannot anchor on an absent subject. */
 const MSG_WORST_ART = `the standing DOM-derived worst-legal-art contrast CT is missing — restore ${WORST_ART_STANDING_CT}. The room's rendered text population must stay sampled across shipped and custom theme polarities.`;

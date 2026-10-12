@@ -423,6 +423,7 @@ function keysetFor(activity: CharacterActivity, cursor: CharacterListCursor): SQ
  *  arm makes the term mean itself; the clause is per-arm because SQLite scopes it to one `LIKE`. */
 function searchPredicate(db: Db, needle: string): SQL | undefined {
   const like = `%${escapeLikeTerm(needle)}%`;
+  // @orb-waive owner-scoped-reads(tags): a correlated EXISTS — `characterTags.characterId = characters.id` binds the junction to the OUTER `characters` row, which its one caller `ownedCharacterScope` pins by `eq(characters.ownerId, ownerId)`; the gate judges the subselect alone and cannot see that pin. The tag a junction row names is the card owner's own: `attachTag`/`bulkAttachTag` load the tag and the character owned, and `attachCardTagByName` creates or finds the tag under the `ownerId` its import and suggestion callers pass with that owner's card. Ends if this predicate is used outside an owner-scoped `characters` read.
   return or(
     sql`lower(${characters.name}) like ${like} escape '\\'`,
     sql`lower(${characters.handle}) like ${like} escape '\\'`,
@@ -511,6 +512,7 @@ export async function countOwnedCharacters(db: Db, ownerId: UserId, filter: Char
  *  screen. One spelling, used by both halves of the census below, so the buckets cannot disagree about
  *  which rows they are about. */
 function carriesVisibleTag(db: Db): SQL {
+  // @orb-waive owner-scoped-reads(tags): a correlated EXISTS — `characterTags.characterId = characters.id` binds the junction to the OUTER `characters` row, which its one caller pins through `ownedCharacterScope` (`eq(characters.ownerId, ownerId)`); the gate judges the subselect alone and cannot see that pin. The tag a junction row names is the card owner's own: `attachTag`/`bulkAttachTag` load the tag and the character owned, and `attachCardTagByName` creates or finds the tag under the `ownerId` its import and suggestion callers pass with that owner's card. Ends if this predicate is used outside an owner-scoped `characters` read.
   return exists(
     db
       .select({ tagged: sql`1` })
@@ -807,6 +809,7 @@ export async function canonicalTagsFor(db: Db, characterIds: readonly CharacterI
   if (characterIds.length === 0) {
     return map;
   }
+  // @orb-waive owner-scoped-reads(tags): `characterIds` are the caller's own characters — every caller passes ids an owner-scoped read just returned (`listOwnedCharactersWithAvatar` in `verbs/list`, `loadOwnedCharacterWithAvatar` before `canonicalTagsOf` in get/create/update/restore/duplicate) — and the tag a junction row names is that card owner's own: `attachTag`/`bulkAttachTag` load the tag and the character owned, and `attachCardTagByName` creates or finds the tag under the `ownerId` its import and suggestion callers pass with that owner's card. Ends if a caller passes ids it did not read owner-scoped.
   const rows = await db
     .select({ characterId: characterTags.characterId, tag: tags })
     .from(characterTags)

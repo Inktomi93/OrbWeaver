@@ -70,7 +70,7 @@ function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boo
  *  `reason` is the refusal SENTENCE, because that is the only thing the six verbs that used to re-spell
  *  `role !== "host"` inline actually needed: `patchActor` says "…to hand-edit an actor", `promoteActor` says
  *  "…to promote an actor to the room's characters". Taking the sentence as an argument collapses seven comparisons to one
- *  with byte-identical refusals (pinned: tests/server/domain/rpg/authority.suite.int.test.ts — the suite that
+ *  with byte-identical refusals (pinned: tests/legacy/server/domain/rpg/authority.suite.int.test.ts — the suite that
  *  passed UNMODIFIED across the kernel reroute, which is what proves the reroute is behavior-free).
  *
  *  A verb that has already resolved its membership (`resolveMember`, or the direct `ctx.getMembership` read

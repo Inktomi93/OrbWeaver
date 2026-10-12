@@ -14,14 +14,9 @@ import { gate as danglingRefCitations } from "../../../../../tooling/src/verify/
 import { gate as danglingRefs } from "../../../../../tooling/src/verify/gates/dangling-refs.ts";
 import { gate as evaluateNoScopeCapture } from "../../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as memberCardClamped } from "../../../../../tooling/src/verify/gates/member-card-clamped.ts";
-import { gate as noContextProvider } from "../../../../../tooling/src/verify/gates/no-context-provider.ts";
-import { gate as noDirectUseform } from "../../../../../tooling/src/verify/gates/no-direct-useform.ts";
-import { gate as noForwardRef } from "../../../../../tooling/src/verify/gates/no-forward-ref.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
-import { gate as noLegacyReactApi } from "../../../../../tooling/src/verify/gates/no-legacy-react-api.ts";
 import { gate as noRawId } from "../../../../../tooling/src/verify/gates/no-raw-id.ts";
 import { gate as noRawIntlTime } from "../../../../../tooling/src/verify/gates/no-raw-intl-time.ts";
-import { gate as noUseContext } from "../../../../../tooling/src/verify/gates/no-use-context.ts";
 import { gate as playwrightLaneOutsideFastCheck } from "../../../../../tooling/src/verify/gates/playwright-lane-outside-fast-check.ts";
 import { gate as toolingArgvFrontDoor } from "../../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
 import { gate as toolingArgvFrontDoorHealth } from "../../../../../tooling/src/verify/gates/tooling-argv-front-door-health.ts";
@@ -98,36 +93,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "MemberCardView",
   },
   {
-    policy: noContextProvider,
-    overlays: [
-      add(
-        `${CLIENT}/liveness-provider.tsx`,
-        'import { createContext } from "react";\nexport const LivenessContext = createContext("night");\nexport function Host({ children }: { children: unknown }): unknown {\n  return <LivenessContext.Provider value="day">{children}</LivenessContext.Provider>;\n}\n',
-      ),
-    ],
-    messageIncludes: "Context.Provider",
-  },
-  {
-    policy: noDirectUseform,
-    overlays: [
-      add(
-        "packages/client/src/features/chat/surfaces/liveness-editor.tsx",
-        'import { useForm } from "@tanstack/react-form";\nexport const Editor = (): unknown => useForm();\n',
-      ),
-    ],
-    messageIncludes: "raw mint",
-  },
-  {
-    policy: noForwardRef,
-    overlays: [
-      add(
-        `${CLIENT}/liveness-forward-ref.tsx`,
-        'import { forwardRef } from "react";\nexport const LivenessInput = forwardRef((props: object, ref: object) => null);\n',
-      ),
-    ],
-    messageIncludes: "forwardRef",
-  },
-  {
     policy: noHardcodedModelProse,
     overlays: [
       add(
@@ -138,11 +103,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "model-facing prose",
   },
   {
-    policy: noLegacyReactApi,
-    overlays: [add("packages/showcase-plugins/src/liveness-legacy.ts", 'import { cloneElement } from "react";\nexport const copy = cloneElement;\n')],
-    messageIncludes: "legacy React API",
-  },
-  {
     policy: noRawId,
     overlays: [add("packages/contracts/src/liveness-raw-id.ts", 'import { z } from "zod";\nexport const livenessSchema = z.object({ userId: z.string() });\n')],
     messageIncludes: "raw string",
@@ -151,16 +111,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noRawIntlTime,
     overlays: [add(`${CLIENT}/liveness-intl.tsx`, "export function LivenessStamp(): unknown {\n  return new Intl.DateTimeFormat('en-US');\n}\n")],
     messageIncludes: "Intl",
-  },
-  {
-    policy: noUseContext,
-    overlays: [
-      add(
-        `${CLIENT}/liveness-use-context.tsx`,
-        'import { createContext, useContext } from "react";\nconst LivenessContext = createContext("");\nexport function useLiveness(): string {\n  return useContext(LivenessContext);\n}\n',
-      ),
-    ],
-    messageIncludes: "useContext",
   },
   {
     policy: playwrightLaneOutsideFastCheck,

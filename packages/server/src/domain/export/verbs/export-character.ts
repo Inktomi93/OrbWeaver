@@ -78,7 +78,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     const tagRows = await ctx.db
       .select({ name: tags.name })
       .from(characterTags)
-      .innerJoin(tags, eq(characterTags.tagId, tags.id))
+      .innerJoin(tags, and(eq(characterTags.tagId, tags.id), eq(tags.ownerId, ownerId)))
       .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, ACCEPTED_STATUS)));
     const acceptedTags = tagRows.map((row) => row.name);
 
@@ -90,7 +90,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         await ctx.db
           .select({ worldBookId: characterBooks.worldBookId, name: worldBooks.name })
           .from(characterBooks)
-          .innerJoin(worldBooks, eq(characterBooks.worldBookId, worldBooks.id))
+          .innerJoin(worldBooks, and(eq(characterBooks.worldBookId, worldBooks.id), eq(worldBooks.ownerId, ownerId)))
           .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, "primary")))
           .limit(1)
       )[0] ?? null;

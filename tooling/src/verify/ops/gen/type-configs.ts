@@ -4,6 +4,7 @@ import { join, posix } from "node:path";
 import type { PluginAuthorWorld } from "@orb/plugin-toolchain";
 import { PLUGIN_AUTHOR_WORLDS } from "@orb/plugin-toolchain";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { LEGACY_TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import type { TypeConfigIntentInput } from "@orb/tooling/floor/compiler/type-config-intent";
 import {
   ambientRootsForProgram,
@@ -18,11 +19,14 @@ import {
   TYPE_WORLD_TEMPLATE_PATHS,
   worldTemplateFor,
 } from "@orb/tooling/floor/compiler/type-config-intent";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
+import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
 import { ts } from "ts-morph";
 
 refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts baseline type-configs");
 
 type JsonObject = Readonly<Record<string, unknown>>;
+const E2E_ONLY_SUFFIXES: ReadonlySet<string> = new Set(TEST_KIND_DEFINITIONS.filter(({ mirror }) => mirror === "e2e-only").map(({ suffix }) => suffix));
 const JSON_LINE_WIDTH = 160;
 
 interface CompactArray {
@@ -169,6 +173,7 @@ function graphConfig(intent: TypeConfigIntentInput): JsonObject {
     exclude: [
       ...TYPE_CONFIG_EXCLUDES,
       ...nodeTestExclusionPatterns(intent.testKinds),
+      LEGACY_TEST_ROOT,
       "tests/e2e",
       "tests/support/browser",
       `${TEST_HELPER_ROOTS.iso}/**/*`,
@@ -191,7 +196,38 @@ function browserTestsConfig(intent: TypeConfigIntentInput): JsonObject {
       "scripts/**/*.tsx",
       ...browserSurfaceRootPatterns(),
     ],
-    exclude: [...TYPE_CONFIG_EXCLUDES, `${TEST_HELPER_ROOTS.iso}/**/*`, `${TEST_HELPER_ROOTS.node}/**/*`, "scripts/probes/st-goldens/sillytavern-runtime"],
+    exclude: [
+      ...TYPE_CONFIG_EXCLUDES,
+      LEGACY_TEST_ROOT,
+      `${TEST_HELPER_ROOTS.iso}/**/*`,
+      `${TEST_HELPER_ROOTS.node}/**/*`,
+      "scripts/probes/st-goldens/sillytavern-runtime",
+    ],
+  };
+}
+
+// The legacy folder's two programs mirror the node and browser test programs over `tests/legacy` alone. The folder
+// takes no new file, so they name only the dialects and kinds it holds: no `.mts`/`.cts`, and no e2e `.spec.ts`.
+function legacyNodeTestsConfig(intent: TypeConfigIntentInput): JsonObject {
+  return {
+    extends: `./${TYPE_WORLD_TEMPLATE_PATHS.node}`,
+    compilerOptions: { jsx: "react-jsx" },
+    include: [...(ambientRootsForProgram(LEGACY_TEST_WORLD_PROGRAMS.node) ?? []), `${LEGACY_TEST_ROOT}/**/*.ts`],
+    exclude: [...TYPE_CONFIG_EXCLUDES, ...nodeTestExclusionPatterns(intent.testKinds)],
+  };
+}
+
+function legacyBrowserTestsConfig(intent: TypeConfigIntentInput): JsonObject {
+  const mirroredKinds = intent.testKinds.filter(({ suffix }) => !E2E_ONLY_SUFFIXES.has(suffix));
+  return {
+    extends: `./${TYPE_WORLD_TEMPLATE_PATHS.browser}`,
+    compilerOptions: { types: ["node"] },
+    include: [
+      ...(ambientRootsForProgram(LEGACY_TEST_WORLD_PROGRAMS.browser) ?? []),
+      ...browserTestRootPatterns(mirroredKinds, LEGACY_TEST_ROOT),
+      `${LEGACY_TEST_ROOT}/**/*.tsx`,
+    ],
+    exclude: TYPE_CONFIG_EXCLUDES,
   };
 }
 
@@ -223,6 +259,8 @@ export function deriveTypeConfigFiles(root: string, intent: TypeConfigIntentInpu
     ["tsconfig.json", graphConfig(intent)],
     ["tsconfig.tests-iso.json", isoTestsConfig()],
     ["tsconfig.tests-dom.json", browserTestsConfig(intent)],
+    [LEGACY_TEST_WORLD_PROGRAMS.node, legacyNodeTestsConfig(intent)],
+    [LEGACY_TEST_WORLD_PROGRAMS.browser, legacyBrowserTestsConfig(intent)],
     ["tooling/tsconfig.json", toolingConfig()],
     ...Object.entries(sdkAuthorConfigs()),
     ...Object.entries(showcaseAuthorConfigs()),

@@ -35,7 +35,7 @@
 //
 // POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => p.includes("packages/client/src/")` is exactly
 // the `@client` root (`packages/client/src/`); no path on the tree contains that segment without being
-// under it. No `notNamed` fence is added — client tests are central (`tests/client/**`), so `@client`
+// under it. No `notNamed` fence is added — client tests are central (`tests/legacy/client/**`), so `@client`
 // admits no spec file and a subtraction would be a fence guarding nothing.
 //
 // MARKER CENSUS: ZERO. `git grep '@orb-gate-ignore zustand-selector-derived'` over the whole tree returns

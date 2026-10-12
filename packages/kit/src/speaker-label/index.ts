@@ -206,7 +206,7 @@ function splitOnPlainLabels(content: string, characterNames: readonly string[]):
 /** A stored reaction's segment anchor — the persisted trio a B7 segment-targeted reaction carries
  *  (`message_reactions.segment_*`). `speaker` is the span's OWN label at capture (`null` = a narration
  *  span); `snippet` is the span text's trimmed head at capture, the fingerprint that closes the anchoring
- *  suite's same-speaker-insert hole (`tests/kit/speaker-label/anchoring.suite.test.ts` — `(index, speaker)`
+ *  suite's same-speaker-insert hole (`tests/legacy/kit/speaker-label/anchoring.suite.test.ts` — `(index, speaker)`
  *  alone silently mis-targets when another line by the same speaker is inserted above the target). */
 export interface SegmentAnchor {
   readonly index: number;

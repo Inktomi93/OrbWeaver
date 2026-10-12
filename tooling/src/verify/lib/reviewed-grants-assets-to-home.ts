@@ -1,4 +1,4 @@
-// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook, bus-channel-primitive, bus-payload-allowlist....
+// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook, bus-payload-allowlist....
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
@@ -92,15 +92,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
       "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
   },
   {
-    id: "bus-channel-primitive:bus-channel-mint",
-    policyId: "bus-channel-primitive",
-    subject: "packages/server/src/transport/trpc/bus-channel.ts",
-    operation: "event-emitter-construction",
-    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-state-and-gates.md §13/§16 G10).",
-    endsWhen:
-      "the mint moves or stops wrapping a node EventEmitter; the row is then consumed zero times and reds at its dead subject, which is the rename tripwire the legacy SANCTIONED_HOMES table owned by hand.",
-  },
-  {
     id: "bus-payload-allowlist:credential-id",
     policyId: "bus-payload-allowlist",
     subject: "credentialId",
@@ -117,15 +108,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     why: "this file IS the bus applier (UI-Gates-and-Lessons.md §11.1): `applyChatBusEvent` turns bus events into turn-slot writes, so it is the one writer the rule exists to make singular.",
     endsWhen:
       "turn slots are written by the stream store itself rather than applied from bus events, or the applier moves — either way this row stops being consumed.",
-  },
-  {
-    id: "chat-stream-writes-in-bus-only:chat-ct-stories",
-    policyId: "chat-stream-writes-in-bus-only",
-    subject: "tests/client/features/chat/_ct-stories.tsx",
-    operation: "chat-stream-write-handle",
-    why: "the chat CT story harness seeds turn state directly because a component test mounts without a live bus: there is no `applyChatBusEvent` producer in a story, so the write api is how a phase gets rendered at all. This site is NEW EVIDENCE from the conversion — the legacy check keyed on the literal `#state` specifier and this file imports through `@orb/client/state`, so it was never judged.",
-    endsWhen:
-      "the CT stories seed turn state through a bus-event fixture instead of the write handle (the honest fix, and the reason this is a row rather than a population exclusion).",
   },
   {
     id: "client-cache-surgery-only-in-data:create-entity-mutation-cancel",

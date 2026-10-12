@@ -173,17 +173,17 @@ export const gate = defineGate({ id: "peer", family: "probe-family", ${create} }
   );
 }
 
-test.for([
-  "create: () => ({ evaluate: () => shared.length })",
-  "create() { return { evaluate: () => shared.length }; }",
-])("shared choice resolves canonical alias and method roots: %s", (create, { scratch, repoRoot }) => {
-  plantFamily(scratch, repoRoot, create);
-  expect(runNewGate(scratch, [NAME, ...SHARED_ARGS])).toBe(0);
-  const emitted = readFileSync(join(scratch, GATES_REL, `${NAME}.ts`), "utf8");
-  expect(emitted).toContain('family: "probe-family"');
-  expect(emitted).toContain(DEPENDENCY);
-  expect(emitted).not.toContain('from "../lib/shared.ts"');
-});
+test.for(["create: () => ({ evaluate: () => shared.length })", "create() { return { evaluate: () => shared.length }; }"])(
+  "shared choice resolves canonical alias and method roots: %s",
+  (create, { scratch, repoRoot }) => {
+    plantFamily(scratch, repoRoot, create);
+    expect(runNewGate(scratch, [NAME, ...SHARED_ARGS])).toBe(0);
+    const emitted = readFileSync(join(scratch, GATES_REL, `${NAME}.ts`), "utf8");
+    expect(emitted).toContain('family: "probe-family"');
+    expect(emitted).toContain(DEPENDENCY);
+    expect(emitted).not.toContain('from "../lib/shared.ts"');
+  },
+);
 
 test.for([
   ["create: () => ({ evaluate: () => 1 })", ""],

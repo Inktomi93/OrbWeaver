@@ -6,7 +6,7 @@
 // prove the exemption still declines an UNSELECTED carrier and a NON-carrier rounded box is to run the
 // same string a browser runs. Hoisting it here — the `INTERACTIVE_SELECTOR_JS` precedent, interpolated at
 // the same seam — makes the control possible; the planted-control arm lives in
-// tests/client/features/config/components/config-list-collection-group.ct.tsx, which is where the real
+// tests/legacy/client/features/config/components/config-list-collection-group.ct.tsx, which is where the real
 // carriers render.
 //
 // BOTH HALVES OF EVERY CLAUSE ARE LOAD-BEARING: the slot identity says the element is a ratified carrier,

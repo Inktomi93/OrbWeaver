@@ -4,7 +4,8 @@ import { join, relative } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { classifyTestFilename, runtimeForTestFamily } from "@orb/tooling/floor/testing/test-kinds";
+import { classifyTestFilename, runtimeForTestFamily, vitestLegacyTypecheckGroupName, vitestTypecheckGroupName } from "@orb/tooling/floor/testing/test-kinds";
+import { isLegacyTestPath } from "@orb/tooling/floor/testing/test-population";
 import { classifyCtListing } from "../../../../tooling/src/verify/lib/ct-listing.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -106,13 +107,18 @@ test("native type-assertion collection retains all application worlds and exclud
   const expected = readPolicyRepositoryInventory(repoRoot)
     .trackedPaths.flatMap((path) => {
       const kind = classifyTestFilename(path)?.definition;
-      return kind?.family === "type" ? [`${path}:types-${kind.compilerWorld}`] : [];
+      if (kind?.family !== "type") {
+        return [];
+      }
+      return [`${path}:${isLegacyTestPath(path) ? vitestLegacyTypecheckGroupName(kind.compilerWorld) : vitestTypecheckGroupName(kind.compilerWorld)}`];
     })
     .toSorted();
   expect(whole).toEqual(expected);
   expect(contaminated).toEqual(whole);
   expect(application).toEqual(expected.filter((path) => !path.startsWith("tests/tooling/")));
   expect(whole.filter((path) => !application.includes(path))).toEqual(expected.filter((path) => path.startsWith("tests/tooling/")));
-  expect(application.some((path) => path.endsWith(":types-browser"))).toBe(true);
+  // Every browser type test is a legacy test until the client suites are rebuilt.
+  expect(application.some((path) => path.endsWith(":types-legacy-browser"))).toBe(true);
   expect(application.some((path) => path.endsWith(":types-node"))).toBe(true);
+  expect(application.some((path) => path.endsWith(":types-legacy-node"))).toBe(true);
 });

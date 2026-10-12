@@ -292,7 +292,7 @@ function headlineFor(
 /**
  * Derive the whole state-swap from the four reads.
  *
- * PURE and unit-tested (`tests/client/features/discovery/lib/corpus-analysis-state.test.ts`) precisely
+ * PURE and unit-tested (`tests/legacy/client/features/discovery/lib/corpus-analysis-state.test.ts`) precisely
  * because it is the thing the composition branches on: a CT can prove the right island rendered, but only
  * a unit test can walk every phase boundary — including the thin in-between (distilled, no story themes)
  * that the ruling calls out as the state that has to degrade gracefully rather than pick a side.

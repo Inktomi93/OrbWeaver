@@ -8,7 +8,7 @@
 //
 // THE TRAP THIS FAMILY EXISTS AROUND: an entry is authored relative to ITS OWN CONFIG'S directory.
 // `tooling/tsconfig.json`'s `src` is `tooling/src`; `packages/client/tsconfig.json`'s `../../tests/client/**`
-// is `tests/client/**` at the root, and the naive concatenation leaves a `..` segment matching nothing at
+// is `tests/legacy/client/**` at the root, and the naive concatenation leaves a `..` segment matching nothing at
 // all — a silent false verdict in BOTH directions. `lib/config-grant-rows.ts` owns that resolution.
 //
 // THE CONVERSION BLOCKER IS GONE — do not re-derive the retired refusal (#2021, closing #2017's ARM C).
