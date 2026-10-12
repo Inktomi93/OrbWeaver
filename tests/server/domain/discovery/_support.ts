@@ -58,6 +58,7 @@ import { resolveTier0Range } from "#server/domain/chat/index.ts";
 import type { DiscoveryContext } from "#server/domain/discovery/index.ts";
 import { createStatsService } from "#server/domain/stats/service.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
@@ -320,17 +321,18 @@ export async function seedCharacter(
   },
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id);
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(overrides.id),
-    ownerId: overrides.ownerId,
-    name: overrides.name ?? overrides.id,
-    ...(overrides.description !== undefined ? { description: overrides.description } : {}),
-    ...(overrides.avatarAssetId !== undefined ? { avatarAssetId: overrides.avatarAssetId } : {}),
-    contentHash: "card_hash",
-    synthetic: overrides.synthetic ?? false,
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(overrides.id),
+      ownerId: overrides.ownerId,
+      name: overrides.name ?? overrides.id,
+      ...(overrides.description !== undefined ? { description: overrides.description } : {}),
+      ...(overrides.avatarAssetId !== undefined ? { avatarAssetId: overrides.avatarAssetId } : {}),
+      synthetic: overrides.synthetic ?? false,
+      createdAt: FROZEN_AT,
+    }),
+  );
   return id;
 }
 
@@ -444,15 +446,16 @@ async function ensureGroupChar(db: Db): Promise<void> {
     .onConflictDoNothing();
   await db
     .insert(characters)
-    .values({
-      id: GROUP_CHAR,
-      handle: castId<CharacterHandle>("group"),
-      ownerId: DIGEST_OWNER,
-      name: "group",
-      contentHash: "card_hash",
-      synthetic: true,
-      createdAt: FROZEN_AT,
-    })
+    .values(
+      makeCharacter({
+        id: GROUP_CHAR,
+        handle: castId<CharacterHandle>("group"),
+        ownerId: DIGEST_OWNER,
+        name: "group",
+        synthetic: true,
+        createdAt: FROZEN_AT,
+      }),
+    )
     .onConflictDoNothing();
 }
 

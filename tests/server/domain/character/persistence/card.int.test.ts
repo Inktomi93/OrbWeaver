@@ -22,18 +22,21 @@ import { buildGroupCard } from "#server/domain/character/substrate/group-charact
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
+import type { CharacterRow } from "../../../../support/factories/character.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
-function makeRow(ownerId: UserId, id: string, handle: CharacterHandle): typeof characters.$inferInsert {
-  return {
+function makeRow(ownerId: UserId, id: string, handle: CharacterHandle): CharacterRow {
+  return makeCharacter({
     id: castId<CharacterId>(id),
     handle,
     ownerId,
     name: "X",
+    // Pinned: the basis-fence tests below name this exact hash as the expected basis.
     contentHash: "hash",
     createdAt: 1,
-  };
+  });
 }
 
 describe("persistence/card", () => {

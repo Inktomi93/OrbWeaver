@@ -15,6 +15,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { backfillPluginProvenanceOnBoot } from "@orb/server/entry/boot";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../support/db.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -52,20 +53,21 @@ async function seedPluginRow(db: Db, ownerId: UserId, slug: string): Promise<Plu
 
 async function seedPreFix1702Card(db: Db, ownerId: UserId, slug: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>("character_boot_fixture");
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId(characterId),
-    ownerId,
-    name: "Aria",
-    starred: false,
-    archived: false,
-    synthetic: false,
-    importedFrom: null,
-    importHash: IMPORT_HASH,
-    contentHash: "seed_content_hash",
-    createdAt: AT,
-    extensions: { [`plugin_${slug}`]: { source: "hub", ref: "aria-card", importedAtMs: AT } },
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id: characterId,
+      handle: castId(characterId),
+      ownerId,
+      name: "Aria",
+      starred: false,
+      archived: false,
+      synthetic: false,
+      importedFrom: null,
+      importHash: IMPORT_HASH,
+      createdAt: AT,
+      extensions: { [`plugin_${slug}`]: { source: "hub", ref: "aria-card", importedAtMs: AT } },
+    }),
+  );
   return characterId;
 }
 

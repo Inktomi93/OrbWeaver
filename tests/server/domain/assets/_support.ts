@@ -41,6 +41,7 @@ import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/context.ts";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "#server/entry/compose/co-participant-assets.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -218,14 +219,15 @@ interface SeedCharacterOverrides {
  *  Only the notNull/no-default columns are supplied. Returns the branded id. */
 export async function seedCharacter(db: Db, ownerId: UserId, overrides: SeedCharacterOverrides = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? `character_${overrides.handle ?? "x"}`);
-  await db.insert(characters).values({
-    id,
-    handle: overrides.handle ?? castId<CharacterHandle>(id),
-    ownerId,
-    contentHash: `hash_${id}`,
-    name: overrides.name ?? "Test Character",
-    ...(overrides.importHash === undefined ? {} : { importHash: overrides.importHash }),
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: overrides.handle ?? castId<CharacterHandle>(id),
+      ownerId,
+      name: overrides.name ?? "Test Character",
+      ...(overrides.importHash === undefined ? {} : { importHash: overrides.importHash }),
+    }),
+  );
   return id;
 }
 

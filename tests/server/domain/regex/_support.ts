@@ -18,6 +18,7 @@ import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RegexScrip
 import { castId } from "@orb/kit/ids";
 import type { RegexContext } from "#server/domain/regex/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -157,16 +158,17 @@ export async function seedScript(db: Db, over: SeedScriptOverrides): Promise<Reg
 /** D28 — flat row, no version table. */
 export async function seedCharacter(db: Db, ownerId: UserId, key = "c"): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(id),
-    ownerId,
-    name: "Char",
-    description: null,
-    avatarAssetId: null,
-    contentHash: `content_hash_${key}`,
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(id),
+      ownerId,
+      name: "Char",
+      description: null,
+      avatarAssetId: null,
+      createdAt: FROZEN_AT,
+    }),
+  );
   return id;
 }
 

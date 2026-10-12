@@ -33,6 +33,7 @@ import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts
 import type { BulkImportLorebook, HasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -248,23 +249,26 @@ interface SeedRawCharacterOverrides {
  *  synthetic / cross-owner / starred rows the CRUD wire can't author. Returns the branded id. */
 export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_seed");
-  await db.insert(characters).values({
-    id,
-    handle: overrides.handle ?? castId<CharacterHandle>(id),
-    ownerId: overrides.ownerId,
-    name: overrides.name ?? "Seed",
-    starred: overrides.starred ?? false,
-    archived: overrides.archived ?? false,
-    synthetic: overrides.synthetic ?? false,
-    importedFrom: overrides.importedFrom ?? null,
-    importHash: overrides.importHash ?? null,
-    creator: overrides.creator ?? null,
-    contentHash: overrides.contentHash ?? "seed_content_hash",
-    avatarAssetId: overrides.avatarAssetId ?? null,
-    createdAt: overrides.createdAt ?? FROZEN_AT,
-    ...(overrides.tokenSize !== undefined ? { tokenSize: overrides.tokenSize } : {}),
-    ...(overrides.extensions !== undefined ? { extensions: overrides.extensions } : {}),
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: overrides.handle ?? castId<CharacterHandle>(id),
+      ownerId: overrides.ownerId,
+      name: overrides.name ?? "Seed",
+      starred: overrides.starred ?? false,
+      archived: overrides.archived ?? false,
+      synthetic: overrides.synthetic ?? false,
+      importedFrom: overrides.importedFrom ?? null,
+      importHash: overrides.importHash ?? null,
+      creator: overrides.creator ?? null,
+      avatarAssetId: overrides.avatarAssetId ?? null,
+      createdAt: overrides.createdAt ?? FROZEN_AT,
+      // A caller that pins a hash (a stale-basis case) still wins; otherwise the factory derives it.
+      ...(overrides.contentHash !== undefined ? { contentHash: overrides.contentHash } : {}),
+      ...(overrides.tokenSize !== undefined ? { tokenSize: overrides.tokenSize } : {}),
+      ...(overrides.extensions !== undefined ? { extensions: overrides.extensions } : {}),
+    }),
+  );
   return id;
 }
 

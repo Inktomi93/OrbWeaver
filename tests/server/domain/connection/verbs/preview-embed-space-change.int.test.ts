@@ -9,6 +9,7 @@ import type { CharacterEmbeddingId, CharacterHandle, CharacterId, EmbedGeneratio
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { makeResolvedSecret } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { ConnectionHarness, HarnessOptions } from "../_support.ts";
@@ -49,14 +50,15 @@ async function storeCardVectors(db: Awaited<ReturnType<typeof freshDb>>, fixture
   });
   for (let i = 0; i < count; i += 1) {
     const characterId = castId<CharacterId>(`character_preview_${i}`);
-    await db.insert(characters).values({
-      id: characterId,
-      handle: castId<CharacterHandle>(`preview-${i}`),
-      ownerId: fixture.owner.userId,
-      name: `Preview ${i}`,
-      contentHash: `card_preview_${i}`,
-      createdAt: 0,
-    });
+    await db.insert(characters).values(
+      makeCharacter({
+        id: characterId,
+        handle: castId<CharacterHandle>(`preview-${i}`),
+        ownerId: fixture.owner.userId,
+        name: `Preview ${i}`,
+        createdAt: 0,
+      }),
+    );
     await db.insert(characterEmbeddings).values({
       id: castId<CharacterEmbeddingId>(`character_embedding_preview_${i}`),
       characterId,

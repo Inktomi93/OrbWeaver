@@ -942,10 +942,9 @@ export function YouSheetProjectionStory(): ReactElement {
         // widget renders its own lens in the block below it.
         id: "command",
         label: "Jump to…",
-        icon: Command,
         zone: "topbar.trail",
         mobile: "sheet",
-        behavior: { kind: "modal", modalId: "command" },
+        behavior: { kind: "modal", modalId: "command", icon: Command },
       },
       {
         // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).
@@ -961,7 +960,7 @@ export function YouSheetProjectionStory(): ReactElement {
         zone: "rail.nav",
         mobile: "sheet",
         order: 0,
-        behavior: { kind: "section", sectionId: "refinery" },
+        behavior: { kind: "section", sectionId: "refinery", icon: Command },
       },
     ],
   );

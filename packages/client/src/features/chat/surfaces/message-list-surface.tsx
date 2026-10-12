@@ -34,6 +34,7 @@ import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
+import { resolveGenerationCredit } from "../components/message-row-parts.tsx";
 import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
@@ -325,6 +326,7 @@ function ChatThread({
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         cardTier={ghostCardTier}
+        generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
         smoothStream={behaviorPrefs.smoothStream}
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}

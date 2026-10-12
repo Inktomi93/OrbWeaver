@@ -1,6 +1,6 @@
 // Policy: ct-config-mirror-parity — the browser-CT door mirrors the production door, membership AND order.
-// Families: config sections, home tiles, chat surfaces, tool renderers, slash commands, palette sources, corpus
-// context tabs, chrome widgets and config groups; a CT export that IS the production declaration passes, a hand
+// Families: config sections, home tiles, chat settings sections, chat surfaces, tool renderers, slash commands, palette sources,
+// corpus context tabs, chrome widgets and config groups; a CT export that IS the production declaration passes, a hand
 // list must match row for row. A story module mints a door registry only through `isolationRegistry` with a reason.
 // A singleton: the mirrors are one CT composition contract and share no meaningful reader with another policy.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, SourceFile, VariableDeclaration } from "ts-morph";
@@ -142,6 +142,7 @@ const groupRows: RowReader = (declaration) => {
 const FAMILIES: readonly Family[] = [
   { label: "config sections", name: "configSections", doorFile: DOOR_SECTIONS, rows: sectionRows },
   { label: "home tiles", name: "homeTiles", doorFile: DOOR_TILES, rows: memberRows },
+  { label: "chat settings sections", name: "chatSettingsSections", doorFile: DOOR_CONTRIBUTORS, rows: memberRows },
   { label: "chat surfaces", name: "chatSurfaceContributors", doorFile: DOOR_CONTRIBUTORS, rows: memberRows },
   { label: "tool renderers", name: "toolRenderers", doorFile: DOOR_CONTRIBUTORS, rows: memberRows },
   { label: "slash commands", name: "slashCommands", doorFile: DOOR_CONTRIBUTORS, rows: memberRows },
@@ -186,11 +187,20 @@ const SECTION_B = 'const navB = { id: "nav-b" };\nconst sectionB = { id: "sectio
 const SECTIONS_CALL = (members: string): string => `export const configSections = createContributorRegistry("config-sections", [${members}]);\n`;
 const TILES_DOOR = 'export const homeTiles = createContributorRegistry("home-tiles", [tileA, tileB]);\n';
 
-const CONTRIBUTOR_NAMES = ["chatSurfaceContributors", "toolRenderers", "slashCommands", "commandPaletteSources", "corpusContextTabs", "chromeWidgets"] as const;
+const CONTRIBUTOR_NAMES = [
+  "chatSettingsSections",
+  "chatSurfaceContributors",
+  "toolRenderers",
+  "slashCommands",
+  "commandPaletteSources",
+  "corpusContextTabs",
+  "chromeWidgets",
+] as const;
 type ContributorName = (typeof CONTRIBUTOR_NAMES)[number];
 
 /** Registry-call families that live in `contributors.ts`, with the registry name each one is minted under. */
 const CONTRIBUTOR_REGISTRIES: Readonly<Record<Exclude<ContributorName, "chromeWidgets">, string>> = {
+  chatSettingsSections: "chat-settings-sections",
   chatSurfaceContributors: "chat-surface",
   toolRenderers: "tool-renderers",
   slashCommands: "slash-commands",
@@ -503,8 +513,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles({ [CT_DOOR]: 'export { toolRenderers } from "../../../packages/client/src/compose/contributors.ts";\n' }),
-      expect: { count: 8, messageIncludes: "does not export" },
-      why: "a CT door that stops exporting a production family is flagged once per missing family (seven here) and once for the harness widgets, never silently skipped",
+      expect: { count: 9, messageIncludes: "does not export" },
+      why: "a CT door that stops exporting a production family is flagged once per missing family (eight here) and once for the harness widgets, never silently skipped",
     },
     {
       mode: "types",
@@ -526,6 +536,18 @@ export const gate = defineGate({
       files: proofFiles({ [CT_PROVIDERS]: `${PROVIDERS_CLEAN}const hand = createContributorRegistry("tool-renderers", []);\n` }),
       expect: { count: 1, messageIncludes: 'mints the "tool-renderers" door registry by hand' },
       why: "the harness may not rebuild a door registry (the empty tool-renderer registry the chat stories used to mount)",
+    },
+    {
+      mode: "types",
+      files: proofFiles({ [CT_PROVIDERS]: `${PROVIDERS_CLEAN}const hand = createContributorRegistry("chat-settings-sections", []);\n` }),
+      expect: { count: 1, messageIncludes: 'mints the "chat-settings-sections" door registry by hand' },
+      why: "the harness may not rebuild the This chat section registry empty: every shell CT then renders the tab without the production sections",
+    },
+    {
+      mode: "types",
+      files: proofFiles({ [CT_DOOR]: ctDoor({ chatSettingsSections: "memberB" }) }),
+      expect: { count: 1, token: "chatSettingsSections", messageIncludes: "memberA (door 1, CT 0)" },
+      why: "chat settings sections are a mirrored family: a hand list that drops a production section is drift",
     },
     {
       mode: "types",
@@ -621,6 +643,11 @@ export const gate = defineGate({
       mode: "types",
       files: storyFiles(`${MINT_IMPORT}export const tiles = createContributorRegistry("home-tiles", [tileA]);\n`, "tests/client/features/probe/probe.ct.tsx"),
       why: "a spec file is not a story module: the duplicate-id throw is asserted on the factory itself",
+    },
+    {
+      mode: "types",
+      files: proofFiles({ [CT_DOOR]: ctDoor({ chatSettingsSections: "memberA, memberB" }) }),
+      why: "a chat settings section list identical to the production list in membership and order is clean",
     },
   ],
 });

@@ -590,38 +590,66 @@ for (const art of [
 // The streaming row and the settled row are one geometry: the same short reply from the same no-image speaker
 // has the same art slot and the same bubble in both, so commit does not reflow.
 for (const parity of [
+  { chatStyle: "bubble", art: '[data-slot="avatar-root"]' },
   { chatStyle: "echo", art: '[data-slot="message-echo-art"]' },
   { chatStyle: "whisper", art: '[data-slot="message-band"]' },
   { chatStyle: "ripple", art: '[data-slot="avatar-root"]' },
 ] as const) {
-  test(`${parity.chatStyle}: the streaming row shares the settled row's art slot and bubble boxes`, async ({ mount }) => {
-    const component = await mount(<RowParityStory chatStyle={parity.chatStyle} />);
-    const read = (column: string): Promise<{ art: number[]; bubble: number[] } | null> =>
-      component.getByTestId(column).evaluate(
-        (root, selectors) => {
-          const rel = (el: Element | null): number[] => {
-            if (el === null) {
-              return [];
-            }
-            const box = el.getBoundingClientRect();
-            const origin = root.getBoundingClientRect();
-            return [box.left - origin.left, box.top - origin.top, box.width, box.height].map((n) => Math.round(n));
-          };
-          return { art: rel(root.querySelector(selectors.art)), bubble: rel(root.querySelector('[data-slot="message-bubble"]')) };
-        },
-        { art: parity.art },
-      );
-    await expect
-      .poll(async () => {
-        const [ghost, settled] = await Promise.all([read("parity-ghost"), read("parity-settled")]);
-        if (ghost === null || settled === null || ghost.art.length === 0 || settled.art.length === 0) {
-          return "pending";
-        }
-        // The streaming caret adds a couple of pixels to a bubble that hugs its text; the slots must match exactly.
-        const near = (a: number[], b: number[], tolerance: number): boolean =>
-          a.length === b.length && a.every((n, i) => Math.abs(n - (b[i] ?? 0)) <= tolerance);
-        return near(ghost.art, settled.art, 1) && near(ghost.bubble, settled.bubble, 4) ? "match" : JSON.stringify({ ghost, settled });
-      })
-      .toBe("match");
-  });
+  for (const showModelIcon of [false, true]) {
+    test(`${parity.chatStyle}: the streaming row shares the settled row's art slot and bubble boxes (showModelIcon ${showModelIcon ? "on" : "off"})`, async ({
+      mount,
+    }) => {
+      const component = await mount(<RowParityStory chatStyle={parity.chatStyle} showModelIcon={showModelIcon} />);
+      const read = (column: string): Promise<{ art: number[]; bubble: number[] } | null> =>
+        component.getByTestId(column).evaluate(
+          (root, selectors) => {
+            const rel = (el: Element | null): number[] => {
+              if (el === null) {
+                return [];
+              }
+              const box = el.getBoundingClientRect();
+              const origin = root.getBoundingClientRect();
+              return [box.left - origin.left, box.top - origin.top, box.width, box.height].map((n) => Math.round(n));
+            };
+            return { art: rel(root.querySelector(selectors.art)), bubble: rel(root.querySelector('[data-slot="message-bubble"]')) };
+          },
+          { art: parity.art },
+        );
+      await expect
+        .poll(async () => {
+          const [ghost, settled] = await Promise.all([read("parity-ghost"), read("parity-settled")]);
+          if (ghost === null || settled === null || ghost.art.length === 0 || settled.art.length === 0) {
+            return "pending";
+          }
+          // The streaming caret adds a couple of pixels to a bubble that hugs its text; the slots must match exactly.
+          const near = (a: number[], b: number[], tolerance: number): boolean =>
+            a.length === b.length && a.every((n, i) => Math.abs(n - (b[i] ?? 0)) <= tolerance);
+          return near(ghost.art, settled.art, 1) && near(ghost.bubble, settled.bubble, 4) ? "match" : JSON.stringify({ ghost, settled });
+        })
+        .toBe("match");
+    });
+  }
 }
+
+// The footprint only reserves room: it is hidden from assistive tech, inert so nothing in it takes focus, and it
+// carries no copy of the real credit's slot (a page-level count of that slot sees the settled row's alone).
+test("the streaming row's action footprint is aria-hidden, inert and unfocusable, and adds no credit slot", async ({ mount }) => {
+  const component = await mount(<RowParityStory chatStyle="bubble" showModelIcon={true} />);
+  const footprint = component.getByTestId("parity-ghost").locator('[data-slot="message-actions-footprint"]');
+  await expect(footprint).toHaveAttribute("aria-hidden", "true");
+  await expect(footprint).toHaveAttribute("inert", "");
+  await expect(footprint.locator("button")).not.toHaveCount(0);
+  await expect
+    .poll(() =>
+      footprint.evaluate((root) => {
+        const controls = [...root.querySelectorAll<HTMLElement>("button, a[href], input, select, textarea, [tabindex]")];
+        return controls.filter((control) => {
+          control.focus();
+          return document.activeElement === control;
+        }).length;
+      }),
+    )
+    .toBe(0);
+  await expect(footprint.locator('[data-slot="message-metadata-model"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveCount(1);
+});

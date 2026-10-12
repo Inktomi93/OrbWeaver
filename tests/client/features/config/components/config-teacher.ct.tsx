@@ -87,6 +87,8 @@ function stub(
     ],
     "rosterPreset.list": [ROSTER],
     "rosterPreset.count": 1,
+    // The docked shell's topbar launcher reads the caller's plugin commands; none are unplaced, so no wand.
+    "plugin.listCommands": [],
     // The roster member editor's own read — the NONE-collection pin opens it.
     "rosterPreset.get": {
       id: ROSTER.id,
