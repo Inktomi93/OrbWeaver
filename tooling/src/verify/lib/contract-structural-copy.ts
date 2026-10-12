@@ -1,19 +1,30 @@
-// The structural-copy reader for `contract-structural-copy`: a contract-export field index and the subset
-// match. A candidate copies a contract shape when its own data field names are a subset of (or equal to) one
-// contract export's and most shared fields agree on their resolved type. Names and types, not assignability:
-// two shapes that agree today by accident are the same drift risk as a deliberate copy.
-import type { InterfaceDeclaration, Node, TypeAliasDeclaration, TypeLiteralNode } from "ts-morph";
+// The structural-copy reader for `contract-structural-copy` and `test-hand-shape`: a contract-export field-name index
+// and the subset match. A candidate copies a contract shape when its own data field names are a subset of (or equal
+// to) one contract export's and most shared fields agree on their TYPE. The checker judges agreement, never type
+// text, in `floor/code-facts/assignability.ts`: two shapes that agree today by accident are the same drift risk as a
+// deliberate copy, and a field whose type comes from `z.infer` is read like a written one.
+import type { InterfaceDeclaration, Node, TypeAliasDeclaration, TypeChecker, TypeLiteralNode } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import type { AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
+import { fieldTypesAgree, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 
 /** A candidate needs this many own data fields; three-field overlaps are mostly coincidence. */
 export const MIN_COPY_FIELDS = 4;
-/** The share of shared fields whose resolved types must agree. */
+/** The share of shared fields whose types must agree. */
 export const TYPE_AGREEMENT_FLOOR = 0.8;
 
 export interface ContractFieldShape {
   readonly name: string;
   readonly file: string;
-  readonly fields: ReadonlyMap<string, string>;
+  /** The declaration whose resolved type supplies each field's type. */
+  readonly decl: Node;
+  readonly fields: ReadonlySet<string>;
+}
+
+/** A hand-written shape's own data fields, read off the declaration that spells them. */
+export interface CopyCandidate {
+  readonly decl: Node;
+  readonly fields: ReadonlySet<string>;
 }
 
 export interface StructuralCopyMatch {
@@ -23,35 +34,44 @@ export interface StructuralCopyMatch {
   readonly exact: boolean;
 }
 
-const IMPORT_QUALIFIER_RE = /import\("[^"]*"\)\./gu;
+/** Whether a candidate's field has the type of the contract's field of the same name. */
+type FieldAgreement = (candidate: Node, contract: Node, field: string) => boolean;
 
-/** Type text compared across files: no import qualifiers, no `readonly`, no trailing `| undefined`. */
-function normalizeFieldType(text: string): string {
-  return text
-    .replace(IMPORT_QUALIFIER_RE, "")
-    .replace(/\breadonly\s+/gu, "")
-    .replace(/\s+/gu, " ")
-    .replace(/ \| undefined$/u, "")
-    .trim();
+const REFUSALS: Readonly<Record<AssignabilityRefusalKind, string>> = {
+  "primitive-absent":
+    "this TypeScript build exposes no `checker.isTypeAssignableTo`, so a field type cannot be judged (tooling/src/floor/code-facts/assignability.ts)",
+  "no-shared-program": "a candidate and a contract share no native compiler program, so a field type cannot be compared",
+  "programs-disagree": "native compiler programs disagree about whether a candidate field has the contract field's type",
+};
+
+/** The checker-backed agreement for one policy run. Refuses loudly, in the policy's voice, when it cannot compare. */
+export function createFieldAgreement(policyId: string, checker: Pick<TypeChecker, "compilerObject">): FieldAgreement {
+  const assignability = readAssignabilityChecker(checker);
+  const refuse = (kind: AssignabilityRefusalKind): never => {
+    throw new Error(`${policyId}: ${REFUSALS[kind]}`);
+  };
+  if (assignability === undefined) {
+    return refuse("primitive-absent");
+  }
+  // A copy that only adds `?` or `readonly` is still the contract's field.
+  const context = { checker: assignability, refuse, lenient: true };
+  return (candidate, contract, field) => fieldTypesAgree(context, { decl: candidate, name: field }, { decl: contract, name: field });
 }
 
-/** The resolved data fields of one exported contract type, or undefined when it is not a plain object shape. */
-export function contractFields(decl: InterfaceDeclaration | TypeAliasDeclaration): ReadonlyMap<string, string> | undefined {
+/** The data field names of one exported contract type, or undefined when it is not a plain object shape. */
+export function contractFields(decl: InterfaceDeclaration | TypeAliasDeclaration): ReadonlySet<string> | undefined {
   const type = decl.getType();
   if (type.isUnion() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0 || !(type.isObject() || type.isIntersection())) {
     return;
   }
-  const fields = new Map<string, string>();
-  for (const property of type.getProperties()) {
-    fields.set(property.getName(), normalizeFieldType(property.getTypeAtLocation(decl).getText(decl)));
-  }
+  const fields = new Set(type.getProperties().map((property) => property.getName()));
   return fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
 
 /** A candidate's own data fields. Callable members are behaviour, and an indexed-access member already derives
  *  from its owner, so neither counts. Undefined below the field floor. */
-export function candidateFields(node: InterfaceDeclaration | TypeLiteralNode): ReadonlyMap<string, string> | undefined {
-  const fields = new Map<string, string>();
+export function candidateFields(node: InterfaceDeclaration | TypeLiteralNode): ReadonlySet<string> | undefined {
+  const fields = new Set<string>();
   for (const member of node.getMembers()) {
     if (!N.isPropertySignature(member)) {
       continue;
@@ -60,7 +80,7 @@ export function candidateFields(node: InterfaceDeclaration | TypeLiteralNode): R
     if (typeNode !== undefined && (typeNode.isKind(SyntaxKind.FunctionType) || typeNode.isKind(SyntaxKind.IndexedAccessType))) {
       continue;
     }
-    fields.set(member.getName(), normalizeFieldType(member.getType().getText(member)));
+    fields.add(member.getName());
   }
   return fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
@@ -69,7 +89,7 @@ export function candidateFields(node: InterfaceDeclaration | TypeLiteralNode): R
 export function indexByField(shapes: readonly ContractFieldShape[]): ReadonlyMap<string, readonly ContractFieldShape[]> {
   const index = new Map<string, ContractFieldShape[]>();
   for (const shape of shapes) {
-    for (const field of shape.fields.keys()) {
+    for (const field of shape.fields) {
       const list = index.get(field) ?? [];
       list.push(shape);
       index.set(field, list);
@@ -79,12 +99,9 @@ export function indexByField(shapes: readonly ContractFieldShape[]): ReadonlyMap
 }
 
 /** How many of the candidate's field names each indexed shape carries. */
-function sharedFieldCounts(
-  fields: ReadonlyMap<string, string>,
-  index: ReadonlyMap<string, readonly ContractFieldShape[]>,
-): ReadonlyMap<ContractFieldShape, number> {
+function sharedFieldCounts(fields: ReadonlySet<string>, index: ReadonlyMap<string, readonly ContractFieldShape[]>): ReadonlyMap<ContractFieldShape, number> {
   const tally = new Map<ContractFieldShape, number>();
-  for (const field of fields.keys()) {
+  for (const field of fields) {
     for (const shape of index.get(field) ?? []) {
       tally.set(shape, (tally.get(shape) ?? 0) + 1);
     }
@@ -92,16 +109,25 @@ function sharedFieldCounts(
   return tally;
 }
 
+/** How many of the candidate's fields the contract carries with the same type. */
+function agreeingCount(candidate: CopyCandidate, contract: ContractFieldShape, agree: FieldAgreement): number {
+  return [...candidate.fields].filter((field) => contract.fields.has(field) && agree(candidate.decl, contract.decl, field)).length;
+}
+
 /** The best contract this candidate copies: every candidate field is a contract field and enough types agree.
  *  Exact field-set equality ranks above a proper subset, then the larger shared set. */
-export function bestCopyMatch(fields: ReadonlyMap<string, string>, index: ReadonlyMap<string, readonly ContractFieldShape[]>): StructuralCopyMatch | undefined {
-  const tally = sharedFieldCounts(fields, index);
+export function bestCopyMatch(
+  candidate: CopyCandidate,
+  index: ReadonlyMap<string, readonly ContractFieldShape[]>,
+  agree: FieldAgreement,
+): StructuralCopyMatch | undefined {
+  const tally = sharedFieldCounts(candidate.fields, index);
   let best: StructuralCopyMatch | undefined;
   for (const [contract, shared] of tally) {
-    if (shared !== fields.size) {
+    if (shared !== candidate.fields.size) {
       continue;
     }
-    const agreeing = [...fields].filter(([field, type]) => contract.fields.get(field) === type).length;
+    const agreeing = agreeingCount(candidate, contract, agree);
     if (agreeing < TYPE_AGREEMENT_FLOOR * shared) {
       continue;
     }
@@ -122,16 +148,17 @@ const DRIFTED_TYPE_ALLOWANCE = 1;
  *  `OVERLAP_FLOOR` of them, are that shape's, and all but `DRIFTED_TYPE_ALLOWANCE` of those agree on type. The widest
  *  overlap wins. A copy that renamed or retyped a field slips `bestCopyMatch` and is still the same copy. */
 export function bestOverlapMatch(
-  fields: ReadonlyMap<string, string>,
+  candidate: CopyCandidate,
   index: ReadonlyMap<string, readonly ContractFieldShape[]>,
+  agree: FieldAgreement,
 ): StructuralCopyMatch | undefined {
-  const tally = sharedFieldCounts(fields, index);
+  const tally = sharedFieldCounts(candidate.fields, index);
   let best: StructuralCopyMatch | undefined;
   for (const [contract, shared] of tally) {
-    if (shared < MIN_COPY_FIELDS || shared < OVERLAP_FLOOR * fields.size) {
+    if (shared < MIN_COPY_FIELDS || shared < OVERLAP_FLOOR * candidate.fields.size) {
       continue;
     }
-    const agreeing = [...fields].filter(([field, type]) => contract.fields.get(field) === type).length;
+    const agreeing = agreeingCount(candidate, contract, agree);
     if (agreeing < shared - DRIFTED_TYPE_ALLOWANCE) {
       continue;
     }

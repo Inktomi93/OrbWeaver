@@ -302,6 +302,7 @@ export async function loadMemberChat(
   return { chat: toChatRow(rest), role, activePersonaId, joinSeq, joinHistoryVisibility };
 }
 
+// @orb-waive contract-structural-copy(MemberChatFilter): baselined when the gate judged by type; burn-down item 904.
 /** The library list's filter axes. File-local (the `ChatRow` precedent): the verb passes an object literal,
  *  so nothing outside this module needs the name and `no-inline-types` keeps its one-home rule. */
 interface MemberChatFilter {

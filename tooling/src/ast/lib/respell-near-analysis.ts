@@ -1,22 +1,16 @@
 // Pure Jaccard candidate analysis for `ast respell --near`.
 
-import type { Node } from "ts-morph";
-import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import type { AssignabilityChecker, AssignabilityRefusalKind, FieldIdentity, RefuseAssignability } from "../../floor/code-facts/assignability.ts";
+import { fieldTypesAgree } from "../../floor/code-facts/assignability.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import { coLocatedSemanticNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { declKey } from "./keys.ts";
 import { exitToolError } from "./ledger.ts";
 import type { FieldPair, ShapeEntry } from "./respell-shapes.ts";
-import { assignabilityChecker, directDerivationTargetKeys, mutuallyAssignable, shapesUnder } from "./respell-shapes.ts";
+import { directDerivationTargetKeys, mutuallyAssignable, PRIMITIVE_ABSENT, shapesUnder } from "./respell-shapes.ts";
 
 export const RESPELL_NEAR_PROPERTY_FLOOR = 4;
 const PCT_SCALE = 100;
-
-interface FieldIdentity {
-  readonly decl: Node;
-  readonly name: string;
-}
 
 interface NearAdmission {
   readonly pct: number;
@@ -31,31 +25,16 @@ function fieldIdentityLabel(field: FieldIdentity): string {
 
 /** Whether two fields are mutually assignable in every native compiler program that owns both. */
 function semanticallyEqualFieldType(checker: AssignabilityChecker, leftField: FieldIdentity, rightField: FieldIdentity): boolean {
-  const compare = (effectiveChecker: AssignabilityChecker, left: Node, right: Node): boolean => {
-    const leftType = left.getType().getProperty(leftField.name)?.getTypeAtLocation(left).compilerType;
-    const rightType = right.getType().getProperty(rightField.name)?.getTypeAtLocation(right).compilerType;
-    return (
-      leftType !== undefined &&
-      rightType !== undefined &&
-      effectiveChecker.isTypeAssignableTo(leftType, rightType) &&
-      effectiveChecker.isTypeAssignableTo(rightType, leftType)
-    );
-  };
-  const colocated = coLocatedSemanticNodes(leftField.decl, rightField.decl);
-  if (colocated.length === 0) {
-    if (leftField.decl.getProject() !== rightField.decl.getProject()) {
-      exitToolError("ast respell --near: compared fields share no native compiler program");
-    }
-    return compare(checker, leftField.decl, rightField.decl);
-  }
-  const answers = colocated.map(({ project, left, right }) => compare(assignabilityChecker(project), left, right));
-  if (new Set(answers).size !== 1) {
+  const refuse: RefuseAssignability = (kind, answers) => {
     const perProgram = answers.map((answer, index) => `program ${String(index + 1)}=${String(answer)}`).join(", ");
-    exitToolError(
-      `ast respell --near: native compiler programs disagree about field assignability for ${fieldIdentityLabel(leftField)} ↔ ${fieldIdentityLabel(rightField)} (${perProgram})`,
-    );
-  }
-  return answers[0] === true;
+    const messages: Readonly<Record<AssignabilityRefusalKind, string>> = {
+      "primitive-absent": PRIMITIVE_ABSENT,
+      "no-shared-program": "ast respell --near: compared fields share no native compiler program",
+      "programs-disagree": `ast respell --near: native compiler programs disagree about field assignability for ${fieldIdentityLabel(leftField)} ↔ ${fieldIdentityLabel(rightField)} (${perProgram})`,
+    };
+    return exitToolError(messages[kind]);
+  };
+  return fieldTypesAgree({ checker, refuse }, leftField, rightField);
 }
 
 function nameOnlyJaccardPct(domainFields: readonly FieldPair[], contractsFields: readonly FieldPair[]): number {

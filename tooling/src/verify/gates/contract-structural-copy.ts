@@ -2,15 +2,16 @@
 // server, inference or client code whose own data fields (`MIN_COPY_FIELDS` or more) are a subset of one
 // contract export's, with `TYPE_AGREEMENT_FLOOR` of the shared types agreeing. Subjects: interfaces, object-literal
 // aliases and inline type literals, exported or local, in every client tier. Skipped: a shape that derives
-// (`extends`), `*Props`, callable and indexed-access members. Reader: `lib/contract-structural-copy.ts`.
+// (`extends`), `*Props`, callable and indexed-access members. Agreement is the checker's, per field, never type text.
+// Reader: `lib/contract-structural-copy.ts`.
 // FAMILY `contract-derives-not-respells`: arm C beside the name-collision and table-row arms, split off because it
 // needs a wider population, a type graph and ordinary authority. Both read `DOMAIN_CONTRACT_RE` for the domain home.
 import type { InterfaceDeclaration, Node, SourceFile, TypeLiteralNode } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { DOMAIN_CONTRACT_RE } from "../lib/contract-derives-not-respells.ts";
-import type { ContractFieldShape } from "../lib/contract-structural-copy.ts";
-import { bestCopyMatch, candidateFields, contractFields, indexByField, isAliasBody } from "../lib/contract-structural-copy.ts";
+import type { ContractFieldShape, CopyCandidate } from "../lib/contract-structural-copy.ts";
+import { bestCopyMatch, candidateFields, contractFields, createFieldAgreement, indexByField, isAliasBody } from "../lib/contract-structural-copy.ts";
 
 const CONTRACTS_SRC = "packages/contracts/src/";
 const INFERENCE_CONTRACT = "packages/inference/src/contract/";
@@ -29,10 +30,9 @@ function isContractHome(rel: string): boolean {
   return rel.startsWith(CONTRACTS_SRC) || rel.startsWith(INFERENCE_CONTRACT) || DOMAIN_CONTRACT_RE.test(rel);
 }
 
-interface Candidate {
+interface Candidate extends CopyCandidate {
   readonly anchor: Node;
   readonly token: string;
-  readonly fields: ReadonlyMap<string, string>;
 }
 
 function contractShapesOf(sf: SourceFile, rel: string): ContractFieldShape[] {
@@ -42,7 +42,7 @@ function contractShapesOf(sf: SourceFile, rel: string): ContractFieldShape[] {
       if ((N.isInterfaceDeclaration(decl) || N.isTypeAliasDeclaration(decl)) && decl.getSourceFile() === sf) {
         const fields = contractFields(decl);
         if (fields !== undefined) {
-          shapes.push({ name, file: rel, fields });
+          shapes.push({ name, file: rel, decl, fields });
         }
       }
     }
@@ -56,7 +56,7 @@ function interfaceCandidate(node: InterfaceDeclaration): Candidate | undefined {
     return;
   }
   const fields = candidateFields(node);
-  return fields === undefined ? undefined : { anchor: node.getNameNode(), token: name, fields };
+  return fields === undefined ? undefined : { anchor: node.getNameNode(), token: name, decl: node, fields };
 }
 
 function literalCandidate(node: TypeLiteralNode): Candidate | undefined {
@@ -64,11 +64,11 @@ function literalCandidate(node: TypeLiteralNode): Candidate | undefined {
   if (N.isTypeAliasDeclaration(parent)) {
     const name = parent.getName();
     const fields = name.endsWith(PROPS_SUFFIX) ? undefined : candidateFields(node);
-    return fields === undefined ? undefined : { anchor: parent.getNameNode(), token: name, fields };
+    return fields === undefined ? undefined : { anchor: parent.getNameNode(), token: name, decl: parent, fields };
   }
   const fields = candidateFields(node);
   const first = node.getProperties()[0];
-  return fields === undefined || first === undefined ? undefined : { anchor: first.getNameNode(), token: first.getName(), fields };
+  return fields === undefined || first === undefined ? undefined : { anchor: first.getNameNode(), token: first.getName(), decl: node, fields };
 }
 
 export const gate = defineGate({
@@ -114,8 +114,9 @@ export const gate = defineGate({
         });
         ctx.receipt({ kind: "population", source: "contract-export-shapes", members: shapes.length });
         const index = indexByField(shapes);
+        const agree = createFieldAgreement("contract-structural-copy", ctx.checker());
         for (const candidate of candidates) {
-          const match = bestCopyMatch(candidate.fields, index);
+          const match = bestCopyMatch(candidate, index, agree);
           if (match !== undefined) {
             const relation = match.exact ? "the same fields as" : `${match.shared} of the ${match.contract.fields.size} fields of`;
             ctx.report.node(candidate.anchor, {
@@ -173,8 +174,61 @@ export const gate = defineGate({
       expect: { count: 1, token: "ProbeShape", messageIncludes: "4 of 5 types agreeing" },
       why: "an object-literal ALIAS in inference copying the package contract with one field retyped: four of five types agree, exactly the 80% floor, so the floor is inclusive",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/settings/view.ts":
+          'type Infer<S extends { readonly _output: unknown }> = S["_output"];\ndeclare const settingsSchema: {\n  readonly _output: { id: string; name: string; mode: "fast" | "slow"; enabled: boolean };\n};\nexport type SettingsView = Infer<typeof settingsSchema>;\n',
+        "packages/client/src/features/settings/row.ts":
+          'type Mode = "fast" | "slow";\nexport interface SettingsRow {\n  readonly id: string;\n  readonly name: string;\n  readonly mode: Mode;\n  readonly enabled: boolean;\n}\n',
+      },
+      expect: { count: 1, token: "SettingsRow", messageIncludes: "the same fields as `SettingsView`" },
+      why: "a CONTRACT WITH NO FIELD NODES: its fields come from a derived type, and the hand copy spells the mode union through an alias, so only resolution sees the copy",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/ids.ts":
+          'type TypeIdOf<K extends string> = string & { readonly __kind: K };\nexport type CharacterId = TypeIdOf<"character">;\nexport interface Seat {\n  readonly id: CharacterId;\n  readonly label: string;\n  readonly order: number;\n  readonly muted: boolean;\n}\n',
+        "packages/server/src/domain/chat/seat.ts":
+          'type TypeIdOf<K extends string> = string & { readonly __kind: K };\nexport interface SeatCopy {\n  readonly id: TypeIdOf<"character">;\n  readonly label: string;\n  readonly order: number;\n  readonly muted: boolean;\n}\n',
+      },
+      expect: { count: 1, token: "SeatCopy", messageIncludes: "the same fields as `Seat`" },
+      why: 'TWO FIELDS THAT AGREE ONLY AFTER ALIAS RESOLUTION: `CharacterId` and `TypeIdOf<"character">` print differently and are one type, which type text cannot see',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/seat.ts":
+          "export interface Seat {\n  readonly id: string;\n  readonly label: string;\n  readonly order: number;\n  readonly muted: boolean;\n}\n",
+        "packages/client/src/features/chat/seat-copy.ts":
+          "export interface SeatCopy {\n  readonly id: string;\n  readonly label?: string;\n  readonly order: number;\n  readonly muted: boolean;\n}\n",
+      },
+      expect: { count: 1, token: "SeatCopy", messageIncludes: "the same fields as `Seat`" },
+      why: "an OPTIONAL field is still the contract's field: `label?: string` and `label: string` differ only in whether undefined is allowed, and the copy drifts the same way",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/seat.ts":
+          "type Tag = { readonly value: string };\nexport interface Seat {\n  readonly a: Tag;\n  readonly b: Tag;\n  readonly c: Tag;\n  readonly d: Tag;\n}\n",
+        "packages/client/src/features/chat/seat-copy.ts":
+          "type Tag = { readonly value: number };\nexport interface SeatCopy {\n  readonly a: Tag;\n  readonly b: Tag;\n  readonly c: Tag;\n  readonly d: Tag;\n}\n",
+      },
+      why: "SAME NAMES AND SAME TYPE TEXT, DIFFERENT TYPES: two local aliases both called `Tag` print alike and resolve to different object types, so no field agrees",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/seat.ts":
+          'export interface Seat {\n  readonly id: string;\n  readonly name: string;\n  readonly mode: "fast" | "slow";\n  readonly size: number;\n}\n',
+        "packages/client/src/features/chat/seat-copy.ts":
+          "export interface SeatCopy {\n  readonly id: string;\n  readonly name: string;\n  readonly mode: string;\n  readonly size: string;\n}\n",
+      },
+      why: "SHARED NAMES, DISAGREEING TYPES: a widened union and a retyped number leave two of four fields agreeing, under the floor",
+    },
     {
       mode: "types",
       files: {
