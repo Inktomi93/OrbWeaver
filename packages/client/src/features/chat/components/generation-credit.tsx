@@ -17,13 +17,8 @@ export interface GenerationCreditProps {
   readonly message: Pick<MessageView, "model" | "provider" | "connectionId" | "connectionAttributionProvenance">;
 }
 
-/** Renders nothing for a swipe with no recorded model (a greeting or a draft was never generated). */
-export function GenerationCredit({ message }: GenerationCreditProps): ReactElement | null {
-  const connections = useCreditConnections();
-  const sentence = generationCreditSentence(message, connections);
-  if (sentence === null) {
-    return null;
-  }
+/** The credit's box. The streaming row renders it with no sentence to reserve the width the settled credit takes. */
+export function GenerationCreditGlyph({ sentence }: { readonly sentence?: string }): ReactElement {
   return (
     <Text as="span" voice="gloss" className={cn("inline-flex items-center", HIDE_AT_COARSE)} data-slot="message-metadata-model" title={sentence}>
       <Icon aria-hidden={true} className={MESSAGE_ACTION_ICON_CLASS} icon={Cpu} size="sm" />
@@ -32,4 +27,11 @@ export function GenerationCredit({ message }: GenerationCreditProps): ReactEleme
       </Text>
     </Text>
   );
+}
+
+/** Renders nothing for a swipe with no recorded model (a greeting or a draft was never generated). */
+export function GenerationCredit({ message }: GenerationCreditProps): ReactElement | null {
+  const connections = useCreditConnections();
+  const sentence = generationCreditSentence(message, connections);
+  return sentence === null ? null : <GenerationCreditGlyph sentence={sentence} />;
 }

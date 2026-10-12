@@ -124,6 +124,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "message-actions-row",
     why: "the item and its confirm mount in the message row's menu; message-actions-row.ct drives the offer, the disabled case and the restamp payload.",
   },
+  "message-actions-cluster": {
+    coveredBy: "message-actions-row",
+    why: "the inline cluster split out of message-actions-row under the component-size cap; it renders only inside the settled row (message-actions-row.ct drives every button and menu item) and inside the streaming row's hidden footprint, whose width ghost-message-row.ct holds to the settled row with showModelIcon off and on.",
+  },
   "add-member-popover": {
     coveredBy: "members-panel",
     why: "#490 gave the add-member door ONE home: it anchors on the CONTEXT panel's CAST header (the character-bar twin is gone — two simultaneously-visible doors for one action), and members-panel.ct drives it.",

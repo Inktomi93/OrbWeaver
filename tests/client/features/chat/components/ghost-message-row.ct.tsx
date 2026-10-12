@@ -594,34 +594,38 @@ for (const parity of [
   { chatStyle: "whisper", art: '[data-slot="message-band"]' },
   { chatStyle: "ripple", art: '[data-slot="avatar-root"]' },
 ] as const) {
-  test(`${parity.chatStyle}: the streaming row shares the settled row's art slot and bubble boxes`, async ({ mount }) => {
-    const component = await mount(<RowParityStory chatStyle={parity.chatStyle} />);
-    const read = (column: string): Promise<{ art: number[]; bubble: number[] } | null> =>
-      component.getByTestId(column).evaluate(
-        (root, selectors) => {
-          const rel = (el: Element | null): number[] => {
-            if (el === null) {
-              return [];
-            }
-            const box = el.getBoundingClientRect();
-            const origin = root.getBoundingClientRect();
-            return [box.left - origin.left, box.top - origin.top, box.width, box.height].map((n) => Math.round(n));
-          };
-          return { art: rel(root.querySelector(selectors.art)), bubble: rel(root.querySelector('[data-slot="message-bubble"]')) };
-        },
-        { art: parity.art },
-      );
-    await expect
-      .poll(async () => {
-        const [ghost, settled] = await Promise.all([read("parity-ghost"), read("parity-settled")]);
-        if (ghost === null || settled === null || ghost.art.length === 0 || settled.art.length === 0) {
-          return "pending";
-        }
-        // The streaming caret adds a couple of pixels to a bubble that hugs its text; the slots must match exactly.
-        const near = (a: number[], b: number[], tolerance: number): boolean =>
-          a.length === b.length && a.every((n, i) => Math.abs(n - (b[i] ?? 0)) <= tolerance);
-        return near(ghost.art, settled.art, 1) && near(ghost.bubble, settled.bubble, 4) ? "match" : JSON.stringify({ ghost, settled });
-      })
-      .toBe("match");
-  });
+  for (const showModelIcon of [false, true]) {
+    test(`${parity.chatStyle}: the streaming row shares the settled row's art slot and bubble boxes (showModelIcon ${showModelIcon ? "on" : "off"})`, async ({
+      mount,
+    }) => {
+      const component = await mount(<RowParityStory chatStyle={parity.chatStyle} showModelIcon={showModelIcon} />);
+      const read = (column: string): Promise<{ art: number[]; bubble: number[] } | null> =>
+        component.getByTestId(column).evaluate(
+          (root, selectors) => {
+            const rel = (el: Element | null): number[] => {
+              if (el === null) {
+                return [];
+              }
+              const box = el.getBoundingClientRect();
+              const origin = root.getBoundingClientRect();
+              return [box.left - origin.left, box.top - origin.top, box.width, box.height].map((n) => Math.round(n));
+            };
+            return { art: rel(root.querySelector(selectors.art)), bubble: rel(root.querySelector('[data-slot="message-bubble"]')) };
+          },
+          { art: parity.art },
+        );
+      await expect
+        .poll(async () => {
+          const [ghost, settled] = await Promise.all([read("parity-ghost"), read("parity-settled")]);
+          if (ghost === null || settled === null || ghost.art.length === 0 || settled.art.length === 0) {
+            return "pending";
+          }
+          // The streaming caret adds a couple of pixels to a bubble that hugs its text; the slots must match exactly.
+          const near = (a: number[], b: number[], tolerance: number): boolean =>
+            a.length === b.length && a.every((n, i) => Math.abs(n - (b[i] ?? 0)) <= tolerance);
+          return near(ghost.art, settled.art, 1) && near(ghost.bubble, settled.bubble, 4) ? "match" : JSON.stringify({ ghost, settled });
+        })
+        .toBe("match");
+    });
+  }
 }
