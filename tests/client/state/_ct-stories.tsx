@@ -1,14 +1,4 @@
-// @orb-waive-file testid-typed-only-stories("active-chat-inspection"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("active-section"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("carry-log"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-bare-swap"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-go-chats"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-go-corpus"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-navigate-then-open"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-open-room"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("list-override"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("new-chat-intent"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("room-invite-request"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "#client/state/corpus-mode-store.ts";
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
@@ -486,13 +476,15 @@ export function ActiveChatStoreProbe(): ReactElement {
     <div>
       <output>{`handle=${handleStr} openOverlayPanel=${openOverlayPanel ?? "none"} reaped=${reaped.join(",") || "none"}`}</output>
       {/* A `p`, not a second `<output>` — the store CTs read the state line as `locator("output")`. */}
-      <p data-testid="new-chat-intent">{`modal=${modal ?? "none"} temporary=${intent === undefined ? "none" : String(intent.temporary === true)}`}</p>
-      <p data-testid="active-chat-inspection">{inspection}</p>
+      <p
+        data-testid={storyTestId("newChatIntent")}
+      >{`modal=${modal ?? "none"} temporary=${intent === undefined ? "none" : String(intent.temporary === true)}`}</p>
+      <p data-testid={storyTestId("activeChatInspection")}>{inspection}</p>
       {/* A SEPARATE line, never folded into `<output>`: the store CTs assert that line's exact text and a
           new field in it would rewrite every one of them. `resumeChat` is the only action here whose whole
           point is the SECTION it lands in, so the section is read where that action is proved. */}
-      <p data-testid="active-section">{`section=${activeSection}`}</p>
-      <p data-testid="room-invite-request">{`invite=${inviteRequest ?? "none"}`}</p>
+      <p data-testid={storyTestId("activeSection")}>{`section=${activeSection}`}</p>
+      <p data-testid={storyTestId("roomInviteRequest")}>{`invite=${inviteRequest ?? "none"}`}</p>
       <button type="button" onClick={(): void => setInspection(`active=${activeChatId() ?? "none"}`)}>
         inspect active chat
       </button>
@@ -1511,8 +1503,8 @@ export function ListFlipCarryProbe(): ReactElement {
   });
   return (
     <div>
-      <p data-testid="list-override">{listOverride ?? "none"}</p>
-      <p data-testid="carry-log">{log.length === 0 ? "none" : log.join(" | ")}</p>
+      <p data-testid={storyTestId("listOverride")}>{listOverride ?? "none"}</p>
+      <p data-testid={storyTestId("carryLog")}>{log.length === 0 ? "none" : log.join(" | ")}</p>
       <button type="button" onClick={(): void => setCarryOn(true)}>
         mount the carry
       </button>
@@ -1713,20 +1705,20 @@ function ContentSwapFloatBody(): ReactElement {
           change at all, so a swap that strands a float is always a PROGRAMMATIC one — the `__orb.nav`
           bridge, an async mutation completion, a slash/plugin runner, or the session-recovery ladder's
           resume. The CT drives these the same way those callers do: a dispatched click, not a user press. */}
-      <button data-testid="ct-go-corpus" type="button" onClick={(): void => setActiveSection("corpus")}>
+      <button data-testid={storyTestId("ctGoCorpus")} type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
       </button>
-      <button data-testid="ct-go-chats" type="button" onClick={(): void => setActiveSection("chats")}>
+      <button data-testid={storyTestId("ctGoChats")} type="button" onClick={(): void => setActiveSection("chats")}>
         go chats
       </button>
-      <button data-testid="ct-open-room" type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
+      <button data-testid={storyTestId("ctOpenRoom")} type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
         open another room
       </button>
       {/* A launcher that navigates and THEN opens a content-scoped float for where it is going — an
           ordinary intent, and the ordering trap: `withViewTransition` defers its callback to a later task,
           so a naive dismissal read inside that callback would swallow this modal one tick after it opened. */}
       <button
-        data-testid="ct-navigate-then-open"
+        data-testid={storyTestId("ctNavigateThenOpen")}
         type="button"
         onClick={(): void => {
           setActiveSection("corpus");
@@ -1737,7 +1729,7 @@ function ContentSwapFloatBody(): ReactElement {
       </button>
       {/* The door itself, with an EMPTY update — the dismissal is `withContentSwap`'s OWN contribution, not
           something a caller's write does, so one arm drives it with nothing else happening. */}
-      <button data-testid="ct-bare-swap" type="button" onClick={(): void => withContentSwap(() => undefined)}>
+      <button data-testid={storyTestId("ctBareSwap")} type="button" onClick={(): void => withContentSwap(() => undefined)}>
         swap content with no other write
       </button>
       <ModalHost onClose={closeModal} openModal={open ?? null} />

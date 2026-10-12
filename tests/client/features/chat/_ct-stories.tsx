@@ -5,91 +5,10 @@
 // for a different layer). Data-layer stories wrap in <CtDataProviders> (Query + real tRPC over the
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
-// @orb-waive-file testid-typed-only-stories("abort"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("parity-ghost"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("parity-settled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("actions-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("anchor-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("anchor-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("begin"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("book-picker-closes"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("bump-aria"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("complete"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("composer-config-target"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("composer-gallery-target"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("composer-imagine-seed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("composer-notified"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-active-chat"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-control-source-ran"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-fake-context-tab-body"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-fake-surface-contribution"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-invite-landing"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-join-done"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-lineage"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-open-gallery-in-chat"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-open-gallery-outside"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-palette-command-ran"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-unstyled-detail"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctl-enter"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctl-toggle-a"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctl-toggle-b"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("custom-tool"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("deleted"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-abort"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-begin"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-chat-deleted"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-delta"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-message-committed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-message-edited"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-source-relabel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-source-republish"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("drive-turn-begin"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("fired-toggles"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ghost-scrollport"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("group-config-saved"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("import-closes"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("import-notice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("injections-reserve"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("injections-settled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("mark-stopping"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("members-last-action"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("message-fold"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("metadata-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("narrator-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("narrow-picker-mount"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("new-chat-intent"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("new-count"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("next-chunk"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("own-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("phase"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("picked-offer"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("picker-closes"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("prefix-tool"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("raise-budget-clamp"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("raise-knob-drop"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("recall-idle"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("recall-recalled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("recall-recalling"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("regex-section-pane"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("remove-kestrel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("removed-index"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("reopen"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("room-overrides-saved"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("room-pane"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("row-scrollport"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("selected"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("selection-title"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sent-choices"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("shell-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("temp-topbar"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("token"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("turn-top-p"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("turn-top-p-effort"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("walk-end"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("walk-start"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
+import { shellContentWidth } from "@orb/client/features/app-shell";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -194,7 +113,7 @@ import { buildIdentityAvatarMaps, buildIdentityNameContext, DEFAULT_GROUP_CONFIG
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { MessageWindowTarget } from "@orb/contracts/search";
-import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings";
+import { BACKGROUND_DIM_MIN, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserConnectionId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -208,6 +127,7 @@ import {
 } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -463,7 +383,7 @@ export function MessageRowStory({
     // `position: sticky` band actually sticks and a scroll can be driven under it (#168).
     <CtDataProviders>
       <div
-        data-testid="row-scrollport"
+        data-testid={storyTestId("rowScrollport")}
         style={{
           ...(width === undefined ? {} : { width }),
           ...(scrollportHeight === undefined ? {} : { height: scrollportHeight, overflowY: "auto" }),
@@ -626,7 +546,7 @@ export function NarratorTranscriptStory({
   return (
     <CtDataProviders>
       <MessageThreadAnchor>
-        <div data-testid="narrator-row">
+        <div data-testid={storyTestId("narratorRow")}>
           <MessageRow
             message={makeMessageView({
               role: "assistant",
@@ -637,7 +557,7 @@ export function NarratorTranscriptStory({
             {...rowProps}
           />
         </div>
-        <div data-testid="own-row">
+        <div data-testid={storyTestId("ownRow")}>
           <MessageRow message={makeMessageView({ role: "assistant", content: ownRowContent, characterId: ownRowCharacterId })} {...rowProps} />
         </div>
       </MessageThreadAnchor>
@@ -726,11 +646,15 @@ export function MessageToolCallsStory({ records, customToolName, prefixToolName,
     contributions.push({
       id: prefixToolName,
       match: "prefix",
-      render: (record): ReactElement => <div data-testid="prefix-tool">{`prefix:${record.name}`}</div>,
+      render: (record): ReactElement => <div data-testid={storyTestId("prefixTool")}>{`prefix:${record.name}`}</div>,
     });
   }
   if (customToolName !== undefined) {
-    contributions.push({ id: customToolName, match: "name", render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> });
+    contributions.push({
+      id: customToolName,
+      match: "name",
+      render: (record): ReactElement => <div data-testid={storyTestId("customTool")}>{`custom:${record.name}`}</div>,
+    });
   }
   const renderers = isolationRegistry<ToolRenderer>(
     "tool-renderers",
@@ -747,7 +671,8 @@ export function MessageToolCallsStory({ records, customToolName, prefixToolName,
     [
       {
         id: "ct-message-tools",
-        render: (all): ReactElement | null => (messageRenderer === "claims" ? <div data-testid="message-fold">{`${all.length} tool calls`}</div> : null),
+        render: (all): ReactElement | null =>
+          messageRenderer === "claims" ? <div data-testid={storyTestId("messageFold")}>{`${all.length} tool calls`}</div> : null,
       },
     ],
   );
@@ -767,7 +692,7 @@ export interface MessageActionsRowStoryProps {
 export function MessageActionsRowStory({ message, generationCredit = false }: MessageActionsRowStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div className="group" data-testid="actions-host">
+      <div className="group" data-testid={storyTestId("actionsHost")}>
         <MessageActionsRow message={message ?? makeMessageView()} generationCredit={generationCredit} />
       </div>
     </CtDataProviders>
@@ -944,7 +869,7 @@ function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "bu
       <ChoiceSendContext value={value}>
         <MessageContent content={CHOICES_BODY} render={storyRenderPolicy("untrusted", false, false)} />
       </ChoiceSendContext>
-      <p data-testid="sent-choices">{sent.join("|")}</p>
+      <p data-testid={storyTestId("sentChoices")}>{sent.join("|")}</p>
     </CtDataProviders>
   );
 }
@@ -987,7 +912,7 @@ function GhostRowInner(): ReactElement {
   // (`message-list-surface.tsx` `isLiveTurnPhase`); at idle/completed the row is unmounted, not idling.
   return (
     <div>
-      <div data-testid="phase">{phase}</div>
+      <div data-testid={storyTestId("phase")}>{phase}</div>
       {isLiveTurnPhase(phase) ? (
         <CtDataProviders>
           <GhostMessageRow chatId={CHAT_ID} chatStyle="bubble" streaming={phase === "streaming"} />
@@ -1007,7 +932,7 @@ export function GhostRowStory(): ReactElement {
       <GhostRowInner />
       <button
         type="button"
-        data-testid="begin"
+        data-testid={storyTestId("begin")}
         onClick={(): void => {
           chatStream.beginTurn(CHAT_ID, {
             intent: "send",
@@ -1020,7 +945,7 @@ export function GhostRowStory(): ReactElement {
       </button>
       <button
         type="button"
-        data-testid="token"
+        data-testid={storyTestId("token")}
         onClick={(): void => {
           chatStream.appendDelta({ chatId: CHAT_ID, kind: "text", text: "Hi " });
         }}
@@ -1029,7 +954,7 @@ export function GhostRowStory(): ReactElement {
       </button>
       <button
         type="button"
-        data-testid="complete"
+        data-testid={storyTestId("complete")}
         onClick={(): void => {
           chatStream.completeTurn(CHAT_ID, castId<MessageId>("msg_ct_done"));
         }}
@@ -1051,13 +976,13 @@ export function RecallIndicatorStory(): ReactElement {
   return (
     <div style={{ width: 260 }}>
       <ChatRecallIndicator chatId={RECALL_CHAT_ID} viewerIsHost={false} />
-      <button type="button" data-testid="recall-idle" onClick={(): void => chatStream.resetRecall(RECALL_CHAT_ID)}>
+      <button type="button" data-testid={storyTestId("recallIdle")} onClick={(): void => chatStream.resetRecall(RECALL_CHAT_ID)}>
         idle
       </button>
-      <button type="button" data-testid="recall-recalling" onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalling", null)}>
+      <button type="button" data-testid={storyTestId("recallRecalling")} onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalling", null)}>
         recalling
       </button>
-      <button type="button" data-testid="recall-recalled" onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalled", 3)}>
+      <button type="button" data-testid={storyTestId("recallRecalled")} onClick={(): void => chatStream.setRecallPhase(RECALL_CHAT_ID, "recalled", 3)}>
         recalled
       </button>
     </div>
@@ -1147,9 +1072,9 @@ export interface ReasoningAnchorStoryProps {
  *  `data-testid` anchors give the geometry probe stable handles. */
 export function ReasoningAnchorStory({ reasoning, thinking, autoCollapse, showProse }: ReasoningAnchorStoryProps): ReactElement {
   return (
-    <div style={{ width: 360 }} data-testid="anchor-row">
+    <div style={{ width: 360 }} data-testid={storyTestId("anchorRow")}>
       <ReasoningBlock reasoning={reasoning} thinking={thinking} autoCollapse={autoCollapse} />
-      {showProse ? <div data-testid="anchor-prose">The answer prose begins here, right under the trace.</div> : null}
+      {showProse ? <div data-testid={storyTestId("anchorProse")}>The answer prose begins here, right under the trace.</div> : null}
     </div>
   );
 }
@@ -1211,10 +1136,10 @@ export function GhostRowScriptedStory({
   ) : null;
   return (
     <div style={{ width: 360 }}>
-      <div data-testid="phase">{phase}</div>
+      <div data-testid={storyTestId("phase")}>{phase}</div>
       <button
         type="button"
-        data-testid="begin"
+        data-testid={storyTestId("begin")}
         onClick={(): void => {
           chatStream.beginTurn(SCRIPTED_CHAT_ID, {
             intent: "send",
@@ -1227,7 +1152,7 @@ export function GhostRowScriptedStory({
       </button>
       <button
         type="button"
-        data-testid="next-chunk"
+        data-testid={storyTestId("nextChunk")}
         onClick={(): void => {
           const chunk = chunks[next];
           if (chunk !== undefined) {
@@ -1238,14 +1163,14 @@ export function GhostRowScriptedStory({
       >
         next chunk
       </button>
-      <button type="button" data-testid="abort" onClick={(): void => chatStream.abortTurn(SCRIPTED_CHAT_ID, "user")}>
+      <button type="button" data-testid={storyTestId("abort")} onClick={(): void => chatStream.abortTurn(SCRIPTED_CHAT_ID, "user")}>
         abort
       </button>
       {/* The drive controls must not move between pointer down and up as the streamed body grows. */}
       {scrollportHeight === undefined ? (
         ghost
       ) : (
-        <div data-testid="ghost-scrollport" style={{ height: scrollportHeight, overflowY: "auto" }}>
+        <div data-testid={storyTestId("ghostScrollport")} style={{ height: scrollportHeight, overflowY: "auto" }}>
           {ghost}
         </div>
       )}
@@ -1281,7 +1206,7 @@ export function RowParityStory({
   }, []);
   return (
     <div>
-      <div data-testid="parity-ghost" style={{ width: 360 }}>
+      <div data-testid={storyTestId("parityGhost")} style={{ width: 360 }}>
         {isLiveTurnPhase(phase) ? (
           <CtDataProviders>
             <GhostMessageRow
@@ -1294,7 +1219,7 @@ export function RowParityStory({
           </CtDataProviders>
         ) : null}
       </div>
-      <div data-testid="parity-settled">
+      <div data-testid={storyTestId("paritySettled")}>
         <MessageRowStory
           chatStyle={chatStyle}
           messageRole="assistant"
@@ -1487,11 +1412,11 @@ export function MessageListTabWalkStory(): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>
-        <button type="button" data-testid="walk-start">
+        <button type="button" data-testid={storyTestId("walkStart")}>
           before
         </button>
         <SurfaceHarness />
-        <button type="button" data-testid="walk-end">
+        <button type="button" data-testid={storyTestId("walkEnd")}>
           after
         </button>
       </SocketHost>
@@ -1548,11 +1473,11 @@ export function MessageListFooterDisclosureStory(): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>
-        <button type="button" data-testid="walk-start">
+        <button type="button" data-testid={storyTestId("walkStart")}>
           before
         </button>
         <FooterDisclosureHarness />
-        <button type="button" data-testid="walk-end">
+        <button type="button" data-testid={storyTestId("walkEnd")}>
           after
         </button>
       </SocketHost>
@@ -1577,7 +1502,7 @@ function StoppingHarness(): ReactElement {
       </MessageThreadAnchor>
       <button
         type="button"
-        data-testid="mark-stopping"
+        data-testid={storyTestId("markStopping")}
         onClick={(): void => {
           chatStream.markStopping(CHAT_ID);
         }}
@@ -1629,7 +1554,7 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
           (Stop's immediate-feedback half is client-only; only the eventual close needs the bus). */}
       <button
         type="button"
-        data-testid="drive-begin"
+        data-testid={storyTestId("driveBegin")}
         onClick={(): void => {
           chatStream.beginTurn(COMPOSER_CHAT_ID, {
             intent: "send",
@@ -1642,7 +1567,7 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
       </button>
       <button
         type="button"
-        data-testid="drive-delta"
+        data-testid={storyTestId("driveDelta")}
         onClick={(): void => {
           chatStream.appendDelta({ chatId: COMPOSER_CHAT_ID, kind: "text", text: "Hi" });
         }}
@@ -1651,7 +1576,7 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
       </button>
       <button
         type="button"
-        data-testid="drive-abort"
+        data-testid={storyTestId("driveAbort")}
         onClick={(): void => {
           chatStream.abortTurn(COMPOSER_CHAT_ID, "user");
         }}
@@ -1664,7 +1589,7 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
           it directly, the same way the turn-lifecycle buttons above stand in for the SSE bus. */}
       <button
         type="button"
-        data-testid="drive-message-committed"
+        data-testid={storyTestId("driveMessageCommitted")}
         onClick={(): void => {
           chatStream.notifyUserMessageCommitted(COMPOSER_CHAT_ID);
         }}
@@ -1672,7 +1597,7 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
         commit
       </button>
       {/* The notify sink (see bindNotify above) — rendered LAST so it never shifts the composer's own layout. */}
-      <p data-testid="composer-notified">{notified}</p>
+      <p data-testid={storyTestId("composerNotified")}>{notified}</p>
       {/* The ✨ menu's SECOND image door (#623) writes the imagery INTENT store, and the store is what the
           shell's imagine modal reads. This story has no ModalHost, so the seed IS the observable — read
           through the real `useImagineSeed` selector, never a story-local mirror. */}
@@ -1687,7 +1612,9 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
  *  The story mounts no settings shell, so the store action is the observable. */
 function ConfigTargetProbe(): ReactElement {
   const target = useConfigTarget();
-  return <p data-testid="composer-config-target">{`${useActiveSection()}|${target?.group ?? ""}|${target?.sub ?? ""}|${target?.setting ?? ""}`}</p>;
+  return (
+    <p data-testid={storyTestId("composerConfigTarget")}>{`${useActiveSection()}|${target?.group ?? ""}|${target?.sub ?? ""}|${target?.setting ?? ""}`}</p>
+  );
 }
 
 /** Prints the gallery the ✨ menu's gallery door or `/gallery` asked the host to show, as
@@ -1695,7 +1622,11 @@ function ConfigTargetProbe(): ReactElement {
  *  observable; the host's own CT proves the store opens the dialog. */
 function GalleryTargetProbe(): ReactElement {
   const target = useCharacterGalleryTarget();
-  return <p data-testid="composer-gallery-target">{target === undefined ? "" : `${target.characterId}|${target.characterName}|${target.chatId ?? "none"}`}</p>;
+  return (
+    <p data-testid={storyTestId("composerGalleryTarget")}>
+      {target === undefined ? "" : `${target.characterId}|${target.characterName}|${target.chatId ?? "none"}`}
+    </p>
+  );
 }
 
 /** Prints the imagery intent store's current `/imagine` seed as `<mode>|<prompt>` (empty when nothing has
@@ -1703,7 +1634,7 @@ function GalleryTargetProbe(): ReactElement {
  *  #state action the slash runner does. */
 function ImagineSeedProbe(): ReactElement {
   const seed = useImagineSeed();
-  return <p data-testid="composer-imagine-seed">{seed === undefined ? "" : `${seed.mode}|${seed.prompt}`}</p>;
+  return <p data-testid={storyTestId("composerImagineSeed")}>{seed === undefined ? "" : `${seed.mode}|${seed.prompt}`}</p>;
 }
 
 /** The composer wired to the real data layer (routeTrpc stubs the network) + the turn-lifecycle
@@ -1749,10 +1680,10 @@ function RewriteDialogStoryInner({ initialInstruction = "" }: RewriteDialogStory
   const [fired, setFired] = useState("");
   return (
     <div>
-      <button type="button" data-testid="reopen" onClick={(): void => setOpen(true)}>
+      <button type="button" data-testid={storyTestId("reopen")} onClick={(): void => setOpen(true)}>
         open
       </button>
-      <div data-testid="fired-toggles">{fired}</div>
+      <div data-testid={storyTestId("firedToggles")}>{fired}</div>
       <RewriteDialog
         open={open}
         onOpenChange={setOpen}
@@ -1927,9 +1858,9 @@ function ChatListInner({ activeChatId, width }: { readonly activeChatId: string 
           onSelect={(id): void => setSelected(id)}
         />
       </ChatListAnchor>
-      <p data-testid="selected">{selected}</p>
-      <p data-testid="new-count">{String(newCount)}</p>
-      <p data-testid="deleted">{deleted}</p>
+      <p data-testid={storyTestId("selected")}>{selected}</p>
+      <p data-testid={storyTestId("newCount")}>{String(newCount)}</p>
+      <p data-testid={storyTestId("deleted")}>{deleted}</p>
     </div>
   );
 }
@@ -1956,7 +1887,7 @@ export function ChatLandingSurfaceStory(): ReactElement {
       </button>
       <div style={{ height: 640, width: 720 }}>
         <ChatLandingSurface onNewChat={(): void => setNewCount((n) => n + 1)} />
-        <p data-testid="new-count">{String(newCount)}</p>
+        <p data-testid={storyTestId("newCount")}>{String(newCount)}</p>
       </div>
     </CtRealSectionRegistry>
   );
@@ -1992,7 +1923,7 @@ function ActiveSectionProbe(): ReactElement {
  *  a REAL room born Temporary) is the app-root route CT, over the whole composed shell. */
 function NewChatIntentProbe(): ReactElement {
   return (
-    <output data-testid="new-chat-intent">
+    <output data-testid={storyTestId("newChatIntent")}>
       modal={useOpenModal() ?? "none"} temporary={String(useNewChatIntent()?.temporary === true)}
     </output>
   );
@@ -2088,7 +2019,7 @@ export function ChatTempChatTileStory(): ReactElement {
     <CtDataProviders>
       <ActiveSectionProbe />
       <NewChatIntentProbe />
-      <div data-testid="temp-topbar">
+      <div data-testid={storyTestId("tempTopbar")}>
         <ChatsTopbarHeader />
       </div>
       <div style={{ height: 640, width: 720 }}>
@@ -2128,7 +2059,7 @@ export function NewChatPickerStory(): ReactElement {
 export function NarrowNewChatPickerStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="narrow-picker-mount" style={{ height: 560, width: 366 }}>
+      <div data-testid={storyTestId("narrowPickerMount")} style={{ height: 560, width: 366 }}>
         <NewChatPicker />
       </div>
     </CtDataProviders>
@@ -2235,7 +2166,7 @@ export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPalette
     <CommandPaletteSourceRegistryProvider value={commandPaletteSources}>
       <div style={{ height: 480, width: 560 }}>
         <CommandPaletteSurface goToSections={[...CT_GO_TO_SECTIONS, { id: "config", label: "Settings" }]} />
-        <div data-testid="ct-palette-command-ran">{ranFake ? "ran" : ""}</div>
+        <div data-testid={storyTestId("ctPaletteCommandRan")}>{ranFake ? "ran" : ""}</div>
       </div>
     </CommandPaletteSourceRegistryProvider>
   );
@@ -2263,7 +2194,7 @@ function ChatRoomHarness({ height = 480 }: { readonly height?: number | string }
       {/* The clear-on-send signal: simulates the bus observing the caller's OWN user-row
           `messageCommitted`. Driven directly rather than through the SSE stub because the signal itself is
           what the send hook subscribes to, and this fires it deterministically for CHAT_ID. */}
-      <button type="button" data-testid="drive-message-committed" onClick={(): void => chatStream.notifyUserMessageCommitted(CHAT_ID)}>
+      <button type="button" data-testid={storyTestId("driveMessageCommitted")} onClick={(): void => chatStream.notifyUserMessageCommitted(CHAT_ID)}>
         commit
       </button>
       {/* The `messageEdited` arm of the room's bus, driven through the REAL reducer (`applyChatBusEvent` →
@@ -2273,7 +2204,7 @@ function ChatRoomHarness({ height = 480 }: { readonly height?: number | string }
           optimistic local swap. */}
       <button
         type="button"
-        data-testid="drive-message-edited"
+        data-testid={storyTestId("driveMessageEdited")}
         onClick={(): void => applyChatBusEvent({ type: "messageEdited", chatId: CHAT_ID, messageId: castId<MessageId>("msg_room_seeded_greeting") }, busDeps)}
       >
         edited
@@ -2330,7 +2261,11 @@ function ChatDeletedDriver(): ReactElement {
     onChatDeleted: chatDeletedFromList,
   };
   return (
-    <button type="button" data-testid="drive-chat-deleted" onClick={(): void => applyChatBusEvent({ type: "chatDeleted", chatId: CHAT_ID }, busDeps)}>
+    <button
+      type="button"
+      data-testid={storyTestId("driveChatDeleted")}
+      onClick={(): void => applyChatBusEvent({ type: "chatDeleted", chatId: CHAT_ID }, busDeps)}
+    >
       deleted
     </button>
   );
@@ -2373,12 +2308,12 @@ export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }
   // this csstype version does not admit --custom-property keys natively.
   const paneStyle: CSSProperties & { "--width-shell-content": string } = {
     width: paneWidth,
-    "--width-shell-content": "clamp(var(--dimension-shell-content-floor), 50dvw, 100dvw)",
+    "--width-shell-content": shellContentWidth(DEFAULT_USER_SETTINGS.appearance.chatWidthPct),
   };
   return (
     <CtDataProviders>
       <SocketHost>
-        <div data-testid="room-pane" style={paneStyle}>
+        <div data-testid={storyTestId("roomPane")} style={paneStyle}>
           <ChatRoomHarness />
         </div>
       </SocketHost>
@@ -2478,7 +2413,7 @@ export function ChatContextTabContributorStory({ visible }: ChatContextTabContri
     id: CT_CONTRIBUTOR_TAB_ID,
     label: CT_CONTRIBUTOR_TAB_LABEL,
     when: () => visible,
-    body: (): ReactElement => <div data-testid="ct-fake-context-tab-body">fake tab body</div>,
+    body: (): ReactElement => <div data-testid={storyTestId("ctFakeContextTabBody")}>fake tab body</div>,
   };
   const contextContributors = isolationRegistry<ContextTabDef<ChatContextState>>(
     "chat-context",
@@ -2550,13 +2485,14 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false, g
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor: "message-footer",
           when: () => visible,
-          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">fake footer</div>),
+          body: (): ReactElement | null => (silent ? null : <div data-testid={storyTestId("ctFakeSurfaceContribution")}>fake footer</div>),
         }
       : {
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor,
           when: () => visible,
-          body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">{greedy ? CT_GREEDY_BODY : `fake ${anchor}`}</div>),
+          body: (): ReactElement | null =>
+            silent ? null : <div data-testid={storyTestId("ctFakeSurfaceContribution")}>{greedy ? CT_GREEDY_BODY : `fake ${anchor}`}</div>,
         };
   const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
     "chat-surface",
@@ -2638,7 +2574,7 @@ export function RegexSectionStory({ isHost = true }: { readonly isHost?: boolean
   return (
     <CtDataProviders>
       <CtToastSurface>
-        <div data-testid="regex-section-pane" style={{ width: 380 }}>
+        <div data-testid={storyTestId("regexSectionPane")} style={{ width: 380 }}>
           <QueryBoundary
             fallback={<Text tone="muted">Loading this chat's regex…</Text>}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's regex" onRetry={retry} />}
@@ -2659,7 +2595,7 @@ export function GroupConfigFormStory({ config = DEFAULT_GROUP_CONFIG }: { readon
   return (
     <CtDataProviders>
       <div style={{ width: 380 }}>
-        <div data-testid="group-config-saved">{saved}</div>
+        <div data-testid={storyTestId("groupConfigSaved")}>{saved}</div>
         <GroupConfigForm
           entityId="group-config:ct"
           config={config}
@@ -2696,7 +2632,7 @@ export function GroupConfigSwitchStory(): ReactElement {
         <button type="button" onClick={(): void => setChat("b")}>
           switch chat
         </button>
-        <div data-testid="group-config-saved">{saved}</div>
+        <div data-testid={storyTestId("groupConfigSaved")}>{saved}</div>
         <GroupConfigForm
           entityId={`group-config:${chat === "a" ? SWITCH_CHAT_A : SWITCH_CHAT_B}`}
           config={config}
@@ -2722,7 +2658,7 @@ export function RoomOverridesSwitchStory(): ReactElement {
         <button type="button" onClick={(): void => setChat("b")}>
           switch chat
         </button>
-        <div data-testid="room-overrides-saved">{saved}</div>
+        <div data-testid={storyTestId("roomOverridesSaved")}>{saved}</div>
         <RoomOverridesForm
           entityId={`room-overrides:${chat === "a" ? SWITCH_CHAT_A : SWITCH_CHAT_B}`}
           roomOverrides={overrides}
@@ -2782,7 +2718,7 @@ export function ChatHeaderNarrowStory(): ReactElement {
     <CtDataProviders>
       <div>
         <ChatHeaderSurface chatId={CHAT_ID} />
-        <output data-testid="shell-state">{`contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
+        <output data-testid={storyTestId("shellState")}>{`contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
       </div>
     </CtDataProviders>
   );
@@ -2905,7 +2841,7 @@ export function MembersPanelStory({
   return (
     <CtDataProviders>
       <div style={{ width: 420 }}>
-        <div data-testid="members-last-action">{lastAction}</div>
+        <div data-testid={storyTestId("membersLastAction")}>{lastAction}</div>
         <MembersPanel
           people={people}
           characters={seatedCharacters}
@@ -2996,7 +2932,7 @@ export function MembersKickFocusStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 420 }}>
-        <button type="button" data-testid="remove-kestrel" onClick={(): void => setKicked(true)}>
+        <button type="button" data-testid={storyTestId("removeKestrel")} onClick={(): void => setKicked(true)}>
           remove
         </button>
         <MembersPanel
@@ -3026,7 +2962,7 @@ export function InviteDialogStory(): ReactElement {
         <CtToastSurface>
           <InviteDialog chatId={CHAT_ID} open={open} onOpenChange={setOpen} />
         </CtToastSurface>
-        <output data-testid="ct-invite-landing">{`open=${String(open)} section=${section} group=${group ?? "none"} sub=${sub ?? "none"}`}</output>
+        <output data-testid={storyTestId("ctInviteLanding")}>{`open=${String(open)} section=${section} group=${group ?? "none"} sub=${sub ?? "none"}`}</output>
       </div>
     </CtDataProviders>
   );
@@ -3091,7 +3027,7 @@ export function ChatForkMenuStory(): ReactElement {
 }
 
 function ActiveChatReadout(): ReactElement {
-  return <output data-testid="ct-active-chat">{`active=${useActiveChatId() ?? "none"}`}</output>;
+  return <output data-testid={storyTestId("ctActiveChat")}>{`active=${useActiveChatId() ?? "none"}`}</output>;
 }
 
 /** The menu's lineage read as the cache holds it. Passive (`enabled: false`): it never fetches, so it renders
@@ -3099,7 +3035,7 @@ function ActiveChatReadout(): ReactElement {
 function LineageReadout(): ReactElement {
   const trpc = useTRPC();
   const { data } = useQuery({ ...trpc.chat.getChatLineage.queryOptions({ chatId: CHAT_ID }), enabled: false });
-  return <output data-testid="ct-lineage">{`lineage=${data === undefined ? "unread" : String(data.chain.length)}`}</output>;
+  return <output data-testid={storyTestId("ctLineage")}>{`lineage=${data === undefined ? "unread" : String(data.chain.length)}`}</output>;
 }
 
 /** The ⋯ menu WITH the two shell surfaces a game-mode transition writes into (#862/#863): the app's ONE
@@ -3174,8 +3110,8 @@ export function ChatImportDialogStory(): ReactElement {
           }}
           open={open}
         />
-        <p data-testid="import-closes">{String(closes)}</p>
-        <p data-testid="import-notice">{notice}</p>
+        <p data-testid={storyTestId("importCloses")}>{String(closes)}</p>
+        <p data-testid={storyTestId("importNotice")}>{notice}</p>
       </div>
     </CtDataProviders>
   );
@@ -3204,7 +3140,7 @@ export function AddChatDocumentDialogStory({ activeIds = [] }: { readonly active
           }}
           open={open}
         />
-        <p data-testid="picker-closes">{String(closes)}</p>
+        <p data-testid={storyTestId("pickerCloses")}>{String(closes)}</p>
       </div>
     </CtDataProviders>
   );
@@ -3229,7 +3165,7 @@ export function AddChatBookDialogStory({ attachedIds = [] }: { readonly attached
           }}
           open={open}
         />
-        <p data-testid="book-picker-closes">{String(closes)}</p>
+        <p data-testid={storyTestId("bookPickerCloses")}>{String(closes)}</p>
       </div>
     </CtDataProviders>
   );
@@ -3256,7 +3192,7 @@ export function MembersReseedStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 420 }}>
-        <button type="button" data-testid="bump-aria" onClick={(): void => setAriaWeight(0.8)}>
+        <button type="button" data-testid={storyTestId("bumpAria")} onClick={(): void => setAriaWeight(0.8)}>
           bump
         </button>
         <MembersPanel people={[]} characters={characterRows} onSetDisabled={(): void => undefined} onSetTalkativeness={(): void => undefined} />
@@ -3379,12 +3315,16 @@ export function CharacterGalleryAnchorStory(): ReactElement {
   const characterId = castId<CharacterId>("character_ct_gallery");
   return (
     <CtDataProviders>
-      <button type="button" data-testid="ct-open-gallery-outside" onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria" })}>
+      <button
+        type="button"
+        data-testid={storyTestId("ctOpenGalleryOutside")}
+        onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria" })}
+      >
         outside
       </button>
       <button
         type="button"
-        data-testid="ct-open-gallery-in-chat"
+        data-testid={storyTestId("ctOpenGalleryInChat")}
         onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria", chatId: CHAT_ID })}
       >
         in chat
@@ -3438,7 +3378,7 @@ export function ProviderAdjustmentWarningStory(): ReactElement {
     <CtToastSurface>
       <button
         type="button"
-        data-testid="raise-knob-drop"
+        data-testid={storyTestId("raiseKnobDrop")}
         onClick={(): void =>
           applyChatBusEvent({ type: "warning", chatId: CHAT_ID, code: "settings_adjusted", adjustment: "sampling_knob_dropped", knob: "topP" }, busDeps)
         }
@@ -3447,7 +3387,7 @@ export function ProviderAdjustmentWarningStory(): ReactElement {
       </button>
       <button
         type="button"
-        data-testid="raise-budget-clamp"
+        data-testid={storyTestId("raiseBudgetClamp")}
         onClick={(): void =>
           applyChatBusEvent(
             { type: "warning", chatId: CHAT_ID, code: "settings_adjusted", adjustment: "reasoning_budget_clamped", appliedBudget: 1536 },
@@ -3493,10 +3433,10 @@ export function TurnWarningCadenceStory(): ReactElement {
   };
   return (
     <CtToastSurface>
-      <button type="button" data-testid="turn-top-p" onClick={(): void => playTurn(["sampling_knob_dropped"])}>
+      <button type="button" data-testid={storyTestId("turnTopP")} onClick={(): void => playTurn(["sampling_knob_dropped"])}>
         turn with a Top-P drop
       </button>
-      <button type="button" data-testid="turn-top-p-effort" onClick={(): void => playTurn(["sampling_knob_dropped", "effort_dropped"])}>
+      <button type="button" data-testid={storyTestId("turnTopPEffort")} onClick={(): void => playTurn(["sampling_knob_dropped", "effort_dropped"])}>
         turn with Top-P and effort drops
       </button>
     </CtToastSurface>
@@ -3522,7 +3462,7 @@ export function JoinInviteDialogStory({ token }: { readonly token: string }): Re
   const [done, setDone] = useState(false);
   return (
     <CtDataProviders>
-      {done ? <p data-testid="ct-join-done">join dialog closed</p> : <JoinInviteDialog token={token} onDone={(): void => setDone(true)} />}
+      {done ? <p data-testid={storyTestId("ctJoinDone")}>join dialog closed</p> : <JoinInviteDialog token={token} onDone={(): void => setDone(true)} />}
     </CtDataProviders>
   );
 }
@@ -3560,7 +3500,7 @@ export function ComposerAttachmentStripStory({ empty = false }: { readonly empty
   return (
     <div style={{ width: 420 }}>
       <ComposerAttachmentStrip attachments={attachments} onRemove={setRemoved} />
-      <output data-testid="removed-index">{removed ?? "none"}</output>
+      <output data-testid={storyTestId("removedIndex")}>{removed ?? "none"}</output>
     </div>
   );
 }
@@ -3579,7 +3519,7 @@ export function ComposerArgHintStripStory({ empty = false }: { readonly empty?: 
   return (
     <div style={{ width: 420 }}>
       <ComposerArgHintStrip offers={offers} onPick={(offer): void => setPicked(offer.id)} />
-      <output data-testid="picked-offer">{picked}</output>
+      <output data-testid={storyTestId("pickedOffer")}>{picked}</output>
     </div>
   );
 }
@@ -3704,7 +3644,7 @@ export function MessageMetadataRowStory({
   });
   return (
     <CtDataProviders>
-      <div data-testid="metadata-host">
+      <div data-testid={storyTestId("metadataHost")}>
         <MessageMetadataRow message={view} visibility={visibility} />
       </div>
     </CtDataProviders>
@@ -3752,13 +3692,13 @@ const SELECTION_MSG_B = castId<MessageId>("msg_ct_sel_b");
 export function MessageSelectionBarStory(): ReactElement {
   return (
     <CtDataProviders>
-      <button type="button" data-testid="ctl-enter" onClick={(): void => enterSelectionMode()}>
+      <button type="button" data-testid={storyTestId("ctlEnter")} onClick={(): void => enterSelectionMode()}>
         enter
       </button>
-      <button type="button" data-testid="ctl-toggle-a" onClick={(): void => toggleMessageSelected(SELECTION_MSG_A)}>
+      <button type="button" data-testid={storyTestId("ctlToggleA")} onClick={(): void => toggleMessageSelected(SELECTION_MSG_A)}>
         toggle a
       </button>
-      <button type="button" data-testid="ctl-toggle-b" onClick={(): void => toggleMessageSelected(SELECTION_MSG_B)}>
+      <button type="button" data-testid={storyTestId("ctlToggleB")} onClick={(): void => toggleMessageSelected(SELECTION_MSG_B)}>
         toggle b
       </button>
       <MessageSelectionBar chatId={CHAT_ID} />
@@ -3820,10 +3760,10 @@ export function InjectionsReserveStory({ count, width }: { readonly count: numbe
   return (
     <CtDataProviders>
       <div style={{ width }}>
-        <div data-testid="injections-reserve">
+        <div data-testid={storyTestId("injectionsReserve")}>
           <InjectionsSkeleton count={count} isHost={true} />
         </div>
-        <div data-testid="injections-settled">
+        <div data-testid={storyTestId("injectionsSettled")}>
           <QueryBoundary
             fallback={<Text tone="muted">Loading injections…</Text>}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
@@ -4079,7 +4019,7 @@ export function ChatsSelectionTitleStory(): ReactElement {
 
 function ChatsSelectionTitleProbe(): ReactElement {
   const title = useChatsSelectionTitle();
-  return <p data-testid="selection-title">{title ?? "(null)"}</p>;
+  return <p data-testid={storyTestId("selectionTitle")}>{title ?? "(null)"}</p>;
 }
 
 // ── S1: the in-chat CONTROL band ─────────────────────────────
@@ -4196,7 +4136,7 @@ function buildCtControls(fixture: ChatControlsFixture, deps: CtControlDeps): rea
           kind: "card",
           id: "card-unstyled",
           title: "An unstyled detail",
-          detail: <span data-testid="ct-unstyled-detail">inherited ink</span>,
+          detail: <span data-testid={storyTestId("ctUnstyledDetail")}>inherited ink</span>,
           actions: [{ id: "card-unstyled-do", label: "Do it", mode: "execute", run: runOnce, pending: false }],
           dismiss: (): void => deps.dismiss("card-unstyled"),
         },
@@ -4361,18 +4301,18 @@ export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt
           {...(columnHeight === undefined ? {} : { columnHeight })}
         />
         {/* Receipts + drivers, OUTSIDE the room (a source mount renders null by contract). */}
-        <div data-testid="ct-control-source-ran">{ran}</div>
+        <div data-testid={storyTestId("ctControlSourceRan")}>{ran}</div>
         <button
           type="button"
-          data-testid="drive-turn-begin"
+          data-testid={storyTestId("driveTurnBegin")}
           onClick={(): void => chatStream.beginTurn(CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null })}
         >
           begin turn
         </button>
-        <button type="button" data-testid="drive-source-republish" onClick={(): void => setEpoch(1)}>
+        <button type="button" data-testid={storyTestId("driveSourceRepublish")} onClick={(): void => setEpoch(1)}>
           republish, same content
         </button>
-        <button type="button" data-testid="drive-source-relabel" onClick={(): void => setEpoch(2)}>
+        <button type="button" data-testid={storyTestId("driveSourceRelabel")} onClick={(): void => setEpoch(2)}>
           republish, changed content
         </button>
       </SocketHost>

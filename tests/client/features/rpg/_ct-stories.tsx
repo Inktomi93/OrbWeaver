@@ -10,13 +10,6 @@
 // `makeRpgContextTabs` is injected the cross-domain read channel `{ trpc, queryClient }` at the door — the
 // story mirrors that door assembly with the CT's own singletons.
 
-// @orb-waive-file testid-typed-only-stories("beat-content-committed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("freshness-slot"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("requested-editor"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("room-kind"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rpg-notice-count"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rpg-notice-door"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rpg-notified"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
@@ -30,6 +23,7 @@ import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { makeChatContextContributors, makeChatContextRegions } from "@orb/testkit/browser/ct-door.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -86,7 +80,7 @@ export function BeatRowTwoWritersStory(): ReactElement {
           onDelete: (): void => undefined,
         }}
       />
-      <output data-testid="beat-content-committed">{committed}</output>
+      <output data-testid={storyTestId("beatContentCommitted")}>{committed}</output>
       <button
         type="button"
         onClick={(): void => setContent("The debt was called in at the Lantern.")}
@@ -223,7 +217,7 @@ export function RpgTakeoverNotifyStory(): ReactElement {
   return (
     <CtDataProviders>
       <RpgTakeoverHarness width={320} height={640} />
-      <p data-testid="rpg-notified">{notified}</p>
+      <p data-testid={storyTestId("rpgNotified")}>{notified}</p>
     </CtDataProviders>
   );
 }
@@ -244,16 +238,16 @@ export function RpgTakeoverWindowNoticeStory(): ReactElement {
   return (
     <CtDataProviders>
       <RpgTakeoverHarness key={mountCount} width={320} height={640} />
-      <p data-testid="rpg-notice-count">{notices.length}</p>
+      <p data-testid={storyTestId("rpgNoticeCount")}>{notices.length}</p>
       <button type="button" onClick={(): void => setMountCount((n) => n + 1)}>
         Remount game panel
       </button>
       {door === undefined ? null : (
-        <button type="button" data-testid="rpg-notice-door" onClick={door.onClick}>
+        <button type="button" data-testid={storyTestId("rpgNoticeDoor")} onClick={door.onClick}>
           {door.label}
         </button>
       )}
-      <p data-testid="requested-editor">{requested === null ? "" : `${requested.connectionId} advanced=${String(requested.openAdvanced)}`}</p>
+      <p data-testid={storyTestId("requestedEditor")}>{requested === null ? "" : `${requested.connectionId} advanced=${String(requested.openAdvanced)}`}</p>
     </CtDataProviders>
   );
 }
@@ -393,7 +387,7 @@ export function RpgFreshnessNoneStory(): ReactElement {
   // Wrapped: the component renders null, and a mount root with no element in it is not something the CT can
   // hold a locator on — the wrapper is the anchor the "nothing here" assertion counts children against.
   return (
-    <div data-testid="freshness-slot">
+    <div data-testid={storyTestId("freshnessSlot")}>
       <RpgFreshnessIndicator delivery={{ path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }} pending={true} />
     </div>
   );
@@ -490,13 +484,13 @@ function RoomKindSentinel({ chatId }: { readonly chatId: ChatId }): ReactElement
   const trpc = useTRPC();
   const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   if (detail.data === undefined) {
-    return <p data-testid="room-kind">…</p>;
+    return <p data-testid={storyTestId("roomKind")}>…</p>;
   }
   const pointer = detail.data.rpg ?? null;
   if (pointer === null) {
-    return <p data-testid="room-kind">plain</p>;
+    return <p data-testid={storyTestId("roomKind")}>plain</p>;
   }
-  return <p data-testid="room-kind">{isRpgEngaged(pointer) ? "game" : "off"}</p>;
+  return <p data-testid={storyTestId("roomKind")}>{isRpgEngaged(pointer) ? "game" : "off"}</p>;
 }
 
 /** The recorded variant's row in a room that is NOT a live game — the gate's negative arm. `listTurnToolCalls`

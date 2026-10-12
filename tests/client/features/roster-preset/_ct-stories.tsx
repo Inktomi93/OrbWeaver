@@ -20,9 +20,6 @@
 // `notify` is main.tsx-bound in production, so every story binds it to a DOM sink: the apply doors report
 // through `notify`, and a toast that is never rendered is exactly the defect P1-2 filed.
 
-// @orb-waive-file testid-typed-only-stories("cbcf-notice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rosters-box"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rosters-hidden"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows, useTRPC } from "@orb/client/data";
 import { HomeSurface } from "@orb/client/features/home";
@@ -35,6 +32,7 @@ import { castId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -59,7 +57,7 @@ function useNoticeSink(): { readonly notice: string; readonly node: ReactElement
     bindNotify({ error: sink, info: sink, success: sink, warn: sink });
     return null;
   });
-  return { notice, node: <p data-testid="cbcf-notice">{notice}</p> };
+  return { notice, node: <p data-testid={storyTestId("cbcfNotice")}>{notice}</p> };
 }
 
 /** The LIBRARY plane (no room open). `width` is the mount box — 480 is the desktop dialog, 316 the row's
@@ -197,8 +195,8 @@ export function HomeRememberedRostersTileStory({ box }: { readonly box: number }
       <button type="button" onClick={(): void => setProbe(String(__readSurfaceBoxForTest(rosterPresetHomeTile.id)))}>
         probe
       </button>
-      <output data-testid="rosters-box">{probe}</output>
-      <output data-testid="rosters-hidden">{String(hidden)}</output>
+      <output data-testid={storyTestId("rostersBox")}>{probe}</output>
+      <output data-testid={storyTestId("rostersHidden")}>{String(hidden)}</output>
       <HomeRostersTileStory />
     </>
   );

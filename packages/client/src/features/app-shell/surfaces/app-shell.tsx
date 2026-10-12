@@ -42,6 +42,7 @@ import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 import { roomScreenShell } from "../lib/room-section.ts";
+import { shellContentWidth } from "../lib/shell-content-width.ts";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */
@@ -186,7 +187,7 @@ export function AppShell(): ReactElement {
   // arithmetic) and lives in the vault, because a portable value is not a feature's to spell
   // (client-architecture-lockdown.md §4). The middle term stays here: it is the reader's own percentage.
   const shellVars: CSSProperties = {
-    "--width-shell-content": `clamp(var(--dimension-shell-content-floor), ${appearance.chatWidthPct}dvw, 100dvw)`,
+    "--width-shell-content": shellContentWidth(appearance.chatWidthPct),
   } as CSSProperties;
   const activeDef = registry.get(layout.activeSection);
   const placeholderCopy = activeDef.placeholder;

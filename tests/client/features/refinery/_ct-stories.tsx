@@ -19,13 +19,6 @@
 // the honest form of the `CharacterCardTileStory` note, not a departure from it: that story takes plain
 // strings because its ids come from a fixture's display data, not from a mint.
 
-// @orb-waive-file testid-typed-only-stories("applied"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("lane-run-frame"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("roster"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("run-controls-frame"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("runs"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("session"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("teaching-frame"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "@orb/client/data";
 import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";
@@ -63,6 +56,7 @@ import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -104,9 +98,9 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
     <div>
       {/* Optional-chained on purpose: `routeTrpc` answers an UNLISTED procedure `{result:{data:null}}`, so a
           story that renders `data.length` mount-throws in every test that does not script all three reads. */}
-      <p data-testid="roster">{`rows=${sessions.data?.length ?? "…"}`}</p>
-      <p data-testid="session">{`status=${session.data?.status ?? "…"}`}</p>
-      <p data-testid="runs">{`runs=${runs.data?.length ?? "…"}`}</p>
+      <p data-testid={storyTestId("roster")}>{`rows=${sessions.data?.length ?? "…"}`}</p>
+      <p data-testid={storyTestId("session")}>{`status=${session.data?.status ?? "…"}`}</p>
+      <p data-testid={storyTestId("runs")}>{`runs=${runs.data?.length ?? "…"}`}</p>
       <button type="button" onClick={(): void => void openRefinery(characterId).catch(() => undefined)}>
         start session
       </button>
@@ -129,7 +123,7 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
       <button type="button" onClick={(): void => iterate.mutate({ sessionId })}>
         iterate
       </button>
-      <p data-testid="applied">{`applied=${outcome ?? "…"}`}</p>
+      <p data-testid={storyTestId("applied")}>{`applied=${outcome ?? "…"}`}</p>
       <button
         type="button"
         onClick={(): void =>
@@ -298,7 +292,7 @@ export function TeachingStateStory({ width }: { readonly width?: number }): Reac
       {width === undefined ? (
         <Container>{teaching}</Container>
       ) : (
-        <div data-testid="teaching-frame" style={{ overflow: "visible", width }}>
+        <div data-testid={storyTestId("teachingFrame")} style={{ overflow: "visible", width }}>
           <Container>{teaching}</Container>
         </div>
       )}
@@ -547,7 +541,7 @@ export interface LaneRunControlStoryProps {
  *  PreflightWarn) — the fit-line + verb row is the subject; the WARN arm has its own story below. */
 export function LaneRunControlStory({ stage, running, width }: LaneRunControlStoryProps): ReactElement {
   return (
-    <div data-testid="lane-run-frame" style={{ overflow: "visible", width }}>
+    <div data-testid={storyTestId("laneRunFrame")} style={{ overflow: "visible", width }}>
       <LaneRunControl
         busy={running}
         contextTokens={8000}
@@ -580,7 +574,7 @@ const RUN_CONTROLS_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 export function RunControlsCardStory({ width }: { readonly width: number }): ReactElement {
   return (
     <CtAppDataProviders>
-      <div data-testid="run-controls-frame" style={{ overflow: "visible", width }}>
+      <div data-testid={storyTestId("runControlsFrame")} style={{ overflow: "visible", width }}>
         <RunControlsCard
           canIterate={true}
           guidance={null}

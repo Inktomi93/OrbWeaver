@@ -2,15 +2,6 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
-// @orb-waive-file testid-typed-only-stories("corpus-themes-tail"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-artifact-identity"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-door-landing"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-dossier-backs"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-finder-position"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-moment-readout"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-nav-readout"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-queue-cold"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-source-readout"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
@@ -46,6 +37,7 @@ import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -89,11 +81,11 @@ function NavReadout(): ReactElement {
   const moment = useChatMoment(useActiveChatId());
   return (
     <>
-      <div data-testid="ct-nav-readout">
+      <div data-testid={storyTestId("ctNavReadout")}>
         section:{useActiveSection()} chat:{useActiveChatId() ?? "none"} artifact:{destination?.kind ?? "none"}
       </div>
-      <output data-testid="ct-source-readout">{moment === null ? "none" : JSON.stringify(moment.target)}</output>
-      <output data-testid="ct-artifact-identity">{destination === null ? "none" : corpusDestinationIdentity(destination)}</output>
+      <output data-testid={storyTestId("ctSourceReadout")}>{moment === null ? "none" : JSON.stringify(moment.target)}</output>
+      <output data-testid={storyTestId("ctArtifactIdentity")}>{destination === null ? "none" : corpusDestinationIdentity(destination)}</output>
     </>
   );
 }
@@ -103,7 +95,7 @@ function NavReadout(): ReactElement {
 function DoorLandingReadout(): ReactElement {
   const target = useConfigTarget();
   return (
-    <output data-testid="ct-door-landing">
+    <output data-testid={storyTestId("ctDoorLanding")}>
       section:{useActiveSection()} target:{target === null ? "none" : `${target.group}/${target.sub ?? "-"}`}
     </output>
   );
@@ -201,7 +193,7 @@ export function CorpusEmbeddedResultsStory(): ReactElement {
       <button type="button" onClick={(): void => setPosition(readCorpusResultScroll())}>
         Read finder position
       </button>
-      <output data-testid="ct-finder-position">{position}</output>
+      <output data-testid={storyTestId("ctFinderPosition")}>{position}</output>
       <div style={{ width: 360, height: 200, display: "flex", flexDirection: "column" }}>
         <CorpusSearchResults query="embedded evidence" targetId="digests" />
       </div>
@@ -212,9 +204,11 @@ export function CorpusEmbeddedResultsStory(): ReactElement {
 function MomentReadout(): ReactElement {
   const moment = useChatMoment(useActiveChatId());
   if (moment === null) {
-    return <output data-testid="ct-moment-readout">none</output>;
+    return <output data-testid={storyTestId("ctMomentReadout")}>none</output>;
   }
-  return <output data-testid="ct-moment-readout">{moment.target.kind === "message" ? `message:${moment.target.messageId}` : moment.target.kind}</output>;
+  return (
+    <output data-testid={storyTestId("ctMomentReadout")}>{moment.target.kind === "message" ? `message:${moment.target.messageId}` : moment.target.kind}</output>
+  );
 }
 
 /** THE RAIL BOUNCE (U1): the shell UNMOUNTS a section's LIST surface when you switch rails and mounts a
@@ -431,7 +425,7 @@ function WarmQueueGate({ children }: { readonly children: ReactNode }): ReactEle
   const trpc = useTRPC();
   const runs = useQuery(trpc.workloads.list.queryOptions({}));
   if (runs.data === undefined) {
-    return <div data-testid="ct-queue-cold">warming the queue…</div>;
+    return <div data-testid={storyTestId("ctQueueCold")}>warming the queue…</div>;
   }
   return <>{children}</>;
 }
@@ -570,7 +564,7 @@ export function CorpusDossierSurfaceStory(): ReactElement {
         <CorpusDossierSurface characterId={DOSSIER_CHARACTER} onBack={(): void => setBacks((n) => n + 1)} />
       </div>
       <DoorLandingReadout />
-      <output data-testid="ct-dossier-backs">{backs}</output>
+      <output data-testid={storyTestId("ctDossierBacks")}>{backs}</output>
     </CtDataProviders>
   );
 }
@@ -603,7 +597,7 @@ export function CorpusThemeSectionStory(): ReactElement {
       <div style={{ width: 720, padding: 16 }}>
         <CorpusThemeSection arcThemes={ARC_THEMES} sceneThemes={SCENE_THEMES} />
         <SelectedArtifactStoryBody />
-        <div data-testid="corpus-themes-tail" style={{ height: 8 }} />
+        <div data-testid={storyTestId("corpusThemesTail")} style={{ height: 8 }} />
       </div>
     </CtDataProviders>
   );

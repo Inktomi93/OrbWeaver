@@ -4,18 +4,11 @@
 // and surfaces the `onLoggedIn` callback as rendered text so the test can assert the success path
 // without a navigation harness.
 
-// @orb-waive-file testid-typed-only-stories("ct-first-run-done"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-kill-session"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-logged-in"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-login-done"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-login-invite-dismissed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-login-landing"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-login-scene"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-resumes"): baselined when the gate widened; burn-down item 906.
 import { recoverIfUnauthorizedCode, useSessionRecovery, useTRPC } from "@orb/client/data";
 import { LoginShellAnchor } from "@orb/client/features/auth";
 import { closeModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -60,9 +53,9 @@ export function LoginArmStory({
             setDone(true);
           }}
         />
-        {done ? <p data-testid="ct-login-done">done</p> : null}
-        <output data-testid="ct-login-invite-dismissed">{String(dismissed)}</output>
-        <output data-testid="ct-login-landing">{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
+        {done ? <p data-testid={storyTestId("ctLoginDone")}>done</p> : null}
+        <output data-testid={storyTestId("ctLoginInviteDismissed")}>{String(dismissed)}</output>
+        <output data-testid={storyTestId("ctLoginLanding")}>{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
       </div>
     </CtDataProviders>
   );
@@ -89,8 +82,8 @@ export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig 
             setDone(true);
           }}
         />
-        {done ? <p data-testid="ct-login-done">done</p> : null}
-        <output data-testid="ct-login-landing">{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
+        {done ? <p data-testid={storyTestId("ctLoginDone")}>done</p> : null}
+        <output data-testid={storyTestId("ctLoginLanding")}>{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
       </div>
     </CtDataProviders>
   );
@@ -103,7 +96,7 @@ export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig 
 export function LoginSceneStory({ width, config }: { readonly width: number; readonly config: AuthConfig }): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="ct-login-scene" style={{ width, overflow: "visible" }}>
+      <div data-testid={storyTestId("ctLoginScene")} style={{ width, overflow: "visible" }}>
         <LoginShellAnchor>
           <LoginBody
             config={config}
@@ -156,7 +149,11 @@ export function LoginLocalFormStory({ defaultHandle }: { readonly defaultHandle:
   const [loggedIn, setLoggedIn] = useState(false);
   return (
     <div style={{ width: 360, padding: 16 }}>
-      {loggedIn ? <p data-testid="ct-logged-in">logged in</p> : <LoginLocalForm defaultHandle={defaultHandle} onLoggedIn={(): void => setLoggedIn(true)} />}
+      {loggedIn ? (
+        <p data-testid={storyTestId("ctLoggedIn")}>logged in</p>
+      ) : (
+        <LoginLocalForm defaultHandle={defaultHandle} onLoggedIn={(): void => setLoggedIn(true)} />
+      )}
     </div>
   );
 }
@@ -168,7 +165,7 @@ export function LoginFirstRunFormStory({ ownerHandle }: { readonly ownerHandle: 
   const [done, setDone] = useState(false);
   return (
     <div style={{ width: 360, padding: 16 }}>
-      {done ? <p data-testid="ct-first-run-done">set up</p> : <LoginFirstRunForm ownerHandle={ownerHandle} onDone={(): void => setDone(true)} />}
+      {done ? <p data-testid={storyTestId("ctFirstRunDone")}>set up</p> : <LoginFirstRunForm ownerHandle={ownerHandle} onDone={(): void => setDone(true)} />}
     </div>
   );
 }
@@ -191,10 +188,10 @@ function ReauthLadderProbe(): ReactElement {
   const resumes = Math.max((queryClient.getQueryState(trpc.sessions.me.queryKey())?.dataUpdateCount ?? 0) - 1, 0);
   return (
     <div style={{ width: 420, padding: 16 }}>
-      <button type="button" data-testid="ct-kill-session" onClick={(): void => void recoverIfUnauthorizedCode("UNAUTHORIZED")}>
+      <button type="button" data-testid={storyTestId("ctKillSession")} onClick={(): void => void recoverIfUnauthorizedCode("UNAUTHORIZED")}>
         kill the session
       </button>
-      <output data-testid="ct-resumes">{String(resumes)}</output>
+      <output data-testid={storyTestId("ctResumes")}>{String(resumes)}</output>
       <ModalHost onClose={closeModal} openModal={open} />
     </div>
   );

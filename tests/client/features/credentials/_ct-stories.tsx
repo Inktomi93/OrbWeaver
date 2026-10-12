@@ -1,10 +1,4 @@
-// @orb-waive-file testid-typed-only-stories("active-config-group"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("aggregate"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("connection-notice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("held-secrets"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("notified-description"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("scroll-pane"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { ConnectionsListSection } from "#client/features/credentials/components/connections-list-section.tsx";
 // credentials feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
@@ -280,7 +274,7 @@ export function ConnectionsSettingsStory(): ReactElement {
  *  pane itself uses, so there is exactly one. */
 function AggregateMarker(): ReactElement {
   const aggregate = useAggregateSaveStatus();
-  return <p data-testid="aggregate">{aggregate ?? "none"}</p>;
+  return <p data-testid={storyTestId("aggregate")}>{aggregate ?? "none"}</p>;
 }
 
 export function ConnectionsSettingsHostedStory(): ReactElement {
@@ -343,8 +337,8 @@ function SecretProbe(): ReactElement {
       <button type="button" onClick={(): void => void queryClient.invalidateQueries(trpc.credentials.list.queryFilter())}>
         refetch credentials
       </button>
-      <p data-testid="held-secrets">{held.length}</p>
-      <p data-testid="connection-notice">{notice}</p>
+      <p data-testid={storyTestId("heldSecrets")}>{held.length}</p>
+      <p data-testid={storyTestId("connectionNotice")}>{notice}</p>
     </>
   );
 }
@@ -366,7 +360,7 @@ export function ConnectionsAuthoringStory({ width }: { readonly width: number })
  *  across both production sections rather than simulated by remounting either side with a cold cache. */
 function ActiveConfigGroupProbe(): ReactElement {
   const activeGroup = useActiveConfigGroup();
-  return <p data-testid="active-config-group">{activeGroup ?? "none"}</p>;
+  return <p data-testid={storyTestId("activeConfigGroup")}>{activeGroup ?? "none"}</p>;
 }
 
 export function PluginProviderConnectionLifecycleStory(): ReactElement {
@@ -409,7 +403,7 @@ export function ConnectionEditorStory(): ReactElement {
 export function ConnectionEditorScrollPaneStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="scroll-pane" style={{ height: 420, overflow: "auto", width: 870 }}>
+      <div data-testid={storyTestId("scrollPane")} style={{ height: 420, overflow: "auto", width: 870 }}>
         <ConnectionEditorInner connectionId="user_connection_cteditor0001" />
       </div>
     </CtDataProviders>
@@ -441,8 +435,8 @@ function ClosableConnectionEditorInner(): ReactElement {
           trpc={trpc}
         />
       ) : null}
-      <p data-testid="notified">{notified.title}</p>
-      <p data-testid="notified-description">{notified.description}</p>
+      <p data-testid={storyTestId("notified")}>{notified.title}</p>
+      <p data-testid={storyTestId("notifiedDescription")}>{notified.description}</p>
     </div>
   );
 }
