@@ -5,6 +5,7 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";
 import { jsonValueSchema } from "@orb/kit/json";
+import { MS_PER_SECOND } from "@orb/kit/time";
 
 /** The reconnect delay before the stream sends a `retry:` field, near what browsers use natively. */
 const DEFAULT_RETRY_MS = 3000;
@@ -14,7 +15,6 @@ const MAX_RETRIES = 5;
 const OPENING_TIMEOUT_MS = 15_000;
 const BACKOFF_FACTOR = 2;
 const JITTER_FLOOR = 0.5;
-const MS_PER_SECOND = 1000;
 const INPUT_PARAM = "input";
 const EVENT_STREAM = "text/event-stream";
 const JSON_BODY = "application/json";

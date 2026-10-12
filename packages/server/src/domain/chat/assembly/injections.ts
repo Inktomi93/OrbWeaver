@@ -20,12 +20,6 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  it), beside the clamp that gives it meaning. */
 export const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
-// @orb-waive no-vanity-alias(WireRole): baselined when the gate widened; burn-down item 906.
-/** The wire role a spliced history row can take. `system` appears only when the caller keeps system rows
- *  (SHAPE, which then decides per slot whether each run stays a system row or folds); every other caller gets
- *  each system injection folded to user text here. */
-type WireRole = MessageRole;
-
 /** The author roles an injection can be re-roled FROM when it reaches the wire as user text. */
 type ReRoledInjection = Exclude<MessageRole, "user">;
 
@@ -96,7 +90,7 @@ function resolveSpliceRole(
   inj: ChatInjection,
   wouldMutatePrefix: boolean,
   keepSystemRows: boolean,
-): { effectiveRole: WireRole; originalRole: ReRoledInjection | undefined } {
+): { effectiveRole: MessageRole; originalRole: ReRoledInjection | undefined } {
   const demoteSystem = inj.role === "system" && !keepSystemRows;
   const reRoled = demoteSystem || wouldMutatePrefix;
   return {
@@ -135,7 +129,7 @@ function spliceOrder(a: { readonly inj: ChatInjection; readonly depth: number },
  * text. The downstream squash merges a folded row into an adjacent user turn; a real system row merges only with
  * another system row.
  */
-export function spliceInChatInjections<T extends { role: WireRole; content: string }>(
+export function spliceInChatInjections<T extends { role: MessageRole; content: string }>(
   history: readonly T[],
   injections: readonly ChatInjection[] | undefined,
   // Macro resolver applied to injection content before framing. Identity default keeps tests/hand-callers
@@ -166,7 +160,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
      *  shipped frames, byte-identical. */
     prose?: ProseOverrides | undefined;
   } = {},
-): (T | { role: WireRole; content: string; anchored?: true; newChatMarker?: true })[] {
+): (T | { role: MessageRole; content: string; anchored?: true; newChatMarker?: true })[] {
   // Generic over the row shape: canon rows keep their authorName/characterId so the downstream
   // name-stamp reads them at the type level. Spliced injection rows are bare `{role, content}`; one anchored
   // above the first canon row ({@link BEFORE_HISTORY_DEPTH}) says so, because its bytes and position repeat
@@ -196,7 +190,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
   const stableTailRole = boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
-  const result: (T | { role: WireRole; content: string; speakerless?: true; anchored?: true; newChatMarker?: true })[] = [...history];
+  const result: (T | { role: MessageRole; content: string; speakerless?: true; anchored?: true; newChatMarker?: true })[] = [...history];
   for (const { inj, depth } of spliceList) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
@@ -232,9 +226,9 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
  *  the new-chat marker (both explained at {@link spliceInChatInjections}). */
 function splicedRow(
   inj: ChatInjection,
-  role: WireRole,
+  role: MessageRole,
   content: string,
-): { role: WireRole; content: string; speakerless: true; anchored?: true; newChatMarker?: true } {
+): { role: MessageRole; content: string; speakerless: true; anchored?: true; newChatMarker?: true } {
   return {
     role,
     content,

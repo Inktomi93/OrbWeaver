@@ -2,6 +2,7 @@ import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type { HostFunctionRef, InvocationChat, PluginBridge, PluginCapability, PluginInvocationLiveness, PluginWorldEntryUpsert } from "@orb/contracts/plugin";
 import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import type { PluginHostSeamDeps } from "./contract/port.ts";
 import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
@@ -189,7 +190,8 @@ function stringAt(args: readonly unknown[], index: number, operation: string): s
 }
 
 function chatAt(args: readonly unknown[], index: number, operation: string): ChatId {
-  return stringAt(args, index, operation) as ChatId;
+  const parsed = typeIdSchema(ID_PREFIX.chat).safeParse(args[index]);
+  return parsed.success ? parsed.data : invalid(operation);
 }
 
 function numberAt(args: readonly unknown[], index: number, operation: string): number {

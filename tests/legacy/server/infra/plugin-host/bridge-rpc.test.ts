@@ -1,5 +1,5 @@
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
-import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
@@ -9,10 +9,8 @@ import type { PluginEgressBridge } from "#server/infra/plugin-host/net-egress.ts
 import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
 import { isBridgeOperation } from "#server/infra/plugin-host/process-protocol.ts";
 
-// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
-const CHAT = "chat_authorized00000000000000" as ChatId;
-// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
-const OTHER_CHAT = "chat_other00000000000000000" as ChatId;
+const CHAT = mintTypeId(ID_PREFIX.chat);
+const OTHER_CHAT = mintTypeId(ID_PREFIX.chat);
 
 function authority(
   grants: readonly PluginCapability[],
@@ -32,6 +30,13 @@ test("parent authority rejects an absent grant and a chat outside the admitted i
   expect(() => authorizeBridgeCall(authority(["chat.read"], { chatId: CHAT, canWrite: true, automationDepth: 0 }), "chat.listMessages", [])).toThrow(
     /malformed arguments/u,
   );
+});
+
+test("parent authority rejects malformed and wrong-prefix ids before branding", () => {
+  const admitted = authority(["chat.read"], { chatId: CHAT, canWrite: true, automationDepth: 0 });
+  for (const id of ["chat_invalid", mintTypeId(ID_PREFIX.worldBook)]) {
+    expect(() => authorizeBridgeCall(admitted, "chat.listMessages", [id, 10])).toThrow(/malformed arguments/u);
+  }
 });
 
 test("parent authority rechecks host-only writes and cascade depth", () => {

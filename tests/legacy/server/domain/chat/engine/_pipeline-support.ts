@@ -14,7 +14,7 @@ import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect } from "@orb/testkit/node/fixtures.ts";
 import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
-import type { ChatToolOps, RunChatTurnOp } from "#server/domain/chat/contract/context.ts";
+import type { BoundToolExecution, ChatToolOps, ChatToolSet, RunChatTurnOp } from "#server/domain/chat/contract/context.ts";
 import type { DeliveredCue, HistoryMacroNames, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import type { runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
@@ -329,24 +329,25 @@ export function offeredNames(req: TurnRequest | undefined): readonly string[] | 
  *  records who each attach-time resolve was scoped to (#677). */
 export function fakeToolOps(executed: string[][], failWith?: string, drivers: UserId[] = []): ChatToolOps {
   return {
-    resolveTools: (driverUserId, names): { marker: string; names: readonly string[] } => {
+    resolveTools: (driverUserId): ChatToolSet => {
       drivers.push(driverUserId);
-      return { marker: "resolved-set", names };
+      return {
+        toToolDefinitions: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" }, inputShape: {} }],
+        prepareExecution: (): Promise<BoundToolExecution> =>
+          Promise.resolve((calls): Promise<ToolCallRecord[]> => {
+            executed.push(calls.map((c) => c.name));
+            return Promise.resolve(
+              calls.map((c) => ({
+                toolCallId: c.toolCallId,
+                name: c.name,
+                arguments: c.arguments,
+                result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
+                isError: failWith !== undefined,
+                durationMs: 1,
+              })),
+            );
+          }),
+      };
     },
-    toToolDefinitions: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" }, inputShape: {} }],
-    prepareExecution: () =>
-      Promise.resolve((calls): Promise<ToolCallRecord[]> => {
-        executed.push(calls.map((c) => c.name));
-        return Promise.resolve(
-          calls.map((c) => ({
-            toolCallId: c.toolCallId,
-            name: c.name,
-            arguments: c.arguments,
-            result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
-            isError: failWith !== undefined,
-            durationMs: 1,
-          })),
-        );
-      }),
   };
 }

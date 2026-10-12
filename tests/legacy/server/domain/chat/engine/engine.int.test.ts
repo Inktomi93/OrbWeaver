@@ -1269,9 +1269,10 @@ describe("createTurnEngine — continue (extend in place + the D26 snapshot)", (
     let depth = 0;
     const h = harness(db, {
       tools: {
-        resolveTools: () => ({}),
-        toToolDefinitions: () => [{ name: "tick", description: "Tick", parameters: { type: "object" }, inputShape: {} }],
-        prepareExecution: () => Promise.resolve((calls) => Promise.resolve(calls.map((call) => ({ ...call, result: "1/6", isError: false, durationMs: 1 })))),
+        resolveTools: () => ({
+          toToolDefinitions: () => [{ name: "tick", description: "Tick", parameters: { type: "object" }, inputShape: {} }],
+          prepareExecution: () => Promise.resolve((calls) => Promise.resolve(calls.map((call) => ({ ...call, result: "1/6", isError: false, durationMs: 1 })))),
+        }),
       },
       runChatTurn: () =>
         (async function* (): AsyncGenerator<TurnStreamChunk> {

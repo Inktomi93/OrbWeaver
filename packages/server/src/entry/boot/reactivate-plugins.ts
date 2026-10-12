@@ -65,11 +65,7 @@ async function restoreOne(
   try {
     // Memoized per owner: on a single-owner box this is one resolve for the whole sweep, and on a shared one
     // it is one per user rather than one per plugin.
-    let principal = principals.get(row.ownerId);
-    if (principal === undefined) {
-      principal = deps.resolvePrincipal(row.ownerId);
-      principals.set(row.ownerId, principal);
-    }
+    const principal = principals.getOrInsertComputed(row.ownerId, () => deps.resolvePrincipal(row.ownerId));
     await deps.setEnabled({ caller: await principal, pluginId: row.pluginId, enabled: true });
     return true;
     // @orb-waive caught-failure-ownership(err): a refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and every other throw is logged in this catch; the `failed` count is the summary. Ends if `activate` stops logging a refusal.

@@ -12,6 +12,7 @@
 // The instant anything a person is doing or watching is in flight, the budget is gone and the same
 // frame runs at the display's full refresh.
 
+import { MS_PER_SECOND } from "@orb/kit/time";
 import type { WeavePluckMap } from "./web-weave-sway.ts";
 
 /** Ambient repaints per second while the web is quiet. */
@@ -20,7 +21,6 @@ const AMBIENT_FPS = 30;
  *  without it a 60Hz display lands 33.33ms against a 33.33ms budget and the cadence jitters 1:1/2:1
  *  (which is itself a stutter). With it, 60Hz divides 2:1 · 120Hz 4:1 · 144Hz 5:1 — always even. */
 const AMBIENT_SLACK_MS = 1;
-const MS_PER_SECOND = 1000;
 export const AMBIENT_FRAME_MS = MS_PER_SECOND / AMBIENT_FPS - AMBIENT_SLACK_MS;
 
 /** How long after her last un-resting frame the full refresh is HELD: her turn back to head-down is a

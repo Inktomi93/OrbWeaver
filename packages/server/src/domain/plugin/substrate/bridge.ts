@@ -35,7 +35,8 @@
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
-import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { PluginId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
 
@@ -157,7 +158,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // no existence oracle for another room's/owner's lore). Only past the attachment gate is the owner-gated
       // entry read reached.
       listEntries: async (chatId, bookId): Promise<readonly PluginWorldEntryView[]> => {
-        const id = bookId as WorldBookId;
+        const id = typeIdSchema(ID_PREFIX.worldBook).parse(bookId);
         if (!(await ops.worldInfo.isBookAttachedToChat(installerUserId, chatId, id))) {
           return [];
         }
@@ -166,7 +167,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // THE PLUGIN LORE WRITE — three domain gates the membrane cannot express (it holds no db), in the order
       // a hostile guest meets them. See the file header for why each exists.
       upsertEntry: async (chatId, entry): Promise<void> => {
-        const bookId = entry.bookId as WorldBookId;
+        const bookId = typeIdSchema(ID_PREFIX.worldBook).parse(entry.bookId);
         // (1) ATTACHMENT = the room's consent. The bookId is GUEST-SUPPLIED and the shared writer only checks
         // OWNERSHIP, so without this a plugin invoked in chat X writes any book its installer owns — including
         // one attached solely to chat Y, a room this invocation was never admitted to.

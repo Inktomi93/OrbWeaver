@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 import { automationFires, automationRules } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import { and, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { FireView } from "../contract/results.ts";
 import { stampRuleFiredAfterReservationStatement } from "./rules.ts";
@@ -38,7 +39,6 @@ interface FireReservationInsert {
 }
 
 const BUDGET_ADMISSION_OUTCOMES = ["fired", "reserved"] as const;
-const MS_PER_SECOND = 1000;
 const HOUR_MS = 3_600_000;
 
 function toFireView(row: FireRow): FireView {

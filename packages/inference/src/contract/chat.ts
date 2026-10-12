@@ -7,6 +7,7 @@ import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason } fr
 import type { EffortLevel, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import type { ZodRawShape } from "zod";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 import type { GeneratedImage } from "./generation.ts";
@@ -116,7 +117,7 @@ export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-cal
 export type ReasoningContentPart = Extract<ChatContentPart, { type: "reasoning" }>;
 
 export interface AgentSeedTurn {
-  readonly role: "user" | "assistant";
+  readonly role: Exclude<MessageRole, "system">;
   readonly content: readonly AgentSeedBlock[];
 }
 

@@ -136,8 +136,11 @@ export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>
 /** The injected chat role: the engine builds a {@link TurnRequest} and streams chunks back. */
 export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
 
-/** Opaque to chat: the resolved tool set `resolveTools` returns and the other tool ops accept. */
-export type ChatToolSet = unknown;
+/** A resolved tool set carries its projections and executor without exposing the registry's rows. */
+export interface ChatToolSet {
+  readonly toToolDefinitions: () => readonly ChatToolDefinition[];
+  readonly prepareExecution: (frame: ChatToolExecFrame) => Promise<BoundToolExecution>;
+}
 
 /** The identity frame the loop hands `executeToolCalls`. Deliberately no `Principal` — the engine is
  *  principal-blind. `membership` is null until a chat-scoped registrant exists.
@@ -165,17 +168,6 @@ export interface ChatToolOps {
    *  is resolved on the host's shelf too (#677 — the same namespaced plugin tool name exists once per
    *  installing user, so a name alone no longer identifies an entry). */
   readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ChatToolSet;
-  /** The resolved set as BACKEND-NEUTRAL definitions (the JSON-Schema declaration + the zod shape it was
-   *  projected from). How they reach a wire is `@orb/inference`'s decision (`toChatRequest`), so chat carries
-   *  one projection for every backend. */
-  readonly toToolDefinitions: (set: ChatToolSet) => readonly ChatToolDefinition[];
-  /** Bind the ONE execute path to this turn's authority, ONCE, before the request is built: the host Principal
-   *  every in-turn tool runs under (D152) is resolved here, so a failed lookup fails the TURN on every wire
-   *  before the model is called. Both loops run the bound executor — the pipeline's own recurse loop for an
-   *  array wire, and the offer's `execute` callback when a backend owns the loop — so neither can resolve the
-   *  authority late, where the Agent SDK would turn the throw into tool-result text the model reads (D48 — one
-   *  execute path, one `ToolCallRecord` shape, whichever side drives). */
-  readonly prepareExecution: (set: ChatToolSet, frame: ChatToolExecFrame) => Promise<BoundToolExecution>;
 }
 
 /** The execute path bound to one turn's resolved set and authority — sequential, errors-as-data; never throws

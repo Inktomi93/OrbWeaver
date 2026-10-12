@@ -696,20 +696,21 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
       connection: agentConnection,
       attachedToolNames: ["draw", "tick_clock"],
       tools: {
-        resolveTools: () => ({}),
-        toToolDefinitions: () => [],
-        prepareExecution: () =>
-          Promise.resolve(async (batch) => {
-            await new Promise<void>((resolve) => releases.push(resolve));
-            return batch.map((call) => ({
-              toolCallId: call.toolCallId,
-              name: call.name,
-              arguments: call.arguments,
-              result: call.name,
-              isError: false,
-              durationMs: 1,
-            }));
-          }),
+        resolveTools: () => ({
+          toToolDefinitions: () => [],
+          prepareExecution: () =>
+            Promise.resolve(async (batch) => {
+              await new Promise<void>((resolve) => releases.push(resolve));
+              return batch.map((call) => ({
+                toolCallId: call.toolCallId,
+                name: call.name,
+                arguments: call.arguments,
+                result: call.name,
+                isError: false,
+                durationMs: 1,
+              }));
+            }),
+        }),
       },
       runChatTurn: (request) =>
         (async function* (): AsyncGenerator<TurnStreamChunk> {
@@ -754,7 +755,10 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
   });
 
   test("an execute path that returns NO record fails the call loudly — never a silent empty result", async () => {
-    const ops: ChatToolOps = { ...fakeToolOps([]), prepareExecution: () => Promise.resolve(() => Promise.resolve([])) };
+    const base = fakeToolOps([]);
+    const ops: ChatToolOps = {
+      resolveTools: (driver, names) => ({ ...base.resolveTools(driver, names), prepareExecution: () => Promise.resolve(() => Promise.resolve([])) }),
+    };
     const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: "{}" };
     const { args } = baseArgs({
       connection: agentConnection,
@@ -770,10 +774,15 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
     const base = fakeToolOps([]);
     const depths = scriptedDepths([[toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("x")]], []);
     const ops: ChatToolOps = {
-      ...base,
-      prepareExecution: (set, frame) => {
-        order.push("bind");
-        return base.prepareExecution(set, frame);
+      resolveTools: (driver, names) => {
+        const set = base.resolveTools(driver, names);
+        return {
+          ...set,
+          prepareExecution: (frame) => {
+            order.push("bind");
+            return set.prepareExecution(frame);
+          },
+        };
       },
     };
     const { args } = baseArgs({

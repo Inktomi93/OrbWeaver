@@ -38,6 +38,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import { cacheDepthCovering } from "@orb/inference";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
@@ -51,12 +52,12 @@ import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
 /** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
  *  system — `toShapeCanon` drops them). */
-type WireRole = "user" | "assistant";
+type WireRole = Exclude<MessageRole, "system">;
 
 /** The DELIVERED wire-row role axis: canon roles plus the `system` row an injection keeps where
  *  {@link deliverSystemRows} lets it. An injection is the ONLY producer of a delivered `system` row: a CANON row
  *  never takes one (owner ruling 2026-08-18 — see {@link shape}'s narrator note). */
-type DeliveredRole = WireRole | "system";
+type DeliveredRole = MessageRole;
 
 /** One loaded canon row SHAPE consumes (from `persistence/queries.loadCanonHistory`, already sanitized).
  *  `authorName` = the stored authoring name (persona on user rows, character on assistant rows);

@@ -174,6 +174,26 @@ function verdictAfterLifts<T>(def: VersionedConfigDef<T>, config: Record<string,
   return { intact: false, value: def.default, failure: VERSIONED_PARSE_FAILURES.schemaRejected, ...(issue === undefined ? {} : { issue }) };
 }
 
+export interface ConfigLiftResult {
+  readonly config: Record<string, unknown>;
+  readonly version: number;
+}
+
+/** The shared forward walk; callers decide whether an unreadable result degrades or rejects. */
+export function liftConfigForward(config: Record<string, unknown>, fromVersion: number, lifts: VersionedConfigDef<never>["lifts"]): ConfigLiftResult | null {
+  let version = fromVersion;
+  let out = config;
+  for (let lift = lifts[version]; lift !== undefined; lift = lifts[version]) {
+    const next = lift(out);
+    if (!isPlainObject(next)) {
+      return null;
+    }
+    out = next;
+    version += 1;
+  }
+  return { config: out, version };
+}
+
 export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedConfig<T> {
   const degraded = (failure: VersionedParseFailure): VersionedParseOutcome<T> => ({ intact: false, value: def.default, failure });
 
@@ -182,19 +202,8 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
     if (!isPlainObject(raw)) {
       return degraded(VERSIONED_PARSE_FAILURES.notAnObject);
     }
-    let version = startVersion(raw, storedVersion);
-    let config: Record<string, unknown> = raw;
-    let lift = def.lifts[version];
-    while (lift !== undefined) {
-      const next = lift(config);
-      if (!isPlainObject(next)) {
-        return degraded(VERSIONED_PARSE_FAILURES.liftBrokeShape);
-      }
-      config = next;
-      version += 1;
-      lift = def.lifts[version];
-    }
-    return verdictAfterLifts(def, config, version);
+    const lifted = liftConfigForward(raw, startVersion(raw, storedVersion), def.lifts);
+    return lifted === null ? degraded(VERSIONED_PARSE_FAILURES.liftBrokeShape) : verdictAfterLifts(def, lifted.config, lifted.version);
   };
 
   return {

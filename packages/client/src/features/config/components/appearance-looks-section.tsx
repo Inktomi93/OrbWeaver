@@ -43,7 +43,7 @@
 // with words instead of landing as a blank theme.
 
 import type { Theme } from "@orb/contracts/theme";
-import type { ThemeId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
@@ -66,7 +66,7 @@ import { ThemeRowMenu } from "./theme-row-menu.tsx";
 
 const COPY_SUFFIX = " copy";
 /** The draft id a from-scratch session carries — it keys the editor's mount, and is never sent anywhere. */
-const NEW_THEME_DRAFT_ID = "theme_draft_new";
+const NEW_THEME_DRAFT_ID = mintTypeId(ID_PREFIX.theme);
 
 /** What the builder pane is showing: an existing row (`mint` absent), or a draft plus the mint that would
  *  bring it into existence (the retired picker's session shape, verbatim). */
@@ -76,7 +76,7 @@ interface EditorSession {
 }
 
 /** A not-yet-existing theme, shaped as the entity the editor seeds from. */
-function draftFromValues(id: string, values: ThemeFormValues): Theme {
+function draftFromValues(id: Theme["id"], values: ThemeFormValues): Theme {
   const input = themeInputFromForm(values);
   return { id, name: input.name, override: input.override, css: input.css ?? null, isSeed: false, isDefault: false, createdAt: 0, updatedAt: 0 };
 }
@@ -165,7 +165,7 @@ function LooksBody(): ReactElement {
     }
     setEditing({
       draft: { ...current, name: `${current.name}${COPY_SUFFIX}`, isSeed: false, isDefault: false },
-      mint: () => duplicateTheme.mutateAsync({ id: current.id as ThemeId }),
+      mint: () => duplicateTheme.mutateAsync({ id: current.id }),
     });
   };
 
@@ -238,9 +238,9 @@ function LooksBody(): ReactElement {
                       <Row className="absolute top-tight left-tight rounded-control bg-card/80">
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
-                          onDelete={(): void => removeTheme.mutate({ id: theme.id as ThemeId })}
+                          onDelete={(): void => removeTheme.mutate({ id: theme.id })}
                           onDuplicate={(): void => {
-                            duplicateTheme.mutate({ id: theme.id as ThemeId });
+                            duplicateTheme.mutate({ id: theme.id });
                           }}
                           onEdit={(): void => setEditing({ draft: theme })}
                           onExport={(): void => exportTheme(theme)}

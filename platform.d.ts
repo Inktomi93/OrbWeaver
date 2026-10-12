@@ -40,3 +40,6 @@ interface ErrorConstructor {
 interface IteratorConstructor {
   concat: <T>(...iterables: Iterable<T>[]) => IteratorObject<T, undefined, unknown>;
 }
+
+// The ISO world omits DOM declarations; supported Node and browsers provide this pure clone.
+declare function structuredClone<T>(value: T): T;

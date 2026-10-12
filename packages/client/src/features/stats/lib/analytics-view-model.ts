@@ -15,6 +15,7 @@ import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { TimeLib } from "@orb/kit/time";
+import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
@@ -41,9 +42,6 @@ export const ANALYTICS_SORT_OPTIONS = [
  * consumer.) */
 export const ANALYTICS_DEFAULT_SORT = "assistantTurns" as const;
 
-const MS_PER_SECOND = 1000;
-const MS_PER_MINUTE = 60_000;
-const MS_PER_HOUR = 3_600_000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const THOUSAND = 1000;

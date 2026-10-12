@@ -39,6 +39,7 @@ import type { CharacterService } from "#domain/character";
 import { createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
   BeginGenerationObservation,
+  BoundToolExecution,
   ChatContext,
   ChatService,
   ChatServiceDeps,
@@ -117,7 +118,7 @@ import {
   createResolveRetainedChatRebase,
   settleRetainedChatRebase,
 } from "#domain/stats";
-import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
+import type { ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
@@ -447,35 +448,28 @@ export interface ChatComposeResult {
   };
 }
 
-/**
- * Adapt {@link ToolUseService} into the `ChatToolOps` seam. Chat's opaque `ChatToolSet` IS the
- * `ResolvedToolSet` this seam minted; the exec frame's `runAsUserId` resolves to the live host
- * {@link Principal} here (the engine itself stays Principal-blind).
- *
- * D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
- * swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
+/** Adapt tool-use into chat through typed closures over the concrete resolved set.
+ * The host Principal resolves before the request is built (D152).
+ * @public Test-anchored composition surface.
  */
 export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
-  // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
-  const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
-    resolveTools: (driverUserId, names) => toolUse.resolveTools(driverUserId, names),
-    toToolDefinitions: (set) => toolUse.toToolDefinitions(asResolvedSet(set)),
-    // The host Principal is resolved ONCE per turn, here, before the request is built — a failed lookup fails
-    // the turn on every wire instead of surfacing inside an SDK-driven tool handler as text the model reads.
-    prepareExecution: async (set, frame) => {
-      const exec = {
-        principal: await resolveHostPrincipal(frame.runAsUserId),
-        triggeredBy: frame.triggeredBy,
-        chatId: frame.chatId,
-        membership: frame.membership,
-        turnId: frame.turnId,
-        ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
+    resolveTools: (driverUserId, names): ChatToolSet => {
+      const set = toolUse.resolveTools(driverUserId, names);
+      return {
+        toToolDefinitions: () => toolUse.toToolDefinitions(set),
+        prepareExecution: async (frame): Promise<BoundToolExecution> => {
+          const exec = {
+            principal: await resolveHostPrincipal(frame.runAsUserId),
+            triggeredBy: frame.triggeredBy,
+            chatId: frame.chatId,
+            membership: frame.membership,
+            turnId: frame.turnId,
+            ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
+          };
+          return (calls) => toolUse.executeToolCalls(set, calls, exec);
+        },
       };
-      const resolved = asResolvedSet(set);
-      return (calls) => toolUse.executeToolCalls(resolved, calls, exec);
     },
   };
 }

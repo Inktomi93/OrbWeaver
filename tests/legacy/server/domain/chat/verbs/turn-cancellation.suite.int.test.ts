@@ -161,13 +161,14 @@ async function cancellationScenario(peer: ProviderPeer, rescue?: AbortSignal, to
       rpg,
       teaching: [{ id: "cancellation-fixture", order: 1, collect: () => Promise.resolve({ injections: [], toolNames: [TOOL_NAME] }) }],
       tools: {
-        resolveTools: (_ownerId, names) => names,
-        toToolDefinitions: () => [{ name: TOOL_NAME, description: "A cancellation fixture tool", parameters: { type: "object" }, inputShape: {} }],
-        prepareExecution: () =>
-          Promise.resolve((calls) => {
-            toolCalls.push(...calls.map((call) => call.name));
-            return Promise.resolve(calls.map((call) => ({ ...call, result: "done", isError: false, durationMs: 0 })));
-          }),
+        resolveTools: (_ownerId, _names) => ({
+          toToolDefinitions: () => [{ name: TOOL_NAME, description: "A cancellation fixture tool", parameters: { type: "object" }, inputShape: {} }],
+          prepareExecution: () =>
+            Promise.resolve((calls) => {
+              toolCalls.push(...calls.map((call) => call.name));
+              return Promise.resolve(calls.map((call) => ({ ...call, result: "done", isError: false, durationMs: 0 })));
+            }),
+        }),
       },
     },
   });

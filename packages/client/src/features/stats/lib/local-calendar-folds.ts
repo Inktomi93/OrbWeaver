@@ -6,11 +6,10 @@ import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import type { CalendarMonth, CalendarPosition } from "@orb/kit/time";
-import { groupByCalendarMonth } from "@orb/kit/time";
+import { groupByCalendarMonth, MS_PER_DAY } from "@orb/kit/time";
 import { WEEKDAY_LABELS } from "./analytics-view-model.ts";
 
 const HOURS_PER_DAY = 24;
-const MS_PER_DAY = 86_400_000;
 
 /** One viewer-local calendar day of the activity timeline. */
 export interface LocalDay {

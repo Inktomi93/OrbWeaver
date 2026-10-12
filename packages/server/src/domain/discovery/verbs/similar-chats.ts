@@ -54,11 +54,7 @@ async function similarChats(db: Db, ownerId: UserId, chatId: ChatId, limit = DEF
     if (s.model !== targetModel) {
       continue;
     }
-    let arr = bucket.get(s.chatId);
-    if (arr === undefined) {
-      arr = [];
-      bucket.set(s.chatId, arr);
-    }
+    const arr = bucket.getOrInsertComputed(s.chatId, () => []);
     arr.push(s.embedding);
     titleByChat.set(s.chatId, s.title);
   }

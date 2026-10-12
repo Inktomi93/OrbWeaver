@@ -140,11 +140,7 @@ function archetypesForGroup(
       continue;
     }
     const c = assignments[repIdx] ?? 0;
-    let acc = clusters.get(c);
-    if (acc === undefined) {
-      acc = { members: [], genre: new Map(), tone: new Map(), tags: new Map() };
-      clusters.set(c, acc);
-    }
+    const acc = clusters.getOrInsertComputed(c, () => ({ members: [], genre: new Map(), tone: new Map(), tags: new Map() }));
     tallyCard(acc, card, displayById.get(card.characterId), facetById.get(card.characterId));
   }
   const first = orderedGroup[0];

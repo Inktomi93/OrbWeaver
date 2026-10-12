@@ -19,7 +19,7 @@ import { z } from "zod";
 // 2001; no real chat timestamp is before that, and 1e12 s would be year 33658 — unambiguous.)
 const MS_THRESHOLD = 1e12;
 // Seconds → ms scale factor.
-const MS_PER_SECOND = 1000;
+export const MS_PER_SECOND = 1000;
 
 /** A numeric epoch that may be in seconds OR ms → ms (heuristic). Use when a provider's unit is
  *  ambiguous/mixed; prefer {@link secondsToMs} when the unit is documented. null for non-finite. */
@@ -304,9 +304,9 @@ export function groupByCalendarMonth<Row>(
   return [...months.values()].toSorted((a, b) => a.month.key.localeCompare(b.month.key));
 }
 
-const MS_PER_MINUTE = 60 * MS_PER_SECOND;
-const MS_PER_HOUR = 60 * MS_PER_MINUTE;
-const MS_PER_DAY = 24 * MS_PER_HOUR;
+export const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+export const MS_PER_DAY = 24 * MS_PER_HOUR;
 /** Days before a relative time ("9 days ago") reads worse than the date — the fallback horizon. */
 const RELATIVE_HORIZON_DAYS = 7;
 const RELATIVE_HORIZON_MS = RELATIVE_HORIZON_DAYS * MS_PER_DAY;

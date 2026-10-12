@@ -22,10 +22,9 @@
 import type { PluginInstance, PluginToast, PluginToastLevel, PluginUiOutcome } from "@orb/contracts/plugin";
 import { PLUGIN_TOAST_COOLDOWN_SECONDS, PLUGIN_TOAST_MAX_CHARS, PLUGIN_UI_OUTBOX_MAX } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import type { PluginIdentity } from "../contract/ops.ts";
 import type { PluginUiOutbox } from "../contract/service.ts";
-
-const MS_PER_SECOND = 1000;
 
 /** Sweep threshold — one entry per plugin that has ever raised a host-mediated affordance in this process. The
  *  rate-floor precedent: a bounded lazy sweep, never a timer (a timer would read the wall clock in a domain

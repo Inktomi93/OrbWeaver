@@ -28,9 +28,9 @@ import { randomBytes } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import type { CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
+import { MS_PER_MINUTE } from "@orb/kit/time";
 
 /** A handle lives 30 minutes, sliding on each serve. */
-const MS_PER_MINUTE = 60_000;
 const TTL_MINUTES = 30;
 export const FRAME_HANDLE_TTL_MS = TTL_MINUTES * MS_PER_MINUTE;
 

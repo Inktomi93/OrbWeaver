@@ -10,13 +10,11 @@ import type { StartWorkloadInput, WorkloadStatus } from "@orb/contracts/workload
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import { MS_PER_DAY, MS_PER_HOUR } from "@orb/kit/time";
 import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
 const LOG_COMPONENT = "catalog-refresh-scheduler";
-
-const MS_PER_HOUR = 3_600_000;
-const MS_PER_DAY = 86_400_000;
 
 // @orb-waive no-vanity-alias(DEFAULT_CHECK_INTERVAL_MS): baselined when the gate widened; burn-down item 906.
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_HOUR;

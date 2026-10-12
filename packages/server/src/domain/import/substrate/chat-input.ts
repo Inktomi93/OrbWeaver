@@ -12,6 +12,7 @@ import type { BulkImportChatInput, BulkImportInjectionInput, BulkImportMessageIn
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { messageRoleFromSt } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#primitives/serde/chat";
 import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
@@ -152,9 +153,6 @@ const ST_NOTE_POSITIONS: Readonly<Record<number, BulkImportInjectionInput["posit
   2: "before_prompt",
 };
 
-/** ST `extension_prompt_roles` → orb's canonical `MessageRole` (SOURCE-PINNED, same file). */
-const ST_NOTE_ROLES: Readonly<Record<number, MessageRole>> = { 0: "system", 1: "user", 2: "assistant" };
-
 /** The depth orb stores for a note at `position`. Depth is meaningful ONLY on the at-depth splice
  *  (`ChatInjection.depth`'s own contract), so any other position stores the column's own 0 rather than
  *  carrying a number no reader consults. A missing//negative ST depth on an `in_chat` note takes the house
@@ -177,7 +175,7 @@ function importedNoteInjection(notePrompt: string | null, placement: ParsedNoteP
   const recordedPosition = placement?.position ?? null;
   const position = (recordedPosition === null ? undefined : ST_NOTE_POSITIONS[recordedPosition]) ?? HOUSE_NOTE_POSITION;
   const recordedRole = placement?.role ?? null;
-  const role = (recordedRole === null ? undefined : ST_NOTE_ROLES[recordedRole]) ?? HOUSE_NOTE_ROLE;
+  const role = messageRoleFromSt(recordedRole) ?? HOUSE_NOTE_ROLE;
   return {
     position,
     depth: noteDepthFor(position, placement?.depth ?? null),
@@ -201,7 +199,7 @@ function importedScriptInjections(injects: readonly ParsedScriptInject[], create
     return {
       position,
       depth: noteDepthFor(position, inject.depth),
-      role: (inject.role === null ? undefined : ST_NOTE_ROLES[inject.role]) ?? HOUSE_NOTE_ROLE,
+      role: messageRoleFromSt(inject.role) ?? HOUSE_NOTE_ROLE,
       content: inject.value,
       order: null,
       createdAt,

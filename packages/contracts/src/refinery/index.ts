@@ -264,18 +264,10 @@ export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema
  *  ONE home for the `refinery_sessions.guidance` bound: R1's start/iterate inputs parse through THIS, and
  *  the prompt substrate neutralizes it before splicing (the `{{input}}` guided precedent). */
 export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
-/** The bounded host-authored steering text persisted on a refinery session.
- * @public twin: refineryGuidanceSchema
- */
-export type RefineryGuidance = z.output<typeof refineryGuidanceSchema>;
 
 /** The session's optional roster label — host-authored, never model-facing. Bounded like the card's own
  *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
 export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
-/** The bounded optional roster label persisted on a refinery session.
- * @public twin: refinerySessionNameSchema
- */
-export type RefinerySessionName = z.output<typeof refinerySessionNameSchema>;
 
 // ── Per-stage payload config — the kind-tagged union (the SF seam, now TWO-ARMED on score/analyze) ──────
 // The SESSION-side custom arm is a POINTER (`{kind:"custom", schemaId}`): the session's in-force schema

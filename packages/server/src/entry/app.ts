@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
@@ -69,7 +70,6 @@ import {
 import { isApiPath } from "./http/spa.ts";
 import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "./import/index.ts";
 
-const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";
 const NOT_FOUND = 404;

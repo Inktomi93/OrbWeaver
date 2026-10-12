@@ -43,6 +43,7 @@ import { batchMany } from "@orb/db/query";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { MacroSourceRef, OffVocabularyPick } from "@orb/kit/macro";
 import { findOffVocabularyPicks } from "@orb/kit/macro";
+import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
@@ -281,8 +282,6 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
     );
   };
 }
-
-const MS_PER_HOUR = 3_600_000;
 
 /** The caller HOSTS this chat (present `host` seat) — the scope both reap arms share, so the nav-away drop
  *  and the TTL belt can never disagree about whose rooms they may delete. */

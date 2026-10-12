@@ -22,7 +22,7 @@ import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, SAMPLER_KNOBS, samplerOrderSchema
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
-import { defineVersionedConfig } from "#versioned-config";
+import { defineVersionedConfig, liftConfigForward } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 import { responseCacheSettingsSchema } from "./response-cache.ts";
 
@@ -2723,18 +2723,6 @@ function liftCompactionOff(params: unknown): unknown {
   return { ...p, compaction: { ...(compaction as Record<string, unknown>), mode: "managed" } };
 }
 
-/** Walk a raw config blob forward through {@link CONFIG_LIFTS} — mirrors `defineVersionedConfig`'s
- *  internal lift loop for the STRICT file path (validates and REJECTS after lifting, no degrade). */
-function liftConfigForward(config: Record<string, unknown>, fromVersion: number): Record<string, unknown> {
-  let out = config;
-  let version = fromVersion;
-  for (let lift = CONFIG_LIFTS[version]; lift !== undefined; lift = CONFIG_LIFTS[version]) {
-    out = lift(out);
-    version += 1;
-  }
-  return out;
-}
-
 /** The version a versioned blob probes as: its positive-integer `schemaVersion`, else v1 (the floor). */
 function probeSchemaVersion(value: unknown): number {
   return typeof value === "number" && Number.isInteger(value) && value >= SCHEMA_VERSION_V1 ? value : SCHEMA_VERSION_V1;
@@ -3562,8 +3550,8 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
     typeof envelopeVersion === "number" && Number.isInteger(envelopeVersion) && envelopeVersion >= SCHEMA_VERSION_V1
       ? envelopeVersion
       : probeSchemaVersion((rawConfig as Record<string, unknown>)["schemaVersion"]);
-  const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion);
-  const result = promptConfigSchema.safeParse(lifted);
+  const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion, CONFIG_LIFTS);
+  const result = promptConfigSchema.safeParse(lifted?.config);
   if (!result.success) {
     // `z.prettifyError` (not `issues[0].message`): the old hand-flatten printed "Too small: expected string to
     // have >=1 characters" with NO path, so an operator importing a 500-section preset was told a field was bad

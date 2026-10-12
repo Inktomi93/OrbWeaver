@@ -107,10 +107,12 @@ async function compareCharacters(db: Db, ownerId: UserId, idA: CharacterId, idB:
   if (ra === undefined || rb === undefined) {
     return null;
   }
-  const shared = [...ra.tags].filter((t) => rb.tags.has(t));
-  const onlyA = [...ra.tags].filter((t) => !rb.tags.has(t));
-  const onlyB = [...rb.tags].filter((t) => !ra.tags.has(t));
-  const union = new Set([...ra.tags, ...rb.tags]).size;
+  const intersection = ra.tags.intersection(rb.tags);
+  // Native intersection can follow the smaller set; display preserves the first card's tag order.
+  const shared = [...ra.tags].filter((tag) => intersection.has(tag));
+  const onlyA = [...ra.tags.difference(rb.tags)];
+  const onlyB = [...rb.tags.difference(ra.tags)];
+  const union = ra.tags.union(rb.tags).size;
   return {
     a: ra.card,
     b: rb.card,

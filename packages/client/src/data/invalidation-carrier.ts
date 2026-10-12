@@ -52,11 +52,7 @@ function removePendingQueue(queryClient: QueryClient, queryHash: string): Pendin
 }
 
 function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, view: MessageView, apply: () => void): void {
-  let clientQueues = pendingCanonByClient.get(queryClient);
-  if (clientQueues === undefined) {
-    clientQueues = new Map();
-    pendingCanonByClient.set(queryClient, clientQueues);
-  }
+  const clientQueues = pendingCanonByClient.getOrInsertComputed(queryClient, () => new Map());
   let queue = clientQueues.get(queryHash);
   if (queue === undefined) {
     const views = new Map<string, () => void>();

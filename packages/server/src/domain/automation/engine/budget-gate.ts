@@ -11,6 +11,7 @@
 import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import type { BudgetVerdict, RuleRow } from "../contract/ops.ts";
 import { selectOwnerBudget } from "../persistence/budgets.ts";
 import {
@@ -21,7 +22,6 @@ import {
 } from "../persistence/fires.ts";
 
 const HOUR_MS = 3_600_000;
-const MS_PER_SECOND = 1000;
 
 const OK: BudgetVerdict = { ok: true };
 

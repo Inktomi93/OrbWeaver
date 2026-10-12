@@ -248,7 +248,7 @@ export interface AssembleTrace {
    *  (not `matchedKeys`, which is keyword strings). `keys` is the entry's keyword list ([] for an always-scope
    *  entry); the host inspector lists these by `title` so a human can see WHICH lore the model saw. Empty ⇒ no
    *  WI fired. */
-  worldInfoActivated: { id: string; title: string; keys: string[] }[];
+  worldInfoActivated: { id: WorldEntryId; title: string; keys: string[] }[];
   /** Budget-kept keyword lore delivered at an active system anchor; absent on older traces. */
   worldInfoDynamicEntries?: Pick<AssembleWorldEntry, "id" | "title" | "position">[];
   matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
@@ -791,7 +791,7 @@ export const assembleTraceSchema = z.strictObject({
   dynamicSections: z.array(z.string()),
   worldInfoIncluded: z.number(),
   worldInfoDropped: z.array(z.strictObject({ id: z.string(), reason: z.literal("budget") })),
-  worldInfoActivated: z.array(z.strictObject({ id: z.string(), title: z.string(), keys: z.array(z.string()) })),
+  worldInfoActivated: z.array(z.strictObject({ id: typeIdSchema(ID_PREFIX.worldEntry), title: z.string(), keys: z.array(z.string()) })),
   worldInfoDynamicEntries: z
     .array(z.strictObject({ id: typeIdSchema(ID_PREFIX.worldEntry), title: z.string(), position: z.enum(ENTRY_POSITIONS) }))
     .exactOptional(),

@@ -32,9 +32,8 @@
 // to be imprecise in for a ceiling nobody legitimate approaches.
 
 import type { PluginId } from "@orb/kit/ids";
+import { MS_PER_HOUR } from "@orb/kit/time";
 import type { PluginRateFloor } from "../contract/ops.ts";
-
-const MS_PER_HOUR = 3_600_000;
 
 /** `net.fetch` calls per plugin per hour. One every 10 seconds sustained — above any human browse cadence
  *  (a hub plugin's searches, page flips and detail opens are all one text call each, and the original 120

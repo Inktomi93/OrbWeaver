@@ -36,6 +36,7 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
@@ -75,7 +76,6 @@ const CONFLICT = 409;
 const NOT_FOUND = 404;
 const OK = 200;
 const FOUND = 302;
-const MS_PER_SECOND = 1000;
 const PKCE_METHOD = "S256";
 
 const LOGIN_ROUTE = "/api/auth/login";

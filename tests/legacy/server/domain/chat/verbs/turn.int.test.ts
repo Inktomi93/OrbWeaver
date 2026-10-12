@@ -5,6 +5,7 @@
 // @orb-waive-file no-test-fabrication({ terminalToolCalls: readonly { name: string; arguments: string }[] | null }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
+import { buildChatToolOps } from "#server/entry/compose/chat.ts";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
 // arbitrate → driveRound; the group round (N speakers), @mention force, auto-mode chaining, send's solo
@@ -4155,15 +4156,13 @@ function toolDeclaringTeacher(name: string): NonNullable<ChatContext["teaching"]
   return { id: "test.attach", order: 1, collect: () => Promise.resolve({ injections: [], toolNames: [name] }) };
 }
 
-/** The tool-use ops the attach path needs: resolve the declared names into the opaque `ChatToolSet`, then
- *  project that set into neutral definitions. No fabrication — `ChatToolSet` is `unknown` by contract (chat
- *  never narrows it), so a fake owns its own shape and narrows it back on the way out. */
+/** The attach fixture carries typed definitions and an executor in the same resolved set. */
 function fakeChatToolOps(): NonNullable<ChatContext["tools"]> {
   return {
-    resolveTools: (_driverUserId, names) => ({ names }),
-    toToolDefinitions: (set) =>
-      (set as { readonly names: readonly string[] }).names.map((n) => ({ name: n, description: "d", parameters: { type: "object" as const }, inputShape: {} })),
-    prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
+    resolveTools: (_driverUserId, names) => ({
+      toToolDefinitions: () => names.map((name) => ({ name, description: "d", parameters: { type: "object" as const }, inputShape: {} })),
+      prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
+    }),
   };
 }
 
@@ -4229,14 +4228,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
     invoke: () => Promise.resolve("ok"),
     resolveInstallerRole: () => Promise.resolve("host"),
   });
-  // The tool ops wired the way `entry/compose/chat.ts::buildChatToolOps` wires them: chat's opaque
-  // `ChatToolSet` IS the registry's `ResolvedToolSet`, round-tripped through this seam.
-  const toolOps: NonNullable<ChatContext["tools"]> = {
-    resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
-    // @orb-waive no-test-fabrication(ReturnType<typeof toolUse.resolveTools>): baselined when the gate widened to value casts; burn-down item 906.
-    toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
-    prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
-  };
+  const toolOps = buildChatToolOps(toolUse, (userId) => Promise.resolve(principal(userId)));
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
@@ -4276,12 +4268,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
   toolUse.registerPluginTool(specFor(host, "the host's copy"));
 
   const requests: unknown[] = [];
-  const toolOps: NonNullable<ChatContext["tools"]> = {
-    resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
-    // @orb-waive no-test-fabrication(ReturnType<typeof toolUse.resolveTools>): baselined when the gate widened to value casts; burn-down item 906.
-    toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
-    prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
-  };
+  const toolOps = buildChatToolOps(toolUse, (userId) => Promise.resolve(principal(userId)));
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 

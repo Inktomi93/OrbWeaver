@@ -19,9 +19,9 @@
 // at all) is the domain-resolved participants-only recipient set, which no cooldown state can weaken.
 
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import type { NotifyFloor } from "../contract/ops.ts";
 
-const MS_PER_SECOND = 1000;
 const COOLDOWN_MS = AUTOMATION_NOTICE_COOLDOWN_SECONDS * MS_PER_SECOND;
 /** The HARD ceiling on tracked (plugin × chat) pairs, and therefore the whole memory cost of this belt.
  *

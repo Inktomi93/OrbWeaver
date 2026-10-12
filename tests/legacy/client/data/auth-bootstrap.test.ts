@@ -59,6 +59,11 @@ test("fetchAuthMe returns the parsed wire shape; a non-ok status throws", async 
   await expect(fetchAuthMe()).rejects.toThrow("HTTP 500");
 });
 
+test("fetchAuthMe rejects a malformed successful response", async () => {
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ authenticated: true }), { status: 200 })));
+  await expect(fetchAuthMe()).rejects.toThrow();
+});
+
 test("login posts a urlencoded FORM body (not JSON) with same-origin credentials", async () => {
   let seen: RequestInit | undefined;
   vi.stubGlobal("fetch", (_url: string, init?: RequestInit) => {

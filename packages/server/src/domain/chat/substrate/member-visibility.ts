@@ -366,11 +366,7 @@ export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[
       continue;
     }
     const scrubberKey = row.generationId ?? row.messageId;
-    let scrubber = scrubbers.get(scrubberKey);
-    if (scrubber === undefined) {
-      scrubber = createHiddenSpanStreamScrubber();
-      scrubbers.set(scrubberKey, scrubber);
-    }
+    const scrubber = scrubbers.getOrInsertComputed(scrubberKey, () => createHiddenSpanStreamScrubber());
     const safe = scrubber.push(row.delta);
     if (safe.length > 0) {
       out.push({ ...row, delta: safe });

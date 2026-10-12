@@ -130,11 +130,7 @@ export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<s
   const buckets = new Map<string, { ttft: number[]; gen: number[] }>();
   for (const r of rows) {
     const key = modelLatencyKey(r.model, r.provider ?? UNKNOWN_PROVIDER);
-    let b = buckets.get(key);
-    if (b === undefined) {
-      b = { ttft: [], gen: [] };
-      buckets.set(key, b);
-    }
+    const b = buckets.getOrInsertComputed(key, () => ({ ttft: [], gen: [] }));
     if (r.ttft !== null && r.ttft >= 0) {
       b.ttft.push(r.ttft);
     }
