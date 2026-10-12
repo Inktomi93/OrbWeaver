@@ -69,12 +69,10 @@ the raw libs, so an app→raw-primitive import fails to resolve (physics). Full 
 `UI-Primitives-and-Reuse.md` + `UI-Architecture-and-Layout.md`.
 
 **Every importable module is a DIRECTORY with `index.ts`** (front-door = folder; internal files stay flat
-and are imported by a one-level relative path or by `#src/<path>`). `kit`/`contracts`/`db`/`server`/`client`
-share ONE resolution map — `exports: { ".": "./src/index.ts", "./*": "./src/*/index.ts" }`,
-`imports: { "#*": "./src/*/index.ts", "#src/*": "./src/*" }` —
-that works at any depth and never needs editing: a module grows from one file to many with no change to
-its import path or the map. (`ui` is the deliberate exception: an explicit per-primitive `exports` map —
-the sealed surface is the export list itself; consumers import `@orb/ui/<primitive>` only.)
+and are imported by a one-level relative path or by `#src/<path>`). Each package's `exports` map lists its
+public doors by hand (D318): a door is a module another package uses, and a test-only seam is a declared testing
+door. The `imports` map keeps `{ "#*": "./src/*/index.ts", "#src/*": "./src/*" }` for the package's own use. An
+import of an undeclared path fails to resolve, and knip reports a declared export no production package uses.
 Consumers never see the `index.ts` (`@orb/kit/ids`, not `@orb/kit/ids/index`). This avoids the flat-vs-dir
 special-casing that rots: Node's `exports` has **no directory-index and no file-existence fallback** (an
 array target resolves to the first *syntactically valid* entry, not the first existing file), so a mixed

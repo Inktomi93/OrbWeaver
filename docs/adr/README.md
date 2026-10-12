@@ -264,3 +264,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D315 | [Persona pointers have one writer each, the default decides new chats, and the pin holds through its chat](0315-persona-pointers-one-writer-pin-read-through-chat.md) | active |
 | D316 | [Test setup stays inline; test duplication is held by a ratchet, never swept](0316-test-setup-stays-inline-under-a-cpd-ratchet.md) | active |
 | D317 | [Commit runs Biome and typecheck; CI is the verdict](0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md) | active |
+| D318 | [Package exports list their public doors by hand](0318-package-exports-list-public-doors.md) | active |
