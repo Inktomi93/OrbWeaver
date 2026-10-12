@@ -9,8 +9,9 @@
 
 // @orb-waive-file no-test-fabrication({ count: number; events: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ count: number; events: { seq: number; event: Record<string, unknown> }[] }): baselined when the gate widened to value casts; burn-down item 906.
+import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/observability/debug";
 import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
@@ -21,14 +22,26 @@ import { createRpgTraceInspector } from "#server/entry/compose/debug-inspectors.
 
 const TOKEN = "debug-secret-token";
 
+const RECORD: RpgTraceRecord = {
+  seq: 1,
+  at: 1,
+  event: {
+    phase: "tool",
+    chatId: mintTypeId(ID_PREFIX.chat),
+    turnId: mintTypeId(ID_PREFIX.chatTurn),
+    calls: [{ name: "roll_dice", args: "{}", verdict: "applied", issues: [] }],
+    vehicle: "folded extraction",
+  },
+};
+
 /** A stub inspector that records the last filter it received and returns a fixed event list. */
 function stubInspector(): { inspector: RpgTraceInspector; lastFilter: () => unknown } {
   let seen: unknown;
   return {
     inspector: {
-      recent: (filter): readonly object[] => {
+      recent: (filter): readonly RpgTraceRecord[] => {
         seen = filter;
-        return [{ phase: "tool", name: "roll_dice" }];
+        return [RECORD];
       },
     },
     lastFilter: () => seen,
@@ -50,7 +63,7 @@ describe("/api/_debug/rpg/traces", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { count: number; events: unknown[] };
     expect(body.count).toBe(1);
-    expect(body.events[0]).toEqual({ phase: "tool", name: "roll_dice" });
+    expect(body.events[0]).toEqual(RECORD);
   });
 
   test("forwards chatId + turnId + limit query filters to the recorder", async () => {
