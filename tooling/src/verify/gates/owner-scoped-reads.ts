@@ -8,6 +8,11 @@
 // control-flow-dependent (the cross-tenant behavioral sweep stays that proof). A post-fetch arm is valid only
 // when a rejecting guard compares that exact result (or a one-hop alias) with the caller's owner binding; a
 // self-comparison, unrelated owner, or unused comparison is RED.
+// A JOINED owner-scoped table is a candidate too: it needs an owner predicate on itself, or a conjunct
+// `eq(J.col, T.col)` along a declared FK from another bound row that points AT it (Spine-Identity-and-Auth
+// §2b), and then the by-id rule above. A join on a caller value or along a fan-out FK is the hole. The verb
+// is judged by its drizzle declaration; an unresolved one fails closed. Owner predicates are read through one
+// hop of a predicate helper, and only when every value the helper returns carries them.
 //
 // MARKER TRANSLATION COMPLETE (#1944, 2026-09-11): this conversion dropped the legacy function-level
 // `@owner-scope-ok` comment marker and the translation lane rewrote every live site into the central
@@ -39,13 +44,15 @@
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import type { ReadAnchor } from "../contract/tenancy.ts";
+import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { enclosingFn, hasPostFetchFilter, predicatesOwnId, whereArgOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents, reportBlindWhenEmpty } from "../lib/tenancy-scope.ts";
+import { chainsThroughForeignKey, predicateHolds, readAnchorOf } from "../lib/tenancy-join.ts";
+import { enclosingFn, hasPostFetchFilter, predicatesOwnId, predicatesTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
+import { foreignKeyEdges, ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
 
 const OWNER_COL = "ownerId";
 
@@ -69,42 +76,53 @@ const BLIND =
   "schema shape or the class registry moved, and a gate that matches nothing reports ✓ forever). Re-derive " +
   "it in tooling/src/verify/gates/table-scoping-class.ts";
 
-/** A candidate the WALK records without judging — the schema fact (and therefore the (a)-class set) is not
- *  finished until `evaluate`, so the ownership question is deferred to that phase. Pure-AST fields only. */
-interface ReadCandidate {
-  readonly callNode: Node; // the `.from(ident)` call
-  readonly argNode: Identifier;
-  readonly ident: string;
+const JOIN_MESSAGE =
+  "a join binds an ownerId-scoped table with NO FK chain and NO owner predicate — the cross-tenant read hole " +
+  "through a join: the joined row is whatever the ON condition names, whoever owns it. A joined owner-scoped " +
+  "table inherits scope only along a declared foreign key from another row of the read (Spine-Identity-and-Auth " +
+  "§2b), or by an `eq(T.ownerId, …)` predicate on the joined table itself";
+
+/** The schema answers `evaluate` needs, derived once per run. */
+interface ReadScope {
+  readonly ownerTables: ReadonlySet<string>;
+  readonly schemaTables: ReadonlySet<string>;
+  readonly fkEdges: ReadonlySet<string>;
 }
 
-/** True when this candidate is a bare by-id read of an owner-scoped table with NO safe arm — the finding. */
-function isUnscopedRead(candidate: ReadCandidate): boolean {
-  const where = whereArgOf(candidate.callNode);
-  if (where === undefined) {
-    return false; // no WHERE at all: a full-table/list read, not the by-id shape this gate owns
-  }
-  const whereText = where.getText();
-  // BY-ID: `eq(T.id, …)` or `inArray(T.id, …)` — both are "whatever id the caller supplies comes back".
-  if (!predicatesOwnId(whereText, candidate.ident)) {
-    return false;
-  }
-  if (whereText.includes(OWNER_COL)) {
-    return false; // arm 1 — the owner is IN THE WHERE
-  }
-  return !hasPostFetchFilter(candidate.callNode, enclosingFn(candidate.callNode)); // arm 2 — the F3-AUTHZ post-fetch filter
+// The join rows' shared schema: `chats` is (b) membership-scoped; `personas` and `workloads` are (a)
+// ownerId-scoped. `chats.anchorPersonaId -> personas.id` points AT the persona (a chain), while
+// `workloads.chatId -> chats.id` points away from the workload (a fan-out to every owner's workloads).
+const CHAT_PERSONA_SCHEMA = {
+  "packages/db/src/schema/chat.ts":
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const personas = sqliteTable("personas", { id: text("id").primaryKey(), ownerId: text("owner_id") });\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey(), title: text("title"), anchorPersonaId: text("anchor_persona_id").references(() => personas.id) });\nexport const workloads = sqliteTable("workloads", { id: text("id").primaryKey(), ownerId: text("owner_id"), chatId: text("chat_id").references(() => chats.id) });\n',
+} as const;
+const PERSONA_READ_PATH = "packages/server/src/domain/persona/persistence/queries.ts";
+const PERSONA_READ_HEAD = 'import { and, eq, or } from "drizzle-orm";\nimport { chats, personas, workloads } from "@orb/db";\n';
+
+/** One persona read over the shared schema; `chain` is the drizzle builder text after `db.select()`. */
+function personaRead(chain: string): Readonly<Record<string, string>> {
+  return {
+    ...CHAT_PERSONA_SCHEMA,
+    [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}export async function loadPersona(db: Db, chatId: string, personaId: string, ownerId: string) {\n  return db.select()${chain}.limit(1);\n}\n`,
+  };
 }
 
-/** A `X.from(ident)` call's identifier argument, or undefined for every other shape. */
-function readCandidateOf(node: Node): ReadCandidate | undefined {
-  if (!node.isKind(SyntaxKind.CallExpression)) {
+/** The finding message for an owner-scoped table this read binds, or undefined when one safe arm holds. */
+function unscopedReadMessage(anchor: ReadAnchor, ident: string, scope: ReadScope): string | undefined {
+  const where = whereArgOf(anchor.call);
+  const on = anchor.kind === "join" ? anchor.on : undefined;
+  if (predicateHolds([on, where], (conjunct) => predicatesTableColumn(conjunct, ident, OWNER_COL))) {
+    return; // arm 1 — the owner predicate names this exact table
+  }
+  if (anchor.kind === "join" && !chainsThroughForeignKey([on, where], ident, scope.schemaTables, scope.fkEdges)) {
+    return JOIN_MESSAGE;
+  }
+  // BY-ID: `eq(T.id, …)` or `inArray(T.id, …)` — both are "whatever id the caller supplies comes back". With
+  // no WHERE, or none on the id, it is a list read (from) or a row the FK chain already selected (join).
+  if (where === undefined || !predicatesOwnId(where.getText(), ident)) {
     return;
   }
-  const callee = node.getExpression();
-  if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === "from")) {
-    return;
-  }
-  const arg = node.getArguments()[0];
-  return arg?.isKind(SyntaxKind.Identifier) === true ? { callNode: node, argNode: arg, ident: arg.getText() } : undefined;
+  return hasPostFetchFilter(anchor.call, enclosingFn(anchor.call)) ? undefined : MESSAGE; // arm 2 — the F3-AUTHZ post-fetch filter
 }
 
 export const gate = defineGate({
@@ -120,15 +138,16 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const candidates: ReadCandidate[] = [];
+    // The walk records anchors without judging: the schema fact, and so the (a)-class set, is ready only in `evaluate`.
+    const anchors: ReadAnchor[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            const candidate = readCandidateOf(node);
-            if (candidate !== undefined) {
-              candidates.push(candidate);
+            const anchor = readAnchorOf(node);
+            if (anchor !== undefined) {
+              anchors.push(anchor);
             }
           },
         },
@@ -136,13 +155,23 @@ export const gate = defineGate({
       evaluate: () => {
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
-        const ownerTableIdents = ownerScopedTableIdents(schemaFact.value);
-        for (const candidate of candidates) {
-          if (ownerTableIdents.has(candidate.ident) && isUnscopedRead(candidate)) {
-            ctx.report.node(candidate.argNode, { token: candidate.ident, offset: 0, message: MESSAGE });
+        const scope: ReadScope = {
+          ownerTables: ownerScopedTableIdents(schemaFact.value),
+          schemaTables: schemaTableIdents(schemaFact.value),
+          fkEdges: foreignKeyEdges(schemaFact.value),
+        };
+        for (const anchor of anchors) {
+          const target = tableTargetOf(anchor.table, scope.ownerTables, scope.schemaTables);
+          // The verb is judged by its declaration: an unresolved one fails closed, only a provably foreign one is acquitted.
+          if (target?.kind !== "in-class" || readDrizzleClientCall(anchor.call).kind === "foreign") {
+            continue;
+          }
+          const message = unscopedReadMessage(anchor, target.ident, scope);
+          if (message !== undefined) {
+            ctx.report.node(anchor.table, { token: target.ident, offset: 0, message });
           }
         }
-        reportBlindWhenEmpty(ctx, schemaFact, ownerTableIdents, BLIND);
+        reportBlindWhenEmpty(ctx, schemaFact, scope.ownerTables, BLIND);
       },
     };
   },
@@ -247,6 +276,70 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the SET form of the same hole — `inArray(T.id, ids)` is exactly as unscoped as `eq`, and a gate covering only `eq` would ship a confident blind spot",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/queries.ts":
+          'import * as schema from "@orb/db";\nexport async function loadCard(db: Db, id: string) {\n  return db.select().from(schema.characters).where(eq(schema.characters.id, id)).limit(1);\n}\n',
+      },
+      expect: { count: 1 },
+      why: "a table named through `import * as schema` is the same owner-scoped table: the anchor resolves it by its exported member, not by an identifier argument",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(personas).where(eq(personas.id, personaId))"),
+      expect: { count: 1 },
+      why: "the positive control over the join rows' own schema: a bare by-id read of the persona table flags, so a silent join row below is the join reader's verdict, not a fixture artifact",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, eq(personas.id, personaId)).where(eq(chats.id, chatId))"),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "a JOINED owner-scoped table bound to a caller-supplied id returns whichever persona the caller names; the chat filter scopes the chat row, never the joined persona",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).leftJoin(personas, eq(personas.id, personaId)).where(eq(chats.id, chatId))"),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "the leftJoin spelling of the caller-id join: a left join still returns the named persona beside the chat row",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, eq(personas.id, chats.title)).where(eq(chats.id, chatId))"),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "a column-to-column join is a chain only through a DECLARED foreign key; `chats.title` is no reference to a persona, so the joined row is not inherited from the chat",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, eq(personas.id, chats.anchorPersonaId)).where(eq(personas.id, personaId))"),
+      expect: { count: 1 },
+      why: "the FK chain does not scope a joined table the WHERE selects by its OWN id: any chat anchored on the named persona returns it, so this is the by-id hole on the joined table",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(workloads, eq(workloads.chatId, chats.id)).where(eq(chats.id, chatId))"),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "a join along an FK that points AWAY from the joined table fans out: every owner's workload referencing the chat comes back, so the reverse edge is no inheritance",
+    },
+    {
+      mode: "types",
+      files: personaRead(
+        ".from(chats).innerJoin(personas, or(eq(personas.id, chats.anchorPersonaId), eq(personas.id, personaId))).where(eq(chats.id, chatId))",
+      ),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "an FK term inside `or(…)` binds nothing: the other disjunct admits the caller-named persona, so only a conjunct can carry the chain",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_PERSONA_SCHEMA,
+        [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}function ownedPersona(ownerId?: string) {\n  if (ownerId === undefined) {\n    return eq(personas.id, personas.id);\n  }\n  return eq(personas.ownerId, ownerId);\n}\nexport async function loadPersona(db: Db, chatId: string, personaId: string, ownerId: string) {\n  return db.select().from(chats).innerJoin(personas, eq(personas.id, personaId)).where(and(eq(chats.id, chatId), ownedPersona(ownerId))).limit(1);\n}\n`,
+      },
+      expect: { count: 1, messageIncludes: "join" },
+      why: "a predicate helper proves the owner only when EVERY value it can return carries it; a helper with an unscoped branch is not an owner predicate",
+    },
   ],
   mustPass: [
     {
@@ -328,6 +421,37 @@ export const gate = defineGate({
           'import { characters } from "@orb/db";\nexport async function del(db: Db, id: string) {\n  return db.delete(characters).where(eq(characters.id, id));\n}\n',
       },
       why: "DECLARED LIMIT: READS only — a `db.delete(T)`/`db.update(T)` is invisible to THIS gate by construction. The write half is the sibling gate `owner-scoped-writes`, which owns that shape at its own waiver position; a write must never silence itself with a read-side waiver",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, eq(personas.id, chats.anchorPersonaId)).where(eq(chats.id, chatId))"),
+      why: "the FK-chain join (the shipped pinned-persona read): the persona is the one the chat row references through its declared FK, and the chat row is membership-scoped at the verb",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, and(eq(personas.id, personaId), eq(personas.ownerId, ownerId))).where(eq(chats.id, chatId))"),
+      why: "a caller-id join that carries the owner predicate on the joined table is scoped: a foreign persona never joins",
+    },
+    {
+      mode: "types",
+      files: personaRead(".from(chats).innerJoin(personas, and(eq(chats.id, chatId), eq(personas.id, chats.anchorPersonaId)))"),
+      why: "the FK chain inside an `and(…)` conjunct of the ON condition binds the persona to the chat row exactly as a lone term does",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_PERSONA_SCHEMA,
+        [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}const ownedPersona = (ownerId: string, personaId: string) => and(eq(personas.id, personaId), eq(personas.ownerId, ownerId));\nexport async function loadPersona(db: Db, chatId: string, personaId: string, ownerId: string) {\n  return db.select().from(chats).innerJoin(personas, ownedPersona(ownerId, personaId)).where(eq(chats.id, chatId)).limit(1);\n}\n`,
+      },
+      why: "an owner predicate a helper returns on its only path scopes the join exactly as the inline predicate does (the discovery theme-cluster reads)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_PERSONA_SCHEMA,
+        [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}class Rows {\n  innerJoin(table: object, on: object): Rows {\n    return this;\n  }\n}\nexport function shape(rows: Rows, personaId: string) {\n  return rows.innerJoin(personas, eq(personas.id, personaId));\n}\n`,
+      },
+      why: "the verb is judged by its declaration, not its name: an `innerJoin` a local class declares binds no table into a drizzle read",
     },
   ],
 });

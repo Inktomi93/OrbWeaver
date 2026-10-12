@@ -173,6 +173,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // The two OWNER reads the vector substrate needs to pick a space: a card's owner (`characters.ownerId`, a
   // plain column read — the character front door is Principal-scoped and a sweep has none) and an asset's.
   const loadCharacterOwner = async (characterId: Parameters<typeof character.loadCardText>[0]): Promise<UserId | null> => {
+    // @orb-waive owner-scoped-reads(charactersTable): a trusted system consumer (D20) — the embeddings indexer and corpus sweep read a card's owner to choose whose vector space the write lands in; no Principal or caller-supplied id reaches it. Ends if a user-facing door calls this op.
     const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
     return rows[0]?.ownerId ?? null;
   };

@@ -1,7 +1,8 @@
 // The typed surface of the tenancy READER (`lib/tenancy-read.ts`) — the shape the (a)-class tenancy gates
-// (`owner-scoped-writes`, `owner-scoped-upserts`, `table-scoping-class`) judge their verdicts off. Homed in
-// contract/ per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5): `lib/` is plumbing, and an
+// (`owner-scoped-reads`, `owner-scoped-writes`, `owner-scoped-upserts`, `table-scoping-class`) judge their
+// verdicts off. Homed in contract/ per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5): `lib/` is plumbing, and an
 // exported shape declared there is `no-inline-types`-RED, exactly as a domain substrate exporting a type is.
+import type { CallExpression, Node } from "ts-morph";
 
 /** What a drizzle statement's table argument resolved to. The three READ verdicts a tenancy gate must judge
  *  differently — the fourth state (the argument is not an identifier at all) is `undefined`, because a
@@ -17,3 +18,9 @@ export type TableTarget =
    *  alias chain past the reader's depth cap or through a cycle, or an initializer shape it cannot read. NOT
    *  a clean answer — an unreadable target is an unproven one, so the gates report it rather than exempt it. */
   | { readonly kind: "unresolvable"; readonly ident: string };
+
+/** A table a drizzle read statement binds: the `.from(T)` row source, or a joined table with its ON
+ *  condition (`undefined` for a `crossJoin`, which binds every row of `T`). */
+export type ReadAnchor =
+  | { readonly kind: "from"; readonly call: CallExpression; readonly table: Node }
+  | { readonly kind: "join"; readonly call: CallExpression; readonly table: Node; readonly on: Node | undefined };

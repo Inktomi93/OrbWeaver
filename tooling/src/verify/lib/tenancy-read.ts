@@ -12,9 +12,11 @@ import type { CallExpression, Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess, referencesModuleExport } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
+const DRIZZLE_MODULE_PREFIX = "drizzle-orm";
+const ALIAS_OPERATOR = "alias";
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
 const MAX_ALIAS_DEPTH = 8;
@@ -34,8 +36,22 @@ function localAliasInitializers(identifier: Node): readonly Node[] {
       return [];
     }
     const initializer = declaration.getInitializer();
-    return initializer?.isKind(SyntaxKind.Identifier) === true ? [initializer] : [];
+    if (initializer?.isKind(SyntaxKind.Identifier) === true) {
+      return [initializer];
+    }
+    // A drizzle `alias(T, "name")` is the same table under a second SQL name; a self-join reads `T` through it.
+    const aliased = initializer?.isKind(SyntaxKind.CallExpression) === true ? drizzleAliasTarget(initializer) : undefined;
+    return aliased === undefined ? [] : [aliased];
   });
+}
+
+/** Is this call's callee the drizzle-orm export `name`, by its import (named or namespace), never its spelling? */
+export function callsDrizzleOperator(call: CallExpression, name: string): boolean {
+  return referencesModuleExport(call.getExpression(), name, (specifier) => specifier.startsWith(DRIZZLE_MODULE_PREFIX));
+}
+
+function drizzleAliasTarget(call: CallExpression): Node | undefined {
+  return callsDrizzleOperator(call, ALIAS_OPERATOR) ? call.getArguments()[0] : undefined;
 }
 
 /** The DECLARED table name this identifier traces to, or undefined when the walk cannot reach one. ONE walk
@@ -100,6 +116,16 @@ export function tableTargetOf(node: Node | undefined, classTableIdents: Readonly
     return { kind: "unresolvable", ident: node.getText() };
   }
   return classTableIdents.has(traced) ? { kind: "in-class", ident: node.getText() } : { kind: "other-table" };
+}
+
+/** The DECLARED table identifier a table reference names (a bare, aliased or namespace-spelled binding), or
+ *  undefined when it traces to no table the schema declares. */
+export function declaredTableOf(node: Node, schemaTableIdents: ReadonlySet<string>): string | undefined {
+  const namespaced = namespacedTableName(node);
+  if (namespaced !== undefined) {
+    return schemaTableIdents.has(namespaced) ? namespaced : undefined;
+  }
+  return node.isKind(SyntaxKind.Identifier) ? tracedTable(node, schemaTableIdents, new Set(), 0) : undefined;
 }
 
 /** Is the statement this table anchor starts provably a DRIZZLE write? The fence the unresolvable arm needs:

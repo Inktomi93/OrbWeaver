@@ -60,7 +60,7 @@
 //   with it. That member therefore declares the DRIZZLE-SCHEMA family's shared population while belonging
 //   to THIS family: the classification data is tenancy's, the files it reads are the schema's, and the two
 //   are deliberately not merged.
-import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import type { SchemaForeignKey, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
 import { TABLE_SCOPING_ROWS } from "./tenancy-scope-rows.ts";
 
@@ -133,6 +133,41 @@ export function membershipScopedTableIdents(model: SchemaModel): ReadonlySet<str
  *  derivation, same home: a table that stops being declared leaves both sets at once. */
 export function schemaTableIdents(model: SchemaModel): ReadonlySet<string> {
   return tableIdents(model, () => true);
+}
+
+function parentColumnKey(parent: SchemaForeignKey["parent"]): string {
+  return parent.kind === "population-column"
+    ? foreignKeyColumnKey(parent.column.table.declarationName, parent.column.propertyName)
+    : foreignKeyColumnKey(parent.exportedTable, parent.propertyName);
+}
+
+/** One end of a foreign-key edge as {@link foreignKeyEdges} keys it: the table's declared identifier and the
+ *  column's property name, the two names a drizzle column read (`personas.id`) resolves to. */
+export function foreignKeyColumnKey(tableIdent: string, propertyName: string): string {
+  return `${tableIdent}.${propertyName}`;
+}
+
+/** Every declared foreign key as `child->parent` column keys, from both the column-level `.references()` and
+ *  the table-level `foreignKey()` forms. This is the edge set the FK-chain inheritance (Spine-Identity-and-Auth
+ *  §2b) walks: a joined owner-scoped table inherits a bound row's scope only along an edge that points AT it. */
+export function foreignKeyEdges(model: SchemaModel): ReadonlySet<string> {
+  const edges = new Set<string>();
+  for (const table of model.tables) {
+    for (const column of table.columns) {
+      if (column.foreignKey !== null) {
+        edges.add(`${foreignKeyColumnKey(table.identity.declarationName, column.identity.propertyName)}->${parentColumnKey(column.foreignKey.parent)}`);
+      }
+    }
+    for (const foreignKey of table.foreignKeys) {
+      foreignKey.children.forEach((child, index) => {
+        const parent = foreignKey.parents[index];
+        if (parent !== undefined) {
+          edges.add(`${foreignKeyColumnKey(child.table.declarationName, child.propertyName)}->${parentColumnKey(parent)}`);
+        }
+      });
+    }
+  }
+  return edges;
 }
 
 // biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting reportBlindWhenEmpty to a sibling
