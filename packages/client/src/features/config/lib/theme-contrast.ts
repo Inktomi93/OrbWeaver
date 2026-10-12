@@ -1,13 +1,13 @@
 // WCAG contrast (Tier-2 readability feedback) for the theme editor — split out of theme-editor-model so
-// the model stays DOM-FREE (node-testable). Browser-resolved: any CSS color (oklch / relative / hex /
-// named) → rgb via getComputedStyle, then the kit's WCAG ratio. Runs only in the editor (a settings
-// surface, not a hot path). Returns null when a color can't be resolved (SSR/degenerate) — the caller
+// the model stays DOM-FREE (node-testable). Browser-resolved: the browser resolves any CSS colour (hex /
+// named / hsl → `rgb()`, but oklch / oklab stay `oklch()` / `oklab()`) via getComputedStyle, the kit's
+// colour parser reads that string, and the kit's WCAG ratio rates it. Runs only in the editor (a settings
+// surface, not a hot path). Returns null when a colour can't be resolved (SSR/degenerate) — the caller
 // shows no badge.
 
+import { parseCssColorToSrgb } from "@orb/kit/safe-color";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
-
-const RGB_RE = /rgba?\(([^)]+)\)/;
 
 function resolveRgb(color: string): Rgb | null {
   if (typeof document === "undefined") {
@@ -19,13 +19,7 @@ function resolveRgb(color: string): Rgb | null {
   document.body.appendChild(el);
   const computed = getComputedStyle(el).color;
   el.remove();
-  const match = RGB_RE.exec(computed);
-  if (match?.[1] === undefined) {
-    return null;
-  }
-  const parts = match[1].split(",").map((s) => Number.parseFloat(s));
-  const [r, g, b] = parts;
-  return r === undefined || g === undefined || b === undefined ? null : { r, g, b };
+  return parseCssColorToSrgb(computed);
 }
 
 /** The WCAG contrast ratio (1–21) between two CSS colors, or null if either can't be resolved. */

@@ -10,7 +10,7 @@
 //  - a NON-claiming contributor is ignored — the section's own band renders (the §3.3 regression floor);
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
-import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
@@ -203,12 +203,9 @@ for (const theme of SHIPPED_THEMES) {
     await expect(chevron).toHaveCount(1);
     await expect
       .poll(async () => (await pixelContrast(page, chevron)).ratio, { message: `${theme} overflow chevron vs the strip fill` })
-      .toBeGreaterThanOrEqual(UI_GRAPHIC_MIN);
+      .toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
 }
-
-/** WCAG 1.4.11 Non-text Contrast — the floor a meaningful graphic owes its adjacent colour. */
-const UI_GRAPHIC_MIN = 3;
 
 /** The story's caption census (4 state-rail cells + 2 header tabs) — stated so a story edit that drops a cell cannot quietly
  *  shrink the caption sweep to a green zero. */

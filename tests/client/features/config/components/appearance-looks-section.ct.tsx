@@ -305,14 +305,22 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
 });
 
 // The builder's non-blocking WCAG badge: each picked text colour is rated against its surface by the kit's
-// ratio and flags "hard to read" below AA. Hex values, because the badge reads the browser's rgb() resolution.
-const READABLE = { ...OWNED, id: "theme_readable", name: "Readable", override: { background: "#101010", accent: "#f0f0f0" } };
-const WASHED_OUT = { ...OWNED, id: "theme_washed", name: "Washed out", override: { background: "#808080", accent: "#8a8a8a" } };
+// ratio and flags "hard to read" below AA. The product's own picks are oklch (every DEFAULT_THEME_FORM colour),
+// which the browser resolves to an oklch() string, so oklch is the primary arm and hex the second.
+const readable = (id: string, name: string, background: string, accent: string): typeof OWNED => ({ ...OWNED, id, name, override: { background, accent } });
+const READABLE_OKLCH = readable("theme_readable_oklch", "Readable oklch", "oklch(0.158 0.006 60)", "oklch(0.955 0.004 75)");
+const WASHED_OKLCH = readable("theme_washed_oklch", "Washed oklch", "oklch(0.55 0.01 60)", "oklch(0.58 0.01 60)");
+const READABLE_HEX = readable("theme_readable_hex", "Readable hex", "#101010", "#f0f0f0");
+const WASHED_HEX = readable("theme_washed_hex", "Washed hex", "#808080", "#8a8a8a");
 const ACCENT_LABEL_RE = /^Accent$/u;
+const PASSING_BADGE_RE = /^\d+\.\d:1$/u;
+const FAILING_BADGE_RE = /:1 — hard to read$/u;
 
 for (const [theme, verdict, badgeText] of [
-  [READABLE, "passes", /^\d+\.\d:1$/u],
-  [WASHED_OUT, "fails", /:1 — hard to read$/u],
+  [READABLE_OKLCH, "passes", PASSING_BADGE_RE],
+  [WASHED_OKLCH, "fails", FAILING_BADGE_RE],
+  [READABLE_HEX, "passes", PASSING_BADGE_RE],
+  [WASHED_HEX, "fails", FAILING_BADGE_RE],
 ] as const) {
   test(`the builder's Accent contrast badge ${verdict} AA for ${theme.name}`, async ({ mount, page }) => {
     await stub(page, { "settings.listThemes": () => [HEARTH, theme] });
