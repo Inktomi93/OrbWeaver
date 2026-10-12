@@ -249,7 +249,7 @@ export function opaqueUsersWrite(node: Node, rel: string): { readonly node: Node
 
 // SQL text that writes the users table, whatever the statement's shape: `insert [or …] into users`,
 // `replace into users`, `update [or …] users`.
-const RAW_USERS_WRITE = /\b(?:insert(?:\s+or\s+\w+)?\s+into|replace\s+into|update(?:\s+or\s+\w+)?)\s+[`"']?users[`"']?(?![\w])/iu;
+const RAW_USERS_WRITE = /\b(?:insert(?:\s+or\s+\w+)?\s+into|replace\s+into|update(?:\s+or\s+\w+)?)\s+[`"']?users[`"']?(?!\w)/iu;
 const SQL_TAG = "sql";
 const SQL_RAW = "raw";
 

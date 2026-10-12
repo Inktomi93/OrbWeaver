@@ -132,7 +132,7 @@ function family(name: string, input: string): Family | null {
   if (n.includes("claude-in-chrome") || n.includes("computer") || n.includes("browser")) {
     return "logged-in-chrome";
   }
-  if (name === "Bash" && /(?:playwright|puppeteer|chrome-remote-interface|chromium)/i.test(i)) {
+  if (name === "Bash" && /playwright|puppeteer|chrome-remote-interface|chromium/i.test(i)) {
     return "shell-playwright";
   }
   if (name === "Bash" && isSnapShell(input)) {
@@ -142,38 +142,38 @@ function family(name: string, input: string): Family | null {
 }
 function job(name: string, input: string, f: Family): Job {
   const s = `${name} ${input}`.toLowerCase();
-  if (f === "logged-in-chrome" && /(?:select.*browser|tab.?context|browser_id|tab_id)/.test(s)) {
+  if (f === "logged-in-chrome" && /select.*browser|tab.?context|browser_id|tab_id/.test(s)) {
     return "authenticated-browser";
   }
-  if (/(?:upload|filechooser|drop|drag)/.test(s)) {
+  if (/upload|filechooser|drop|drag/.test(s)) {
     return "chooser-drop";
   }
-  if (/(?:emulate|resize|viewport|device|touch|mobile)/.test(s)) {
+  if (/emulate|resize|viewport|device|touch|mobile/.test(s)) {
     return "mobile-emulation";
   }
-  if (/(?:new_page|list_pages|close_page|select_page|tab)/.test(s)) {
+  if (/new_page|list_pages|close_page|select_page|tab/.test(s)) {
     return "multi-tab";
   }
-  if (/(?:lighthouse|performance|trace|heap|react)/.test(s)) {
+  if (/lighthouse|performance|trace|heap|react/.test(s)) {
     return "lighthouse-perf-react";
   }
-  if (/(?:network|har|request|response|header|body)/.test(s)) {
+  if (/network|har|request|response|header|body/.test(s)) {
     return "network-inspection";
   }
-  if (/(?:console|issue|snapshot|accessib|aria)/.test(s)) {
+  if (/console|issue|snapshot|accessib|aria/.test(s)) {
     return "console-a11y";
   }
-  if (/(?:navigate|goto|map|route|page)/.test(s)) {
+  if (/navigate|goto|map|route|page/.test(s)) {
     return "map-navigation";
   }
-  if (/(?:evaluate|javascript|dom|script)/.test(s)) {
+  if (/evaluate|javascript|dom|script/.test(s)) {
     return "dom-js";
   }
   return "other";
 }
 function outcome(item: Content, rec: RecordLine): Outcome {
   const s = `${text(item.content)}\n${text(rec.toolUseResult)}`;
-  return item.is_error || /(?:exit code [1-9]|timed out|selected page.*closed|tool_use_error|error:)/i.test(s) ? "error" : "success";
+  return item.is_error || /exit code [1-9]|timed out|selected page.*closed|tool_use_error|error:/i.test(s) ? "error" : "success";
 }
 async function files(root: string): Promise<string[]> {
   try {

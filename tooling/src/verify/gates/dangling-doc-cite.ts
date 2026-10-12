@@ -124,7 +124,7 @@ const BARE_DOC_RE = /(?<![\w./+-])(?!https?\b)(?!docs\/)([A-Za-z0-9_][A-Za-z0-9_
 // one can never reach here — that half is mutually redundant with the token grammar and is kept only
 // because deleting five characters from one class would not change a verdict. `...` CAN appear (`.` is in
 // the class), and `mustPass[3]` is the row that dies without it.
-const NON_LITERAL_RE = /[*{}<>]|\.\.\.|…/u;
+const NON_LITERAL_RE = /[*{}<>…]|\.\.\./u;
 
 const ROOT_EXTS = [".ts", ".js", ".cjs", ".mjs", ".yaml", ".yml"] as const;
 const PUBLIC_EXTS = [".svg", ".css"] as const;

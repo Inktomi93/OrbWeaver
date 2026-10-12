@@ -1,10 +1,7 @@
 // The ONE reader of a Vitest/Playwright test-call SHAPE (#2027): which call expressions declare a test, and
-// through which modifier chain. Two policies ask it — `test-no-stubs` (a test that asserts nothing) and
-// `audit-client-tests` (the structural anti-patterns) — and until this module each spelled its own answer:
-// `test-no-stubs` compared the callee's TEXT against the literal set `{test, it, test.skip, it.skip}`, so
-// every other modifier form, including the call-returning `test.each(table)(name, fn)`, was never judged
-// there, while `audit-client-tests` walked the chain against the modifier vocabulary below. One vocabulary,
-// one walk, so neither consumer can drift from the other again.
+// through which modifier chain. `audit-client-tests` (the structural anti-patterns) asks it. It walks the
+// chain against the modifier vocabulary below, so the call-returning `test.each(table)(name, fn)` and the
+// tagged-template table are judged like a bare `test`. One vocabulary, one walk.
 //
 // SHAPE, NOT IDENTITY, and that is the whole contract: a test runner is an ambient/global or a fixture-bound
 // `test` whose origin varies per suite (`vitest` globals, a Playwright `test.extend` fixture), so the root is

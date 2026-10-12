@@ -164,7 +164,7 @@ export async function collectVirtualRows(page: Page): Promise<readonly SweptRow[
 // fragment to appear verbatim in the swept row text. Verbatim seeded rows (e.g. `Reply with exactly: …`) are
 // macro/markdown-free so their whole content is one fragment — the strongest possible containment; a
 // pure-macro/short-glue row contributes no distinctive fragment (id + role + order already pin its identity).
-const MACRO = /\{\{[^}]*\}\}/gu;
+const MACRO = /\{\{[^}]*\}\}/u;
 // Markdown syntax the renderer strips from the visible text (emphasis/inline-code/heading/link-bracket markers).
 // Whitespace is collapsed separately by the caller's normalize.
 const MARKDOWN_SYNTAX = /[*_`#>[\]()~]/gu;

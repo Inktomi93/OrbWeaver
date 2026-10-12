@@ -121,11 +121,10 @@ for (const viewport of [
     await expect.poll(() => trpc.count("assets.addToGallery")).toBe(1);
     // The upload landed but the picture joined nothing: the zone claims no success, and the line is the one surface.
     await expect(zone).not.toHaveAttribute("data-success", "");
-    // A retrying toHaveCount(0) passes before a late toast paints. The mutation cache's toast hook runs before
-    // the rejection reaches the zone, so two frames past the rendered line is a settled read.
+    // A retrying toHaveCount(0) would pass before a late toast paints. The mutation cache's toast hook runs before
+    // the rejection reaches the zone, so two frames past the rendered line settle it first.
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the toast hook fired before the line rendered, and two frames have painted since.
-    expect(await page.locator(TOAST_ROOT).count()).toBe(0);
+    await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
   });
 
   test(`${viewport.name}: a server refusal names the file and the server's reason on the dropzone's line`, async ({ mount, page }) => {

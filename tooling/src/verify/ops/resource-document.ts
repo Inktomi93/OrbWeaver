@@ -24,7 +24,7 @@ import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-d
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
-const FENCE_RE = /^ {0,3}(?<marker>```+|~~~+)/u;
+const FENCE_RE = /^ {0,3}(?<marker>`{3,}|~{3,})/u;
 const HEADING_RE = /^ {0,3}(?<hashes>#{1,6})\s+(?<title>.*?)\s*#*\s*$/u;
 const INLINE_LINK_RE = /\[(?<text>[^\]]*)\]\((?<target>[^()\s]+)(?:\s+"[^"]*")?\)/gu;
 const REFERENCE_LINK_RE = /^ {0,3}\[(?<label>[^\]]+)\]:\s*(?<target>\S+)/u;

@@ -57,7 +57,7 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
             onValueChange={setName}
             aria-label="Preset name"
             placeholder="Preset name"
-            // eslint-disable-next-line jsx-a11y/no-autofocus
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog opens on an explicit action; its only field takes focus
             autoFocus={true}
           />
           <DialogFooter>

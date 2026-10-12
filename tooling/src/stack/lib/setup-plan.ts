@@ -46,7 +46,7 @@ const TAILNET_SECOND_OCTET_MIN = 64;
 const TAILNET_SECOND_OCTET_MAX = 127;
 /** Adapters whose addresses other devices on the LAN cannot open: container bridges, VM host-only networks,
  *  Hyper-V switches and VPN tunnels, by their Linux, macOS and Windows names. */
-const VIRTUAL_ADAPTER_RE = /^(?:docker|br-|veth|virbr|vmnet|vboxnet|vethernet|virtualbox|vmware|utun|tailscale|zt|bridge)/iu;
+const VIRTUAL_ADAPTER_RE = /^(?:docker|br-|veth|virbr|vmnet|vboxnet|virtualbox|vmware|utun|tailscale|zt|bridge)/iu;
 
 /** The header of a `.env` setup creates. The file then holds only the keys setup writes. */
 export const SETUP_FILE_HEADER = `# Written by \`${SETUP_COMMAND}\`; run it again to change these. Every other setting is in .env.example.`;

@@ -3042,9 +3042,10 @@ test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30re
   await expect(component.locator("[data-context-bracket]:visible")).toHaveCount(1);
   await expect.poll(() => region.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
 
-  const rails = await region.locator('[data-slot="context-rail"], [data-slot="context-bracket-header"]').all();
+  const railLocator = region.locator('[data-slot="context-rail"], [data-slot="context-bracket-header"]');
   // The state rail and the header row are really there — a budget met by chrome that failed to render is not a budget met.
-  expect(rails).toHaveLength(2);
+  await expect(railLocator).toHaveCount(2);
+  const rails = await railLocator.all();
   const [regionBox, bandBox] = await Promise.all([region.boundingBox(), region.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
   if (regionBox === null || bandBox === null) {
     throw new Error("expected the region and the band to be laid out");
@@ -3083,8 +3084,9 @@ test("HUD-1 §7.1 (AMENDED): the AMBIENT-SET band's chrome stays inside the SET 
   // be measuring the other law.
   await expect(component.locator('[data-slot="rpg-takeover-header"]')).toHaveAttribute("data-compact", "false");
 
-  const rails = await component.locator('[data-slot="context-rail"], [data-slot="context-bracket-header"]').all();
-  expect(rails).toHaveLength(2);
+  const railLocator = component.locator('[data-slot="context-rail"], [data-slot="context-bracket-header"]');
+  await expect(railLocator).toHaveCount(2);
+  const rails = await railLocator.all();
   const [regionBox, bandBox] = await Promise.all([region.boundingBox(), component.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
   if (regionBox === null || bandBox === null) {
     throw new Error("expected the region and the band to be laid out");

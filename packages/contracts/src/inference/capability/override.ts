@@ -33,7 +33,7 @@ const capabilityMatchSchema = z
      *  route take different request fields (D310). */
     nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
   })
-  .refine((match) => (match.model === undefined) !== (match.ids === undefined), { message: "a match names `model` (a regex) or `ids`, not both" });
+  .refine((match) => (match.model === undefined) !== (match.ids === undefined), { error: "a match names `model` (a regex) or `ids`, not both" });
 
 /** A DATED, CITED provenance line: which tier this row is evidence at, when, and where the reader can look. */
 const capabilityEvidenceSchema = z.object({

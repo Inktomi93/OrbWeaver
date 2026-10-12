@@ -2,7 +2,7 @@
 // before the string can inhabit a map key or captured request value.
 import { z } from "zod";
 
-const SENSITIVE_QUERY_NAME = /(?:token|password|passwd|secret|api[_-]?key|authorization|credential|session|signature)/iu;
+const SENSITIVE_QUERY_NAME = /token|password|passwd|secret|api[_-]?key|authorization|credential|session|signature/iu;
 const SENSITIVE_PATH_SEGMENT_NAME = /^(?:token|password|passwd|secret|api[_-]?key|authorization|credential|session|signature)$/iu;
 const redactedRequestUrlSchema = z.string().min(1).brand<"RedactedRequestUrl">();
 export type RedactedRequestUrl = z.infer<typeof redactedRequestUrlSchema>;

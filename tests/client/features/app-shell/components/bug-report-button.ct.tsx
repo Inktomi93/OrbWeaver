@@ -356,9 +356,9 @@ test.describe("#2444 the form popover's touch containment", () => {
 
   test("CONTROL (closed): a tap at the page control's box reaches it", async ({ mount, page }) => {
     await mount(<BugReportOverPageFixture />);
-    const pageControl = page.getByTestId("page-control");
-    await expect(pageControl).toBeVisible();
-    await pageControl.tap();
+    const paginationControl = page.getByTestId("page-control");
+    await expect(paginationControl).toBeVisible();
+    await paginationControl.tap();
     await expect(page.getByTestId("page-taps")).toHaveText("1");
   });
 

@@ -8,8 +8,8 @@
 //                                  reader `lib/policy-descriptor-read.ts`  carries a resolvable pointer.
 //   evaluate-no-scope-capture      family SINGLETON               — a serialized browser callback closing
 //                                                                   over a module-scope binding (#660).
-//   audit-client-tests             family `test-no-stubs`         — five structural test anti-patterns.
-//                                  reader `lib/test-call-shape.ts` (joined at #2027; a singleton before).
+//   audit-client-tests             family SINGLETON               — five structural test anti-patterns.
+//                                  reader `lib/test-call-shape.ts`.
 //   detached-work-traced           family `detached-work-traced`  — fire-and-forget whose failure is
 //   detached-work-traced-health    reader `lib/detached-work.ts`    invisible, plus its blindness tripwire.
 //

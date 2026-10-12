@@ -26,7 +26,7 @@ export function processReply(raw: string): string {
   // 2. Newline runs → ", " (the LLM listed on lines → a comma list).
   s = s.replace(/[\r\n]+/g, ", ");
   // 3. NFD-normalize, then strip combining marks (é → e — hosted models tokenize ASCII keywords reliably).
-  s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   // 4. Whitelist-filter to a-z A-Z 0-9 space , . ' - (SD attention syntax (){}[]|:: is dropped — no hosted
   //    meaning, D39; it would leak literal parens into DALL-E/Gemini prompts).
   s = s.replace(/[^a-zA-Z0-9 ,.'-]+/g, "");

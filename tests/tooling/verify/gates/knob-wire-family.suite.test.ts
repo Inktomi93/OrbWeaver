@@ -45,7 +45,7 @@ test("every committed knob-wire grant names a real arm operation and a uniquely 
     expect(operations.has(row.operation), `${row.id} names a live arm operation`).toBe(true);
     // The subject grammar is `<member source>.<member>`; a row that cannot be produced by the policy would
     // red STALE on every real run, so the shape check is the cheap half of that guarantee.
-    expect(row.subject, `${row.id} subject grammar`).toMatch(/^[A-Za-z_][\w]*\.[A-Za-z_][\w]*$/u);
+    expect(row.subject, `${row.id} subject grammar`).toMatch(/^[A-Za-z_]\w*\.[A-Za-z_]\w*$/u);
     expect(row.endsWhen, `${row.id} states a concrete end condition`).not.toBe("");
   }
   // 1:1 identity is what makes the over-broad alarm unreachable for this policy: no two rows share one

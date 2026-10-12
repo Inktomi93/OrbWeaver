@@ -5,7 +5,7 @@
 //
 //   #1778 — after `SourceFile.move()`, `project.getSourceFile(<old path>)` still answers with a
 //           PHANTOM carrying the file's pre-move text. The harness's pre-emit diagnostics check scans
-//           it (the old path is declared, so it is in the snapshot set), counts its now-genuinely-stale
+//           PHANTOM (the old path is declared, so it is in the snapshot set), counts its now-genuinely-stale
 //           errors as "the codemod produced broken code", and REFUSES the apply. The operator sees a
 //           codemod that can never be applied and no hint why.
 //

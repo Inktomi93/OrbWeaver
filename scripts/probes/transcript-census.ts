@@ -189,7 +189,7 @@ const RE_BARE_DEPCRUISE_KNIP = /\bnpx\s+(depcruise|knip)\b/;
 const RE_GIT_STASH = /\bgit\s+stash\b/;
 const RE_GIT_RESTORE = /\bgit\s+restore\b/;
 const RE_GIT_CHECKOUT_DASH_OR_DOT = /\bgit\s+checkout\s+(?:--\s|\.(?:\s|$))/;
-const RE_CD_INTO_WORKTREE = /\bcd\s+[^&|;]*\.claude\/worktrees/;
+const RE_CD_INTO_WORKTREE = /\bcd\s[^&|;]*\.claude\/worktrees/;
 const RE_BARE_SG = /(?:^|[;&|]\s*)sg\s/;
 const RE_GREP_DASH_R = /\bgrep\s+-[a-zA-Z]*r[a-zA-Z]*\b/;
 const RE_EXCLUDE_DIR = /--exclude-dir/;
@@ -204,7 +204,7 @@ const RE_NO_GPG_SIGN = /--no-gpg-sign\b/;
 const RE_CURL_PIPE_SHELL = /curl[^|;&]*\|\s*(?:sh|bash)\b/;
 const RE_HARNESS_SIGNATURE = /\b(pnpm|turbo|npm)\s+(?:run\s+)?([a-z0-9:_-]+)/i;
 const RE_TIMED_OUT = /Command timed out after/;
-const RE_CLAUSE_SPLIT = /(?:&&|;|\n)/;
+const RE_CLAUSE_SPLIT = /&&|;|\n/;
 
 function splitClauses(cmd: string): string[] {
   // Crude split on && / ; / newline. Does not respect quoting — acceptable for a census,

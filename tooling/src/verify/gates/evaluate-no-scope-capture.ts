@@ -34,8 +34,7 @@
 // resolved callback body — a private descendant walk the final query boundary forbids even scoped to one
 // node. The final shape subscribes to `Identifier` once (the SAME shared walk every policy rides), indexes
 // every identifier PER FILE, and `evaluate` selects a callback's identifiers by node-RANGE containment
-// against ONLY its own declaring file's list. Per-file indexing is load-bearing exactly as it is in
-// `test-no-stubs`: two different SourceFiles' local offsets numerically overlap, so a shared list would let
+// against ONLY its own declaring file's list. Per-file indexing is load-bearing: two different SourceFiles' local offsets numerically overlap, so a shared list would let
 // an identifier in file B satisfy — or falsely accuse — a callback in file A.
 //
 // DECLARED LIMITS (each with a mustPass row): an identifier in a TYPE position is erased before

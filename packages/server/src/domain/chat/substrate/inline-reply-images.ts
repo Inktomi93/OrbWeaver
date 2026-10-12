@@ -29,7 +29,7 @@ const ALT_MAX_CHARS = 300;
 
 /** Sentence terminators the alt mint splits the preceding prose on. Deliberately not a locale-aware
  *  segmenter: the fallback is `""`, so a miss costs an empty alt, never a wrong one. */
-const SENTENCE_END = /[.!?…]+["'”’)\]]*\s+/gu;
+const SENTENCE_END = /[.!?…]+["'”’)\]]*\s+/u;
 
 /** The PROSE in front of an offset, with every non-text span removed. Tokenizing rather than slicing is the
  *  whole point and it is a VISIBILITY rule, not tidiness: a `<lie …>` hidden span is host-only bytes, and an

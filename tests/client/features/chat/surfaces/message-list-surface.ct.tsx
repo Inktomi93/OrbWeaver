@@ -726,9 +726,9 @@ for (const viewport of [
         for (const speaker of ["Mira", "Traveler"]) {
           const controls = component.getByRole("button", { name: viewImageActionName(speaker), exact: true });
           await expect(controls.first()).toBeVisible();
-          const count = await controls.count();
           // The chip, plus echo's tile or whisper's band; ripple's weld replaces the chip with its portrait.
-          expect(count, `${speaker} art controls`).toBe(chatStyle === "echo" || chatStyle === "whisper" ? 2 : 1);
+          const count = chatStyle === "echo" || chatStyle === "whisper" ? 2 : 1;
+          await expect(controls, `${speaker} art controls`).toHaveCount(count);
           for (let index = 0; index < count; index += 1) {
             await expectArtViewerRoundTrip(page, controls.nth(index), speaker, viewport.touch);
           }

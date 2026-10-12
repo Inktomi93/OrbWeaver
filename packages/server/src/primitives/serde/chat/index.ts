@@ -840,7 +840,7 @@ function parseMessageLine(line: string, zone: string): ParsedChatMessage | null 
 }
 
 // UTF-8 BOM prefix (Windows exports) — stripped before line-splitting.
-const BOM = /^﻿/;
+const BOM = /^\uFEFF/;
 
 /**
  * Parse one ST chat `.jsonl` → a `ParsedChat`. `fileName` (the Branch-prefix + filename-date hint) and

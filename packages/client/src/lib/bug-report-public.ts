@@ -116,7 +116,7 @@ const BROWSER_TELLS: readonly { readonly name: string; readonly re: RegExp }[] =
   { name: "Opera", re: /OPR\/(?<major>\d+)/u },
   { name: "Firefox", re: /(?:Firefox|FxiOS)\/(?<major>\d+)/u },
   { name: "Chrome", re: /(?:Chrome|CriOS)\/(?<major>\d+)/u },
-  { name: "Safari", re: /Version\/(?<major>\d+)[\d.]* (?:Mobile\/\S+ )?Safari\//u },
+  { name: "Safari", re: /Version\/(?<major>\d+)(?:\.\d*)* (?:Mobile\/\S+ )?Safari\//u },
 ];
 
 const OS_TELLS: readonly { readonly name: string; readonly re: RegExp }[] = [

@@ -2359,8 +2359,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     // THE 0831 RULING: no label beside the count.
     await expect(foot).toHaveText(PAGER_COUNTER_TEXT);
     // Placement: the container's own last line, or under the train where there is no single container.
-    const inside = await component.locator(`${BUBBLE} ${SWIPE_STRIP}`).count();
-    expect(inside, "tide alone seats the foot under its train").toBe(chatStyle === "tide" ? 0 : 1);
+    await expect(component.locator(`${BUBBLE} ${SWIPE_STRIP}`), "tide alone seats the foot under its train").toHaveCount(chatStyle === "tide" ? 0 : 1);
     // One settled read of the whole arrangement, retried until the row has laid out.
     const footLaw = async (): Promise<Record<string, boolean>> => {
       const container = await readFootContainer(foot);

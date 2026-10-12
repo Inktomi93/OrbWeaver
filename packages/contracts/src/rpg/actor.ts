@@ -118,7 +118,7 @@ export const rpgNpcRefSchema = z.object({
   npcKey: z
     .string()
     .min(1)
-    .refine((key) => key === rpgNpcSlug(key), { message: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
+    .refine((key) => key === rpgNpcSlug(key), { error: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
 });
 /** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor` (R4). Promotion
  *  turns an npc into a participant character, so a `character`/`user` target is not "refused" — it is

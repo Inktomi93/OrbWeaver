@@ -12,7 +12,7 @@
 // Called AFTER macro substitution + DISPLAY regex, BEFORE react-markdown.
 
 // `matchAll` clones these global regexes, so their `lastIndex` is never shared across calls.
-const PAIR_FINDER = /([*_]{1,2})([\s\S]*?)\1/gm;
+const PAIR_FINDER = /([*_]{1,2})([\s\S]*?)\1/g;
 // (start-marker)(unicode whitespace+) OR (unicode whitespace+)(end-marker) — every Unicode space the
 // emphasis run might pad with, so `* x *` → `*x*` regardless of which space the model used.
 const SPACE_CLASS = "\\t \\u00a0\\u1680\\u2000-\\u200a\\u202f\\u205f\\u3000\\ufeff";

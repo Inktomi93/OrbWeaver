@@ -16,7 +16,7 @@ const BODY_READ_TIMEOUT_BASE_MS = 5000;
 const BODY_READ_TIMEOUT_MS = budget(BODY_READ_TIMEOUT_BASE_MS);
 export const BROWSER_NETWORK_COMPLETED_CAP = 8192;
 export const BROWSER_NETWORK_PENDING_EXTRA_CAP = 2048;
-const TEXT_MIME = /(?:^text\/|json|javascript|xml|x-www-form-urlencoded|graphql)/iu;
+const TEXT_MIME = /^text\/|json|javascript|xml|x-www-form-urlencoded|graphql/iu;
 
 export interface BrowserNetworkLimits {
   readonly completed?: number;

@@ -32,8 +32,8 @@ const FAILURE_KEY_ASSIGNMENT_RE = /^(?:error|errors|failed|failure|navError|reas
 const FAILURE_KEY_SHORTHAND_RE = /^(?:error|errors|failed|failure|navError|reason)$/iu;
 const FAILURE_DISCRIMINATOR_RE =
   /^(?:kind|status|step|verdict)\s*:\s*["'`](?:denied|error|failed|failure|invalid|rejected|refused|threw|unparseable|unproven|unreachable)/iu;
-const FAILURE_WORD_RE = /(?:error|fail|invalid|malformed|refus|unavailable|unreachable)/iu;
-const FAILURE_COPY_RE = /(?:could(?:n['’]t| not)|error|fail|invalid|malformed|refus|unavailable|unreachable|not[- ]?found|not readable)/iu;
+const FAILURE_WORD_RE = /error|fail|invalid|malformed|refus|unavailable|unreachable/iu;
+const FAILURE_COPY_RE = /could(?:n['’]t| not)|error|fail|invalid|malformed|refus|unavailable|unreachable|not[- ]?found|not readable/iu;
 
 function preservesFailureValue(node: Node, errorBinding: Node): boolean {
   const value = unwrapExpression(node);

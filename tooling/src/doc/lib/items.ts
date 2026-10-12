@@ -14,7 +14,7 @@ const AREA_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const ON_RE = /^on (\d+)$/u;
 /** `wake path <repo path>` (met when the path exists) or `wake gone <repo path>` (met when it does not).
  *  The path is repository-relative and may not climb out; nothing here is ever executed. */
-const WAKE_RE = /^wake (path|gone) ([^\s/][^\s]*)$/u;
+const WAKE_RE = /^wake (path|gone) ([^\s/]\S*)$/u;
 /** A commit id. The shape is judged here — and by `ops/tree.ts` BEFORE a doc-supplied value reaches a
  *  version-control argv, so `--help` can never become a flag; `rules.ts` proves the id reachable from
  *  `main` through the `evidenceOnMain` facts the tree walk resolves. */

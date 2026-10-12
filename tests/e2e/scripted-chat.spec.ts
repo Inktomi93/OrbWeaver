@@ -76,10 +76,14 @@ async function assertRenderedCanon(page: Page, messages: readonly CanonMessage[]
   }
 }
 
-for (const stopped of [false, true]) {
-  test(stopped
+function scriptedChatTitle(stopped: boolean): string {
+  return stopped
     ? "Stop closes the held provider socket and retains the user row without an unfinished assistant"
-    : "first send streams incrementally, second send works, and exact canon survives reload", { tag: "@smoke" }, async ({ page, baseURL }) => {
+    : "first send streams incrementally, second send works, and exact canon survives reload";
+}
+
+for (const stopped of [false, true]) {
+  test(`${scriptedChatTitle(stopped)}`, { tag: "@smoke" }, async ({ page, baseURL }) => {
     const host = ownerActor(baseURL ?? "");
     let restoreProvider: (() => Promise<void>) | undefined;
     const fixture = await startFixtureProvider(0, stopped ? [STOP] : [FIRST, SECOND]);

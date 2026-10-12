@@ -288,11 +288,11 @@ test("§4.5: prose streaming after a closed card never reloads the card's iframe
     <GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE, "The screen ", "flickers ", "and dies. "]} cardTier="tierB" />,
   );
   await driveScript(component, 3);
-  const frame = component.locator(FRAME);
-  await expect(frame).toHaveCount(1);
+  const iframe = component.locator(FRAME);
+  await expect(iframe).toHaveCount(1);
 
-  await frame.evaluate((el) => el.setAttribute("data-ct-mount-stamp", "1"));
-  const srcdocBefore = await frame.getAttribute("srcdoc");
+  await iframe.evaluate((el) => el.setAttribute("data-ct-mount-stamp", "1"));
+  const srcdocBefore = await iframe.getAttribute("srcdoc");
 
   await component.getByTestId("next-chunk").click();
   await expect(component.getByText("The screen", { exact: false })).toBeVisible();
@@ -300,10 +300,10 @@ test("§4.5: prose streaming after a closed card never reloads the card's iframe
   await component.getByTestId("next-chunk").click();
   await expect(component.getByText("and dies", { exact: false })).toBeVisible();
 
-  await expect(frame).toHaveCount(1);
+  await expect(iframe).toHaveCount(1);
   // The stamp survives ⇒ React never unmounted the iframe; the srcdoc is byte-identical ⇒ no reload.
-  await expect(frame).toHaveAttribute("data-ct-mount-stamp", "1");
-  await expect.poll(() => frame.getAttribute("srcdoc")).toBe(srcdocBefore);
+  await expect(iframe).toHaveAttribute("data-ct-mount-stamp", "1");
+  await expect.poll(() => iframe.getAttribute("srcdoc")).toBe(srcdocBefore);
 });
 
 test("SECURITY: the ghost's card frame is the srcdoc FLOOR — sandbox='', no routed mint, no external media", async ({ mount }) => {
@@ -313,10 +313,10 @@ test("SECURITY: the ghost's card frame is the srcdoc FLOOR — sandbox='', no ro
   const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE]} cardTier="tierB" />);
   await driveScript(component, 3);
 
-  const frame = component.locator(FRAME);
-  await expect(frame).toHaveAttribute("sandbox", "");
-  await expect(frame).toHaveAttribute("data-delivery", "srcdoc");
-  const srcdoc = (await frame.getAttribute("srcdoc")) ?? "";
+  const iframe = component.locator(FRAME);
+  await expect(iframe).toHaveAttribute("sandbox", "");
+  await expect(iframe).toHaveAttribute("data-delivery", "srcdoc");
+  const srcdoc = (await iframe.getAttribute("srcdoc")) ?? "";
   expect(srcdoc).toContain("default-src 'none'");
   expect(srcdoc).toContain("img-src 'self'");
   // No `https:` on the media directives — the row's external-media verdict arrives with the settled row.

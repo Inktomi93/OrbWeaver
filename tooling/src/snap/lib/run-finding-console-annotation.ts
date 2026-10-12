@@ -57,7 +57,7 @@ export interface DiagnosticAnnotation {
 
 const ANNOTATION_LINE = /^%c\d{2}:\d{2}:\d{2}\.\d{3} \[([a-z]+)\]%c\s+(.*)$/su;
 /** Trailing `color:#c60;font-weight:bold color:#888` — the `%c` arguments, never content. */
-const CSS_ARGUMENTS = /(?:\s(?:color|font-weight|background|font-style):[^\s]+)+\s*$/gu;
+const CSS_ARGUMENTS = /(?:\s(?:color|font-weight|background|font-style):\S+)+\s*$/gu;
 const MEASURED_VALUE = /(\d+(?:\.\d+)?)(ms\b)?/u;
 const BUDGET = /budget (\d+(?:\.\d+)?)(ms)?/u;
 /** A segment that names WHERE: a selector, a element, a region/route label, or a script attribution. */

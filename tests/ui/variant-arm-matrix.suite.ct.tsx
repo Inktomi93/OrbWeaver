@@ -168,7 +168,7 @@ function gatherRawFacts(page: Page): Promise<RawGather> {
     const headingTags = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
     const interactiveSel =
       'a[href],button,input,select,textarea,[role="button"],[role="option"],[role="tab"],[role="switch"],[role="checkbox"],[role="radio"],[role="slider"],[role="menuitem"],[role="combobox"],[role="link"]';
-    const capsRe = /[A-Za-zÀ-ɏ]/u;
+    const capsRe = /[A-Za-z\u00C0-\u024F]/u;
 
     const directTextOf = (el: Element): string => {
       let direct = "";

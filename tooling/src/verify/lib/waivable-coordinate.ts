@@ -32,10 +32,17 @@
  *  instead of a finding nobody can ever answer. */
 const POSITION_EXCLUDED = ["(", ")", "\r", "\n"] as const;
 const POSITION_EXCLUDED_SET: ReadonlySet<string> = new Set(POSITION_EXCLUDED);
+// Escaped so a raw CR/LF never sits inside the character class of the fragment below.
+const POSITION_CLASS_ESCAPES: Readonly<Record<(typeof POSITION_EXCLUDED)[number], string>> = {
+  "(": String.raw`\(`,
+  ")": String.raw`\)`,
+  "\r": String.raw`\r`,
+  "\n": String.raw`\n`,
+};
 
 /** The regex FRAGMENT for one position, consumed by this module's own predicate and by the engine's marker
  *  regex (`lib/ordinary-waiver.ts`). Exported so the parser and the minting sites read one definition. */
-export const POSITION = `[^${POSITION_EXCLUDED.join("")}]+`;
+export const POSITION = `[^${POSITION_EXCLUDED.map((char) => POSITION_CLASS_ESCAPES[char]).join("")}]+`;
 
 const POSITION_RE = new RegExp(`^${POSITION}$`, "u");
 

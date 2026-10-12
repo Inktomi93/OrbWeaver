@@ -401,7 +401,8 @@ function parseFenceAttrs(rest: string, lenient: boolean): Record<string, string>
 
 // ── The line-anchored structural pass (fences + code-fence exclusion + the lenient arm) ──────────────────
 
-const FENCE_OPEN_RE = /^:::([A-Za-z][A-Za-z0-9_-]*)(.*)$/;
+// The lookahead pins the name to its longest run, so a line that fails on the tail never retries shorter names.
+const FENCE_OPEN_RE = /^:::([A-Za-z][A-Za-z0-9_-]*)(?![A-Za-z0-9_-])(.*)$/;
 const FENCE_NESTED_OPEN_RE = /^:::[A-Za-z]/;
 const FENCE_CLOSE_RE = /^:::[ \t]*$/;
 const CODE_FENCE_MARK = "```";
@@ -1314,7 +1315,8 @@ const PREVIEW_LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g;
  *  The marker group REPEATS: markdown stacks these (`> ### heading inside a quote`, `- > nested`), and a
  *  single-marker pass stripped the outer one and rendered the inner one as literal syntax — measured on the
  *  corpus Scenes snippets, which are raw transcript prose (side-eye re-pass 2026-08-19, C1). */
-const PREVIEW_BLOCK_PREFIX_RE = /^[ \t]*(?:(?:```[^\n]*|>+|#{1,6}|[-*+]|\d+[.)])[ \t]*)+/gm;
+// A code-fence line consumes the rest of its line, so it can only end the chain.
+const PREVIEW_BLOCK_PREFIX_RE = /^[ \t]*(?:(?:(?:[>#\-*+]|\d+[.)])[ \t]*)+(?:```[^\n]*)?|```[^\n]*)/gm;
 
 /** Any whitespace run (incl. the newlines a body is full of) — collapsed to ONE space: the preview is a
  *  SINGLE line, so a multi-paragraph body must not smuggle its layout into a one-line slot. */

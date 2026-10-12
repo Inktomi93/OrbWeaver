@@ -175,7 +175,7 @@ const REGEX_MACRO_ESCAPES: Readonly<Record<string, string>> = {
   "\0": "\\0",
 };
 function sanitizeRegexMacro(value: string): string {
-  return value.replace(/[\n\r\t\v\f\0.^$*+?{}[\]\\/|()]/gs, (char) => REGEX_MACRO_ESCAPES[char] ?? `\\${char}`);
+  return value.replace(/[\n\r\t\v\f\0.^$*+?{}[\]\\/|()]/g, (char) => REGEX_MACRO_ESCAPES[char] ?? `\\${char}`);
 }
 
 function filterString(rawString: string, trimStrings: readonly string[], ctx: ProcessMacroOptions): string {
@@ -291,7 +291,7 @@ function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ct
   let replacement = processMacros(script.replaceString, ctx);
 
   // `{{match}}` → `$0` resolves AFTER the macro pass so its expansion isn't itself macro-evaluated.
-  replacement = replacement.replace(/{{match}}/gi, "$0");
+  replacement = replacement.replace(/\{\{match\}\}/gi, "$0");
 
   // `$$` matched first so `$(\d+)` can't consume the second `$` of an escape.
   return replacement.replace(/\$\$|\$(\d+)|\$<([^>]+)>/g, (full: string, num: string | undefined, name: string | undefined): string =>

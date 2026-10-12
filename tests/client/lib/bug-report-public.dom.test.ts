@@ -182,6 +182,15 @@ test("the issue form the link names exists, and its field ids are the ones the l
   expect(ids).toEqual([BUG_REPORT_ISSUE_FIELDS.whatHappened, BUG_REPORT_ISSUE_FIELDS.diagnostics]);
 });
 
+// The bound is the test timeout: a long version number with no `Safari/` tail must not be retried at every split
+// of the digit run (quadratic when the major group and the dotted tail both take digits).
+test("a Safari tell on a 200 KB digit run fails in linear time and still names a real Safari", () => {
+  expect(browserNameOf(`Version/${"1".repeat(200_000)} Mobile/15E148`)).toBe("Other browser");
+  expect(browserNameOf("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0.1 Mobile/15E148 Safari/604.1")).toBe(
+    "Safari 18",
+  );
+}, 4000);
+
 test("browser and OS names come from a closed list", () => {
   expect(browserNameOf(CHROME_UA)).toBe("Chrome 149");
   expect(osNameOf(CHROME_UA)).toBe("Linux");

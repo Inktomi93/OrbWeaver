@@ -83,7 +83,7 @@ export function toolingConfigNames(project: SourceCorpus, pkgDir: string): strin
   return names;
 }
 
-const NODE_TS_ENTRY_RE = /(?:^|\s)node(?:\s+--[\w-]+(?:=[^\s]+)?)*\s+(?<target>[\w./-]+\.tsx?)\b/gu;
+const NODE_TS_ENTRY_RE = /(?:^|\s)node(?:\s+--[\w-]+(?:=\S+)?)*\s+(?<target>[\w./-]+\.tsx?)\b/gu;
 
 function scriptTargets(scripts: Readonly<Record<string, string>>): string[] {
   return Object.values(scripts)

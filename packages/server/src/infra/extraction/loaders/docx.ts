@@ -30,7 +30,7 @@ const PARAGRAPH = /<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>/g;
 /** The in-paragraph tokens that carry text or whitespace, in document order: a `<w:t>` text run (`xml:space`
  *  keeps leading/trailing spaces — we do not trim), a `<w:tab/>` (→ tab), or a `<w:br/>`/`<w:cr/>` (→ newline).
  *  Matched together so their DOCUMENT ORDER is preserved (a tab between two runs stays between them). */
-const PARAGRAPH_TOKEN = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/?>|<w:(?:br|cr)\b[^>]*\/?>/g;
+const PARAGRAPH_TOKEN = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*>|<w:(?:br|cr)\b[^>]*>/g;
 /** Concatenate a paragraph's tokens into its line, in document order: `<w:t>` → its decoded text, `<w:tab>` →
  *  a tab, `<w:br>`/`<w:cr>` → a newline. */
 function paragraphText(inner: string): string {

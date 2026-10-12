@@ -43,7 +43,7 @@ export const rosterPresetMembersSchema = z
   .min(1)
   .max(ROSTER_PRESET_MEMBER_MAX)
   .refine((members) => new Set(members.map((m) => m.characterId)).size === members.length, {
-    message: "a roster lists each character once",
+    error: "a roster lists each character once",
   }) satisfies z.ZodType<CharacterMemberSpec[]>;
 
 /** One captured automation rule preset on the wire (B10's rules rider — build record §6): the CLOSED
@@ -63,7 +63,7 @@ export const rosterPresetRulesSchema = z
   .array(rosterPresetRuleSchema)
   .max(RULE_PRESET_IDS.length)
   .refine((rules) => new Set(rules.map((r) => r.rulePresetId)).size === rules.length, {
-    message: "a roster lists each rule preset once",
+    error: "a roster lists each rule preset once",
   }) satisfies z.ZodType<{ rulePresetId: RulePresetId; knobs: RulePresetKnobValueInputs }[]>;
 
 /** `create` — the authored artifact: a name + the curated roster, plus the optional chat-open POV anchor

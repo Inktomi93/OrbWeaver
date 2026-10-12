@@ -92,7 +92,7 @@ export function attachableDocuments(bank: readonly BankDocument[], activeIds: re
 /** One `{{…}}` occurrence, inner text captured — the engine's own display grammar
  *  (`kit/macro/parser.ts`), so a written `{{databank }}` counts exactly as the engine resolves it.
  *  Case-insensitive, like the registry's own `name.toLowerCase()` lookup. */
-const MACRO_OCCURRENCE_RE = /\{\{\s*([^{}]+?)\s*\}\}/gi;
+const MACRO_OCCURRENCE_RE = /\{\{([^{}]+)\}\}/g;
 /** A reference's head ends at the first argument/filter separator. */
 const MACRO_HEAD_SPLIT_RE = /[:|\s]/u;
 const DATABANK_MACRO = "databank";
@@ -122,7 +122,7 @@ export function placesDatabankSlot(config: PromptConfig): boolean {
       return false;
     }
     for (const match of sectionTemplateText(section).matchAll(MACRO_OCCURRENCE_RE)) {
-      const head = match[1]?.split(MACRO_HEAD_SPLIT_RE)[0];
+      const head = match[1]?.trim().split(MACRO_HEAD_SPLIT_RE)[0];
       if (head?.toLowerCase() === DATABANK_MACRO) {
         return true;
       }

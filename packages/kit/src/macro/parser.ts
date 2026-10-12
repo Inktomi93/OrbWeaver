@@ -236,7 +236,8 @@ export interface MacroRun {
 
 // Inner of a display macro run: any non-brace content (the grammar the preview chips), inner-trimmed by
 // scanMacroRuns. `[^{}]` (not the parser's strict identifier) keeps display parity with what authors see.
-const DISPLAY_MACRO_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
+// No `\s*` flanks the capture: it overlaps `[^{}]` and goes quadratic on an unclosed `{{` followed by spaces.
+const DISPLAY_MACRO_RE = /\{\{([^{}]+)\}\}/g;
 
 /** Split a template string into flat text / `{{macro}}` runs for DISPLAY, honoring the ONE escape rule the
  *  real parser honors: a `\{{` opener is LITERAL, never a macro (`\{{char}}` yields the text `{{char}}`, not

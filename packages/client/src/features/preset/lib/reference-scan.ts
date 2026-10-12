@@ -31,7 +31,7 @@ export interface ReferenceCount {
 /** One `{{…}}` occurrence, capturing its inner text. Mirrors the engine's own display grammar
  *  (`kit/macro/parser.ts` `DISPLAY_MACRO_RE`), so `{{ pov }}` is counted exactly as the engine resolves
  *  it. Case-insensitive, like the engine's lookup. */
-const MACRO_OCCURRENCE_RE = /\{\{\s*([^{}]+?)\s*\}\}/gi;
+const MACRO_OCCURRENCE_RE = /\{\{([^{}]+)\}\}/g;
 /** The head ends at the first argument/filter separator — `{{pov:upper}}` and `{{pov first}}` are both
  *  references to `pov`. */
 const MACRO_HEAD_SPLIT_RE = /[:|\s]/u;
@@ -40,7 +40,7 @@ const MACRO_HEAD_SPLIT_RE = /[:|\s]/u;
 function referencedNames(text: string): ReadonlySet<string> {
   const names = new Set<string>();
   for (const match of text.matchAll(MACRO_OCCURRENCE_RE)) {
-    const head = match[1]?.split(MACRO_HEAD_SPLIT_RE)[0];
+    const head = match[1]?.trim().split(MACRO_HEAD_SPLIT_RE)[0];
     if (head !== undefined && head !== "") {
       names.add(head.toLowerCase());
     }

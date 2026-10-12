@@ -738,13 +738,14 @@ if (processEnvValue(SELECT_CPU_DIAGNOSTIC_ENV) === "1") {
   }
 }
 
-for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as const) {
-  test(sourceTransport === "normal"
+function nativeSelectTitle(sourceTransport: string): string {
+  return sourceTransport === "normal"
     ? "a native sealed Select records timing and preserves its repeat entrance controls"
-    : `Select budget and lifecycle acceptance survives ${sourceTransport} source diagnostics`, { annotation: NATIVE_TIMING_CASE_ANNOTATION }, async ({
-    mount,
-    page,
-  }) => {
+    : `Select budget and lifecycle acceptance survives ${sourceTransport} source diagnostics`;
+}
+
+for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as const) {
+  test(`${nativeSelectTitle(sourceTransport)}`, { annotation: NATIVE_TIMING_CASE_ANNOTATION }, async ({ mount, page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await mount(<MotionAnchoredPortalStory />);
     const trigger = page.getByRole("combobox", { name: "Anchored portal control" });

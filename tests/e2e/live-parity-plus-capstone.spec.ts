@@ -195,9 +195,9 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
     // card content lives in the iframe srcdoc, NOT the main DOM — so the transcript's own text nodes never carry
     // the raw HTML marker (the no-leak invariant). We assert the frame exists + the marker is absent from the
     // card's OUTER text (the srcdoc is a separate document, unreadable as text content here).
-    const frame = card.locator('[data-slot="sandbox-frame"]');
-    await expect(frame).toBeVisible();
-    expect(await frame.getAttribute("sandbox")).toBe("");
+    const iframe = card.locator('[data-slot="sandbox-frame"]');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute("sandbox", "");
     // The raw fence/HTML never leaked into the card chrome's own text content (it's inside the iframe document).
     await expect(card).not.toContainText(":::card");
     await expect(card).not.toContainText("<p>");

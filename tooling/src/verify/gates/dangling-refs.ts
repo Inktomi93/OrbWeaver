@@ -47,7 +47,7 @@ const BARE_ROOTS: readonly string[] = ["docs/law", "."];
 // ONE token (this comment may not spell that contiguously — `dangling-doc-cite`'s widened bare/path grammar
 // would flag it right back). A leading dot that opens a token (a dot-directory such as `.claude`) belongs to
 // it; a dot after another dot or a slash does not, so a `../` prefix still drops as before.
-const MD_TOKEN_RE = /((?:(?<![\w./])\.(?=\w))?\w[\w./-]*\.md)/gu;
+const MD_TOKEN_RE = /((?:(?<![\w./])\.)?\w[\w./-]*\.md)/gu;
 // A markdown link target ending in `.md`, with an optional `#anchor` (arm 2): `[text](path` + `.md#x)`.
 const MD_LINK_RE = /\]\(([^)\s]+?\.md)(?:#[^)\s]*)?\)/gu;
 // A token carrying a glob / brace-expansion / placeholder is a PROSE PATTERN, not a literal cite — skip it

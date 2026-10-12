@@ -342,7 +342,7 @@ export const pluginRouter = t.router({
           .string()
           .max(PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES)
           .refine((s) => Buffer.byteLength(s, "utf8") <= PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES, {
-            message: `argsJson exceeds the ${PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES}-byte cap`,
+            error: `argsJson exceeds the ${PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES}-byte cap`,
           }),
         chatId: chatIdSchema.optional(),
       }),
@@ -382,7 +382,7 @@ export const pluginRouter = t.router({
         // service's `pluginCommandArgsSchema` re-validation. Defaulted so a caller sending only `args` is unchanged.
         values: z
           .record(z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE), z.union([z.string().max(PLUGIN_COMMAND_ARGS_MAX), z.number(), z.boolean()]))
-          .refine((v) => Object.keys(v).length <= PLUGIN_COMMAND_ARGS_DECLARED_MAX, { message: "too many command arguments" })
+          .refine((v) => Object.keys(v).length <= PLUGIN_COMMAND_ARGS_DECLARED_MAX, { error: "too many command arguments" })
           .default({}),
         chatId: chatIdSchema.nullable(),
         composerDraft: pluginComposerDraftSchema.optional(),

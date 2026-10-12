@@ -79,16 +79,22 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
+import vitest from "@vitest/eslint-plugin";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
+import drizzle from "eslint-plugin-drizzle";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import playwright from "eslint-plugin-playwright";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactWebApi from "eslint-plugin-react-web-api";
 import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
+import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
+import zod from "eslint-plugin-zod";
 import tseslint from "typescript-eslint";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
 
@@ -1026,4 +1032,146 @@ export default tseslint.config(
       "no-restricted-syntax": ["error", NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX],
     },
   },
+  ...maintainedRulePacks(),
 );
+
+// ── MAINTAINED RULE PACKS: the plugins that replace custom gates ───────────────────────────────────────
+// Six plugins, each configured on the population it judges. They are SPREAD from the plugin's own
+// recommended set, which the "list every rule by name" doctrine at the top of this file allows only on the
+// react-hooks/jsx-a11y terms: the catalog entries are EXACT pins (pnpm-workspace.yaml), so an upgrade cannot
+// add a gate unreviewed. A rule that is OFF below says why; a rule a plugin does not recommend is not on.
+// The section is a hoisted function at the end of the file so the blocks above stay untouched.
+function maintainedRulePacks() {
+  /** A plugin config's rules whose id starts with `prefix`, all at `error` with their recommended options.
+   *  The prefix drops the core ESLint rules some recommended sets also switch on. */
+  const packRules = (config, prefix) =>
+    Object.fromEntries(
+      Object.entries(config.rules)
+        .filter(([id]) => id.startsWith(prefix))
+        .map(([id, setting]) => [id, Array.isArray(setting) ? ["error", ...setting.slice(1)] : "error"]),
+    );
+  // Playwright runs the component (`*.ct.tsx`) and e2e (`*.spec.ts`) suffixes; Vitest runs every other file
+  // under tests/. Both lists derive from the test-kind registry, so a new suffix lands in one of them.
+  const playwrightTests = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component" || family === "e2e").map(({ suffix }) => `tests/**/*${suffix}`);
+  const vitestTests = ["tests/**/*.{ts,tsx}"];
+
+  return [
+    {
+      // Playwright. Rules Biome already enforces (biome.json: noPlaywright*, noConditionalExpect,
+      // noFocusedTests, usePlaywrightValidDescribeCallback) stay off here: a second copy of an enabled
+      // native rule is a duplicate report (GATE-AUTHORING §10).
+      files: playwrightTests,
+      plugins: { playwright },
+      rules: {
+        ...packRules(playwright.configs["flat/recommended"], "playwright/"),
+        "playwright/no-element-handle": "off",
+        "playwright/no-eval": "off",
+        "playwright/no-force-option": "off",
+        "playwright/missing-playwright-await": "off",
+        "playwright/no-networkidle": "off",
+        "playwright/no-page-pause": "off",
+        "playwright/no-useless-await": "off",
+        "playwright/no-wait-for-navigation": "off",
+        "playwright/no-wait-for-selector": "off",
+        "playwright/no-wait-for-timeout": "off",
+        "playwright/valid-describe-callback": "off",
+        "playwright/no-conditional-expect": "off",
+        "playwright/no-focused-test": "off",
+        // Noise for us: a component test narrows a nullable `boundingBox()` or locator with `if (box === null)
+        // throw …` before it measures, and a ternary builds an expected value. Neither is a test that
+        // branches on the product's state, which is what the rule polices.
+        "playwright/no-conditional-in-test": "off",
+        // Formatting: Biome owns blank lines.
+        "playwright/consistent-spacing-between-blocks": "off",
+        // Style only: `.length` on a plain array reads the same as `toHaveLength`, and the rule has no defect
+        // class. (Its count twin, `prefer-to-have-count`, stays on: a one-shot locator count races the DOM.)
+        "playwright/prefer-to-have-length": "off",
+        // `test.skip(condition, reason)` is the runtime guard for a missing backend or a chat style a suite
+        // does not cover; only an unconditional skip is a disabled test.
+        "playwright/no-skipped-test": ["error", { allowConditional: true }],
+        // Replaces the `test-no-stubs` gate, with the assertion roots the gate counted.
+        "playwright/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],
+      },
+    },
+    {
+      // Vitest, on every test file Playwright does not run. Replaces the `test-no-stubs` gate (expect-expect
+      // with the gate's own assertion roots). Biome owns focused tests and conditional expects.
+      // `valid-expect` takes Vitest's optional message argument (`expect(value, "why")`).
+      files: vitestTests,
+      ignores: playwrightTests,
+      plugins: { vitest },
+      rules: {
+        ...packRules(vitest.configs.recommended, "vitest/"),
+        "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],
+        "vitest/valid-expect": ["error", { maxArgs: 2 }],
+        "vitest/no-conditional-expect": "off",
+        "vitest/no-focused-tests": "off",
+      },
+    },
+    {
+      // Zod, on the two packages that author schemas. `prefer-enum-over-literal-union` is not in the
+      // recommended set and stays off: the repository rules an all-literal union into the multi-value
+      // `z.literal([…])` (zod-modern-spellings arm B), and that rule asks for `z.enum` instead.
+      files: ["packages/contracts/src/**/*.ts", "packages/server/src/**/*.ts"],
+      plugins: { zod },
+      rules: {
+        ...packRules(zod.configs.recommended, "zod/"),
+        // Style: the repository imports `{ z }`, and import shape is not a zod defect.
+        "zod/consistent-import": "off",
+        // Style: schema variable naming is Biome's `useNamingConvention` territory.
+        "zod/consistent-schema-var-name": "off",
+        // A real modernization (`z.number().int()` becomes `z.int()`) over a wave too wide for this change.
+        "zod/no-number-schema-with-int": "off",
+      },
+    },
+    {
+      // Drizzle. The rule matches any `.delete()`/`.update()` unless told the handle's name, and a Map or Set
+      // `.delete()` is not a SQL statement: every persistence call goes through `db` (or `ctx.db`).
+      files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
+      plugins: { drizzle },
+      rules: {
+        "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db"] }],
+        "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],
+      },
+    },
+    {
+      // The whole-table writes that are the operation, not a missing predicate: the derived analytics tables
+      // (duplicate pairs, theme clusters) are replaced wholesale by their box-wide rebuild, and the vector-table
+      // wipe empties a table by design. Each file's per-owner arm already carries its own `.where`.
+      files: [
+        "packages/server/src/domain/discovery/duplicates/generate.ts",
+        "packages/server/src/domain/discovery/themes/generate.ts",
+        "packages/server/src/domain/embeddings/persistence/clear.ts",
+      ],
+      rules: { "drizzle/enforce-delete-with-where": "off" },
+    },
+    {
+      // eslint-comments and regexp apply to every linted file. The captured DevTools frontend is vendored
+      // third-party source that the snap instrument serves; its regexes are not ours to rewrite.
+      ignores: ["tooling/src/snap/lib/devtools-frontend/**"],
+      plugins: { "@eslint-community/eslint-comments": eslintComments, regexp },
+      rules: {
+        ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
+        // A bounded directive carries its reason on the same comment (`-- why`).
+        "@eslint-community/eslint-comments/require-description": "error",
+        ...packRules(regexp.configs["flat/recommended"], "regexp/"),
+        // Rewrites with no defect class behind them (same match, shorter spelling): `\\w` for `[A-Za-z0-9_]`,
+        // `/i` instead of both cases, and a capturing group nobody reads.
+        "regexp/prefer-w": "off",
+        "regexp/use-ignore-case": "off",
+        "regexp/no-unused-capturing-group": "off",
+      },
+    },
+    {
+      // The regex guard's own test feeds it a catastrophic pattern on purpose.
+      files: ["tests/server/primitives/regex.test.ts"],
+      rules: { "regexp/no-misleading-capturing-group": "off" },
+    },
+    {
+      // Super-linear backtracking is an attack on input the author does not control. Shipped packages parse
+      // user and provider text; tooling, tests and scripts parse the repository's own bounded text.
+      files: ["tooling/**", "tests/**", "scripts/**"],
+      rules: { "regexp/no-super-linear-backtracking": "off", "regexp/no-super-linear-move": "off" },
+    },
+  ];
+}

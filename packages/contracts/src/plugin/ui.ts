@@ -864,11 +864,11 @@ const byteBoundedString = (max: number): z.ZodType<string> =>
   z
     .string()
     .max(max)
-    .refine((value) => value.isWellFormed(), { message: "must not contain an unpaired UTF-16 surrogate" })
-    .refine((value) => utf8ByteLength(value) <= max, { message: `must be at most ${max} bytes` });
+    .refine((value) => value.isWellFormed(), { error: "must not contain an unpaired UTF-16 surrogate" })
+    .refine((value) => utf8ByteLength(value) <= max, { error: `must be at most ${max} bytes` });
 
 const boundString = (max: number): z.ZodType<PluginBoundString> => z.union([byteBoundedString(max), stateBindingSchema]);
-const finiteNumber = z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" });
+const finiteNumber = z.number().refine((n) => Number.isFinite(n), { error: "must be a finite number" });
 const boundNumber: z.ZodType<PluginBoundNumber> = z.union([finiteNumber, stateBindingSchema]);
 const boundBoolean: z.ZodType<PluginBoundBoolean> = z.union([z.boolean(), stateBindingSchema]);
 const identSchema = z.string().regex(IDENT_RE);
@@ -1418,7 +1418,7 @@ export const pluginSurfaceRegistrationMetaSchema = z
     }
   })
   .refine((meta) => (meta.anchor === "tool-card") === (meta.toolName !== undefined), {
-    message: "a tool-card surface must name its `toolName`, and only a tool-card surface may name one",
+    error: "a tool-card surface must name its `toolName`, and only a tool-card surface may name one",
     path: ["toolName"],
   });
 export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistrationMetaSchema>;
@@ -1702,7 +1702,7 @@ function argValueSchema(spec: PluginCommandArgSpec): z.ZodString | z.ZodNumber |
     case "string":
       return z.string();
     case "number":
-      return z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" });
+      return z.number().refine((n) => Number.isFinite(n), { error: "must be a finite number" });
     case "boolean":
       return z.boolean();
     case "enum":
@@ -1771,9 +1771,7 @@ export const PLUGIN_TEXT_MAX_CHARS = 32_000;
 export const pluginComposerDraftSchema = z
   .string()
   .max(PLUGIN_TEXT_MAX_CHARS)
-  .refine((text) => text.isWellFormed(), { message: "draft contains an unpaired surrogate" }) satisfies z.ZodType<
-  NonNullable<PluginUiOutcome["composerDraft"]>
->;
+  .refine((text) => text.isWellFormed(), { error: "draft contains an unpaired surrogate" }) satisfies z.ZodType<NonNullable<PluginUiOutcome["composerDraft"]>>;
 
 /** Strict: installed as the tRPC output parser of `invokeUiAction` / `invokeUiCommand`. */
 export const pluginUiOutcomeSchema = z.strictObject({

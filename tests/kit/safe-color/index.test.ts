@@ -82,6 +82,17 @@ teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen
   .split(/\s+/u);
 
 describe("isSafeColor", () => {
+  // The bound is the test timeout: a whitespace run that overlaps the body class must not be retried at every
+  // split point (quadratic on an unclosed function).
+  test("rejects an unclosed function followed by 200 KB of spaces in linear time", () => {
+    for (const fn of ["rgb(", "hsl(", "oklch("]) {
+      expect(isSafeColor(`${fn}${" ".repeat(200_000)}`)).toBe(false);
+    }
+    expect(isSafeColor("rgb(  1 2 3 )")).toBe(true);
+    expect(isSafeColor("hsl(\t120, 50%, 50%)")).toBe(true);
+    expect(isSafeColor("oklch(0.5 0.1 60)")).toBe(true);
+  }, 4000);
+
   test("accepts the whole permitted surface (hex / rgb / hsl / oklch / oklab / named)", () => {
     for (const v of [
       "#abc",

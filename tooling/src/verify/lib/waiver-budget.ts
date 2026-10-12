@@ -24,7 +24,7 @@ const APPLICATION = Object.freeze({
   "css-length-tokens": 3,
   "css-length-tokens-grants": 26,
   "css-var-defined-grants": 19,
-  "ct-no-oneshot-live-read-assert": 353,
+  "ct-no-oneshot-live-read-assert": 351,
   "db-structure-producer-home": 4,
   "density-tier": 49,
   "detached-work-traced": 4,

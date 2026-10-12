@@ -47,7 +47,7 @@ function paints(layer: string): boolean {
   if (alpha !== null && Number.parseFloat(alpha[1] ?? "1") === 0) {
     return false;
   }
-  return /[1-9]/u.test(layer.replace(/[^\d]/gu, ""));
+  return /[1-9]/u.test(layer.replace(/\D/gu, ""));
 }
 
 function shadowLayers(value: string): readonly string[] {

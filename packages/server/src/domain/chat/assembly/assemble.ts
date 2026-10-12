@@ -38,9 +38,7 @@ import { BEFORE_HISTORY_DEPTH } from "./injections.ts";
 import { renderMacros } from "./macros.ts";
 import { hasActiveMarker, sectionTriggers } from "./sections.ts";
 
-// A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
-// (top-level so it isn't re-compiled per call).
-const NO_VOLATILE_RE = /a^/u;
+// A macro whose value changes per render busts the cached static prefix.
 // The volatile-name scan re, memoized PER REGISTRY (WAVE MU): the process singleton keeps its one-compile,
 // and each per-turn user-macro registry gets its own compile so a volatile random-pick user macro in a
 // static section busts the cache (a WeakMap so per-turn registries are GC'd with the turn — no leak).
@@ -50,14 +48,15 @@ const NO_VOLATILE_RE = /a^/u;
 // `volatileNames()` every time; a cross-replica "miss" (a fresh replica's empty WeakMap) simply RECOMPILES
 // the identical regex on first use — deterministic + idempotent, never a divergent result. The keys are
 // per-turn registries (GC'd with the turn) + the process singleton, so the map self-bounds.
-const volatileReByRegistry = new WeakMap<MacroRegistry, RegExp>();
-function volatileMacroRe(registry: MacroRegistry): RegExp {
+// `null` caches "this registry has no volatile macro", so the scan is skipped rather than run with a pattern that cannot match.
+const volatileReByRegistry = new WeakMap<MacroRegistry, RegExp | null>();
+function volatileMacroRe(registry: MacroRegistry): RegExp | null {
   const cached = volatileReByRegistry.get(registry);
   if (cached !== undefined) {
     return cached;
   }
   const names = registry.volatileNames();
-  const re = names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
+  const re = names.length === 0 ? null : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
   volatileReByRegistry.set(registry, re);
   return re;
 }
@@ -67,8 +66,12 @@ function findVolatileMacros(text: string | null | undefined, registry: MacroRegi
   if (text === null || text === undefined || text.length === 0) {
     return [];
   }
+  const volatileRe = volatileMacroRe(registry);
+  if (volatileRe === null) {
+    return [];
+  }
   const hits = new Set<string>();
-  for (const m of text.matchAll(volatileMacroRe(registry))) {
+  for (const m of text.matchAll(volatileRe)) {
     if (m[1] !== undefined) {
       hits.add(m[1].toLowerCase());
     }

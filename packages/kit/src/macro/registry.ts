@@ -23,7 +23,9 @@ const ROLL_MAX = 10_000; // caps dice count/sides so a hostile card can't block 
 const MIN_QUOTED_LEN = 2;
 
 const BARE_IDENT = /^[\w.-]+$/;
-const COMPARATOR = /^(.+?)\s*(==|!=)\s*(.+)$/;
+const COMPARATOR_OPS = ["==", "!="] as const;
+const COMPARATOR_OP_LENGTH = 2;
+const NOT_FOUND = -1;
 const DICE_SPEC = /^(\d*)d(\d+)$/;
 const PLAIN_INT = /^\d+$/;
 
@@ -40,6 +42,22 @@ function nowInZone(ctx: MacroContext): DateTime {
     ctx.onWarn?.(`macro: invalid timezone "${ctx.timezone}" — falling back to UTC`);
   }
   return base;
+}
+
+/** Split `lhs == rhs` / `lhs != rhs` at the FIRST operator that leaves both sides non-empty. A scan, not a regex:
+ *  a `\s*` beside a lazy `.+?` goes quadratic on a hostile card's whitespace run. The callers trim both operands. */
+function splitComparator(raw: string): { readonly lhs: string; readonly op: (typeof COMPARATOR_OPS)[number]; readonly rhs: string } | null {
+  let best: { readonly at: number; readonly op: (typeof COMPARATOR_OPS)[number] } | null = null;
+  for (const op of COMPARATOR_OPS) {
+    const at = raw.indexOf(op, 1);
+    if (at !== NOT_FOUND && (best === null || at < best.at)) {
+      best = { at, op };
+    }
+  }
+  if (best === null || best.at + COMPARATOR_OP_LENGTH >= raw.length) {
+    return null;
+  }
+  return { lhs: raw.slice(0, best.at), op: best.op, rhs: raw.slice(best.at + COMPARATOR_OP_LENGTH) };
 }
 
 export class SimpleMacroRegistry implements MacroRegistry {
@@ -212,18 +230,18 @@ function splitOnElse(children: MacroAST): [MacroAST, MacroAST] {
  *
  * `null` means context or macro evaluation can change the answer, so a static consumer must retain both
  * branches. An empty AST means the predicate is statically empty and the handler evaluates no branch.
- * Literal/comparator parsing shares the evaluator's own `COMPARATOR`/`BARE_IDENT`/`unquote` vocabulary in
+ * Literal/comparator parsing shares the evaluator's own `splitComparator`/`BARE_IDENT`/`unquote` vocabulary in
  * this module; callers never grow a second conditional grammar. */
 export function selectStaticIfChildren(args: readonly string[], children: MacroAST): MacroAST | null {
   const rawArg = args.join(" ").trim();
   if (rawArg === "") {
     return [];
   }
-  const cmpMatch = rawArg.match(COMPARATOR);
+  const cmpMatch = splitComparator(rawArg);
   let pass: boolean;
-  if (cmpMatch) {
-    const lhsRaw = (cmpMatch[1] ?? "").trim();
-    const rhsRaw = (cmpMatch[3] ?? "").trim();
+  if (cmpMatch !== null) {
+    const lhsRaw = cmpMatch.lhs.trim();
+    const rhsRaw = cmpMatch.rhs.trim();
     // The evaluator resolves a sub-macro and looks up a bare LHS identifier in context/env. Either can
     // change per turn. The RHS is literal unless it contains a sub-macro.
     if (lhsRaw.includes("{{") || BARE_IDENT.test(lhsRaw) || rhsRaw.includes("{{")) {
@@ -231,7 +249,7 @@ export function selectStaticIfChildren(args: readonly string[], children: MacroA
     }
     const lhs = unquote(lhsRaw);
     const rhs = unquote(rhsRaw);
-    pass = (cmpMatch[2] ?? "==") === "==" ? lhs === rhs : lhs !== rhs;
+    pass = cmpMatch.op === "==" ? lhs === rhs : lhs !== rhs;
   } else {
     // A bare identifier is context/env lookup, including numeric-looking keys under the current grammar.
     // Only a non-identifier literal is decidable without the live MacroContext.
@@ -260,12 +278,12 @@ const ifHandler: MacroHandler = (args, ctx, children) => {
   }
 
   // Comparator first — the LHS gets identifier-or-sub-macro treatment, the RHS gets unquoted.
-  const cmpMatch = rawArg.match(COMPARATOR);
+  const cmpMatch = splitComparator(rawArg);
   let pass = false;
-  if (cmpMatch) {
-    const lhsRaw = (cmpMatch[1] ?? "").trim();
-    const op = cmpMatch[2] ?? "==";
-    const rhsRaw = (cmpMatch[3] ?? "").trim();
+  if (cmpMatch !== null) {
+    const lhsRaw = cmpMatch.lhs.trim();
+    const op = cmpMatch.op;
+    const rhsRaw = cmpMatch.rhs.trim();
     const lhs = resolvePredicateValue(lhsRaw, ctx);
     const rhs = rhsRaw.includes("{{") ? ctx.evaluateString(unquote(rhsRaw)) : unquote(rhsRaw);
     pass = op === "==" ? lhs === rhs : lhs !== rhs;

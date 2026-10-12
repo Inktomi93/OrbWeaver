@@ -44,7 +44,7 @@ export const themeBackgroundSchema = z.object({
   kind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
   externalUrl: z
     .string()
-    .refine((s) => s === "" || z.url().safeParse(s).success)
+    .refine((s) => s === "" || z.url().safeParse(s).success, { error: "must be empty or a URL" })
     .catch("")
     .default(""),
   // @orb-waive no-raw-id(assetId): the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution; the LIVE value is GC-rooted by the asset-refs JSON live-source for the carried location (character.background_override / chats.metadata.background), never an FK boundary — and the lenient `""` empty sentinel no branded typeIdSchema can express. The TWIN of settings/index.ts `backgroundAssetId`, which carries the same granted exemption. ENDS WHEN: the carried blob stops using `""` for "unset" and can hold a nullable branded AssetId.
