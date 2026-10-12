@@ -34,6 +34,16 @@ test("groups render with their headings", async ({ mount, page }) => {
   await expect(page.getByRole("option")).toHaveCount(5);
 });
 
+// The patched cmdk (patches/cmdk@1.1.1.patch) reorders GROUPS by their best row, not only rows inside a group:
+// "de" starts "Delete file" but only falls mid-word in the readme row, so Actions leads although Files renders first.
+test("a query ranks the groups by their best row", async ({ mount, page }) => {
+  await mount(<CommandPaletteStory />);
+  await page.getByRole("combobox").fill("de");
+  await expect(page.getByRole("option")).toHaveText(["Delete file", "readme.md"]);
+  // The highlight follows the new order: the first REACHABLE row (Delete file is disabled).
+  await expect(page.getByRole("option", { name: "readme.md" })).toHaveAttribute("aria-selected", "true");
+});
+
 test("the first reachable item is highlighted by default", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   await expect(page.getByRole("option", { name: "report.md" })).toHaveAttribute("aria-selected", "true");

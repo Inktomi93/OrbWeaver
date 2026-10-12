@@ -1,4 +1,5 @@
 // verb: removeTheme — delete an OWNED theme; a seed id 404s BY CONSTRUCTION (never removable).
+// @subject packages/server/src/domain/settings/verbs/remove-theme.ts
 
 import { describe } from "vitest";
 import { ThemeNotFoundError } from "#server/domain/settings/contract/errors.ts";

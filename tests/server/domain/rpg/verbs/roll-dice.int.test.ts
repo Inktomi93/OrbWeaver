@@ -1,6 +1,7 @@
 // verbs/dice — rollDice (docs/plans/rpg/design.md). Server CSPRNG (injected `randomInt`, scripted here for
 // determinism), bake-once: the roll is server-authoritative, zero durable state, and the composer stamp is
 // returned. Notation parsing (`NdM+K`) + bounds. Member-gated (covered in the authority matrix).
+// @subject packages/server/src/domain/rpg/verbs/roll-dice.ts
 
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

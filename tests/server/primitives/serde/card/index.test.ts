@@ -6,6 +6,8 @@
 // round-trip: buildCardV3 → cardFromJson is lossless over the card content fields (the one-serde-core
 // invariant).
 
+// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly name?: unknown; readonly entries: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
@@ -499,6 +501,7 @@ describe("starred (ST extensions.fav)", () => {
   test("buildCardV3 emits extensions.fav from the LIVE starred, never a stale residual byte", () => {
     const card = buildCardV3({ ...fullFields(), starred: false, extensions: { fav: true, vendorExtra: "kept" } }, []);
     const data = card.data as Record<string, unknown>;
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((data["extensions"] as Record<string, unknown>)["fav"]).toBe(false);
   });
 
@@ -661,6 +664,7 @@ describe("exportBookEntry", () => {
       ignoreBudget: true,
       metadata: { inject: { depth: 4, role: "assistant" }, extensions: { custom: 1 } },
     });
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const ext = out["extensions"] as Record<string, unknown>;
     expect(ext["position"]).toBe(4);
     expect(ext["depth"]).toBe(4);
@@ -727,6 +731,7 @@ describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-iden
     expect(metadata["inject"]).toEqual({ depth: 2, role: "user" });
     // lossless: the whole original ST entry rides through (constant + the raw extensions blob preserved).
     expect(metadata["constant"]).toBe(true);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((metadata["extensions"] as Record<string, unknown>)["vendor"]).toBe("kept");
 
     // OUT: the exported ST entry re-derives constant + the at-depth extensions from the stored metadata.
@@ -742,6 +747,7 @@ describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-iden
     expect(out["constant"]).toBe(true);
     expect(out["insertion_order"]).toBe(5);
     expect(out["comment"]).toBe("Dragons");
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const ext = out["extensions"] as Record<string, unknown>;
     expect(ext["position"]).toBe(4);
     expect(ext["depth"]).toBe(2);

@@ -61,6 +61,7 @@ import { users } from "./users.ts";
 const DEFAULT_STATUS = "queued";
 // The default run mode (a plain enqueue is a singular, one-owner run; bulk is opt-in + owner-gated).
 const DEFAULT_MODE = "singular";
+// @orb-waive no-vanity-alias(DEFAULT_KEY): baselined when the gate widened; burn-down item 906.
 // The default lock sub-partition — the shared `none` bucket a kind that declares no `admissionKey` carries.
 const DEFAULT_KEY = DEFAULT_ADMISSION_KEY;
 // The default execution lane. `sweep` is the conservative floor: a row whose enqueue path forgot to stamp a

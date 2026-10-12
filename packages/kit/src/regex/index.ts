@@ -147,6 +147,7 @@ function withinHistoryDepth(scope: RegexHistoryDepth | undefined, depth: number 
 // safety comes from the server's node:vm-sandboxed `applyReplace` per-call timeout; the browser has
 // no runtime timeout and relies on this heuristic + the per-script try/catch.
 const MAX_STACKED_QUANTIFIERS = 3;
+// @orb-waive no-vanity-alias(MAX_PATTERN_LENGTH): baselined when the gate widened; burn-down item 906.
 const MAX_PATTERN_LENGTH = MAX_FIND_REGEX_LENGTH;
 const DEFAULT_REGEX_FLAGS = "gm";
 const DECIMAL_RADIX = 10;

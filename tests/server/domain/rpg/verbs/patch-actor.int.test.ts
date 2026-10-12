@@ -8,6 +8,7 @@
 // race — panel read → flush → hand write — and asserts the flush's fields SURVIVE the human's op. The same
 // test then applies the OLD image over the post-flush head through the real merge engine to show the old path
 // provably clobbered them (a red-first proof that outlives the deleted door).
+// @subject packages/server/src/domain/rpg/verbs/patch-actor.ts
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";

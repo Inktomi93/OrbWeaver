@@ -34,7 +34,9 @@ test.for([false, true])("retained canon and both owner deltas commit atomically;
   }
   const base = makeChatContext(db, {
     now: clock.now,
+    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
     applyStatsDelta: (statements, opDb, appliedDelta) => applyStatsDelta(statements as BatchStmt[], opDb, appliedDelta),
+    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
     bumpStatsCanonVersion: (statements, opDb, owner) => bumpStatsCanonVersion(statements as BatchStmt[], opDb, owner),
   });
   const ctx = {

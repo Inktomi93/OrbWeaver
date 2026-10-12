@@ -1,12 +1,12 @@
 // Target-specific exemption marker parsing and audit for `ast respell --near`.
 
 import type { Node } from "ts-morph";
+import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { MalformedNearPairMarker, NearPairAudit, NearPairCandidate, NearPairExemption, StaleNearPairMarker } from "../contract/types.ts";
 import { declKey } from "./keys.ts";
 import { commentHost } from "./public-markers.ts";
 import { respellNearCandidatesFor } from "./respell-near-analysis.ts";
-import type { AssignabilityChecker } from "./respell-shapes.ts";
 import { shapesUnder } from "./respell-shapes.ts";
 
 const NEARPAIR_TAG = "@nearpair-ok:";

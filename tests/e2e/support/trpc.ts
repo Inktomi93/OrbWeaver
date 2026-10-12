@@ -14,6 +14,11 @@
 // straight from the server as ground truth, and some drive a turn via chat.send with an explicit
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
+// @orb-waive-file no-test-fabrication(ChatDbInspection): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(readonly { readonly content?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly captures?: readonly WireCapture[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly errors?: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly events?: readonly RpgTraceRecord[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-inline-types(ActorRefInput): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
 import type { ContextLimitKind } from "@orb/contracts/chat";
@@ -56,11 +61,13 @@ const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOK
 /** A tRPC batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx or error env. */
 export async function trpcQuery<T>(procedure: string, input: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`);
+  // @orb-waive no-test-fabrication(readonly { result?: { data?: T }; error?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
   const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
     throw new Error(`e2e trpc: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
   }
+  // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
   return entry.result.data as T;
 }
 
@@ -71,11 +78,13 @@ export async function trpcMutation<T>(procedure: string, input: unknown): Promis
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ 0: input }),
   });
+  // @orb-waive no-test-fabrication(readonly { result?: { data?: T }; error?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
   const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
     throw new Error(`e2e trpc: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
   }
+  // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
   return entry.result.data as T;
 }
 
@@ -462,6 +471,24 @@ export async function getActivePreset(): Promise<PresetRow | undefined> {
  *  update replaces `config` wholesale) and restores the original in a finally. */
 export function updatePresetConfig(id: string, config: Record<string, unknown>): Promise<unknown> {
   return trpcMutation("preset.update", { id, config });
+}
+
+/** Create a throwaway chat preset (`preset.create`). The caller removes it in a finally via `removePreset`. */
+export function createPreset(name: string): Promise<PresetRow> {
+  return trpcMutation<PresetRow>("preset.create", { name, kind: "chat" });
+}
+
+/** Remove a spec-owned preset (`preset.remove`). */
+export function removePreset(id: string): Promise<unknown> {
+  return trpcMutation("preset.remove", { id });
+}
+
+/** Set a preset's `params.maxContextTokens`. `preset.update` takes the FULL config (a `patch` key is silently
+ *  stripped), so this reads the config, merges the one knob and writes the whole thing back. */
+export async function setPresetMaxContextTokens(id: string, maxContextTokens: number): Promise<void> {
+  const preset = await trpcQuery<PresetRow>("preset.get", { id });
+  const params = preset.config["params"];
+  await updatePresetConfig(id, { ...preset.config, params: { ...(typeof params === "object" ? params : {}), maxContextTokens } });
 }
 
 // ── GROUP-CHAT support (group-chat.spec.ts · live-group-modes.spec.ts · multi-tab-room-sync.spec.ts).

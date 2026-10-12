@@ -1,4 +1,5 @@
 // verb: bulkArchive — owner-scoped archive/un-archive flip; foreign rows are untouched; no emit.
+// @subject packages/server/src/domain/character/verbs/bulk-archive.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

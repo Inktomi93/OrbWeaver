@@ -4,6 +4,7 @@
 // gates bite; the error ceiling auto-disables; and a chat with zero enabled rules does NOTHING (the pre-check
 // — the byte-identity no-op's server half).
 
+// @orb-waive-file no-test-fabrication({ messageId: MessageId }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast([{ not: "an arm" }]): baselined when the gate widened; burn-down item 906.
 import type { AutomationActionInput, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
@@ -56,6 +57,7 @@ function deferred(): { readonly promise: Promise<void>; readonly resolve: () => 
  *  These suites only fire `set_variable` rules, so it narrows via a cast (no discriminant guard). */
 function recordingDispatch(calls: string[]): ArmDispatch {
   return (action): Promise<{ ok: true }> => {
+    // @orb-waive no-test-fabrication(Extract<AutomationActionInput, { type: "set_variable" }>): baselined when the gate widened to value casts; burn-down item 906.
     const arm = action as Extract<AutomationActionInput, { type: "set_variable" }>;
     if (arm.op === "set" && arm.value === "boom") {
       throw new Error("arm blew up");
@@ -1177,6 +1179,7 @@ describe("#1554 domain-bus dispatch is keyed by OWNER, not one shared lane", () 
     let ownerAFires = 0;
     const f = await setup({
       runArm: async (action): Promise<{ readonly ok: true }> => {
+        // @orb-waive no-test-fabrication(Extract<AutomationActionInput, { type: "set_variable" }>): baselined when the gate widened to value casts; burn-down item 906.
         const arm = action as Extract<AutomationActionInput, { type: "set_variable" }>;
         const tag = arm.key;
         order.push(`${tag}:enter`);

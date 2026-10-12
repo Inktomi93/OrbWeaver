@@ -243,6 +243,7 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     // The filename is preserved verbatim — the descriptor's parse reads the branch/date hints off it.
     expect(spy.calls.map((call) => call.file.filename)).toEqual(["Elara Vance - 2026-01-01.jsonl"]);
     expect(spy.calls.map((call) => call.ownerId)).toEqual([OWNER.userId]);
+    // @orb-waive no-test-fabrication(RouteBody): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await res.json()) as RouteBody;
     expect(body.imported).toEqual([{ filename: "Elara Vance - 2026-01-01.jsonl", created: true }]);
     expect(body.failed).toHaveLength(0);
@@ -252,6 +253,7 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     const spy = spyRegistry({ ok: true, created: false });
     const form = new FormData();
     form.append("file", fileOf("aria.jsonl", transcript("Aria")));
+    // @orb-waive no-test-fabrication(RouteBody): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
     expect(body.imported).toEqual([{ filename: "aria.jsonl", created: false }]);
   });
@@ -260,6 +262,7 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     const spy = spyRegistry({ ok: false, error: 'no character named "Ghost" on this account' });
     const form = new FormData();
     form.append("file", fileOf("ghost.jsonl", transcript("Ghost")));
+    // @orb-waive no-test-fabrication(RouteBody): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
     expect(body.imported).toHaveLength(0);
     expect(body.failed).toEqual([{ filename: "ghost.jsonl", error: 'no character named "Ghost" on this account' }]);
@@ -271,6 +274,7 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     form.append("file", fileOf("good.jsonl", transcript("Aria")));
     form.append("file", fileOf("bad.jsonl", "garbage\n"));
     form.append("file", fileOf("also-good.jsonl", transcript("Bee")));
+    // @orb-waive no-test-fabrication(RouteBody): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
     expect(body.imported.map((row) => row.filename)).toEqual(["good.jsonl", "also-good.jsonl"]);
     expect(body.failed.map((row) => row.filename)).toEqual(["bad.jsonl"]);
@@ -292,6 +296,7 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     form.append("file", fileOf("aria.jsonl", transcript("Aria")));
     form.append("file", fileOf("bad.jsonl", "garbage\n"));
     form.append("file", fileOf("bee.jsonl", transcript("Bee")));
+    // @orb-waive no-test-fabrication(RouteBody): baselined when the gate widened to value casts; burn-down item 906.
     const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
     expect(spy.settled).toEqual([{ ownerId: OWNER.userId, from: OPENED_AT, memoryChatIds: [aria, bee] }]);
     expect(body.memoryScope).toEqual({ from: OPENED_AT, to: OPENED_AT + 1 });

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ __reach?: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
+
 import {
   buildCardFrameCsp,
   buildCardFrameDocument,

@@ -173,8 +173,8 @@ The host's three options to limit (a visibility finding must name which one it b
 1. **The D16 history floor** — per-member `joinHistoryVisibility` (`full` default, or `from-join`),
    resolved to a `messages.seq` floor by `resolveHistoryFloorSeq`. The host is never clamped: authority
    implies visibility.
-2. **Hidden spans / the reveal eye** (producer-stamped member text; `member-visibility.ts`, gate
-   `scrubber-home`) — the
+2. **Hidden spans / the reveal eye** (producer-stamped member text; the stamp and viewer checks in `member-visibility.ts`, the pure
+   projection in `packages/contracts/src/chat/member-projection.ts`, gate `scrubber-home`) — the
    host reads canon verbatim, every other present role reads the stripped bytes, and on a
    deception-active game the reasoning channel strips too (D110 ruling A).
 3. **The D22 member-card level** — per-chat `memberCardVisibility` clamped by `clampMemberCard`; the

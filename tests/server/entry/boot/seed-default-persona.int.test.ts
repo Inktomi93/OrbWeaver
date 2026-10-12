@@ -8,6 +8,7 @@
 // The NAME is asserted as a LITERAL, never imported from the seeder — an imported constant would make the
 // assertion a tautology, and this name is owner-ruled copy (it is what a model sees as `{{user}}`).
 
+// @orb-waive-file no-test-fabrication(PersonaId): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
 import type { AssetId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -125,6 +126,7 @@ describe("createDefaultPersonaSeeder", () => {
       findSeededDefault: (): Promise<PersonaId | null> => Promise.resolve(null),
       ...latch,
     });
+    // @orb-waive no-test-fabrication(UserId): baselined when the gate widened to value casts; burn-down item 906.
     const actor = principal("user_fresh" as UserId);
 
     await expect(seeder.ensureSeeded(actor)).resolves.toBeUndefined();
@@ -145,6 +147,7 @@ describe("createDefaultPersonaSeeder", () => {
       findSeededDefault: (): Promise<PersonaId | null> => Promise.resolve(null),
       ...latch,
     });
+    // @orb-waive no-test-fabrication(UserId): baselined when the gate widened to value casts; burn-down item 906.
     await seeder.ensureSeeded(principal("user_x" as UserId));
 
     expect(captured).toHaveLength(1);

@@ -10,7 +10,9 @@
 // beside the other egress attacks (`tests/server/infra/network/fetch-plugin-bundle.suite.test.ts`); this file
 // drives the DOMAIN funnel with an injected `fetchBundle` so the SSRF-block outcome and the funnel refusals are
 // provable without live DNS.
+// @subject packages/server/src/domain/plugin/verbs/preview-from-url.ts
 
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginBundleFetchError } from "@orb/server/domain/plugin";

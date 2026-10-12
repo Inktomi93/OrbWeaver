@@ -428,6 +428,7 @@ interface FieldProbe {
   readonly macroAbsent?: (f: Fixture) => readonly MacroNeedle[];
 }
 
+// @orb-waive no-vanity-alias(ACTOR_CARRIERS): baselined when the gate widened; burn-down item 906.
 /** Every carrier kind — the per-actor probes run the WHOLE axis (the participant/cast split is exactly where the
  *  read surfaces drifted), derived from the one tuple so a new kind joins the matrix automatically. */
 const ACTOR_CARRIERS: readonly CarrierKind[] = CARRIER_KINDS;

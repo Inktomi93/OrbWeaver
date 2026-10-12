@@ -6,7 +6,10 @@
 // same as pre-#21 — the existing chatStyle assertions above never pass those props, so they double as
 // a regression check for that default.
 
+// @orb-waive-file no-test-fabrication(PerformanceEntry & { hadRecentInput: boolean }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ParticipantView } from "@orb/contracts/chat";
+import { projectViewForMember } from "@orb/contracts/chat";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -26,7 +29,6 @@ import {
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
-import { projectViewForMember } from "#server/domain/chat/substrate/member-visibility.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
@@ -870,7 +872,9 @@ test("echo: an UNATTRIBUTED row still gets no art (the kind gate survives the bo
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<MessageRowStory chatStyle="echo" messageRole="system" content="System notice." />);
   const bubble = component.locator(BUBBLE);
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingLeft)).toBe("");
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
 });
 
@@ -963,6 +967,7 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
     <MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} showInChatAvatars={false} />,
   );
   const echoBubble = echo.locator(BUBBLE);
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(() => echoBubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
   await expect.poll(() => echoBubble.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
   await echo.unmount();
@@ -1311,6 +1316,7 @@ test("a local weights path credits its DISPLAY NAME on hover — never the host'
   const readVisibleTextAtAssertion = async (): Promise<typeof visibleText> =>
     await credit.evaluate((el) => {
       const sr = el.querySelector(".sr-only");
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const clone = el.cloneNode(true) as HTMLElement;
       for (const node of clone.querySelectorAll(".sr-only")) {
         node.remove();
@@ -1319,6 +1325,7 @@ test("a local weights path credits its DISPLAY NAME on hover — never the host'
     });
   const visibleText = await credit.evaluate((el) => {
     const sr = el.querySelector(".sr-only");
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const clone = el.cloneNode(true) as HTMLElement;
     for (const node of clone.querySelectorAll(".sr-only")) {
       node.remove();
@@ -1350,6 +1357,7 @@ test("a hosted route names itself on hover too — `title` is UNCONDITIONAL now 
   await expect
     .poll(async () =>
       credit.evaluate((el) => {
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const clone = el.cloneNode(true) as HTMLElement;
         for (const node of clone.querySelectorAll(".sr-only")) {
           node.remove();
@@ -2001,19 +2009,23 @@ test("at a phone-width column the chip keeps its 40px and only the gutter gap ti
   // composition. The gutter is what this change moves.
   const readMeasuredAtAssertion = async (): Promise<typeof measured> =>
     await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
       const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
       return {
         gap: Number.parseFloat(getComputedStyle(row).columnGap),
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
         avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
       };
     });
   const measured = await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
     const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
     return {
       gap: Number.parseFloat(getComputedStyle(row).columnGap),
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
       avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
     };
@@ -3045,6 +3057,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
       return { portTop, rowBottom: row.getBoundingClientRect().bottom };
     });
     const released = await bar.evaluate((el: HTMLElement) => {
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const parent = el.parentElement as HTMLElement;
       const surface = parent.getBoundingClientRect();
       const box = el.getBoundingClientRect();
@@ -3098,6 +3111,7 @@ test.describe("the stock document page", () => {
     await expect(component.locator(ATTRIBUTION)).toHaveCount(0);
     await expect(component.locator(TIMESTAMP)).toHaveCount(0);
     const widths = await component.locator(BUBBLE).evaluate((bubble: HTMLElement) => {
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const column = bubble.closest('[data-slot="message-content-column"]') as HTMLElement;
       return { bubble: bubble.getBoundingClientRect().width, column: column.getBoundingClientRect().width };
     });
@@ -3122,6 +3136,7 @@ test.describe("the stock document page", () => {
       .poll(() =>
         component.locator(NAME_ROW).evaluate((bar: HTMLElement) => {
           const barBottom = bar.getBoundingClientRect().bottom;
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           return (bar.nextElementSibling as HTMLElement).getBoundingClientRect().top >= barBottom - 0.5;
         }),
       )
@@ -3240,10 +3255,12 @@ test.describe("a short reply at a touch pointer", () => {
     const read = (): Promise<{ readonly content: number; readonly header: number; readonly footNatural: number }> =>
       component.locator(BUBBLE).evaluate((bubble: HTMLElement) => {
         const style = getComputedStyle(bubble);
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const bar = bubble.querySelector('[data-slot="message-name-row"]') as HTMLElement;
         const barGap = Number.parseFloat(getComputedStyle(bar).columnGap) || 0;
         const barParts = [...bar.children].filter((child) => getComputedStyle(child).display !== "none");
         const header = barParts.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) + barGap * Math.max(0, barParts.length - 1);
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const foot = bubble.querySelector('[data-slot="swipe-strip"]') as HTMLElement;
         const footNatural = [...foot.children].reduce((sum, child) => sum + child.getBoundingClientRect().width, 0);
         return {
@@ -3468,8 +3485,11 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     await expect
       .poll(() =>
         component.evaluate((port: HTMLElement) => {
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           const row = port.querySelector('[data-slot="message-row"]') as HTMLElement;
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           const pre = port.querySelector("pre") as HTMLElement;
+          // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
           const column = port.querySelector('[data-slot="message-content-column"]') as HTMLElement;
           return {
             rowFits: row.scrollWidth <= port.clientWidth + 1,

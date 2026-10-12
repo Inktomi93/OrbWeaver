@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly manifestSha256: string; readonly resourceCount: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 // The two canonical generated artifacts. Both POSITIVE arms read the real tree, because both subjects ARE
 // the committed tree; each refusal arm hides exactly one member through the reader overlay, which is the
 // planted control in the other direction.
@@ -56,6 +58,7 @@ test("the DevTools closure is a hashed byte census whose hashes match the commit
   expect(createHash("sha256").update(fact.value.manifestText).digest("hex")).toBe(pin.manifestSha256);
   // The census is the receipt the validator would otherwise be taken on trust about: every manifest row's
   // hash is reproduced from the bytes this door actually read.
+  // @orb-waive no-test-fabrication({ readonly resources: readonly { readonly file: string; readonly sha256: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
   const manifest = JSON.parse(fact.value.manifestText) as { readonly resources: readonly { readonly file: string; readonly sha256: string }[] };
   const hashes = new Map(fact.value.files.map((file) => [file.file, file.sha256]));
   expect(manifest.resources.length).toBe(pin.resourceCount);
@@ -66,6 +69,7 @@ test("the DevTools closure is a hashed byte census whose hashes match the commit
 
 test("a DRIFTED byte and a missing control document are different refusals — neither is a clean closure", () => {
   const manifestText = readFileSync(join(ROOT, DEVTOOLS_CLOSURE_MANIFEST), "utf8");
+  // @orb-waive no-test-fabrication({ readonly resources: readonly { readonly file: string; readonly sha256: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
   const firstResource = (JSON.parse(manifestText) as { readonly resources: readonly { readonly file: string; readonly sha256: string }[] }).resources[0];
   if (firstResource === undefined) {
     throw new Error("the committed DevTools manifest has no resource row to drift");

@@ -1,6 +1,7 @@
 // verb: setEnabled — admin-gated; cannot_disable_self, owner-immutability, existence-before-audit, and the
 // disable kick-tail (revoke all sessions). The existence-before-audit invariant is the high-value one: a
 // write to a missing id must throw AND write NO audit row (no forensic lie).
+// @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 
 import { users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";

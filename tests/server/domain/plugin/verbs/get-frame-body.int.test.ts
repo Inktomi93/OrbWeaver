@@ -10,6 +10,7 @@
 //   3. THE SURFACE — a live registration of THIS plugin, at the `frame` tier, carrying a body.
 //
 // Everything that is not "yes" is the same `null`, so the doorway serves one identical miss for all of them.
+// @subject packages/server/src/domain/plugin/verbs/get-frame-body.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -113,7 +114,7 @@ test("a FOREIGN pluginId is refused exactly like a fabricated one — no existen
     .getFrameBody({ caller: mallory, pluginId: castId<typeof installed.id>("plugin_00000000000000000000000000"), surfaceId: "board" })
     .catch((e: unknown) => e);
   expect(stolen).toBeInstanceOf(Error);
-  expect((stolen as Error).name).toBe((bogus as Error).name);
+  expect(bogus).toHaveProperty("name", stolen instanceof Error ? stolen.name : "<stolen is not an Error>");
 });
 
 test("a DECLARATIVE surface named by a frame read, an unknown surfaceId, and a DISABLED plugin are ONE answer", async () => {

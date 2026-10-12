@@ -248,6 +248,7 @@ export const SINGLE_USER: ModeProject = {
   clientWarmup: "room",
 };
 
+// @orb-waive no-vanity-alias(DEV_TARGET_ALLOWED): baselined when the gate widened; burn-down item 906.
 /** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)?
  *  Read by `playwright.config.ts` (reuse the running stack instead of booting one) and by `global-setup.ts`
  *  (waive the target guard). */

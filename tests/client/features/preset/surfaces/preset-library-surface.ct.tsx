@@ -19,6 +19,8 @@
 // `preset.list`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc); the menu + ConfirmDialog
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
+// @orb-waive-file no-test-fabrication(Buffer): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
 import { duplicateActionName, PRESET_UNREADABLE_ROW_MARKER, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 
@@ -53,6 +55,7 @@ const EDITED_ONE_NAME = "Default (edited)";
 const EDITED_TWO_NAME = "Default (edited) 2";
 const IMPORTED_NAME = "Imported RP";
 
+// @orb-waive no-vanity-alias(FROZEN_NOW): baselined when the gate widened; burn-down item 906.
 // The F5 subtitle is a RELATIVE stamp read off the PAGE's wall clock, so the stamp test pins that clock
 // (`page.clock.setFixedTime`) and derives the fixture dates from the SAME frozen instant — the shared
 // `FROZEN_AT_MS`, never an ambient clock read (test-determinism gate).
@@ -341,6 +344,7 @@ test("P0 the row's geometry is IDENTICAL at rest and under hover — nothing ent
   const boxes = (): Promise<number[]> =>
     row.evaluate((el) =>
       [`[data-slot="list-row-title-row"]`, `[data-slot="list-row-title"]`, `[data-slot="list-row-actions"]`].flatMap((sel) => {
+        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const rect = (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
         return [Math.round(rect.left), Math.round(rect.width)];
       }),
@@ -376,6 +380,7 @@ test("item 17/19 the built-in's lock sits inline-LEFT of the name and never coll
   // top of it, half-clipped.
   await row.hover();
   const geometry = await row.evaluate((el) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
     return {
       lock: rect(`[data-slot="list-row-leading"]`),
@@ -492,6 +497,7 @@ test("P1-1 at the DOCKED 272px pane the trailing strip costs TWO slots and the n
   const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
   const slot = await resolveSpacingPxIn(row.locator(ACTIONS), "--spacing-control-md");
   const geometry = await row.evaluate((el) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
     return { cluster: rect('[data-slot="list-row-actions"]').width, title: rect('[data-slot="list-row-title"]').width };
   });
@@ -501,6 +507,7 @@ test("P1-1 at the DOCKED 272px pane the trailing strip costs TWO slots and the n
       async () =>
         (
           await row.evaluate((el) => {
+            // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
             const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
             return { cluster: rect('[data-slot="list-row-actions"]').width, title: rect('[data-slot="list-row-title"]').width };
           })
@@ -920,6 +927,7 @@ test("#483 P3-1 the landing block is centered in its pane, not top-anchored abov
   await expect(block).toBeVisible();
   // Measured against the MOUNT's own box, so the pin holds at any story height.
   const offsets = await welcome.evaluate((pane, selector) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const target = pane.querySelector(selector) as HTMLElement;
     const paneBox = pane.getBoundingClientRect();
     const blockBox = target.getBoundingClientRect();

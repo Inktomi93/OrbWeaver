@@ -1,3 +1,6 @@
+// verb: loadParticipantViews — the roster display read, driven through the production chat collection (listChats).
+// @subject packages/server/src/domain/chat/verbs/load-participant-views.ts
+
 import "../../../../support/composed-real.ts";
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

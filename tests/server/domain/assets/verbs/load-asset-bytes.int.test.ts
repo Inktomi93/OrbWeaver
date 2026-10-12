@@ -2,6 +2,7 @@
 // Load-bearing: it reads the row by id ALONE (no principal), derives the row's ownerId only to key the
 // per-user CAS, round-trips the exact stored bytes back through CAS, and returns null for a missing asset
 // (deleted between emit and handler) — never a foreign-existence throw.
+// @subject packages/server/src/domain/assets/verbs/load-asset-bytes.ts
 
 import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

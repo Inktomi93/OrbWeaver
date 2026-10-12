@@ -1,5 +1,6 @@
 // .int tests for `decideRewrite` — the review's Keep/Discard sheet persists per session, keyed by rewrite run,
 // so re-entering the workbench (a fresh `getSession`) reopens the same decisions and the same kept count.
+// @subject packages/server/src/domain/refinery/verbs/decide-rewrite.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

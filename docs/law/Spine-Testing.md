@@ -78,7 +78,7 @@ A test lives in the directory that mirrors the source directory it covers, and i
 - **The model / provider:** the only true external I/O — faked at the `runChatTurn` seam, never below it. Tests script it with the TAPE fixture (`tests/support/chat/tape.ts`): `tape()` lists ordered role responses and `scriptedRunner(tape)` presents them as the injected `RunChatTurnOp`, dequeuing FIFO per turn (a group round drives N entries). Under-scripting throws a LOUD exhaustion error, never a silent cycle; a rate-limit/error surfaces as a thrown `ProviderError` (assert with `toThrowProviderError(kind)` — the field lives on the provider `ChatResult` below this seam). The production analogue is the RUNNER_OVERRIDE seam (~~`infra/providers/scripted-override.ts`~~, cycles by design); no such file exists on the tree, and the reference stays as the design record if the replay seam is rebuilt. Provider request *shape* is pinned by `.contract` tests; *behavior* is scripted.
 - **Cross-feature deps:** inject a fake at the composition root, never `vi.mock()` a sibling module. If a collaborator needs stubbing and isn't an injected port, the test just surfaced a design smell.
 
-`vi.mock` of an internal module is gated (`test-mock-doctrine`); its only legitimate use is an unavoidable third-party node edge, justified in a comment.
+`vi.mock` of an internal module is gated (`test-mock-doctrine`); its only legitimate use is an unavoidable third-party node edge, justified in a comment. The same gate flags `vi.spyOn` on an internal module namespace, because the spy replaces that export for every importer. A spy on an object the composition root hands over stays legal.
 
 ## 4. The fixture + factory contract
 
@@ -108,10 +108,15 @@ A test lives in the directory that mirrors the source directory it covers, and i
 | infra/foundation files with runtime logic | a unit or integration test (security checks, adapters, dispatchers) |
 | **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a unit or integration test |
 | every `@orb/inference` module with an emitted export | a unit, integration or contract test |
+| every direct child of the client `data/`, `forms/`, `forms/editor/` and `state/` homes with a callable export | a unit or component test |
+| every non-primitive `@orb/ui` logic module (`charts/`, `markdown/`, `stream/`, `content/`, `code-editor/`, `diff/`, `fuzzy-search/`) with a callable export | a unit or component test |
+| every action a client `state/` file exports when it mints a store (a `use*` read-hook is not an action) | a unit or component test that calls it |
 
 The surfaces are demand-by-default: every slot the template grows is demanded the day it appears. There is no enumerated slot list. A suite kind reaches a module exactly as a module test does.
 
-Modules that no test reached when presence became reach are reviewed-grant rows in `tooling/src/verify/lib/reviewed-grants-test-reach-verbs.ts` and `tooling/src/verify/lib/reviewed-grants-test-reach-modules.ts`. A row reds stale once a test reaches its module; delete it then. A new module gets a test or an `@subject` header, never a row. The waiver ratchet in `docs/law/gate-runtime-standardization.md` §5 holds the table's size.
+A test kind reaches only the source extensions its definition holds (`tooling/src/floor/testing/test-kinds.ts`): a `.test.ts` does not reach a `.tsx` module. A store action is reached by a call in a test, or in a story or helper the test imports. An import that is never called does not reach it.
+
+Modules that no test reached when presence became reach are reviewed-grant rows in `tooling/src/verify/lib/reviewed-grants-test-reach-modules.ts` and `tooling/src/verify/lib/reviewed-grants-test-reach-client.ts`. A row reds stale once a test reaches its module; delete it then. A new module gets a test or an `@subject` header, never a row. The waiver ratchet in `docs/law/gate-runtime-standardization.md` §5 holds the table's size.
 
 A pure spread-forwarding DI bridge is exempt by SHAPE — the same shape the `entry/`/`transport/` exemption
 below covers — because the behavior belongs to its target and is demanded there, and the only test
@@ -136,19 +141,16 @@ callable's body reducing to ONE expression that is a delegating call, a DI-bundl
 parameters, or a factory returning one of those. A second statement, a branch (including a ternary), or a computed
 argument is behavior and stays demanded.
 
-Browser lanes are not reach-gated. `test-presence-client` still proves the client `data/`, `forms/` and `state/`
-primitives and the non-primitive `@orb/ui` logic groups by mirror name; converting it to reach is not yet built. Its
-deliberate cross-cutting floor is the standing `worst-legal-art-contrast.suite.ct.tsx`, required because deleting
-it restores a known blind class across every theme polarity at once.
+`test-presence-client` holds the one named-file floor: the standing `worst-legal-art-contrast.suite.ct.tsx`
+must exist, because deleting it restores a known blind class across every theme polarity at once.
 
-Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero, and so does a
-test tree that resolves no reference into the demanded modules.
+Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero. So does a
+test tree that resolves no reference into the demanded modules, and so does a real tree that scans no inference,
+client or ui module.
 
-**Presence is not coverage:** `test-presence-client` confirms a store's mirror test EXISTS and names each action — NOT
-that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.
-Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the mirror (drive it,
-assert the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior
-tested.
+**Presence is not coverage:** `test-reach` confirms a test calls each store action — NOT that the call is ASSERTED.
+Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the test that drives it (assert
+the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior tested.
 
 **Coverage: REPORT-ONLY.** v8 provider, `pnpm test:coverage`, NEVER inside `pnpm check`; no `thresholds` block until a real baseline exists — then pin GLOBAL thresholds and ratchet UP as a backslide floor. For "do these tests catch bugs?" use mutation testing (§9), not a coverage number.
 
@@ -297,15 +299,15 @@ gate requires a fresh calibration run, because `break` is bound to the measured 
 
 A test proves what ships. Helpers, stories and fixtures must follow a product change without edits.
 
-- **Call production; never copy it.** A harness, fixture or story calls the production function, query, predicate, reducer or default. If the rule is private to a compose closure or a `.tsx` file, export it or move it to `@orb/contracts` or `@orb/kit` first. A test-side copy of production logic is a defect.
-- **Derive types.** Take wire and row shapes from the contract, `inferOutput`, `TrpcInput`, `TrpcWireOutput` or the `AppRouter` type. Never hand-declare a shape production owns. Cast only to feed a refusal path bad input, with the reason beside the cast.
+- **Call production; never copy it.** A harness, fixture or story calls the production function, query, predicate, reducer or default. If the rule is private to a compose closure or a `.tsx` file, export it or move it to `@orb/contracts` or `@orb/kit` first. A test-side copy of production logic is a defect. `test-production-clone` flags a test-tree function whose body has the shape of an exported production function.
+- **Derive types.** Take wire and row shapes from the contract, `inferOutput`, `TrpcInput`, `TrpcWireOutput` or the `AppRouter` type. Never hand-declare a shape production owns. Cast only to feed a refusal path bad input, with the reason beside the cast. `test-hand-shape` flags a shape in an e2e or support module whose fields copy an exported production shape, or kept most of its field names after drifting; a shared name alone is not a finding. `no-test-fabrication` flags a cast the checker cannot prove.
 - **Import constants.** Labels, ids, defaults, limits, tokens, timings and contrast floors come from their production home. If a CT cannot import a `.tsx` value, move the value to a zero-import `.ts` module.
-- **Seed through real builders.** Write rows through the production verb or a factory in `tests/support/factories`. Never mint a state production cannot produce.
-- **Mount the real door.** CT harnesses and stories build every registry from the production list, in production order: config sections, tool renderers, chat surfaces, home tiles, chrome widgets, slash commands and palette sources. Stories mount the real surface and stub only the network edge. A story never re-implements product wiring.
+- **Seed through real builders.** Write rows through the production verb or a factory in `tests/support/factories`. Never mint a state production cannot produce. `test-factory-contract` holds the factory signatures (§4).
+- **Mount the real door.** CT harnesses and stories build every registry from the production list, in production order: config sections, tool renderers, chat surfaces, home tiles, chrome widgets, slash commands and palette sources. Stories mount the real surface and stub only the network edge. A story never re-implements product wiring. `ct-config-mirror-parity` holds the CT door lists equal to the production lists, row for row.
 - **Snapshot the product.** Build an aria or text snapshot from what production renders, never from a hand-listed roster.
 - **Smoke the running app.** e2e specs drive the real stack headless for the core flows. They run on a committed synthetic corpus written by the seed tool, so CI needs no private data. A local run may point at a copy of the owner's data; that copy is never committed.
-- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review.
-- **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
+- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. `test-file-size` caps a test-tree file, and `pnpm cpd:tests` holds the duplicated share of `tests/` at the ratchet in `jscpd.tests.json`.
+- **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists. `test-reach` enforces it (§5).
 
 The antipatterns these rules forbid, with their detectors and burn-down items, are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
 

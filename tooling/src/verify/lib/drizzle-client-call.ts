@@ -6,27 +6,19 @@
 // `this.#db["insert"]()` and `db.query.chats.findMany()` alike, while a same-named method on a local class
 // or an unrelated import is refused. Callers own the fail-closed decision for an unresolved property.
 
-import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { CallExpression, Node as MorphNode } from "ts-morph";
+import { declaredInDrizzle, readCalledMember } from "@orb/tooling/floor/code-facts/drizzle-write-chain";
+import type { CallExpression } from "ts-morph";
 import type { DrizzleClientCall } from "../contract/drizzle-client-call.ts";
-
-const DRIZZLE_PACKAGE_INFIX = "/drizzle-orm/";
-
-function allInDrizzle(declarations: readonly MorphNode[]): boolean {
-  return declarations.every((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(DRIZZLE_PACKAGE_INFIX));
-}
 
 /** Classify one call expression against the installed Drizzle client surface. */
 export function readDrizzleClientCall(call: CallExpression): DrizzleClientCall {
-  const member = readMemberReference(call.getExpression());
+  const member = readCalledMember(call);
   if (member.kind === "unresolved") {
     return { kind: "unresolved", method: null, nameNode: null, detail: member.detail };
   }
-  const { name, receiver, nameNode } = member.value;
-  const property = receiver.getType().getProperty(name);
-  const declarations = property?.getDeclarations() ?? [];
+  const { name, nameNode, declarations } = member.value;
   if (declarations.length === 0) {
     return { kind: "unresolved", method: name, nameNode, detail: `the checker resolved no declaration for member ${name}` };
   }
-  return allInDrizzle(declarations) ? { kind: "drizzle", method: name, nameNode } : { kind: "foreign", method: name, nameNode };
+  return declaredInDrizzle(declarations) ? { kind: "drizzle", method: name, nameNode } : { kind: "foreign", method: name, nameNode };
 }

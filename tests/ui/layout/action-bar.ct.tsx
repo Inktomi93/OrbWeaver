@@ -41,6 +41,7 @@ test("actual container fit moves keyed groups, preserving focus and state withou
   const primary = component.getByRole("button", { name: "Primary 1", exact: true });
   await primary.focus();
   await host.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.width = "322px";
   });
   await expect(bar).toHaveAttribute("data-stacked", "true");
@@ -50,6 +51,7 @@ test("actual container fit moves keyed groups, preserving focus and state withou
   await expect(component.getByRole("button", { name: "Swipe", exact: true })).toBeFocused();
   await primary.focus();
   await host.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.width = "600px";
   });
   await expect(bar).toHaveAttribute("data-stacked", "false");
@@ -78,6 +80,7 @@ test("inline padding reduces available fit and cannot orphan Send", async ({ mou
   const primary = component.getByRole("button", { name: "Primary 0", exact: true });
   await primary.focus();
   await bar.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.paddingInline = "24px";
   });
   await expect(bar).toHaveAttribute("data-stacked", "true");
@@ -94,6 +97,7 @@ test("inline padding reduces available fit and cannot orphan Send", async ({ mou
     })
     .toEqual({ order: ["action-bar-primary", "action-bar-leading", "action-bar-fill", "action-bar-trailing"], primaryAbove: true, pairTogether: true });
   await bar.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.paddingInline = "0px";
   });
   await expect(bar).toHaveAttribute("data-stacked", "false");
@@ -120,6 +124,7 @@ test("the fill grows into the free space before trailing and its grown width nev
   const bar = component.locator('[data-slot="action-bar"]');
   const host = component.locator('[data-slot="action-bar-host"]');
   await host.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.width = "600px";
   });
   await component.getByRole("button", { name: "Toggle placed", exact: true }).click();
@@ -145,6 +150,7 @@ test("the fill grows into the free space before trailing and its grown width nev
     .toEqual({ oneRow: true, afterPrimary: true, beforeTrailing: true, grown: true });
 
   await host.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.width = "322px";
   });
   await expect(bar).toHaveAttribute("data-stacked", "true");
@@ -163,6 +169,7 @@ test("the fill grows into the free space before trailing and its grown width nev
 
   // While stacked the fill spans the whole second row; counting that width would keep the bar stacked here.
   await host.evaluate((node) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.width = "600px";
   });
   await expect(bar).toHaveAttribute("data-stacked", "false");

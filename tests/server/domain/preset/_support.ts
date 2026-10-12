@@ -17,6 +17,7 @@ import { makeResolvedCacheView } from "../../../support/factories/resolved-conne
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 export const FROZEN_AT = FROZEN_AT_MS;
 
 interface AuditCall {

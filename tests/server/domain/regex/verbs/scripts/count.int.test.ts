@@ -1,3 +1,6 @@
+// verb: countScripts — the owner-scoped library census, answered without full-list enrichment.
+// @subject packages/server/src/domain/regex/verbs/scripts/count.ts
+
 import { regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";

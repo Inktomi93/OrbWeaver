@@ -15,6 +15,7 @@
 //     required through tRPC's output inference); with the concrete per-kind types that reason is gone,
 //     and every producer already emitted it.
 
+// @orb-waive-file no-test-fabrication(WorkloadId): baselined when the gate widened to value casts; burn-down item 906.
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { ReconcileStatsWorkloadResult } from "@orb/contracts/stats";
 import type { WorkloadEvent, WorkloadKind } from "@orb/contracts/workloads";

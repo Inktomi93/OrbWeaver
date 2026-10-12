@@ -11,6 +11,7 @@
 //      here is what makes `PluginFrame` render NOTHING (§4.9). A throw or a rejected promise would blank a
 //      surface into an error instead of collapsing it cleanly.
 
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import type { PluginFrameRequest } from "@orb/client/data";
 import { mintPluginFrame, pluginFrameMintBody, revokePluginFrame } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";

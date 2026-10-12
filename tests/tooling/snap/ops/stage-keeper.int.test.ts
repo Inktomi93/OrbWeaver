@@ -250,6 +250,7 @@ describe("the stage's own idle timer", () => {
     const home = scratchHome("reap");
     const stage = await plantStage(home);
     plantRow(home, stage, 10 * 60_000);
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     const stagePid = stage.child.pid as number;
     // The control that makes "dead" mean something: it is alive, and nothing but the timer runs here.
     expect(pidAlive(stagePid), "the planted stage is running before the timer fires").toBe(true);
@@ -376,6 +377,7 @@ describe("the stage's own idle timer", () => {
     const home = scratchHome("reserved");
     const stage = await plantStage(home);
     const planted = plantRow(home, stage, 10 * 60_000, { serverPort: DEV_PORTS.server, vitePort: DEV_PORTS.vite });
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     const stagePid = stage.child.pid as number;
 
     const keeper = startKeeper(home);

@@ -3,6 +3,11 @@
 // @instrument-absence-proof: seed rejection, openChat refusal, and an omitted host-only tab stay explicit
 // instead of producing a clean-looking game walkthrough.
 
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ReadonlyArray<{ readonly name: string; readonly args: readonly string[] }>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(ScenarioManifest): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";

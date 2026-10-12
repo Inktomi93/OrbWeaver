@@ -1,3 +1,6 @@
+// verb: syncTargetGenerations — proves every changed encoder target before any of them lands.
+// @subject packages/server/src/domain/embeddings/verbs/sync-target-generations.ts
+
 import { embedGenerationTargets } from "@orb/db";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";

@@ -113,6 +113,7 @@ export interface RowSkin {
 function bubbleOuter(role: MessageRole): string {
   return cx(CHAT_TRACK, alignFor(role));
 }
+// @orb-waive no-vanity-alias(bubbleInner): baselined when the gate widened; burn-down item 906.
 // Filled skins share the role-bubble recipe; centered unboxed skins own their reading treatment.
 const bubbleInner = messageBubbleClass;
 // The full-width skins take the SAME centred track as the bubble family (#213), and CENTRE their capped

@@ -10,6 +10,7 @@
 //   • BUNDLE, fresh tenant: export the owner's library → import on a DIFFERENT owner → rows exist, the
 //     GLOBAL attachment rides, and re-importing the same bundle writes nothing.
 
+// @orb-waive-file no-test-fabrication({ name: string; global: boolean }): baselined when the gate widened to value casts; burn-down item 906.
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
@@ -381,11 +382,13 @@ describe("the single-script export door", () => {
 
     const target = await seedUser(db, { handle: castId<Handle>("target") });
     const importOne = createImportRegexScript(ctxOf(db, "d"));
+    // @orb-waive no-test-fabrication(NonNullable<typeof file>): baselined when the gate widened to value casts; burn-down item 906.
     expect(await importOne({ ownerId: target, bytes: (file as NonNullable<typeof file>).bytes })).toEqual({ created: true });
 
     const [landed] = await db.select().from(regexScripts).where(eq(regexScripts.ownerId, target));
     expect(landed?.name).toBe("shared");
     // …and the SAME dedup rule the bundle uses applies to a hand-shared file.
+    // @orb-waive no-test-fabrication(NonNullable<typeof file>): baselined when the gate widened to value casts; burn-down item 906.
     expect(await importOne({ ownerId: target, bytes: (file as NonNullable<typeof file>).bytes })).toEqual({ created: false });
   });
 });

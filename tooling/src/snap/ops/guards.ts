@@ -9,6 +9,7 @@ import { routeSlug } from "../../floor/artifacts/artifact-naming.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { buildUrl } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { StageRow } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
@@ -124,7 +125,7 @@ export function configureStage(opts: Args): number | null {
     return control;
   }
   if (opts.isolated) {
-    // @orb-waive caught-failure-ownership(e): printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced.
+    // @orb-waive caught-failure-ownership(e): printed as STAGE ERROR and returned as exit code 2 (tool error: nothing was measured), which the CLI process exits with. Ends if that exit code stops being surfaced.
     try {
       const stage = bindIsolatedStage(opts);
       registerSnapStageProvenance({
@@ -147,7 +148,7 @@ export function configureStage(opts: Args): number | null {
         failure: errorMessage(e),
       });
       print(`STAGE ERROR: ${errorMessage(e)}`);
-      return 1;
+      return EXIT.toolError;
     }
   } else {
     registerLiveProvenance(opts);

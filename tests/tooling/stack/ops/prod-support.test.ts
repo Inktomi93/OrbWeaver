@@ -14,6 +14,7 @@ vi.mock("node:fs", async (importOriginal) => {
       if (fsFailure.operation === "read") {
         throw Object.assign(new Error(`planted ${fsFailure.code} token failure`), { code: fsFailure.code });
       }
+      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       return (real.readFileSync as (...inner: unknown[]) => unknown)(...args);
     },
     unlinkSync: (...args: Parameters<typeof real.unlinkSync>) => {
@@ -26,6 +27,7 @@ vi.mock("node:fs", async (importOriginal) => {
       if (String(path).endsWith("/packages/client/dist/index.html")) {
         throw Object.assign(new Error("planted EIO dist failure"), { code: "EIO" });
       }
+      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       return (real.statSync as (...args: unknown[]) => unknown)(path, options);
     },
   };

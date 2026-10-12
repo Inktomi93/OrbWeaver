@@ -568,6 +568,7 @@ export interface ImageFacetMember {
   readonly caption: string | null;
 }
 
+// @orb-waive no-vanity-alias(UnusedCharacter): baselined when the gate widened; burn-down item 906.
 /** Character identity for the never-played filter; the producer decides eligibility. */
 export type UnusedCharacter = ArchetypeMember;
 

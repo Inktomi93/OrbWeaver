@@ -2,6 +2,7 @@
 // below must project the same capture references and live consoleLines getter; path-specific ownership,
 // environment, settings, context selection and cleanup stay explicit.
 
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
 import { readFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";

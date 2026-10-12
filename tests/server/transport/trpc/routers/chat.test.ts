@@ -7,6 +7,7 @@
 // are pinned on the room source at `tests/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
+// @orb-waive-file no-test-fabrication(ChatBusEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartChatResult } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
@@ -15,6 +16,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
 import { describe, vi } from "vitest";
+import { z } from "zod";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
@@ -495,6 +497,8 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
     };
   }
 
+  const DeltaChunk = z.object({ delta: z.string() });
+
   test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb; yields text deltas", async () => {
     const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => deltaStream(["drafted ", "opening line"]));
     const ctx = makeContext({
@@ -511,7 +515,7 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
     // The router wraps each `{ delta }` in a `tracked()` envelope: `[id, data, symbol]`, data at index 1.
     const deltas: string[] = [];
     for await (const yielded of sub as AsyncIterable<unknown>) {
-      const data = Array.isArray(yielded) ? (yielded[1] as { delta: string }) : (yielded as { delta: string });
+      const data = DeltaChunk.parse(Array.isArray(yielded) ? yielded[1] : yielded);
       deltas.push(data.delta);
     }
 

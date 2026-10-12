@@ -2,6 +2,7 @@
 // The whole surface is one authority decision (the owner-scoped `getById` load) plus a projection, so this
 // suite is about exactly two things: that a stranger is refused leak-free, and that the map projects only the
 // BUNDLE half of `plugin_assets` (a runtime `net.fetchAsset` cover is not a named resolution target).
+// @subject packages/server/src/domain/plugin/verbs/list-bundle-assets.ts
 
 // @orb-waive-file no-loose-id-cast(shipped?.assetId): baselined when the gate widened; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(EventEmitter & Page): baselined when the gate widened to value casts; burn-down item 906.
+
 // The request ring's planted controls use tiny limits so each fence is crossed deliberately. The fake
 // page is only an EventEmitter because this test owns the ring's event/accounting contract; the sibling
 // browser integration proves the same attachment against Playwright.

@@ -2,9 +2,10 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { listeningPids } from "../../floor/host/platform.ts";
 import type { SessionRow } from "../contract/session.ts";
+import { stageBindingDrift } from "../lib/stage-run-binding.ts";
 import { writeRow } from "./session-registry.ts";
 import { stageBindingAlive } from "./stage-census.ts";
-import { markStageDead } from "./stage-marker.ts";
+import { markStageDead, readBands } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -12,6 +13,17 @@ interface StageBoundSessionState {
   readonly home: string;
   readonly stageHome: string;
   row: SessionRow;
+}
+
+/** Why the band no longer carries the stage this session bound at boot, or null. A band with no row is the
+ *  dead-stage gate's case, and a row written before the identity was recorded has nothing to compare. */
+export function observeSessionStageDrift(state: Pick<StageBoundSessionState, "row" | "stageHome">): string | null {
+  const stage = state.row.stage;
+  if (stage?.bound === undefined) {
+    return null;
+  }
+  const rows = readBands(state.stageHome);
+  return rows.some((row) => row.band === stage.band) ? stageBindingDrift({ band: stage.band, ...stage.bound }, rows) : null;
 }
 
 /** Sticky T4 death observation: once either stage half dies, both registries retain the first failure. */

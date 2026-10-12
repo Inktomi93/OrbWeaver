@@ -93,6 +93,7 @@ export const importBundleWorkloadParams = z.object({
   source: z.enum(["zip", "dir"]).optional(),
 });
 
+// @orb-waive no-vanity-alias(emptyWorkloadParams): baselined when the gate widened; burn-down item 906.
 /** No-tunable kinds share this schema — the explicit empty object every uniform parse runs against. */
 export const emptyWorkloadParams = noParams;
 

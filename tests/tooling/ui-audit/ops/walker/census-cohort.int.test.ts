@@ -16,6 +16,7 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   const res = await runCli("snap", ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["row-void"]).toMatchObject({
     candidates: 1,
@@ -44,6 +45,7 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
   const res = await runCli("snap", ["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 0, withheld: { animating: 1 } });
   expect(report.findings.map(({ rule }) => rule)).not.toContain("cohort-anatomy");
@@ -63,6 +65,7 @@ test("cohort-anatomy judges a retained animation after its play state is finishe
   const res = await runCli("snap", ["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 1, withheld: {} });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
@@ -104,6 +107,7 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
   const res = await runCli("snap", ["--file", join(scratch, "inline-run-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   // BOTH cohorts are candidates: the prose one is excluded with a reason, not dropped, so widening this
   // fence shows up in the denominator rather than as a quieter clean run.

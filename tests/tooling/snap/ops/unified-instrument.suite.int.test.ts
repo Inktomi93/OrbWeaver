@@ -1,3 +1,8 @@
+// @orb-waive-file no-test-fabrication(AuditData): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(PerfArtifact): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(PerfIndex): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly nodes?: readonly unknown[]; readonly samples?: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 // @instrument-proof: the sole rendered-instrument CLI owns one selective analyzer vocabulary, one
 // argv-ordered tape, explicit interference refusals, and — since #1315 — the only argv door in the
 // fleet. The browser arm below plants real motion/perf subjects; the corpus arm plants a retired
@@ -323,6 +328,7 @@ test("Snap motion/perf artifacts are strict supersets of the retained engine eva
   expect(motion.stdout).toContain("measured-input=1");
   expect(motion.stdout).toContain("motion-artifact=");
   expect(motion.stdout).not.toContain("frame population is ABSENT");
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const motionArtifact = JSON.parse(await readFile(resultValue(motion.stdout, "motion-artifact"), "utf8")) as {
     readonly contract: string;
     readonly selector: { readonly action: { readonly kind: string; readonly selector: string | null } };
@@ -414,6 +420,7 @@ test("a failing motion artifact carries the exact offender and threshold into th
   const motion = await runCli("snap", ["--file", file, "--motion", "#target", "--motion-window", "800", "--motion-no-throttle", ...QUIET], {
     timeoutMs: CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const artifact = JSON.parse(await readFile(resultValue(motion.stdout, "motion-artifact"), "utf8")) as {
     readonly problems: readonly AnalyzerProblem[];
   };
@@ -422,6 +429,7 @@ test("a failing motion artifact carries the exact offender and threshold into th
       expect.objectContaining({ arm: "motion", metric: "dirty-animation", subject: "#spin", observed: "width", threshold: "compositor-only" }),
     ]),
   );
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(resultValue(motion.stdout, "index"), "utf8")) as {
     readonly results: {
       readonly batches: readonly {

@@ -52,6 +52,7 @@ function doc(over: Partial<CanonicalDocument> = {}): CanonicalDocument {
 
 describe("buildDocumentFile", () => {
   test("emits the envelope + the canon, the provenance, and the two re-linkable scopes", () => {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildDocumentFile(doc()))) as Record<string, unknown>;
     expect(wire["schemaKind"]).toBe(DATABANK_SCHEMA_KIND);
     expect(wire["schemaVersion"]).toBe(1);
@@ -64,6 +65,7 @@ describe("buildDocumentFile", () => {
   });
 
   test("nothing DERIVED travels — no chunk counts, no embeddings, no ingest state", () => {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildDocumentFile(doc()))) as Record<string, unknown>;
     for (const derived of ["chunkCount", "embeddedCount", "chunks", "ingestState"]) {
       expect(wire).not.toHaveProperty(derived);
@@ -109,6 +111,7 @@ describe("parseDocumentFile", () => {
   });
 
   test("sourceAssetId preserves a canonical asset id and heals malformed or wrong-prefix ids to null", () => {
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const wire = JSON.parse(DEC.decode(buildDocumentFile(doc()))) as Record<string, unknown>;
     for (const [sourceAssetId, expected] of [
       [ASSET, ASSET],

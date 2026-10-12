@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ compaction: { mode: string; thresholdPct: number } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { z } from "zod";
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
 
@@ -146,6 +148,7 @@ test("CONFIG_LIFTS v1→v2 applies all three transforms (main→marker, jailbrea
     ],
   });
 
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const sections = lifted["sections"] as Record<string, unknown>[];
   const markers = sections.map((s): unknown => s["marker"]);
   const mainSection = sections.find((s): boolean => s["marker"] === "main_prompt");
@@ -172,6 +175,7 @@ test("CONFIG_LIFTS v1→v2 inserts NO pivot when there is no post_history (the p
     schemaVersion: SCHEMA_VERSION_V1,
     sections: [{ type: "marker", id: "d", name: "Description", marker: "char_description", enabled: true }],
   });
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const sections = lifted["sections"] as Record<string, unknown>[];
   const markers = sections.map((s): unknown => s["marker"]);
   expect(markers).not.toContain("chat_history");
@@ -233,6 +237,7 @@ test("CONFIG_LIFTS v4→v5 turns a silenced (template:'') marker into a DISABLED
     ],
   });
   expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V5);
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const sections = lifted["sections"] as Record<string, unknown>[];
   // The silenced marker: the template is GONE (not emptied) and the section is off.
   expect(sections[0]).not.toHaveProperty("template");

@@ -1,39 +1,50 @@
-// "Which TABLE expression does this Drizzle write chain name?" — the subject reader behind every
-// single-writer / column-invariant policy, answered by BINDING rather than by spelling.
-//
-// `readDrizzleClientCall` answers whether ONE call is a Drizzle client verb. This answers the chain
-// question above it: `.set(…)` / `.values(…)` / `.onConflictDoUpdate(…)` are all written downstream of the
-// `update(t)` / `insert(t)` that chose the table, and the repo reaches that verb through a hoisted builder
-// (`const q = db.update(t); q.set(…)`), through a FACTORY that returns one (`makeUpdate(db).set(…)`, same
-// module or imported), and through any number of intervening `.where`/`.values` links. Every one of those
-// hops is the SHARED binding resolver plus `readCallReturns`; nothing here re-implements an alias chain,
-// and there is no depth budget — the walk is bounded by a node-identity cycle guard.
+// Which TABLE expression does a Drizzle write chain name? Write-ness is the verb's DECLARATION (an `insert`/`update`
+// that drizzle-orm declares), never its spelling, and the chain is walked through hoisted builders, factories and wrappers.
 //
 // THREE ANSWERS, and the middle one is why this is not a boolean. `resolved(node)` is the table argument;
-// `resolved(null)` is the honest NEGATIVE fact "there is no Drizzle write verb in this chain at all"
-// (a `map.set(…)`, a foreign fluent API), which is absence of a SUBJECT rather than a failure to read;
-// `unresolved` is a write verb this reader found and could not follow, which a caller must fail closed on.
-// Collapsing the last two is exactly how an aliased or computed table walks past a name-keyed policy.
-//
-// The table argument is handed back UNJUDGED: which table is guarded, and whether an unbindable identifier
-// is "somebody else's table" or "a subject I refuse", are the calling policy's law, decided on the shared
-// module-origin fact of this node.
-
-import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { Node as MorphNode } from "ts-morph";
+// `resolved(null)` is the honest NEGATIVE fact "no drizzle write verb in this chain" (a `map.set(…)`, a foreign
+// `store.update(…)`); `unresolved` is a verb this reader found and could not follow or declare, which a caller
+// must fail closed on. The table argument is handed back UNJUDGED: which table is guarded is the caller's law.
+import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { unwrapExpression } from "./ast-read.ts";
-import { readCallReturns } from "./authored-key-set.ts";
+import { readCallReturns } from "./call-returns.ts";
+import { readMemberReference, resolveStableExpression } from "./reference-fact.ts";
+import { unwrapTarget } from "./reference-fact-alias.ts";
+import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
 
 /** The two Drizzle verbs that CHOOSE a table for a write. `delete` is excluded on purpose: it names a table
  *  but writes no columns, so a column-invariant caller has nothing to judge there. */
-const WRITE_VERBS = new Set(["update", "insert"]);
+const WRITE_VERBS: ReadonlySet<string> = new Set(["update", "insert"]);
+
+const DRIZZLE_PACKAGE_INFIX = "/drizzle-orm/";
 
 type TableFact = ReferenceFact<MorphNode | null>;
 
 interface ChainState {
   readonly active: Set<object>;
+}
+
+/** The member a call invokes and the declarations the checker resolves for it; empty when it resolves none. */
+export interface CalledMember {
+  readonly name: string;
+  readonly nameNode: MorphNode;
+  readonly declarations: readonly MorphNode[];
+}
+
+/** The member `call` invokes, normalized across dotted, bracketed and optional spellings. */
+export function readCalledMember(call: CallExpression): ReferenceFact<CalledMember> {
+  const member = readMemberReference(call.getExpression());
+  if (member.kind === "unresolved") {
+    return member;
+  }
+  const { name, receiver, nameNode } = member.value;
+  const declarations = receiver.getType().getProperty(name)?.getDeclarations() ?? [];
+  return { kind: "resolved", value: { name, nameNode, declarations }, trace: member.trace };
+}
+
+/** Is every declaration inside the installed drizzle-orm package? */
+export function declaredInDrizzle(declarations: readonly MorphNode[]): boolean {
+  return declarations.every((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(DRIZZLE_PACKAGE_INFIX));
 }
 
 function unresolved(reason: ReferenceUnresolvedReason, node: MorphNode, detail: string): UnresolvedReferenceFact {
@@ -66,7 +77,7 @@ function firstTable(candidates: readonly MorphNode[], state: ChainState, origin:
 /** `makeUpdate(db).set(…)` / `run(db.update(t))` — a call in receiver position is either a FACTORY whose
  *  returns carry the builder, or a wrapper whose ARGUMENTS do. Both are tried; a factory this reader cannot
  *  enter is only a refusal when the arguments do not answer either. */
-function callReceiver(call: import("ts-morph").CallExpression, state: ChainState): TableFact {
+function callReceiver(call: CallExpression, state: ChainState): TableFact {
   const returns = readCallReturns(call);
   const fromArguments = firstTable(call.getArguments(), state, call);
   if (returns.kind === "unresolved") {
@@ -76,22 +87,33 @@ function callReceiver(call: import("ts-morph").CallExpression, state: ChainState
   return fromReturns.kind === "resolved" && fromReturns.value === null ? fromArguments : fromReturns;
 }
 
-function methodReceiver(call: import("ts-morph").CallExpression, callee: MorphNode, state: ChainState): TableFact {
+/** An `insert(<t>)` / `update(<t>)` call: the table when drizzle declares the verb, none when something else does. */
+function verbTable(call: CallExpression, nameNode: MorphNode): TableFact {
+  const member = readCalledMember(call);
+  if (member.kind === "unresolved") {
+    return unresolved(member.reason, member.node, member.detail);
+  }
+  const { name, declarations } = member.value;
+  if (declarations.length === 0) {
+    return unresolved("missing", nameNode, `the checker resolved no declaration for ${name}()`);
+  }
+  if (!declaredInDrizzle(declarations)) {
+    return found(null, nameNode);
+  }
+  const argument = call.getArguments()[0];
+  return argument === undefined ? unresolved("missing", nameNode, `${name}() names no table`) : found(unwrapTarget(argument), nameNode);
+}
+
+function methodReceiver(call: CallExpression, callee: MorphNode, state: ChainState): TableFact {
   if (!Node.isPropertyAccessExpression(callee)) {
     return found(null, call);
   }
-  if (!WRITE_VERBS.has(callee.getName())) {
-    return walk(callee.getExpression(), state);
-  }
-  const argument = call.getArguments()[0];
-  return argument === undefined
-    ? unresolved("missing", callee.getNameNode(), `${callee.getName()}() names no table`)
-    : found(unwrapExpression(argument), callee.getNameNode());
+  return WRITE_VERBS.has(callee.getName()) ? verbTable(call, callee.getNameNode()) : walk(callee.getExpression(), state);
 }
 
 function walkEntered(current: MorphNode, state: ChainState): TableFact {
   if (Node.isCallExpression(current)) {
-    const callee = unwrapExpression(current.getExpression());
+    const callee = unwrapTarget(current.getExpression());
     return Node.isIdentifier(callee) ? callReceiver(current, state) : methodReceiver(current, callee, state);
   }
   if (!Node.isIdentifier(current)) {
@@ -107,7 +129,7 @@ function walkEntered(current: MorphNode, state: ChainState): TableFact {
 }
 
 function walk(node: MorphNode, state: ChainState): TableFact {
-  const current = unwrapExpression(node);
+  const current = unwrapTarget(node);
   if (state.active.has(current.compilerNode)) {
     return unresolved("cycle", current, `write-chain cycle returns to ${current.getKindName()}`);
   }
@@ -117,8 +139,8 @@ function walk(node: MorphNode, state: ChainState): TableFact {
   return fact;
 }
 
-/** The table expression the write chain ending at `receiver` names: the argument of its `update()`/
- *  `insert()`, `null` when the chain contains neither, or one refusal. */
+/** The table expression the write chain ending at `receiver` names: the argument of its drizzle `update()`/
+ *  `insert()`, `null` when the chain contains none, or one refusal. */
 export function readDrizzleWriteTable(receiver: MorphNode): TableFact {
   return walk(receiver, { active: new Set<object>() });
 }

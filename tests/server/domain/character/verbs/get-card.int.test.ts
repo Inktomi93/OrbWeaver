@@ -1,5 +1,6 @@
 // verb: getCard — the live card read (chat/roster inject this). CONTRACT INVARIANT: returns `null` for
 // not-owned / missing — it NEVER throws (a throw would break the roster loop).
+// @subject packages/server/src/domain/character/verbs/get-card.ts
 
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -1,4 +1,5 @@
 // verb: list — recipient-scoped, newest-first, dismissed-excluded, cursor-paged on seq.
+// @subject packages/server/src/domain/notifications/verbs/list.ts
 
 import type { Db } from "@orb/db";
 import { chatInvites } from "@orb/db";

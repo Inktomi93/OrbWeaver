@@ -1,23 +1,23 @@
-// The §3.6 SERVER MEMBER-STRIP's pure half — hidden-class spans are removed from a non-host viewer's
-// MessageView / bus-event payload BEFORE it leaves the server. Payload-level pins: the instrument is
-// `stripHiddenSpans` (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload".
+// The §3.6 SERVER MEMBER-STRIP — hidden-class spans are removed from a non-host viewer's MessageView /
+// bus-event payload BEFORE it leaves the server. Payload-level pins: the instrument is `stripHiddenSpans`
+// (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload". The per-view projection
+// itself is pinned in tests/contracts/chat/member-projection.contract.test.ts.
 
+// @orb-waive-file no-test-fabrication(ChatBusReplayEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import { projectViewForMember } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "#server/domain/chat/contract/views.ts";
 import {
   createMemberDeltaStamper,
-  projectViewForMember,
   projectViewReturnForViewer,
   scrubChatEventReplayForMember,
   scrubDeltaEventForMember,
   scrubStreamReplayForMember,
   stripChatEventForMember,
-  stripHiddenForMember,
   stripMessagesForViewer,
-  stripReasoningFromView,
 } from "#server/domain/chat/substrate/member-visibility.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -62,24 +62,6 @@ function viewOf(content: string, reasoning: string | null = null): MessageView {
   // @orb-waive no-test-fabrication(unknown): content/reasoning-only strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { id: messageId, chatId, content, reasoning, toolCalls: [] } as unknown as MessageView;
 }
-
-test("stripHiddenForMember removes hidden-class spans; the serialized payload carries ZERO truth bytes", () => {
-  const stripped = stripHiddenForMember(viewOf(`He nods. ${LIE} "Nothing," he says.`));
-  expect(stripped.content).toBe('He nods.  "Nothing," he says.');
-  expect(JSON.stringify(stripped)).not.toContain("crypt");
-  expect(JSON.stringify(stripped)).not.toContain("<lie");
-});
-
-test("identity fast-path: a view with no hidden spans is returned UNCHANGED (same object — no per-row churn)", () => {
-  const view = viewOf("plain prose with a :::card\n<p>x</p>\n::: and an ![img](asset:a)");
-  expect(stripHiddenForMember(view)).toBe(view);
-});
-
-test("non-hidden structured spans are byte-preserved (cards/choices/unknown-directives are not secrets)", () => {
-  const body = `open ${LIE} then :::choices\n1. one\n::: and <gmnote note="n"/> end`;
-  const stripped = stripHiddenForMember(viewOf(body));
-  expect(stripped.content).toBe('open  then :::choices\n1. one\n::: and <gmnote note="n"/> end');
-});
 
 test("stripChatEventForMember strips the `view` payload of every view-carrying member; view-less events pass through", () => {
   const view = viewOf(`prose ${LIE}`);
@@ -285,29 +267,6 @@ test("stripMessagesForViewer: a non-host caller's TurnOutcome messages are hidde
 // ── P3 §3.6: the REASONING channel goes host-only on a DECEPTION-ACTIVE game (whole-channel, not per-tag) ──
 
 const REASONING_SPILL = "I'll tell them nothing, but the truth is he's in the crypt.";
-
-test("stripReasoningFromView nulls the reasoning channel; identity when it is already null", () => {
-  const withReasoning = viewOf("prose", REASONING_SPILL);
-  const stripped = stripReasoningFromView(withReasoning);
-  expect(stripped.reasoning).toBeNull();
-  expect(JSON.stringify(stripped)).not.toContain("crypt");
-  // Already-null reasoning → same object (no churn).
-  const noReasoning = viewOf("prose", null);
-  expect(stripReasoningFromView(noReasoning)).toBe(noReasoning);
-});
-
-test("projectViewForMember: reasoningHostOnly=false keeps reasoning (non-deception game — no regression); =true withholds it", () => {
-  const view = viewOf(`He nods. ${LIE}`, REASONING_SPILL);
-  // Non-deception: body stripped, reasoning KEPT (the pre-P3 behavior).
-  const kept = projectViewForMember(view, false);
-  expect(kept.content).toBe("He nods. ");
-  expect(kept.reasoning).toBe(REASONING_SPILL);
-  // Deception-active: body stripped AND reasoning withheld — zero truth bytes in EITHER channel.
-  const stripped = projectViewForMember(view, true);
-  expect(stripped.content).toBe("He nods. ");
-  expect(stripped.reasoning).toBeNull();
-  expect(JSON.stringify(stripped)).not.toContain("crypt");
-});
 
 test("stripMessagesForViewer: reasoningHostOnly withholds the reasoning channel from a member's TurnOutcome; the host reads verbatim", () => {
   const outcome = { messages: [viewOf(`He nods. ${LIE}`, REASONING_SPILL)], aborted: false } as const;

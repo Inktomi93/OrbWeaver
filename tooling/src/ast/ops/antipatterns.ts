@@ -23,8 +23,17 @@ refuseDirectInvocation(import.meta.url, "pnpm ast antipatterns");
 export const ANTIPATTERN_CLASSES = [
   {
     name: "contract-copy",
-    gates: ["contract-structural-copy", "contract-derives-not-respells", "no-inline-wire-interface", "no-inline-domain-interface", "no-inline-types"],
+    gates: [
+      "contract-structural-copy",
+      "contract-derives-not-respells",
+      "no-inline-wire-interface",
+      "no-inline-domain-interface",
+      "no-inline-types",
+      "test-hand-shape",
+    ],
   },
+  { name: "copied-logic", gates: ["test-production-clone"] },
+  { name: "oversized-test", gates: ["test-file-size"] },
   { name: "unparsed-boundary", gates: ["json-column-read-parsed", "wire-json-parsed-at-consumer", "trpc-input-declarations", "zod-output-twin-parity"] },
   { name: "respelled-constant", gates: ["no-inline-union-alias", "no-inline-union-redecl", "testid-typed-only", "testid-typed-only-stories"] },
   { name: "cast", gates: ["no-loose-id-cast", "no-mint-via-cast", "no-test-fabrication"] },
@@ -111,7 +120,7 @@ function waivedHits(policy: StructurePolicy, readText: (rel: string) => string):
       continue;
     }
     const file = at["file"];
-    const source = lines.get(file) ?? readText(file).split("\n");
+    const source = lines.get(file) ?? readText(file).split(/\r?\n/u);
     lines.set(file, source);
     const marker = MARKER_RE.exec(source[Number(at["line"]) - 1] ?? "");
     if (marker?.[1] !== undefined) {

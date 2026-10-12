@@ -20,7 +20,9 @@
 // admits 2,780 and final `population` admits 2,780. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { isAuthoredModuleNamespace } from "../../floor/code-facts/module-namespace.ts";
 import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
@@ -29,20 +31,37 @@ const VITEST_MODULE = "vitest";
 /** `mock` is hoisted, `doMock` is not; both replace an internal module with a fake and both are the ban's
  *  subject. The legacy text comparison saw only `vi.mock`, so every `vi.doMock` was a silent green. */
 const MOCK_MEMBERS = new Set(["mock", "doMock"]);
+/** A spy on a module namespace rewrites that module's export in place, so it is the same replacement by another verb. */
+const SPY_MEMBER = "spyOn";
 const INTERNAL_PREFIXES = [".", "packages/", "@orb/", "#"];
 
 const MESSAGE = "vi.mock on an internal module — fake at the edges, inject at the composition root (docs/law/Spine-Testing.md §3).";
+const SPY_MESSAGE =
+  "vi.spyOn on an internal module namespace — the spy replaces that module's export for every importer, so the test asserts our own wiring instead of an outcome. Inject the collaborator at its port, or assert the observable result (docs/law/Spine-Testing.md §3).";
 
 const FIX =
-  "inject the fake at the composition root; vi.mock is legal only for an unavoidable third-party node edge. " +
-  "For a genuinely unmockable internal seam, attach `@orb-waive test-mock-doctrine(<mock|doMock>): <why the " +
+  "inject the fake at the composition root; vi.mock is legal only for an unavoidable third-party node edge, and vi.spyOn only on an object that is not an internal module namespace. " +
+  "For a genuinely unmockable internal seam, attach `@orb-waive test-mock-doctrine(<mock|doMock|spyOn>): <why the " +
   "seam cannot be injected, and what would end it>` to that exact call.";
+
+const SPY_VITEST = "export const vi = { spyOn: (target: object, name: string): void => { void target; void name; } };\n";
 
 /** Legacy `scanRoot` was `p.includes("tests/")` — every authored `tests/` tree, including the nested ones. */
 const TEST_POPULATION = { in: ["@authored"], under: ["tests/**", "**/tests/**"] } as const;
 
 function isInternalTarget(specifier: string): boolean {
   return INTERNAL_PREFIXES.some((prefix) => specifier.startsWith(prefix));
+}
+
+/** The finding message when this vitest call replaces internal code, else undefined. */
+function replacementMessage(verb: string, target: MorphNode): string | undefined {
+  if (verb === SPY_MEMBER) {
+    return isAuthoredModuleNamespace(target) ? SPY_MESSAGE : undefined;
+  }
+  const specifier = readStaticString(target);
+  // FAIL-CLOSED: a target the static reader cannot resolve is exactly where an internal module
+  // hides — a computed specifier is not evidence that the edge is third-party.
+  return specifier.kind !== "resolved" || isInternalTarget(specifier.value) ? MESSAGE : undefined;
 }
 
 export const gate = defineGate({
@@ -67,7 +86,7 @@ export const gate = defineGate({
           }
           const member = readMemberReference(node.getExpression());
           // The MEMBER NAME is the candidate gate; the receiver's canonical origin is the verdict.
-          if (member.kind !== "resolved" || !MOCK_MEMBERS.has(member.value.name)) {
+          if (member.kind !== "resolved" || !(MOCK_MEMBERS.has(member.value.name) || member.value.name === SPY_MEMBER)) {
             return;
           }
           const origin = resolveModuleMemberOrigin(member.value.receiver);
@@ -78,11 +97,9 @@ export const gate = defineGate({
           if (argument === undefined) {
             return;
           }
-          const target = readStaticString(argument);
-          // FAIL-CLOSED: a target the static reader cannot resolve is exactly where an internal module
-          // hides — a computed specifier is not evidence that the edge is third-party.
-          if (target.kind !== "resolved" || isInternalTarget(target.value)) {
-            ctx.report.node(member.value.nameNode, { token: member.value.name, offset: member.value.nameNode.getText().indexOf(member.value.name) });
+          const message = replacementMessage(member.value.name, argument);
+          if (message !== undefined) {
+            ctx.report.node(member.value.nameNode, { token: member.value.name, offset: member.value.nameNode.getText().indexOf(member.value.name), message });
           }
         },
       },
@@ -153,8 +170,58 @@ export const gate = defineGate({
       expect: { count: 1, token: "mock" },
       why: "FAIL-CLOSED — a computed target cannot be shown to be a third-party edge, and 'unreadable' is not 'external'",
     },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "tooling/src/floor/git/git.ts": "export const runGit = (args: readonly string[]): number => args.length;\n",
+        "tests/tooling/floor/git/git.test.ts":
+          'import { vi } from "vitest";\nimport * as git from "../../../../tooling/src/floor/git/git.ts";\nvi.spyOn(git, "runGit");\n',
+      },
+      expect: { count: 1, token: "spyOn", messageIncludes: "vi.spyOn on an internal module namespace" },
+      why: "A SPY ON A NAMESPACE IMPORT rewrites that module's export for every importer, which is a `vi.mock` by another verb",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "tests/tooling/local-module.ts": "export const run = (): number => 1;\n",
+        "tests/tooling/dynamic-spy.test.ts": 'import { vi } from "vitest";\nvi.spyOn(await import("./local-module.ts"), "run");\n',
+      },
+      expect: { count: 1, token: "spyOn", messageIncludes: "vi.spyOn on an internal module namespace" },
+      why: "the dynamic-import spelling: `await import(…)` yields the same module namespace, read off the declaration its type names",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "node_modules/pkg/index.ts": "export const run = (): number => 1;\n",
+        "tests/tooling/third-party-spy.test.ts":
+          'import { vi } from "vitest";\nimport * as pkg from "pkg";\nvi.spyOn(pkg, "run");\nvi.spyOn(console, "warn");\n',
+      },
+      why: "a third-party module namespace and a global object are edges, not our own code",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "tests/tooling/services.ts": "export const services = { run: (): number => 1 };\n",
+        "tests/tooling/object-spy.test.ts": 'import { vi } from "vitest";\nimport { services } from "./services.ts";\nvi.spyOn(services, "run");\n',
+      },
+      why: "DECLARED LIMIT: a spy on an exported OBJECT observes a value the composition root handed over (the node-tests rule spies on the shared services result); only a module namespace is a module replacement",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": SPY_VITEST,
+        "tests/tooling/local-module.ts": "export const run = (): number => 1;\n",
+        "tests/tooling/waived-spy.test.ts":
+          'import { vi } from "vitest";\nimport * as local from "./local-module.ts";\n// @orb-waive test-mock-doctrine(spyOn): the dispatch proof wraps the real export; ends when the action takes an injected sink.\nvi.spyOn(local, "run");\n',
+      },
+      why: "the central positioned waiver names the reported `spyOn` verb",
+    },
     {
       mode: "types",
       files: {

@@ -1,5 +1,6 @@
 // Verb test: retry — clones a terminal row's kind+params into a FRESH queued row, never mutating the
 // original (the audit trail), and 404s a missing row.
+// @subject packages/server/src/domain/workloads/verbs/retry.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";

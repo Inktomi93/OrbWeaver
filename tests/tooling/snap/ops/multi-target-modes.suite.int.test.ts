@@ -1,3 +1,11 @@
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(CaptureManifest): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(NonNullable<typeof artifact>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(SnapRunIndex): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly data: CoreRunData }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly port: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 // Multi-target Snap modes prove their distinct identity contracts: pages share one browser context;
 // contexts isolate fixture users; matrix varies environment, never human actors.
 import { existsSync, readFileSync } from "node:fs";

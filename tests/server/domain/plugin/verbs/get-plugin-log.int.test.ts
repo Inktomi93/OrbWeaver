@@ -1,6 +1,7 @@
 // verb: getPluginLog — the host.log ring for an owned plugin (03 §3). Owner-scoped; a plugin with no resident
 // instance (disabled) has no ring → empty. The non-empty ring read is exercised in the round-trip (a logging
 // main.js through the real Sandbox port).
+// @subject packages/server/src/domain/plugin/verbs/get-plugin-log.ts
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

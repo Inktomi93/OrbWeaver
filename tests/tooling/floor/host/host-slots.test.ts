@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly beatMs: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE HOST-WIDE SLOT POOL (tooling/src/floor/host/host-slots.ts, #1835) — the mechanism behind "at most N
 // of these may run ON THIS BOX at once", shared by the whole-run verify queue, the CT runner cap, the
 // whole-program typecheck pool and the edit hook.

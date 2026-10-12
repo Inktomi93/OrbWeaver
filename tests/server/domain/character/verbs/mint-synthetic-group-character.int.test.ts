@@ -1,10 +1,11 @@
-import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 // verb: mintSyntheticGroupCharacter — find-or-mint the hidden `__group__<chatId>` identity. Load-bearing:
 // owner-stamped (never NULL author), synthetic=true, IDEMPOTENT (a second mint returns the same row), and
 // no character.updated emit (synthetic rows aren't embedded).
+// @subject packages/server/src/domain/character/verbs/mint-synthetic-group-character.ts
 
 import { characters } from "@orb/db";
+import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";

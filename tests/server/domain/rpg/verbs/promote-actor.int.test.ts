@@ -10,6 +10,7 @@
 // The second class is the name COLLISION. The model addresses actors by NAME (`buildActorRefIndex` is a
 // lowercased name→ref Map), so a second participant "Vesna" makes one of them unaddressable by every tool write.
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
+// @subject packages/server/src/domain/rpg/verbs/promote-actor.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { clampActorCardName, rpgNpcSlug } from "@orb/contracts/rpg";

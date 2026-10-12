@@ -1,7 +1,9 @@
 // verb: update — edit-in-place. Load-bearing: a content edit recomputes contentHash + emits
 // character.updated; `null` CLEARS a nullable field while `undefined` (omitted) keeps it; an empty edit
 // neither writes nor emits; not-owned throws.
+// @subject packages/server/src/domain/character/verbs/update.ts
 
+// @orb-waive-file no-test-fabrication(CharacterOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import { utimes } from "node:fs/promises";
 import type { MaterializeBackgroundOp, ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

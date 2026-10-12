@@ -4,6 +4,7 @@
 // Determinism: time is pinned through the injected `now` seam (testing §3) — the window-boundary cases pin
 // the clock instead of racing the wall clock (the 2026-06-11 flake this seam exists for).
 
+// @orb-waive-file no-test-fabrication(DomainRateLimitError): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { describe } from "vitest";
 import { createRateLimiter } from "#server/transport/rate-limit.ts";

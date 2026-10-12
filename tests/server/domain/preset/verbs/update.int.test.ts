@@ -1,3 +1,6 @@
+// verb: update — patches an owned preset, and forks a new owned preset when the system default is edited.
+// @subject packages/server/src/domain/preset/verbs/update.ts
+
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

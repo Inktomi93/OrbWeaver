@@ -1,6 +1,7 @@
 // .int tests for `submitManualRewrite` (og-extension-feedback gap 1): a hand-authored rewrite lands as
 // a `{kind:"manual"}` run (model NULL, zero cost columns) analyze can judge like any rewrite; an
 // out-of-selection entry refuses LOUD (the author is the owner — a client defect, never a salvage case).
+// @subject packages/server/src/domain/refinery/verbs/submit-manual-rewrite.ts
 
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";

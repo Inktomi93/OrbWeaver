@@ -1,3 +1,11 @@
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ driver?: unknown; options?: Record<string, unknown> } | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ scripts?: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ services: Record<string, { ports?: readonly Readonly<Record<string, unknown>>[]; environment?: Record<string, string> }> }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ services: { orbweaver: { environment: Record<string, string | null> } } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -230,6 +238,7 @@ const COMPOSE_HARDENING: readonly (readonly [string, (service: Record<string, un
 ];
 
 function hardeningMisses(composeText: string): string[] {
+  // @orb-waive no-test-fabrication({ services: { orbweaver: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
   const service = (parse(composeText) as { services: { orbweaver: Record<string, unknown> } }).services.orbweaver;
   return COMPOSE_HARDENING.filter(([, holds]) => !holds(service)).map(([key]) => key);
 }
@@ -239,6 +248,7 @@ test("the shipped compose carries every runtime hardening key, and dropping any 
   expect(hardeningMisses(compose)).toEqual([]);
   // Control: a copy with each key removed in turn must be flagged for exactly that key.
   for (const [key] of COMPOSE_HARDENING) {
+    // @orb-waive no-test-fabrication({ services: { orbweaver: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
     const doc = parse(compose) as { services: { orbweaver: Record<string, unknown> } };
     delete doc.services.orbweaver[key];
     expect(hardeningMisses(JSON.stringify(doc)), key).toEqual([key]);

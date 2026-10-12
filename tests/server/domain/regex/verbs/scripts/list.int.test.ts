@@ -1,5 +1,6 @@
 // verb: listScripts — the caller's library, newest first. Load-bearing: OWNER-SCOPED in the WHERE (a
 // stranger's rows are not merely filtered from the view, they are never selected).
+// @subject packages/server/src/domain/regex/verbs/scripts/list.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

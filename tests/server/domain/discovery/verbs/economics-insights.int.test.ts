@@ -2,6 +2,7 @@
 // (semantic volume/recency ranking + injected per-character economics) + modelRouting (distilled genre ×
 // per-(character, model) economics). The harness wires the REAL stats economics reads over the same db, so
 // this exercises the true composition (not a mocked op).
+// @subject packages/server/src/domain/discovery/verbs/economics-insights.ts
 
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";

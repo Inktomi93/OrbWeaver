@@ -6,7 +6,7 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { holdPortraitImage, layoutBox, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/browser/held-portrait-image.ts";
+import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/browser/held-portrait-image.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { seedActiveChat } from "../../../../support/node/seed-active-chat.ts";
 import { AttachmentMediaStory, RoomImageDetailStory } from "../_ct-stories.tsx";
@@ -51,9 +51,7 @@ for (const vp of VIEWPORTS) {
     const component = await mount(<AttachmentMediaStory portrait={true} />);
     const img = component.locator(MEDIA_IMG);
     // Barrier on the SETTLED (decoded) image — an <img> with no intrinsic size yet lays out at 0×0.
-    await expect
-      .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth / (el as HTMLImageElement).naturalHeight))
-      .toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    await expect.poll(() => naturalRatio(img)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
     const box = await img.boundingBox();
     expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
     expect(box?.width ?? 0).toBeLessThanOrEqual(vp.width);
@@ -136,6 +134,7 @@ for (const vp of VIEWPORTS) {
     // The claim in full: the reserved box IS the true box. Release the bytes, barrier on the DECODED
     // image, and the geometry must not have moved — that identity is what "no reflow" means.
     await release();
+    // @orb-waive no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
     await expect.poll(() => zoomed.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT_W);
     expect(await layoutBox(zoomed)).toEqual(reserved);
   });

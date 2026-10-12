@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
+
 // The WCAG 1.4.3 inactive-control exemption, proven through the WHOLE instrument (ops/walker/census-text.ts's
 // `INACTIVE_KIND_EXPR` interpolation + lib/checks-color.ts's exempt arm) rather than through the classifier
 // string alone — a string assertion cannot see the defect this file exists to pin.

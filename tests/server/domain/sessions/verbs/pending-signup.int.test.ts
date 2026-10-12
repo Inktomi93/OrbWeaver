@@ -1,5 +1,6 @@
 // D259 — the pending OIDC join verbs over a real db: the callback's record, the preview's read, and the
 // confirm's plan through `decideProvision`, which refuses an identity that may no longer join.
+// @subject packages/server/src/domain/sessions/verbs/pending-signup.ts
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";

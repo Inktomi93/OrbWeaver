@@ -1,5 +1,6 @@
 // verb: removeBook — owner-scoped delete. Load-bearing: the DB CASCADE clears the book's entries (entries
 // have no independent existence); a foreign book is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/books/remove.ts
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { chatBooks, worldEntries } from "@orb/db";

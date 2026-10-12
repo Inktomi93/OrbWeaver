@@ -13,10 +13,11 @@ import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag"
 import type { Db } from "@orb/db";
 import { characters, characterTags, chats, chatTags, personas, personaTags, presets, presetTags, tags, users, worldBooks, worldBookTags } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
-import type { CharacterHandle, CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
@@ -28,12 +29,6 @@ const BAD_ENUM_VALUE = "nope";
 async function seedTag(db: Db, ownerId: UserId, raw: string, name = `tag-${raw}`): Promise<TagId> {
   const id = castId<TagId>(raw);
   await db.insert(tags).values({ id, ownerId, name });
-  return id;
-}
-
-async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
-  const id = castId<CharacterId>(raw);
-  await db.insert(characters).values({ id, handle: castId<CharacterHandle>(`card-${raw}`), ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 
@@ -189,7 +184,7 @@ test("test-mirror: character_tags.status derives TAG_STATUSES", () => {
 test("character_tags defaults to status 'pending' and flips to 'accepted'", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ct_status" });
-  const characterId = await seedCharacter(db, ownerId, "character_ct_status");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ct_status"), ownerId });
   const tagId = await seedTag(db, ownerId, "tag_ct_status");
   await db.insert(characterTags).values({ characterId, tagId });
 
@@ -221,7 +216,7 @@ test("character_tags defaults to status 'pending' and flips to 'accepted'", asyn
 test("character_tags status CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ct_badstatus" });
-  const characterId = await seedCharacter(db, ownerId, "character_ct_badstatus");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ct_badstatus"), ownerId });
   const tagId = await seedTag(db, ownerId, "tag_ct_badstatus");
   let caught: unknown;
   try {
@@ -282,7 +277,7 @@ test("the four target-derived junctions carry NO ownerId; only chat_tags does (D
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_owner_presence" });
   const tagId = await seedTag(db, ownerId, "tag_owner_presence");
-  const characterId = await seedCharacter(db, ownerId, "character_owner_presence");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_owner_presence"), ownerId });
   const worldBookId = await seedWorldBook(db, ownerId, "world_book_owner_presence");
   const personaId = await seedPersona(db, ownerId, "persona_owner_presence");
   const presetId = await seedPreset(db, ownerId, "preset_owner_presence");
@@ -313,7 +308,7 @@ test("the four target-derived junctions carry NO ownerId; only chat_tags does (D
 test("character_tags FK rejects a dangling tag ref", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ct_fk" });
-  const characterId = await seedCharacter(db, ownerId, "character_ct_fk");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ct_fk"), ownerId });
   let caught: unknown;
   try {
     await db.insert(characterTags).values({ characterId, tagId: castId<TagId>("tag_missing") });
@@ -344,7 +339,7 @@ test("deleting a tag CASCADEs all five junctions", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_tag_casc" });
   const tagId = await seedTag(db, ownerId, "tag_cascade");
-  const characterId = await seedCharacter(db, ownerId, "character_tag_casc");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_tag_casc"), ownerId });
   const chatId = await seedChat(db, { id: "chat_tag_casc" });
   const worldBookId = await seedWorldBook(db, ownerId, "world_book_tag_casc");
   const personaId = await seedPersona(db, ownerId, "persona_tag_casc");
@@ -371,7 +366,7 @@ test("deleting a tagged target CASCADEs its junction rows (tag survives)", async
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_target_casc" });
   const tagId = await seedTag(db, ownerId, "tag_target_casc");
-  const characterId = await seedCharacter(db, ownerId, "character_target_casc");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_target_casc"), ownerId });
   const chatId = await seedChat(db, { id: "chat_target_casc" });
   const worldBookId = await seedWorldBook(db, ownerId, "world_book_target_casc");
   const personaId = await seedPersona(db, ownerId, "persona_target_casc");
