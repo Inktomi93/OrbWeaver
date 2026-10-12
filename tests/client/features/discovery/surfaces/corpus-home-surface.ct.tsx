@@ -40,7 +40,7 @@ import {
   CorpusHomeWarmQueueStory,
   CorpusHomeWidePaneStory,
 } from "../_ct-stories.tsx";
-import { ANALYSED, CORPUS_VIEWER_ROUTE, settled, UNANALYSED } from "./_corpus-home-support.ts";
+import { ANALYSED, ANALYSED_HOME, CORPUS_VIEWER_ROUTE, settled, UNANALYSED, UNANALYSED_HOME } from "./_corpus-home-support.ts";
 
 /** The focal island's box and the readiness rail's, read together — the two boxes whose relationship IS the
  *  composition. Taken from the rail's own kicker heading rather than a wrapper, so the measurement survives
@@ -113,7 +113,12 @@ const FAILED_PASS: TrpcRoutes<"sessions.me" | "workloads.list"> = {
       status: "failed",
       ownerId: "user_me",
       mode: "singular",
+      lane: "sweep",
+      dependsOn: null,
+      poison: false,
+      scheduledAt: 10,
       createdAt: 10,
+      updatedAt: 10,
       params: {},
       progress: null,
       error: "the embed model refused the batch",
@@ -447,7 +452,7 @@ const SKELETON_EYEBROW_MAX_RATIO = 0.4;
 // rectangle for the 1-2s its eight reads take, while the LIST pane beside it ran proper skeletons.
 // `trpcHold()` is the release valve that makes the PENDING render a stable state instead of a flash.
 test("the pending corpus renders a skeleton composition, not a lone sentence (§5)", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"discovery.home">();
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.home": held });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await held.requested;
@@ -472,12 +477,12 @@ test("the pending corpus renders a skeleton composition, not a lone sentence (§
   expect(eyebrowWidth / paneWidth).toBeLessThan(SKELETON_EYEBROW_MAX_RATIO);
 
   // …and it gives way to the real surface when the reads land (the fallback is a fallback, not a state).
-  held.release(ANALYSED["discovery.home"]);
+  held.release(ANALYSED_HOME);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 });
 
 test("below-fold insights do not hold the settled corpus overview hostage (#269)", async ({ mount, page }) => {
-  const heldUnused = trpcHold();
+  const heldUnused = trpcHold<"discovery.unusedCharacters">();
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.unusedCharacters": heldUnused });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await heldUnused.requested;
@@ -513,7 +518,12 @@ const WARM_KEYWORD_QUEUE: TrpcRoutes<"workloads.list"> = {
       status: "succeeded",
       ownerId: "user_me",
       mode: "singular",
+      lane: "sweep",
+      dependsOn: null,
+      poison: false,
+      scheduledAt: 10,
       createdAt: 10,
+      updatedAt: 10,
       params: {},
       progress: null,
       error: null,
@@ -523,7 +533,7 @@ const WARM_KEYWORD_QUEUE: TrpcRoutes<"workloads.list"> = {
 };
 
 test("the readiness rail states no keyword measurement while the keyword read is in flight (#384)", async ({ mount, page }) => {
-  const heldKeywords = trpcHold();
+  const heldKeywords = trpcHold<"discovery.topKeywords">();
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...WARM_KEYWORD_QUEUE, "discovery.topKeywords": heldKeywords });
   const component = await mount(<CorpusHomeWarmQueueStory />);
   await heldKeywords.requested;
@@ -683,7 +693,7 @@ test.describe("story-theme drift in New York", () => {
 });
 
 test("independent overview reads start while home is held", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"discovery.home">();
   const trpc = await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...UNANALYSED, "discovery.home": held });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await held.requested;
@@ -692,7 +702,7 @@ test("independent overview reads start while home is held", async ({ mount, page
       .poll(() => [trpc.count("discovery.catalog"), trpc.count("discovery.visualArchetypes"), trpc.count("discovery.forgottenGems")])
       .toEqual([1, 1, 1]);
   } finally {
-    held.release(UNANALYSED["discovery.home"]);
+    held.release(UNANALYSED_HOME);
   }
   await expect(component.locator("[data-corpus-focal]")).toBeVisible();
 });

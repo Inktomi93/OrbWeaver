@@ -5,6 +5,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
+import { makeCatalogStats } from "@orb/testkit/node/factories/discovery-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -197,7 +198,7 @@ const POPULATED: TrpcRoutes<
   // `totalCharacters` is the base the distilled count is out of (#535) — the same 320 `discovery.home`
   // reports, because both are `count(*)` over the owner's characters. A fixture that omitted it would let
   // a census assertion pass off a `?? 0` fallback.
-  "discovery.catalog": { totalDistilled: DISTILLED, totalCharacters: CHARACTERS, genres: [], tones: [], topTags: [] },
+  "discovery.catalog": makeCatalogStats({ totalDistilled: DISTILLED, totalCharacters: CHARACTERS, genres: [], tones: [], topTags: [] }),
   "discovery.visualArchetypes": POP_FAMILIES,
   "discovery.forgottenGems": GEMS,
   "discovery.unusedCharacters": UNUSED,

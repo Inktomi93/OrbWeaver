@@ -6,6 +6,7 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_RATIO, PORTRAIT_W } from "@orb/testkit/browser/held-portrait-image.ts";
+import { makeAssetBlobRef } from "@orb/testkit/node/factories/asset-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { seedActiveChat } from "@orb/testkit/node/seed-active-chat.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -63,8 +64,15 @@ test("#618: clicking a room image with an ACTIVE chat opens the detail modal BOU
   const trpc = await routeTrpc(page, {
     // The provenance strip's read — absent is a legal render (the strip says so), it just must not throw.
     "imagery.readProvenance": () => null,
-    "assets.resolveBlobRefs": () => [{ assetId: "asset_ct_attach", hash: "deadbeef", mime: "image/png" }],
-    "chat.setChatBackground": () => ({ kind: "asset" }),
+    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: "asset_ct_attach", hash: "deadbeef" })],
+    "chat.setChatBackground": () => ({
+      kind: "asset",
+      externalUrl: "",
+      assetId: "asset_ct_attach",
+      assetHash: "deadbeef",
+      mime: "image/png",
+      provenanceUrl: "",
+    }),
   });
 
   const component = await mount(<RoomImageDetailStory />);

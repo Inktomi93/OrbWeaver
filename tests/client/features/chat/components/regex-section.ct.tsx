@@ -17,11 +17,14 @@
 //     the settling read, a failed read, `+2`, a member with broadcast on, a member under a host master off.
 
 import { characterRegexTierKey } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expectContainedWithin } from "@orb/testkit/browser/contained-within.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makePresetSummary } from "@orb/testkit/node/factories/preset-view.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { RegexSectionStory } from "../_ct-stories.tsx";
@@ -80,7 +83,7 @@ const REDACT = script({ id: "regex_script_ct_redact", name: "Redact the address"
 const SAILOR = script({ id: "regex_script_ct_sailor", name: "Sailor slang", findRegex: "\\bmatey\\b", placement: ["USER_INPUT"] });
 
 /** The viewer's own library — everything except the PREVIOUS host's chat-tier row (#1739). */
-const OWNED: TrpcFixtureOutput<"regex.listScripts"> = [STRIP_OOC, EMDASH, HEDGES, ALICE_ITAL, BO_SHOUT, REDACT];
+const OWNED: TrpcWireOutput<"regex.listScripts"> = [STRIP_OOC, EMDASH, HEDGES, ALICE_ITAL, BO_SHOUT, REDACT];
 
 function row(entry: RegexScript, position: number, runsAt: number | null, attachedElsewhere = false): EffectiveRegexRowFixture {
   return { script: entry, position, runsAt, attachedElsewhere };
@@ -101,16 +104,16 @@ function board01(): EffectiveRegexFixture {
   };
 }
 
-const CHAT_DETAIL = {
+const CHAT_DETAIL = makeChatDetail({
   id: "chat_ct",
   viewerIsHost: true,
   hostDisplayScripts: false,
   roomOverrides: {},
   participants: [
-    { id: "p1", characterId: ALICE, displayName: "Alice", leftSeq: null },
-    { id: "p2", characterId: BO, displayName: "Bo", leftSeq: null },
+    makeParticipantView({ id: "p1", characterId: ALICE, displayName: "Alice", leftSeq: null }),
+    makeParticipantView({ id: "p2", characterId: BO, displayName: "Bo", leftSeq: null }),
   ],
-};
+});
 
 /** Every read the host arm makes. `regex.listScripts` doubles as the #1739 ownership set and the `On screen`
  *  roster's provenance source; `listRoomDisplayScripts` is the host's broadcast set (empty unless a test
@@ -270,8 +273,8 @@ function stubHostWithViewerPreset(page: Page, view: EffectiveRegex): Promise<Trp
     "chat.getChat": () => CHAT_DETAIL,
     "regex.listScripts": () => OWNED,
     "regex.listRoomDisplayScripts": () => [],
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: "preset_ct_viewer" } } }),
-    "preset.list": () => [{ id: "preset_ct_viewer", name: VIEWER_ACTIVE_PRESET }],
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>("preset_ct_viewer") } }),
+    "preset.list": () => [makePresetSummary({ id: "preset_ct_viewer", name: VIEWER_ACTIVE_PRESET })],
   });
 }
 
@@ -365,7 +368,7 @@ test("host: with no scripts anywhere the room keeps its own group's Attach actio
 });
 
 test("the SETTLING read renders the boundary's fallback, never a void", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listEffectiveRegex">();
   await routeTrpc(page, {
     "chat.listEffectiveRegex": hold,
     "chat.getChat": () => CHAT_DETAIL,

@@ -1,5 +1,6 @@
 // CT: WHAT THE CONTEXT TABS CLAIM TO BE ABOUT (side-eye rail-analytics 2026-08-19 P1b).
 //
+import { makeLatencyStats, makeModelStatRow, makePersonaUsageRow } from "@orb/testkit/node/factories/stats-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 // The CONTEXT band names the leaderboard-drilled character (§6.3 N4/P4), which reads as a claim that the
@@ -16,13 +17,11 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
-const MODEL_ROW = {
+const MODEL_ROW = makeModelStatRow({
   model: "anthropic/claude-opus-4.5",
   provider: "openrouter",
   generations: 26_636,
   charactersUsedWith: 41,
-  tokensIn: null,
-  tokensOut: null,
   totalGenTimeMs: 900_000,
   avgGenMs: 1200,
   avgTtftMs: 300,
@@ -30,15 +29,12 @@ const MODEL_ROW = {
   p90TtftMs: 800,
   reasoningRate: 0,
   throughputTps: 12,
-  costUsd: null,
-  reasoningMs: 0,
-  cacheHitRate: null,
-};
+});
 
-const LATENCY = { avgTtftMs: 300, p50TtftMs: 280, p90TtftMs: 800, avgGenMs: 1200, p50GenMs: 1000, p90GenMs: 2400 };
+const LATENCY = makeLatencyStats({ avgTtftMs: 300, p50TtftMs: 280, p90TtftMs: 800, avgGenMs: 1200, p50GenMs: 1000, p90GenMs: 2400 });
 
 function personaRow(name: string, messageCount: number): TrpcWireOutput<"stats.personaUsage">[number] {
-  return { personaId: `persona_${name}`, name, chatCount: 2, messageCount, tokensOut: null, tokensOutProvenance: "unrecorded", lastUsedAt: 1_750_000_000_000 };
+  return makePersonaUsageRow({ personaId: `persona_${name}`, name, chatCount: 2, messageCount, lastUsedAt: 1_750_000_000_000 });
 }
 
 test("the Models tab says WHOSE numbers these are when a character is drilled", async ({ mount, page }) => {

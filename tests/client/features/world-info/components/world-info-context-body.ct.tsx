@@ -10,9 +10,9 @@
 // — a search affordance exists, and what the reader types reaches the VERB (so the answer covers the whole
 // library, not the page that happened to arrive first).
 
-import type { TrpcInput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";
@@ -43,13 +43,10 @@ const PERSONA = {
 /** A library whose second card is only ever reachable THROUGH the search param — the stub answers the term
  *  the way the verb does (a server-side predicate), never a client-side filter of one page. */
 const LIBRARY = [
-  { id: ASTRID_ID, name: "Astrid", avatarHash: null },
-  { id: "character_bbbbbbbbbbbbbbbbbbbbbbbbbb", name: "Bramble", avatarHash: null },
+  makeCharacterSummary({ id: ASTRID_ID, name: "Astrid" }),
+  makeCharacterSummary({ id: "character_bbbbbbbbbbbbbbbbbbbbbbbbbb", name: "Bramble" }),
 ];
-function searchedLibrary(input: TrpcInput<"character.list">): { items: typeof LIBRARY; nextCursor: null } {
-  const search = input?.search ?? "";
-  return { items: search === "" ? LIBRARY : LIBRARY.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())), nextCursor: null };
-}
+const searchedLibrary = characterListResponder(LIBRARY);
 
 test("the open book's arm switches the everywhere scope on", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -57,7 +54,7 @@ test("the open book's arm switches the everywhere scope on", async ({ mount, pag
     "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
     "worldInfo.listGlobal": () => [],
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
     "worldInfo.attachGlobal": () => null,
   });
 
@@ -130,7 +127,7 @@ test("a search that matches nothing says so about the TERM, and offers the way b
 });
 
 test("attachment controls lock on the one shared reverse read and expose an explicit retry after error", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"worldInfo.listAttachmentsForBook">();
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
@@ -157,7 +154,7 @@ test("attachment controls lock on the one shared reverse read and expose an expl
 });
 
 test("attachment rows withhold checked semantics until the shared read settles, then render the resolved state", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"worldInfo.listAttachmentsForBook">();
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
@@ -181,7 +178,7 @@ test("attachment rows withhold checked semantics until the shared read settles, 
 });
 
 test("the personas section does not claim zero or empty while its target roster is pending", async ({ mount, page }) => {
-  const personasHeld = trpcHold();
+  const personasHeld = trpcHold<"persona.list">();
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],

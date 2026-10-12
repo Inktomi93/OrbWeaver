@@ -9,7 +9,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 //    left the roster / no access.
 // The read is GATED on `open` and the viewer starts open, so the CT asserts the loaded card directly.
 
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MemberCardViewerStory } from "../_ct-stories.tsx";
@@ -27,7 +27,7 @@ const FLOOR = {
 };
 
 // A `sheet`-level projection: sheet fields present, sheet+lore and full fields NULL (clamped away).
-function sheetCard(): TrpcFixtureOutput<"chat.getMemberCard"> {
+function sheetCard(): TrpcWireOutput<"chat.getMemberCard"> {
   return {
     ...FLOOR,
     visibility: "sheet",
@@ -46,7 +46,7 @@ function sheetCard(): TrpcFixtureOutput<"chat.getMemberCard"> {
 }
 
 // A `full` projection: every tier present.
-function fullCard(): TrpcFixtureOutput<"chat.getMemberCard"> {
+function fullCard(): TrpcWireOutput<"chat.getMemberCard"> {
   return {
     ...FLOOR,
     visibility: "full",

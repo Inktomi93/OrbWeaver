@@ -12,6 +12,7 @@ import { talkativenessReadout } from "@orb/client/lib";
 import type { RulePresetView } from "@orb/contracts/automation";
 import { measureContentColumn } from "@orb/testkit/browser/measure-content-column.ts";
 import { readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
+import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -73,7 +74,7 @@ test("the editor's Start door reports what it applied and names the room after t
   const trpc = await routeTrpc(page, {
     "rosterPreset.get": ROSTER_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
-    "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
+    "chat.startChat": makeStartChatResult({ chat: makeChatDetail({ id: "chat_started_ct" }) }),
     // `startChat` already seated every member, so the apply that follows classifies each one as present.
     "rosterPreset.applyToChat": {
       added: [],
@@ -281,7 +282,7 @@ test("turning the campaign toggle off clears the template, and the next Start st
     "rosterPreset.get": CAMPAIGN_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
     "rosterPreset.update": ROSTER_VIEW,
-    "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
+    "chat.startChat": makeStartChatResult({ chat: makeChatDetail({ id: "chat_started_ct" }) }),
     "rosterPreset.applyToChat": {
       added: [],
       alreadyPresent: ["character_ct_1", "character_ct_2"],

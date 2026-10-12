@@ -69,7 +69,7 @@ function readsFor(inputs: readonly TrpcInput<"workloads.get">[], id: string): nu
 }
 
 test("A — an unmount while the gap-heal read is IN FLIGHT reports nothing; the still-mounted twin reports", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"workloads.get">();
   await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "workloads.get": hold });
   // `awaitAttaches: 2` holds the first connection open until BOTH rooms have joined, then drops it without
   // the terminal frame so the link reconnects — the only edge on which `onSocketLive` (and therefore
@@ -96,7 +96,7 @@ test("A — an unmount while the gap-heal read is IN FLIGHT reports nothing; the
 });
 
 test("B — a read that FAILS after teardown schedules no retry; the still-mounted twin climbs its ladder", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"workloads.get">();
   // The first BATCH carries both trackers' reconciles and is held; everything after it (the control's own
   // retry, 250ms into the ladder) answers immediately with the finished row so the ladder terminates.
   let seen = 0;

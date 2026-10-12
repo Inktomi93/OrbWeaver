@@ -11,8 +11,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ColorQuotedSpeechStory } from "./_ct-stories.tsx";
 
@@ -21,8 +22,8 @@ type AppearanceFixture =
   | Omit<typeof DEFAULT_USER_SETTINGS.appearance, "colorQuotedSpeech">;
 
 /** The `settings.getUserSettings` wire row carrying one appearance blob. */
-function settingsWire(appearance: AppearanceFixture): TrpcFixtureOutput<"settings.getUserSettings"> {
-  return { userId: castId<UserId>("user_ct"), config: { appearance } };
+function settingsWire(appearance: AppearanceFixture): TrpcWireOutput<"settings.getUserSettings"> {
+  return userSettingsView({ appearance }, { userId: castId<UserId>("user_ct") });
 }
 
 test("the pref ON projects colorQuotes=true", async ({ mount, page }) => {

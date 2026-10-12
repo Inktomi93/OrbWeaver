@@ -10,12 +10,13 @@
 // re-render (`QueryErrorState`'s whole contract). `CtDataProviders` pins `retry: false`, so the failure is
 // the settled state on the first response rather than something to wait three backoffs for.
 
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterOverviewCardStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
 
-const NO_CHATS = { items: [], nextCursor: null, totalCount: 0 };
+const NO_CHATS = makeChatListPage();
 
 test("a FAILED character read says so and its Retry really re-reads — never a permanent 'Loading…' (#1500)", async ({ mount, page }) => {
   let attempts = 0;

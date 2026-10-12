@@ -121,7 +121,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 **891, typed recorder.**
 
 - `tests/support/node/route-trpc.ts:471-477,569-573`: `lastInput` and `inputs` return unknown, so client tests cast to hand shapes. Type them by procedure with `TrpcInput`.
-- The `lastPatch` helper copied across the settings section CTs; the untyped `auth/me` stubs; the untyped upload caps in `chat/_gallery-fixtures.ts:75-90`; `TrpcFixture` accepting any non-empty subset.
+- The `lastPatch` helper copied across the settings section CTs; the untyped `auth/me` stubs; the untyped upload caps in `chat/_gallery-fixtures.ts:75-90`.
 
 **892, constants.** Also the private constants tests re-spell: web-weave, snap, reveal and glint timings, the touch floor (`SNAPPED_LENGTH_BASE_PX` in `packages/ui/src/tokens/index.ts`), contract caps and defaults kept private in `settings/appearance.ts`, `character/index.ts`, `refinery/index.ts` and `databank/index.ts` (export them), and token px literals in the layout primitive CTs. The AA floor, the talkativeness default, max output tokens, max image bytes, blur surfaces, chat styles, owned settings keys, the frozen clock, config anchor ids, the CSRF header, chat-with names, test ids, the chat width default (`chat/_ct-stories.tsx:2104-2107` measures at 50dvw against a production default of 60), and the inline e2e timeouts.
 

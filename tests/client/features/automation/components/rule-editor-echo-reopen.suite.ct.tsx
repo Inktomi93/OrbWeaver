@@ -14,7 +14,7 @@ const owner = "fixture_editor_owner";
 const other = "fixture_editor_other";
 
 test("a confirmed newborn can reopen its newer invalid draft while list confirmation is held", async ({ mount, page }) => {
-  const refetch = trpcHold();
+  const refetch = trpcHold<"automation.listRules">();
   let stored: TrpcWireOutput<"automation.createRule"> | null = null;
   const recorder = await routeTrpc(page, {
     "automation.listRules": () => (stored === null ? [] : refetch),

@@ -27,7 +27,7 @@
 // is a fixed string rather than a value that drifts with the wall clock.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
@@ -90,7 +90,7 @@ function analyzeRun(sourceRunId: string): TrpcWireOutput<"refinery.listRuns">[nu
 /** Preflight where the named stages breach the CONTEXT ceiling — the arm whose sentence is stage-neutral
  *  ("the assembled prompt likely exceeds the model's context"), i.e. the one two lanes can duplicate.
  *  `maxOutputTokens` stays generous so the output arm, which words itself per stage, does not fire. */
-function preflightOver(over: readonly string[]): TrpcFixtureOutput<"refinery.preflight"> {
+function preflightOver(over: readonly string[]): TrpcWireOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: (["score", "rewrite", "analyze"] as const).map((stage) => ({
@@ -106,7 +106,7 @@ function preflightOver(over: readonly string[]): TrpcFixtureOutput<"refinery.pre
 
 /** Preflight where score is over its OUTPUT ceiling and analyze is over the CONTEXT — two different facts,
  *  so two different sentences, so no hoist. */
-function preflightDiverged(): TrpcFixtureOutput<"refinery.preflight"> {
+function preflightDiverged(): TrpcWireOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: [
@@ -187,7 +187,7 @@ test("#1188 a HELD session read shows the reserved skeleton, never the surface's
   page,
 }) => {
   await freeze(page);
-  const hold = trpcHold();
+  const hold = trpcHold<"refinery.getSession">();
   await routeTrpc(page, { ...baseRoutes(), "refinery.getSession": hold });
   const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
@@ -318,7 +318,7 @@ test("the §16.1 WALKER pins a superseded run — ONE lane follows it, the other
 // buttons the issue named is disabled here and the other's CAPTION was the thing that lied.
 
 /** A session with NOTHING run yet — round 0, the state the owner's screenshot was taken in. */
-function emptyLedger(): TrpcFixtureOutput<"refinery.listRuns"> {
+function emptyLedger(): TrpcWireOutput<"refinery.listRuns"> {
   return [];
 }
 
@@ -727,7 +727,7 @@ test("a rewrite entry the verb always refuses is shown NOT APPLICABLE with its r
 test("decision writes are SERIALIZED: a press made while one is in flight waits, and the latest sheet lands last", async ({ mount, page }) => {
   await freeze(page);
   const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
-  const firstWrite = trpcHold();
+  const firstWrite = trpcHold<"refinery.decideRewrite">();
   await routeTrpc(page, {
     ...baseRoutes(),
     "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {
@@ -767,7 +767,7 @@ function refusedCopy(): TrpcWireOutput<"refinery.applyAsCopy"> {
 test("a DOUBLE press on a refused copy's recovery sends ONE copy, and every terminal control is disabled while it is out", async ({ mount, page }) => {
   await freeze(page);
   const copyInputs: TrpcInput<"refinery.applyAsCopy">[] = [];
-  const retry = trpcHold();
+  const retry = trpcHold<"refinery.applyAsCopy">();
   await routeTrpc(page, {
     ...baseRoutes(),
     "refinery.applyAsCopy": (input: TrpcInput<"refinery.applyAsCopy">) => {
@@ -798,7 +798,7 @@ test("a DOUBLE press on a refused copy's recovery sends ONE copy, and every term
 test("a decision pressed while a write is out is still SENT after the workbench unmounts", async ({ mount, page }) => {
   await freeze(page);
   const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
-  const firstWrite = trpcHold();
+  const firstWrite = trpcHold<"refinery.decideRewrite">();
   await routeTrpc(page, {
     ...baseRoutes(),
     "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {

@@ -6,6 +6,7 @@
 // text). A bad token renders the ONE flat "invalid or expired" state — leak-free, no oracle.
 
 import { DEAD_INVITE_SENTENCE } from "@orb/client/lib";
+import { makeChatDetail, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { JoinInviteDialogStory } from "../_ct-stories.tsx";
@@ -55,10 +56,7 @@ test("a ready preview arriving before queued popup focus still focuses Join chat
 test("mount previews the token; confirm redeems and closes into the chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "invites.previewInvite": () => PREVIEW,
-    "invites.redeemInvite": () => ({
-      chat: { id: "chat_ct_join", participants: [] },
-      participant: { id: "participant_ct_join" },
-    }),
+    "invites.redeemInvite": () => makeRedeemInviteResult({ chat: makeChatDetail({ id: PREVIEW.chatId }) }),
   });
 
   await mount(<JoinInviteDialogStory token="tok_ct_secret" />);

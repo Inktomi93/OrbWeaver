@@ -2,21 +2,21 @@
 // the required input/output rates, and resetting it must restore absence rather than erase all pricing.
 
 import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
-import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeConnectionCapabilityView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { appSettingsView } from "../../user-admin/app-settings-fixtures.ts";
 import { ALL_AVAILABLE, connectionRow } from "../_connection-fixtures.ts";
 import { ConnectionEditorNarrowStory } from "../_ct-stories.tsx";
 
 test("an optional cache price saves known zero and resets without dropping base rates", async ({ mount, page }) => {
   const pricing = { inputPerMTok: 1, outputPerMTok: 2 };
   let row = connectionRow({ id: "user_connection_cteditor0001", declared: { features: { pricing } } });
-  const capability = { kind: "generation" as const, generation: makeGenerationCapability() };
   const recorder = await routeTrpc(page, {
     "sessions.me": () => ({ userId: row.ownerId, handle: "owner", globalRole: "owner" }),
     "connection.get": () => row,
     "connection.providersAvailable": () => ALL_AVAILABLE,
-    "connection.capabilities": () => ({ capability, baseline: capability, warnings: [], tasks: row.tasks }),
+    "connection.capabilities": () => makeConnectionCapabilityView({ tasks: row.tasks }),
     "connection.catalogModels": () => ({ listed: false, reason: "fixture catalog absent" }),
     "connection.accountCredits": () => ({ total: 10, used: 0 }),
     "connection.embedSpaceChangePreview": () => ({
@@ -29,7 +29,7 @@ test("an optional cache price saves known zero and resets without dropping base 
       row = { ...row, declared: patch.declared ?? row.declared };
       return row;
     },
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: { privateEndpointAllowlist: [] }, overrides: { privateEndpointAllowlist: null } }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView({ privateEndpointAllowlist: [] }, { privateEndpointAllowlist: null }),
   });
   const component = await mount(<ConnectionEditorNarrowStory />);
   const advanced = component.getByRole("button", { name: "Advanced", exact: false });

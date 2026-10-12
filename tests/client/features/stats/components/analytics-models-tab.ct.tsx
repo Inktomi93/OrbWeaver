@@ -2,60 +2,60 @@
 // found wrong about how this tab SPEAKS: its breakdown announced as a list with no list items, and its
 // ranked bar chart carried no reading at all for anyone who cannot see it.
 
+import { makeLatencyStats, makeModelStatRow } from "@orb/testkit/node/factories/stats-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AnalyticsModelsTabStory } from "../_ct-stories.tsx";
 
-const LATENCY = { avgTtftMs: 300, p90TtftMs: 900, avgGenMs: 1200, p90GenMs: 2400 };
+const LATENCY = makeLatencyStats({ avgTtftMs: 300, p90TtftMs: 900, avgGenMs: 1200, p90GenMs: 2400 });
 
-const MODELS = [
-  {
-    model: "anthropic/claude-sonnet-4",
-    provider: "openrouter",
-    generations: 1200,
-    tokensOut: 340_000,
-    tokensOutProvenance: "measured" as const,
-    costUsd: 1.25,
-    charactersUsedWith: 7,
-    avgTtftMs: 300,
-    p90TtftMs: 900,
-    throughputTps: 42.5,
-    totalGenTimeMs: 8_000_000,
-  },
-  {
-    model: "meta-llama/llama-3.3-70b",
-    provider: "local",
-    generations: 80,
-    tokensOut: 12_000,
-    tokensOutProvenance: "measured" as const,
-    costUsd: 0,
-    charactersUsedWith: 2,
-    avgTtftMs: null,
-    p90TtftMs: null,
-    throughputTps: 10,
-    totalGenTimeMs: 1_200_000,
-  },
-];
+const SONNET = makeModelStatRow({
+  model: "anthropic/claude-sonnet-4",
+  provider: "openrouter",
+  generations: 1200,
+  tokensOut: 340_000,
+  tokensOutProvenance: "measured",
+  costUsd: 1.25,
+  charactersUsedWith: 7,
+  avgTtftMs: 300,
+  p90TtftMs: 900,
+  throughputTps: 42.5,
+  totalGenTimeMs: 8_000_000,
+});
+const LLAMA = makeModelStatRow({
+  model: "meta-llama/llama-3.3-70b",
+  provider: "local",
+  generations: 80,
+  tokensOut: 12_000,
+  tokensOutProvenance: "measured",
+  costUsd: 0,
+  charactersUsedWith: 2,
+  avgTtftMs: null,
+  p90TtftMs: null,
+  throughputTps: 10,
+  totalGenTimeMs: 1_200_000,
+});
+const MODELS = [SONNET, LLAMA];
 
 // An ST-imported library row: no token accounting was ever written, so the row must speak `—`, never
 // a measured-looking number derived from a coalesced-to-null total.
-const UNRECORDED_MODEL = {
+const UNRECORDED_MODEL = makeModelStatRow({
   model: "openai/gpt-4-legacy-import",
   provider: null,
   generations: 40,
   tokensOut: null,
-  tokensOutProvenance: "unrecorded" as const,
+  tokensOutProvenance: "unrecorded",
   costUsd: null,
   charactersUsedWith: 1,
   avgTtftMs: null,
   p90TtftMs: null,
   throughputTps: 0,
   totalGenTimeMs: 0,
-};
+});
 
 test("price totals do not claim invoice provenance and an incompatible total is unavailable, not zero", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.byModel": () => [{ ...MODELS[0], provider: "claude-sub", costUsd: 0.125 }, UNRECORDED_MODEL],
+    "stats.byModel": () => [{ ...SONNET, provider: "claude-sub", costUsd: 0.125 }, UNRECORDED_MODEL],
     "stats.latency": () => LATENCY,
   });
   const component = await mount(<AnalyticsModelsTabStory />);
@@ -75,7 +75,7 @@ for (const width of [320, 420] as const) {
     test("accounting provenance labels aggregate rows without deriving cost from estimated tokens", async ({ mount, page }) => {
       await routeTrpc(page, {
         "stats.byModel": () => [
-          ...MODELS.map((model) => (model.costUsd > 0 ? { ...model, tokensOutProvenance: "estimated" as const, costUsd: null } : model)),
+          ...MODELS.map((model) => ((model.costUsd ?? 0) > 0 ? { ...model, tokensOutProvenance: "estimated" as const, costUsd: null } : model)),
           UNRECORDED_MODEL,
         ],
         "stats.latency": () => LATENCY,
@@ -101,7 +101,10 @@ for (const width of [320, 420] as const) {
 // throughput with no recorded generation time read "Not recorded" and a dash, never a measured-looking zero.
 test("each model row shows its time to first token and throughput, and says when either was never recorded", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.byModel": () => [...MODELS.map((model) => (model.costUsd > 0 ? model : { ...model, tokensOutProvenance: "estimated" as const })), UNRECORDED_MODEL],
+    "stats.byModel": () => [
+      ...MODELS.map((model) => ((model.costUsd ?? 0) > 0 ? model : { ...model, tokensOutProvenance: "estimated" as const })),
+      UNRECORDED_MODEL,
+    ],
     "stats.latency": () => LATENCY,
   });
   const component = await mount(<AnalyticsModelsTabStory />);

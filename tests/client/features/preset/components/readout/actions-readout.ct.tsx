@@ -11,6 +11,7 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
@@ -56,7 +57,7 @@ const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
   configUnreadable: null,
 };
 // See readout-binding.ct.tsx — the binding names its room through `chat.getChat`.
-const CHAT_DETAIL = { id: CHAT, title: "Aveline & the Court", starred: false, archived: false, temporary: false, parentChatId: null, participants: [] };
+const CHAT_DETAIL = makeChatDetail({ id: CHAT, title: "Aveline & the Court" });
 
 /** The guided family's unbound-gloss tell — the sibling suite's own spelling (`readout-binding.ct.tsx`). */
 const RESOLVES_IN_CHAT_RE = /resolves in chat/i;

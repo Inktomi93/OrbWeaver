@@ -11,7 +11,7 @@
 
 import { rowActionsName } from "@orb/client/lib";
 import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "@orb/testkit/browser/ink-void.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -44,7 +44,7 @@ const TAGS = [
   },
 ] as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
-function stub(page: Page, tags: TrpcFixtureOutput<"tag.listTagsWithUsage"> = TAGS): Promise<TrpcRecorder> {
+function stub(page: Page, tags: TrpcWireOutput<"tag.listTagsWithUsage"> = TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "tag.listTagsWithUsage": () => tags,
     "tag.pruneUnusedTags": () => ({ removed: 1 }),
@@ -260,7 +260,7 @@ test("no unused labels ⇒ the prune confirm says so and cannot fire", async ({ 
 /** One more than COLLECTION_LARGE_GROUP — the first library size that windows (and loses drag). */
 const OVER_CAP = 31;
 const OVER_CAP_TAGS = Array.from({ length: OVER_CAP }, (_unused, at) => ({
-  ...(TAGS[0] as Record<string, unknown>),
+  ...TAGS[0],
   id: `tag_bulk_${String(at)}`,
   name: `bulk-${String(at).padStart(2, "0")}`,
   sortOrder: null,

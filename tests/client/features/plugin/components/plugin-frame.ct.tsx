@@ -359,7 +359,7 @@ test("HOST CALLS — a tool-card frame's chat-scoped call goes out scoped to the
 });
 
 test("HOST CALLS — the in-flight budget refuses the call past the cap and frees its slots on settle", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"plugin.uiHostCall">();
   const recorder = await setup(page, { mintable: true, hostCall: hold });
   await mount(<PluginsSurfaceStory />);
   const frame = page.frameLocator(FRAME_SELECTOR);
