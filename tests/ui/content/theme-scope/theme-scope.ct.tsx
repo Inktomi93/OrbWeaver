@@ -1,4 +1,4 @@
-import { AA_LARGE_RATIO, AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { partVsSurface } from "@orb/testkit/browser/part-vs-surface.ts";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
@@ -93,10 +93,10 @@ test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a li
     </ThemeScope>,
   );
   const ratioOf = (testId: string): Promise<number> => pairContrast(cmp.getByTestId(testId), INK_ON_FILL);
-  // accent-foreground on the derived accent surface = body text ⇒ AA 4.5:1; the solid primary button
-  // label ⇒ the 3:1 UI/large-text floor. Both would FAIL if the fg had stayed the static dark default.
+  // accent-foreground on the derived accent surface and the solid primary button label are both
+  // normal-size text, so both need AA 4.5:1. Both would FAIL if the fg had stayed the static dark default.
   expect(await ratioOf("accent")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-  expect(await ratioOf("primary")).toBeGreaterThanOrEqual(AA_LARGE_RATIO);
+  expect(await ratioOf("primary")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 for (const theme of [

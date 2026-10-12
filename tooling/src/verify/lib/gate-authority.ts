@@ -20,7 +20,7 @@ import { GATE_OWNER_COVERAGES } from "../contract/gate-authority.ts";
 import type { ValidatedReviewedGrants } from "./gate-authority-validation.ts";
 import { isGateAuthority, isGateAuthorityIdentity, isGateSeverity, reviewedGrantIdentity, validateReviewedGrants } from "./gate-authority-validation.ts";
 import { createOrdinaryWaiverEngine } from "./ordinary-waiver.ts";
-import { waiverRatchetAlarms } from "./waiver-ratchet.ts";
+import { waiverRatchet } from "./waiver-ratchet.ts";
 
 function findingOrder(left: CoordinatedGateFinding, right: CoordinatedGateFinding): number {
   return (
@@ -425,8 +425,8 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
   const errors = sortedEffective.filter(({ severity }) => severity === "error").length;
   const warnings = sortedEffective.length - errors;
   const reconciled = reconcileAuthority(state, ordinaryAlarms);
-  const ratchet = waiverRatchetAlarms(input.waiverBudget, results, [...waivedFindings, ...grantedFindings], withheld);
-  const authorityAlarms = [...reconciled.alarms, ...ratchet].toSorted(alarmOrder);
+  const ratchet = waiverRatchet(input.waiverBudget, results, [...waivedFindings, ...grantedFindings], withheld);
+  const authorityAlarms = [...reconciled.alarms, ...ratchet.alarms].toSorted(alarmOrder);
   const unjudgedReviewedGrants = reconciled.unjudged;
   const alarmErrors = authorityAlarms.length;
   return {
@@ -435,6 +435,7 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
     grantedFindings: grantedFindings.toSorted((left, right) => findingOrder(left.finding, right.finding) || left.grantId.localeCompare(right.grantId)),
     authorityAlarms,
     unjudgedReviewedGrants,
+    waiverBudget: ratchet.report,
     toolErrors: toolErrors.toSorted(toolErrorOrder),
     withheldPolicyIds: [...withheld].filter(isGateAuthorityIdentity).toSorted(),
     ordinaryConsumption: toConsumption(ordinaryCounts),

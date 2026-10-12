@@ -69,6 +69,7 @@ const EMPTY_REPORT: StructurePolicyReport = {
   authority: {
     alarms: [],
     unjudgedReviewedGrants: [],
+    waiverBudget: null,
     toolErrors: [],
     withheldPolicyIds: [],
     ordinaryConsumption: [],
@@ -148,4 +149,16 @@ test("a subset run's unjudged reviewed grants print one NOT-judged line per poli
     "  ⚠ grant liveness NOT judged no-manual-memo: 1 reviewed grant(s) unconsumed by this subset run are neither live nor stale; the whole-tree run judges them",
   ]);
   expect(renderPolicyPass([policyRow([], true)], EMPTY_REPORT, [twoArmPolicy])).not.toContain("grant liveness NOT judged");
+});
+
+// A run whose owners did not complete over the budget population must not read as within budget.
+test("a run with unjudged waiver budgets prints the NOT-judged count; a fully judged run prints none", () => {
+  const withBudget = (judged: readonly string[], unjudged: readonly string[]): StructurePolicyReport => ({
+    ...EMPTY_REPORT,
+    authority: { ...EMPTY_REPORT.authority, waiverBudget: { population: "repository", judged, unjudged } },
+  });
+  const partial = renderPolicyPass([policyRow([], true)], withBudget(["density-tier"], ["no-manual-memo"]), [twoArmPolicy]);
+  expect(partial.split("\n").filter((line) => line.includes("waiver budget NOT judged"))).toHaveLength(1);
+  expect(partial).toMatch(/NOT judged for 1 of 2 polic\(ies\) over the repository population/u);
+  expect(renderPolicyPass([policyRow([], true)], withBudget(["density-tier"], []), [twoArmPolicy])).not.toContain("waiver budget NOT judged");
 });

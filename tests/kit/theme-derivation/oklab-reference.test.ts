@@ -1,4 +1,4 @@
-// The kit's sRGB <-> OKLCH maths against published OKLab known answers (`tests/support/oklab-reference.ts`).
+// The kit's sRGB <-> OKLCH maths against published OKLab known answers (`tests/support/iso/oklab-reference.ts`).
 // Nothing here is computed by the kit, so a transposed coefficient cannot hide behind a round trip.
 import { oklabToOklch, oklchToSrgb, srgbToOklch } from "@orb/kit/theme-derivation";
 import { OKLAB_OUT_OF_GAMUT_VECTOR, OKLAB_POLAR_PAIRS, OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "@orb/testkit/iso/oklab-reference.ts";
