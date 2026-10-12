@@ -12,7 +12,6 @@
 // per-participant floor, the export host gate — and the permissive/default arm is asserted FIRST, so a green
 // clamp arm cannot be a false positive from an empty room or a broken read.
 //
-// The wire subset shapes are declared LOCALLY (the e2e-support import-free-of-package-trees rule).
 
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -24,6 +23,7 @@ import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
+import type { TrpcOutput } from "./support/trpc.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
 const REPLY_POLL_TIMEOUT_MS = 60_000;
@@ -33,53 +33,15 @@ const HTTP_BAD_REQUEST = 400;
 const NOT_FOUND = 404;
 const OK = 200;
 
-// ── Wire subsets ────────────────────────────────────────────────────────────────────────────────────────
-interface CreatedCharacter {
-  readonly id: CharacterId;
-}
-interface StartedChat {
-  readonly chat: { readonly id: ChatId };
-}
-interface MessagesPage {
-  readonly messages: readonly { readonly id: string; readonly seq: number; readonly role: string; readonly content: string }[];
-}
-interface MemberCard {
-  readonly visibility: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly personality: string | null;
-  readonly scenario: string | null;
-  readonly greetings: readonly string[] | null;
-  readonly exampleMessages: string | null;
-  readonly creatorNotes: string | null;
-  readonly lore: readonly string[] | null;
-  readonly systemPrompt: string | null;
-  readonly postHistoryInstructions: string | null;
-}
-interface UserRow {
-  readonly id: string;
-  readonly handle: Handle;
-}
-interface PersonaRow {
-  readonly id: string;
-  readonly name: string;
-}
-/** `chat.previewAssembly`'s return — the host's dry-run BUILD product for the next turn. Mostly read as opaque
- *  bytes (the whole payload is serialized and searched for "does this persona reach the shared assembly at
- *  all"). `peekPrompt` would be the tighter instrument but is a DOMAIN verb with no tRPC procedure (verified:
- *  `chat.peekPrompt` 404s at the wire), so `previewAssembly` — same `requireHost` gate, same resolved assemble
- *  context — is the live door. */
-type AssemblyPreview = Readonly<Record<string, unknown>>;
-/** The budget subset of a preview: one row per part of each section. The `persona` section's rows are the
- *  persona marker's people block, the voice part (the `{{user}}` persona) first, then each other present human. */
-interface PreviewBudget {
-  readonly budget: { readonly sections: readonly { readonly sectionId: string; readonly rows: readonly { readonly label: string }[] }[] };
-}
+// ── Wire shapes: derived from the router, never declared. ─────────────────────────────────────────────
+type MessagesPage = TrpcOutput<"chat.listMessages">;
+type MemberCard = TrpcOutput<"chat.getMemberCard">;
+type PersonaRow = TrpcOutput<"persona.create">;
 
 /** The seeded member's `users.id` — read through the owner-only admin surface (the host IS the box owner in
  *  this mode), because `/api/auth/me` deliberately returns handle+role, not the id the D16 write needs. */
 async function memberUserId(host: ActorClient): Promise<string> {
-  const users = await host.query<readonly UserRow[]>("admin.listUsers", {});
+  const users = await host.query("admin.listUsers", {});
   const row = users.find((u) => u.handle.toLowerCase() === LOCAL_MEMBER.handle);
   expect(row, `the seeded "${LOCAL_MEMBER.handle}" account must exist (global-setup ran the multi-user seed)`).toBeDefined();
   return row?.id ?? "";
@@ -87,12 +49,12 @@ async function memberUserId(host: ActorClient): Promise<string> {
 
 /** Mint a spec-owned character, removing any residue from a crashed prior run (idempotent). */
 async function freshCharacter(host: ActorClient, handle: CharacterHandle, input: Record<string, unknown>): Promise<CharacterId> {
-  const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
+  const prior = await host.query("character.list", {});
   const stale = prior.items.find((c) => c.handle === handle);
   if (stale !== undefined) {
     await host.mutation("character.remove", { characterId: stale.id });
   }
-  const created = await host.mutation<CreatedCharacter>("character.create", { input: { handle, ...input } });
+  const created = await host.mutation("character.create", { input: { handle, ...input } });
   return created.id;
 }
 
@@ -138,7 +100,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d22-card"), CARD_FIELDS);
 
   try {
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
+    const started = await host.mutation("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
@@ -146,7 +108,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
     // `name-avatar` — the always-present floor and NOTHING else. Every sheet+ and full-only field is null ON
     // THE WIRE (server-clamped), so the serialized payload cannot carry a byte of the steering internals.
     await setCardVisibility(host, chatId, "name-avatar");
-    const nameAvatar = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const nameAvatar = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(nameAvatar.visibility).toBe("name-avatar");
     expect(nameAvatar.name).toBe(CARD_FIELDS.name);
     expect(unclampedFields(nameAvatar, [...SHEET_TIER, ...FULL_TIER])).toEqual([]);
@@ -155,7 +117,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
 
     // `sheet` (the DB/product default) — the presentable identity arrives; the steering internals stay null.
     await setCardVisibility(host, chatId, "sheet");
-    const sheet = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const sheet = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(sheet.visibility).toBe("sheet");
     expect(sheet.description).toBe(CARD_FIELDS.description);
     expect(sheet.personality).toBe(CARD_FIELDS.personality);
@@ -169,7 +131,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
     // `sheet+lore` — the sheet surface plus the rendered world-info; the internals STILL null. (`lore` is
     // null/empty here: the card carries no attached book, and the clamp fabricates nothing it wasn't given.)
     await setCardVisibility(host, chatId, "sheet+lore");
-    const withLore = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const withLore = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(withLore.visibility).toBe("sheet+lore");
     expect(withLore.description).toBe(CARD_FIELDS.description);
     expect(unclampedFields(withLore, FULL_TIER)).toEqual([]);
@@ -177,7 +139,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
 
     // `full` — the host deliberately opened the internals; now, and ONLY now, they cross the wire.
     await setCardVisibility(host, chatId, "full");
-    const full = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const full = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(full.visibility).toBe("full");
     expect(full.systemPrompt).toBe(CARD_FIELDS.systemPrompt);
     expect(full.postHistoryInstructions).toBe(CARD_FIELDS.postHistoryInstructions);
@@ -185,11 +147,11 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
     // THE HOST IS NEVER CLAMPED — re-pin the room at the tightest level and the host still resolves `full`
     // (`resolveCardVisibility`), so the clamping above is per-VIEWER, not a room-wide blackout.
     await setCardVisibility(host, chatId, "name-avatar");
-    const hostCard = await host.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const hostCard = await host.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(hostCard.visibility).toBe("full");
     expect(hostCard.systemPrompt).toBe(CARD_FIELDS.systemPrompt);
     // …and the member, reading the SAME room state, is back at the floor.
-    const clampedAgain = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const clampedAgain = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(unclampedFields(clampedAgain, [...SHEET_TIER, ...FULL_TIER])).toEqual([]);
   } finally {
     await host.mutation("character.remove", { characterId });
@@ -215,7 +177,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
   });
 
   try {
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
+    const started = await host.mutation("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
     // seq 1 = the greeting; seq 2/3 are planted BEFORE the member is seated (model-free commits).
     await host.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: PRE_JOIN });
@@ -229,7 +191,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     // ── The DEFAULT arm FIRST (D121-B): `joinHistoryVisibility` defaults to `full`, so an invited member
     // sees the whole admitted history. That is the DESIGN — and asserting it here means the clamped arm
     // below cannot pass by accident (an empty page, a broken read, a wrong chatId).
-    const openPage = await member.query<MessagesPage>("chat.listMessages", { chatId });
+    const openPage = await member.query("chat.listMessages", { chatId });
     const openWire = JSON.stringify(openPage);
     expect(openWire).toContain(GREETING);
     expect(openWire).toContain(PRE_JOIN);
@@ -240,7 +202,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     await host.mutation("invites.setMemberHistoryVisibility", { chatId, userId, visibility: "from-join" });
 
     // PATH 1 — `chat.listMessages` (the canon page every message list renders from).
-    const clampedPage = await member.query<MessagesPage>("chat.listMessages", { chatId });
+    const clampedPage = await member.query("chat.listMessages", { chatId });
     const clampedWire = JSON.stringify(clampedPage);
     expect(clampedWire).not.toContain(GREETING); // seq 1 — below the floor
     expect(clampedWire).not.toContain(PRE_JOIN); // seq 2 — below the floor
@@ -250,7 +212,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
 
     // PATH 1b — pagination stays honest: a `beforeSeq` cursor reaching under the floor returns an EMPTY page
     // (the same terminal signal an exhausted backward walk gives), never a fabricated one.
-    const underFloor = await member.query<MessagesPage>("chat.listMessages", { chatId, beforeSeq: JOIN_SEQ });
+    const underFloor = await member.query("chat.listMessages", { chatId, beforeSeq: JOIN_SEQ });
     expect(underFloor.messages).toEqual([]);
 
     // PATH 2 — the DURABLE REPLAY (`sinceSeq: 0` on the real chat ROOM source: exactly what a member's
@@ -272,7 +234,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     expect(memberReplayWire).not.toContain(PRE_JOIN);
 
     // PATH 3 — the HOST, on the SAME room, on BOTH paths: unclamped (F2 — the host is never floored).
-    const hostWire = JSON.stringify(await host.query<MessagesPage>("chat.listMessages", { chatId }));
+    const hostWire = JSON.stringify(await host.query("chat.listMessages", { chatId }));
     expect(hostWire).toContain(GREETING);
     expect(hostWire).toContain(PRE_JOIN);
     expect(hostWire).toContain(POST_JOIN);
@@ -307,14 +269,14 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
   });
 
   try {
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
+    const started = await host.mutation("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
     await host.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: PRE_JOIN });
 
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
     // Seated AND reading the room — so the 404 below is the EXPORT gate biting, not a membership failure.
-    expect(JSON.stringify(await member.query<MessagesPage>("chat.listMessages", { chatId }))).toContain(PRE_JOIN);
+    expect(JSON.stringify(await member.query("chat.listMessages", { chatId }))).toContain(PRE_JOIN);
 
     // The member's own session cookie on the real download route. `exportChat` returns null for a non-host
     // caller and the registrar maps that to a BODILESS 404 — no transcript bytes, no existence oracle.
@@ -343,20 +305,20 @@ const CARD_USER_PROBE = "{{user}} is my brother";
 const PERSONA_SECTION_ID = "persona";
 
 /** The persona marker's row labels in a preview, voice part first. Empty when the section rendered nothing. */
-function personaRowLabels(preview: PreviewBudget): readonly string[] {
+function personaRowLabels(preview: TrpcOutput<"chat.previewAssembly">): readonly string[] {
   return preview.budget.sections.find((section) => section.sectionId === PERSONA_SECTION_ID)?.rows.map((row) => row.label) ?? [];
 }
 
 // Probe cleanup must retain one persona under each actor's own authority, including a fresh or crashed harness.
 async function createProbePersona(actor: ActorClient, name: string, description: string): Promise<PersonaRow> {
-  const owned = await actor.query<readonly PersonaRow[]>("persona.list", {});
+  const owned = await actor.query("persona.list", {});
   if (owned.every((p) => p.name === name)) {
     await actor.mutation("persona.create", { input: { name: "D122 fixture baseline", description: "" } });
   }
   for (const stale of owned.filter((p) => p.name === name)) {
     await actor.mutation("persona.remove", { personaId: stale.id });
   }
-  return await actor.mutation<PersonaRow>("persona.create", { input: { name, description } });
+  return await actor.mutation("persona.create", { input: { name, description } });
 }
 
 test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane (card + assembly), and is not a dead pin", async ({ baseURL }) => {
@@ -377,7 +339,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
   const hostPersona = await createProbePersona(host, HOST_PERSONA_NAME, HOST_PERSONA_DESCRIPTION);
 
   try {
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId], anchorPersonaId: hostPersona.id });
+    const started = await host.mutation("chat.startChat", { characterIds: [characterId], anchorPersonaId: hostPersona.id });
     const chatId = started.chat.id;
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
@@ -389,7 +351,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // `{{user}}` are the host's. The member is PRESENT, so D122 already puts their persona in the shared prompt,
     // but only as a headed people-block entry after the voice part, never as `{{user}}`. This is the honest
     // baseline for the pin, and exactly what a DEAD pin would look like after it.
-    const unpinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE });
+    const unpinned = await host.query("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE });
     const unpinnedBytes = JSON.stringify(unpinned);
     expect(unpinnedBytes).toContain(MEMBER_PERSONA_NAME);
     expect(unpinnedBytes).toContain(MEMBER_PERSONA_DESCRIPTION);
@@ -397,7 +359,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     expect(unpinnedRows[0]).toContain(HOST_PERSONA_NAME);
     expect(unpinnedBytes).toContain(HOST_PERSONA_DESCRIPTION);
     expect(unpinnedRows.findIndex((label) => label.includes(MEMBER_PERSONA_NAME))).toBeGreaterThan(0);
-    const unpinnedCard = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const unpinnedCard = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(unpinnedCard.description).toBe(`${HOST_PERSONA_NAME} is my brother`);
     expect(unpinnedCard.description).not.toBe(`${MEMBER_PERSONA_NAME} is my brother`);
 
@@ -409,18 +371,18 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // persona marker (ADR 0250 — the anchor human's seat persona binds `{{user}}`) and its description still
     // rides (owner ruling 2 — the presentation surface enters the shared prompt unconditionally, no toggle).
     // Pre-D122 the resolver read personas under the host's ownership, so a member-owned anchor resolved NULL.
-    const pinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE });
+    const pinned = await host.query("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE });
     expect(JSON.stringify(pinned)).toContain(MEMBER_PERSONA_DESCRIPTION);
     expect(personaRowLabels(pinned)[0]).toContain(MEMBER_PERSONA_NAME);
 
     // The member's OWN card read renders card `{{user}}` against that anchor — the display side of the same
     // resolver, read as the member (whose card view is itself D22-clamped at the room's `sheet` default).
-    const card = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const card = await member.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(card.description).toBe(`${MEMBER_PERSONA_NAME} is my brother`);
     expect(card.description).not.toBe("User is my brother"); // the pre-D122 kit-floor symptom
 
     // The HOST's card read resolves the same anchor (the pin is the ROOM's, not per-viewer).
-    const hostCard = await host.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const hostCard = await host.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(hostCard.description).toBe(`${MEMBER_PERSONA_NAME} is my brother`);
 
     // REFUSAL: re-pinning the room anchor is HOST-only — a member cannot clear the host's pin.
@@ -431,10 +393,10 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // stops resolving and their persona leaves the room's prompt entirely: not the voice part, not the people
     // block, not the card's `{{user}}`. The pinned arm above is this arm's positive control.
     await member.mutation("invites.selfLeave", { chatId });
-    const departedBytes = JSON.stringify(await host.query<AssemblyPreview>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE }));
+    const departedBytes = JSON.stringify(await host.query("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE }));
     expect(departedBytes).not.toContain(MEMBER_PERSONA_NAME);
     expect(departedBytes).not.toContain(MEMBER_PERSONA_DESCRIPTION);
-    const departedCard = await host.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    const departedCard = await host.query("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
     expect(departedCard.description).not.toBe(`${MEMBER_PERSONA_NAME} is my brother`);
   } finally {
     await host.mutation("character.remove", { characterId });
@@ -455,7 +417,7 @@ async function pollForReply(host: ActorClient, chatId: ChatId): Promise<Messages
   const deadline = Date.now() + REPLY_POLL_TIMEOUT_MS;
   let reply: MessagesPage["messages"][number] | undefined;
   while (reply === undefined && Date.now() < deadline) {
-    const page = await host.query<MessagesPage>("chat.listMessages", { chatId });
+    const page = await host.query("chat.listMessages", { chatId });
     reply = [...page.messages].reverse().find((m) => m.role === "assistant" && m.content.includes(FIXTURE_COVER_MARKER));
     if (reply === undefined) {
       await new Promise((resolve) => setTimeout(resolve, REPLY_POLL_INTERVAL_MS));
@@ -481,17 +443,17 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     greetings: [{ text: GREETING }],
   });
   const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
-  const owned = await member.query<readonly PersonaRow[]>("persona.list", {});
+  const owned = await member.query("persona.list", {});
   for (const stale of owned.filter((p) => p.name === MEMBER_PERSONA_NAME)) {
     await member.mutation("persona.remove", { personaId: stale.id });
   }
-  const persona = await member.mutation<PersonaRow>("persona.create", {
+  const persona = await member.mutation("persona.create", {
     input: { name: MEMBER_PERSONA_NAME, description: MEMBER_PERSONA_DESCRIPTION },
   });
 
   try {
     restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
+    const started = await host.mutation("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
     await member.mutation("persona.setActivePersona", { chatId, personaId: persona.id });
@@ -522,14 +484,14 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     // poll the canon for the committed row rather than racing it.
     const reply = await pollForReply(host, chatId);
     expect(reply, "the fixture turn's reply must have committed").toBeDefined();
-    const variants = await host.query<readonly { readonly variantId: string }[]>("chat.listMessageVariants", { chatId, messageId: reply?.id ?? "" });
+    const variants = await host.query("chat.listMessageVariants", { chatId, messageId: reply?.id ?? "" });
     const variantId = variants.at(-1)?.variantId ?? "";
     expect(variantId).not.toBe("");
 
     // THE PROOF: the prompt STAMPED on that variant — the bytes that went to the model — carries the
     // member's persona name and description. Pre-D122 this read NULL for a non-host trigger and `{{user}}`
     // fell to the kit floor "User".
-    const wireBytes = JSON.stringify(await host.query<AssemblyPreview>("chat.getVariantWire", { chatId, variantId }));
+    const wireBytes = JSON.stringify(await host.query("chat.getVariantWire", { chatId, variantId }));
     expect(wireBytes).toContain(MEMBER_PERSONA_NAME);
     expect(wireBytes).toContain(MEMBER_PERSONA_DESCRIPTION);
     expect(wireBytes).not.toContain("roleplay with User"); // the pre-D122 kit-floor symptom

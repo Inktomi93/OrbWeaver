@@ -368,7 +368,7 @@ test("P5 wand: a Plot-submenu game steer fires a real turn and resolves LIVE off
 
     const captures = await fetchWireCaptures(chatId);
     expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.backend === "vllm");
+    const turnCapture = captures.find((c) => c.providerId === "vllm");
     expect(turnCapture).toBeDefined();
     const promptText = turnCapture === undefined ? "" : wireMessagesText(turnCapture);
     // The twist template's markers ("Story steer" heading + "complication" ask) reached the prompt…

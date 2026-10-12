@@ -23,7 +23,7 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
-import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
@@ -36,13 +36,6 @@ import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
 
 const CARD_HANDLE = "e2e-reasoning-strip";
 const STREAM_TIMEOUT_MS = 60_000;
-
-interface CreatedCharacter {
-  readonly id: string;
-}
-interface StartedChat {
-  readonly chat: { readonly id: ChatId };
-}
 
 /** Did any collected stream value carry a reasoning byte — a `reasoning`-kind delta OR a non-null
  *  `view.reasoning`? The member's stream must have NONE on a deception game. */
@@ -79,12 +72,12 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   let restoreProvider: (() => Promise<void>) | undefined;
 
   // Fresh spec-owned character (idempotent across crashed runs).
-  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
+  const priorList = await host.query("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
     await host.mutation("character.remove", { characterId: prior.id });
   }
-  const character = await host.mutation<CreatedCharacter>("character.create", {
+  const character = await host.mutation("character.create", {
     input: { handle: CARD_HANDLE, name: "Baron", description: "e2e reasoning-strip probe", greetings: [{ text: "Welcome to the keep." }] },
   });
 
@@ -92,7 +85,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     // HOST: point the chat Model role at the scripted fixture (a real `custom-openai` connection), a lite game with
     // deception active, and seat the member.
     restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [character.id] });
+    const started = await host.mutation("chat.startChat", { characterIds: [character.id] });
     const chatId = started.chat.id;
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
     await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });

@@ -176,11 +176,11 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
   }
   const priorChatBinding = await getChatBinding();
   await setChatBinding(claudeSub.id); // managed compaction is agent-sdk-only, and only `claude-sub` serves it
-  const tinyPreset = await trpcMutation<{ readonly id: string }>("preset.create", { name: "e2e-managed-stable", kind: "chat" });
+  const tinyPreset = await trpcMutation("preset.create", { name: "e2e-managed-stable", kind: "chat" });
   try {
     // Point the user default at a preset carrying a STABLE maxContextTokens (no per-send override → a stable cap
     // each turn, not the first test's changing-cap fork; at this tiny ceiling the session clears each turn — see header).
-    const created = await trpcQuery<{ readonly config: { readonly params?: Record<string, unknown> } }>("preset.get", { id: tinyPreset.id });
+    const created = await trpcQuery("preset.get", { id: tinyPreset.id });
     await trpcMutation("preset.update", {
       id: tinyPreset.id,
       config: { ...created.config, params: { ...created.config.params, maxContextTokens: STABLE_CEILING } },

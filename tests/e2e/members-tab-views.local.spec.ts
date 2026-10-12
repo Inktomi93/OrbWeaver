@@ -16,7 +16,7 @@
 // viewer, member-side). The assertions are the real check — a PNG proves nothing on its own — but the
 // screenshots are the deliverable a human reviews.
 
-import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/test";
@@ -49,13 +49,6 @@ const MEMBER_ROW = new RegExp(` — member${PRESENCE}$`, "u");
 const HOST_ROW = new RegExp(` — host${PRESENCE}$`, "u");
 const MEMBER_VIEWER_ROW = new RegExp(` — member, you${PRESENCE}$`, "u");
 
-interface CreatedCharacter {
-  readonly id: CharacterId;
-}
-interface StartedChat {
-  readonly chat: { readonly id: ChatId };
-}
-
 /** Two cast members so the Members tab screenshots a room with a real CAST LIST rather than a single row.
  *  (The ≥2-character floor that used to gate the Cast section — and the whole tab — died with #162: any room
  *  with a cast shows it, and a host always has the tab. Two seats is still the honest capture.) */
@@ -74,12 +67,12 @@ const CAST_B = {
 const CAST = [CAST_A, CAST_B];
 
 async function freshCharacter(host: ActorClient, card: (typeof CAST)[number]): Promise<CharacterId> {
-  const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
+  const prior = await host.query("character.list", {});
   const stale = prior.items.find((c) => c.handle === card.handle);
   if (stale !== undefined) {
     await host.mutation("character.remove", { characterId: stale.id });
   }
-  const created = await host.mutation<CreatedCharacter>("character.create", { input: card });
+  const created = await host.mutation("character.create", { input: card });
   return created.id;
 }
 
@@ -93,7 +86,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
   }
 
   try {
-    const started = await api.mutation<StartedChat>("chat.startChat", { characterIds });
+    const started = await api.mutation("chat.startChat", { characterIds });
     const chatId = started.chat.id;
     const memberApi = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(api, memberApi, chatId, LOCAL_MEMBER.handle);

@@ -107,7 +107,7 @@ async function openGamePanel(page: Page): Promise<void> {
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */
 function characterRef(view: TrackerView, characterId: CharacterId): ActorRefInput {
-  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
+  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
   }
@@ -117,7 +117,7 @@ function characterRef(view: TrackerView, characterId: CharacterId): ActorRefInpu
 /** The seeded character's actor row from a fresh tracker read (the volatile-plane comparand). */
 async function characterActor(chatId: ChatId, characterId: CharacterId): Promise<TrackerActor> {
   const view = await getTrackerView(chatId);
-  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
+  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
   }
@@ -247,7 +247,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(after.ambient?.weather?.label).toBe("bitter cold");
     expect(after.recentBeats).toContain("Stepped into the freezing night market");
 
-    const hero = after.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
+    const hero = after.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
     expect(hero?.sheet.level).toBe(5);
     expect(hero?.sheet.className).toBe("Ranger");
     // Health is an ordinary meter since R3 — one ceiling home (the def's `max`, overridable per carrier).
@@ -415,7 +415,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
     const captures = await fetchWireCaptures(chatId);
     expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.backend === "vllm");
+    const turnCapture = captures.find((c) => c.providerId === "vllm");
     expect(turnCapture).toBeDefined();
     const messages = turnCapture?.body["messages"] as readonly { readonly content?: unknown }[];
     expect(Array.isArray(messages)).toBe(true);
@@ -544,7 +544,7 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
     const b = await getTrackerView(chatId);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(a.ambient?.location).toBe("The Glass Bridge");
-    const hero = a.actors.find((x) => x.actorRef.characterId === characterId);
+    const hero = a.actors.find((x) => x.actorRef.kind === "character" && x.actorRef.characterId === characterId);
     expect(hero?.volatile?.trackerValues["focus"]).toEqual({ value: 2, items: null, max: null });
   } finally {
     await cleanup();
@@ -607,7 +607,7 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
       await deleteMessages(chatId, [last.id]);
     }
     const afterDelete = await getTrackerView(chatId);
-    expect(afterDelete.actors.some((a) => a.actorRef.characterId === characterId)).toBe(true);
+    expect(afterDelete.actors.some((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId)).toBe(true);
     expect(await fetchDebugErrors()).toEqual([]);
   } finally {
     await cleanup();

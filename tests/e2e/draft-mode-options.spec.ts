@@ -4,7 +4,7 @@
 // and the library row proves the hidden→visible transition without driving a turn.
 
 import { chatWithActionName } from "@orb/client/lib";
-import type { CharacterHandle, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -86,7 +86,7 @@ test("turning game mode on in an unsent room claims it into the Chats list", asy
   const gameTitle = `e2e-game-claimed-${Date.now()}`;
   try {
     // A title given at creation does not claim, so the row is hidden until the game is created.
-    const started = await trpcMutation<{ readonly chat: { readonly id: ChatId } }>("chat.startChat", { characterIds: [characterId], title: gameTitle });
+    const started = await trpcMutation("chat.startChat", { characterIds: [characterId], title: gameTitle });
     const gameRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: gameTitle });
     await gotoChatsList(page);
     await expect(gameRow).toHaveCount(0);
