@@ -1283,7 +1283,8 @@ for (const theme of THEMES) {
 //   0.00613  the fire log's 2-line skeleton is replaced by twelve real rows — the picker trigger leaves
 //            the viewport (~480px appears where ~64px stood). The largest term, 76% of the session.
 //   0.00155  the mint's refetched list adds a row — the picker trigger moves again
-// Total 0.00961, an order of magnitude under the 0.1 "good" bar.
+// The terms above sum to 0.00961; the measured total is now 0.01816 against the 0.02 budget, with the
+// extra shift not yet split by mover. Both sit far under the 0.1 "good" bar.
 //
 // THESE MOVERS SATURATE, which is the one thing to know before tightening the budget: every term's
 // impact region is bounded by the VIEWPORT, and by the third step the picker trigger is already at the
