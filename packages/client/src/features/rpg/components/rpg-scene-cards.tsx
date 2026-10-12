@@ -5,8 +5,8 @@
 // option is off (applicability, not a disabled twin). Cross-domain read rides `trpc.chat.listMessages`
 // DIRECTLY (lockdown §12 — the transcript surface shares this exact cache key, so this is a cache read).
 
+import { ViewerDialog } from "#components";
 import type { ChatId } from "@orb/kit/ids";
-import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
@@ -38,12 +38,13 @@ export function RpgCardLightbox({
 }): ReactElement {
   const openCard = cards.find((c) => c.key === openKey);
   return (
-    <Dialog open={openCard !== undefined} onOpenChange={(open: boolean): void => onOpenChange(open ? openKey : null)}>
-      <DialogPopup size="lg" className="gap-row">
-        <DialogTitle>{cardLabel(openCard?.title ?? null)}</DialogTitle>
-        {openCard === undefined ? null : <ArchivedCardBody card={openCard} chatId={chatId} />}
-      </DialogPopup>
-    </Dialog>
+    <ViewerDialog
+      title={cardLabel(openCard?.title ?? null)}
+      open={openCard !== undefined}
+      onOpenChange={(open: boolean): void => onOpenChange(open ? openKey : null)}
+    >
+      {openCard === undefined ? null : <ArchivedCardBody card={openCard} chatId={chatId} />}
+    </ViewerDialog>
   );
 }
 

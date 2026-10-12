@@ -38,10 +38,9 @@
 // never changes. A NOT_FOUND is a TYPED gone-arm (the `MemberCardViewer` precedent), never a swallowed catch:
 // it is what a deleted message, or a foreign variantId, resolves to.
 
+import { ViewerDialog } from "#components";
 import type { VariantWireView } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ScrollText } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
@@ -226,17 +225,9 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup size="lg" data-testid={testId("variantWireViewer")}>
-        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1`}>
-          <DialogTitle>What this reply sent</DialogTitle>
-          <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
-          <DialogFooter>
-            <DialogClose render={<Button intent="secondary">Close</Button>} />
-          </DialogFooter>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <ViewerDialog title="What this reply sent" popupProps={{ size: "lg", "data-testid": testId("variantWireViewer") }} open={open} onOpenChange={onOpenChange}>
+      <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
+    </ViewerDialog>
   );
 }
 

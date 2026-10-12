@@ -12,6 +12,7 @@ export { ConfirmDialog } from "./confirm-dialog.tsx";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export type { ConnectionRoleSlotProps } from "./connection-role-slot.tsx";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
+export type { ContentDialogProps } from "./content-dialog.tsx";
 export type { CountTextProps } from "./count-text.tsx";
 export { CountText } from "./count-text.tsx";
 export { EditableTagChip } from "./editable-tag-chip.tsx";
@@ -20,6 +21,7 @@ export type { EntryListEditorProps } from "./entry-list-editor.tsx";
 export { EntryListEditor } from "./entry-list-editor.tsx";
 export type { FaceStripItem, FaceStripProps } from "./face-strip.tsx";
 export { FaceStrip } from "./face-strip.tsx";
+export { FlowDialog } from "./flow-dialog.tsx";
 export type { FormDialogProps, FormDialogSubmit, FormSubmitButtonProps } from "./form-dialog.tsx";
 export { FormDialog, FormSubmitButton } from "./form-dialog.tsx";
 export type { GreetingStudioProps } from "./greeting-studio.tsx";
@@ -40,6 +42,7 @@ export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx"
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 export type { PanelEdgeControlProps } from "./panel-edge-control.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";
+export { PickerDialog } from "./picker-dialog.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
   CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE,
@@ -135,5 +138,6 @@ export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
 export { RerankModelDoor, UtilityModelDoor } from "./utility-model-door.tsx";
+export { ViewerDialog } from "./viewer-dialog.tsx";
 export type { WeaveGlyphProps } from "./weave-glyph.tsx";
 export { WeaveGlyph } from "./weave-glyph.tsx";

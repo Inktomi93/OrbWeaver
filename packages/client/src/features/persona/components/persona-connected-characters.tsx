@@ -11,7 +11,6 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -19,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker } from "#components";
+import { CharacterPicker, PickerDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useConnectCharacter, useDisconnectCharacter } from "../hooks/use-persona-mutations.ts";
 
@@ -63,23 +62,18 @@ export function PersonaConnectedCharacters({ personaId }: { readonly personaId: 
           Connect a character
         </Button>
       </Row>
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>Connect a character</DialogTitle>
-            <CharacterPicker
-              autoFocusSearch={true}
-              emptyText="No characters match."
-              excludeIds={(connected ?? []).map((character) => character.id)}
-              label="Connect a character"
-              onEscape={(): void => setPickerOpen(false)}
-              onSelect={onPick}
-              placeholder="Search characters…"
-              reserveKey="persona.connectCharacterPicker"
-            />
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <PickerDialog title="Connect a character" open={pickerOpen} onOpenChange={setPickerOpen}>
+        <CharacterPicker
+          autoFocusSearch={true}
+          emptyText="No characters match."
+          excludeIds={(connected ?? []).map((character) => character.id)}
+          label="Connect a character"
+          onEscape={(): void => setPickerOpen(false)}
+          onSelect={onPick}
+          placeholder="Search characters…"
+          reserveKey="persona.connectCharacterPicker"
+        />
+      </PickerDialog>
     </Section>
   );
 }

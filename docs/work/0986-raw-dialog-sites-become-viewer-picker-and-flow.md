@@ -9,7 +9,7 @@ priority: P3
 
 ## What
 
-Thirteen client features mount the raw @orb/ui Dialog because no composite fits them; they sit as deferred exemptions in the eslint.config.js RESTRICTIONS table under dialog-via-composite. Build three composites (a content viewer, a picker, a multi-step flow) and move each site onto one: viewer for variant-wire-viewer, member-card-viewer, rpg-scene-cards, gallery-lightbox; picker for character-gallery-dialog, gallery-add-picker, reaction-picker, databank-character-attachments, persona-from-character-dialog, persona-connected-characters; flow for join-invite-dialog, modal-host, variable-editor-dialog.
+Thirteen client features mount the raw @orb/ui Dialog because no composite fits them; they sit as deferred exemptions in the eslint.config.js RESTRICTIONS table under dialog-via-composite. Build three composites beside ConfirmDialog and FormDialog in packages/client/src/components (a content viewer, a picker, a multi-step flow) and move each site onto one: viewer for variant-wire-viewer, member-card-viewer, rpg-scene-cards, gallery-lightbox; picker for character-gallery-dialog, gallery-add-picker, reaction-picker, databank-character-attachments, persona-from-character-dialog, persona-connected-characters; flow for join-invite-dialog, modal-host, variable-editor-dialog.
 
 ## Why
 

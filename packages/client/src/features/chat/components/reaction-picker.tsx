@@ -30,12 +30,12 @@
 // picker doubles as the un-react path for a reaction whose pill has scrolled behind the "+N" tail. Same
 // toggle verb, same seat, same answer — there is no second write path to keep honest.
 
+import { PickerDialog } from "#components";
 import type { MessageReactionGroup, ReactionEmoji } from "@orb/contracts/chat";
 import { REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { ChatId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
-import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
@@ -103,7 +103,9 @@ export function ReactionPicker({
       .map((g) => g.emoji),
   );
   return (
-    <Dialog
+    <PickerDialog
+      title="Add a reaction"
+      popupProps={{ "data-slot": "reaction-picker", "data-chat-id": chatId, "data-variant-id": variantId }}
       // THE TARGET IS PER VISIT, AND CLOSING ENDS THE VISIT (#1502). The header above already states the
       // rule — "whole-message is the DEFAULT target; a segment is an explicit narrowing per visit" — but
       // the state outlived the dialog: this component stays mounted with `open=false` (the popup content is
@@ -119,67 +121,62 @@ export function ReactionPicker({
       }}
       open={open}
     >
-      <DialogPopup data-slot="reaction-picker" data-chat-id={chatId} data-variant-id={variantId}>
-        <Stack gap="block">
-          <DialogTitle>Add a reaction</DialogTitle>
-          {targets.length > 0 ? (
-            // The TARGET row (B7/MR3): whole-message first (the default), then one chip per named line.
-            // A wrapping rail like the grid below; `title` carries the line's text so same-name lines are
-            // tellable apart without widening the chip.
-            <Row align="center" className="flex-wrap" gap="field">
-              <Toggle
-                aria-label="React to the whole message"
-                intent="outline"
-                onPressedChange={(): void => setTarget(null)}
-                pressed={target === null}
-                shape="pill"
-                size="chip"
-              >
-                Whole message
-              </Toggle>
-              {targets.map((t) => (
-                <Toggle
-                  aria-label={`React to ${t.speaker}'s line`}
-                  intent="outline"
-                  key={t.index}
-                  onPressedChange={(): void => setTarget({ index: t.index, speaker: t.speaker })}
-                  pressed={target?.index === t.index}
-                  shape="pill"
-                  size="chip"
-                  title={t.text.trim()}
-                >
-                  {t.speaker}
-                </Toggle>
-              ))}
-            </Row>
-          ) : null}
-          {/* `wrap` is the grid: ten cells at a ≥44px coarse floor cannot hold one line on a phone, and a
+      {targets.length > 0 ? (
+        // The TARGET row (B7/MR3): whole-message first (the default), then one chip per named line.
+        // A wrapping rail like the grid below; `title` carries the line's text so same-name lines are
+        // tellable apart without widening the chip.
+        <Row align="center" className="flex-wrap" gap="field">
+          <Toggle
+            aria-label="React to the whole message"
+            intent="outline"
+            onPressedChange={(): void => setTarget(null)}
+            pressed={target === null}
+            shape="pill"
+            size="chip"
+          >
+            Whole message
+          </Toggle>
+          {targets.map((t) => (
+            <Toggle
+              aria-label={`React to ${t.speaker}'s line`}
+              intent="outline"
+              key={t.index}
+              onPressedChange={(): void => setTarget({ index: t.index, speaker: t.speaker })}
+              pressed={target?.index === t.index}
+              shape="pill"
+              size="chip"
+              title={t.text.trim()}
+            >
+              {t.speaker}
+            </Toggle>
+          ))}
+        </Row>
+      ) : null}
+      {/* `wrap` is the grid: ten cells at a ≥44px coarse floor cannot hold one line on a phone, and a
               wrapping rail is what the chip box is FOR (`CHIP_BOX` is one home with Button's `chip` size,
               which is the wrapping-rail cell). */}
-          <Row align="center" className="flex-wrap" gap="field">
-            {REACTION_EMOJIS.map((emoji) => (
-              <Toggle
-                aria-label={`React with ${emoji}`}
-                intent="outline"
-                key={emoji}
-                onPressedChange={(): void => {
-                  onPick(emoji, target);
-                  // A PROGRAMMATIC close never reaches the Dialog's own `onOpenChange`, so the per-visit
-                  // reset has to happen here too — this is the path a successful pick actually takes.
-                  setTarget(null);
-                  onOpenChange(false);
-                }}
-                pressed={reactedWith.has(emoji)}
-                shape="pill"
-                size="chip"
-              >
-                <span aria-hidden={true}>{emoji}</span>
-              </Toggle>
-            ))}
-          </Row>
-          <Text voice="gloss">Everyone in this room sees reactions.</Text>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+      <Row align="center" className="flex-wrap" gap="field">
+        {REACTION_EMOJIS.map((emoji) => (
+          <Toggle
+            aria-label={`React with ${emoji}`}
+            intent="outline"
+            key={emoji}
+            onPressedChange={(): void => {
+              onPick(emoji, target);
+              // A PROGRAMMATIC close never reaches the Dialog's own `onOpenChange`, so the per-visit
+              // reset has to happen here too — this is the path a successful pick actually takes.
+              setTarget(null);
+              onOpenChange(false);
+            }}
+            pressed={reactedWith.has(emoji)}
+            shape="pill"
+            size="chip"
+          >
+            <span aria-hidden={true}>{emoji}</span>
+          </Toggle>
+        ))}
+      </Row>
+      <Text voice="gloss">Everyone in this room sees reactions.</Text>
+    </PickerDialog>
   );
 }
