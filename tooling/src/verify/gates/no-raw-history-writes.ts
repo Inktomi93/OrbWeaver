@@ -170,6 +170,12 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "cannot be established" },
       why: "the DOM-less structural getter has no concrete local implementation of the mutation and fails closed",
     },
+    {
+      mode: "types",
+      files: { "packages/client/src/data/x.ts": 'let key = "replaceState"; globalThis.history?.[key](null, "", "/");' },
+      expect: { count: 1 },
+      why: "a `let` key never reassigned names one member exactly as a `const` does, so the shared reader resolves it by declaration",
+    },
   ],
   mustPass: [
     {
@@ -194,8 +200,10 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/client/src/data/x.ts": 'let key = "replaceState"; globalThis.history?.[key](null, "", "/");' },
-      why: "declared limit: a mutable `let` key names no ONE member, so the shared reader refuses it where an immutable `const` key resolves",
+      files: {
+        "packages/client/src/data/x.ts": 'let other = "x"; other = "replaceState"; history[other]();',
+      },
+      why: "declared limit: a `let` key that is reassigned names no ONE member, so it is unresolved (the never-reassigned `let` is a mustFlag row)",
     },
     {
       mode: "types",

@@ -531,6 +531,15 @@ test("staticMemberAccess reads the node's own access, never a wrapper or a type 
   expect(wrapper === undefined ? "missing" : readMemberAccess(wrapper)).toMatchObject({ kind: "resolved" });
 });
 
+test("staticMemberAccess resolves a never-reassigned let key and refuses a reassigned one", () => {
+  expect(memberAccessesIn('let key = "chat";\nexport const a = schema[key];\n').map((node) => staticMemberAccess(node)?.name)).toEqual(["chat"]);
+  expect(memberAccessesIn('let key = "chat";\nkey = "other";\nexport const a = schema[key];\n').map((node) => staticMemberAccess(node))).toEqual([undefined]);
+  expect(readStaticString(sourceOf('let key = "chat";\nexport const a = key;\n').getVariableDeclarationOrThrow("a").getInitializerOrThrow())).toMatchObject({
+    kind: "unresolved",
+    reason: "write",
+  });
+});
+
 test("staticMemberAccess resolves a const-named bracket key and refuses a dynamic one", () => {
   expect(memberAccessesIn('const KEY = "chatDigests";\nexport const a = schema[KEY];\n').map((node) => staticMemberAccess(node)?.name)).toEqual([
     "chatDigests",
