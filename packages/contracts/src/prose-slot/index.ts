@@ -200,7 +200,7 @@ export const PROSE_SLOT_IDS = [
   "rpg.delta.changesHeading",
   "rpg.delta.sceneOpensHeading",
   // ── per-PRESET: the EXTRACTION seam (census 11-27 + 29-36) — the WRITE-surface prose every state vehicle
-  //    composes (`contracts/rpg/extraction-prompt.ts` + `entry/compose/rpg.ts`). `macros:"none"` for the whole
+  //    composes (`contracts/rpg/extraction-prompt.ts` + `domain/rpg/tools/rounds/prompts.ts`). `macros:"none"` for the whole
   //    cohort: several carry a PRE-SUBSTITUTION token vocabulary (this game's tracker catalogue, the worked
   //    example's keys, the resolved ref lists) which the seam splices as data — never the macro engine, which
   //    has no binding to offer an extraction prompt. Census 27 is `rpg.extract.stateTrackingGuide` — the owner

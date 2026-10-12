@@ -60,11 +60,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
   "tests/server/domain/admin/substrate/audited-write.int.test.ts": ["#server/domain/admin/substrate/audited-write.ts"],
   "tests/server/domain/admin/verbs/link-sso-identity.int.test.ts": ["#server/domain/admin/contract/errors.ts"],
   "tests/server/domain/admin/verbs/restart.test.ts": ["#server/domain/admin/verbs/restart.ts"],
-  "tests/server/domain/assets/_support.ts": [
-    "#server/domain/assets/context.ts",
-    "#server/entry/compose/co-participant-assets.ts",
-    "#server/entry/compose/gallery-character-ops.ts",
-  ],
+  "tests/server/domain/assets/_support.ts": ["#server/domain/assets/context.ts", "#server/entry/compose/gallery-character-ops.ts"],
   "tests/server/domain/assets/persistence/maintenance.int.test.ts": ["#server/domain/assets/persistence/maintenance.ts"],
   "tests/server/domain/assets/persistence/portable-refs.int.test.ts": [
     "#server/domain/assets/persistence/asset-refs.ts",

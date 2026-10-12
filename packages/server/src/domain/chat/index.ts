@@ -36,11 +36,13 @@ export type {
   GetPendingUserText,
   HandoffCardCopy,
   HandoffHealArgs,
+  LoadUserHandlesOp,
   MemoryStoreReceipt,
   PostNarratorMessage,
   PostNarratorMessageDeps,
   PresenceReadOp,
   PromptTransformRegistry,
+  PublishChatChangedOp,
   ResolveCanonWindow,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
@@ -124,7 +126,13 @@ export { migrateSeededRoomBackgrounds } from "./persistence/migrate-seeded-backg
 export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
-export { loadPresentRole } from "./persistence/participants-read.ts";
+export {
+  isCharacterSeated,
+  isPresentParticipant,
+  loadPresentCharacterSeats,
+  loadPresentHostUserId,
+  loadPresentRole,
+} from "./persistence/participants-read.ts";
 export { loadTurnOrigin } from "./persistence/queries.ts";
 export {
   createCompareAndSetImportedTokenUsage,
@@ -165,9 +173,14 @@ export { createChatTeachingContributions } from "./teaching-contribution.ts";
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // The imagery quiet-extraction shaper — imagery consumes it as an injected op at the
 // composition root; chat owns the history window + the {{char}}/{{user}} MacroContext.
+// The `chatsChanged` member fan wired onto `ChatContext.emitChatChanged`; compose injects the user bus.
+export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
+// The two co-participant asset reference checks assets consumes (`AssetsContext`): room membership is chat's data.
+export { createLoadChatAssetRefs } from "./verbs/load-chat-asset-refs.ts";
+export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
@@ -182,6 +195,8 @@ export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.
 // The rpg roster-resolution op (docs/plans/rpg/design.md) — resolves present participants into rpg actor refs +
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
+// The D121-E room display policy regex consumes (`RegexContext.resolveRoomDisplayPolicy`): both halves are chat's data.
+export { createResolveRoomDisplayPolicy } from "./verbs/resolve-room-display-policy.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.
 export { createResolveRpgCardCorpus } from "./verbs/resolve-rpg-card-corpus.ts";
@@ -192,6 +207,8 @@ export { createResolveRpgParticipants } from "./verbs/resolve-rpg-participants.t
 // composition root joins them; notifications declares the op type it consumes and never learns a table name.
 export { createResolveStandingAsks } from "./verbs/resolve-standing-asks.ts";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility.ts";
+// The ONE leak-safe reverse-room read every attachment-junction library consumes (`ResolveVisibleRoomsOp`).
+export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";

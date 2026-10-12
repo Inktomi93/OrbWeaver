@@ -112,6 +112,11 @@ interface EmitChatChangedOptions {
 /** Fans `chatsChanged` to every present human member's user-bus channel — the cross-device + multi-human
  *  chat-list recency driver. Best-effort, never throws into the turn. */
 export type EmitChatChanged = (chatId: ChatId, options?: EmitChatChangedOptions) => Promise<void>;
+/** Publish one `chatsChanged` to one user's bus channel; `chatId` present ⇒ the event names the chat. The user
+ *  bus is transport's, so compose injects it into {@link EmitChatChanged}'s factory. */
+export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
+/** The account handles of `userIds`; a gone id is absent. Sessions owns the `users` read. */
+export type LoadUserHandlesOp = (userIds: readonly UserId[]) => Promise<readonly { readonly id: UserId; readonly handle: Handle }[]>;
 
 /** CLAIM a chat — the husk→real transition (R0 §4.2). Idempotent, one-way, and a no-op on an already-claimed
  *  or vanished room, so a verb calls it unconditionally and never asks whether the room is a husk. Built by

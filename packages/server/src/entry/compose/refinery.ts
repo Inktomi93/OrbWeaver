@@ -60,6 +60,7 @@ export function createResolveStructuredBinding(
   runtime: Pick<InferenceRuntime, "resolve">,
   principalOf: (userId: UserId) => Promise<Principal>,
 ): RefineryComposeDeps["resolveStructuredBinding"] {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (ownerId) => {
     try {
       return (await runtime.resolve({ task: "structured", principal: await principalOf(ownerId), cachedFacts: true })).resolved;
@@ -78,6 +79,7 @@ function createPlanSchema(
   resolveStructuredBinding: RefineryComposeDeps["resolveStructuredBinding"],
   resolveUtilityPresetParams: RefineryComposeDeps["resolveUtilityPresetParams"],
 ): (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan> {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (ownerId, schema) => {
     const connection = await resolveStructuredBinding(ownerId);
     if (connection === null) {

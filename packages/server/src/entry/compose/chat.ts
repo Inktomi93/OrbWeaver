@@ -16,7 +16,6 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type {
   BindingActor,
@@ -30,11 +29,10 @@ import type {
   RoleClientsWithSignal,
 } from "@orb/inference";
 import { carriesStructured, toChatRequest, unavailableRefusal } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
-import { and, eq, isNull } from "drizzle-orm";
 import { isAdmin } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -78,6 +76,7 @@ import {
   createActiveTurns,
   createChatService,
   createChatTeachingContributions,
+  createEmitChatChanged,
   createGenerationObservationSession,
   createGetMembership,
   createGetPendingUserText,
@@ -91,6 +90,8 @@ import {
   estimateMemoryBackfillCalls,
   getGroupConfig,
   getRoomOverrides,
+  isPresentParticipant,
+  loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { readOwnedDistillates } from "#domain/discovery";
@@ -99,14 +100,14 @@ import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
-import { createPersonaOwned, PersonaNotFoundError } from "#domain/persona";
+import { createPersonaOwned, createResolveConnectedPersona, createResolveUserPublics, PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
-import { createTokenHasher } from "#domain/sessions";
+import { createTokenHasher, selectHandleById } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import {
   applyCharacterStatsDelta,
@@ -121,9 +122,8 @@ import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-i
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
-import { publishNotification } from "#transport/trpc";
+import { publishChatChanged, publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
-import { createChatChangedEmitter } from "./emit-chat-changed.ts";
 import { createMemoryEmbeddingOps } from "./memory-embedding-ops.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 import { withRetrievalDegrade } from "./retrieval-degrade.ts";
@@ -159,6 +159,7 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
  * participants read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
  * `sameProjectedPersona` dedup keeps holding.
  */
+// @orb-waive compose-wiring-only(activePersonaIdFor): baselined when the gate landed; burn-down item 964.
 export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
   const trigger = args.trigger;
   switch (trigger.kind) {
@@ -186,6 +187,7 @@ function assertNeverTrigger(trigger: never): never {
  *     seat falls back to the anchor persona its human owns, never to another human's.
  *   • `trigger` (an impersonate draft, the presser's own next line) → {@link activePersonaIdFor}.
  */
+// @orb-waive compose-wiring-only(voicePersonaFor): baselined when the gate landed; burn-down item 964.
 export function voicePersonaFor(args: {
   readonly voice: TurnVoice;
   readonly trigger: TurnTrigger;
@@ -228,6 +230,7 @@ export function createTurnPersonaResolver(
 ): (
   args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "chatId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
 ) => Promise<ResolvedPersonas> {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (args) => {
     const triggerPersonaId = args.trigger.kind === "human" ? args.trigger.personaId : null;
     const resolved = await resolvePersonasForParticipants({
@@ -263,6 +266,7 @@ export function createSignupMinterCheck(
   sessions: Pick<SessionsService, "loadUserById">,
   resolvePrincipal: (userId: UserId) => Promise<Principal>,
 ): SignupMinterCheckOp {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (minterUserId) => {
     const row = await sessions.loadUserById(minterUserId);
     return row !== null && row.enabled && isAdmin(await resolvePrincipal(minterUserId));
@@ -497,6 +501,7 @@ export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: 
  *  Same for `compaction`/`api_retry`/`status`/`auth_status`/`model_downgrade`/`permission_leak`: diagnostics
  *  with no user decision behind them. If one ever earns a room-public surface it needs its own bus member and
  *  its own ruling, not a quiet addition here. */
+// @orb-waive compose-wiring-only(outOfBandChunks): baselined when the gate landed; burn-down item 964.
 function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
   const seen = new Map<string, TurnStreamChunk>();
   let refused = false;
@@ -566,6 +571,7 @@ function chatTurnInputOf(args: {
 }
 
 /** The terminal `final` chunk: the infra {@link ChatResult} folded onto the domain's committed economics. */
+// @orb-waive compose-wiring-only(finalTurnChunk): baselined when the gate landed; burn-down item 964.
 function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
   return {
     kind: "final",
@@ -642,6 +648,7 @@ function createChunkPump<T>(): {
   // of rethrowing when a runner rejected with a nullish value.
   let failure: { readonly err: unknown } | null = null;
   let notify: (() => void) | null = null;
+  // @orb-waive compose-wiring-only(wake): baselined when the gate landed; burn-down item 964.
   const wake = (): void => {
     notify?.();
     notify = null;
@@ -659,6 +666,7 @@ function createChunkPump<T>(): {
     done = true;
     wake();
   };
+  // @orb-waive compose-wiring-only(drain): baselined when the gate landed; burn-down item 964.
   async function* drain(): AsyncGenerator<T> {
     for (;;) {
       if (queue.length > 0) {
@@ -735,11 +743,13 @@ export function createTaskWindowReaders(deps: {
 }): { readonly summarize: (funderUserId: UserId) => Promise<number>; readonly embed: (funderUserId: UserId) => Promise<number> } {
   // `resolved()` reads null for every reason the task cannot run; the availability verdict names the first one,
   // so the funder is told what to fix instead of always "nothing is bound".
+  // @orb-waive compose-wiring-only(refusalFor): baselined when the gate landed; burn-down item 964.
   const refusalFor = async (funderUserId: UserId, task: "summarize" | "embed"): Promise<NoConnectionError> => {
     const verdict = await deps.availability({ task, principal: await deps.resolveHostPrincipal(funderUserId) });
     return unavailableRefusal(task, verdict.available ? "no-connection" : verdict.cause);
   };
   return {
+    // @orb-waive compose-wiring-only(summarize): baselined when the gate landed; burn-down item 964.
     summarize: async (funderUserId): Promise<number> => {
       const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("summarize");
       if (resolved === null) {
@@ -751,6 +761,7 @@ export function createTaskWindowReaders(deps: {
       const preset = await deps.resolveUtilityPresetParams(funderUserId);
       return windowForPreset(resolved.capability.generation, preset?.maxContextTokens).context.window;
     },
+    // @orb-waive compose-wiring-only(embed): baselined when the gate landed; burn-down item 964.
     embed: async (funderUserId): Promise<number> => {
       const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("embed");
       if (resolved === null) {
@@ -798,6 +809,7 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
  *
  * @public Test-anchored module surface; the three routes are pinned at `tests/server/entry/compose/speaker-arbiter.suite.test.ts`.
  */
+// @orb-waive compose-wiring-only(speakerArbiterFor): baselined when the gate landed; burn-down item 964.
 export async function speakerArbiterFor(
   roles: Pick<RoleClientsWithSignal, "resolved" | "structured">,
   maxContextTokens?: number | undefined,
@@ -860,6 +872,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // It returns the resolved row's NAME beside its config (#1754), and the two travel together by
   // construction: the name comes off the very `PresetDetail` the config did, so nothing downstream can
   // name one preset while assembling another. `null` = the system default stood in (there is no row to name).
+  // @orb-waive compose-wiring-only(resolvePromptConfigFor): baselined when the gate landed; burn-down item 964.
   const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<{ config: PromptConfig; name: string | null }> => {
     if (defaultPresetId === null) {
       return { config: DEFAULT_PROMPT_CONFIG, name: null };
@@ -885,6 +898,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // rule (never a broken turn). One home with `resolvePromptConfigFor` so the fallback can't drift. Returns the
   // RESOLVED preset id alongside the config (WAVE MU user-macro source attribution) — the override id when it
   // resolved, else the host default id, else null when the system `DEFAULT_PROMPT_CONFIG` stood in.
+  // @orb-waive compose-wiring-only(resolvePromptConfigWithOverride): baselined when the gate landed; burn-down item 964.
   const resolvePromptConfigWithOverride = async (
     runAsUserId: UserId,
     presetOverride: PresetId | undefined,
@@ -912,19 +926,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const personaOwned = createPersonaOwned(db);
 
-  // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
-  // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
-  const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
-    const hostRows = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    return hostRows.at(0)?.userId ?? null;
-  };
+  const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
   // ⇒ no declared variables.
+  // @orb-waive compose-wiring-only(resolvePromptVariables): baselined when the gate landed; burn-down item 964.
   const resolvePromptVariables = async (chatId: ChatId): Promise<readonly ChoiceBlockSpec[]> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
@@ -939,6 +945,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // under the chat's host exactly like `resolvePromptVariables` (its ChoiceBlock sibling). A feature preset
   // OVERRIDE is deliberately not applied: it is a per-turn redirect (the rpg GM voice) no pane read can
   // anticipate. Hostless/stale room ⇒ no declared macros.
+  // @orb-waive compose-wiring-only(resolvePromptUserMacros): baselined when the gate landed; burn-down item 964.
   const resolvePromptUserMacros = async (chatId: ChatId): Promise<readonly UserMacroSpec[]> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
@@ -953,6 +960,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // (a) — the room's side generations read one stable voice, not the speaker-of-the-moment's). One home with
   // `resolvePromptVariables`: same host resolution, same hostless degrade — an
   // empty record, which resolves every slot to its shipped default (byte-identical to pre-PROSE-1).
+  // @orb-waive compose-wiring-only(resolveChatProse): baselined when the gate landed; burn-down item 964.
   const resolveChatProse = async (chatId: ChatId): Promise<ProseOverrides> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
@@ -970,6 +978,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // e.g. reading the host's default preset — is precisely the defect the `resolvePreviewInputs` GM redirect
   // was landed to fix, in a different jacket.
   // The room's preset as a TURN resolves it: the GM-voice redirect first, then the host's default.
+  // @orb-waive compose-wiring-only(resolveChatTurnPresetConfig): baselined when the gate landed; burn-down item 964.
   const resolveChatTurnPresetConfig = async (chatId: ChatId): Promise<PromptConfig | null> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
@@ -979,6 +988,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     const us = await input.settings.loadUserSettings(hostUserId);
     return (await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId)).config;
   };
+  // @orb-waive compose-wiring-only(resolveChatPresetProse): baselined when the gate landed; burn-down item 964.
   const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
     const config = await resolveChatTurnPresetConfig(chatId);
     return config === null ? {} : composeProse({ preset: config.prose });
@@ -986,14 +996,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The room's preset generation params, by the SAME ladder the turn walks: every send on the chat connection outside
   // the turn (quiet generation and compaction, the host's resync and populate, the overflow notice) reads its sampling
   // and its Max context here, so it runs the window the turn sends. A hostless room degrades to the system default.
+  // @orb-waive compose-wiring-only(resolveChatPresetParams): baselined when the gate landed; burn-down item 964.
   const resolveChatPresetParams = async (chatId: ChatId): Promise<UserIntent> =>
     (await resolveChatTurnPresetConfig(chatId))?.params ?? DEFAULT_PROMPT_CONFIG.params;
 
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
   // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
   // re-reading settings — the opt-out can't be honored on the turn and dropped on the sweep.
+  // @orb-waive compose-wiring-only(withMemoryOptOut): baselined when the gate landed; burn-down item 964.
   const withMemoryOptOut = (disabled: boolean, defaults: MemoryConfig): MemoryConfig => (disabled ? { ...defaults, mode: "off" } : defaults);
 
+  // @orb-waive compose-wiring-only(resolveMemoryConfig): baselined when the gate landed; burn-down item 964.
   const resolveMemoryConfig = async (hostUserId: UserId): Promise<MemoryConfig> => {
     const us = await input.settings.loadUserSettings(hostUserId);
     const defaults = input.settings.getEffectiveConfig().memoryDefaults;
@@ -1031,7 +1044,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     auditStatement: (entry, at) => buildAuditStatement(db, entry, at),
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
-    emitChatChanged: createChatChangedEmitter(db),
+    emitChatChanged: createEmitChatChanged({ db }, publishChatChanged),
     applyRegexReplace: createRegexApplyReplace(),
     testRegexKey: createRegexTest(),
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION
@@ -1077,6 +1090,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // those bytes). Ownership is PROVEN here: an asset that is not the departing host's yields `null` and
       // the copy lands without that picture rather than borrowing a stranger's blob. `kind` comes from the
       // CALLER because the CAS index is per-kind and the two carried pictures are genuinely different kinds.
+      // @orb-waive compose-wiring-only(copyAsset): baselined when the gate landed; burn-down item 964.
       copyAsset: async ({ fromOwnerId, toOwnerId, assetId, kind }) => {
         const ref = await input.assets.assetCasRefById(assetId);
         if (ref === undefined || ref.ownerId !== fromOwnerId) {
@@ -1115,6 +1129,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // D22 member card — accepted tag identities under the host's ownership. Resolved
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
+    // @orb-waive compose-wiring-only(resolveCharacterTags): baselined when the gate landed; burn-down item 964.
     resolveCharacterTags: async ({ ownerId, characterId }) => {
       // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
@@ -1132,6 +1147,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
     // deployment (which the app-document CSP enforces independently), and the ladder's top rung needs the
     // `allowInteractiveCards` ceiling, which is also the default rung of a card that inherits.
+    // @orb-waive compose-wiring-only(resolveSeatDeco): baselined when the gate landed; burn-down item 964.
     resolveSeatDeco: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
       const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
@@ -1175,65 +1191,21 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
-    resolveUserPublics: async (userId, personaId) => {
-      const rows = await db.select({ handle: users.handle }).from(users).where(eq(users.id, userId)).limit(1);
-      const handle = rows[0]?.handle ?? null;
-
-      let avatarAssetId: AssetId | null = null;
-      let displayName: string | null = handle;
-
-      if (personaId !== null) {
-        const p = (
-          await db
-            .select({ name: personas.name, avatarAssetId: personas.avatarAssetId })
-            .from(personas)
-            .where(and(eq(personas.id, personaId), eq(personas.ownerId, userId)))
-            .limit(1)
-        )[0];
-
-        if (p) {
-          displayName = p.name;
-          avatarAssetId = p.avatarAssetId;
-        }
-      }
-
-      if (avatarAssetId === null) {
-        // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a persona/handle
-        // display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed
-        // read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the
-        // only source of `displayName`/`handle`.
-        try {
-          const userSettings = await input.settings.loadUserSettings(userId);
-          const raw = userSettings.profile.avatarAssetId ?? null;
-          avatarAssetId = raw === null ? null : castId<AssetId>(raw);
-        } catch {
-          // ignore
-        }
-      }
-
-      return {
-        displayName,
-        handle,
-        avatarAssetId,
-      };
-    },
+    resolveUserPublics: createResolveUserPublics(
+      { db },
+      { loadUserHandle: (userId) => selectHandleById(db, userId), loadUserSettings: (userId) => input.settings.loadUserSettings(userId) },
+    ),
     // The gate reader answers "is this asset's owner a present member of the referencing chat?" — a
     // scoped chat_participants read.
     resolveImageUrl: (params) =>
       resolveImageRefToUrl(
         { ...input.assets, ...input.mediaProcessing },
-        async (userId, forChatId) => {
-          const rows = await db
-            .select({ id: chatParticipants.id })
-            .from(chatParticipants)
-            .where(and(eq(chatParticipants.userId, userId), eq(chatParticipants.chatId, forChatId), isNull(chatParticipants.leftSeq)))
-            .limit(1);
-          return rows.length > 0;
-        },
+        (userId, forChatId) => isPresentParticipant(db, forChatId, userId),
         input.settings.getEffectiveConfig().forbidExternalMedia,
         params,
       ),
     // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
+    // @orb-waive compose-wiring-only(resolveAssetHash): baselined when the gate landed; burn-down item 964.
     resolveAssetHash: async (assetId) => {
       if (assetId === null) {
         return null;
@@ -1263,6 +1235,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Every summarize call names its FUNDER (§8.5b): the arbiter and extract-quiet spend the round's trigger,
     // the digests the trigger under `allowBackground` — never a box owner's bundle.
     summarize: async (funderUserId, ...args) => (await input.roleClientsFor(funderUserId)).summarize(...args),
+    // @orb-waive compose-wiring-only(resolveSpeakerReranker): baselined when the gate landed; burn-down item 964.
     resolveSpeakerReranker: async (funderUserId) => {
       const roles = await input.roleClientsFor(funderUserId);
       const view = await roles.resolved("rerank");
@@ -1275,6 +1248,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // The arbiter is structured output only: a row that carries no structured payload cannot serve it, so the round
     // degrades visibly instead of reading free text.
+    // @orb-waive compose-wiring-only(resolveSpeakerArbiter): baselined when the gate landed; burn-down item 964.
     resolveSpeakerArbiter: async (funderUserId, chatId) => {
       const arbiter = await speakerArbiterFor(
         await input.roleClientsFor(funderUserId),
@@ -1310,20 +1284,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
-    resolveConnectedPersona: async (userId, characterIds) => {
-      const [characterId] = characterIds;
-      if (characterId === undefined || characterIds.length !== 1) {
-        return null;
-      }
-      const rows = await db
-        .select({ personaId: characterPersonas.personaId })
-        .from(characterPersonas)
-        .innerJoin(personas, eq(personas.id, characterPersonas.personaId))
-        .where(and(eq(characterPersonas.characterId, characterId), eq(personas.ownerId, userId)))
-        .limit(2);
-      const [only] = rows;
-      return rows.length === 1 && only !== undefined ? only.personaId : null;
-    },
+    resolveConnectedPersona: createResolveConnectedPersona({ db }),
+    // @orb-waive compose-wiring-only(resolveDefaultPersona): baselined when the gate landed; burn-down item 964.
     resolveDefaultPersona: async (userId) => {
       const us = await input.settings.loadUserSettings(userId);
       const raw = us.seeds.defaultPersonaId;
@@ -1345,6 +1307,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         throw err;
       }
     },
+    // @orb-waive compose-wiring-only(resolveCurrentPersona): baselined when the gate landed; burn-down item 964.
     resolveCurrentPersona: async (userId) => {
       const us = await input.settings.loadUserSettings(userId);
       const raw = us.seeds.currentPersonaId;
@@ -1392,6 +1355,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The SPACE refusals degrade here rather than faulting the turn (#2510 — `retrieval-degrade.ts` states
     // the whole boundary): a mid-move or unbound vector space is an ordinary owner state, and the user hears
     // about it through the episode this reports into. Every other search failure still propagates.
+    // @orb-waive compose-wiring-only(searchDigests): baselined when the gate landed; burn-down item 964.
     searchDigests: async (query, events) => {
       const hostUserId = await resolveChatHostUserId(query.scope.chat);
       if (hostUserId === null) {
@@ -1409,6 +1373,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // keeps stored digest identities; standalone transcript sources remain search evidence. Hostless/stale room ⇒ empty
     // (leak-free unknown-owner, the resolvePromptVariables posture); an empty queryText propagates the
     // corpus verb's own SEARCH_EMPTY_QUERY refusal (flag-don't-fake).
+    // @orb-waive compose-wiring-only(searchCorpus): baselined when the gate landed; burn-down item 964.
     searchCorpus: async (query) => {
       const hostUserId = await resolveChatHostUserId(query.scope.chat);
       if (hostUserId === null) {
@@ -1434,6 +1399,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.
     resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
+    // @orb-waive compose-wiring-only(resolveWelcomeAssistantId): baselined when the gate landed; burn-down item 964.
     resolveWelcomeAssistantId: async (userId) => {
       const id = (await input.settings.loadUserSettings(userId)).seeds.welcomeAssistantCharacterId;
       return id === null ? null : castId<CharacterId>(id);
@@ -1474,12 +1440,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (§8.4-3): today that is the current host, and the next-turn read below reports that same binding.
     resolveConnection: ({ funderUserId, actor }) => resolveChatFor(funderUserId, undefined, actor),
     checkSendAvailability: async ({ funderUserId }) => input.connection.availability({ task: "chat", principal: await realHostPrincipal(funderUserId) }),
+    // @orb-waive compose-wiring-only(getNextTurnConnection): baselined when the gate landed; burn-down item 964.
     getNextTurnConnection: async ({ funderUserId }) => {
       const row = await input.connection.getBoundConnection({ task: "chat", principal: await realHostPrincipal(funderUserId) });
       return row === null
         ? { state: "unset" }
         : { state: "configured", connectionLabel: row.label, provider: row.providerId, providerLabel: row.providerLabel, model: row.model };
     },
+    // @orb-waive compose-wiring-only(resolveForeignInputs): baselined when the gate landed; burn-down item 964.
     resolveForeignInputs: async ({ chatId, runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 
@@ -1573,6 +1541,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
     signupInvites: chatBundle.signupInvites,
+    // @orb-waive compose-wiring-only(isMemoryEnabled): baselined when the gate landed; burn-down item 964.
     isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),
@@ -1581,6 +1550,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // reads the admin defaults without the host's opt-out; the bulk count honours each host's switch, as the sweep does.
       // A retry or a start is counted only if the workloads door would admit it (`admit` above), so only the
       // switch's confirm sees this count while the host's switch is still off.
+      // @orb-waive compose-wiring-only(estimateMemory): baselined when the gate landed; burn-down item 964.
       estimateMemory: (args) =>
         estimateMemoryBackfillCalls(
           chatCtx,

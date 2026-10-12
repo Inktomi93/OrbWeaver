@@ -26,6 +26,7 @@ export interface SideGenParamsDeps {
 
 /** A preset's role params, with its `reasoningParse` pair where auto-parse is on: an off pair is inert in chat, so a
  *  background task keeps the house pair. */
+// @orb-waive compose-wiring-only(rolePresetOf): baselined when the gate landed; burn-down item 964.
 function rolePresetOf(config: PromptConfig): SideGenSampling {
   const pair = config.reasoningParse?.autoParse === true ? config.reasoningParse : undefined;
   return rolePresetParamsOf({ ...config.params, ...(pair !== undefined ? { reasoningTags: { prefix: pair.prefix, suffix: pair.suffix } } : {}) });
@@ -34,6 +35,7 @@ function rolePresetOf(config: PromptConfig): SideGenSampling {
 export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveUtilityPresetParams: ResolveUtilityPresetParams } {
   // `null` from a stale/unowned/missing id. A database/I/O/program failure must surface, not silently replace the
   // caller's configured sampling (#759).
+  // @orb-waive compose-wiring-only(presetParams): baselined when the gate landed; burn-down item 964.
   const presetParams = async (userId: UserId, presetId: PresetId): Promise<SideGenSampling | null> => {
     try {
       return rolePresetOf((await deps.preset.get({ userId, id: presetId })).config);
@@ -45,6 +47,7 @@ export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveU
     }
   };
 
+  // @orb-waive compose-wiring-only(fromChoice): baselined when the gate landed; burn-down item 964.
   const fromChoice = async (userId: UserId, choice: RolePresetChoice, activePresetId: string | null): Promise<SideGenSampling | undefined> => {
     if (choice.kind === ROLE_PRESET_CHOICE_KINDS.preset) {
       return (await presetParams(userId, castId<PresetId>(choice.presetId))) ?? undefined;
@@ -54,6 +57,7 @@ export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveU
     return active ?? rolePresetOf(DEFAULT_PROMPT_CONFIG);
   };
 
+  // @orb-waive compose-wiring-only(resolveUtilityPresetParams): baselined when the gate landed; burn-down item 964.
   const resolveUtilityPresetParams: ResolveUtilityPresetParams = async (userId) => {
     const { seeds } = await deps.settings.loadUserSettings(userId);
     return seeds.summarizePreset === null ? undefined : fromChoice(userId, seeds.summarizePreset, seeds.defaultPresetId);

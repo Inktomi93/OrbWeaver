@@ -13,7 +13,6 @@ export {
 export { createMemoryRecallInspector, createRpgTraceInspector } from "./debug-inspectors.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
-export { createChatChangedEmitter } from "./emit-chat-changed.ts";
 export type { DomainEventBus } from "./event-bus.ts";
 export { createDomainEventBus } from "./event-bus.ts";
 export type { InlineReplyImageDeps } from "./inline-reply-image.ts";

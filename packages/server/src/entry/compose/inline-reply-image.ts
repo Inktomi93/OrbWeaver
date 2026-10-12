@@ -39,6 +39,7 @@ export interface InlineReplyImageDeps {
 /** The provider's payload → raw bytes. Inline base64 decodes; a URL is DOWNLOADED THROUGH THE BELT. `null`
  *  on any refusal — including a payload that carries neither, which is a provider shape we do not model
  *  rather than an empty picture. */
+// @orb-waive compose-wiring-only(materialize): baselined when the gate landed; burn-down item 964.
 async function materialize(
   image: GeneratedImage,
   maxBytes: number,
@@ -74,6 +75,7 @@ async function materialize(
 
 export function createStoreInlineReplyImage(deps: InlineReplyImageDeps): ChatContext["storeInlineReplyImage"] {
   const fetchImpl = deps.fetchImpl ?? safeFetch;
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (ownerId: UserId, image: GeneratedImage): Promise<{ readonly assetId: AssetId } | null> => {
     const maxBytes = deps.maxBytes();
     const bytes = await materialize(image, maxBytes, fetchImpl);

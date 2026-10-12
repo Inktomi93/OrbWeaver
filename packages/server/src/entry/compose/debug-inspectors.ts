@@ -9,6 +9,7 @@ import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/obser
 
 export function createRpgTraceInspector(recorder: RpgTraceRecorder): RpgTraceInspector {
   return {
+    // @orb-waive compose-wiring-only(recent): baselined when the gate landed; burn-down item 964.
     recent: (filter) =>
       recorder.recent({
         ...(filter.chatId === undefined ? {} : { chatId: filter.chatId }),

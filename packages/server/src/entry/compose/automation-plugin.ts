@@ -221,6 +221,7 @@ export function buildPluginQuietLlm(
    *  ever reach an asset its installer owns, and a foreign/absent id THROWS rather than being dropped (a
    *  silently imageless captioning call would be answered confidently about nothing). Absent/empty ⇒ `[]`, the
    *  byte-identical arm every text-only quiet call takes. */
+  // @orb-waive compose-wiring-only(resolveQuietImages): baselined when the gate landed; burn-down item 964.
   const resolveQuietImages = async (installerUserId: UserId, assetIds: readonly string[] | undefined): Promise<ImageInput[]> => {
     if (assetIds === undefined || assetIds.length === 0) {
       return [];
@@ -229,6 +230,7 @@ export function buildPluginQuietLlm(
     const owned = await Promise.all(assetIds.map((id) => deps.assets.readOwnedAssetBytes(caller, castId<AssetId>(id))));
     return owned.map((asset) => asset.bytes);
   };
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async ({ installerUserId, pluginId, prompt, signal, opts }) => {
     // The plugin's own grant binding answers first; the installer funds either way, and both folds read only
     // the installer's rows, so a grant can never name another user's connection.
@@ -262,6 +264,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // The `trigger_turn` arm's autonomous turn → chat's `requestTurn`. `initiator:"automation"` is HARDCODED
     // here (automation cannot forge a different origin); the rule author owns attribution while chat freezes
     // the room host for funding and assembly.
+    // @orb-waive compose-wiring-only(requestTurn): baselined when the gate landed; burn-down item 964.
     requestTurn: async (req) => {
       const outcome = await chatCompose.requestTurn({
         chatId: req.chatId,
@@ -282,6 +285,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       const view = await notifications.record({ event });
       publishNotification(view);
     },
+    // @orb-waive compose-wiring-only(generatePicture): baselined when the gate landed; burn-down item 964.
     generatePicture: async (req) => {
       const caller = await resolveOwnerPrincipal(req.authorUserId);
       const picture = await imagery.generatePicture({
@@ -324,6 +328,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // the `kind:"seeded"` catalog retired (2026-09-18). The ten bundled scene plates are seeded INTO that
     // library per user, so the candidate set did not shrink — it stopped being two lists with different
     // rules, one of which the author could neither rename nor remove from their own /autobg rotation.
+    // @orb-waive compose-wiring-only(listBackgroundChoices): baselined when the gate landed; burn-down item 964.
     listBackgroundChoices: async (authorUserId) => {
       const config = (await settings.getUserSettings({ principal: await resolveOwnerPrincipal(authorUserId) })).config;
       return config.appearance.backgroundLibrary.map((entry) => ({
@@ -350,6 +355,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // resolve→execute pipeline every other tool consumer uses (one execute path — a plugin tool driven by a
     // rule meets exactly the belts it meets when a model calls it: its PL-C installer ceiling, its own
     // per-invocation sandbox budget, and the crash policy).
+    // @orb-waive compose-wiring-only(runTool): baselined when the gate landed; burn-down item 964.
     runTool: async ({ authorUserId, chatId, name, argsJson }) => {
       // THE AUTHORITATIVE reachability check, and it is here rather than only at the arm ON PURPOSE. The arm's
       // gate is a UX decision (pause the rule before it does anything); this one is the security boundary, so
@@ -408,6 +414,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // `responseFormat`: present ⇒ `structured`, absent ⇒ `summarize` (the ONE place the deleted facade sniff
     // is legitimately re-homed — this contract makes the field optional, `/autobg` passes none; inference
     // program §13 row 2). Under task defaults the posture alone applies.
+    // @orb-waive compose-wiring-only(summarizeQuiet): baselined when the gate landed; burn-down item 964.
     summarizeQuiet: async ({ authorUserId, systemPrompt, prompt, posture, responseFormat }) => {
       const rc = await roleClientsFor(authorUserId);
       const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUtilityPresetParams(authorUserId));
@@ -478,6 +485,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // it meets the attach gate, the per-plugin entry ceiling, `neutralizeMacros` and the hourly belts — NOT
     // automation's `runArm`, whose arms carry a different enforcement set for acts that look identical. The
     // ops bundle + belts are built below, so this closes over them lazily.
+    // @orb-waive compose-wiring-only(executePluginSuggestion): baselined when the gate landed; burn-down item 964.
     executePluginSuggestion: (req) => {
       const run = confirmedActRunner;
       if (run === undefined) {
@@ -556,6 +564,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       getVariables: automationOps.chat.readVariables,
       applyVariableOps: automationOps.chat.applyVariableOps,
       // turn.trigger → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED.
+      // @orb-waive compose-wiring-only(requestTurn): baselined when the gate landed; burn-down item 964.
       requestTurn: async ({ triggeredBy, chatId, automationDepth, speakerCharacterId, guided }) => {
         await chatCompose.requestTurn({
           chatId,
@@ -576,6 +585,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // `listForChat` is the room-public attachment list, MEMBER-gated by chat's own guard — so this is also a
       // live re-check that the installer is still in the room, one belt beyond the invocation-time admission.
       // A refusal (kicked between admission and write) resolves fail-CLOSED to "not attached".
+      // @orb-waive compose-wiring-only(isBookAttachedToChat): baselined when the gate landed; burn-down item 964.
       isBookAttachedToChat: async (ownerId, chatId, bookId) => {
         // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a refusal
         // (kicked between admission and write) resolves to "not attached", never a leak. Ends if this needs
@@ -595,6 +605,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // #788 F12 — the READ half. `listBooksForChat` reads the SAME member-gated attachment front door
       // `isBookAttachedToChat` above uses, projecting to the reduced `{id, name}`; fail-CLOSED to `[]` on a
       // refusal (kicked between admission and read), so a non-member never learns the room's book list.
+      // @orb-waive compose-wiring-only(listBooksForChat): baselined when the gate landed; burn-down item 964.
       listBooksForChat: async (ownerId, chatId) => {
         // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a
         // refusal (kicked between admission and read) resolves to `[]`, so a non-member never learns the
@@ -610,6 +621,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // installer reads only their OWN book's entries (symmetric with the owner-gated write); the ATTACHMENT gate
       // ran in the bridge first. Fail-CLOSED to `[]` if the installer does not own the book (leak-free — a book
       // owned by another host is indistinguishable from an empty one). Content is capped like the message read.
+      // @orb-waive compose-wiring-only(listEntries): baselined when the gate landed; burn-down item 964.
       listEntries: async (ownerId, bookId) => {
         // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: `[]` if
         // the installer does not own the book — leak-free, indistinguishable from an empty one. Ends if this
@@ -642,11 +654,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       emitStanding: async (event) => {
         publishNotification(await notifications.record({ event, supersedeActiveOfSameType: true }));
       },
+      // @orb-waive compose-wiring-only(refreshStanding): baselined when the gate landed; burn-down item 964.
       refreshStanding: async (event) => {
         for (const view of await notifications.refreshStanding({ event })) {
           publishNotification(view, true);
         }
       },
+      // @orb-waive compose-wiring-only(retractStanding): baselined when the gate landed; burn-down item 964.
       retractStanding: async ({ recipientUserId, type }) => {
         for (const view of await notifications.retract({ recipientUserId, type })) {
           publishNotification(view, true);
@@ -683,6 +697,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
     // The membrane's imagery returns the primary image's `{assetId}`.
     imagery: {
+      // @orb-waive compose-wiring-only(generatePicture): baselined when the gate landed; burn-down item 964.
       generatePicture: async ({ authorUserId, chatId, args }) => {
         const p = generateImageActionArgsSchema.parse(args);
         const caller = await resolveOwnerPrincipal(authorUserId);
@@ -748,6 +763,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // fail-closed idiom). An owned asset over the read cap returns metadata with `dataBase64: null` (never a
     // truncated read a guest could mistake for the whole asset).
     assets: {
+      // @orb-waive compose-wiring-only(read): baselined when the gate landed; burn-down item 964.
       read: async ({ installerUserId, assetId }) => {
         const caller = await resolveOwnerPrincipal(installerUserId);
         // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: any
@@ -792,6 +808,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // like the message read; `limit` maps onto the domain's `k` (already clamped ≤ PLUGIN_SEARCH_RESULTS_MAX at
     // the membrane).
     search: {
+      // @orb-waive compose-wiring-only(documents): baselined when the gate landed; burn-down item 964.
       documents: async ({ installerUserId, queryText, limit }) => {
         const hits = await deps.search.documents({
           scope: { ownerId: installerUserId },
@@ -864,12 +881,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // installer does not own is 0 rows written / an absent read → the leak-free `PluginNotFoundError` (a foreign
       // and an absent character are indistinguishable, the owned-verb posture, D148 clause b). The `characterId`
       // is the guest's untrusted wire string, cast under the owner-scope guard.
+      // @orb-waive compose-wiring-only(setCardData): baselined when the gate landed; burn-down item 964.
       setCardData: async ({ installerUserId, slug, characterId, data }) => {
         const written = await writePluginCardData(db, { characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug }, data);
         if (!written) {
           throw new PluginNotFoundError(characterId);
         }
       },
+      // @orb-waive compose-wiring-only(getCardData): baselined when the gate landed; burn-down item 964.
       getCardData: async ({ installerUserId, slug, characterId }) => {
         const read = await readPluginCardData(db, { characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug });
         if (!read.found) {
@@ -899,6 +918,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, scope.installer.userId),
         }),
       // D50 — one PromptTransform per collected registration in the PLUGIN order band (1000+).
+      // @orb-waive compose-wiring-only(registerTransform): baselined when the gate landed; burn-down item 964.
       registerTransform: (reg, invoke, scope) => {
         const id = `plugin:${scope.slug}:${reg.name}:${pluginTransformSeq}`;
         const transform = buildPluginPromptTransform(reg, {
@@ -921,6 +941,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           invoke,
         }),
       // The plugin `events.on` fan-out: ONE PluginTriggerSubscriber per instance.
+      // @orb-waive compose-wiring-only(subscribeEvent): baselined when the gate landed; burn-down item 964.
       subscribeEvent: (subscriptions, invoke, scope) => {
         const refsByType = new Map<string, PluginHandlerRef[]>();
         for (const sub of subscriptions) {
@@ -975,6 +996,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
         // The owner-scoped `plugins` row was already loaded (getById) before activation reads its bundle, so the
         // un-principal CAS read is gated upstream; `_caller` documents the seam's owner without a second check.
+        // @orb-waive compose-wiring-only(readBytes): baselined when the gate landed; burn-down item 964.
         readBytes: async (_caller, assetId) => {
           const bytes = await assets.loadAssetBytes(assetId);
           if (bytes === null) {
@@ -1003,6 +1025,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       showcase: {
         slugs: new Set<string>(SHOWCASE_PLUGIN_SLUGS),
         bundle: packShowcaseBundle,
+        // @orb-waive compose-wiring-only(version): baselined when the gate landed; burn-down item 964.
         version: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
       },
       // The UI-surface state plane — the SAME store `ops.ui.setState` writes above (getSurfaceState reads it,
@@ -1024,6 +1047,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // The snippet AUTHORITY seam: the caller's leak-free read/host authority for a chat. It serves THREE
       // callers now — `runSnippet`, and (row 777 / U4) the membership verification behind every client-claimed
       // `chatId` on `getSurfaceState` / `invokeUiAction` / `uiHostCall`.
+      // @orb-waive compose-wiring-only(resolveChatAuthority): baselined when the gate landed; burn-down item 964.
       resolveChatAuthority: async (caller, chatId) => {
         const role = await loadPresentRole(db, chatId, caller.userId);
         return { canRead: role !== null, canWrite: role === "host" };
@@ -1051,6 +1075,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // reason: the id comes from the `admin_distributed_plugins` record an admin wrote, never from a caller,
       // and the recipient's own `install` immediately stores its OWN CAS copy (D21) — so no cross-owner byte
       // reference survives the call.
+      // @orb-waive compose-wiring-only(readPublishedBundle): baselined when the gate landed; burn-down item 964.
       readPublishedBundle: async (assetId): Promise<Uint8Array> => {
         const bytes = await assets.loadAssetBytes(assetId);
         if (bytes === null) {

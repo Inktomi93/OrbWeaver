@@ -51,6 +51,7 @@ export function createReactToolDefinition(deps: { readonly reactAsCharacter: Rea
     argsSchema: reactToolArgsSchema,
     capability: null,
     source: "builtin",
+    // @orb-waive compose-wiring-only(handler): baselined when the gate landed; burn-down item 964.
     handler: async (args: ReactToolArgs, exec: ToolExecutionContext): Promise<ToolHandlerResult> => {
       if (exec.chatId === null) {
         return { ok: false, error: "react requires a chat context" };

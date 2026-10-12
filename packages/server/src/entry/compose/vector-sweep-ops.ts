@@ -14,6 +14,7 @@ export function createVacuousMemoryReceipt(deps: {
   readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
   readonly embeddings: Pick<EmbeddingsService, "resolveGeneration">;
 }): (ownerId: UserId) => Promise<MemoryEmbedSpace | null> {
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (ownerId) => {
     if (await deps.isMemoryEnabled(ownerId)) {
       return null;
@@ -36,9 +37,11 @@ export function createVectorSweepOps(deps: {
   readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
 }): Pick<DatabankWorkloadDeps, "beginDocumentVectorSweep" | "purgeDocumentVectors"> & Pick<ChatWorkloadDeps, "purgeMemoryVectors"> {
   const { embeddings } = deps;
+  // @orb-waive compose-wiring-only(sweptOwners): baselined when the gate landed; burn-down item 964.
   const sweptOwners = async (enumerationScope: UserId | null): Promise<readonly UserId[]> =>
     enumerationScope === null ? await deps.listCorpusOwners() : [enumerationScope];
   return {
+    // @orb-waive compose-wiring-only(beginDocumentVectorSweep): baselined when the gate landed; burn-down item 964.
     beginDocumentVectorSweep: async (enumerationScope): Promise<readonly { ownerId: UserId; generation: GenerationReceipt }[]> => {
       const receipts: { ownerId: UserId; generation: GenerationReceipt }[] = [];
       for (const ownerId of await sweptOwners(enumerationScope)) {
@@ -49,12 +52,14 @@ export function createVectorSweepOps(deps: {
       }
       return receipts;
     },
+    // @orb-waive compose-wiring-only(purgeDocumentVectors): baselined when the gate landed; burn-down item 964.
     purgeDocumentVectors: async (receipts): Promise<void> => {
       for (const receipt of receipts) {
         await embeddings.purgeDocumentVectors(receipt);
       }
     },
     // A swept owner the memory sweep built no space for falls back to the vacuous receipt.
+    // @orb-waive compose-wiring-only(purgeMemoryVectors): baselined when the gate landed; burn-down item 964.
     purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
       const completed = new Map(spaces.map((space) => [space.ownerId, space]));
       for (const ownerId of await sweptOwners(enumerationScope)) {

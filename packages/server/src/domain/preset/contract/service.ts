@@ -3,11 +3,13 @@
 // CAPABILITY read (`resolveEffective`): the type is declared here, the runtime op is wired at the composition
 // root, so preset never imports `connection` (the sideways-import ban, Constitution.md §2).
 
+import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CapabilityTarget, ResolvedCacheConnectionView } from "@orb/contracts/inference";
+import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { PresetId } from "@orb/kit/ids";
+import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   CreatePresetParams,
@@ -37,10 +39,18 @@ export type ResolveChatCapabilityOp = (params: {
  * Injected rather than queried here because BOTH of its facts belong to other domains: the active pick is
  * `settings`' `UserSettings.seeds.defaultPresetId`, and the GM redirect is `rpg_games.gmPresetId` joined to
  * rooms whose visibility only chat can decide (D18). preset imports none of them, so the composition root
- * assembles it (`entry/compose/preset-usage.ts`, the `room-reach` posture) and preset states the TYPE it
- * needs. The verb still owns the GATE: it resolves the preset as readable-by-this-caller first.
+ * assembles its inputs ({@link PresetUsageDeps}) and preset owns the rule (`verbs/resolve-preset-usage.ts`). The
+ * listUsage verb still owns the GATE: it resolves the preset as readable-by-this-caller first.
  */
 export type ResolvePresetUsageOp = (principal: Principal, presetId: PresetId) => Promise<PresetUsageView>;
+
+/** The three foreign facts {@link ResolvePresetUsageOp}'s producer reads, each wired at the composition root:
+ *  settings' user settings (the active pick), rpg's GM-voice rooms, and chat's leak-safe room filter. */
+export interface PresetUsageDeps {
+  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  readonly listGmPresetChatIds: (presetId: PresetId) => Promise<readonly ChatId[]>;
+  readonly resolveVisibleRooms: ResolveVisibleRoomsOp;
+}
 
 /** The DI bundle the preset verbs close over, wired at the composition root. */
 export interface PresetContext {

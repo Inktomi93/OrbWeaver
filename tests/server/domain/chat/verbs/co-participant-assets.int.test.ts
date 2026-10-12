@@ -1,14 +1,15 @@
-// The production co-participant queries, per case: a seated caller reaches the other member's asset, while
+// domain/chat co-participant asset checks — the production queries, per case: a seated caller reaches the other member's asset, while
 // an unseated caller and a caller who left the room reach nothing.
+// @subject packages/server/src/domain/chat/persistence/co-participant-assets.ts
 
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "@orb/server/domain/chat";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
-import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "#server/entry/compose/co-participant-assets.ts";
 import {
   makeHarness,
   pngBytes,
@@ -22,7 +23,7 @@ import {
   seedUser,
   setCharacterAvatar,
   setPersonaAvatar,
-} from "../../domain/assets/_support.ts";
+} from "../../assets/_support.ts";
 
 const PNG = "image/png";
 const LEFT_SEQ = 5;
@@ -109,12 +110,12 @@ async function seedCase(c: Case, seat: CallerSeat): Promise<Seeded> {
 
 async function ownerFor(c: Case, seat: CallerSeat): Promise<{ readonly owner: UserId; readonly resolved: UserId | undefined }> {
   const s = await seedCase(c, seat);
-  return { owner: s.owner, resolved: await createLoadCoParticipantOwner(s.db)(s.caller, s.hash) };
+  return { owner: s.owner, resolved: await createLoadCoParticipantOwner({ db: s.db })(s.caller, s.hash) };
 }
 
 async function chatRefsFor(seat: CallerSeat): Promise<{ readonly assetId: AssetId; readonly refs: readonly AssetId[] }> {
   const s = await seedCase(ATTACHMENT, seat);
-  const refs = await createLoadChatAssetRefs(s.db)(s.caller, s.chat, [s.assetId]);
+  const refs = await createLoadChatAssetRefs({ db: s.db })(s.caller, s.chat, [s.assetId]);
   return { assetId: s.assetId, refs: refs.map((ref) => ref.assetId) };
 }
 

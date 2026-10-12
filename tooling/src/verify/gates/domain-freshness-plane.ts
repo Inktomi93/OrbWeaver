@@ -419,7 +419,7 @@ const UNSEATABLE_SCHEMA: Readonly<Record<string, FreshnessRationale>> = {
     why:
       "`chat_participants`/`chats`/`messages`/… all FK `users.id`, but the identity root has NO member-visible " +
       "room projection to go stale: a human seat renders its ACTIVE PERSONA's name+avatar " +
-      "(`entry/compose/chat.ts::resolveUserPublics`), which is on the bridge as `persona`, and every other " +
+      "(`domain/persona/verbs/resolve-user-publics.ts`), which is on the bridge as `persona`, and every other " +
       "users column is auth substrate. Its producers are `sessions`/`admin` (own-tables-only's SCHEMA_OWNERS), " +
       "neither of which owns a room-rendered entity. Ends the day a seat renders a users-row field directly.",
   },

@@ -23,8 +23,9 @@
 // persona. The op takes the room, never a pin id, so no caller can name a persona past the consent gate.
 
 import type { JoinerPersona } from "@orb/contracts/persona";
+import type { UserSettings } from "@orb/contracts/settings";
 import type { AwaitableBatchStmt } from "@orb/db/query";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { PersonaListView } from "./views.ts";
 
 /** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.
@@ -46,3 +47,10 @@ export type JoinerPersonaStatementOp = (args: { readonly ownerId: UserId; readon
   readonly personaId: PersonaId;
   readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
 };
+
+/** What the user-publics read needs from the domains that own the other two facts: the account handle
+ *  (sessions owns the `users` read) and the user's settings (the profile avatar fallback). */
+export interface UserPublicsDeps {
+  readonly loadUserHandle: (userId: UserId) => Promise<Handle | null>;
+  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+}

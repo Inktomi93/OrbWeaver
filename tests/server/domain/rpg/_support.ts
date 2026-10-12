@@ -457,7 +457,7 @@ export function makeRpgService(
       return fakes.toolRoundDelta;
     }
     // The REAL fold: the model's structured output applied over the round's REAL base by the production
-    // applier — the same call `runStateRound` makes in `entry/compose/rpg.ts`.
+    // applier — the same call `runStateRound` makes in `domain/rpg/tools/rounds/`.
     extractionMintSeq += 1;
     const n = extractionMintSeq;
     return extractionToStateDelta(

@@ -1,5 +1,5 @@
 // THE GM-VOICE KNOB (#1032, the viewgap WIRE batch) — `rpg_games.gmPresetId`, the ONE genuinely per-room
-// preset binding there is (`entry/compose/preset-usage.ts`), and until now the only knob on `RpgConfigView`
+// preset binding there is (`domain/preset/verbs/resolve-preset-usage.ts`), and until now the only knob on `RpgConfigView`
 // with no control anywhere. The view served it, the write door took it (`updateConfig({gmPresetId})`), the
 // turn assembled it (`chat-ops/index.ts::resolvePresetOverride`), the preset library counted rooms by it
 // (`preset.listUsage` → the usage readout's "GM VOICE" rows) — and a host could reach it from nothing. It is

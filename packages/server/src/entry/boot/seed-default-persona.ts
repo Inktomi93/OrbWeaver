@@ -41,7 +41,7 @@ import { getLog } from "#foundation/observability";
  *  THE NAME IS OWNER-RULED COPY, and it is not decorative: this string is what a model receives as `{{user}}`,
  *  so it gets used as a form of address. It was "You" and that produced literal vocatives — "Goodnight, You."
  *  — and it collided with the no-persona DISPLAY fallback, which is itself "You" (owner ruling 2026-07-27,
- *  `entry/compose/rpg.ts` `PLAYER_SEMANTIC_REF`), making "has a persona" and "has none" render identically.
+ *  `domain/rpg/tools/rounds/prompts.ts` `PLAYER_SEMANTIC_REF`), making "has a persona" and "has none" render identically.
  *  A neutral NOUN reads correctly in the vocative position a model will inevitably put it in.
  *
  *  Renaming it is safe for existing users BY CONSTRUCTION, with no gating code and no backfill: `seed()`

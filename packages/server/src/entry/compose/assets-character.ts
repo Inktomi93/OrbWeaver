@@ -30,7 +30,7 @@ import {
   createLinkCharacterAvatars,
   migrateSeededCardBackgrounds,
 } from "#domain/character";
-import { migrateSeededRoomBackgrounds } from "#domain/chat";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
@@ -48,7 +48,6 @@ import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "#transport/trpc";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
-import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "./co-participant-assets.ts";
 import { createGalleryCharacterOps } from "./gallery-character-ops.ts";
 import { createMaterializeBackground } from "./materialize-background.ts";
 import { minter } from "./minter.ts";
@@ -133,8 +132,10 @@ export function createPersonaSeedLatch(deps: {
 }): Pick<DefaultPersonaSeederDeps, "isSeeded" | "findSeededDefault" | "markSeeded"> {
   return {
     isSeeded: async (principal): Promise<boolean> => (await deps.settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
+    // @orb-waive compose-wiring-only(findSeededDefault): baselined when the gate landed; burn-down item 964.
     findSeededDefault: async (principal): Promise<PersonaId | null> =>
       (await deps.getPersona().list({ principal })).find((row) => row.metadata?.seededDefault === true)?.id ?? null,
+    // @orb-waive compose-wiring-only(markSeeded): baselined when the gate landed; burn-down item 964.
     markSeeded: async (principal, seededPersonaId): Promise<void> => {
       // POINTERS FIRST, LATCH LAST (#1412). The two settings sections cannot be written in one call, so the
       // ORDER is the only atomicity available — and it decides what a crash between them means. Latch-first
@@ -195,8 +196,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // own persistence factory, not re-implemented here.
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: characterOwned,
-    loadCoParticipantOwner: createLoadCoParticipantOwner(db),
-    loadChatAssetRefs: createLoadChatAssetRefs(db),
+    loadCoParticipantOwner: createLoadCoParticipantOwner({ db }),
+    loadChatAssetRefs: createLoadChatAssetRefs({ db }),
   };
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full
@@ -219,6 +220,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     emit: deps.emit,
     // Every card write also drops the owner's lexical index, so the next text search rebuilds over the live
     // card set: a deleted card leaves both the hits and the coverage counts.
+    // @orb-waive compose-wiring-only(emitUserEvent): baselined when the gate landed; burn-down item 964.
     emitUserEvent: (userId, event): void => {
       if (event.type === "charactersChanged") {
         evictFieldIndex(userId);
@@ -244,6 +246,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // completion over the summarize lane (the imagery captionImage precedent) at quiet-generate's floor
     // (temp 0.3, 1024 out — a bounded rewrite, not an open turn); the caller IS the request owner so
     // the bundle is bound for the caller — their own `summarize` connection, never a box owner's (§8.5b).
+    // @orb-waive compose-wiring-only(resolveGreetingTemplate): baselined when the gate landed; burn-down item 964.
     resolveGreetingTemplate: async ({ caller, kind }): Promise<{ template: string; prose: ProseOverrides }> => {
       const defaultPresetId = (await settings.getUserSettings({ principal: caller })).config.seeds.defaultPresetId;
       const fallback = DEFAULT_GUIDED_ACTIONS[kind].prompt;
@@ -269,6 +272,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
         throw err;
       }
     },
+    // @orb-waive compose-wiring-only(generateGreetingText): baselined when the gate landed; burn-down item 964.
     generateGreetingText: async ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
       // The caller's Utility-role preset over the `greeting_studio` posture (there is no per-template override).
       // The result is the summarize options as-is; an absent knob is omitted (the backend default stands).
@@ -293,6 +297,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   const backgroundSeeder = createDefaultBackgroundSeeder({
     plates: SEED_BACKGROUND_PLATES,
     // A missing bundled file / store hiccup returns null → that ONE plate is skipped (never blocks the seed).
+    // @orb-waive compose-wiring-only(storePlate): baselined when the gate landed; burn-down item 964.
     storePlate: async (principal, slug): Promise<SeededPlateAsset | null> => {
       const art = await readSeedBackground(slug);
       if (art === null) {
@@ -343,6 +348,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
       tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
     ...seedAvatars.character,
+    // @orb-waive compose-wiring-only(markWelcomeAssistant): baselined when the gate landed; burn-down item 964.
     markWelcomeAssistant: async (principal, welcomeAssistantId): Promise<void> => {
       const current = (await settings.getUserSettings({ principal })).config;
       if (current.seeds.welcomeAssistantCharacterId === null) {
@@ -360,6 +366,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // a stack an agent/script booted seeds Traveler so no dev regen or e2e boot ever hits the blocking ask;
     // a REAL stack seeds nothing, so the zero-personas first-run trigger holds and the human names their own
     // `{{user}}`. Read per call (not captured) so the frozen env stays the single source.
+    // @orb-waive compose-wiring-only(autoSeedEnabled): baselined when the gate landed; burn-down item 964.
     autoSeedEnabled: (): boolean => env.E2E_HARNESS === "on" || env.DEV_SEED === "on",
     createPersona: async ({ principal, input }): Promise<{ id: PersonaId }> => {
       const detail = await deps.getPersona().create({ principal, input });

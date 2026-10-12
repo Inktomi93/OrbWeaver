@@ -1,4 +1,6 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+// @subject packages/server/src/domain/rpg/tools/rounds/folded.ts
+// @subject packages/server/src/domain/rpg/tools/rounds/observers.ts
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the folded turn (R1): its calls land state with no second model call, its trace and recorded tool calls, and the degrade matrix.
 

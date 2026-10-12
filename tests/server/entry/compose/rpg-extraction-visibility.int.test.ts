@@ -1,4 +1,6 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+// @subject packages/server/src/domain/rpg/tools/rounds/round-connection.ts
+// @subject packages/server/src/domain/rpg/tools/rounds/round-log.ts
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — per-call enums over the live scene and cast, usage logging, the empty and phantom extraction signals, host resolution and the unresolvable-connection degrade.
 

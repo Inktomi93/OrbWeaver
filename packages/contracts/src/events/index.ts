@@ -57,7 +57,7 @@ export interface AssetCreatedEvent {
 
 /** A persona's CONTENT changed (name/title/description/avatar/metadata) — the entity→room bridge fans a
  *  `roomEntityChanged{entity:"persona"}` to every room the persona is live in: a human seat's member-visible
- *  displayName + avatar ARE their active persona's (`entry/compose/chat.ts::resolveUserPublics`), and the
+ *  displayName + avatar ARE their active persona's (`domain/persona/verbs/resolve-user-publics.ts`), and the
  *  description feeds assembly. The indexer ignores it (personas are not an embedded source).
  *
  *  Emitted by `update` and `import`-restore. NOT by `remove`, and that is a receipt rather than an omission:

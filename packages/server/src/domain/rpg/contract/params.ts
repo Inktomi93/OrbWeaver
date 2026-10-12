@@ -111,7 +111,7 @@ export interface StagedPatch {
 // exempting this whole subsystem by string accident (it predated `domain/rpg/tools/`), and these are ordinary
 // domain-internal shapes — §7.4 puts them in the domain's own `contract/` like every other param above. Two
 // of the three additionally cross OUT of the domain (`domain/rpg/index.ts` re-exports them for
-// `entry/compose/rpg.ts`), which is precisely the case the one-home rule exists for.
+// `tools/rounds/`), which is precisely the case the one-home rule exists for.
 
 /** A name→actor-ref index over the participants (character/user members by their gather-surfaced display name,
  *  lowercased), so a model `targetRef` NAME resolves to the participant's canonical ref key. Built once per
