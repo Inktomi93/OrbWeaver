@@ -1,7 +1,3 @@
-// Every verb's non-trivial *Result shape + the engine types that live in contract/ (exported feature types
-// live here, never inline on the engine). Most reads return a views.ts read-model; most canon-edits return
-// a MessageView; bulk mutators return void — only the other shapes are declared here.
-
 import type {
   AssembleContext,
   AssembledPrompt,
@@ -48,8 +44,14 @@ import type { AssetId, CharacterId, ChatId, MessageId, ModelId, PersonaId, UserC
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
-import type { ReactAsCharacterParams, RequestTurnParams } from "./params.ts";
+import type { ReactAsCharacterParams } from "./params.ts";
 import type { ChatVariables } from "./views.ts";
+
+export type { RequestTurnOp } from "@orb/contracts/chat";
+
+// Every verb's non-trivial *Result shape + the engine types that live in contract/ (exported feature types
+// live here, never inline on the engine). Most reads return a views.ts read-model; most canon-edits return
+// a MessageView; bulk mutators return void — only the other shapes are declared here.
 
 // The invite results are wire nodes: their strict schemas are the invite procedures' tRPC output parsers.
 export type { CreateInviteResult, RedeemInviteResult, TurnIntent } from "@orb/contracts/chat";
@@ -490,12 +492,6 @@ export interface GeneratedText {
   readonly text: string;
   readonly aborted: boolean;
 }
-
-/** The PRINCIPAL-FREE non-human turn op. Built once at the chat
- *  composition root over the same turn deps the human verbs use, then handed to automation's `trigger_turn`
- *  arm + the plugin membrane's `turn.trigger`. Homed here (not on the verb file) per `no-inline-types` — the
- *  op shape is contract surface. See {@link RequestTurnParams} for the four walls it enforces. */
-export type RequestTurnOp = (params: RequestTurnParams) => Promise<TurnOutcome>;
 
 /** The scope of a deferred-turn drain (Part III §5). `all` = the boot reclaim (every chat's queued turns);
  *  `hostUserId` = the host-return drain (only the turns funded by the returning host's box). Neither carries

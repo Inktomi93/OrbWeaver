@@ -1,17 +1,17 @@
-import type { CharacterId } from "@orb/kit/ids";
-import type { CardFace, ResolvedCardFace } from "#card-face";
 // @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona no longer
 // imports `@orb/contracts/world-info`: the `{depth, role}` inject shape comes from `@orb/kit/injection`
 // (the shared neutral primitive every injector uses), never a world-info-local re-spell.
 
-import type { AssetId, PersonaId } from "@orb/kit/ids";
+// `title` is NOT a face field (persona-only, D137(E)) — its limit stays persona-local.
+
+import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { z } from "zod";
+import type { CardFace, ResolvedCardFace } from "#card-face";
 import { cardFaceFields } from "#card-face";
 
-// `title` is NOT a face field (persona-only, D137(E)) — its limit stays persona-local.
 const TITLE_MAX_LENGTH = 200;
 
 // `descriptionPosition` drives the in-prompt-vs-at-depth-vs-none decision. `sourceCharacterId` +
@@ -178,3 +178,39 @@ export const removePersonaResultSchema = z.strictObject({
 }) satisfies z.ZodType<RemovePersonaResult>;
 
 export const disconnectResultSchema = z.strictObject({ disconnected: z.boolean() }) satisfies z.ZodType<DisconnectResult>;
+
+// Shared owner data and injected operations; implementations and authority resolution stay in server domains.
+
+/** A persona's PRESENTATION SURFACE for a room whose participants consent to it (the multi-human resolution
+ *  widening — the `ResolvePersonasForParticipants` op, `contract/ops.ts`). Deliberately NARROWER than {@link PersonaDetail}: name +
+ *  description (what `{{user}}`/`{{persona}}` render) + the `metadata` the chat assembly reads for
+ *  `descriptionPlacement`, plus `ownerId` so a caller can attribute a resolved persona to the member
+ *  playing it. NOT the persona row: `avatarAssetId`/`avatarHash`/`title`/`starred`/timestamps stay behind
+ *  the owner-scoped verbs (playing a persona in a room consents to its presentation, never to the entity). */
+export interface PersonaListView {
+  readonly id: PersonaId;
+  readonly ownerId: UserId;
+  readonly name: string;
+  readonly description: string;
+  readonly metadata: PersonaMetadata | null;
+}
+
+/** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.
+ *
+ *  `personaIds` are the ids the room references (its anchor + its present humans' active personas);
+ *  `allowedOwnerIds` are the room's PRESENT human participants. The result carries an entry ONLY for an id
+ *  that exists AND is owned by one of `allowedOwnerIds` — a foreign, deleted, or departed-member persona is
+ *  simply ABSENT (indistinguishable, no existence oracle). `chatId` is the room these ids belong to: its pin
+ *  (`chats.anchorPersonaId`) also resolves, whoever owns it. */
+export type ResolvePersonasForParticipants = (args: {
+  readonly chatId: ChatId;
+  readonly personaIds: readonly PersonaId[];
+  readonly allowedOwnerIds: readonly UserId[];
+}) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
+
+/** The user's default persona (`seeds.defaultPersonaId`), validated owned/alive at the root — the seat seed
+ *  after an explicit anchor and the connected persona. */
+export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
+
+/** The user's last-played persona (`seeds.currentPersonaId`) — the floor below the default. */
+export type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;

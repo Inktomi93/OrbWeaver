@@ -10,12 +10,13 @@
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every `z.object` member strips unknown keys — no `.loose()`, no `z.unknown()`.
 
+// `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
+
 import type { Handle, NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { handoffOfferContentsSchema } from "../chat/roster.ts";
 
-// `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
 const recipientUserIdSchema = brandedId<UserId>();
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
 const chatInviteIdSchema = typeIdSchema(ID_PREFIX.chatInvite);
@@ -336,3 +337,9 @@ export const listInboxResultSchema = z.strictObject({
   nextCursor: z.number().nullable(),
 }) satisfies z.ZodType<ListInboxResult>;
 export const markAllReadResultSchema = z.strictObject({ markedCount: z.number() }) satisfies z.ZodType<MarkAllReadResult>;
+
+/** The producer-facing op a producer injects to deliver a notification — the one cross-feature edge. `emit`
+ *  = `record` (the durable INSERT) + the after-commit per-user bus fan-out, durable-first (the INSERT
+ *  happens before any fan-out, so the event is deliverable from the table alone). Composed at `entry/` from
+ *  this domain's `record` + transport's bus. */
+export type EmitNotification = (event: NotificationEvent) => Promise<void>;

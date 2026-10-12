@@ -1,7 +1,3 @@
-// Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
-// in @orb/contracts/chat and are referenced type-only here. Every verb carries the resolved principal — chat
-// is membership-scoped, resolving requireParticipant/requireHost(principal, chatId); there is no ownerId.
-
 import type {
   ChatInjectionInput,
   ChatLibraryLens,
@@ -21,7 +17,6 @@ import type {
   RoomOverrides,
   SeatKnobs,
   ToolCallEditAction,
-  TurnInitiator,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
@@ -30,7 +25,6 @@ import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { BindingActor } from "@orb/inference";
 import type {
   AssetId,
   CharacterId,
@@ -46,6 +40,12 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
+
+export type { RequestTurnParams } from "@orb/contracts/chat";
+
+// Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
+// in @orb/contracts/chat and are referenced type-only here. Every verb carries the resolved principal — chat
+// is membership-scoped, resolving requireParticipant/requireHost(principal, chatId); there is no ownerId.
 
 // The one-turn typed steer is the CONTRACTS wire shape (`guidedSteerSchema`) — re-exported here so the
 // verb *Params surface stays one import (F6 re-home: the local re-spell died when the wire schema landed).
@@ -281,42 +281,6 @@ export interface ForceCharacterTurnParams extends ChatScopedParams, ViewerClockP
   readonly characterId: CharacterId;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
-}
-
-/**
- * `requestTurn` — the NON-HUMAN turn seam. PRINCIPAL-FREE by design: it
- * is NOT on `ChatService` and never routed — it is an injected op the composition root hands automation's
- * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
- * host from the room itself (never a caller-supplied id), gates the initiator's membership, threads the origin
- * onto the reply slot, and runs the turn through the SAME engine path a human send clears — the per-chat turn
- * lock and the cascade-depth cap included. (The owner-consent and per-member budget belts this line used to
- * name left with the inference program §14 F13/F11; automation's own §3 rate gate is the surviving spend wall, and
- * it sits in the arm above this op.)
- */
-export interface RequestTurnParams {
-  readonly chatId: ChatId;
-  /** The non-human origin stamped on the reply slot (`"automation"` | `"plugin"`) — the cascade guard's label
-   *  (depth is the lever, not the label). A caller may not pass `"human"` here (see the verb's guard), and
-   *  `"import"` names only slots the bulk-import seam wrote, never a requested turn. */
-  readonly initiator: Exclude<TurnInitiator, "import">;
-  /** The responsible human (D19): the rule AUTHOR / plugin INSTALLER. Owns attribution and abort rights and
-   *  must be a PRESENT participant (else a leak-free NOT_FOUND). The room's frozen host funds and runs the
-   *  turn. */
-  readonly triggeredBy: UserId;
-  /** The parent depth + 1. Stamped on the reply slot so the reply's events resolve
-   *  their cascade depth; the verb REFUSES a value past `AUTOMATION_DEPTH_HARD_CAP` (the plugin-path belt —
-   *  automation's dispatch gate already bounds its own path). */
-  readonly automationDepth: number;
-  /** Force the speaker; absent ⇒ normal arbitration. */
-  readonly speakerCharacterId?: CharacterId | undefined;
-  /** A one-turn guided steer (the rendered `guidedTemplate`) placed via GATHER→BUILD, exactly like a human
-   *  send's `guided`. */
-  readonly guided?: GuidedSteer | undefined;
-  /** The binding actor whose own chat binding the turn folds before the funder's (an automation rule's). */
-  readonly actor?: BindingActor | undefined;
-  /** The clock the turn's time macros read. No viewer drives this turn, so the caller states its ruled zone:
-   *  an automation rule's own stamped clock, else UTC. */
-  readonly timeZone: IanaTimeZone;
 }
 
 /** `compact` — the manual compaction lever; produces the portable checkpoint. */

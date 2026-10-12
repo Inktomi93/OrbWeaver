@@ -1,10 +1,12 @@
-// domain/search/contract/params — every verb's *Params: the card-space surface (knn/findCharacters) plus
-// the chat-memory surface (digests/segments/corpus). Card verbs are owner-scoped via characters.ownerId
-// (D20 — the vector substrate carries no ownerId; scope derives from the producer).
-
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+
+export type { CorpusParams } from "@orb/contracts/search";
+
+// domain/search/contract/params — every verb's *Params: the card-space surface (knn/findCharacters) plus
+// the chat-memory surface (digests/segments/corpus). Card verbs are owner-scoped via characters.ownerId
+// (D20 — the vector substrate carries no ownerId; scope derives from the producer).
 
 export interface KnnParams {
   readonly ownerId: UserId;
@@ -29,13 +31,6 @@ export type DigestsParams = MemoryQueryOptions;
 
 /** Requires scopedCharacterId (the verbatim lens has no character column) — else SearchError(SCOPE_REQUIRED). */
 export type SegmentsParams = MemoryQueryOptions;
-
-export interface CorpusParams {
-  readonly ownerId: UserId;
-  readonly queryText: string;
-  readonly mode: MemoryQueryOptions["mode"];
-  readonly minScore: number;
-}
 
 /** The databank RAG lens. `scope` is the injected-resolver argument shape: a
  *  chat turn resolves host-global ∪ chat-attached documents (host-only v1); an ad-hoc personal search is

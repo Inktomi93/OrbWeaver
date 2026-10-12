@@ -3,9 +3,10 @@
 // Assets are per-user and owner-gated; the 64-hex hash is NOT a capability. The `/blob/:hash` route is
 // app-gated: the caller resolves from the session cookie, never served on hash alone.
 
-import type { AssetId, CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { Principal } from "#identity";
 
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =
  *  a persona avatar; `export` = a future generated export (unwired in v1); `generated` = a model-generated
@@ -14,6 +15,7 @@ import { z } from "zod";
  *  decorative app background (pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
  *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
  *  The db `assets.kind` enum derives from this tuple. */
+
 export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin"] as const;
 
 export const assetKindSchema = z.enum(ASSET_KINDS);
@@ -257,3 +259,71 @@ export interface FsckReport {
 }
 
 export const fsckReportSchema = z.strictObject({ danglingRows: z.number(), corruptBlobs: z.number(), orphanBlobs: z.number() }) satisfies z.ZodType<FsckReport>;
+
+// Shared owner data and injected operations; implementations and authority resolution stay in server domains.
+
+/** Re-own ONE image blob into the recipient's library, returning the RECIPIENT's asset id (or `null` when
+ *  the source asset is gone / not the old host's — the copy then lands without that picture rather than not
+ *  at all).
+ *
+ *  A copy CANNOT carry an asset id verbatim: `assets` is per-owner with a `(owner_id, hash)` dedup key
+ *  (D21), so a foreign id on the nominee's card is a pointer into a library they cannot read AND a GC root
+ *  holding the departed host's blob alive through a row they no longer control. Content-addressing makes the
+ *  re-own cheap and idempotent — the same bytes under an owner who already has them resolve to their existing
+ *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root.
+ *
+ *  TWO CARRIED PICTURES, ONE PORT (#1426). The avatar was always re-owned here; the card's carried BACKGROUND
+ *  (`background_override` `kind:"asset"`) is the same fact wearing a different column and was being copied by
+ *  id, which is the exact pointer-into-a-foreign-library this port exists to prevent — and the UPDATE path
+ *  already refuses it (`ensureBackgroundOverrideOwned`, the BG-C belt), so a handoff copy was the one write
+ *  that could land a card the owner's own edit verb would reject. `kind` is the ASSET KIND the re-owned row
+ *  is stored under, because the two are genuinely different kinds in the CAS index (a background is not an
+ *  avatar to the gallery or to any per-kind read), never a caller-chosen label. */
+export type CopyAssetToOwner = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly assetId: AssetId;
+  readonly kind: Extract<AssetKind, "avatar" | "background">;
+}) => Promise<AssetId | null>;
+
+/** Resolves an asset id to just its content hash — a hash is not a secret, so this is a bare lookup, never
+ *  an existence/ownership oracle. Null for a null id or a gone row. */
+export type ResolveAssetHashOp = (assetId: AssetId | null) => Promise<string | null>;
+
+/** The send-attach trust boundary: given the acting principal's userId + claimed attachment ids, returns
+ *  the subset they actually own. The verb rejects a send whose claimed ids aren't all returned. */
+export type FilterOwnedAssetIdsOp = (userId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetId[]>;
+
+export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
+export interface AssetEmbeddingReads {
+  readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
+  readonly loadAssetKind: (assetId: AssetId) => Promise<AssetKind | null>;
+  readonly loadAssetMime: (assetId: AssetId) => Promise<string | null>;
+  readonly loadAssetHash: (assetId: AssetId) => Promise<string | null>;
+  readonly loadAssetBytes: LoadAssetBytes;
+}
+
+/** The owner-gated byte read's answer (EC-B) — the CAS bytes + the stored mime of the caller's OWN asset.
+ *  Distinct from `loadAssetBytes`' bare `Uint8Array | null` (the un-principal indexer read, D20). */
+export interface OwnedAssetBytes {
+  readonly bytes: Uint8Array;
+  readonly mime: string;
+}
+
+export interface StoreParams {
+  readonly principal: Principal;
+  /** The raw bytes to content-address. The CAS hashes them; the `hash`/`size` are derived, not supplied. */
+  readonly bytes: Uint8Array;
+  readonly kind: AssetKind;
+  /** The claimed MIME. With `enforceMagic`, verified against the byte signature before reaching CAS. */
+  readonly mime: string;
+  /** Verify the claimed mime against the magic bytes (invariant #6 — the upload boundary passes `true`).
+   *  Omitted/`false` for trusted non-HTTP callers (DR rebuild, future import backfill). */
+  readonly enforceMagic?: boolean;
+  /** The hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
+   *  (the store's own belt, over and above the HTTP route's body cap). Omitted = no store-level cap (trusted
+   *  callers whose input is already bounded). The asset-bearing upload/import paths pass it. */
+  readonly maxBytes?: number;
+}
+export type StoreAsset = (params: StoreParams) => Promise<StoredAsset>;
+export type ReadOwnedAssetBytes = (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;

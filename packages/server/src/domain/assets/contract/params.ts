@@ -1,3 +1,14 @@
+import type {
+  GalleryAddParams as GalleryAddWireParams,
+  GalleryListParams as GalleryListWireParams,
+  ListOwnedParams as ListOwnedWireParams,
+  VariantKind,
+} from "@orb/contracts/assets";
+import type { Principal } from "@orb/contracts/identity";
+import type { GalleryItemId } from "@orb/kit/ids";
+
+export type { StoreParams } from "@orb/contracts/assets";
+
 // domain/assets/contract/params — every verb's *Params, declared ONCE (§7.4 — one type home). `AssetKind`
 // is the upload-wire `kind` axis; its canonical home is `@orb/contracts/assets` (the db enum, the route,
 // and the client all derive from the SAME tuple — §7.5 `no-inline-union-redecl`), imported here TYPE-ONLY
@@ -7,16 +18,6 @@
 //
 // Every verb carries the resolved `principal` (spine §7.1) — ownership is scoped off `principal.userId`,
 // the single source of truth for "whose blobs" (NEVER a `users` read — the `no-direct-users-read` gate).
-
-import type {
-  AssetKind,
-  GalleryAddParams as GalleryAddWireParams,
-  GalleryListParams as GalleryListWireParams,
-  ListOwnedParams as ListOwnedWireParams,
-  VariantKind,
-} from "@orb/contracts/assets";
-import type { Principal } from "@orb/contracts/identity";
-import type { GalleryItemId } from "@orb/kit/ids";
 
 /** Common to every assets verb: the acting principal whose `userId` scopes ownership. */
 interface AssetsActorParams {
@@ -34,21 +35,6 @@ export type GalleryListParams = GalleryListWireParams & AssetsActorParams;
 
 export interface RemoveFromGalleryParams extends AssetsActorParams {
   readonly galleryItemId: GalleryItemId;
-}
-
-export interface StoreParams extends AssetsActorParams {
-  /** The raw bytes to content-address. The CAS hashes them; the `hash`/`size` are derived, not supplied. */
-  readonly bytes: Uint8Array;
-  readonly kind: AssetKind;
-  /** The claimed MIME. With `enforceMagic`, verified against the byte signature before reaching CAS. */
-  readonly mime: string;
-  /** Verify the claimed mime against the magic bytes (invariant #6 — the upload boundary passes `true`).
-   *  Omitted/`false` for trusted non-HTTP callers (DR rebuild, future import backfill). */
-  readonly enforceMagic?: boolean;
-  /** The hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
-   *  (the store's own belt, over and above the HTTP route's body cap). Omitted = no store-level cap (trusted
-   *  callers whose input is already bounded). The asset-bearing upload/import paths pass it. */
-  readonly maxBytes?: number;
 }
 
 export interface GetMetadataParams extends AssetsActorParams {

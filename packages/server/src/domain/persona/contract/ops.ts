@@ -1,3 +1,10 @@
+import type { JoinerPersona } from "@orb/contracts/persona";
+import type { UserSettings } from "@orb/contracts/settings";
+import type { AwaitableBatchStmt } from "@orb/db/query";
+import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
+
+export type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
+
 // domain/persona/contract/ops — the PRINCIPAL-LESS injected ops this domain hands OUT (the standalone
 // compose-built factory shape, `ExtractQuiet`/`postNarratorMessage` precedent — never a `PersonaService`
 // verb, never a tRPC procedure). A `PersonaService` verb resolves authority from ONE Principal, which is
@@ -21,25 +28,6 @@
 // standing pin keeps resolving after its owner leaves or is disabled, so a card never re-resolves to someone
 // else on its own. It is read live through `chatId`, never copied, and clears when the owner deletes the
 // persona. The op takes the room, never a pin id, so no caller can name a persona past the consent gate.
-
-import type { JoinerPersona } from "@orb/contracts/persona";
-import type { UserSettings } from "@orb/contracts/settings";
-import type { AwaitableBatchStmt } from "@orb/db/query";
-import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
-import type { PersonaListView } from "./views.ts";
-
-/** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.
- *
- *  `personaIds` are the ids the room references (its anchor + its present humans' active personas);
- *  `allowedOwnerIds` are the room's PRESENT human participants. The result carries an entry ONLY for an id
- *  that exists AND is owned by one of `allowedOwnerIds` — a foreign, deleted, or departed-member persona is
- *  simply ABSENT (indistinguishable, no existence oracle). `chatId` is the room these ids belong to: its pin
- *  (`chats.anchorPersonaId`) also resolves, whoever owns it. */
-export type ResolvePersonasForParticipants = (args: {
-  readonly chatId: ChatId;
-  readonly personaIds: readonly PersonaId[];
-  readonly allowedOwnerIds: readonly UserId[];
-}) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
 
 /** D259 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch
  *  and writes only where the statement before it changed a row. */

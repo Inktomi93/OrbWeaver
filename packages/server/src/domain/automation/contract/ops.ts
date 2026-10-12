@@ -1,11 +1,3 @@
-// domain/automation/contract/ops — the injected cross-feature op TYPES (domain-no-cross-feature; wired at
-// entry/compose) + the dispatch seam the arm executors plug into. `AutomationOps` declares the READ ops the
-// watcher/fact-resolver/CEL-env need (chat-owned projections — turn origin, the selected-variant message
-// fact, the runtime fold cache, the config-plane picks) WIDENED with the action ops
-// (applyVariableOps, worldInfo, notifications, imagery) and wires the `runArm` dispatcher — no stubs,
-// no reserved slots here. Principal minting stays at the entry seam (`resolveAuthor`) — the domain never
-// constructs a Principal (the tier-collapse the constitution forbids).
-
 import type {
   AutomationAction,
   AutomationBusEvent,
@@ -16,16 +8,17 @@ import type {
   AutomationRunOutcome,
   AutomationSuggestionKind,
   AutomationTrigger,
+  ChatAutomationReads,
   RulePresetId,
   RulePresetKnobValues,
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
-import type { PromptTransform, TurnInitiator, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { PromptTransform, ResolveViewerVisibility, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
-import type { PluginSuggestedAct } from "@orb/contracts/plugin";
+import type { ExecutePluginSuggestion, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { SideGenKind } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -46,9 +39,20 @@ import type {
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
-import type { ResolveViewerVisibility } from "#domain/chat";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
+
+export type { TurnOriginRead } from "@orb/contracts/automation";
+
+export type { ExecutePluginSuggestion } from "@orb/contracts/plugin";
+
+// domain/automation/contract/ops — the injected cross-feature op TYPES (domain-no-cross-feature; wired at
+// entry/compose) + the dispatch seam the arm executors plug into. `AutomationOps` declares the READ ops the
+// watcher/fact-resolver/CEL-env need (chat-owned projections — turn origin, the selected-variant message
+// fact, the runtime fold cache, the config-plane picks) WIDENED with the action ops
+// (applyVariableOps, worldInfo, notifications, imagery) and wires the `runArm` dispatcher — no stubs,
+// no reserved slots here. Principal minting stays at the entry seam (`resolveAuthor`) — the domain never
+// constructs a Principal (the tier-collapse the constitution forbids).
 
 /** A stored automation-rule row — the dispatch's unit of work (its `actions` json is parsed at dispatch with
  *  the active disable-on-corrupt). Homed here (not persistence) so the engine/watcher share ONE row type. */
@@ -105,13 +109,6 @@ export interface ResolvedTrigger {
 /** The rate-cap gate's verdict — `ok` to proceed, else the `detail` the fire row carries (the cooldown /
  *  per-rule-hour / per-chat-hour loop-safety belt). */
 export type BudgetVerdict = { readonly ok: true } | { readonly ok: false; readonly detail: string };
-
-/** A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the initiator + the depth
- *  the turn ran at. `null` when the ref names no committed reply slot in the chat. */
-export interface TurnOriginRead {
-  readonly initiator: TurnInitiator;
-  readonly automationDepth: number;
-}
 
 /** The `generate_image` arm's request onto imagery. Carries the FULL IC-C args — INCLUDING
  *  `subjectCharacterId`/`useAvatarReference`, which the D48 TOOL schema had to omit (JSON-Schema projection,
@@ -243,9 +240,9 @@ export interface AutomationOps {
   readonly chat: {
     /** The triggering message projected to the CEL fact (the SELECTED variant's content, D26). `null` when
      *  the id names no live slot (a raced delete). */
-    readonly getMessageFact: (chatId: ChatId, messageId: MessageId) => Promise<NonNullable<TriggerFact["message"]> | null>;
+    readonly getMessageFact: ChatAutomationReads["getMessageFact"];
     /** The cascade-guard depth read off a committed reply slot. `null` = no such slot / a human turn. */
-    readonly getTurnOrigin: (chatId: ChatId, messageId: MessageId) => Promise<TurnOriginRead | null>;
+    readonly getTurnOrigin: ChatAutomationReads["getTurnOrigin"];
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the ONLY way
      *  this domain may answer "may this human see that chat's CONTENT". It hands back membership AND the D16
      *  history floor as one value (`null` = not a present member), so the plugin fan-out's delivery gate
@@ -255,9 +252,9 @@ export interface AutomationOps {
      *  fails tsc here instead of drifting. */
     readonly resolveViewerVisibility: ResolveViewerVisibility;
     /** The chat's CURRENT runtime variables — the materialized delta-fold cache (CEL `vars`). */
-    readonly readVariables: (chatId: ChatId) => Promise<Record<string, string>>;
+    readonly readVariables: ChatAutomationReads["readVariables"];
     /** The chat's config-plane ChoiceBlock picks (CEL `choice`). */
-    readonly readChoicePicks: (chatId: ChatId) => Promise<Record<string, string>>;
+    readonly readChoicePicks: ChatAutomationReads["readChoicePicks"];
     /** The standalone (out-of-turn) runtime-variable write a `set_variable` chat-scope arm dispatches
      *  through; wired to chat's `applyStandaloneVariableOps` at compose. Principal-free — the
      *  author's host authority was re-verified at the dispatch gate.
@@ -669,18 +666,6 @@ export interface AnalysisConfirmDeps {
   readonly nowMs: number;
   readonly applyProseRewrite: ApplyProseRewrite;
 }
-
-/** Execute a CONFIRMED plugin-origin act through `domain/plugin`'s own bridge — declared here as a TYPE and
- *  wired at `entry/compose` (the cake: automation never imports plugin). The op rebuilds the plugin's bridge
- *  from the `pluginId` + installer, so the confirmed act takes the plugin's OWN gates and belts, and re-checks
- *  nothing about authority: the confirm verb already gated the host, claimed the ask take-once, and re-ran
- *  the actor's host authority. Rejects on any refusal; the verb surfaces it as `action_error`. */
-export type ExecutePluginSuggestion = (req: {
-  readonly pluginId: PluginId;
-  readonly installerUserId: UserId;
-  readonly chatId: ChatId;
-  readonly act: PluginSuggestedAct;
-}) => Promise<void>;
 
 /** Is this plugin still installed AND enabled FOR THIS OWNER? The plugin half of the confirm-time liveness
  *  re-check (the twin of "the rule still exists and is enabled"). Declared here, wired at compose to

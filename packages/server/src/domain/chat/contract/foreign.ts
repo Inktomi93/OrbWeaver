@@ -41,6 +41,7 @@ import type { MemoryConfig } from "./memory.ts";
  *  pacer) and carry no server arm, so they are deliberately absent here. All fields default to their shipped
  *  posture (off/empty, except `reactionsEnabled` whose shipped posture is ON) ⇒ a host who never touched the
  *  pane sees byte-identical behavior. */
+
 export type ChatBehaviorInputs = Pick<
   ChatSettings,
   "autoContinue" | "autoContinueRounds" | "autoSwipe" | "charactersCanReact" | "customStoppingStrings" | "offerChoices" | "reactionsEnabled"
@@ -209,3 +210,8 @@ export type ResolveForeignInputsOp = (args: {
    *  Absent ⇒ byte-identical to today. Inert until the turn path passes it (docs/plans/rpg/design.md push 2). */
   readonly presetOverride?: PresetId | undefined;
 }) => Promise<ForeignInputs>;
+
+/** Resolve the assembly persona projection through its room- and consent-scoped reader. */
+export type ResolveTurnPersonas = (
+  args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "chatId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
+) => Promise<ResolvedPersonas>;

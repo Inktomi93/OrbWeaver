@@ -10,4 +10,5 @@ export type { AdminUserView } from "./contract/views.ts";
 export { adminUserViewSchema, sessionAdminViewSchema } from "./contract/views.ts";
 export { can, isAdmin, isOwner, requireAdmin, requireOwner } from "./guard.ts";
 export { createAdminService } from "./service.ts";
+export { createPluginDistributionRecipients } from "./verbs/plugin-recipients.ts";
 export { createSignupMinterCheck } from "./verbs/signup-minter-check.ts";

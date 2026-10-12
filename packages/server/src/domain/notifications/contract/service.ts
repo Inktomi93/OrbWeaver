@@ -1,13 +1,14 @@
-// The typed API surface: the DI bundle, the producer-facing `emit` op type, and the 4-verb interface.
-// notifications is the per-user durable inbox: the table is the source of truth — durable-first, `record`
-// INSERTs the row and the per-user bus fan-out is a separate after-commit concern.
-
-import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { ResolveStandingAsks } from "./ops.ts";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 import type { ListInboxResult, MarkAllReadResult } from "./results.ts";
 import type { InboxView } from "./views.ts";
+
+export type { EmitNotification } from "@orb/contracts/notifications";
+
+// The typed API surface: the DI bundle, the producer-facing `emit` op type, and the 4-verb interface.
+// notifications is the per-user durable inbox: the table is the source of truth — durable-first, `record`
+// INSERTs the row and the per-user bus fan-out is a separate after-commit concern.
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface NotificationsContext {
@@ -20,12 +21,6 @@ export interface NotificationsContext {
    *  exactly the rows it exists for. */
   resolveStandingAsks: ResolveStandingAsks;
 }
-
-/** The producer-facing op a producer injects to deliver a notification — the one cross-feature edge. `emit`
- *  = `record` (the durable INSERT) + the after-commit per-user bus fan-out, durable-first (the INSERT
- *  happens before any fan-out, so the event is deliverable from the table alone). Composed at `entry/` from
- *  this domain's `record` + transport's bus. */
-export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
 /** The verbs. `record`/`retract` are the producer writes (recipient-addressed); markAllRead/dismiss/list
  *  are caller-scoped to `principal.userId` — a user touches only their own inbox. */

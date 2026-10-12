@@ -1,7 +1,4 @@
-// The explicit ChatContext DI bundle + every injected cross-feature op type. Homed under contract/ because
-// the exported-type gate forbids it in the conventional context.ts slot; the top-level context.ts re-exports
-// this. Every cross-feature/infra dependency is an injected op — chat never sideways-imports a sibling domain.
-
+import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
   ChatInjection,
@@ -15,7 +12,9 @@ import type {
   PromptTransform,
   PromptTransformPoint,
   PromptTransformResult,
-  RenderPolicy,
+  ResolveCharacterTagsOp,
+  ResolveSeatDecoOp,
+  ResolveSeatDecosOp,
   RoomOverrides,
   ToolCallRecord,
   TurnAbortReason,
@@ -25,6 +24,7 @@ import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contr
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { AttachmentQuality, SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
+import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
@@ -36,8 +36,7 @@ import type {
   ResolveRetainedChatRebase,
   SettleRetainedChatRebase,
 } from "@orb/contracts/stats";
-import type { TagView } from "@orb/contracts/tag";
-import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
+import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { chats, Db, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type {
@@ -91,6 +90,14 @@ import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
+
+export type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
+export type { ResolveCharacterTagsOp, ResolveSeatDecoOp, ResolveViewerVisibility, SeatDeco, ViewerVisibility } from "@orb/contracts/chat";
+export type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
+
+// The explicit ChatContext DI bundle + every injected cross-feature op type. Homed under contract/ because
+// the exported-type gate forbids it in the conventional context.ts slot; the top-level context.ts re-exports
+// this. Every cross-feature/infra dependency is an injected op — chat never sideways-imports a sibling domain.
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */
@@ -250,31 +257,6 @@ type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonl
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly BatchStmt[]>;
 
-/** Accepted tag identities resolved under the card owner's authority. The member-card read exposes
- * identities only to that owner and clamps guests to names. */
-type ResolveCharacterTagsOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<readonly Pick<TagView, "id" | "name">[]>;
-
-/** The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
- *  render policy, the raw theme + background overrides, and the card name/avatar) — collapses what used to
- *  be four separate reads of the same `characters` row per participant. `card` is null for a human/agent
- *  seat, no resolvable host, or a gone/mid-delete card. */
-interface SeatDeco {
-  /** The content-render policy (character override ?? global floor); the bare global floor for a card-less seat. */
-  readonly renderPolicy: RenderPolicy;
-  /** The raw, unmerged per-character theme override; null for a card-less seat. Chat never reads the themes
-   *  table — the override/global/default cascade is a client concern. */
-  readonly themeOverride: ThemeOverride | null;
-  /** BG-C — the raw, unmerged per-character carried BACKGROUND source (the `themeOverride` twin); null for a
-   *  card-less seat. The true-solo takeover + cascade are a client concern (the app-shell resolver). */
-  readonly backgroundOverride: ThemeBackground | null;
-  /** The card's display name + avatar; null for a human/agent seat, no host, or a gone card. */
-  readonly card: { readonly name: string; readonly avatarAssetId: AssetId | null } | null;
-}
-
-/** Resolves a roster member's full card-derived decoration in ONE read. `characterId: null` (a human/agent
- *  seat) or `ownerId: null` (no resolvable host) yields the bare global floor + a null card — fail-closed. */
-type ResolveSeatDecoOp = (params: { readonly ownerId: UserId | null; readonly characterId: CharacterId | null }) => Promise<SeatDeco>;
-
 /** Resolves a human participant's display fields. */
 type ResolveUserPublicsOp = (
   userId: UserId,
@@ -295,14 +277,6 @@ type ResolveImageUrlOp = (params: {
   readonly quality?: AttachmentQuality | undefined;
   readonly signal?: AbortSignal | undefined;
 }) => Promise<ResolvedMediaRef | null>;
-
-/** Resolves an asset id to just its content hash — a hash is not a secret, so this is a bare lookup, never
- *  an existence/ownership oracle. Null for a null id or a gone row. */
-type ResolveAssetHashOp = (assetId: AssetId | null) => Promise<string | null>;
-
-/** The send-attach trust boundary: given the acting principal's userId + claimed attachment ids, returns
- *  the subset they actually own. The verb rejects a send whose claimed ids aren't all returned. */
-type FilterOwnedAssetIdsOp = (userId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetId[]>;
 
 /** §6.7 — store ONE picture a chat model emitted inside its own reply under `owner`'s CAS, and hand back the
  *  id canon will spell. The provider's payload is either inline base64 or a URL ON THE PROVIDER'S OWN CDN,
@@ -568,39 +542,6 @@ export interface RpgCardCorpus {
  *  host / a hostless room: the caller refuses the round rather than running it on nothing. Wired into
  *  `RpgContext.resolveCardCorpus` at the composition root. */
 export type ResolveRpgCardCorpus = (chatId: ChatId, characterId: CharacterId) => Promise<RpgCardCorpus | null>;
-
-/** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
- *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may
- *  read from (`NO_HISTORY_FLOOR` = 0 = unclamped); it is DERIVED by the one resolver
- *  (`substrate/auth/clamp::resolveHistoryFloorSeq`), never re-computed by the consumer. There is deliberately
- *  no "member: yes" projection without the floor — a consumer that only wants membership still receives the
- *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged. */
-export interface ViewerVisibility {
-  readonly role: ParticipantRole;
-  readonly historyFloorSeq: HistoryFloorSeq;
-  /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
-   *  (`<lie>`/`<ofilter>`) verbatim — the host reveal plane; `false` ⇒ a member, whose canon must be
-   *  hidden-stripped before any cross-domain consumer serves the body. DERIVED here from `role` via chat's ONE
-   *  `viewerReadsHidden` home so a cross-domain consumer (the plugin realm) never re-derives `role === "host"`. */
-  readonly readsHidden: boolean;
-}
-
-/** THE cross-domain viewer-visibility op (the D-ledger read-visibility entry). Any NON-chat domain that must
- *  decide "may this human see this chat's CONTENT" consumes this — never a membership read of its own, and
- *  never a second clamp home (a mirrored floor computation in another domain is the defect class the plugin
- *  fan-out already demonstrated).
- *
- *  `null` = NOT a present member (or no such chat — one leak-free answer, the `GetMembership` posture). `null`
- *  is the sentinel precisely BECAUSE the alternative (`{ member: false, historyFloorSeq: 0 }`) reads as
- *  "no floor in force" to a caller that forgets to test membership first: a floor of 0 means UNCLAMPED, so a
- *  non-member would inherit the widest possible visibility on the exact code path where the check was
- *  skipped. `null` fails CLOSED under `?.` / `if (v === null)` and cannot be misread as a permissive floor.
- *
- *  STANDALONE + principal-free (the `GetMembership`/`ExtractQuiet` precedent — the consumer's own authority
- *  gate runs around it) and compose-wired: `userId` is the VIEWER whose visibility is being resolved and MUST
- *  be a server-resolved identity, never a caller-supplied one (the injected-op caller-gate rule — an op whose
- *  params drop the caller is a latent cross-tenant hole). */
-export type ResolveViewerVisibility = (chatId: ChatId, userId: UserId) => Promise<ViewerVisibility | null>;
 
 /** The pending user text a game turn is responding to (docs/plans/rpg/design.md): the latest user-role message's
  *  selected-variant content, or `null` (no user line yet). rpg's `skill_check` re-reads it server-side to feed
@@ -1071,13 +1012,6 @@ export type GeneratePictureOp = (p: {
   readonly warnings: readonly { readonly code: string; readonly detail: string }[];
 }>;
 
-/** The user's default persona (`seeds.defaultPersonaId`), validated owned/alive at the root — the seat seed
- *  after an explicit anchor and the connected persona. */
-type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
-
-/** The user's last-played persona (`seeds.currentPersonaId`) — the floor below the default. */
-type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
-
 /** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.
  *  Ambiguity or a group founding falls through to {@link ResolveDefaultPersonaOp}. */
 type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly CharacterId[]) => Promise<PersonaId | null>;
@@ -1440,10 +1374,7 @@ export interface ChatContext {
   readonly restampHandoffDigests: RestampHandoffDigestsOp;
   readonly resolveCharacterTags: ResolveCharacterTagsOp;
   readonly resolveSeatDeco: ResolveSeatDecoOp;
-  readonly resolveSeatDecos: (params: {
-    readonly ownerId: UserId;
-    readonly characterIds: readonly CharacterId[];
-  }) => Promise<ReadonlyMap<CharacterId, SeatDeco>>;
+  readonly resolveSeatDecos: ResolveSeatDecosOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;

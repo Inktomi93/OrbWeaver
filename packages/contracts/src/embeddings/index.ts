@@ -226,3 +226,5 @@ export interface EmbedPassResult {
 }
 
 export const embedPassResultSchema = z.strictObject({ embedded: z.number(), skipped: z.number() }) satisfies z.ZodType<EmbedPassResult>;
+
+export type { MemoryEmbedSpace } from "./owner-ops.ts";

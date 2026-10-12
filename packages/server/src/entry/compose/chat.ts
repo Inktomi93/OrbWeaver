@@ -18,9 +18,7 @@ import type { ChatRequest, ChatResult, RoleClientsWithSignal } from "@orb/infere
 import type { ChatId, Handle, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-
 import { createSignupMinterCheck as createAdminSignupMinterCheck } from "#domain/admin";
-
 import type { AssetsService } from "#domain/assets";
 import { createChatAssetOps } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -106,7 +104,7 @@ import {
   createResolveRetainedChatRebase,
   settleRetainedChatRebase,
 } from "#domain/stats";
-import type { ToolUseService } from "#domain/tool-use";
+import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
@@ -344,7 +342,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     getEffectiveConfig: input.settings.getEffectiveConfig,
     loadOptionalPreset: createLoadOptionalPreset(input.preset.get),
     resolveHostUserId: resolveChatHostUserId,
-    resolvePersonasForParticipants: input.resolvePersonasForParticipants,
+    resolveTurnPersonas: createTurnPersonaResolver(input.resolvePersonasForParticipants),
     rpg: input.rpg ?? null,
   });
   const { resolvePromptVariables, resolvePromptUserMacros, resolveChatProse, resolveChatPresetProse, resolveChatPresetParams, resolveMemoryConfig } =
@@ -404,7 +402,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION
     // (`substrate/regex-tier`), the regex domain owns the STORAGE — one seam, no blob copies.
     resolveRegexSources: input.resolveRegexSources,
-    tools: input.toolUse === undefined ? null : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
+    tools: input.toolUse === undefined ? null : buildChatToolOps<ResolvedToolSet>(input.toolUse, input.resolveHostPrincipal),
     // Bridges the chat role's streaming AsyncIterable onto the runtime's Promise+onDelta shape — the extracted
     // domain→runtime turn bridge (createRunChatTurnBridge), injecting the leaf `runChatTurn` (the §7.5-1a fence).
     runChatTurn: createRunChatTurnBridge({

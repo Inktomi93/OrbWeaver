@@ -1,6 +1,9 @@
-import type { AssetId, CharacterId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import { z } from "zod";
+import type { Principal } from "#identity";
+import type { BindingActor } from "#inference";
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 import type { MessageContentBlock } from "../chat/content-blocks.ts";
 import { messageContentBlockViewSchema } from "../chat/content-blocks.ts";
@@ -391,3 +394,58 @@ export const extractedPromptSchema = z.strictObject({
 }) satisfies z.ZodType<ExtractedPrompt>;
 
 export * from "./portable.ts";
+
+// Owner-authorized generation requests shared by chat, automation and plugin adapters.
+
+// Auto-curation of a generation: the character whose gallery each returned picture joins. The picture's
+// owner is the run-as principal, so the item lands in that principal's gallery only, and only when it owns
+// this character; a character someone else owns gets no gallery row.
+interface GalleryCuration {
+  readonly subjectCharacterId: CharacterId;
+}
+/** The reuse-gate policy (doc 03 §4.4): `"prefer"` (default) short-circuits to a matching prior portrait;
+ *  `"never"` is the regenerate affordance (always a fresh generation). */
+export type ReusePolicy = "prefer" | "never";
+/** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
+ *  the reader of the subject card for the reuse and avatar-reference gates. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
+ *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`
+ *  with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
+ *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes. */
+export interface GeneratePictureParams {
+  readonly caller: Principal;
+  /** The room host a room picture runs as (D298), resolved by chat through the turn identity. Absent
+   *  outside a room: the caller funds, styles and owns its own picture. */
+  readonly runAsUserId?: UserId | undefined;
+  /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
+  readonly actor?: BindingActor | undefined;
+  readonly chatId?: ChatId | undefined;
+  readonly mode: PromptTemplateMode;
+  readonly prompt?: string | undefined;
+  readonly n?: number | undefined;
+  readonly subjectCharacterId?: CharacterId | undefined;
+  /** Appended to `DEFAULT_NEGATIVE` (doc 02 §6), never replaces it. */
+  readonly negative?: string | undefined;
+  /** Overrides `defaultSizeFor(mode)` (doc 02 §6). */
+  readonly size?: SizePresetName | undefined;
+  /** B2 reuse gate (doc 03 §4.4); default `"prefer"`. Portrait modes only; `"never"` = regenerate. */
+  readonly reuse?: ReusePolicy | undefined;
+  /** B3 avatar-reference conditioning (doc 03 §3); default false. Portrait modes only: conditions the
+   *  generation on the subject's avatar for identity consistency. Drops-with-warning (never throws) when the
+   *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage` (doc 01 §3.4). */
+  readonly useAvatarReference?: boolean | undefined;
+
+  /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
+   *  OWN reuse gate can short-circuit later (docs/plans/rpg/design.md — NPC portraits are content-addressed by the
+   *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).
+   *  Honored ONLY in `mode:"free"` (the subject-character portrait modes own the internal reuse gate, which
+   *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the
+   *  existing free/scenario/edit paths are byte-identical). rpg reads it back via `readProvenance`. */
+  readonly identityHash?: string | undefined;
+  /** Join every returned picture to the run-as principal's gallery under this character. Absent = no auto-add. Kept
+   *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
+  readonly gallery?: GalleryCuration | undefined;
+  /** The initiating viewer's zone for an extraction template's time macros. Absent ⇒ UTC: automation, a
+   *  plugin and a model tool call have no viewer. */
+  readonly timeZone?: IanaTimeZone | undefined;
+}
+export type GeneratePicture = (params: GeneratePictureParams) => Promise<GeneratedPicture>;

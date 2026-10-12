@@ -175,6 +175,7 @@ export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — contributor #0,
 // the rpg-gather projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
+export { createChatAutomationReads } from "./verbs/automation-reads.ts";
 export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
 export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
 export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
@@ -193,6 +194,8 @@ export { createLoadChatAssetRefs } from "./verbs/load-chat-asset-refs.ts";
 export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.ts";
 export { createChatMemorySearchOps } from "./verbs/memory-search.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
+export { createPluginChatAuthority } from "./verbs/plugin-authority.ts";
+export { loadPluginCharacters, loadPluginMessages } from "./verbs/plugin-reads.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
 // the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).

@@ -1,8 +1,3 @@
-// domain/connection/contract/params — every verb's *Params, declared ONCE (§7.4). The acting `principal`
-// (resolved at the entry seam) scopes every read and write to its own rows; connection NEVER reads the `users`
-// table (no-direct-users-read). The cross-boundary shapes (`UserConnection`, `ConnectionBinding`, `Task`,
-// `RoutableTask`, the capability schemas) live in `@orb/contracts/inference`; the verb wrappers live here.
-
 import type { Principal } from "@orb/contracts/identity";
 import type {
   BindingActorKind,
@@ -15,22 +10,19 @@ import type {
   PromptCacheSettings,
   ProviderDef,
   RoutableTask,
-  Task,
 } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import type { BindingActor } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+
+export type { GetBoundConnectionParams, ResolveTaskParams } from "@orb/contracts/inference";
+
+// domain/connection/contract/params — every verb's *Params, declared ONCE (§7.4). The acting `principal`
+// (resolved at the entry seam) scopes every read and write to its own rows; connection NEVER reads the `users`
+// table (no-direct-users-read). The cross-boundary shapes (`UserConnection`, `ConnectionBinding`, `Task`,
+// `RoutableTask`, the capability schemas) live in `@orb/contracts/inference`; the verb wrappers live here.
 
 interface ActorParams {
   readonly principal: Principal;
-}
-
-/** `resolve` / `availability` — the runtime's fold for ONE task under the caller (the funder), optionally in the
- *  context of an actor (a rule, a plugin grant) or against an explicit row. */
-export interface ResolveTaskParams extends ActorParams {
-  readonly task: Task;
-  readonly actor?: BindingActor | undefined;
-  readonly connectionId?: UserConnectionId | undefined;
 }
 
 /** `resolveChatCapability` — one of the caller's OWN connections as the chat funnel sees it, credential-free
@@ -94,11 +86,6 @@ export type BindingActorInput =
 
 export interface ListBindingsParams extends ActorParams {
   readonly actor?: BindingActorInput | undefined;
-}
-
-/** Read the caller's persisted user-actor binding for one routable task. */
-export interface GetBoundConnectionParams extends ActorParams {
-  readonly task: RoutableTask;
 }
 
 /** `setBinding` — point ONE routable task at a connection (or clear it with `null`). */

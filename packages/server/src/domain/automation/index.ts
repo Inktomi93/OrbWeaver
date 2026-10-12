@@ -92,4 +92,6 @@ export { AUTOMATION_SUGGESTION_TTL_MS, createPluginSuggestionRaiser, createSugge
 // S5 — the guidance-delivery teaching contribution (the D145 root slot's third occupant). Front-door ONLY:
 // `entry/compose` registers it onto `ChatContext.teaching`; the cruiser stanza forbids every other importer.
 export { createAutomationTeachingContributions } from "./teaching-contribution.ts";
+export { createPluginFeedbackOps } from "./verbs/plugin-feedback.ts";
+export { createAutomationRuntimeOps } from "./verbs/runtime-ops.ts";
 export { startAutomationWatcher } from "./watcher/start-automation-watcher.ts";

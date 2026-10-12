@@ -1,9 +1,11 @@
+import type { AssetKind } from "@orb/contracts/assets";
+import type { UserId } from "@orb/kit/ids";
+
+export type { OwnedAssetBytes } from "@orb/contracts/assets";
+
 // domain/assets/contract/results — verb result shapes. StoredAsset is cross-boundary (canonical home
 // @orb/contracts/assets, re-exported here); AssetMetadata is server-only. Ownership denial surfaces as
 // undefined (→ 404) from getMetadata, not a typed error.
-
-import type { AssetKind } from "@orb/contracts/assets";
-import type { UserId } from "@orb/kit/ids";
 
 export type { StoredAsset } from "@orb/contracts/assets";
 
@@ -12,13 +14,6 @@ export interface AssetCasRef {
   readonly kind: AssetKind;
   readonly ownerId: UserId;
   readonly hash: string;
-  readonly mime: string;
-}
-
-/** The owner-gated byte read's answer (EC-B) — the CAS bytes + the stored mime of the caller's OWN asset.
- *  Distinct from `loadAssetBytes`' bare `Uint8Array | null` (the un-principal indexer read, D20). */
-export interface OwnedAssetBytes {
-  readonly bytes: Uint8Array;
   readonly mime: string;
 }
 

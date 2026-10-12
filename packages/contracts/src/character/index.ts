@@ -1,17 +1,17 @@
-import type { TagFolderType, TagView } from "#tag";
-import { tagFolderTypeSchema, tagViewSchema } from "#tag";
-import type { ThemeBackground, ThemeOverride } from "#theme";
 // @orb/contracts/character — THE ONE canonical character card.
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
 import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "#refinery";
 import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
+import type { TagFolderType, TagView } from "#tag";
+import { tagFolderTypeSchema, tagViewSchema } from "#tag";
+import type { ThemeBackground, ThemeOverride } from "#theme";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
 
@@ -939,3 +939,20 @@ export const characterCensusInputSchema = z.object({
 });
 
 export type CharacterLibraryLens = z.infer<typeof characterCensusInputSchema>;
+
+/** WHOSE per-card state, on WHICH owned character — the three coordinates every D148 plugin card-state
+ *  read/merge carries (`persistence/plugin-card-data.ts`). `characterId` is guest-supplied (owner-scope-gated,
+ *  never trusted); `ownerId` is the installer the bridge closed over; `slug` is the emitter's own manifest slug,
+ *  stamped host-side (never guest input) and the ONLY thing that decides which `plugin_<slug>` key is touched.
+ *  Bundled so the merge stays within the 4-param house cap and the read/merge cannot drift apart on their scope.
+ *  Homed HERE per no-inline-types §7.4 (the `CharacterListFilter` precedent above). */
+export interface PluginCardDataTarget {
+  readonly characterId: CharacterId;
+  readonly ownerId: UserId;
+  readonly slug: string;
+}
+/** The D148 plugin card-state read verdict (`persistence/plugin-card-data.ts`): `found:false` ⇒ no such OWNED
+ *  character (foreign or absent — leak-free, the caller maps it to the plugin domain's NOT_FOUND); `found:true`
+ *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
+ *  character. Homed HERE per no-inline-types §7.4. */
+export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };

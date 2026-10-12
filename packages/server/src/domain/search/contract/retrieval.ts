@@ -1,4 +1,1 @@
-export interface RetrievalFallback<T> {
-  readonly empty: T;
-  readonly onIndexUnavailable: (() => void) | undefined;
-}
+export type { RetrievalFallback } from "@orb/contracts/search";

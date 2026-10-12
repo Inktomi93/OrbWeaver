@@ -1,6 +1,10 @@
 // Memory retrieval options and immutable Corpus evidence are shared boundary shapes.
 // Search execution params and internal scan rows remain in the server domain contracts.
 
+// The chat-scoped retrieval-mode axis: off | mixA (all tier-0, chronological) | mixB (+vector retrieve)
+// | mixC (+rerank) | tiered (consolidation bridge). `contracts/settings`'s memory defaults enum derives
+// from this tuple.
+
 import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -9,9 +13,6 @@ import { imageLensSchema } from "../embeddings/index.ts";
 import type { CorpusSource } from "./source.ts";
 import { corpusSourceSchema } from "./source.ts";
 
-// The chat-scoped retrieval-mode axis: off | mixA (all tier-0, chronological) | mixB (+vector retrieve)
-// | mixC (+rerank) | tiered (consolidation bridge). `contracts/settings`'s memory defaults enum derives
-// from this tuple.
 export const MEMORY_RETRIEVAL_MODES = ["off", "mixA", "mixB", "mixC", "tiered"] as const;
 export type MemoryRetrievalMode = (typeof MEMORY_RETRIEVAL_MODES)[number];
 export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES) satisfies z.ZodType<MemoryRetrievalMode>;
@@ -429,3 +430,19 @@ export const searchSpaceStatusSchema = z.strictObject({ paused: z.boolean(), emb
 /** The refusal reason a vector search answers while the owner's index is moving to a new embedder. */
 export const SEARCH_SPACE_REINDEXING = "search_space_reindexing";
 export type SearchSpaceStatus = z.infer<typeof searchSpaceStatusSchema>;
+
+export interface CorpusParams {
+  readonly ownerId: UserId;
+  readonly queryText: string;
+  readonly mode: MemoryQueryOptions["mode"];
+  readonly minScore: number;
+}
+/** Optional per-call observations for digest retrieval. The search remains useful when the mixC reranker is
+ * unavailable, but its owner must surface that honest degrade on the chat warning bus. */
+export interface DigestSearchEvents {
+  readonly onRerankUnavailable: () => void;
+}
+export interface RetrievalFallback<T> {
+  readonly empty: T;
+  readonly onIndexUnavailable: (() => void) | undefined;
+}

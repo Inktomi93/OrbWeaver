@@ -1,15 +1,17 @@
-// domain/chat/contract/signup — the signup-invite ops (D259). The entry signup route calls them with no
-// Principal: the route is the signed-out door, and the authority is the invite plus its minter's standing.
-// Chat owns the invite, the seat and the order of the batch; sessions owns the account insert and hands it
-// in as a statement builder that takes chat's admission predicate, so sessions reads no chat table.
-
-import type { InvitePreview } from "@orb/contracts/chat";
+import type { InvitePreview, SignupMinterCheckOp } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { AuditEntry } from "#foundation/observability";
+
+export type { SignupMinterCheckOp } from "@orb/contracts/chat";
+
+// domain/chat/contract/signup — the signup-invite ops (D259). The entry signup route calls them with no
+// Principal: the route is the signed-out door, and the authority is the invite plus its minter's standing.
+// Chat owns the invite, the seat and the order of the batch; sessions owns the account insert and hands it
+// in as a statement builder that takes chat's admission predicate, so sessions reads no chat table.
 
 /** Whether this deployment mints signup invites, and the mode a signup invite is stamped with. The chat
  *  composition root builds it from a mapped `Record<AuthMode, boolean>`, so a new mode fails `tsc`. */
@@ -40,9 +42,6 @@ export type SignupPersonaPointersStatementOp = (args: {
   readonly personaId: PersonaId;
   readonly at: number;
 }) => AwaitableBatchStmt<{ userId: UserId }[]>;
-
-/** Does the invite's minter still hold the authority to mint a signup invite: enabled, and a global admin? */
-export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 
 /** The foreign halves of the signup ops, wired at the composition root. */
 export interface SignupInviteDeps {

@@ -1,3 +1,11 @@
+import type { CopyAssetToOwner } from "@orb/contracts/assets";
+import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/query";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+
+export type { CopyAssetToOwner } from "@orb/contracts/assets";
+
 // domain/character/contract/handoff-copy — the `CharacterHandoffCopyContext` DI bundle + op type for the
 // character-OWNED card copy the host handoff's property offer executes (stickler 2026-08-03 §5.1).
 //
@@ -23,36 +31,6 @@
 // mint phase and the room swap leaves inert library rows the nominee owns, and a re-accept converges on the
 // SAME copies rather than minting a second set — which is the whole reason the mints are allowed to land
 // before the atomic swap at all.
-
-import type { AssetKind } from "@orb/contracts/assets";
-import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
-import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
-
-/** Re-own ONE image blob into the recipient's library, returning the RECIPIENT's asset id (or `null` when
- *  the source asset is gone / not the old host's — the copy then lands without that picture rather than not
- *  at all).
- *
- *  A copy CANNOT carry an asset id verbatim: `assets` is per-owner with a `(owner_id, hash)` dedup key
- *  (D21), so a foreign id on the nominee's card is a pointer into a library they cannot read AND a GC root
- *  holding the departed host's blob alive through a row they no longer control. Content-addressing makes the
- *  re-own cheap and idempotent — the same bytes under an owner who already has them resolve to their existing
- *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root.
- *
- *  TWO CARRIED PICTURES, ONE PORT (#1426). The avatar was always re-owned here; the card's carried BACKGROUND
- *  (`background_override` `kind:"asset"`) is the same fact wearing a different column and was being copied by
- *  id, which is the exact pointer-into-a-foreign-library this port exists to prevent — and the UPDATE path
- *  already refuses it (`ensureBackgroundOverrideOwned`, the BG-C belt), so a handoff copy was the one write
- *  that could land a card the owner's own edit verb would reject. `kind` is the ASSET KIND the re-owned row
- *  is stored under, because the two are genuinely different kinds in the CAS index (a background is not an
- *  avatar to the gallery or to any per-kind read), never a caller-chosen label. */
-export type CopyAssetToOwner = (args: {
-  readonly fromOwnerId: UserId;
-  readonly toOwnerId: UserId;
-  readonly assetId: AssetId;
-  readonly kind: Extract<AssetKind, "avatar" | "background">;
-}) => Promise<AssetId | null>;
 
 /** The DI bundle `createCopyHandoffCards` closes over (assembled at the entry composition root). Purpose-
  *  built, NOT the full `CharacterContext`: the copy needs `db` + the clock + the id minter + the image

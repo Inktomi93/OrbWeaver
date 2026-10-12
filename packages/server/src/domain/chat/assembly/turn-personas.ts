@@ -1,8 +1,9 @@
 // Turn voice binds to the consenting human, never to a presence-order bystander.
+
+import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
-import type { ResolvePersonasForParticipants } from "#domain/persona";
-import type { HumanSeatPersona, ResolvedPersonas, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
+import type { HumanSeatPersona, ResolvedPersonas, ResolveTurnPersonas, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 
 /**
  * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
@@ -28,6 +29,7 @@ import type { HumanSeatPersona, ResolvedPersonas, ResolveForeignInputsOp, TurnTr
  * participants read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
  * `sameProjectedPersona` dedup keeps holding.
  */
+
 export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
   const trigger = args.trigger;
   switch (trigger.kind) {
@@ -92,11 +94,7 @@ function assertNeverVoice(voice: never): never {
  *  swap or a re-anchor. Personas are
  *  single-owned and `setActivePersona` seats only the target's own, so no two seats hold one persona. The
  *  composition root's `resolveForeignInputs` is its one production caller. */
-export function createTurnPersonaResolver(
-  resolvePersonasForParticipants: ResolvePersonasForParticipants,
-): (
-  args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "chatId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
-) => Promise<ResolvedPersonas> {
+export function createTurnPersonaResolver(resolvePersonasForParticipants: ResolvePersonasForParticipants): ResolveTurnPersonas {
   return async (args): Promise<ResolvedPersonas> => {
     const triggerPersonaId = args.trigger.kind === "human" ? args.trigger.personaId : null;
     const resolved = await resolvePersonasForParticipants({

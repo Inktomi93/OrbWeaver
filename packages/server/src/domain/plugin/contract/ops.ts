@@ -1,43 +1,35 @@
-// domain/plugin/contract/ops — the injected op bundle the MEMBRANE's host functions call + the
-// runtime registrar seams activation hands collected registrations to. This file TYPES these; compose builds the
-// bodies (the host-fn wiring + the registry plumbing). Cross-feature op SHAPES are REUSED not
-// re-spelled where the shape matches (AGENTS.md "Type homes and unions"): `worldInfo`/`notifications`/
-// `applyVariableOps` are the SAME injected types `domain/automation` already declares — a plugin write
-// rides the exact seam an automation action does. `imagery` DIVERGES (declared here): the membrane returns the
-// primary image's `{assetId}`, not automation's cost-summary — compose binds it to the `{assetId}`
-// front door. Plugin-only reads (`listMessages` → the reduced `PluginMessageView`, `getVariables`)
-// + the installing user's global-var KV are declared here. Every op is wired at `entry/compose` (one-directional
-// flow); the domain declares only the TYPE.
+// The plugin membrane consumes typed owner-domain effects and disposable registration operations.
+// Composition wires the bodies; ownership, consent and reduced guest projections stay with their domains.
 
-import type { HistoryFloorSeq } from "@orb/contracts/chat";
+import type { ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
-import type { NotificationEvent, NotificationType, PluginNotificationRecipient } from "@orb/contracts/notifications";
 import type {
   InvocationChat,
-  PluginAssetView,
-  PluginCharacterView,
+  PluginAssetReadOps,
+  PluginChatReads,
+  PluginDocumentReads,
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInvokeArgs,
   PluginMacroRegistration,
-  PluginMessageView,
+  PluginNotificationDelivery,
+  PluginNotificationPost,
   PluginPubsubSubscription,
+  PluginQuickReplySurface,
   PluginQuietOptions,
-  PluginSearchHit,
   PluginSuggestedAct,
   PluginToastLevel,
   PluginToolRegistration,
   PluginTransformRegistration,
-  PluginWorldBookView,
-  PluginWorldEntryView,
+  PluginWorldInfoReads,
 } from "@orb/contracts/plugin";
-import type { ChatId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import type { AutomationOps } from "#domain/automation";
-import type { ResolveViewerVisibility } from "#domain/chat";
 
 /** Per-plugin serialization for durable rows, guest state, registrations, and provider contributions. */
+
 export interface PluginLifecycleLanes {
   readonly run: <T>(pluginId: PluginId, job: () => Promise<T>) => Promise<T>;
 }
@@ -89,10 +81,7 @@ export interface PluginHostOps {
      *  the plugin realm is a member-reachable surface, so an unstripped body would launder a GM-plane secret to a
      *  non-host member's snippet). REQUIRED BY TYPE for the same reason as `floorSeq`: the only source is chat's
      *  `resolveViewerVisibility` (its `role`), so a caller cannot obtain it without the visibility resolve. */
-    readonly listMessages: (
-      chatId: ChatId,
-      opts: { readonly limit?: number; readonly floorSeq: HistoryFloorSeq; readonly readsHidden: boolean },
-    ) => Promise<readonly PluginMessageView[]>;
+    readonly listMessages: PluginChatReads["listMessages"];
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the bridge
      *  resolves the INSTALLER's membership + history floor with it before any canon read crosses the realm
      *  boundary. `null` = not a present member ⇒ the guest sees nothing. The TYPE is chat's (type-only
@@ -110,7 +99,7 @@ export interface PluginHostOps {
      *  non-member to `[]`, so this read is reached only for a member of THIS room and carries no owner filter (a
      *  room's roster is the room's own member-visible state). Wired at compose to the principal-free
      *  `loadPluginCharacters` reader. Reduced to id/name/avatar — never a co-participant's full card. */
-    readonly listCharacters: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
+    readonly listCharacters: PluginChatReads["listCharacters"];
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides.
      *  `capability: chat.variables.write`. */
     readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
@@ -140,20 +129,20 @@ export interface PluginHostOps {
      *  book's prompt content, so a plugin invoked in chat X may not write a book attached only to chat Y (both
      *  can be owned by the same installer, which is all the shared writer's ownership gate can see). Wired at
      *  compose to world-info's own member-gated `listForChat` front door. */
-    readonly isBookAttachedToChat: (ownerId: UserId, chatId: ChatId, bookId: WorldBookId) => Promise<boolean>;
+    readonly isBookAttachedToChat: PluginWorldInfoReads["isBookAttachedToChat"];
     /** The book's existing entry TITLES, for the per-plugin entry ceiling (a looping guest fills a book
      *  otherwise). Wired at compose to world-info's owner-gated `listEntryIndex`. */
-    readonly listEntryTitles: (ownerId: UserId, bookId: WorldBookId) => Promise<readonly string[]>;
+    readonly listEntryTitles: PluginWorldInfoReads["listEntryTitles"];
     /** The `worldinfo.read` READ half (#788 F12): the books ATTACHED to the invocation chat, reduced to
      *  `PluginWorldBookView`. Wired at compose to world-info's member-gated `listForChat` under the installer's
      *  Principal — so a non-member/kicked caller gets `[]` and only books attached to THIS room are ever named.
      *  Owner-scoped by construction: the installer's own attached books. */
-    readonly listBooksForChat: (ownerId: UserId, chatId: ChatId) => Promise<readonly PluginWorldBookView[]>;
+    readonly listBooksForChat: PluginWorldInfoReads["listBooksForChat"];
     /** The `worldinfo.read` entry read (#788 F12): the entries of ONE book, reduced to `PluginWorldEntryView`.
      *  Wired at compose to world-info's OWNER-gated `listEntries`. The ATTACHMENT gate is applied by the bridge
      *  BEFORE this op (the write path's own `isBookAttachedToChat`), so a `bookId` not attached to the invocation
      *  chat never reaches here — this op reads only an already-attachment-verified, installer-owned book. */
-    readonly listEntries: (ownerId: UserId, bookId: WorldBookId) => Promise<readonly PluginWorldEntryView[]>;
+    readonly listEntries: PluginWorldInfoReads["listEntries"];
   };
   /** The `assets.read` capability's READ op (#788 seam-11 read half). Read one asset from the INSTALLER's OWN
    *  CAS — wired at compose to the assets domain's OWNER-GATED `readOwnedAssetBytes` under the installer's
@@ -163,7 +152,7 @@ export interface PluginHostOps {
    *  oracle); an owned asset over the read cap returns metadata with `dataBase64: null`. */
   readonly assets: {
     // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
-    readonly read: (req: { readonly installerUserId: UserId; readonly assetId: string }) => Promise<PluginAssetView | null>;
+    readonly read: PluginAssetReadOps["read"];
     /** The `net.fetch_asset` capability's CAS-WRITE op (#798). Write ALREADY-FETCHED-AND-VALIDATED image bytes
      *  into the INSTALLER's OWN CAS — wired at compose to the assets domain's `store` under the installer's own
      *  Principal (resolved by ROW READ, so a `UserId` here carries no authority; the store re-verifies the mime
@@ -193,7 +182,7 @@ export interface PluginHostOps {
    *  limit is clamped to `PLUGIN_SEARCH_RESULTS_MAX` at the membrane. Returns ranked reduced hits (content
    *  host-capped). No principal resolve — the ownerId in the scope IS the owner gate. */
   readonly search: {
-    readonly documents: (req: { readonly installerUserId: UserId; readonly queryText: string; readonly limit?: number }) => Promise<readonly PluginSearchHit[]>;
+    readonly documents: PluginDocumentReads["documents"];
   };
   /** The plugin-PRIVATE KV plane (`storage.*`; the `plugin_kv` table) — per plugin × installing
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`
@@ -231,7 +220,7 @@ export interface PluginHostOps {
    *     member is unrepresentable on this seam rather than silently collapsing to `all_members`.
    *  `emit` capability: NONE (a host-internal crash notice); `post` capability: `notify`. Both wired at compose. */
   readonly notifications: {
-    readonly emit: (event: NotificationEvent) => Promise<void>;
+    readonly emit: PluginNotificationDelivery["emit"];
     /** The STANDING-ASK TRIO (#1041) the consent prompt drives — a standing ask is a claim that stays true,
      *  so it has three moves an episodic event does not, and the CALLER picks by what actually changed:
      *   - `emitStanding` — the ask GREW: record the event as the recipient's ONE live row of its type
@@ -243,16 +232,10 @@ export interface PluginHostOps {
      *  settled state, not a reason to resurrect it. Wired at compose to `notifications.record`
      *  (`supersedeActiveOfSameType`) / `notifications.refreshStanding` / `notifications.retract`, each +
      *  the per-user bus publish. Capability: NONE — host-internal, never reachable from a guest. */
-    readonly emitStanding: (event: NotificationEvent) => Promise<void>;
-    readonly refreshStanding: (event: NotificationEvent) => Promise<void>;
-    readonly retractStanding: (req: { readonly recipientUserId: UserId; readonly type: NotificationType }) => Promise<void>;
-    readonly post: (req: {
-      readonly pluginId: PluginId;
-      readonly installerUserId: UserId;
-      readonly chatId: ChatId;
-      readonly recipient: PluginNotificationRecipient;
-      readonly message: string;
-    }) => Promise<void>;
+    readonly emitStanding: PluginNotificationDelivery["emitStanding"];
+    readonly refreshStanding: PluginNotificationDelivery["refreshStanding"];
+    readonly retractStanding: PluginNotificationDelivery["retractStanding"];
+    readonly post: PluginNotificationPost["post"];
   };
   /** Surface transient quick-reply chips (`surfaceQuickReply`; the automation-bus `quickReplySurfaced`
    *  event). Rides the SAME frame-free emit seam automation's `surface_quick_reply` arm does
@@ -260,11 +243,7 @@ export interface PluginHostOps {
    *  `source:{kind:"plugin",pluginId}`. Host-authority is admitted in the membrane and rechecked on every call by the bridge.
    *  `capability: chat.quick_reply`. Wired at compose. */
   readonly quickReply: {
-    readonly surface: (req: {
-      readonly pluginId: PluginId;
-      readonly chatId: ChatId;
-      readonly choices: readonly { readonly label: string; readonly sendText: string }[];
-    }) => Promise<void>;
+    readonly surface: PluginQuickReplySurface["surface"];
   };
   /** The `/imagine` engine. `capability: imagery.generate`. The membrane's `generatePicture` returns
    *  the primary image's `assetId` — the guest never sees the cost. Compose binds this to the
@@ -286,15 +265,15 @@ export interface PluginHostOps {
    *  is what keeps `llm.quiet` on the class-1 side of the membrane wall — the guest receives text and must do
    *  something else with it through a capability it was separately granted.
    *
-   *  The `systemPrompt` is HOST-authored (compose): a guest supplies only `prompt`, so it cannot install a
+   *  The `systemPrompt` is host-authored in the plugin domain: a guest supplies only `prompt`, so it cannot install a
    *  persona, a tool posture, or a claim of authority into the system slot. `text` is `""` on an empty/failed
    *  generation (the `summarizeQuiet` convention — the caller treats "" as "no answer"). Cost never crosses
    *  the realm boundary; cost VISIBILITY rides the stats domain off the generation itself. */
   readonly llm: {
     /** `opts` is the U6 widening — the guest's RAW structured-output schema and
-     *  the asset ids it wants attached. Both are resolved at COMPOSE, and both resolutions are the reason the
+     *  the asset ids it wants attached. Both are resolved by the plugin domain through typed owner ports; the
      *  raw bag travels this far rather than being pre-digested: the schema must go through the ONE projection
-     *  rule (`liftJsonSchema` → `projectJsonSchema`, D79) which no domain owns, and the image bytes come from
+     *  rule (`liftJsonSchema` → `projectJsonSchema`), and the image bytes come from
      *  the INSTALLER's own CAS through the owner-gated asset read. An unliftable schema or an asset the
      *  installer does not own is a typed refusal of the CALL — never a silent drop, and never the plugin. */
     readonly quiet: (req: {
