@@ -190,6 +190,69 @@ test("a member call counts through a dynamically imported module's type, and a s
   expect(method.size).toBe(0);
 });
 
+const STATE = "../../../packages/client/src/state";
+const STATE_BARREL = { "packages/client/src/state/index.ts": 'export { saveDraft, clearDraft } from "./drafts.ts";\n' };
+
+// A call through anything the file replaces is a fake: a binding imported from a mocked barrel (by name or by namespace),
+// and a local object merely typed as the module. The controls mock a different module, or import the module for real.
+test("a call is not credited when its binding is imported from a mocked barrel or is a local object typed as the module", {
+  timeout: scaledBudget(15_000),
+}, () => {
+  const mockBarrel = `import { vi } from "vitest";\nvi.mock("${STATE}/index.ts");\n`;
+  const named = called(
+    {
+      [STORE]: STORE_SOURCE,
+      ...STATE_BARREL,
+      "tests/client/state/drafts.test.ts": `${mockBarrel}import { saveDraft } from "${STATE}/index.ts";\nexport const a = saveDraft();\n`,
+    },
+    ["saveDraft"],
+  );
+  const namespace = called(
+    {
+      [STORE]: STORE_SOURCE,
+      ...STATE_BARREL,
+      "tests/client/state/drafts.test.ts": `${mockBarrel}import * as s from "${STATE}/index.ts";\nexport const a = s.saveDraft();\n`,
+    },
+    ["saveDraft"],
+  );
+  const fake = called(
+    {
+      [STORE]: STORE_SOURCE,
+      "tests/client/state/drafts.test.ts": `const fake: typeof import("${STATE}/drafts.ts") = { saveDraft: () => 1, clearDraft: () => 2 };\nexport const a = fake.saveDraft();\n`,
+    },
+    ["saveDraft"],
+  );
+  const other = {
+    "packages/client/src/state/other.ts": "export const other = (): number => 3;\n",
+    "tests/client/state/drafts.test.ts": `import { vi } from "vitest";\nvi.mock("${STATE}/other.ts");\nimport * as s from "${STATE}/index.ts";\nexport const a = s.saveDraft();\n`,
+  };
+  const control = called({ [STORE]: STORE_SOURCE, ...STATE_BARREL, ...other }, ["saveDraft"]);
+
+  expect(named.size).toBe(0);
+  expect(namespace.size).toBe(0);
+  expect(fake.size).toBe(0);
+  expect([...control.keys()]).toEqual(["saveDraft"]);
+});
+
+// Vitest types `vi.mock(import("x"))`, so the import() argument names the mocked module as a string does.
+test("a module mocked through an import() argument is not reached and not called", () => {
+  const importing = `import { saveDraft } from "${STATE}/drafts.ts";\nexport const saved = saveDraft();\n`;
+  const files = (mock: string): Record<string, string> => ({
+    [STORE]: STORE_SOURCE,
+    "packages/client/src/state/other.ts": "export const other = (): number => 3;\n",
+    "tests/client/state/drafts.test.ts": `import { vi } from "vitest";\n${importing}${mock}\n`,
+  });
+  const faked = files(`vi.mock(import("${STATE}/drafts.ts"), () => ({ saveDraft: () => 0 }));`);
+  const doMocked = files(`vi.doMock(import("${STATE}/drafts.ts"));`);
+  const unrelated = files(`vi.mock(import("${STATE}/other.ts"));`);
+
+  expect(reach(faked, [STORE]).has(STORE)).toBe(false);
+  expect(reach(doMocked, [STORE]).has(STORE)).toBe(false);
+  expect(called(faked, ["saveDraft"]).size).toBe(0);
+  expect(reach(unrelated, [STORE]).has(STORE)).toBe(true);
+  expect(called(unrelated, ["saveDraft"]).has("saveDraft")).toBe(true);
+});
+
 test("a helper that re-exports a product export carries reach to the test that imports it", () => {
   const reached = reach(
     {

@@ -197,8 +197,12 @@ class Walker {
     if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
       return node.getLiteralText();
     }
-    if (Node.isAsExpression(node) || Node.isSatisfiesExpression(node) || Node.isParenthesizedExpression(node)) {
+    if (Node.isAsExpression(node) || Node.isSatisfiesExpression(node) || Node.isParenthesizedExpression(node) || Node.isAwaitExpression(node)) {
       return this.constantSpecifier(node.getExpression());
+    }
+    if (Node.isCallExpression(node) && node.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+      const [argument] = node.getArguments();
+      return argument === undefined ? undefined : this.constantSpecifier(argument);
     }
     if (!Node.isIdentifier(node)) {
       return;
@@ -285,17 +289,46 @@ class Walker {
     const values = importedValueNames(scan.file);
     for (const call of scan.file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const callee = call.getExpression();
-      if (Node.isIdentifier(callee) && values.has(callee.getText())) {
+      if (Node.isIdentifier(callee) && values.has(callee.getText()) && !this.bindsFake(callee, scan)) {
         this.addCalled(callee, scan, false);
-      } else if (Node.isPropertyAccessExpression(callee) && this.askedNames.has(callee.getName())) {
+      } else if (Node.isPropertyAccessExpression(callee) && this.askedNames.has(callee.getName()) && !this.bindsFake(callee.getExpression(), scan)) {
         this.addCalled(callee.getNameNode(), scan, true);
       }
     }
   }
 
+  /** Whether a call's binding is a fake rather than the module: imported from a module the file mocks, awaited from
+   *  such a dynamic import, or a local value built as an object literal that is only typed as the module. Judged by
+   *  the binding's declaration, never by its type. */
+  private bindsFake(binding: MorphNode, scan: Scan): boolean {
+    if (Node.isAsExpression(binding) || Node.isSatisfiesExpression(binding) || Node.isParenthesizedExpression(binding) || Node.isAwaitExpression(binding)) {
+      return this.bindsFake(binding.getExpression(), scan);
+    }
+    if (Node.isObjectLiteralExpression(binding)) {
+      return true;
+    }
+    if (Node.isCallExpression(binding) && binding.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+      const specifier = this.constantSpecifier(binding);
+      const module = specifier === undefined ? undefined : this.moduleOfLiteral(scan.file, specifier, undefined);
+      return module !== undefined && scan.mocked.has(module);
+    }
+    if (!Node.isIdentifier(binding)) {
+      return false;
+    }
+    return (binding.getSymbol()?.getDeclarations() ?? []).some((declaration) => {
+      const imported = declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+      if (imported !== undefined) {
+        const module = imported.getModuleSpecifierSourceFile();
+        return module !== undefined && scan.mocked.has(module);
+      }
+      const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+      return initializer !== undefined && this.bindsFake(initializer, scan);
+    });
+  }
+
   /** A member call (`ns.f()`, `(await import("x")).f()`) resolves through the receiver's type, so the receiver can be
-   *  any value of a module's type. The resolved declaration must be a top-level export of its module, which keeps a
-   *  same-named method of an exported object or interface from counting. */
+   *  any value of a module's type that `bindsFake` did not reject. The resolved declaration must be a top-level
+   *  export of its module, which keeps a same-named method of an exported object or interface from counting. */
   private addCalled(callee: MorphNode, scan: Scan, member: boolean): void {
     const target = this.resolved(callee.getSymbol());
     const name = target?.getName();
