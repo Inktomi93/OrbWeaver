@@ -25,7 +25,7 @@ Each fork has a recorded ruling and matching enforcement or a scoped follow-up. 
 
 Landed at `c9d9b81bd0`: strict reach excludes legacy evidence, CPD excludes legacy, and qualification uses `product-v4` with correct singleton group identity. Legacy CI jobs and regression files remain unchanged. Focused checker tests and affected native compiler checks pass. Independent named, dynamic-import and republished-binding controls confirm the corrected provenance reader, including strict positive and noncall controls. Filename enforcement and probe ownership remain open.
 
-Exact shrinking filenames remain unresolved: current resources expose current membership, not historical membership. Keep the ceiling until a lawful monotonic Git-boundary check is designed; do not add a private gate baseline.
+Exact shrinking filenames remain unresolved: current resources expose current membership, not historical membership. The active leg builds a shared native Git path-history reader for layout admission and document ID allocation. It must satisfy the resource vocabulary's independent-consumer and proof conditions, not extend current-file resources silently. Keep the ceiling until exact admission is proven, then remove its redundant count checks with successor controls. Do not add a private path baseline.
 
 Script consumers are `reranker-live`, `ollama-window`, `gemini-capabilities`, `caching` and `smart-picker-live`. Their imported inference rigs contain copied rules and fabricated values. Replace them through real probe composition or a genuinely shared transport helper, not by moving fake harnesses into testkit. Record source-specific follow-ups before closure.
 

@@ -15,7 +15,7 @@ UI exposes node-only token build modules through token-contract and tokens-build
 
 ## Population and migration checks
 
-Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents after the lint migration. Fix dangling `@orb/testkit` citations after testkit doors change. Keep the release-please cmdk failure and real-corpus-liveness findings visible until their completed checks establish a verdict.
+Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents. Repair citation resolution: its package shorthand assumes `packages/<name>/src`, so valid testkit paths are reported missing. Keep release-please and corpus findings visible until completed checks establish a verdict.
 
 The typed-lint migration reports legacy-only condition, coercion, sort, and nullish findings. Preserve their regression cases for the rebuild rather than starting another legacy retrofit. The maintained lint population also reports `shell-modal-header` as an unknown class in `packages/client/src/components/content-dialog.tsx` and `packages/client/src/features/app-shell/components/modal-host.tsx`; adjudicate the class against its actual style home.
 

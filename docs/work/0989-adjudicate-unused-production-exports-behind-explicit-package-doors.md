@@ -24,6 +24,8 @@ The recorded production inventory is fully adjudicated in package/domain batches
 
 ## Evidence
 
+Native production Knip completes on `d4f3734dc1` with additional composition-facade findings and a stale baseline entry. This is a findings verdict, not a tool error or deletion approval. Both shared typed inventory attempts exhaust their heaps without a complete artifact. The memory work item owns the compiler/fact lifecycle blocker. Preserve codemod preparation; apply no candidate or baseline change from incomplete typed evidence.
+
 Use existing `pnpm ast apisurface` results for package-boundary consumption and alias-resolved origin identity. Use `rot`, `dead` and their existing collectors for chains, type-only value references and namespace consumption. These report candidates: scripts/tooling can count as public consumers there, but cannot establish application production use.
 
 Drive one batched codemod from the native production inventory and adjudicated symbol origins. Reuse `tooling/src/codemod` plans and export helpers; extend their type-only/alias handling only where required. Remove unused barrel re-exports separately from declaration exports and implementation deletion. Preserve same-package imports, side effects, dynamic/registry use and supported external APIs. Keep ambiguous candidates as unresolved decisions, not allowlist entries.
