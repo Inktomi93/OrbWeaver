@@ -13,11 +13,12 @@ import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, chats, globalBooks, personaBooks, personas, users, worldBooks, worldEntries } from "@orb/db";
 import { isConstraintViolation, parseRecord, parseStringArrayColumn } from "@orb/db/query";
-import type { CharacterHandle, CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
@@ -33,12 +34,6 @@ async function seedBook(db: Db, ownerId: UserId, raw: string): Promise<WorldBook
 async function seedEntry(db: Db, bookId: WorldBookId, raw: string): Promise<WorldEntryId> {
   const id = castId<WorldEntryId>(raw);
   await db.insert(worldEntries).values({ id, worldBookId: bookId, title: `entry-${raw}`, content: "lore body" });
-  return id;
-}
-
-async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
-  const id = castId<CharacterId>(raw);
-  await db.insert(characters).values({ id, handle: castId<CharacterHandle>(`card-${raw}`), ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 
@@ -155,7 +150,7 @@ test("character_books role CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_cb_badrole" });
   const bookId = await seedBook(db, ownerId, "world_book_cb_badrole");
-  const characterId = await seedCharacter(db, ownerId, "character_cb_badrole");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cb_badrole"), ownerId });
   let caught: unknown;
   try {
     await db.insert(characterBooks).values({
@@ -176,7 +171,7 @@ test("character_books keys on characters.id (D28 — live identity, no cv)", asy
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_cb_key" });
   const bookId = await seedBook(db, ownerId, "world_book_cb_key");
-  const characterId = await seedCharacter(db, ownerId, "character_cb_key");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cb_key"), ownerId });
   await db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: "primary" });
 
   const row = (await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId)))[0];
@@ -208,7 +203,7 @@ test("deleting a book CASCADEs its entries and all four scope junctions", async 
   await seedEntry(db, bookId, "world_entry_cascade");
 
   const chatId = await seedChat(db, { id: "chat_cascade" });
-  const characterId = await seedCharacter(db, ownerId, "character_cascade_wi");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cascade_wi"), ownerId });
   const personaId = await seedPersona(db, ownerId, "persona_cascade_wi");
   await db.insert(chatBooks).values({ chatId, worldBookId: bookId });
   await db.insert(characterBooks).values({ characterId, worldBookId: bookId });
@@ -230,7 +225,7 @@ test("deleting a scope target CASCADEs its junction rows (book survives)", async
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_target_casc" });
   const bookId = await seedBook(db, ownerId, "world_book_target");
-  const characterId = await seedCharacter(db, ownerId, "character_target");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_target"), ownerId });
   const personaId = await seedPersona(db, ownerId, "persona_target");
   const chatId = await seedChat(db, { id: "chat_target" });
   await db.insert(characterBooks).values({ characterId, worldBookId: bookId });
