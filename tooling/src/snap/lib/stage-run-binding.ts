@@ -18,7 +18,7 @@
 // without knowing whether it is on a stage. Consumption is `takeBootDeadStage()`, which clears the latch —
 // a session daemon (which owns its stage's lifecycle for the life of the session, and never calls the
 // consumer) therefore sets a latch that is simply never read, rather than getting its stage killed under it.
-import type { StageRow } from "../contract/stage.ts";
+import type { StageBoundIdentity, StageRow } from "../contract/stage.ts";
 import { urlStageBand } from "./stage-plan.ts";
 
 /** The stage row this run is bound to, plus the two facts a teardown decision needs about it. */
@@ -47,14 +47,14 @@ export function boundStageRow(): StageRow | null {
   return binding?.row ?? null;
 }
 
-function sameProvenance(a: StageRow["dbProvenance"], b: StageRow["dbProvenance"]): boolean {
+function sameProvenance(a: StageBoundIdentity["dbProvenance"], b: StageBoundIdentity["dbProvenance"]): boolean {
   if (a === null || b === null) {
     return a === b;
   }
   return a.copiedFrom === b.copiedFrom && a.cloned === b.cloned && a.copiedAt === b.copiedAt;
 }
 
-function dbSource(row: StageRow): string {
+function dbSource(row: StageBoundIdentity): string {
   return row.dbProvenance === null ? "no recorded db source" : row.dbProvenance.copiedFrom;
 }
 
@@ -62,7 +62,7 @@ function dbSource(row: StageRow): string {
  *  rebuilt or re-let under the run serves other data than the run staged, and the data is the review's
  *  subject: the db provenance changing (a clone replaced by the dev db, or by another clone) is the swap
  *  the run could not otherwise see. */
-export function stageBindingDrift(bound: StageRow, rows: readonly StageRow[]): string | null {
+export function stageBindingDrift(bound: Pick<StageRow, "band"> & StageBoundIdentity, rows: readonly StageRow[]): string | null {
   const current = rows.find((candidate) => candidate.band === bound.band);
   if (current === undefined) {
     return `band ${bound.band} has no row any more`;

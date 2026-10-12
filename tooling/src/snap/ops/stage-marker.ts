@@ -27,8 +27,9 @@ import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
-import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
+import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
+import { parseStageDbProvenance } from "../lib/stage-identity.ts";
 import {
   BANDS_REL,
   LEGACY_ACTIVE_REL,
@@ -70,18 +71,6 @@ function readKeeper(value: unknown): Pick<StageRow, "keeper"> | Record<never, ne
   }
   const keeper: StageKeeper = { pid: value["pid"], armedAt: value["armedAt"] };
   return { keeper };
-}
-
-function readDbProvenance(value: unknown): StageDbProvenance | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const copiedFrom = value["copiedFrom"];
-  const copiedAt = value["copiedAt"];
-  const devDbMtimeAtCopy = value["devDbMtimeAtCopy"];
-  return typeof copiedFrom === "string" && typeof copiedAt === "string" && typeof devDbMtimeAtCopy === "string"
-    ? { copiedFrom, copiedAt, devDbMtimeAtCopy }
-    : null;
 }
 
 /** THE table's env door, read once at module load because every consumer is a FRESH PROCESS (the snap cli,
@@ -138,7 +127,7 @@ function readRow(value: unknown): StageRow | null {
     lastUsedAt: typeof value["lastUsedAt"] === "string" ? value["lastUsedAt"] : startedAt,
     ...readHolders(value["holders"]),
     sessions: Array.isArray(value["sessions"]) ? value["sessions"].filter((name): name is string => typeof name === "string") : [],
-    dbProvenance: readDbProvenance(value["dbProvenance"]),
+    dbProvenance: parseStageDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
     ...readDeath(value["dead"]),
     ...readKeeper(value["keeper"]),

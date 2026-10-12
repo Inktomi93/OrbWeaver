@@ -86,6 +86,10 @@ export function stageRowAuth(row: Pick<StageRow, "dir">): StageAuthMode {
   return row.dir.endsWith(LOCAL_STAGE_DIR_SUFFIX) ? "local" : "single-user";
 }
 
+/** What a run or session binds of a stage when it takes it, so a later call can tell the band was rebuilt or
+ *  re-let underneath it: the boot, the tree and the database. */
+export type StageBoundIdentity = Pick<StageRow, "sha" | "dir" | "startedAt" | "dbProvenance">;
+
 /** The owner key a row answers to, for every "is this stage mine" question. */
 export function rowOwner(row: Pick<StageRow, "checkout" | "owner">): string {
   return row.owner ?? row.checkout;

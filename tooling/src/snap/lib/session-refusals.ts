@@ -45,6 +45,13 @@ export function sessionStageDeadRefusal(name: string, stage: SessionStageState):
   ].join("\n");
 }
 
+export function sessionStageDriftRefusal(name: string, drift: string): string {
+  return [
+    `STAGE CHANGED  session ${name} no longer drives the stage it bound: ${drift} — nothing was measured.`,
+    `               remedies: close and reboot the session with \`pnpm snap --session-close ${name}\` then \`pnpm snap --session ${name} …\` — tooling/src/snap/lib/session-plan.ts`,
+  ].join("\n");
+}
+
 export function sessionDeadText(row: SessionRow, detail: string): string {
   const mid = row.inflightOp === null ? `idle since ${row.lastUsedAt} (last op ${row.lastOp ?? "none"})` : `mid-\`${row.inflightOp}\``;
   return [
