@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-A single pnpm ast verb holds five to ten gigabytes, and a structure run loads several TypeScript programs; on a standard hosted CI runner or a contributor's machine that fails or swaps. Measure peak memory of pnpm check, the structure stage and each pnpm ast verb against the hosted runner's memory, find what loads a program more than once, and make the shared code-facts engine (items 953 to 957) load one program per world and reuse it across gates and verbs. Add a memory check that fails when a whole structure run exceeds the runner's memory.
+A single pnpm ast verb holds five to ten gigabytes, and a structure run loads several TypeScript programs; on a standard hosted CI runner or a contributor's machine that fails or swaps. Measure peak memory of pnpm check, the structure stage and each pnpm ast verb against the hosted runner's memory, find what loads a program more than once, and fix it in the design: the code-facts engine (items 953 to 957) becomes one persisted, incrementally updated fact store that every gate, verb and codemod queries, so no caller loads its own program. The measurement is the evidence; there is no cap.
 
 ## Why
 
@@ -18,7 +18,7 @@ The project is public and builds on hosted runners and contributors' machines; a
 
 ## Done when
 
-pnpm check, the structure stage and every pnpm ast verb complete within the hosted runner's memory with their peak recorded; a regression past it fails.
+pnpm check, the structure stage and every pnpm ast verb complete within the hosted runner's memory with their peak recorded; concurrent pnpm ast verbs share the one store.
 
 ## Evidence
 

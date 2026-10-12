@@ -14,7 +14,7 @@ Tests run the real product through one harness, and one code-facts engine serves
 
 ### Order of work
 
-1. **One code-facts engine.** Every reader of code lives once in `tooling/src/floor/code-facts/`. `pnpm ast` verbs, codemods and gates call it. A reader in `tooling/src/ast/lib/`, `tooling/src/codemod/lib/` or `tooling/src/verify/lib/` that answers the same question is deleted. Start with drizzle query facts (tables, joins, columns, reads and writes) and shape identity, then symbol references and member reads, import doors and reach, liveness, tRPC wiring, ambient calls and casts. Each move proves `pnpm ast` output and gate findings unchanged.
+1. **One code-facts engine.** Every reader of code lives once in `tooling/src/floor/code-facts/`, behind one fact store: built once per world program, updated incrementally from file changes, persisted, and queried by every caller. A caller reads facts; it never loads its own program, so concurrent `pnpm ast` verbs, gates and codemods share one load. `pnpm ast` verbs, codemods and gates call it. A reader in `tooling/src/ast/lib/`, `tooling/src/codemod/lib/` or `tooling/src/verify/lib/` that answers the same question is deleted. Start with drizzle query facts (tables, joins, columns, reads and writes) and shape identity, then symbol references and member reads, import doors and reach, liveness, tRPC wiring, ambient calls and casts. Each move proves `pnpm ast` output and gate findings unchanged.
 2. **The server test harness.** A test composition root in `@orb/testkit/node` builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes those seams at the composition root. Domain harnesses are deleted as their suites move onto the root. Runs in parallel with step 1.
 3. **Builders and corpus.** One builder per contract output and database row, built from contract defaults or by running production. One synthetic corpus from the seed tool, shared by e2e, CT, server tests and side-eye.
 4. **The client CT door.** CTs mount through the real client compose. A story isolates only through the named exception.
@@ -31,7 +31,7 @@ Tests run the real product through one harness, and one code-facts engine serves
 
 ## Rejected
 
-Moving the tests out of the repository: it drops the regression net for the whole rebuild. Per-gate time budgets: gate cost is a design defect fixed by the shared engine, not a rule. Retrofitting fake-heavy server harnesses row by row: each row needs fixture repair and a fresh review.
+Moving the tests out of the repository: it drops the regression net for the whole rebuild. Per-gate time or memory caps: cost is a design defect fixed by the shared fact store, not a limit. Retrofitting fake-heavy server harnesses row by row: each row needs fixture repair and a fresh review.
 
 ## Coupled sites
 
