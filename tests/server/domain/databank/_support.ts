@@ -7,13 +7,14 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { databankSettingsSchema } from "@orb/contracts/databank";
-import type { ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
+import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
@@ -121,13 +122,6 @@ interface UserEventCall {
   readonly event: UserBusEvent;
 }
 
-const EXTRACTOR_VERSION = "textlike-1";
-
-/** Decode UTF-8, normalize newlines to `\n` — the textlike extraction contract (the default fake). */
-function decode(bytes: Uint8Array): string {
-  return new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/\r\n?/g, "\n");
-}
-
 export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}): DatabankHarness {
   const store = makeStoreHarness(db);
   const embeddings = createEmbeddingsService(store.ctx);
@@ -139,16 +133,10 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
   const enqueueReindex: Mock<DatabankContext["enqueueReindex"]> = vi.fn(() => Promise.resolve({ workloadId: castId<WorkloadId>(ids.next("workload")) }));
   const fetchUrl: Mock<DatabankContext["fetchUrl"]> = vi.fn(options.fetchUrl ?? ((): Promise<Uint8Array> => Promise.resolve(new Uint8Array())));
 
-  const { extractor } = options;
-  const extractText: Mock<ExtractTextOp> = vi.fn(
-    extractor
-      ? extractor.op
-      : (bytes: Uint8Array): Promise<ExtractionResult> => {
-          const text = decode(bytes);
-          return Promise.resolve({ text, meta: { format: "markdown" as const, extractorVersion: EXTRACTOR_VERSION, charCount: text.length } });
-        },
-  );
-  const extractorVersion = extractor ? extractor.version : EXTRACTOR_VERSION;
+  // The default extractor is the real `infra/extraction` dispatcher; a test that scripts extraction injects its own.
+  const extractor = options.extractor ?? { op: createExtractText(), version: EXTRACTOR_VERSION };
+  const extractText: Mock<ExtractTextOp> = vi.fn(extractor.op);
+  const extractorVersion = extractor.version;
 
   const assetsStore: Mock<DatabankContext["assetsStore"]> = vi.fn(async ({ principal, bytes, mime }) => {
     const assetId = castId<AssetId>(ids.next("asset"));

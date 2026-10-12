@@ -52,7 +52,7 @@ test("stores the bytes, extracts the canon synchronously, and enqueues ingest", 
   expect(rows[0]?.origin).toBe("upload");
   expect(rows[0]?.sourceAssetId).not.toBeNull();
   expect(rows[0]?.extractedText).toContain("keeper mends the vellum");
-  expect(rows[0]?.extractorVersion).toBe("textlike-1");
+  expect(rows[0]?.extractorVersion).toBe(EXTRACTOR_VERSION);
 });
 
 test("re-upload of identical bytes dedups without re-extracting", async () => {
