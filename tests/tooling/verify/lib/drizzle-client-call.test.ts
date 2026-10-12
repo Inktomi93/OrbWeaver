@@ -2,9 +2,10 @@
 // PARAMETER with no module-member origin. Both directions are planted: a receiver that is not named `db`
 // still resolves, a same-named method on a local class does NOT, and a receiver the checker cannot bind
 // answers `unresolved` — never "foreign", which the caller would read as innocence.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { readDrizzleClientCall } from "../../../../tooling/src/verify/lib/drizzle-client-call.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const DRIZZLE_MODULE = "node_modules/drizzle-orm/index.ts";

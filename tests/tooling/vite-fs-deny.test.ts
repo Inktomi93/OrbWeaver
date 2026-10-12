@@ -20,9 +20,9 @@
 // wrong root), the denied arm alone would read as a clean pass.
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { devServerServes } from "../../packages/client/vite.config.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 

@@ -5,8 +5,8 @@
 import type { AuthMode, ShareRefusalNotice, SignInModeView, SignInTargetMode } from "@orb/contracts/identity";
 import { SIGN_IN_TARGET_MODES, signInModeViewSchema } from "@orb/contracts/identity";
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, shareHarness } from "../_support.ts";
 
 const OIDC_ADDRESS = "https://orbweaver.example.com";

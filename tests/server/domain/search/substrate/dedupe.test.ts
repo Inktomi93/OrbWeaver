@@ -2,9 +2,9 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { blockKeyStr, collapseByContentHash, collapseSegmentChunks } from "#server/domain/search/substrate/dedupe.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
 const CHAR_X = castId<CharacterId>("character_x");

@@ -1,12 +1,12 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as playwrightCssTopology } from "../../../../tooling/src/verify/gates/playwright-css-topology.ts";
 import { gate as sanctionedCssHomes } from "../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [sanctionedCssHomes, playwrightCssTopology] as const;

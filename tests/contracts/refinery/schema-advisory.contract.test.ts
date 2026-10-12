@@ -9,7 +9,7 @@
 
 import { scrubWireSchema } from "@orb/contracts/inference";
 import { refinerySchemaAdvisoryOf, refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 /** A belt-legal SCORE schema carrying the well-known core plus bounds the hosted wire does not carry. */
 function boundedScoreSchema(): Record<string, unknown> {

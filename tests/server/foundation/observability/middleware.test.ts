@@ -11,8 +11,8 @@
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing, logger, observability, observabilityErrorHandler, recentRequests } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // The middleware's own guard charset (mirrored here to assert a minted id is safe by construction). A real
 // request id is only ever drawn from this alphabet — never the caller's rejected bytes.

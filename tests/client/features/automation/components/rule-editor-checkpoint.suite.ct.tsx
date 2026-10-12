@@ -3,11 +3,11 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ruleEditorValues } from "#client/features/automation/lib/rule-editor-model.ts";
-import { createSeededIds } from "../../../../support/ids.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RuleEditorRulesStory } from "../_editor-stories.tsx";
 
 const ids = createSeededIds();

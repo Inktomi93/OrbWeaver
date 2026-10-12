@@ -11,8 +11,8 @@
 // it and adds no decision. Imported by deep path — the bundle builder is deliberately NOT in the lib barrel
 // (it is a dev-instrument internal), the `render-stats.test.ts` posture.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { bugReportRouteFrom, buildBugReportClientBundle, clipCapturedText } from "#client/lib/bug-report-bundle.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A real OAuth-callback location: the authorization CODE and the CSRF `state` in the query, plus a token in
  *  the fragment (the implicit-flow shape). Nothing here is a real credential — the assertions are by value, so

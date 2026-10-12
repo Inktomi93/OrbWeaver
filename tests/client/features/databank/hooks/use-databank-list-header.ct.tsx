@@ -3,8 +3,8 @@
 // every stored source file — waits for an explicit confirm before a single call leaves the client.
 
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
+import { trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { trpcError } from "../../../../support/node/route-trpc.ts";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
 import { READY_DOC, stubDatabank } from "../fixtures.ts";
 

@@ -16,11 +16,11 @@
 //
 // FAMILY: SINGLETON under its own id. There is NO shared `lib/` reader — it reads the parameter list of a
 // delivered FunctionDeclaration and nothing else — and no other policy judges the test-factory vocabulary
-// (`tests/support/factories/**` appears in no other gate module).
+// (`tests/support/node/factories/**` appears in no other gate module).
 // POPULATION PORT: the legacy `scanRoot: (p) => p.includes("tests/support/factories/")` (d5c8b278e3^) ports
-// to `under: ["tests/support/factories/**", "**/tests/support/factories/**"]` across every named root — the
+// to `under: ["tests/support/node/factories/**", "**/tests/support/node/factories/**"]` across every named root — the
 // first glob is the repo-root factories tree, the second is the nested authored case the third mustFlag row
-// pins (`tooling/src/example/tests/support/factories/nested.ts`). Together they admit exactly the substring
+// pins (`tooling/src/example/tests/support/node/factories/nested.ts`). Together they admit exactly the substring
 // match the legacy predicate did.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
@@ -59,7 +59,7 @@ export const gate = defineGate({
   severity: "error",
   population: {
     in: ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
-    under: ["tests/support/factories/**", "**/tests/support/factories/**"],
+    under: ["tests/support/node/factories/**", "**/tests/support/node/factories/**"],
   },
   analysis: "types",
   execution: "selected-files",
@@ -89,20 +89,20 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
-      files: { "tests/support/factories/user.ts": "export function makeUser(db: unknown) {\n  return db;\n}\n" },
+      files: { "tests/support/node/factories/user.ts": "export function makeUser(db: unknown) {\n  return db;\n}\n" },
       expect: { count: 1, token: "makeUser", messageIncludes: "PURE builder accepts a db" },
       why: "a `make*` pure builder accepting a db — it must stay db-free (§4), and the PURE arm's own message says so",
     },
     {
       mode: "types",
-      files: { "tests/support/factories/seed-user.ts": "export function seedUser() {\n  return {};\n}\n" },
+      files: { "tests/support/node/factories/seed-user.ts": "export function seedUser() {\n  return {};\n}\n" },
       expect: { count: 1, token: "seedUser", messageIncludes: "PERSISTED builder has no `db` parameter" },
       why: "a `seed*` persisted builder with NO db param — the persisted-must-have-db arm, pinned by the message the OTHER arm cannot emit (#1954: the parenthetical used to promise a distinctness that did not exist)",
     },
     {
       mode: "types",
       files: {
-        "tooling/src/example/tests/support/factories/nested.ts":
+        "tooling/src/example/tests/support/node/factories/nested.ts":
           "interface Database {}\nexport function makeNested(connection: Database) {\n  return connection;\n}\n",
       },
       expect: { count: 1, line: 2, token: "makeNested", messageIncludes: "PURE builder accepts a db" },
@@ -112,25 +112,25 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "types",
-      files: { "tests/support/factories/user2.ts": "export function makeUser() {\n  return {};\n}\n" },
+      files: { "tests/support/node/factories/user2.ts": "export function makeUser() {\n  return {};\n}\n" },
       why: "a `make*` pure builder with no db param — the sanctioned pure shape, passes",
     },
     {
       mode: "types",
-      files: { "tests/support/factories/seed-user2.ts": "export function seedUser(db: unknown) {\n  return db;\n}\n" },
+      files: { "tests/support/node/factories/seed-user2.ts": "export function seedUser(db: unknown) {\n  return db;\n}\n" },
       why: "a `seed*` persisted builder WITH a db param — the sanctioned persisted shape, passes",
     },
     {
       mode: "types",
       files: {
-        "tests/support/factories/arrows.ts": "export const makeUser = (db: unknown) => db;\nexport const seedUser = () => ({});\n",
+        "tests/support/node/factories/arrows.ts": "export const makeUser = (db: unknown) => db;\nexport const seedUser = () => ({});\n",
       },
       why: "arrow factories are the declared limit of the function-declaration-only policy",
     },
     {
       mode: "types",
       files: {
-        "tests/support/factories/user3.ts":
+        "tests/support/node/factories/user3.ts":
           "// @orb-waive test-factory-contract(makeUser): pinned identity arm; ends when this builder sheds its db.\nexport function makeUser(db: unknown) {\n  return db;\n}\n",
       },
       why: "THE IDENTITY ARM (§4.2): the twin of the PURE-arm mustFlag row, which produces EXACTLY ONE finding, waived at the position this policy reports — the factory's own name, which the module supplies explicitly because the derived token of an exported declaration would be the keyword `export` and every finding in the family would share it",
@@ -138,10 +138,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/support/factories/user4.ts": "export function makeUser() {\n  return {};\n}\n",
+        "tests/support/node/factories/user4.ts": "export function makeUser() {\n  return {};\n}\n",
         "packages/client/src/features/x/lib/factories.ts": "export function makeProduct(db: unknown) {\n  return db;\n}\n",
       },
-      why: "THE POPULATION FENCE, pinned: the `tests/support/factories/**` narrowing is the whole subject — the pure/persisted split is a TEST-FACTORY contract, and a product function named `make*` that takes a db is ordinary code. Dropping the `under` clause flags this file and REDS this row",
+      why: "THE POPULATION FENCE, pinned: the `tests/support/node/factories/**` narrowing is the whole subject — the pure/persisted split is a TEST-FACTORY contract, and a product function named `make*` that takes a db is ordinary code. Dropping the `under` clause flags this file and REDS this row",
     },
   ],
 });

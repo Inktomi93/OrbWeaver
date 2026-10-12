@@ -2,10 +2,10 @@
 import { devNull } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import { projectApplicationKnipScript } from "../../../../tooling/src/verify/lib/application-knip-script.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const LAUNCHER = "tooling/src/verify/cli.ts";

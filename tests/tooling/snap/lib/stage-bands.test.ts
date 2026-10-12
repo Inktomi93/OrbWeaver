@@ -13,6 +13,8 @@
 //  • exhaustion names EVERY row with its idle age (a bare "no bands free" is a mystery, not a refusal);
 //  • a killed watcher reads `degraded`, never `warm` — and a healthy stage reads `warm`, or "degraded" would
 //    just be a way to rebuild every time.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import {
@@ -29,7 +31,6 @@ import {
   stageSweepVerdict,
 } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OTHER_SHA = "f".repeat(40);

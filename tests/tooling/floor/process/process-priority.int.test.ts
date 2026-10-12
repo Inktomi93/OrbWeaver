@@ -4,8 +4,8 @@
 // inheritance property — is only observable through a real process tree.
 import { execFileSync } from "node:child_process";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { nicedCommand, TOOLING_PRIORITY } from "@orb/tooling/floor/process/process-priority";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("a child spawned after lowerToolingPriority inherits the lowered priority", () => {
   const script = [

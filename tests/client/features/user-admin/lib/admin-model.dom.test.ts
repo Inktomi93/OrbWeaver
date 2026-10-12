@@ -12,7 +12,7 @@
 import { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "@orb/client/features/user-admin";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("each per-row admin control names its own subject, in the pane's own grammar", () => {
   // The user rows: N otherwise-identical controls, so the handle is what makes each one askable.

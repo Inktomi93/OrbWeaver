@@ -12,11 +12,11 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { clearVectorTable } from "#server/domain/embeddings/persistence/clear.ts";
 import { upsertCharacterEmbedding } from "#server/domain/embeddings/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;

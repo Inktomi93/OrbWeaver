@@ -10,8 +10,8 @@ import {
   storedGroupConfigSchema,
 } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("raw group input validation preserves a sparse input instead of applying room defaults", () => {
   for (const output of ["narrator", "per-speaker"] as const) {

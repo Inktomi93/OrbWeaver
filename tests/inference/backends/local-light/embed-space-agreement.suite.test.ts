@@ -19,13 +19,13 @@
 // from being expressible; this pin closes the SHIPPED path, which is the one every box runs.
 
 import { providerIdSchema } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { localLightEmbedSpaceTag, resolveEmbedDtype } from "#inference/backends/local-light/model-cache.ts";
 import { DEFAULT_EMBED_MODEL } from "#inference/backends/local-light/tasks.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { localLightRows } from "#inference/capability/sources/curated/local-light.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The curated embedding row for the default encoder — the fact the READ side derives its tag from. */
 function curatedEncoderDtype(): string | undefined {

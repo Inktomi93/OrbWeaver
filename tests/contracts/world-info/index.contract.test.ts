@@ -11,7 +11,7 @@ import {
   worldBookRoleSchema,
   worldInfoScopeSchema,
 } from "@orb/contracts/world-info";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── Role axis (D-deviation pin: exactly primary|auxiliary, one home) ────────
 test("worldBookRoleSchema round-trips both members and rejects others", () => {

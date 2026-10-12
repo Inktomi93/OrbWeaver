@@ -9,9 +9,9 @@
 // the invalidate line from the hook and the second count never arrives. The upload route itself is stubbed
 // at the network boundary (page.route), the same seam routeTrpc uses — never a hand-mock of `uploadAsset`.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { UploadAssetStory } from "./_ct-stories.tsx";
 
 const UPLOAD_URL = "**/api/assets/upload";

@@ -13,9 +13,9 @@ import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { GenerationCapability, UserRoleHandling } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { MessageHandlingSection } from "#client/features/preset/components/message-handling-section.tsx";
-import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_msghandlingaaa";
 

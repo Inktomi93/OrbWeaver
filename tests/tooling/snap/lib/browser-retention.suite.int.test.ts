@@ -7,6 +7,7 @@
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { browserEvidenceRetention } from "@orb/tooling/floor/browser/browser-capture";
@@ -19,7 +20,6 @@ import {
   selectNetworkBodies,
 } from "@orb/tooling/floor/browser/browser-network";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });

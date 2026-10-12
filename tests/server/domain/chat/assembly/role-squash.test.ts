@@ -2,9 +2,9 @@
 // floor clamp is a contracts read now (`tests/contracts/inference/capability/reads.contract.test.ts`).
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { squashSameRole } from "#server/domain/chat/assembly/role-squash.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("squashSameRole", () => {
   test("alternating canon passes through untouched (the common case)", () => {

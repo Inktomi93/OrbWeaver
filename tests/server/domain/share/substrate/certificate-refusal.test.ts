@@ -2,9 +2,9 @@
 // non-public address is refused before any certificate authority is asked; so are the unsafe sign-in modes.
 
 import type { AuthMode, IpCertificateSetting } from "@orb/contracts/identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { canonicalAddress, certificateRefusal } from "#server/domain/share/substrate/certificate-refusal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { APP_PORT, LOCAL_SETUP_URL } from "../_support.ts";
 
 const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };

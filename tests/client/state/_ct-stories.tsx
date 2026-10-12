@@ -245,12 +245,12 @@ import {
 } from "@orb/client/state";
 import type { AssetId, CharacterId, ChatId, PluginId, PresetId, TagId, UserConnectionId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { chromeWidgets, stampAppearanceBootHint } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
-import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
-import { chromeWidgets, stampAppearanceBootHint } from "../../support/browser/ct-door.ts";
-import { isolationRegistry } from "../../support/browser/ct-isolation.ts";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through

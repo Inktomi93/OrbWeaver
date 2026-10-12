@@ -16,6 +16,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ArmDispatch, AutomationOps } from "#server/domain/automation/contract/ops.ts";
@@ -25,8 +27,6 @@ import { createAutomationService, createEnabledRuleIndex } from "#server/domain/
 import { listFiresForRule } from "#server/domain/automation/persistence/fires.ts";
 import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedAsset, seedCharacter, seedMessage } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
 import { makeAutomationHarness, NO_TOOLS, principal, readFailingDb, realAutomationOps, seedHostChat, seedUser } from "../_support.ts";

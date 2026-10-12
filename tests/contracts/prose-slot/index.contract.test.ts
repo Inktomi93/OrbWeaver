@@ -13,7 +13,7 @@ import {
   proseOverridesSchema,
   spliceProseTokens,
 } from "@orb/contracts/prose-slot";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SOME_ID: ProseSlotId = "preset.format.impersonateNudge";
 

@@ -3,8 +3,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { copyFile, createSourceFile, moveFiles } from "../../../../tooling/src/codemod/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { withTree } from "../_kit-tree.ts";
 
 test("a move destination through an external directory symlink is refused without writing either tree", async () => {

@@ -42,8 +42,8 @@ import {
 } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 // The ref bundle's establishment flags. The enum tests below don't force scene population (both false); the
 // establish-when-unset arm is pinned by its own tests further down.

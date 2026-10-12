@@ -316,7 +316,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/ui/src/primitives/example.tsx": "export const example = 1;\n",
-        "tests/support/tool-fixtures.ts": "export const x = 1;\n",
+        "tests/support/node/tool-fixtures.ts": "export const x = 1;\n",
         "tests/e2e/helpers/login.ts": "export const x = 1;\n",
         "tooling/src/snapx/cli.ts": "export {};\n",
         "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",

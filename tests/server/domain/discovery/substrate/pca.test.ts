@@ -2,9 +2,9 @@
 // data's spread (a 2-axis point cloud maps back to its two axes), determinism (fixed init, no RNG), and the
 // degenerate floors (empty / zero-dim).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { pca2d } from "#server/domain/discovery/substrate/pca.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // A D-dim vector with leading components set (rest zero).
 function v(...components: readonly number[]): Float32Array {

@@ -2,8 +2,8 @@
 // the hand-rolled minimal-PDF fixture (known text, valid xref) to pin: text extraction, pageCount, the
 // per-page `\n\n` join, info-dict title, empty-page truthfulness (no OCR), and the throw on corrupt bytes.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { loadPdf } from "#server/infra/extraction/loaders/pdf.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { buildPdf } from "../_fixtures.ts";
 
 test("extracts a single page's text and reports pageCount", async () => {

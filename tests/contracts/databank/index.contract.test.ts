@@ -18,7 +18,7 @@ import {
   scraperKindSchema,
 } from "@orb/contracts/databank";
 import { mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("DOC_ORIGINS is exactly the pinned origin axis [upload, web, youtube, wiki, text]", () => {
   expect(DOC_ORIGINS).toEqual(["upload", "web", "youtube", "wiki", "text"]);

@@ -4,12 +4,12 @@ import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { nativeTypecheck } from "../../packages/client/native-typecheck.config.ts";
 import type { Plugin } from "../../packages/client/node_modules/vite/dist/node/index.js";
 import { createLogger, createServer } from "../../packages/client/node_modules/vite/dist/node/index.js";
 import viteConfig from "../../packages/client/vite.config.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const TIMEOUT = scaledBudget(30_000);

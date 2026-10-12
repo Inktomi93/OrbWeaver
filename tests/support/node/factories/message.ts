@@ -9,8 +9,8 @@ import { messages, messageVariants } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { FROZEN_AT_MS } from "../clock.ts";
-import { createSeededIds } from "../ids.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 import { seedChat } from "./chat.ts";
 
 /** The full `messages` SLOT row (derived from the live schema — the factory `X`). */

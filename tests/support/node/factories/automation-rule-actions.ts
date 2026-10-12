@@ -1,6 +1,6 @@
 import type { AutomationActionInput, AutomationActionType } from "@orb/contracts/automation";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { createSeededIds } from "../ids.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 
 const ids = createSeededIds();
 const bookId = typeIdSchema(ID_PREFIX.worldBook).parse(ids.next(ID_PREFIX.worldBook));

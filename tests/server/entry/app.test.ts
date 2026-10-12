@@ -20,11 +20,11 @@ import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
 import { versionIdentity } from "@orb/server/foundation/version";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the
  *  mount — mirrors the real path (`error-mapping.ts` wraps the DomainError as `.cause`). */

@@ -6,15 +6,15 @@
 import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import type { CharacterRow } from "@orb/testkit/node/factories/character.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { insertCharacter } from "#server/domain/character/persistence/card.ts";
 import { readPluginCardData, writePluginCardData } from "#server/domain/character/persistence/plugin-card-data.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb } from "../../../../support/db.ts";
-import type { CharacterRow } from "../../../../support/factories/character.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const SLUG_A = "scraper-alpha";

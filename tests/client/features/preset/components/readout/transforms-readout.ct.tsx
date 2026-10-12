@@ -11,9 +11,9 @@
 // reorder on either side breaks here. Nothing in this file spells a step's position.
 
 import { PROMPT_LANE_STEPS, pipelineStepKey, REPLY_LANE_STEPS } from "@orb/contracts/preset";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import { TransformsReadoutStory, TransformsReadoutSystemDefaultStory } from "./_readout-stories.tsx";
 
 /** The readout resolves the preset's ATTACHED scripts; an empty set is enough (the pin is the ORDER, and

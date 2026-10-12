@@ -7,9 +7,10 @@
 // behavior. And the refusals are the half that matters most: this comparator replaced an AST gate whose
 // blind spot was a silently shrinking denominator, so a zero-table / no-`assets` / zero-FK read must be a
 // TOOL ERROR here rather than a ✓.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const assets = sqliteTable("assets", { id: text("id").primaryKey(), ownerId: text("owner_id") });
 const characters = sqliteTable("characters", {

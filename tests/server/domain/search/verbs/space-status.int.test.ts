@@ -6,11 +6,11 @@ import type { Db } from "@orb/db";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { GenerationReceipt, GenerationTask } from "#server/domain/embeddings/contract/generation.ts";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
 import { createSpaceStatus } from "#server/domain/search/verbs/space-status.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../../embeddings/_support.ts";
 
 const NOW = 1_700_000_000_000;

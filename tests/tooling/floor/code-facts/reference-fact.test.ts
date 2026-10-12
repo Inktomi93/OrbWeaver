@@ -1,6 +1,7 @@
 // The final reference reader is a fact engine: every supported identity/value carries provenance, and
 // every refusal is a closed, loud reason. These controls plant the spellings that made the old reader lie.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   inspectReferenceWrites,
   readMemberAccess,
@@ -15,7 +16,6 @@ import {
 import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {

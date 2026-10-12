@@ -1,4 +1,4 @@
-// tests/support/chat/scenario — `scenario.chat(tape, opts)`: the composition-root-as-fixture driver that
+// tests/server/domain/chat/_scenario — `scenario.chat(tape, opts)`: the composition-root-as-fixture driver that
 // wires the REAL chat verbs + engine over a REAL libSQL db, with a scripted provider (the {@link Tape}) as the
 // injected `runChatTurn` role. Neo's `scenario.chat` re-derived against ORB's verb surface (N4) — orb has NO
 // group/solo split and no separate verb files: ONE `createTurn(ctx, deps)` bundle drives solo AND group as a
@@ -24,6 +24,10 @@ import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { Tape } from "@orb/testkit/node/chat/tape.ts";
+import { scriptedRunner } from "@orb/testkit/node/chat/tape.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
 import type { ActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
 import type { ChatContext } from "#server/domain/chat/contract/context.ts";
@@ -38,11 +42,7 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { createRequestTurn, createTurn } from "#server/domain/chat/verbs/turn.ts";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../server/domain/chat/_support.ts";
-import { freshDb } from "../db.ts";
-import { makeResolved } from "../factories/resolved-connection.ts";
-import type { Tape } from "./tape.ts";
-import { scriptedRunner } from "./tape.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "./_support.ts";
 
 /** The default resolved connection every scripted turn runs against (the keyless endpoint row, `test-model`). */
 function connectionOf(): Resolved<"chat"> {

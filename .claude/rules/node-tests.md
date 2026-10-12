@@ -19,7 +19,7 @@ Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import c
   `FixtureParseError`.
 - A lazily-imported module graph inside a `test.extend` fixture bills its load to the first test's
   `testTimeout`. Move the load to a top-level side-effect import instead (see
-  `tests/support/composed-real.ts`).
+  `tests/support/node/composed-real.ts`).
 - `hookTimeout` is not raised by a project's `testTimeout`. Set the hook's own timeout in the file whose
   cost lives in `beforeAll`.
 - A test that loops over a whole policy family's proof rows needs a timeout scaled to that loop.

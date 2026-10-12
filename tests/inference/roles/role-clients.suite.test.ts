@@ -2,8 +2,8 @@
 // provider's original failure while the credential strike-out runs.
 
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, ProviderError } from "@orb/inference";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../_support.ts";
 
 test("one role-client bundle re-reads a changed binding on the next call", async () => {

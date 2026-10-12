@@ -16,8 +16,8 @@ import { castId } from "@orb/kit/ids";
 import { matchEntryKeys } from "@orb/kit/world-info";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "@orb/server/primitives/serde/world-info";
 import { bookContentKey, buildWorldBookFile, findDuplicateBook, parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "@orb/server/primitives/serde/world-info";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

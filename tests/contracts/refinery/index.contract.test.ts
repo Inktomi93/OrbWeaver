@@ -35,9 +35,9 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // The PRODUCTION estimator the contract's token cap is measured by — imported so the fixtures below assert
 // their own token count instead of assuming it (a fixture that is not really at-cap proves nothing).
 import { estimateTokens } from "@orb/kit/tokens";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { expectTypeOf } from "vitest";
 import type { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 // The 1-10 rubric's probe values + the card TEXT_MAX twin (contracts/character caps text fields at
 // 100 000 — an applied rewrite must satisfy `character.update`, so the payload pins the same cap).

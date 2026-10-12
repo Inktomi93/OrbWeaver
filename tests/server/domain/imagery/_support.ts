@@ -1,4 +1,4 @@
-import { makeGenerationUsage } from "../../../support/factories/generation-usage.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 // Shared imagery test harness: a fake ImageryContext over a real db, with recording spies for the injected
 // ops (generate/fetch/store/extract/caption/stats). The infra executor + role resolver + CAS write + the
 // chat/character/assets ops are stubs — imagery declares their ports; the composition root binds the real infra.
@@ -17,8 +17,8 @@ import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, 
 import { castId } from "@orb/kit/ids";
 import { createCharacterOwned } from "@orb/server/domain/character";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
-import { makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
-import { createSeededIds } from "../../../support/ids.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { makeResolved, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 

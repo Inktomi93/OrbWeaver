@@ -1,4 +1,4 @@
-// tests/support/chat/assertions — the named turn-invariant assertions (neo's harness assertion helpers,
+// tests/support/node/chat/assertions — the named turn-invariant assertions (neo's harness assertion helpers,
 // re-derived for orb's surface — N4). Each is a THIN wrapper whose diff message beats a raw `toEqual` AND
 // encodes a load-bearing chat invariant the int tests hand-roll repeatedly. They call `expect` internally so a
 // test asserting ONLY through them still satisfies the root `expect.requireAssertions` floor — which is exactly
@@ -12,8 +12,8 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
+import type { TurnRequest } from "@orb/server/domain/chat";
 import { expect } from "vitest";
-import type { TurnRequest } from "#server/domain/chat/contract/results.ts";
 
 /**
  * The KV-CACHE SAFETY invariant (steal-list §N1 "cache-safety"): the assembled STATIC system prefix

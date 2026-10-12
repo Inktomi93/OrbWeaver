@@ -11,9 +11,9 @@
 // attachable arm still reaches the real picker (a gate that swallowed the working case would be the worse
 // bug).
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { RegexTabAttachableStory, RegexTabSystemDefaultStory } from "./_regex-tab-stories.tsx";
 
 /** The owner's script library — one row in the `RegexScriptRow` wire shape (`@orb/contracts/regex`), so the

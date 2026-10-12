@@ -5,7 +5,7 @@
 // @orb-waive-file no-test-fabrication(readonly Golden[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CelBindings, CelProgram } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import goldens from "./cel-goldens.json" with { type: "json" };
 
 interface Golden {

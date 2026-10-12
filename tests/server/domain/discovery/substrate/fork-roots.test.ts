@@ -1,9 +1,9 @@
 // Unit: path-compressed fork-lineage roots — every chat resolves to its family root (via parentChatId), so a
 // look-alike pair sharing a root is `forked` vs an independent `duplicate`. Guards a cyclic/orphan chain.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { forkRoots } from "#server/domain/discovery/substrate/fork-roots.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("forkRoots", () => {
   test("resolves a fork chain to the topmost root", () => {

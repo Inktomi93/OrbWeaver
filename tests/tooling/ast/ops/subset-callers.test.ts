@@ -6,11 +6,12 @@
 // difference is noise, and one that flags nothing is a false clean. The refusal arms are pinned too: a
 // spread, a computed key, an unfollowable argument and a missing argument each leave their site UNJUDGED
 // with a stated reason, never silently folded into "the doors agree".
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { SubsetAudit, SubsetFinding } from "../../../../tooling/src/ast/index.ts";
 import { collectSubsetCallers, crossClassNote, ratifiedNote, ruledDoorPairs, sameClassFirst } from "../../../../tooling/src/ast/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const VERB = "sendTurn";

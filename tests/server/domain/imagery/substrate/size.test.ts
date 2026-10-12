@@ -1,9 +1,9 @@
 // substrate: size — the semantic size presets + the per-mode default. Substrate lands
 // with I1; the request-passing rides I2 (doc 05 FORK 2), so this pins the shape the runner will read.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { defaultSizeFor, SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("SIZE_PRESETS", () => {
   test("the gpt-image-1 published dimensions", () => {

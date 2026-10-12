@@ -1,11 +1,12 @@
 // A seal is a claim about where a symbol is DECLARED. Both directions are planted: an alias, a namespace
 // member and a name-preserving re-export of the sealed declaration are SEALED, a same-named export of
 // another module is FOREIGN, and a door that resolves to nothing is UNRESOLVED rather than absent.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { SealedHome } from "../../../../tooling/src/verify/lib/sealed-origin.ts";
 import { originModuleSpecifier, readSealedOrigin } from "../../../../tooling/src/verify/lib/sealed-origin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const HOME: SealedHome = { pathInfix: "/packages/server/src/infra/providers/", exportedNames: new Set(["deriveRunner"]) };

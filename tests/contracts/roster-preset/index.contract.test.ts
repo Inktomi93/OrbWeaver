@@ -12,9 +12,9 @@ import {
   rosterPresetViewSchema,
 } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAR_A = "character_01j0000000000000000000a01a";
 const CHAR_B = "character_01j0000000000000000000a01b";

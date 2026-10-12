@@ -15,10 +15,10 @@ import { characters, presets, rpgSheets } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { eq } from "drizzle-orm";
 import { findGameByChat, insertGame } from "#server/domain/rpg/persistence/games.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
 import type { RpgHarness } from "../_support.ts";
 import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support.ts";
 

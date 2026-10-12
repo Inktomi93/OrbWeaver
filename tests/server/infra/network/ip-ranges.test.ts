@@ -1,6 +1,6 @@
 import { DEFAULT_TRUSTED_RANGES, isInRanges, isPrivateOrLoopback, isPublicUnicast, matchesCidr } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 describe("matchesCidr", () => {
   test("matches an address inside the range", () => {

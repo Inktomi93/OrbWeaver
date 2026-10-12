@@ -3,9 +3,9 @@
 // from both sides — an off-by-one there is invisible on screen until a field sits exactly on it, and it is
 // what decides whether a footer renders an empty row.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { CAPPED_FIELD_MAX_ROWS, DEFAULT_COUNTER_AT, showsCappedFieldCounter } from "#client/forms/capped-field-model.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const MAX = 4000;
 

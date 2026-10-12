@@ -11,9 +11,9 @@ import { ProviderError } from "@orb/inference";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRefineryWorkloadContributions, createScoreSweep } from "@orb/server/domain/refinery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, refineryWorkloadDepsOf, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 /** The workload engine's `report` — a sink here, plus the messages the assertions read. */

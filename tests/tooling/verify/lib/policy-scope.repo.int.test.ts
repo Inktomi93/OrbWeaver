@@ -1,7 +1,8 @@
 // Live compiler inventory needs the repository resource; scratch scope cases stay in the unit suite.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { resolvePolicyScope } from "../../../../tooling/src/verify/lib/policy-scope.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 test("the real workspace maps @orb/tooling without a hard-coded package path table", { timeout: scaledBudget(10_000) }, ({ repoRoot }) => {

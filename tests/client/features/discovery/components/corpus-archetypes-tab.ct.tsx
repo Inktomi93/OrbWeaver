@@ -1,4 +1,4 @@
-import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
+import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
 // CT: the Corpus CONTEXT "Archetypes" tab draws its cluster MEMBERS AS FACES (issue #139). Both
 // clustering verbs carry `ArchetypeMember.avatarHash` on the wire (issue #134) and the CONTENT family
 // plates already draw it; this tab printed names only, because its local card type re-declared `members`
@@ -19,10 +19,10 @@ import { corpusGroupingProvenance } from "../../../../support/node/corpus-source
 // BEING THERE, or it is only testing an empty response.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusArchetypesTabStory } from "../_ct-stories.tsx";
 
 const SABLE_HASH = "cccc3333";

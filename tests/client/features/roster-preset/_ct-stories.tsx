@@ -32,6 +32,9 @@ import type { HomeTileContribution } from "@orb/client/state";
 import { __readSurfaceBoxForTest, rememberHomeTileSettledHidden, rememberSurfaceBox, selectChat, useHomeTileSettledHidden } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -39,9 +42,6 @@ import { RosterCollectionRows } from "#client/features/roster-preset/components/
 import { RosterPicker } from "#client/features/roster-preset/components/roster-picker.tsx";
 import { rosterPresetHomeTile } from "#client/features/roster-preset/lib/home-rosters-tile.tsx";
 import { RosterMemberSurface } from "#client/features/roster-preset/surfaces/roster-member-surface.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 // The stories' active-chat id — the `.ct.tsx` stubs `chat.getChat`/`automation.listRules` for this same id
 // (a plain module-const, not an export: a story module exports components ONLY).

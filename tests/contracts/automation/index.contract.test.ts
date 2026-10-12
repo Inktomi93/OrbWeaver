@@ -38,8 +38,8 @@ import {
 } from "@orb/contracts/automation";
 import { DOMAIN_EVENT_TYPES } from "@orb/contracts/events";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("CHAT_TRIGGER_TYPES is the pinned 16-member chat-bus subset (v1 + reserved, 01 §1)", () => {
   expect(CHAT_TRIGGER_TYPES).toEqual([

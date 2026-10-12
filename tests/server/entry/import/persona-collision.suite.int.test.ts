@@ -21,6 +21,10 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter, seedPersona, seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ChatImportContext } from "#server/domain/chat/contract/import.ts";
@@ -30,10 +34,6 @@ import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
 import { createImportPersonas } from "#server/domain/import/verbs/import-personas.ts";
 import { createBulkImportPersonas } from "#server/domain/persona/persistence/import-write.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb } from "../../../support/db.ts";
-import { seedCharacter, seedPersona, seedUser } from "../../../support/factories/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 
 const NOW = 1_700_000_000_000;
 const CHARACTER_NAME = "Eleni Northwell";

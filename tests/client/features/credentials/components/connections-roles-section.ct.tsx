@@ -20,6 +20,13 @@
 
 import { CONNECTION_OP_CODES, TASKS } from "@orb/contracts/inference";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
+import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { makeCachePolicy, makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
+// The floor capability: the CHEAP model §5.3a warns about, legal on the Utility slot and unable to do two of its three jobs.
+import { TEXT_ONLY_CAPABILITY } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The row labels + render order are read from their ONE home rather than re-typed — a re-spelled literal is
@@ -29,13 +36,6 @@ import type { Locator, Page } from "@playwright/test";
 import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "#client/lib/connection-roles.ts";
 import type { ReindexPreview } from "#client/lib/embedder-rebuild.ts";
 import { REBUILD_JOBS_LABEL, REBUILD_STATUS_COPY, REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "#client/lib/embedder-rebuild.ts";
-import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import { makeCachePolicy, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-// The floor capability: the CHEAP model §5.3a warns about, legal on the Utility slot and unable to do two of its three jobs.
-import { TEXT_ONLY_CAPABILITY } from "../../../../support/node/utility-role.ts";
 import { ALL_AVAILABLE } from "../_connection-fixtures.ts";
 import {
   ConnectionsPaneNarrowStory,

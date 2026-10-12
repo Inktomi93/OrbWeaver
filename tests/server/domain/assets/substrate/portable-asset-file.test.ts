@@ -6,6 +6,7 @@
 import { assetKindSchema } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   buildPortableAssetFilename,
@@ -13,7 +14,6 @@ import {
   hashAssetBytes,
   parsePortableAssetFilename,
 } from "#server/domain/assets/substrate/portable-asset-file.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const assetId = (): AssetId => mintTypeId(ID_PREFIX.asset);
 const HASH_A = "a".repeat(64); // a well-formed (if synthetic) sha-256 hex address.

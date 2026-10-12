@@ -3,11 +3,12 @@
 // pooling every drizzle column NAMED `value`, so `json_extract(element.value, '$.k')` was attributed to the
 // open `settings.value` blob and any key that blob's writers do not spell went RED — a LYING INSTRUMENT whose
 // verdict depended on what else had contributed to the pooled vocabulary that run.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
 

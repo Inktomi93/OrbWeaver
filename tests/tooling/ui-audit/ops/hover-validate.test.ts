@@ -1,9 +1,10 @@
 // The forced-state pass's PAGE→NODE seams, each proven to refuse LOUDLY (#1004). The pass's founding
 // defect was a silent `JSON.parse(raw) as number[]` over selector strings, which turned restoration
 // withholding off without a single error line; these are the pins that keep every seam beside it honest.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { attrRestored, candidateIndices, groupReadResult, hoverCensusResult, pageJsonString } from "../../../../tooling/src/ui-audit/ops/hover-validate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CENSUS = { rest: [], groups: [], attrGroups: [], census: { textCandidates: 0, subjects: 0 } };
 const GROUP_READ = JSON.stringify({ reads: [], shadows: [], radials: [] });

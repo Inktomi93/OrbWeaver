@@ -1,9 +1,10 @@
 // CT: the progress seal — a determinate bar reports its value through aria-valuenow; the
 // indeterminate state (value={null}) drops aria-valuenow and flips Base UI's data-indeterminate.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Progress } from "@orb/ui/progress";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("determinate progress reflects its value", async ({ mount, page }) => {
   await mount(<Progress aria-label="Uploading" value={72} />);

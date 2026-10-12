@@ -14,7 +14,7 @@
 // @subject packages/server/src/domain/automation/verbs/set-rule-suggest-on-refusal.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("a rule is born OFFERING (the F4 default) and the verb flips it durably, announcing the change", async () => {

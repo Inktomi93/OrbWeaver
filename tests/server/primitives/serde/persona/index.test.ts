@@ -16,8 +16,8 @@ import {
   personaContentKey,
   personaPlacementOf,
 } from "@orb/server/primitives/serde/persona";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

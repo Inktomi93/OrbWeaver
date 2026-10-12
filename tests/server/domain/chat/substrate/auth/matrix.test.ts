@@ -1,7 +1,8 @@
 // The typed per-verb authority matrix (spine §2a).
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { CHAT_VERB_AUTHORITY } from "#server/domain/chat/substrate/auth/index.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
   test("the the chat design doc §11 explicit classifications hold", () => {

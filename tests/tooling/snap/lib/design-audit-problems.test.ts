@@ -9,9 +9,10 @@
 // rides as its own row rather than reddening the app's verdict (design-audit-problems.ts's own header).
 // A bound this instrument chose for itself is the same class of fact, so the remainder is published on
 // the SELECTOR line, in `selectors-unproven`, and here — never as a run-level NO VERDICT about the app.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Finding } from "@orb/tooling/ui-audit";
 import { designAuditProblems } from "../../../../tooling/src/snap/lib/design-audit-problems.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FINDING: Finding = {
   rule: "tap-target",

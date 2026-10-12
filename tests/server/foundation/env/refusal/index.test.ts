@@ -2,9 +2,9 @@
 // issue with no key still carried, and never the parser's JSON dump.
 
 import { COOKIE_AUTH_MODES } from "@orb/contracts/identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { EnvRefusedError, formatEnvRefusal } from "#server/foundation/env/refusal/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const WHOLE_ENV_MESSAGE = "oidc needs its issuer";
 

@@ -29,12 +29,12 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env } from "@orb/server/foundation/env";
 import type { RateLimitDecision } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { like } from "drizzle-orm";
 import { describe } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import { createRateLimitGate } from "#server/entry/rate-limit-gate.ts";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const WINDOW = env.RATE_LIMIT_WINDOW_MS;
 // ALIGNED to a fixed-window boundary on purpose: the limiter floors `now` to `windowStart`, so an arbitrary

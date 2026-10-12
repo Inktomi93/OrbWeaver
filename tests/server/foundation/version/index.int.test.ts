@@ -24,8 +24,8 @@ import {
   readVersionStamp,
   VERSION_STAMP_FILE,
 } from "@orb/server/foundation/version";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const COMMIT = "f4cdde34be59914c4a2aecec108899bd034579ac";
 const OTHER_COMMIT = "f00dcafe1234567890abcdef1234567890abcdef";

@@ -6,10 +6,10 @@
 import { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
 import { holdsChatHostAuthority, holdsOwnerAuthority } from "#server/domain/automation/substrate/authority.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { ruleFixture, seedUser } from "../_support.ts";
 

@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_SAVED_TOTALS, savedSessionTotals } from "#inference/backends/agent-sdk/session/frames.ts";
 import type { AgentSdkSessionId } from "#inference/contract/identity.ts";
 import { agentSdkSessionIdSchema } from "#inference/contract/identity.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 type SessionStoreEntry = Parameters<typeof savedSessionTotals>[0][number];
 

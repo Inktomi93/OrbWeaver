@@ -6,9 +6,9 @@
 import type { Can } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { checkToolCapability } from "#server/domain/tool-use/substrate/capability.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { execOf } from "../_support.ts";
 
 test("a null capability (member floor) passes without calling can()", () => {

@@ -2,6 +2,7 @@
 // error renders in the destructive token and flips the control invalid (ui-package-design §6.1).
 // Also covers the R5 fix (FieldProps extends the full Field.Root surface) and R2 (FieldValidity).
 
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Field, FieldLayout } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -9,7 +10,6 @@ import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 import { FieldValidityStory } from "./field-validity.fixtures.tsx";
 
 test("wires the label to the composed control", async ({ mount, page }) => {

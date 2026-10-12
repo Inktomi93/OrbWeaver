@@ -3,7 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promi
 import { SourceMap } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "../fixtures.ts";
+import { expect, test } from "./fixtures.ts";
 import { retainNativeSources, SELECT_BUILD_DIAGNOSTIC_FILE, SELECT_BUILD_REGISTRY_FILE } from "./select-native-sources.ts";
 
 const PAGE_URL = "http://localhost:3100/";

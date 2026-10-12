@@ -5,8 +5,8 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const HOOK_REL = ".claude/hooks/codegraph-project.mjs";
 

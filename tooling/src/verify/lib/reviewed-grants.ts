@@ -28,6 +28,13 @@ import { REVIEWED_GRANTS_TEST_HAND_SHAPE } from "./reviewed-grants-test-hand-sha
 import { REVIEWED_GRANTS_TEST_PRODUCTION_CLONE } from "./reviewed-grants-test-production-clone.ts";
 import { REVIEWED_GRANTS_TEST_REACH_CLIENT } from "./reviewed-grants-test-reach-client.ts";
 import { REVIEWED_GRANTS_TEST_REACH_MODULES } from "./reviewed-grants-test-reach-modules.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A } from "./reviewed-grants-tests-raw-package-reach-a.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B } from "./reviewed-grants-tests-raw-package-reach-b.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C } from "./reviewed-grants-tests-raw-package-reach-c.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D } from "./reviewed-grants-tests-raw-package-reach-d.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E } from "./reviewed-grants-tests-raw-package-reach-e.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F } from "./reviewed-grants-tests-raw-package-reach-f.ts";
+import { REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G } from "./reviewed-grants-tests-raw-package-reach-g.ts";
 import { REVIEWED_GRANTS_TOOLING_TO_PERMISSION } from "./reviewed-grants-tooling-to-permission.ts";
 import { REVIEWED_GRANTS_Z_TO_CITATIONS } from "./reviewed-grants-z-to-citations.ts";
 import { REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX } from "./reviewed-grants-zoderrorissues-zindex.ts";
@@ -57,6 +64,13 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_TEST_HAND_SHAPE,
       ...REVIEWED_GRANTS_TEST_PRODUCTION_CLONE,
       ...REVIEWED_GRANTS_TEST_REACH_MODULES,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_A,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F,
+      ...REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G,
       ...REVIEWED_GRANTS_TOOLING_TO_PERMISSION,
       ...REVIEWED_GRANTS_Z_TO_CITATIONS,
       ...REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX,

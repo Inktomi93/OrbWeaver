@@ -2,9 +2,10 @@
 // picks-pane read: the GAME's def shadows the PRESET's on a name clash (owner ruling, 2026-08-01). Pins the
 // rule itself; the assembly suite pins what the shadow means for a built registry (which def renders, which
 // never draws) and the lifecycle suite what it means for the pane.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { shadowPresetUserMacros } from "#server/domain/chat/substrate/user-macros.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const preset = [{ name: "mood", body: "preset" }, { name: "stakes" }];
 

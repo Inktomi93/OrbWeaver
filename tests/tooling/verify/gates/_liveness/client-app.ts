@@ -9,6 +9,8 @@
 // `@orb/kit/ids`) and the policy must reach the violation through the corpus verify actually loads. Every
 // ADD path is new and sits where the policy's population admits it; the verdict substring is the row's own
 // `messageIncludes` where it has one and the policy's message otherwise.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chromeRegistryCompleteness } from "../../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
 import { gate as configAnchorInRegistry } from "../../../../../tooling/src/verify/gates/config-anchor-in-registry.ts";
 import { gate as configGroupCompleteness } from "../../../../../tooling/src/verify/gates/config-group-completeness.ts";
@@ -45,7 +47,6 @@ import { gate as staleDraftCommit } from "../../../../../tooling/src/verify/gate
 import { gate as testidTypedOnly } from "../../../../../tooling/src/verify/gates/testid-typed-only.ts";
 import { gate as windowedInfiniteQuery } from "../../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
 import { gate as zustandSelectorDerived } from "../../../../../tooling/src/verify/gates/zustand-selector-derived.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const CHAT_LIB = "packages/client/src/features/chat/lib";
 const CHAT_COMPONENTS = "packages/client/src/features/chat/components";

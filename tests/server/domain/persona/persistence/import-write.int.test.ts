@@ -10,13 +10,13 @@ import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { PersonaImportContext } from "#server/domain/persona/contract/import.ts";
 import { createBulkImportPersonas } from "#server/domain/persona/persistence/import-write.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 

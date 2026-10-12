@@ -2,12 +2,13 @@
 // not done. It drives the declared rows through the production dispatcher, proves the loader registers the
 // policy and holds the real tree clean. Its real-corpus positive control is an arm in
 // `_liveness/tooling.ts`, run by the one shared liveness runner.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { gate } from "../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATE_GLOBS = ["tooling/src/verify/gates/*.ts"] as const;

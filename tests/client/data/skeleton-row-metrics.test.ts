@@ -8,8 +8,8 @@
 // a tablet, which is the whole reason this is arithmetic over resolved tokens rather than a literal.
 
 import { skeletonRowCountFor } from "@orb/client/data";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
-import { expect, test } from "../../support/fixtures.ts";
 
 const FALLBACK = 3;
 /** The two boxes the defect was MEASURED on, verbatim from the re-check's `orb:surface-box` read. */

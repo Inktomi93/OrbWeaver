@@ -22,6 +22,12 @@ import {
   createTurnPersonaResolver,
   voicePersonaFor,
 } from "@orb/server/entry/compose";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal as principalOf } from "@orb/testkit/node/factories/principal.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { McpCallResult } from "@orb/testkit/node/mcp-in-memory.ts";
+import { connectMcpInMemory } from "@orb/testkit/node/mcp-in-memory.ts";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { ChatToolExecFrame, ChatToolOps } from "#server/domain/chat/contract/context.ts";
@@ -31,12 +37,6 @@ import type { PersonaListView } from "#server/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { principal as principalOf } from "../../../support/factories/principal.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import type { McpCallResult } from "../../../support/mcp-in-memory.ts";
-import { connectMcpInMemory } from "../../../support/mcp-in-memory.ts";
 import { defOf, execOf, makeHarness } from "../../domain/tool-use/_support.ts";
 
 function row(role: TurnMessage["role"], text: string, name?: string): TurnMessage {
@@ -603,7 +603,7 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
 // The chat turn offers its tools backend-neutrally and `@orb/inference` mounts them
 // (D177). These pins run the REAL pipeline, the REAL bridge, the REAL `toChatRequest` and
 // the REAL `ToolUseService`; the only stand-in is the runner, which plays the Agent SDK by calling the mounted
-// MCP server over JSON-RPC (tests/support/mcp-in-memory.ts) — so the server's own argument validation and its
+// MCP server over JSON-RPC (tests/support/node/mcp-in-memory.ts) — so the server's own argument validation and its
 // throw-to-`isError` conversion are on the path, exactly as in production.
 describe("tool delivery — the real tool-use service behind the neutral offer", () => {
   const ToolCapability = makeGenerationCapability({

@@ -13,11 +13,11 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { TagContext } from "#server/domain/tag/contract/service.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 
 /** The harness: the TagContext + recorders/controls for the injected membership-gate fake. */
 export interface TagHarness {

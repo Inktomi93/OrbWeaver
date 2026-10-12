@@ -4,8 +4,8 @@
 
 import { BUILTIN_PROVIDERS, GENERATION_FLOOR, providerAvailabilitySchema, resolvedConnectionViewSchema } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const VIEW = {
   task: "chat",

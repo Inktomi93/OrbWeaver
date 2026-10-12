@@ -7,9 +7,9 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, ruleClock, synthFact } from "#server/domain/automation/substrate/dry-run.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const BASE_ENV: AutomationCelEnv = {
   event: { bus: "chat", type: "chatOpened", chatId: "chat_x" },

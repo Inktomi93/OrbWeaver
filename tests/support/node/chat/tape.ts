@@ -1,4 +1,4 @@
-// tests/support/chat/tape — the provider-response TAPE + the FIFO scripted runner (neo's
+// tests/support/node/chat/tape — the provider-response TAPE + the FIFO scripted runner (neo's
 // `tests/support/harness/` tape/runner, re-derived against ORB's verb surface — N4). A `tape()` scripts an
 // ORDERED list of role responses; `scriptedRunner(tape)` presents them as the ONE seam orb's chat engine
 // injects — `RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>` (contract/context.ts) —
@@ -18,13 +18,12 @@
 //     TERMINAL thrown `ProviderError` (retries already exhausted below); the engine maps any post-turnStarted
 //     throw to `turnAborted` (reason `error`, and it rethrows — `user`/`stale` only when the turn's SIGNAL is
 //     settled, never because of an error's NAME: engine.ts `abortReasonFor`). Assert with
-//     the `toThrowProviderError(kind)` matcher (support/matchers.ts).
+//     the `toThrowProviderError(kind)` matcher (support/node/matchers.ts).
 
 import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
-import type { RunChatTurnOp } from "#server/domain/chat/contract/context.ts";
-import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
-import { testModelId } from "../inference-identities.ts";
+import type { RunChatTurnOp, TurnEconomics, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
+import { testModelId } from "../../iso/inference-identities.ts";
 
 /** The default per-turn economics a scripted `reply` reports (matches the hand-rolled chat int fakes —
  *  `{ tokensIn: 4, tokensOut: 2, model: "test-model" }` — so a converted test's stats deltas stay identical).

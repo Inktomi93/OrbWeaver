@@ -1,8 +1,8 @@
 // Unit: theme-name sanitization.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { parseThemeName } from "#server/domain/discovery/themes/utils.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseThemeName", () => {
   test("strips surrounding quotes and trims", () => {

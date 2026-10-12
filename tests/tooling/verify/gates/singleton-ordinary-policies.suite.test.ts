@@ -39,6 +39,8 @@
 // the seven (`baseui-render-prop-composition`, `no-external-media-without-gate`,
 // `no-array-literal-querykey`) were on the #2000 Tier-3 CLOSE-BY-RULE roster; the other four were not, and their
 // differentials are #2000 work rather than something this file claims.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -52,7 +54,6 @@ import { gate as testFactoryContract } from "../../../../tooling/src/verify/gate
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/singleton-ordinary-policies";
 
@@ -193,7 +194,7 @@ test("no-external-media-without-gate: a waiver naming the DERIVED tag-name posit
 
 test("test-factory-contract: a waiver naming the FACTORY, not its db parameter, binds to its finding", () => {
   const waived = passOf(testFactoryContract, {
-    "tests/support/factories/waived.ts": `// @orb-waive test-factory-contract(makeUser): ${REASON}\nexport function makeUser(db: unknown) {\n  return db;\n}\n`,
+    "tests/support/node/factories/waived.ts": `// @orb-waive test-factory-contract(makeUser): ${REASON}\nexport function makeUser(db: unknown) {\n  return db;\n}\n`,
   });
 
   expect(waived.toolErrors).toEqual([]);
@@ -244,7 +245,9 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every o
     ],
     [
       testFactoryContract,
-      { "tests/support/factories/dead.ts": `// @orb-waive test-factory-contract(db): ${DEAD}\nexport function makeUser(db: unknown) {\n  return db;\n}\n` },
+      {
+        "tests/support/node/factories/dead.ts": `// @orb-waive test-factory-contract(db): ${DEAD}\nexport function makeUser(db: unknown) {\n  return db;\n}\n`,
+      },
     ],
     [
       noArrayLiteralQueryKey,

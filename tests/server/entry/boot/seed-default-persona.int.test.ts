@@ -15,11 +15,11 @@ import type { AssetId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createPersonaService } from "@orb/server/domain/persona";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
 import { createDefaultPersonaSeeder } from "#server/entry/boot/seed-default-persona.ts";
 import { createSeedAvatarOps } from "#server/entry/compose/seed-avatar-ops.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
 import { makeHarness as makePersonaHarness, principal, seedUser } from "../../domain/persona/_support.ts";
 

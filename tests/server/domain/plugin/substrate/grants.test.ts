@@ -3,6 +3,7 @@
 // never confirmed, OR a `netHosts` destination the prior manifest never declared — must land disabled for
 // re-confirmation. No db, no Principal — just set math.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   consentedNetHosts,
@@ -12,7 +13,6 @@ import {
   ungrantableCapabilities,
   widenedNetHosts,
 } from "#server/domain/plugin/substrate/grants.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("ungrantableCapabilities", () => {
   test("a grant ⊆ declared is valid (empty result)", () => {

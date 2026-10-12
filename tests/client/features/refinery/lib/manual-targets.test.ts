@@ -3,9 +3,9 @@
 // one input that turns a dialog row into an unlandable write, and the "no indexes named" arm means
 // "every greeting", not "none".
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { manualTargetsOf, manualTextOf } from "#client/features/refinery/lib/manual-targets.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD = {
   description: "a description",

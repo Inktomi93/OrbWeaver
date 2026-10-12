@@ -4,10 +4,10 @@
 
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { hideActionName, revealActionName } from "#ui/lib/action-names.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { RpgVeiledSectionStory } from "../_ct-stories.tsx";
 
 type Reveal = TrpcWireOutput<"rpg.revealHidden">;

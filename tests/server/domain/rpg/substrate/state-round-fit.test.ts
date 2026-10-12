@@ -1,6 +1,6 @@
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { stateRoundNeededTokens } from "#server/domain/rpg/substrate/state-round-fit.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the state round prices its tool/schema payload and reserves output even with empty story text", () => {
   expect(stateRoundNeededTokens([])).toBe(DEFAULT_MAX_OUTPUT_TOKENS);

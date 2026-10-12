@@ -1,9 +1,9 @@
 // SectionContent CT: a section inside the keep-mounted window survives leaving and returning, so the rail
 // swap back is a reveal, not a fresh mount of the whole section.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { AppShellContentFetchStory, SectionContentDeferredStory, SectionContentKeepMountedStory } from "../_ct-stories.tsx";
 
 test("unrevealed phone content starts no request and revealed editors retain their draft", async ({ mount, page }) => {

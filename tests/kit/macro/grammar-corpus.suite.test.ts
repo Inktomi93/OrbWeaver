@@ -9,7 +9,7 @@
 
 import type { MacroRegistry, ProcessMacroOptions, VarOp } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_FLAG_DEFS, parseMacros, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
   return { char: "Alice", user: "Bob", persona: "Hero", scenario: "A quest", env: {}, ...extra };

@@ -12,8 +12,8 @@
 
 // @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelContrast, pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
 
 test("a claiming region takes the identity band: its band renders, the section's own does not, the bracket renders around it", async ({ mount }) => {

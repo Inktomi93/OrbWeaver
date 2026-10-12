@@ -6,8 +6,8 @@ import type { Capability, GenerationCapability } from "@orb/contracts/inference"
 import { GENERATION_FLOOR, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
 import { FROZEN_NOW, fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";

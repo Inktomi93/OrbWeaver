@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(367 registered gates)
+(368 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -363,7 +363,8 @@ in its own module header, never restated here.
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
 | `testid-typed-only` | — | ordinary/error | @client | freeform data-testid string — use the… |
 | `testid-typed-only-stories` | testid-typed-only | ordinary/error | @tests\* | freeform data-testid string in a CT… |
-| `tests-package-subpath` | — | hard/error | @tests | a test reaches into a package's… |
+| `tests-package-subpath` | — | hard/error | @tests | a test reaches by a relative path… |
+| `tests-raw-package-reach` | tests-package-subpath | reviewed-grant/error | @tests | a test reaches a package's internals… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
 | `tokens-contract` | — | hard/error | none | the token vault violates the pinned… |
 | `tooling-argv-front-door` | process-member | reviewed-grant/error | @tooling | a second argv reader — the operator's… |

@@ -15,7 +15,7 @@ import {
   pluginManifestSchema,
   pluginToolWireName,
 } from "@orb/contracts/plugin";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const BASE = {
   id: "my-plugin",

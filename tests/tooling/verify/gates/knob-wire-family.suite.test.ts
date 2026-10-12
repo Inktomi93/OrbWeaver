@@ -11,11 +11,12 @@
 // The declared rows themselves (15 catches, 8 passes, 13 refusals) run on the static
 // `structure:policy-conformance` stage; the first test here only asserts they are readable, so a row that
 // stops conforming is caught in this file too rather than only in the whole-corpus stage.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate } from "../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
 import { KNOB_WIRE_OPERATIONS } from "../../../../tooling/src/verify/lib/knob-wire-fact.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("every declared row conforms", () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);

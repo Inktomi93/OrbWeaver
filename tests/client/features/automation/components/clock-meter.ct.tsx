@@ -12,9 +12,9 @@
 import { CLOCK_MAX_VAR_KEY, CLOCK_VAR_KEY } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ClockMeterStory } from "../_ct-stories.tsx";
 
 const CHAT = castId<ChatId>("chat_ct_clock_00000001");

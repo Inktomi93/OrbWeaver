@@ -8,11 +8,11 @@
 // The parser is stubbed on purpose: the truncation itself happens inside `heap-devtools.ts` (it slices at
 // HEAP_OUTGOING_EDGE_CAP), and what this file owns is whether the RECEIPT describes that policy honestly.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { HeapSnapshotIdentity, HeapSnapshotReceipt } from "../../../../tooling/src/snap/contract/heap.ts";
 import { HEAP_OUTGOING_EDGE_CAP } from "../../../../tooling/src/snap/contract/heap.ts";
 import { buildHeapRetainerReceipt } from "../../../../tooling/src/snap/lib/heap-analysis.ts";
 import type { HeapDevToolsParser, HeapParsedRetainers } from "../../../../tooling/src/snap/lib/heap-devtools.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // @orb-waive no-test-fabrication(unknown): minimal snapshot identity double; heapLimit reads only label/cap — the retainer-cap arithmetic is under test, not the identity shape Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const IDENTITY = {

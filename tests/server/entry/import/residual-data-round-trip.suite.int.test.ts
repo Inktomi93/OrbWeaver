@@ -16,9 +16,9 @@ import { createCharacterService } from "@orb/server/domain/character";
 import { createExportService } from "@orb/server/domain/export";
 import type { ImportAssetPort, ImportTagPort } from "@orb/server/entry/import";
 import { runProfileImport } from "@orb/server/entry/import";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeCharacterHarness, seedUser } from "../../domain/character/_support.ts";
 import { makeHarness as makeExportHarness } from "../../domain/export/_support.ts";
 

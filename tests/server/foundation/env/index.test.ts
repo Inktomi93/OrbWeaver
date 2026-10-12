@@ -6,11 +6,11 @@ import process from "node:process";
 import { parseEnv } from "node:util";
 import { AUTH_MODES, envFileText, SIGN_IN_TARGET_MODES, signInModeEnvLines } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { runsInContainer } from "#server/foundation/env/container.ts";
 import { APP_SECRET_ENV_KEYS } from "#server/foundation/env/index.ts";
 import { startLaunch } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // Every re-import runs with the process CWD parked in a throwaway directory. foundation/env's `.env`
 // loader is cwd-relative (as dotenv's was), so this is what keeps a developer's real repo-root `.env`

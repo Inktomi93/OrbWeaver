@@ -3,9 +3,9 @@
 // (chatId: null) rule does THREE FEWER reads and binds an EMPTY chat plane rather than inventing a room.
 
 import { globalVariables } from "@orb/db";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { authorGlobals, buildCelEnv } from "#server/domain/automation/substrate/cel-env.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
 import { ruleFixture } from "../_support.ts";
 

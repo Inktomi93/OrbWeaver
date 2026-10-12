@@ -5,9 +5,9 @@
 
 import type { Capability, CapabilityOverride, EmbeddingCapability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
 import { builtinProvider, GENERATION_FLOOR, RERANK_MIN_WINDOW_TOKENS, requirementMet, TURNS_FLOOR, taskDef } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { applyEndpointPosture } from "#inference/capability/floor.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 function generationOf(capability: Capability): GenerationCapability {
   if (capability.kind !== "generation") {

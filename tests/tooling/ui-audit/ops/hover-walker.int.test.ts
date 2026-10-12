@@ -30,8 +30,8 @@
 // rule, so an inline rest colour makes even a correct `:hover` read as `noHoverChange`.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../support/ui-audit-relational.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 const GROUP_HOVER_FIXTURE = `<style>
 .label { color: #8a8a8a; }

@@ -15,14 +15,14 @@ import type { Db } from "@orb/db";
 import { chatInjections } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext, ChatRpgGatherResult, ChatTeachingRegistry, TeachingContribution } from "#server/domain/chat/contract/context.ts";
 import type { ForeignInputs } from "#server/domain/chat/contract/foreign.ts";
 import { gatherAssembleContext } from "#server/domain/chat/substrate/assemble-gather.ts";
 import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 /** The CYOA teach's ONE home — the same bytes the rpg reminder composes and a chat-level offer-choices

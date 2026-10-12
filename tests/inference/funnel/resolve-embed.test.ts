@@ -4,8 +4,8 @@
 // only on an instruction-aware model, else a warning.
 
 import type { EmbeddingCapability } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveEmbed } from "#inference/funnel/resolve-embed.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 function cap(dims: number, mrl: boolean, instructionAware = false): EmbeddingCapability {
   return { dims, mrl, maxInputTokens: 8192, input: ["text"], output: ["vector"], instructionAware };

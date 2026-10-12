@@ -3,8 +3,9 @@
 // (a green that means "I could not measure"), and a twin that respells something it must not — a JSX tag,
 // a shorthand property — feeds the gate a DIFFERENT program and manufactures a false blind verdict.
 // So every case here asserts the produced SOURCE, not just that something changed.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { bracketTwinOnLines, namespaceTwinOnLines, spellingTwinsOf } from "../../../../tooling/src/verify/lib/spelling-twins.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ALL = new Set([1, 2, 3, 4, 5]);
 

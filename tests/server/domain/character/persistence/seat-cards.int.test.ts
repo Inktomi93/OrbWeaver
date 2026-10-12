@@ -1,7 +1,7 @@
 import { createLoadSeatCards } from "@orb/server/domain/character";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("light decorations preserve carried policy and reject foreign card ids without loading prose", async ({ db }) => {
   const owner = (await seedUser(db)).id;

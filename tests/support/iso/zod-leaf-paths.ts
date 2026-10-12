@@ -1,4 +1,4 @@
-// tests/support/zod-leaf-paths — a MECHANICAL leaf-path enumeration over a zod v4 schema, so a field
+// tests/support/iso/zod-leaf-paths — a MECHANICAL leaf-path enumeration over a zod v4 schema, so a field
 // inventory derives from the CONTRACT instead of a hand-typed list that rots the day someone adds a column.
 // Used by the rpg field-reachability suite: every leaf the snapshot/sheet schemas declare must either reach a
 // model-facing read surface or carry a cited exemption, and a NEW field enters that matrix by existing.

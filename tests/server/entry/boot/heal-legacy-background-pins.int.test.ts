@@ -10,9 +10,9 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assets, userSettings } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { healLegacyBackgroundPinsOnBoot } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedUser } from "../../domain/settings/_support.ts";
 
 const AT = 1_700_000_000_000;

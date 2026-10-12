@@ -27,8 +27,8 @@ import { ownerHandles } from "@orb/server/domain/sessions";
 import type { PerRequestSeamDeps } from "@orb/server/entry/auth";
 import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** Verification's placeholder handle (`DEFAULT_USER_HANDLE`, whose schema default is this literal). */
 const OWNER_HANDLE = "owner";

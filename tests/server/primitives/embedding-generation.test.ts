@@ -6,9 +6,9 @@
 import type { Capability } from "@orb/contracts/inference";
 import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import { stableStringify } from "@orb/kit/stable-stringify";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#server/primitives/embedding-generation/index.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 function connectionAt(dims: number, mrl: boolean): Parameters<typeof generationIdOf>[0]["connection"] {
   const capability: Capability = {

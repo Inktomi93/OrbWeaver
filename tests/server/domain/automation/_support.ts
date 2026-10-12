@@ -13,6 +13,9 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { createHostPrincipalResolver, createResolveUserEnabled } from "@orb/server/entry/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type {
   ApplyProseRewrite,
   ArmDispatch,
@@ -35,9 +38,6 @@ import {
 import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
 import type { AutomationActionOpsDeps } from "#server/entry/compose/automation-watcher.ts";
 import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
-import { freshDb } from "../../../support/db.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";
 
 /** PARSE an AUTHORED arm into the stored/dispatched shape — exactly what `createRule` does before anything

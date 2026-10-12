@@ -4,7 +4,7 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveSideGenSampling } from "@orb/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("task defaults (no preset params) run the posture alone", () => {
   expect(resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name)).toEqual({ temperature: 0.3, maxOutputTokens: 24, effort: "none" });

@@ -4,8 +4,8 @@
 // Config section), never a crash or a half-parsed target.
 
 import { formatConfigLink, parseConfigLink } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("formatConfigLink", () => {
   test("formats group / group.sub / group.sub.setting", () => {

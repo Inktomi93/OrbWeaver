@@ -9,6 +9,7 @@
 import type { TagFilterVocabularyEntry } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view precedent).
 import type { LibraryChipTag } from "#client/features/character/lib/character-library-lens.ts";
@@ -21,7 +22,6 @@ import {
   tagVocabulary,
   vocabularyPanelTags,
 } from "#client/features/character/lib/character-library-lens.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // The chip rail reads the four-field character tag projection, already most-used-first, not the management
 // rollup over all junctions. Synthetic fixtures preserve that wire contract.

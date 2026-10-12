@@ -1,13 +1,13 @@
 // The claim row the allocator writes before a boot: it must be held by the claiming process, or a full table
 // reads it as dangling residue and reaps it while its stack is still coming up.
 import process from "node:process";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { allocateStageBand, liveHoldersOf } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import { claimRow } from "../../../../tooling/src/snap/ops/stage-census.ts";
 import { holderProcessRunning } from "../../../../tooling/src/snap/ops/stage-probe.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CHECKOUT = "/home/dev/orbweaver";
 const SHA = "0123456789abcdef0123456789abcdef01234567";

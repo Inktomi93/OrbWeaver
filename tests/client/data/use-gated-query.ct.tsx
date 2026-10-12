@@ -9,8 +9,8 @@
 // @orb-waive-file no-loose-id-cast(CHAT_ID): baselined when the gate widened; burn-down item 906.
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { GatedQueryStory } from "./_ct-stories.tsx";
 
 const CHAT_ID = castId<ChatId>("chat_gatedquerytest01");

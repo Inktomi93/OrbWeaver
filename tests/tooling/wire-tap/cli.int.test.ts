@@ -7,8 +7,8 @@
 // v11.18 source at the move.
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import type { CliResult, ToolFixtures } from "../../support/tool-fixtures.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
+import type { CliResult, ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(30_000);

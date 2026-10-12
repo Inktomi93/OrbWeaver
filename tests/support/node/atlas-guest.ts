@@ -23,7 +23,7 @@ import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { unzipSync } from "fflate";
 
-const REPO_ROOT = join(import.meta.dirname, "..", "..");
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 const FIXED_EPOCH = 1_700_000_000_000;
 /** Macrotask spins per settle — enough for the guest's floated search/open continuations to land. */
 const SETTLE_TICKS = 24;

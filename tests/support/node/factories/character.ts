@@ -13,8 +13,8 @@ import { castId } from "@orb/kit/ids";
 // downward from a factory pulls `node:crypto` and two contracts, never a domain graph. D9 names this
 // subpath family canonical and 19 of them are already imported across `tests/server/**`.
 import { cardContentHash } from "@orb/server/primitives/serde/card";
-import { FROZEN_AT_MS } from "../clock.ts";
-import { createSeededIds } from "../ids.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
 
 /** The full flat `characters` row (derived from the live schema — the factory `X`). */

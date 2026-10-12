@@ -4,6 +4,8 @@
 // verdict are pinned (a table with one side pinned is a table nobody can refactor). The wire readers are
 // tests/tooling/snap/lib/session-wire.test.ts; the imperative halves are proven by
 // tests/tooling/snap/ops/session-daemon.int.test.ts.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import {
@@ -41,7 +43,6 @@ import {
 } from "../../../../tooling/src/snap/lib/session-refusals.ts";
 import { watchIntervalMs } from "../../../../tooling/src/snap/ops/flags-support.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const MAIN = "/home/dev/orbweaver";
 const LANE = "/home/dev/orbweaver/.claude/worktrees/agent-lane";

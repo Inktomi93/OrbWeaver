@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
 import {
@@ -11,7 +12,6 @@ import {
   sourcesMismatchingPins,
   UNICODE_SOURCE_PINS,
 } from "../../../../../tooling/src/verify/ops/gen/unicode-handle-key.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const SOURCES = {
   caseFolding: [

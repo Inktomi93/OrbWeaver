@@ -6,9 +6,10 @@
 // follows an import alias and immutable CONST-ALIAS hops, and this file pins the two properties a reader of
 // that walk cannot see from its JSDoc: a REASSIGNABLE binding stops the hop, and an alias CYCLE terminates
 // through the visited set instead of recursing forever.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { bindsProvenNonModuleDeclaration, classifyOriginRefusal, referenceNamesExport } from "../../../../tooling/src/verify/lib/origin-verdict.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

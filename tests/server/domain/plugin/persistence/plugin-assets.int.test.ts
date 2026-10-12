@@ -9,11 +9,11 @@ import type { Db } from "@orb/db";
 import { assets, pluginAssets } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { listPluginFetchedAssetIds, recordPluginFetchedAsset } from "#server/domain/plugin/persistence/plugin-assets.ts";
 import { insertPlugin } from "#server/domain/plugin/persistence/plugins.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1000;

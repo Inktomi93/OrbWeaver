@@ -6,11 +6,12 @@
 // it is asserted in BOTH directions here, because the permissive direction is the dangerous one: a spelling
 // read out of prose or a string makes the ledger count a marker nobody wrote, and a missed opener form makes
 // the blanket gate go green on a real file-wide suppression.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project, ScriptKind } from "ts-morph";
 import { describe } from "vitest";
 import { readDirectiveComment, suppressionSites } from "../../../../tooling/src/verify/lib/suppression-directive.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function parse(text: string): SourceFile {
   return new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true }).createSourceFile("s.tsx", text, { scriptKind: ScriptKind.TSX });

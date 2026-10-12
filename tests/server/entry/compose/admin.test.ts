@@ -24,13 +24,13 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 // The compose SEAMS are not on the `entry/compose` barrel — `services.ts` (the keystone) is their only
 // production importer, by path; the seam tests follow it (the `chat-tools.test.ts` precedent).
 import type { AdminComposeDeps } from "#server/entry/compose/admin.ts";
 import { buildAdmin } from "#server/entry/compose/admin.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const ADMIN = principal(castId<UserId>("usr_admin"), { role: "admin", handle: castId<Handle>("admin") });
 const PLAIN = principal(castId<UserId>("usr_plain"));

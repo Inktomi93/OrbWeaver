@@ -16,11 +16,11 @@
 import { buildAgentNav } from "@orb/client/agent-nav";
 import { useTRPC } from "@orb/client/data";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../support/browser/ct-isolation.ts";
 
 /** The three declarations one `.shell-panel` can publish — the tri-state `panelAvailability` parses. */
 const DECLARATIONS = ["declared", "unavailable", "unpublished"] as const;

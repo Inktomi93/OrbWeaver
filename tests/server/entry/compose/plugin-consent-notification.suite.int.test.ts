@@ -1,14 +1,14 @@
 // @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 
 // Consent settlement must reach the notification room after the durable grant write, without rebadging.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { InboxView } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginView } from "@orb/server/domain/plugin";
 import { publishNotification } from "@orb/server/transport/trpc";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { makeBundle, ownerPrincipalFor } from "../../domain/plugin/_support.ts";
 import { consumeServerReady } from "../../transport/trpc/stream/_support.ts";
 

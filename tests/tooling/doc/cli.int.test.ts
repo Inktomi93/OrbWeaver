@@ -1,6 +1,6 @@
 // The doc cli's exit contract through the REAL binary: misuse is 3, a refusal is 1 with nothing written,
 // the read verbs are 0 on the real tree.
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("misuse exits 3 and prints the usage", async ({ runCli }) => {
   const res = await runCli("doc", ["frobnicate"]);

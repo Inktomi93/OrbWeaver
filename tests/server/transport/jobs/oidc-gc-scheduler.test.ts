@@ -2,9 +2,9 @@
 // fires with the current instant, the boot-sweep + recurring interval are armed, and a sweep failure never
 // escapes the loop — zero db, zero wall time (testing §3).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { runOidcGc, startOidcGcScheduler } from "#server/transport/jobs/oidc-gc-scheduler.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { makeOidcGcDeps, T0 } from "./_support.ts";
 
 describe("oidc-gc-scheduler reap", () => {

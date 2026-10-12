@@ -5,10 +5,10 @@
 
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import { ProviderError } from "@orb/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { __resetAvatarAnalysisAvailability } from "#server/domain/embeddings/substrate/avatar-analysis-availability.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRoleClients, SUMMARIZER_MODEL, TEST_CAPTION } from "../_support.ts";
 
 const BYTES = new Uint8Array([1, 2, 3]);

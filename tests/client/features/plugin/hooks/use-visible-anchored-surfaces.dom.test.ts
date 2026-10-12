@@ -3,8 +3,8 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { buildCandidates } from "#client/features/plugin/hooks/use-visible-anchored-surfaces.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 type SurfaceRow = Parameters<typeof buildCandidates>[0][number];
 type PluginRow = Parameters<typeof buildCandidates>[1][number];

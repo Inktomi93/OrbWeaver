@@ -21,7 +21,7 @@ import {
   renderPluginAuthorSupport,
   writePluginAuthorSupportGuide,
 } from "@orb/plugin-toolchain";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 function liveSupportSource(): PluginAuthorSupportSource {
   return {

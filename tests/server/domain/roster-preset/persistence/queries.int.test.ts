@@ -8,6 +8,11 @@ import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import type { CastRuleWrite } from "@orb/server/domain/roster-preset";
 import { RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -21,11 +26,6 @@ import {
   updatePresetWithMembers,
 } from "#server/domain/roster-preset/persistence/queries.ts";
 import { groupMemberViews } from "#server/domain/roster-preset/substrate/members.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { seedPersona } from "../../../../support/factories/persona.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 

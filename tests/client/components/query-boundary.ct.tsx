@@ -2,8 +2,8 @@
 // (never a bare component), stub tRPC at the network with routeTrpc, assert decoded inputs off the
 // recorder. Copy this file's shape for every client-feature CT.
 
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
 import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, ReservedBoundaryStory } from "../data/_ct-stories.tsx";
 
 test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {

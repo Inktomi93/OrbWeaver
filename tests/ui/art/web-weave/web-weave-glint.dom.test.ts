@@ -7,12 +7,12 @@
 // right around the turn (including across the 0/TAU seam, where a bearing-sorted index is one missing
 // wrap away from a visibly dark arc).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WeavePoint, WeaveStrand, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { WeaveGlintSegment } from "#ui/art/web-weave/web-weave-glint.ts";
 import { buildGlintIndex, forEachGlintCandidate, glintSegmentLit, glintSweepAngle } from "#ui/art/web-weave/web-weave-glint.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The login backdrop's own host box + hub (the surface #467 was reported on). */
 const HOST = { width: 1440, height: 900, hub: { x: 0.5, y: 0.34 }, seed: 7 } as const;

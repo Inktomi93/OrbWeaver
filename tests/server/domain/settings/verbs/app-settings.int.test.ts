@@ -6,10 +6,10 @@
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { env } from "@orb/server/foundation/env";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { __resetEffectiveConfigCache } from "#server/domain/settings/effective-config/cache.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 beforeEach(() => {

@@ -8,11 +8,11 @@
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { DatabankWorkloadDeps } from "#server/domain/databank/contract/service.ts";
 import { createDatabankWorkloadContributions } from "#server/domain/databank/workload-contributions.ts";
 import type { GenerationReceipt } from "#server/domain/embeddings/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const DOCUMENT_ID = castId<DocumentId>("document_a");

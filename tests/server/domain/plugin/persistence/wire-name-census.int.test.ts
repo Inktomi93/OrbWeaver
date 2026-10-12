@@ -15,9 +15,9 @@ import { assets, plugins } from "@orb/db";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { readInstalledPluginSlugs } from "@orb/server/domain/plugin";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 

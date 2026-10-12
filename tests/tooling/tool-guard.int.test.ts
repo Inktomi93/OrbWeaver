@@ -16,10 +16,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { REGISTRY } from "../../tooling/src/verify/lib/registry.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const HOOK = fileURLToPath(new URL("../../.claude/hooks/tool-guard.mjs", import.meta.url));
 const REPO = dirname(dirname(dirname(HOOK)));

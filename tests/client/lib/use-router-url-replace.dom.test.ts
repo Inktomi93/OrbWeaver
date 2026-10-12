@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
 import { useRouterUrlReplace } from "#client/lib/use-router-url-replace.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const router = vi.hoisted(() => ({
   options: { parseSearch: vi.fn(() => ({})) },

@@ -1,4 +1,4 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
@@ -9,14 +9,14 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
+import { freshCountedDb } from "@orb/testkit/node/db.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { test as base, expect, OWNER_USER_ID } from "@orb/testkit/node/fixtures.ts";
+import { recencyPlan, STALE_STATS_INDEX, seedStaleMessageStats } from "@orb/testkit/node/stale-planner-stats.ts";
 import { sql } from "drizzle-orm";
 import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
 import { vi } from "vitest";
 import { startPlannerMaintenance } from "#server/entry/boot/planner-maintenance.ts";
-import { freshCountedDb } from "../../../support/db.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { test as base, expect, OWNER_USER_ID } from "../../../support/fixtures.ts";
-import { recencyPlan, STALE_STATS_INDEX, seedStaleMessageStats } from "../../../support/stale-planner-stats.ts";
 
 const test = base.extend<{ db: Db; observed: Awaited<ReturnType<typeof freshCountedDb>> }>({
   observed: async ({}, use) => await use(await freshCountedDb()),

@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { readExpressionString, readExpressionStrings } from "../../../../tooling/src/verify/lib/config-static-read.ts";
 import { inspectGateContract } from "../../../../tooling/src/verify/lib/gate-contract.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 function inspect(source: string, extraFiles: Readonly<Record<string, string>> = {}): ReturnType<typeof inspectGateContract> {

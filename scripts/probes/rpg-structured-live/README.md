@@ -5,7 +5,7 @@ tools where it can, on real models through the app's own path? The findings are 
 
 ## What runs
 
-`run.ts` boots the real composition root (`createServices`) over a fresh in-memory libSQL db (`tests/support/db.ts`
+`run.ts` boots the real composition root (`createServices`) over a fresh in-memory libSQL db (`tests/support/node/db.ts`
 `freshDb`), never the dev database. It stores the cell's key through `credentials.add`, creates the connection
 through `connection.create` and binds it as the host's chat row. Each consumer then plays through production code:
 

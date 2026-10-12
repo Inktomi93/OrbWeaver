@@ -6,7 +6,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import { memberToolCalls, projectViewForMember, stripHiddenForMember, stripReasoningFromView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 const REASONING_SPILL = "I'll tell them nothing, but the truth is he's in the crypt.";

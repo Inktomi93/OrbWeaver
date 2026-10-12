@@ -3,9 +3,9 @@
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isFirstRun, splitHearth } from "#client/features/chat/lib/home-hearth.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function room(
   id: string,

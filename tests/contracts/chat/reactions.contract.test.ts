@@ -4,7 +4,7 @@
 // plus the verb's re-parse ARE the guard), and the picker's grid is this tuple, in this order.
 
 import { REACTION_EMOJIS, reactionEmojiSchema } from "@orb/contracts/chat";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("reactionEmojiSchema admits every vocabulary member and REFUSES anything else", () => {
   for (const emoji of REACTION_EMOJIS) {

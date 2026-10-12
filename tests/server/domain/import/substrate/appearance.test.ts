@@ -3,9 +3,9 @@
 // field), the two enum re-spellings taken from ST's own `avatar_styles`/`chat_styles` tables, and the
 // never-patch-what-ST-did-not-say contract (an absent key must NOT stamp orb's default over a user's choice).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { stAppearancePatch } from "#server/domain/import/substrate/appearance.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const patchOf = (powerUser: Record<string, unknown>): Record<string, unknown> => stAppearancePatch({ power_user: powerUser });
 

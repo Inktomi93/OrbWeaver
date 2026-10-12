@@ -1,7 +1,7 @@
 // Live compiler-roster controls require the repository resource; scratch planner cases stay unit-owned.
 import { execFileSync } from "node:child_process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { planPolicyArgv, policySourceCandidates } from "@orb/tooling/verify";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { policy } from "./_policy-plan-fixture.ts";
 
 const LS_FILES_MAX_BUFFER = 268_435_456;

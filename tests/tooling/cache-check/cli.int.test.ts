@@ -1,6 +1,6 @@
 // Misuse exits 3 through the real cli before any stage or provider work, so the check never spends tokens on a
 // malformed run.
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 const MISUSE: readonly (readonly [string, readonly string[]])[] = [
   ["an unknown route", ["--routes=bedrock"]],

@@ -17,9 +17,9 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
-import "../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import {
@@ -70,12 +70,12 @@ import { loadPresentRole } from "@orb/server/domain/chat";
 import type { ConnectionService } from "@orb/server/domain/connection";
 import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { describe, onTestFinished } from "vitest";
-import { TEST_PROVIDER_ID } from "../../support/factories/resolved-connection.ts";
-import type { AppCaller } from "../../support/fixtures.ts";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 import { seedTurns } from "../domain/chat/memory/_support.ts";

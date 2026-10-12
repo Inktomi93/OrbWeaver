@@ -6,8 +6,8 @@
 
 import { __setEgressResolverForTest, EgressBlockedError, fetchPinnedDownload } from "@orb/server/infra/network";
 import { CLOUDFLARED_PIN } from "@orb/server/infra/relay";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PUBLIC_ADDR = "140.82.112.3";
 const RELEASE_URL = `${CLOUDFLARED_PIN.releaseBase}/${CLOUDFLARED_PIN.version}/cloudflared-linux-amd64`;

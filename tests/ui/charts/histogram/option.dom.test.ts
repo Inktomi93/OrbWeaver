@@ -10,9 +10,10 @@
 // §11.3: the builder takes CONCRETE resolved colors (never `TOKENS[...].value`) — <Histogram>
 // resolves the DTCG tokens to live computed values via `useChartTheme` and passes them in, because
 // ECharts' canvas can't resolve `var()`. This test pins the pass-through with a fixture palette.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ChartColors } from "#ui/charts/chart/use-chart-theme.ts";
 import { buildHistogramOption } from "#ui/charts/histogram/option.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const BUCKETS = [
   { label: "0–99", count: 12 },

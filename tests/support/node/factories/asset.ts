@@ -8,8 +8,8 @@ import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../clock.ts";
-import { createSeededIds } from "../ids.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
 
 /** The full `assets` row (derived from the live schema — the factory `X`). */

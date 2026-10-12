@@ -1,7 +1,7 @@
 // Unit: the fit room's explainer numbers (features/chat/lib/context-room).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { limitOutgrownByReply, noRoomLine, roomExplainer } from "#client/features/chat/lib/context-room.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a reply reserve equal to the limit already leaves no room; one token less does", () => {
   expect(limitOutgrownByReply({ kind: "cap", tokens: 2048 }, 2048)).toEqual({ kind: "cap", tokens: 2048 });

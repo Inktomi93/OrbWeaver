@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { localLightCpuThreads } from "#inference/backends/local-light/cpu-budget.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("native threads honor an ancestor quota even when the leaf is unlimited", () => {
   const files = new Map([

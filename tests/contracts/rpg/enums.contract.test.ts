@@ -21,7 +21,7 @@ import {
   rpgTrackerSubjectSchema,
   rpgTrackerWriteSchema,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("RPG_GAME_MODES is the committed [lite, full] axis and the schema derives from it", () => {
   expect(RPG_GAME_MODES).toEqual(["lite", "full"]);

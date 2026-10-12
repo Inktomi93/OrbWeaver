@@ -25,10 +25,11 @@ import { messageVariants } from "@orb/db";
 import type { Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createEdit } from "#server/domain/chat/verbs/edit.ts";
-import { scenario, tape } from "../../../../support/chat/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { scenario } from "../_scenario.ts";
 import { seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 /** The FOREIGN-half fake the edit bundle needs — DEFAULT config only (the `edit.int.test` stub). */

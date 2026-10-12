@@ -2,11 +2,11 @@ import { pluginChatSettingsSection } from "@orb/client/features/plugin";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { __resetChatContextSections } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
-import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../../../support/browser/ct-isolation.ts";
 
 const sections = isolationRegistry<ChatSettingsSectionContribution>(
   "host-truth",

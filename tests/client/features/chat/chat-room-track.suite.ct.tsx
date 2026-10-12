@@ -26,11 +26,11 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "#client/features/chat/lib/message-action-names.ts";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
 

@@ -63,7 +63,6 @@ export const config = {
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",
-        "tests/support/**/*.{ts,tsx}",
         "tests/server/infra/plugin-host/_broker-containment-proof.ts",
       ],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
@@ -84,6 +83,11 @@ export const config = {
       stryker: { config: ["stryker.config.ts", "stryker.gate.config.ts"] },
       // These imports execute inside the captured browser runtime, not against repository-relative modules.
       ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
+    },
+    // @orb/testkit: every world module is a package subpath export, so each one is an entry.
+    "tests/support": {
+      entry: ["{iso,node,browser}/**/*.{ts,tsx}"],
+      project: ["{iso,node,browser}/**/*.{ts,tsx}"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
@@ -160,7 +164,9 @@ export const config = {
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      project: ["src/**/*.{ts,tsx,css}!"],
+      // compose/index.ts is the test kit's door to the registry lists (`client-compose-door-only`); production
+      // imports the sibling files directly, so the barrel is outside the production project.
+      project: ["src/**/*.{ts,tsx,css}!", "!src/compose/index.ts!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],

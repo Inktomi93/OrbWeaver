@@ -5,9 +5,9 @@ import { providerDefSchema } from "@orb/contracts/inference";
 // own `declared.kind` wins, then what the provider's catalog states, then the curated table, else `generation`.
 
 import { createInferenceRuntime } from "@orb/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../../../../inference/_support.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 async function kindOf(row: Parameters<typeof fakeConnection>[0]): Promise<string> {
   const runtime = await createInferenceRuntime(fakeDeps({ stores: memoryStores() }));

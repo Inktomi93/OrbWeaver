@@ -4,9 +4,9 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { parseBundle } from "@orb/server/domain/plugin";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 test("the public SDK and toolchain tarballs compile in a clean project with no workspace paths", { timeout: budget(90_000) }, async ({ repoRoot, scratch }) => {
   const release = await spawnNiced(process.execPath, [join(repoRoot, "scripts", "release-plugin-authoring.ts"), scratch], { cwd: repoRoot });

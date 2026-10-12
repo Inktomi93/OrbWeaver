@@ -9,8 +9,8 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../clock.ts";
-import { createSeededIds } from "../ids.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 import { seedCharacter } from "./character.ts";
 import { seedUser } from "./user.ts";
 

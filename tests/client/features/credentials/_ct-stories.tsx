@@ -24,14 +24,14 @@ import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ConnectionEditor } from "#client/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "#client/features/credentials/components/credential-key-row.tsx";
-import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { configSections } from "../../../support/browser/ct-door.ts";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 
 // The plugin lifecycle story watches one plugins row beside one connections row; the door's other sections at those anchors stay out of it.
 const providerLifecycleConnectionSections: ContributorRegistry<ConfigSectionContribution> = isolationRegistry<ConfigSectionContribution>(

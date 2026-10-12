@@ -3,9 +3,9 @@
 // emit per call — never per row a bulk verb touched, and never on a refused write.
 
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
 
 describe("connectionsChanged", () => {

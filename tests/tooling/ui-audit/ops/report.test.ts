@@ -1,9 +1,10 @@
 // The design-audit RESULT line's two derived NO-VERDICT values (#1345). A `population-verdict=NO-VERDICT`
 // that does not say WHICH rules were withheld and WHY cost a 2026-09-04 review three extra calls and a
 // python heredoc over the report JSON to learn that the answer was "box is off-screen".
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PopulationAccounting, RulePopulationAccounting } from "@orb/tooling/ui-audit";
 import { backdropRefusalSummary, populationWithheldSummary } from "../../../../tooling/src/ui-audit/ops/report.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function row(overrides: Partial<RulePopulationAccounting> = {}): RulePopulationAccounting {
   return { candidates: 0, judged: 0, affected: 0, populations: 0, emitted: 0, withheld: {}, excluded: {}, collapsed: {}, ...overrides };

@@ -29,9 +29,9 @@
 // what BYTES are on disk afterwards. Neither assertion reaches into kit internals.
 
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { moveFiles, renameExportedSymbol } from "../../../../tooling/src/codemod/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { withTree } from "../_kit-tree.ts";
 
 describe("moveFiles leaves no phantom at the vacated path (#1778)", () => {

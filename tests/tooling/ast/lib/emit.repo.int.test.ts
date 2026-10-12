@@ -1,10 +1,10 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { collectSchemaTables, loadProject } from "@orb/tooling/ast";
 import { semanticWorkspaceOf } from "@orb/tooling/floor/compiler/ts-workspace";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { Node, SyntaxKind } from "ts-morph";
 import { beforeAll } from "vitest";
 import { resolveDynamicImportTarget } from "../../../../tooling/src/ast/lib/resolve.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // The loader acquires descriptors lazily; registration needs their count before Vitest captures the hook deadline.

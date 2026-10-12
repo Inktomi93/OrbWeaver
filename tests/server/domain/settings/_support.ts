@@ -16,10 +16,10 @@ import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
 import { createSettingsService } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import { createFrozenClock } from "../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
 export const FROZEN_AT = 1_750_000_000_000;
 

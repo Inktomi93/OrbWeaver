@@ -7,9 +7,9 @@
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { SurfacedChipSet } from "#client/features/automation/lib/apply-quick-reply-event.ts";
 import { applyQuickReplyEvent } from "#client/features/automation/lib/apply-quick-reply-event.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
 const RULE_1 = castId<AutomationRuleId>("automationrule_1");

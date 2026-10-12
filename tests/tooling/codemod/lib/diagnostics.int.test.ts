@@ -1,9 +1,9 @@
 import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { flushBuffer } from "../../../../tooling/src/codemod/lib/diagnostics.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TAG = "planted";
 const FIXED_NOW = 1_700_000_000_000;

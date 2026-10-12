@@ -9,13 +9,13 @@
 //     180° in one frame; it is now a bounded turn toward the target).
 // Deterministic by construction: buildWeb at a fixed seed, sampled on a fixed 1ms grid, no rAF.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { SpiderPose } from "#ui/art/web-weave/web-weave-character.ts";
 import { burstEase, WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
 import type { SpiderTracker } from "#ui/art/web-weave/web-weave-spider.ts";
 import { idleTwitchPhase, spiderPose } from "#ui/art/web-weave/web-weave-spider.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The default character — the motion the component shipped with. */
 const CALM = WEAVE_CHARACTER_PRESETS.calm;

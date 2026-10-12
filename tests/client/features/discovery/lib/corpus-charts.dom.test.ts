@@ -5,6 +5,7 @@
 // between a repeated k-means label and three bars a reader (or a screen reader) cannot tell apart. The
 // surfaces lean on all three; this asserts the shaping, not a trivial passthrough.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   chartLabelWithDenominator,
   chartSpread,
@@ -13,7 +14,6 @@ import {
   toGenreSeries,
   topRanked,
 } from "#client/features/discovery/lib/corpus-charts.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function point(id: string, genre: string | null): { id: string; label: string; x: number; y: number; genre: string | null } {
   return { id, label: id, x: 0, y: 0, genre };

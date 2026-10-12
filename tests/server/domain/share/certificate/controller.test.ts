@@ -7,10 +7,10 @@ import type { CertificateControllerDeps } from "@orb/server/domain/share";
 import { createCertificateController } from "@orb/server/domain/share";
 import { getLog } from "@orb/server/foundation/observability";
 import type { IssuedCertificate, IssueOutcome, IssueRequest } from "@orb/server/infra/acme";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { EXPIRY_GUARD_MS, RENEWAL_RETRY_FIRST_MS } from "#server/domain/share/substrate/renewal.ts";
-import { createFrozenClock } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const HOUR_MS = 3_600_000;
 const LIFETIME_MS = 160 * HOUR_MS;

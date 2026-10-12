@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { mirrorCandidates } from "../../../../tooling/src/floor/testing/test-mirror.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("a package source derives every module-mirrored Vitest kind in stable family order", () => {
   expect(mirrorCandidates("packages/server/src/domain/admin/guard.ts")).toEqual([

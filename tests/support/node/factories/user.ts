@@ -12,8 +12,8 @@ import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../clock.ts";
-import { createSeededIds } from "../ids.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 
 /** The full `users` row (derived from the live schema — the factory `X`). */
 export type UserRow = typeof users.$inferSelect;

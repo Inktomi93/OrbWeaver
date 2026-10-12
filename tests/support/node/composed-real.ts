@@ -1,8 +1,8 @@
-// tests/support/composed-real — THE IMPORT-PHASE WARM for a COMPOSED-REAL test file (#2386). Import it for
-// its side effect (`import "../../support/composed-real.ts";`) in any file whose tests destructure the
+// tests/support/node/composed-real — THE IMPORT-PHASE WARM for a COMPOSED-REAL test file (#2386). Import it for
+// its side effect (`import "@orb/testkit/node/composed-real.ts";`) in any file whose tests destructure the
 // `app` / `services` / `*Caller` fixtures; it exports nothing on purpose.
 //
-// WHAT IT FIXES — an ACCOUNTING defect, not a slow test. `support/fixtures.ts` loads the composition root
+// WHAT IT FIXES — an ACCOUNTING defect, not a slow test. `support/node/fixtures.ts` loads the composition root
 // through a DYNAMIC import inside the `app` fixture body (deliberately: a kit/ui/client test must not pay,
 // or crash on, the server env parse). Vitest charges fixture setup to the TEST's wall clock, so the FIRST
 // test in a composed-real file paid the whole server module graph inside `testTimeout` (`budget(5000)`),
@@ -27,7 +27,7 @@
 // (`packages/db/src/schema/chat.ts`) over ~1500 transformed modules.
 //
 // The three graphs below are exactly what the `db`, `app` and caller fixtures load lazily; keep them in
-// sync with `support/fixtures.ts` if a fixture grows a fourth heavy dynamic import.
+// sync with `support/node/fixtures.ts` if a fixture grows a fourth heavy dynamic import.
 import "@orb/server/entry/compose";
 import "@orb/server/transport/trpc";
 import "./db.ts";

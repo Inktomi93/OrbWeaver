@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { DEFAULTS, resolveCfg } from "#server/domain/chat/memory/constants.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("memory/constants — DEFAULTS + resolveCfg", () => {
   test("DEFAULTS are the grounded docs/law/Knowledge-Cluster.md §5 numbers (blockSize 8 · verbatimWindow 8 · fanOut 4 · maxTier 3)", () => {

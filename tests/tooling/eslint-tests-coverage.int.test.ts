@@ -25,10 +25,10 @@
 // lesson), so a future story/fixture module that lands outside every glob reds HERE instead of silently
 // widening the hole again.
 import { execSync } from "node:child_process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { BROWSER_PACKAGES, isNodeToolSource, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { ESLint } from "eslint";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 /** Below this the derivation stopped reading (a moved tree, a broken `git ls-files`) — a bare zero census

@@ -1,7 +1,7 @@
 import { REACTION_SEGMENT_SNIPPET_MAX } from "@orb/contracts/chat";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { parseSpeakerSpans, resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // SEGMENT-ANCHORING FITNESS SUITE (unknown #2 / B7 "MR3's first task").

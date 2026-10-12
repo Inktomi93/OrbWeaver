@@ -8,8 +8,8 @@
 
 import type { ImportFsPort } from "@orb/server/domain/import";
 import { collectBundlesFromDir, ImportInfraFailureError } from "@orb/server/domain/import";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const SETTINGS_PATH = "root/settings.json";

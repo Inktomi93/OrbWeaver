@@ -35,13 +35,13 @@
 // `from.path` row planted in the real `.dependency-cruiser.cjs` was reported by the mixed run, then restored —
 // receipt in the deleting commit. The runnability arms stay.
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { classifyRegex, gate, selectorIdentity } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 test("classifyRegex — the CONSERVATIVE direction (import law must never false-RED)", () => {

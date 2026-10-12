@@ -6,10 +6,10 @@
 // The pins are the two things a picker must get right: it shows the WHOLE library with attachment state,
 // and toggling writes the JUNCTION rather than mutating the carrier.
 
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { RegexPickerHeadlessStory, RegexPickerInDeckStory, RegexPickerStory } from "../features/regex/_ct-stories.tsx";
 
 const ATTACHED: TrpcWireOutput<"regex.listScripts">[number] = {

@@ -6,9 +6,10 @@
 // conformance stage already does. This file carries the production-dispatched lane-scoped door onto the
 // same runner, and the self-test: the policy is INSIDE its own population, so it MUST see itself in the
 // roster — if its own recognizer fails to recognise itself, the roster is silently short.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate } from "../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the policy's own declared proofs hold through the production dispatcher", () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);

@@ -6,8 +6,8 @@ import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../clock.ts";
-import { createSeededIds } from "../ids.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 import { seedUser } from "./user.ts";
 
 /** The full `personas` row (derived from the live schema — the factory `X`). */

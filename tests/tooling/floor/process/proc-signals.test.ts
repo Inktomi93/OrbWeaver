@@ -1,8 +1,9 @@
 // A foreground launcher (`pnpm start`, `pnpm dev`) must pass every stop signal on to its children, or a
 // Ctrl-C or supervisor TERM leaves an orphan holding the port. The registrar and the platform are injected,
 // so the wiring is asserted for every platform without signalling this vitest worker.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { childExitCode, FORWARDED_SIGNALS, forwardSignalsTo, signalOfExitCode } from "@orb/tooling/floor/process/proc-signals";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function fakeStopTarget(): {
   readonly noted: NodeJS.Signals[];

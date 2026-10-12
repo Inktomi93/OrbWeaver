@@ -11,8 +11,8 @@
 
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 /** A stand-in statement — `batchMany` is a typed pass-through and never touches the value. */
 // @orb-waive no-test-fabrication(unknown): `batchMany` is a typed PASS-THROUGH — it never reads the statement, so a real drizzle Ends when this deliberate test boundary can be expressed without a fabricated typed value.

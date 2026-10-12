@@ -11,13 +11,14 @@
 //     read identically to the arm above, and the whole waiver door would be unproven.
 //   · THE OVERLAP CLAIM the module's header makes with `no-test-fabrication`: that the two policies judge
 //     DIFFERENT shapes and do not double-report one site. A header that asserts a guarantee owes a control.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
 import { gate as noTestFabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/no-opaque-test-fixture";
 const FIXTURE = "tests/client/features/rpg/fixtures.ts";

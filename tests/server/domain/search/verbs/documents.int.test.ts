@@ -10,10 +10,10 @@ import { documentChunks, embedGenerations, embedSpaceState, userConnections } fr
 import type { EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SEARCH_SPACE_REINDEXING, SearchError } from "@orb/server/domain/search";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   makeSearch,
   seedChat,

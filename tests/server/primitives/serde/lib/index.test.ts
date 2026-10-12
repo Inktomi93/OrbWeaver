@@ -10,9 +10,9 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import type { EmptyJsonHeader, JsonSerde } from "@orb/server/primitives/serde/lib";
 import { defineJsonObjectSerde, defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader, portableParseError } from "@orb/server/primitives/serde/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The refusal reason — narrows the parse union so a test can name the failure it expects. */
 function refusalOf<T>(result: PortableParse<T>): string {

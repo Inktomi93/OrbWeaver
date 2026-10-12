@@ -15,9 +15,9 @@
 // biome-ignore lint/performance/noNamespaceImport: the comparator's denominator IS every table the schema module exports — a namespace import is the canonical way to enumerate them (the schema-baseline-parity test does the same).
 import * as schema from "@orb/db/schema";
 import { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "@orb/server/domain/assets";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { compareAssetRefsCoverage } from "@orb/tooling/verify";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The load-bearing DERIVED exclusion: if `image_embeddings.asset_id` counted as retaining, every image
  *  asset would be permanently live and `reapIfOrphan`/`collectGarbage` would reclaim nothing. */

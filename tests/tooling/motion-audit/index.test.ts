@@ -14,6 +14,8 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence, MotionFlagRecord } from "../../../tooling/src/motion-audit/index.ts";
 import {
   animationTotals,
@@ -34,7 +36,6 @@ import {
   observedClsGap,
   observedClsTotals,
 } from "../../../tooling/src/motion-audit/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
   requested: {

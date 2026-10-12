@@ -2,14 +2,14 @@
 // hidden input rides beside it). Pointer + keyboard toggle aria-checked; checked wears the primary
 // token; indeterminate reports aria-checked="mixed".
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelContrast, pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { pixelContrast, pixelSurface } from "../../../support/browser/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

@@ -22,6 +22,9 @@ import type { CharacterId, ChatId, ConnectionBindingId, Handle, UserConnectionId
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { and, eq } from "drizzle-orm";
 import { localLightRows } from "../../../packages/inference/src/capability/sources/curated/local-light.ts";
 import { rerankPick } from "../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
@@ -49,9 +52,6 @@ import {
   seedUser,
   vec,
 } from "../../../tests/server/domain/search/_support.ts";
-import { freshDb } from "../../../tests/support/db.ts";
-import { principal } from "../../../tests/support/factories/principal.ts";
-import { makeResolvedSecret } from "../../../tests/support/factories/resolved-connection.ts";
 import { ROOMS } from "../speaker-pick/fixtures.ts";
 import type { LongItem } from "./corpus.ts";
 import { ARC_CREDITS, ARC_TEXTS, CAPTIONS, GAZETTEER_CHUNKS, PERSONA_TEXTS, QUERIES, reachSweep } from "./corpus.ts";

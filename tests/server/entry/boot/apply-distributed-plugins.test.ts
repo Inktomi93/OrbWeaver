@@ -18,9 +18,9 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DistributedPluginApplierDeps } from "@orb/server/entry/boot";
 import { createDistributedPluginApplier } from "@orb/server/entry/boot";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 function user(id: string): Principal {
   return { userId: castId<UserId>(id), role: "user", handle: castId<Handle>(id), externalId: null, via: "cookie" };

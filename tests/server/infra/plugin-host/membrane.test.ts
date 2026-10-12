@@ -35,13 +35,13 @@ import {
 import type { ChatId } from "@orb/kit/ids";
 import { compilePluginDirectory } from "@orb/plugin-toolchain";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
 import type { MembraneRuntime } from "#server/infra/plugin-host/membrane.ts";
 import { attachMembrane } from "#server/infra/plugin-host/membrane.ts";
 import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = "chat_test0000000000000000000" as ChatId;
 const TOKEN = "opaque-token-abc";

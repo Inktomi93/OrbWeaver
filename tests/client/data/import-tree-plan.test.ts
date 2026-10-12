@@ -4,12 +4,12 @@
 // with its members; a file over the per-file cap and the file-count cap are honoured; a non-SillyTavern
 // tree splits in path order.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { relativePathOf } from "#client/data/import-tree.ts";
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less node typecheck:graph program.
 import type { TreeImportCaps } from "#client/data/import-tree-plan.ts";
 import { OVER_FILE_CAP_REASON, plannedFiles, planTreeImport } from "#client/data/import-tree-plan.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A File whose read-only `webkitRelativePath` is set (as a directory-picked browser File carries it). */
 function pickedFile(relPath: string, bytes = "x"): File {

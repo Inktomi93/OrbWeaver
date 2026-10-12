@@ -12,12 +12,12 @@
 // read from the tool's own contract (VERIFY_VERBS), never a copy — a new verb joins this pin the day it is
 // minted, which is the only shape that would have caught #809 (a code path nobody exercised).
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import type { MembershipReport } from "@orb/tooling/verify";
 import { VERIFY_VERBS } from "@orb/tooling/verify";
 import { readPolicyRepositoryInventory } from "../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { stagesForTier } from "../../../tooling/src/verify/lib/registry.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 /** A deliberately small heap: enough to load the module graph and print a line, far too small to build the

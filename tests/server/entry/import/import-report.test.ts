@@ -25,10 +25,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { ImportReport } from "@orb/server/domain/import";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
 // Not on the `entry/import` barrel — `portability-runner.ts` is its only production importer, by path.
 import { writeImportReport } from "#server/entry/import/import-report.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 const AT_ISO = new Date(AT).toISOString();

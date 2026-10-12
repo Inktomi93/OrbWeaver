@@ -21,6 +21,8 @@
 // `bus-channel-primitive` keeps its three bespoke blocks BELOW the table as well. They carry what the table
 // deliberately does not: the OVER-BROAD case (two constructions in one granted home stay ONE consumption)
 // and a stale arm driven from a home that stopped constructing rather than from a mismatched key.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -38,7 +40,6 @@ import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole
 import { gate as twoClassRoleAuthority } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY_TIMEOUT_MS = scaledBudget(300_000);

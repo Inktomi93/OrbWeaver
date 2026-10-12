@@ -78,6 +78,16 @@ import {
 } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import {
+  CtChatContributorSectionRegistry,
+  CtDataProviders,
+  CtFakeModalRegistry,
+  CtFakeSectionRegistry,
+  CtRealSectionRegistry,
+  CtStandInChromeRegistry,
+} from "@orb/testkit/browser/ct-data-providers.tsx";
+import { chatSettingsSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Command, Crown, Drama, Flag, FlaskConical, Gauge, Icon, MessagesSquare } from "@orb/ui/icons";
@@ -110,16 +120,6 @@ import { useMessageAppearance } from "#client/features/chat/hooks/use-message-ap
 import { CHAT_TRACK } from "#client/features/chat/lib/chat-track.ts";
 import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, setPanelMode, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
-import {
-  CtChatContributorSectionRegistry,
-  CtDataProviders,
-  CtFakeModalRegistry,
-  CtFakeSectionRegistry,
-  CtRealSectionRegistry,
-  CtStandInChromeRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
-import { chatSettingsSections } from "../../../support/browser/ct-door.ts";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
 

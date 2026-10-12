@@ -2,8 +2,8 @@
 // stripping (script/style/head/nav/footer), links → text, headings NOT uppercased (no case folding), and the
 // `<title>` extraction (trimmed / absent).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { loadHtml } from "#server/infra/extraction/loaders/html.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const enc = new TextEncoder();
 

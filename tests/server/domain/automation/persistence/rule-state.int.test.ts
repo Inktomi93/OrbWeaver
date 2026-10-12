@@ -9,10 +9,10 @@ import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { EMPTY_ANALYSIS_STATE } from "#server/domain/automation/contract/analysis.ts";
 import { advanceSettledWatermark, selectChatGuidance, selectRuleState, upsertRuleState } from "#server/domain/automation/persistence/rule-state.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { seedUser } from "../_support.ts";
 

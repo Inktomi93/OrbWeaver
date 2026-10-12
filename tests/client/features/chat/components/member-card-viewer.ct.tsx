@@ -1,4 +1,5 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+
 // CT: the D22 read-only, level-clamped member card-viewer (member-card-viewer.tsx). Drives the
 // production path over the stubbed network (routeTrpc `chat.getMemberCard`). Proves three shapes:
 //  - a `sheet`-clamped card: the description renders, the `full`-tier system-prompt section is ABSENT,
@@ -8,9 +9,9 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 //    left the roster / no access.
 // The read is GATED on `open` and the viewer starts open, so the CT asserts the loaded card directly.
 
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MemberCardViewerStory } from "../_ct-stories.tsx";
 
 const CHARACTER_ID = "character_ct_membercard";

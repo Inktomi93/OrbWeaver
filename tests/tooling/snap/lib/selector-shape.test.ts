@@ -3,8 +3,9 @@
 // reported a 10s timeout that read exactly like "the text is not rendered". BOTH directions are pinned —
 // prose REFUSES, and every real selector shape (including the ones a false-positive predicate would eat:
 // `nav a`, `:has(a b)`, quoted attribute values, custom elements, `text=`) passes untouched.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { OPTIONAL_SELECTOR_FLAGS, SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // lib/ cannot import ops/, so selector-shape.ts RESTATES the optional-inline-selector flags. This is the
 // enforcer for that restatement: a fifth optional-selector flag added to ops/flags.ts without a row in

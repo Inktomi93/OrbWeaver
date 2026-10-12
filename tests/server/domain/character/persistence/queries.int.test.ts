@@ -1,5 +1,5 @@
 // @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
-import { seedCharacter as seedCharacterRow } from "../../../../support/factories/character.ts";
+import { seedCharacter as seedCharacterRow } from "@orb/testkit/node/factories/character.ts";
 // persistence/queries — owner-scoped reads + the avatar LEFT JOIN + the card parse-seam. Load-bearing: the
 // ownership predicate lives in the WHERE (a non-owner read returns undefined, never another user's row);
 // listOwnedCharactersWithAvatar EXCLUDES synthetic rows (invariant 3); detailOf surfaces the joined avatar
@@ -11,6 +11,8 @@ import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
 import { characters, characterTags, chatParticipants, messages, messageVariants, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -25,8 +27,6 @@ import {
   loadOwnedCharacterWithAvatar,
   summaryOf,
 } from "#server/domain/character/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacterSummary, seedRawCharacter, seedSeatedChat, seedUser } from "../_support.ts";
 
 /** The library-wide name-collision verdict for a page whose names collide with nothing — `summaryOf`'s

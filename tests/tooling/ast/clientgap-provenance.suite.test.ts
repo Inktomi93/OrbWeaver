@@ -1,9 +1,9 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import { collectAppRouterOutputProvenance } from "../../../tooling/src/ast/lib/app-router-provenance.ts";
 import { declKey } from "../../../tooling/src/ast/lib/keys.ts";
 import { collectServerProcedures } from "../../../tooling/src/ast/ops/wiring.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

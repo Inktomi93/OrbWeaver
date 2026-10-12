@@ -15,10 +15,10 @@
 // the pre-fix source and goes RED there rather than failing to build (red-first receipt: the HEAD run
 // printed `... blocking  script  click(...)` and a bare `plantedHot` cell, with no legend line at all).
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { StepReport } from "../../../../tooling/src/cpu-profile/index.ts";
 import { printTable } from "../../../../tooling/src/cpu-profile/index.ts";
 import { installOutputSink } from "../../../../tooling/src/floor/cli/log.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STEP: StepReport = {
   idx: 1,

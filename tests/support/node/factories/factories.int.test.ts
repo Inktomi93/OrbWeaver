@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { FROZEN_AT_MS } from "../clock.ts";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
 import { makeAsset, makeCharacter, makeChat, makeMessage, makeUser, seedAsset, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "./index.ts";

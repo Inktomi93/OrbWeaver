@@ -15,6 +15,8 @@
 // whose subject the real tree no longer has — `VariantMetadata` closed `messageVariants.metadata` and the stats
 // rollup stopped json_extracting it, and reopening the column with an open writer and a raw reader in memory
 // still left it silent.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { PRODUCT_STYLESHEETS } from "../../../../../tooling/src/verify/contract/css-family.ts";
 import { gate as cssVarDefinedHealth } from "../../../../../tooling/src/verify/gates/css-var-defined-health.ts";
 import { gate as noCallerUserId } from "../../../../../tooling/src/verify/gates/no-caller-user-id.ts";
@@ -50,7 +52,6 @@ import { gate as toolingPortRegistry } from "../../../../../tooling/src/verify/g
 import { gate as uiPrimitivePermissions } from "../../../../../tooling/src/verify/gates/ui-primitive-permissions.ts";
 import { gate as warningCodeCoverage } from "../../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { gate as wireSchemaVocabOneHome } from "../../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 import { probeGate } from "./tooling-tests.ts";
 
 const DOMAIN = "packages/server/src/domain/character";
@@ -227,7 +228,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: testFactoryContract,
-    overlays: [add("tests/support/factories/liveness-user.ts", "export function makeLivenessUser(db: unknown) {\n  return db;\n}\n")],
+    overlays: [add("tests/support/node/factories/liveness-user.ts", "export function makeLivenessUser(db: unknown) {\n  return db;\n}\n")],
     messageIncludes: "PURE builder accepts a db",
   },
   {

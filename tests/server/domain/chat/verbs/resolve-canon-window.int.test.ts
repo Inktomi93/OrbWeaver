@@ -7,10 +7,10 @@
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach } from "vitest";
 import { createResolveCanonWindow } from "#server/domain/chat/verbs/resolve-canon-window.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;

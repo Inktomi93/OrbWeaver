@@ -4,10 +4,10 @@
 // popover (it's a click-to-reveal, not always-rendered), and that opening reveals the whitespace-preserved
 // readout. The popup renders through a Base UI Portal, so it's read via the PAGE locator.
 
+import type { ProseReading } from "@orb/testkit/browser/prose-measure.ts";
+import { proseRow, readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { ProseReading } from "../../../../support/browser/prose-measure.ts";
-import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
 import { CompactSummaryPeekStory } from "../_ct-stories.tsx";
 
 const SUMMARY = "Aria and the traveller struck a bargain at the crossroads.\nThe map changed hands.";

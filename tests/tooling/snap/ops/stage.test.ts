@@ -7,8 +7,9 @@
 // PLANTED CONTROLS, BOTH DIRECTIONS: a resolvable ref must yield a real sha (or the caller's refusal path
 // would refuse everything and no isolated audit could ever run), and an unresolvable one must yield null
 // (or a typo'd `--ref` silently falls back to auditing the DEV STACK — the defect class #678 exists for).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { tryResolveRef } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FULL_SHA_RE = /^[0-9a-f]{40}$/u;
 

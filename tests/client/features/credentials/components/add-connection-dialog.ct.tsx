@@ -22,13 +22,13 @@
 import type { ProviderAuth } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, providerDefSchema } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import { trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { copyActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { ADD_DIALOG_COPY, CLAUDE_SETUP_TOKEN_COMMAND, CLAUDE_SETUP_TOKEN_COPY_SUBJECT } from "#client/features/credentials/lib/add-connection-form-model.ts";
-import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
-import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import {
   ALL_AVAILABLE,

@@ -5,8 +5,8 @@
 // `reason`, and that a blocked request never reaches `fetch`.
 
 import { __setEgressResolverForTest, ANY_HOST, safeFetch } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PUBLIC_ADDR = "93.184.216.34"; // example.com — the default "resolves public" answer.
 

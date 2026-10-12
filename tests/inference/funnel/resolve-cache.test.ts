@@ -1,7 +1,7 @@
 import type { CachePolicyContext, GenerationCapability } from "@orb/contracts/inference";
 import { GENERATION_FLOOR, modelIdSchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CONTEXT: CachePolicyContext = {
   wire: "openai-compat",

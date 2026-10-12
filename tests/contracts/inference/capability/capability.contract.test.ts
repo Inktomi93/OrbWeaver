@@ -6,7 +6,7 @@
 // `capability.embedding` read would find them.
 
 import { capabilitySchema, EMBEDDING_FLOOR, GENERATION_FLOOR, RERANK_FLOOR } from "@orb/contracts/inference";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("each arm parses with its own floor", () => {
   expect(capabilitySchema.parse({ kind: "generation", generation: GENERATION_FLOOR })).toMatchObject({ kind: "generation" });

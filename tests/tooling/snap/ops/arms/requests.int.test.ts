@@ -15,6 +15,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { vi } from "vitest";
@@ -23,7 +24,6 @@ import { resultPairsOf } from "../../../../../tooling/src/snap/lib/session-wire.
 import { beginRunArms } from "../../../../../tooling/src/snap/ops/arms/registry.ts";
 import { parseSnapArgs } from "../../../../../tooling/src/snap/ops/parse.ts";
 import { finishSession, launchSnapSession } from "../../../../../tooling/src/snap/ops/session.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000);

@@ -1,8 +1,8 @@
 // infra/auth/notice-throttle — one security line per key per hour, with a bounded key map. The relayed-fallback
 // and public-http notices both ride it; their suites pin what each one logs.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createKeyedNoticeThrottle } from "#server/infra/auth/notice-throttle.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 // The module's window and key cap, mirrored so the tests can step past them.

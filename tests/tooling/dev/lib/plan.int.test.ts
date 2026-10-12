@@ -4,13 +4,13 @@ import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { listProcesses, pnpmInvocation } from "@orb/tooling/floor/host/platform";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { RUN_MARKER_ENV, runMarkerOwnerPid, sweepRunMarker } from "@orb/tooling/floor/process/run-marker";
 import { z } from "zod";
 import { devMarkerPreload, serverSpawnPlan } from "../../../../tooling/src/dev/lib/plan.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CEILING = scaledBudget(20_000);

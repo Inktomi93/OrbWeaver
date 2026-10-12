@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { classifyCascadeSource, REPOSITORY_CASCADE_SOURCES } from "../../../../tooling/src/snap/lib/cascade-source.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("cascade source ownership is closed over the sanctioned stylesheet homes", () => {
   const cases = [

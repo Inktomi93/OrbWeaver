@@ -16,9 +16,9 @@ import { describe } from "vitest";
 import { relativePathOf } from "#client/data/import-tree.ts";
 // Deep import of the PURE planner module (the barrel drags browser TSX into the node program).
 import { planTreeImport } from "#client/data/import-tree-plan.ts";
-import "../../../support/composed-real.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
+import "@orb/testkit/node/composed-real.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 
 const ENC = new TextEncoder();
 

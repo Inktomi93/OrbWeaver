@@ -16,15 +16,15 @@ import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { TeachingContext } from "#server/domain/chat/contract/context.ts";
 import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 

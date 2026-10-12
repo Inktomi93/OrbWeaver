@@ -4,10 +4,10 @@
 // Retained failure traces must carry the native popover's open state and its painted pixels.
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { strFromU8, unzipSync } from "fflate";
 import sharp from "sharp";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CLI_BUDGET_MS = scaledBudget(60_000);

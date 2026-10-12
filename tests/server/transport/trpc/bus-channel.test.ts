@@ -7,10 +7,10 @@
 //
 // Pure module test over the process-local emitter: no db, no clock, no I/O.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 // Deep-imported: the mint is internal to the transport buses and not on the trpc front door.
 import { defineBusChannel } from "#server/transport/trpc/bus-channel.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface Ping {
   readonly key: string;

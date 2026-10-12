@@ -6,6 +6,7 @@
 // omitted at its default) and the tab predicate's status partition.
 
 import { WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { friendlyWorkloadError } from "#client/features/workloads/lib/workloads-failure-copy.ts";
 import {
   buildStartInput,
@@ -18,7 +19,6 @@ import {
   WORKLOAD_FILTERS,
   workloadFilterMatches,
 } from "#client/features/workloads/lib/workloads-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the runnable set is the contract's singular-capable built kinds, minus route-started import-bundle", () => {
   // Singular + built (stub:false), EXCEPT `import-bundle` — it is singular but ROUTE-started (the upload route

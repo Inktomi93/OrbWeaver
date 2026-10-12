@@ -41,7 +41,7 @@
 //
 // THE COST OF THAT LAZINESS IS CHARGED TO THE FIRST TEST THAT USES THE FIXTURE (vitest counts fixture
 // setup inside `testTimeout`), and the server graph is seconds — so a COMPOSED-REAL file states the load
-// once, in its own import list, with `import "…/support/composed-real.ts";` (#2386). That module owns the
+// once, in its own import list, with `import "@orb/testkit/node/composed-real.ts";` (#2386). That module owns the
 // measurement, the rejected alternatives, and the list of graphs to keep in sync with the fixtures below.
 
 import { mkdtemp, rm } from "node:fs/promises";
@@ -54,10 +54,10 @@ import { castId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { createCaller, RateLimitGate, Services } from "@orb/server/transport/trpc";
 import { test as base } from "vitest";
-import type { Clock } from "./clock.ts";
-import { createFrozenClock } from "./clock.ts";
-import type { SeededIds } from "./ids.ts";
-import { createSeededIds } from "./ids.ts";
+import type { Clock } from "../iso/clock.ts";
+import { createFrozenClock } from "../iso/clock.ts";
+import type { SeededIds } from "../iso/ids.ts";
+import { createSeededIds } from "../iso/ids.ts";
 // Side-effect: register the custom matchers (toThrowTRPCError / toThrowProviderError) + their types.
 import "./matchers.ts";
 

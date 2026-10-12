@@ -6,12 +6,12 @@ import { userSettings, users } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joiner-settings-statement.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 

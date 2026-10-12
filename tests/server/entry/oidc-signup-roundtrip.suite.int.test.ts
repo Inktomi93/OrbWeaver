@@ -13,6 +13,9 @@ import { createSessionsService, createTokenHasher } from "@orb/server/domain/ses
 import type { OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import { createOwnerClaimCode } from "@orb/server/infra/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedChat, seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
@@ -24,9 +27,6 @@ import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joi
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
-import { freshDb } from "../../support/db.ts";
-import { seedChat, seedUser } from "../../support/factories/index.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const NOW = 1_750_000_000_000;
 const MINUTE_MS = 60_000;

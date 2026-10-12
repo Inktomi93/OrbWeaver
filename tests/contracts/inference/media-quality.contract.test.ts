@@ -3,7 +3,7 @@ import type { UserSettingsView } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig, userSettingsViewSchema } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const baseView: UserSettingsView = {
   userId: newId<UserId>(),

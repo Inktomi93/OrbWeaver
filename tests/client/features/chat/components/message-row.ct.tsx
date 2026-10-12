@@ -15,6 +15,8 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -30,8 +32,6 @@ import {
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
-import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
 

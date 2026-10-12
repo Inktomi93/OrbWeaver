@@ -4,7 +4,7 @@
 
 import type { BugReportDiagnostics } from "@orb/contracts/diagnostics";
 import { BUG_REPORT_SERVER_ERRORS_MAX, bugReportDiagnosticsSchema, DIAGNOSTIC_GRAMMARS } from "@orb/contracts/diagnostics";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const RECORD = { at: 1_790_000_000_000, source: "chat bus", event: "trpc.unhandled", errorType: "TypeError", code: "SQLITE_BUSY", procedure: "chat.send" };
 const RUNTIME = { node: "v26.3.0", platform: "linux", arch: "x64", authMode: "local" } as const;

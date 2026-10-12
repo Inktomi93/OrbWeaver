@@ -6,11 +6,11 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-loose-id-cast("ollama"): baselined when the gate widened; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
 import { detectServer } from "#inference/catalog/detect.ts";
 import { fetchEndpointModels } from "#inference/catalog/endpoint.ts";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
 import { localServerFetch, transcriptFetch } from "./_local-servers-fetch.ts";
 

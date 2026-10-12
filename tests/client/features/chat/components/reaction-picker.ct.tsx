@@ -13,10 +13,10 @@
 // whether the pick actually travelled — and it says WHAT travelled, which is the part a spy `onPick` would
 // have let drift (a wrong `variantId` renders identically and reacts to the wrong swipe).
 
+import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { NarratorActionsDoorsStory, ReactionPickerStory, StandardLabeledDoorsStory } from "../_reaction-stories.tsx";
 
 // Must MATCH `fixtures.ts::makeMessageView` — the picker's pressed state selects this room's window by the

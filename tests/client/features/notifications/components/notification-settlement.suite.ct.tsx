@@ -4,9 +4,9 @@ import type { InboxView } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { NotificationBellStory } from "../_ct-stories.tsx";
 

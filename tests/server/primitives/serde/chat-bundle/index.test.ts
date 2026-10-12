@@ -15,9 +15,9 @@ import type { PortableParse } from "@orb/contracts/portability";
 import { rpgGameConfigSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { PortableChat, PortableChatMessage, PortableRpgGame } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_SCHEMA_KIND, CHAT_BUNDLE_SCHEMA_VERSION, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

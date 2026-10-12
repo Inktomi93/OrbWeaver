@@ -4,6 +4,7 @@
 // storm the latch exists to end. Keyed by model id, never a global flag: a role re-point must get its own
 // first attempt rather than inheriting the verdict about the model it replaced.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import {
   __resetAvatarAnalysisAvailability,
@@ -11,7 +12,6 @@ import {
   avatarAnalysisUnservable,
   markAvatarAnalysisUnservable,
 } from "#server/domain/embeddings/substrate/avatar-analysis-availability.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const VL_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
 const OTHER_MODEL = "Qwen/Qwen3-30B-A3B";

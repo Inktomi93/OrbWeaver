@@ -5,9 +5,9 @@
 // @subject packages/server/src/domain/tool-use/verbs/to-tool-definitions.ts
 
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });

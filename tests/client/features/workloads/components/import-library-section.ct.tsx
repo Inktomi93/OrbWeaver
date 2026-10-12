@@ -18,13 +18,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PersonaCollision } from "@orb/contracts/import";
+import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
+import { makeImportedCard } from "@orb/testkit/node/factories/imported-card.ts";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { driveFileDrop, driveFileUpload } from "@orb/tooling/floor/browser/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { dropFiles } from "../../../../support/browser/drop-files.ts";
-import { makeImportedCard } from "../../../../support/factories/imported-card.ts";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx";
 
 /** The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it. */

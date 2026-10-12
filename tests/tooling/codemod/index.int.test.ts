@@ -21,10 +21,10 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { Plan } from "../../../tooling/src/codemod/index.ts";
 import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol } from "../../../tooling/src/codemod/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 import { withTree } from "./_kit-tree.ts";
 

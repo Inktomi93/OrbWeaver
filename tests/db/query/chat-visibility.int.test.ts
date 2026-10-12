@@ -20,11 +20,11 @@ import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, count, eq, exists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { freshDb } from "../../support/db.ts";
-import { seedCharacter } from "../../support/factories/character.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const STRANGER = castId<UserId>("user_stranger");

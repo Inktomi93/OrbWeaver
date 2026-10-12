@@ -27,7 +27,7 @@ import { delimiter, dirname, isAbsolute, join, relative, resolve, sep, win32 } f
 import process from "node:process";
 import { expect, test as houseTest } from "./fixtures.ts";
 
-/** The typed CLI outcome `toExitWith` asserts on (tests/support/matchers.ts). */
+/** The typed CLI outcome `toExitWith` asserts on (tests/support/node/matchers.ts). */
 export interface CliResult {
   readonly code: number | null;
   readonly stdout: string;
@@ -49,7 +49,7 @@ export interface ToolFixtures {
   plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>;
 }
 
-const REPO_ROOT = resolve(import.meta.dirname, "..", "..");
+const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..");
 const EXECUTABLE_MODE = 0o755;
 const FAKE_BIN_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 const WINDOWS_DEVICE_NAME_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu;

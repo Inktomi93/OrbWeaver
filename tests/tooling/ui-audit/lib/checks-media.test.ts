@@ -5,6 +5,8 @@
 //
 // Owner ruling pinned here too: this detector is not built to fire on today's tree — a clean run is the
 // SUCCESS condition, never a failure, and the threshold is never loosened to manufacture a finding.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { ImageDistortionInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
 import type { BuriedRasterInput } from "../../../../tooling/src/ui-audit/contract/samples-media.ts";
@@ -14,7 +16,6 @@ import {
   checkImageDistortion,
   classifyImageDistortion,
 } from "../../../../tooling/src/ui-audit/lib/checks-media.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function raster(over: Partial<BuriedRasterInput> = {}): BuriedRasterInput {
   const base: BuriedRasterInput = {

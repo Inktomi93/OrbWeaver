@@ -12,11 +12,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { parseSnapArgs, prepareScenario, SNAP_HELP } from "@orb/tooling/snap";
 import { vi } from "vitest";
 import { SNAP_SCENARIO_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const TIMEOUT_MS = scaledBudget(120_000);

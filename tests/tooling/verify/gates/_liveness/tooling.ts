@@ -1,10 +1,11 @@
 // Real-corpus liveness arms (#2149) for policies whose subject is the tooling tree, the gate corpus
 // included. DATA, collected by the one runner (`./runner.ts`),
 // which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
+
+import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as testExecutableMode } from "../../../../../tooling/src/verify/gates/test-executable-mode.ts";
 import { gate as toolingOsNeutral } from "../../../../../tooling/src/verify/gates/tooling-os-neutral.ts";
 import { gate as warningWorkitemLiveness } from "../../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";
-import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-liveness.ts";
 
 /** A work item id far above any the tree will mint, so the control cannot be answered by a real item. */
 const ABSENT_ITEM = 99_999;

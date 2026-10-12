@@ -10,9 +10,9 @@
 import type { ChatIdentity } from "@orb/contracts/chat";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { MemberRowSources } from "#client/features/chat/lib/member-rows.ts";
 import { rowAccessibleName, toCharacterRows, toPersonRows } from "#client/features/chat/lib/member-rows.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");

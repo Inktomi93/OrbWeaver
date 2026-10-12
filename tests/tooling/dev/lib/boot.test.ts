@@ -1,7 +1,8 @@
 // The ordered boot's gate, every probe injected: vite may start only once the server answers, a server
 // that dies first ends the boot, and a ceiling that runs out is a timeout, never a ready.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { awaitServerReady } from "../../../../tooling/src/dev/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function probes(answers: readonly boolean[]): { healthy: () => Promise<boolean>; asked: () => number } {
   let asked = 0;

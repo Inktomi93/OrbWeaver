@@ -12,8 +12,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CredentialsService } from "@orb/server/domain/credentials";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

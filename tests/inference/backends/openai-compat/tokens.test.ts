@@ -4,6 +4,8 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import type { TokenTarget } from "#inference/backends/openai-compat/tokens.ts";
@@ -12,8 +14,6 @@ import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { endpointTokensKey } from "#inference/catalog/keys.ts";
 import type { ChatResult } from "#inference/contract/chat.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { testProviderId } from "../../../support/inference-identities.ts";
 import { fakeApiKeySecret, fakeResolved, memoryStores } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../_hosted-support.ts";

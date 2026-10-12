@@ -10,13 +10,13 @@
 // existing install keeps ten picker rows forever, which is the failure this converge exists to prevent.
 
 import { themes, userSettings } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_MOCHA_ID } from "#server/domain/settings/constants.ts";
 import { readableTheme } from "#server/domain/settings/persistence/theme-queries.ts";
 import { ensureSeedThemes, SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, principal, seedUser } from "./_support.ts";
 
 describe("ensureSeedThemes", () => {

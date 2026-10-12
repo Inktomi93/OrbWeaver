@@ -9,9 +9,9 @@
 // `page` locators address it by accessible name.
 
 import { removeActionName } from "@orb/client/lib";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { EntryEditorInertStory, EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories.tsx";
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {

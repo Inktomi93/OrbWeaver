@@ -6,12 +6,12 @@
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { SpeakerCandidate } from "#server/domain/chat/contract/arbitration.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import type { TurnOutcome } from "#server/domain/chat/contract/results.ts";
 import { runAutoMode } from "#server/domain/chat/engine/auto-mode.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });

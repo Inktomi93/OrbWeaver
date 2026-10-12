@@ -26,10 +26,10 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { AutomationRuleId, CharacterId, ChatId, ChatTurnId, DocumentId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { __resetViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");

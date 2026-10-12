@@ -1,4 +1,4 @@
-// tests/support/chat/scenario.int — the ACCEPTANCE PROOF for the N4 harness: the same behavior the
+// tests/server/domain/chat/scenario.int — the ACCEPTANCE PROOF for the N4 harness: the same behavior the
 // hand-rolled `verbs/turn.int.test.ts` covers (its `harness()` + `seedRoom()` + local `scripted()` fake),
 // re-expressed through `scenario.chat(tape, opts)` — real db, real verbs, real engine, scripted provider —
 // with LESS boilerplate. The converted headliner is the solo single-turn send (turn.int's "send — the solo
@@ -9,12 +9,12 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { assertEventSequence, assertStaticPrefixStable, assertTokenTotalsConsistent } from "@orb/testkit/node/chat/assertions.ts";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
-import { expect, test } from "../fixtures.ts";
-import { assertEventSequence, assertStaticPrefixStable, assertTokenTotalsConsistent } from "./assertions.ts";
-import { scenario } from "./scenario.ts";
-import { tape } from "./tape.ts";
+import { scenario } from "./_scenario.ts";
 
 describe("scenario.chat — the converted solo single-turn send (turn.int 'send — the solo path')", () => {
   test("commits the user row + the assistant turn; emits the lifecycle", async () => {

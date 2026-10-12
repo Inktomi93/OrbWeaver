@@ -36,8 +36,8 @@ import { stateRoundNeededTokens } from "#server/domain/rpg/substrate/state-round
 //     so the second model call is provably gone. The degrade matrix (malformed arg · ghost actor · zero calls)
 //     lands here too — each with the narrative already committed, so none of them may fail or block anything.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi, ProviderId } from "@orb/contracts/inference";
@@ -57,6 +57,8 @@ import type { RpgTraceSink } from "@orb/server/domain/rpg";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
+import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { vi } from "vitest";
 import { detectModelFamily } from "#inference/capability/families.ts";
@@ -70,8 +72,6 @@ import { findTurnToolCallsByVariant } from "#server/domain/rpg/persistence/turn-
 import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "#server/entry/compose/rpg.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-compat/_ollama-native-recordings.ts";
-import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { ANTHROPIC_PATCH_ROUND_200 } from "./_structured-state-round-recordings.ts";
 

@@ -5,9 +5,9 @@
 
 import { DEFAULT_MAX_IMAGE_BYTES } from "@orb/contracts/settings";
 import { env } from "@orb/server/foundation/env";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("layer (floor-merge)", () => {
   test("layer({}) reads the env floor for env-mirrored fields", () => {

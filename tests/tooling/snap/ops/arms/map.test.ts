@@ -4,11 +4,12 @@
 //   (#1509) — and the smaller one looked like a smaller surface, not like a truncated count.
 // @instrument-absence-proof: with `--map` off, and with the flag on but every page failing to capture,
 //   the pairs stay "no"/"0" rather than borrowing a neighbour's population.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { MapEntry } from "../../../../../tooling/src/snap/contract/map.ts";
 import type { CaptureOutcome } from "../../../../../tooling/src/snap/contract/types.ts";
 import { MAP_ARM } from "../../../../../tooling/src/snap/ops/arms/map.ts";
 import { parseSnapArgs } from "../../../../../tooling/src/snap/ops/parse.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 function entry(source: MapEntry["source"]): MapEntry {
   return {

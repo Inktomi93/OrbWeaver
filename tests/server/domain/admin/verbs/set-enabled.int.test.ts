@@ -8,10 +8,10 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { auditActions, liveSessionIds, makeHarness, principal, seedAdminCaller, seedLiveSession, seedUser, withBrokenAudit } from "../_support.ts";
 
 describe("setEnabled", () => {

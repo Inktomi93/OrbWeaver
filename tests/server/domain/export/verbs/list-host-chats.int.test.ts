@@ -10,10 +10,10 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createListHostChats } from "#server/domain/export/verbs/list-host-chats.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_700_000_000_000;

@@ -6,11 +6,11 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ownerChatIds } from "#server/domain/stats/substrate/owner-chat-scope.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

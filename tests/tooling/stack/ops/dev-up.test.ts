@@ -3,10 +3,10 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { LEADER_RECORD_FILE } from "../../../../tooling/src/stack/index.ts";
 import { doDevUp } from "../../../../tooling/src/stack/ops/dev-up.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { captured, devContext, PLANTED_PORTS, REFUSED_TABLE, tableHolding, UP } from "../_dev-verbs.ts";
 
 test("up over a socket table it cannot read reports status=unknown, exits 2 and boots nothing", async ({ scratch }) => {

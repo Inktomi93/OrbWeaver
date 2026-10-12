@@ -9,10 +9,10 @@
 // through the rendered sentence (not the new API), so it compiles and fails against the old composition.
 
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatMastheadTileStory } from "../_ct-stories.tsx";
 import { HomePartialThemeProseStory } from "../_theme-prose-ct-stories.tsx";
 import type { ScopedChatSummaryFixture } from "../fixtures.ts";

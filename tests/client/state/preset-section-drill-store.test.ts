@@ -18,8 +18,8 @@
 import { closePresetSectionDrill, drillPresetSection, retargetPresetSectionDrill } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const PRESET_A = castId<PresetId>("preset_drillstoreaaa");
 const PRESET_B = castId<PresetId>("preset_drillstorebbb");

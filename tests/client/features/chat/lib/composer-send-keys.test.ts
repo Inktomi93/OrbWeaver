@@ -1,8 +1,8 @@
 // Unit: `shouldSendOnEnter` (features/chat/lib/composer-send-keys) — the composer's Enter-to-send
 // decision (enterSends). Pins neo's modifier grammar for both pref states.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { shouldSendOnEnter } from "#client/features/chat/lib/composer-send-keys.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const base = { key: "Enter", shiftKey: false, metaKey: false, ctrlKey: false, isComposing: false };
 

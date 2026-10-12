@@ -17,10 +17,10 @@ import { createExportService } from "@orb/server/domain/export";
 import { parseCardPng } from "@orb/server/domain/import";
 import { createLinkCarriedBooks } from "@orb/server/domain/world-info";
 import { cardFromJson } from "@orb/server/primitives/serde/card";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   AVATAR_PNG,
   makeHarness,

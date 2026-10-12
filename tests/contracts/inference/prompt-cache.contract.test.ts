@@ -11,7 +11,7 @@ import {
   SHIPPED_PROMPT_CACHE,
 } from "@orb/contracts/inference";
 import { PROMPT_CACHE_MIN_DEPTH_CEIL } from "@orb/contracts/settings";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SET = { enabled: true, cacheSystem: true, historyDepth: null, ttl: "5m" };
 

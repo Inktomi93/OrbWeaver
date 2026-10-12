@@ -22,14 +22,14 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { AA_NON_TEXT_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+import { defineTrpcRoutes, routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —
 // a re-spelling would pass while the instrument matched something else (see the module's header).
 import { SELECTION_RAIL_SEL } from "../../../../../tooling/src/ui-audit/lib/selection-rail-sel.ts";
-import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
-import { defineTrpcRoutes, routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_collection_band", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };

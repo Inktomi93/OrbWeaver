@@ -14,11 +14,11 @@
 import { chats, personas } from "@orb/db";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createResolveVisibleRooms } from "#server/entry/compose/visible-rooms.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { principal, seedUser } from "../../domain/regex/_support.ts";
 

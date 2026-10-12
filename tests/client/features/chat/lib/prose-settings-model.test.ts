@@ -4,8 +4,8 @@
 // the warn-never-block lint's honest scope.
 
 import { PROSE_MAX_CHARS, PROSE_SLOTS, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { projectProseForm, proseFieldName, proseSlotPatch, toProsePatch, validateProseLengths } from "#client/features/chat/lib/prose-settings-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // A SECOND user-home slot ≠ ARBITER — the projection/patch exclusivity subject. (Was `chat.group.roundNudge`
 // until the F4 re-home moved the group framings to the preset home; any user-home side-generation slot serves.)

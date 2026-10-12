@@ -13,6 +13,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "@orb/tooling/verify";
 import {
@@ -30,7 +31,6 @@ import {
   snapFlagsIndexDrift,
   typeConfigsDrift,
 } from "@orb/tooling/verify";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const STAGE = "ledgers:fresh";

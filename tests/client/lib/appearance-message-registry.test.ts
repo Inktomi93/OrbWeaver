@@ -1,10 +1,11 @@
 // Every case here tears down through the REAL door — the disposer `registerAppearanceMessageSnapshot`
 // hands back, which is the same one a MessageRow's effect cleanup calls — so the registry needs no
 // test-only reset export and the suite proves the production cleanup path while it is at it (#1847).
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { AppearanceMessageCarrierSnapshot } from "#client/lib/appearance-message-registry.ts";
 import { readAppearanceMessageSnapshots, registerAppearanceMessageSnapshot } from "#client/lib/appearance-message-registry.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const SNAPSHOT_A: AppearanceMessageCarrierSnapshot = {
   avatarAspect: "square",

@@ -25,9 +25,9 @@
 // @orb-waive-file no-test-fabrication(ChatFrame): the socket frame is parsed JSON of a known shape; there is no frame schema to parse it with.
 import type { StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
-import type { StreamValue } from "../../support/browser/trpc-wire.ts";
+import type { StreamValue } from "@orb/testkit/browser/trpc-wire.ts";
 
-export type { StreamValue } from "../../support/browser/trpc-wire.ts";
+export type { StreamValue } from "@orb/testkit/browser/trpc-wire.ts";
 
 /** One frame off the socket before it is known to be this room's: every `chat` field may be absent. */
 type ChatFrame = { readonly channel: string } & Partial<Omit<StreamFrameFor<"chat">, "channel">>;

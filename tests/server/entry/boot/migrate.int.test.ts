@@ -9,10 +9,10 @@ import type { LibSqlWrap } from "@orb/db";
 import { checkBaseline, closeDb, createDb, runMigrations } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { seedCharacter } from "../../../support/factories/character.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedHostChat, seedUser } from "../../domain/automation/_support.ts";
 
 const FK_ON = 1;

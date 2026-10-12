@@ -17,6 +17,8 @@
 //     re-planted — what this file proves is that this family's granularity cannot produce that state.
 //   · THE SHIPPED TABLE'S INTEGRITY. The 57 committed rows must be spelled on this policy's identity axes,
 //     or they are stale on arrival and only the real tree finds out.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -27,7 +29,6 @@ import { UI_SOURCE_ROOT } from "../../../../tooling/src/verify/lib/density-tier.
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/density-tier-family";
 

@@ -3,9 +3,9 @@
 // the sliding window, the edit-clears-the-run signal, and the house default. Deterministic via an
 // injected `now` (the fake-timers substitute — the breaker holds no real timers of its own).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "#client/forms/save-circuit-breaker.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A hand-cranked clock — the breaker's only time source, so the whole thing is deterministic. */
 function fakeClock(): { readonly now: () => number; readonly advance: (ms: number) => void } {

@@ -3,13 +3,13 @@
 // bulk-schedulable — a schedule carries no target), the mode resolution (maintenance bulk-by-force, owner
 // toggle, non-owner floored to singular), and the params↔form round-trip that seeds the edit dialog.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   resolveScheduleMode,
   scheduleFormValuesFromRow,
   scheduleParamsToRunValues,
   workloadKindBulkSchedulable,
 } from "#client/features/workloads/lib/workloads-schedule-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("workloadKindBulkSchedulable: sweep kinds yes; create-kinds (needs target) and maintenance kinds no", () => {
   // A singular+bulk SWEEP kind is bulk-schedulable (a recurring all-owners sweep, no target needed).

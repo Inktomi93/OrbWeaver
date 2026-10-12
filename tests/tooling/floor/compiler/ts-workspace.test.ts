@@ -1,11 +1,11 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { buildLiveness, collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
 import { createSemanticWorkspace, getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Node } from "ts-morph";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function write(root: string, path: string, text: string): void {
   const target = join(root, path);

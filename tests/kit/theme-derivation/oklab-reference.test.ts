@@ -1,8 +1,8 @@
 // The kit's sRGB <-> OKLCH maths against published OKLab known answers (`tests/support/oklab-reference.ts`).
 // Nothing here is computed by the kit, so a transposed coefficient cannot hide behind a round trip.
 import { oklabToOklch, oklchToSrgb, srgbToOklch } from "@orb/kit/theme-derivation";
-import { expect, test } from "../../support/fixtures.ts";
-import { OKLAB_OUT_OF_GAMUT_VECTOR, OKLAB_POLAR_PAIRS, OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "../../support/oklab-reference.ts";
+import { OKLAB_OUT_OF_GAMUT_VECTOR, OKLAB_POLAR_PAIRS, OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "@orb/testkit/iso/oklab-reference.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SRGB_MAX = 255;
 const GAMUT_EDGE_CHANNEL_TOLERANCE = 0.1;

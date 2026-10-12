@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
 import { bindSessionDocumentHost, sessionDocument } from "#client/lib/session-document-host.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   bindSessionDocumentHost(null);

@@ -3,9 +3,9 @@
 // reported by name (never silently dropped), and `extensions.regex_scripts` parses into RegexScriptCard[]
 // while a malformed script joins `unmapped` rather than aborting the whole preset.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { parseStPresetFile, parseStSettingsPreset, stPresetFromJson, stPresetName } from "#server/domain/import/substrate/preset.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function stPresetJson(over: Record<string, unknown> = {}): unknown {
   return {

@@ -6,7 +6,7 @@
 // can serve.
 
 import { CHAT_APIS, chatApiSchema, WIRE_DEFS, WIRES } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("every member parses to itself and anything else is REFUSED (the enum stays closed)", () => {
   for (const api of CHAT_APIS) {

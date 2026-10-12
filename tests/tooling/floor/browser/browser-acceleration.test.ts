@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { browserArgsWithAcceleration, classifyBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the shared browser launch requests GPU acceleration and leaves caller overrides last", () => {
   expect(browserArgsWithAcceleration()).toEqual(["--enable-gpu"]);

@@ -23,8 +23,8 @@
 //    shape of "we told the user we dropped it and sent it anyway".
 
 import type { CapabilityOverrideInput, Wire } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { WARNING_CODES } from "#inference/contract/resolve.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import type { ChatScript } from "./_harness.ts";
 import { CONFORMANCE_WIRES, cellTest, chatCapability, driveChat, warningCodesOf } from "./_harness.ts";
 

@@ -11,12 +11,12 @@ import { createDb, runMigrations, users, workloads } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { isActiveKindUniqueViolation } from "#server/domain/workloads/persistence/constraints.ts";
 import { insertWorkload, markStarted } from "#server/domain/workloads/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { T0 } from "../_support.ts";
 
 const MIGRATIONS_DIR = "packages/db/src/migrations";

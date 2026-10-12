@@ -41,7 +41,7 @@
 // deliberately LEXICAL and STATIC: this is a path-provenance fence for authored path-bearing fs calls, not a
 // filesystem sandbox, not an fd/FileHandle dataflow proof, not a subprocess fence, and not a runtime
 // canonical-path containment proof. The RUNTIME half of the same contract, for the dynamic keys static
-// provenance cannot read, is `tests/support/tool-fixtures.ts#fixturePath`, which this reader recognises as
+// provenance cannot read, is `tests/support/node/tool-fixtures.ts#fixturePath`, which this reader recognises as
 // root-preserving.
 //
 // WRITE-AFFECTING OPERANDS ARE A CLOSED TABLE, NOT ARGUMENT ZERO. The first implementation judged
@@ -144,7 +144,7 @@ const UNREADABLE_MESSAGE = UNREADABLE_MESSAGE_BODY + " (docs/law/gate-runtime-st
 const MISSING_MESSAGE =
   "a family test filesystem mutation is missing a required write-affecting path argument (#2185, #2332), so scratch ownership cannot be proven at all. (docs/law/gate-runtime-standardization.md §6.5)";
 const FIX =
-  'Root the write at the canonical `scratch` or `plantedTree` fixture (`tests/support/tool-fixtures.ts`), or create a unique directory with `mkdtemp[Disposable][Sync](join(tmpdir(), prefix))`, and keep every composed path below that root — `fixturePath(root, …)` carries a proven root across a runtime-computed segment. If the test genuinely needs the REAL tree it READS it: `readFileSync`/`existsSync`/a read-only `openSync(path, "r")` are untouched by this policy. Copy/cp/symlink/link judge their destination; rename judges both paths. A test that must PLANT at real-tree paths is the `__g_` conformance-suite shape and lives outside this population under an explicit dated grant (#2176), never behind a carve here.';
+  'Root the write at the canonical `scratch` or `plantedTree` fixture (`tests/support/node/tool-fixtures.ts`), or create a unique directory with `mkdtemp[Disposable][Sync](join(tmpdir(), prefix))`, and keep every composed path below that root — `fixturePath(root, …)` carries a proven root across a runtime-computed segment. If the test genuinely needs the REAL tree it READS it: `readFileSync`/`existsSync`/a read-only `openSync(path, "r")` are untouched by this policy. Copy/cp/symlink/link judge their destination; rename judges both paths. A test that must PLANT at real-tree paths is the `__g_` conformance-suite shape and lives outside this population under an explicit dated grant (#2176), never behind a carve here.';
 
 function writeDoor(call: CallExpression): { readonly verb: WriteVerb; readonly positions: readonly number[] } | undefined {
   const origin = resolveModuleMemberOrigin(call.getExpression());
@@ -188,12 +188,12 @@ function judge(ctx: GatePolicyContext, paths: FixturePathOriginReader, { call, v
 /** The canonical fixture door, restated in the proof mini-project: `fixtureBinding` resolves `test` through
  *  module identity, so a LOCAL callback carrying a `scratch` property mints nothing (a `mustFlag` row). */
 const SUPPORT = {
-  "tests/support/tool-fixtures.ts":
+  "tests/support/node/tool-fixtures.ts":
     "export function test(name: string, body: (fixtures: { scratch: string; repoRoot: string; plantedTree: (files: Record<string, string>) => Promise<string> }) => unknown): void { void name; void body; }\nexport function fixturePath(root: string, ...parts: string[]): string { return [root, ...parts].join('/'); }\n",
 } as const;
 const PLANT = (body: string, fs = 'import { writeFileSync } from "node:fs";\n'): Readonly<Record<string, string>> => ({
   ...SUPPORT,
-  "tests/tooling/verify/gates/probe.test.ts": `${fs}import { join, resolve } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\n${body}`,
+  "tests/tooling/verify/gates/probe.test.ts": `${fs}import { join, resolve } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\n${body}`,
 });
 
 export const gate = defineGate({
@@ -306,7 +306,7 @@ export const gate = defineGate({
         'function fakeTest(_n: string, body: (f: { scratch: string }) => void): void { body({ scratch: "/tmp/x" }); } fakeTest("x", ({ scratch }) => writeFileSync(join(scratch, "x"), "x"));\n',
       ),
       expect: { count: 1, messageIncludes: "UNREADABLE" },
-      why: "IDENTITY, NOT PROPERTY NAME: a LOCAL callback carrying a property called `scratch` cannot mint fixture provenance — the fixture door is resolved through `tests/support/tool-fixtures.ts#test` by module identity",
+      why: "IDENTITY, NOT PROPERTY NAME: a LOCAL callback carrying a property called `scratch` cannot mint fixture provenance — the fixture door is resolved through `tests/support/node/tool-fixtures.ts#test` by module identity",
     },
     {
       mode: "types",
@@ -422,7 +422,7 @@ export const gate = defineGate({
       mode: "types",
       files: PLANT(
         'test("x", ({ scratch }) => { writeFileSync(fixturePath(scratch, runtimeKey()), "x"); });\ndeclare function runtimeKey(): string;\n',
-        'import { writeFileSync } from "node:fs";\nimport { fixturePath } from "../../../support/tool-fixtures.ts";\n',
+        'import { writeFileSync } from "node:fs";\nimport { fixturePath } from "../../../support/node/tool-fixtures.ts";\n',
       ),
       why: "the canonical CHECKED composition door carries the proven root across a segment static provenance cannot read — the one sanctioned answer to the dynamic-key `mustFlag` row, and the seam between the static and runtime halves of this contract",
     },

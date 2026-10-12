@@ -111,6 +111,30 @@ module.exports = {
       from: { path: "^tests/support/(iso|node)/" },
       to: { path: "^tests/support/(node|browser)/", pathNot: "^tests/support/$1/", reachable: true },
     },
+    {
+      name: "testkit-app-router-bridge",
+      comment:
+        "The test kit (@orb/testkit) derives tRPC wire shapes from AppRouter through the server root, the same type-only bridge the client's data/trpc.ts uses, instead of copying them. The root exports only that type, so a value edge to it is a kit helper treating the bridge as runtime. (Core-0-Architecture-and-Structure.md §5, Spine-Testing.md §10.)",
+      severity: "error",
+      from: { path: "^tests/support/" },
+      to: { path: SERVER_ROOT, dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "testkit-tooling-doors",
+      comment:
+        "The test kit enters tooling only through its public doors: a tool's front door (tooling/src/<tool>/index.ts, `@orb/tooling/<tool>`) or a floor module (`@orb/tooling/floor/*`). A tool's ops/lib/contract internals stay private to the tool, the same front-door law tooling-internal-direction holds between tools. (Core-0-Architecture-and-Structure.md §9.)",
+      severity: "error",
+      from: { path: "^tests/support/" },
+      to: { path: "^tooling/src/", pathNot: ["^tooling/src/[^/]+/index\\.ts$", "^tooling/src/floor/"] },
+    },
+    {
+      name: "tooling-no-testkit",
+      comment:
+        "The test kit and tooling both sit above the cake, and the kit may use tooling's floor (the contrast and timing engines). Tooling never imports the kit, so a tool's verdict never depends on test fixtures and the two cannot form a cycle. (Core-0-Architecture-and-Structure.md §9.)",
+      severity: "error",
+      from: { path: "^tooling/" },
+      to: { path: "^tests/support/" },
+    },
     // ════════════════════════ The package cake (backstop to the resolver) ════════════════════════
     {
       name: "kit-purity",

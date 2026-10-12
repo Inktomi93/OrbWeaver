@@ -1,7 +1,7 @@
 import type { ImportedCard } from "@orb/contracts/import";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds } from "../ids.ts";
+import { createSeededIds } from "../../iso/ids.ts";
 
 const ids = createSeededIds();
 

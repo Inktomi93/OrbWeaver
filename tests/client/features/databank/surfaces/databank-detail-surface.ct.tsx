@@ -8,10 +8,10 @@
 //     splits the two reads, and what keeps opening a 4 MB document cheap — rendered as a read-only REGION,
 //     never a `Textarea` (legacy's form control announced the canon as an editable textbox).
 
+import { measureContentColumn } from "@orb/testkit/browser/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
+import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
-import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
-import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import {
   DatabankDetailContentColumnStory,
   DatabankDetailListModeStory,

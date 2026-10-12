@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { config } from "../../knip.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 test("native Knip checks tooling by default while production keeps the application-only dependency lens", ({ repoRoot, scratch }) => {
   const { ignoreWorkspaces = [] } = config;

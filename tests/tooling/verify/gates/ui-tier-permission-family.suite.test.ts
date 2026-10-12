@@ -13,6 +13,8 @@
 // population cause.
 //
 // The families' converted proof rows and grant behaviour stay in `tests/tooling/verify/lib/ui-tier-permissions.test.ts`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -27,7 +29,6 @@ import { gate as zHealth } from "../../../../tooling/src/verify/gates/z-index-ti
 import { gate as zPermission } from "../../../../tooling/src/verify/gates/z-index-tier-permission.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { Z_TOKEN_NAMES } from "../../../../tooling/src/verify/lib/ui-tier-permissions.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/ui-tier-refusal";
 const ZERO_PATHS = "admitted zero paths";

@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -26,7 +27,6 @@ import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-gra
 import { waivableCoordinate } from "../../../../tooling/src/verify/lib/waivable-coordinate.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The five `mode: "resource"` policies each materialise a temp repository per row. Measured well over
  *  vitest's 5s default on a loaded box. */

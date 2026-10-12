@@ -25,6 +25,7 @@
 // @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as overArtPlateArm } from "../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
@@ -33,7 +34,6 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { loadAuthoredCss } from "../../../../tooling/src/verify/ops/resource-tree.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ANCHOR = "packages/client/src/styles/globals.css";
 const KEEP = { "packages/ui/src/styles/keep.css": ".keep {\n  color: var(--color-foreground);\n}\n" } as const;

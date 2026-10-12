@@ -15,9 +15,9 @@
 // proves nothing.
 import { runInNewContext } from "node:vm";
 import { relativeLuminance } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { WALKER_CENSUS_REGION } from "../../../../../tooling/src/ui-audit/ops/walker/census-region.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const CONSTANTS_START = "var LUM_R = 0.2126;";
 const FUNCTION_START = "function relLum(rgb) {";

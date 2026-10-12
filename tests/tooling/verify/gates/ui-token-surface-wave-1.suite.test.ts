@@ -13,13 +13,14 @@
 // beside it — both call `readTailwindClassTokens` from a production hook to read variants off an authored
 // token. The paragraph above is therefore no longer true of the whole list: it describes the three
 // original members, which remain singleton-shaped in everything but the family string.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as noHoverDisplaySwap } from "../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noOffTokenRadiusShadow } from "../../../../tooling/src/verify/gates/no-off-token-radius-shadow.ts";
 import { gate as recededInkIntegrity } from "../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [noOffTokenRadiusShadow, noOffTokenInlineStyle, noHoverDisplaySwap, recededInkIntegrity];

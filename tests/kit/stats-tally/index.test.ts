@@ -1,6 +1,6 @@
 import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("wordCount matches ST's \\b\\w+\\b semantics", () => {
   expect(wordCount("hello world")).toBe(2);

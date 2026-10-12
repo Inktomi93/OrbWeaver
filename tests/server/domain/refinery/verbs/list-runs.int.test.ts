@@ -7,9 +7,9 @@ import { refineryRuns } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle, ModelId, RefineryRunId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("the ledger reads oldest-first; a stranger gets NOT_FOUND; a corrupt row is dropped observably", async () => {

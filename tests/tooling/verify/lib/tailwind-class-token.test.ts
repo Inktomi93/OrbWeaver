@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readTailwindClassToken, readTailwindClassTokens } from "../../../../tooling/src/verify/lib/tailwind-class-token.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("class token parsing preserves arbitrary-variant colons and normalizes both important spellings", () => {
   expect(readTailwindClassToken("pointer-fine:[&:hover]:!hidden")).toEqual({

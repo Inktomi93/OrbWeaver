@@ -14,10 +14,10 @@ import { castId } from "@orb/kit/ids";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/observability/debug";
 import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { createRpgTraceInspector } from "#server/entry/compose/debug-inspectors.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const TOKEN = "debug-secret-token";
 

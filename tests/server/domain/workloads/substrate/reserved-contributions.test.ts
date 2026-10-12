@@ -7,9 +7,9 @@ import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createReservedWorkloadContributions } from "#server/domain/workloads/substrate/reserved-contributions.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 const ctx: WorkloadRunContext = { userId: castId<UserId>("system"), ownerId: null, now: () => T0 };

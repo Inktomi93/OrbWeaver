@@ -1,9 +1,10 @@
 // Native repository config checks run after isolated fixture suites through the registered repository resource.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { loadPackageMetadata, loadStaticConfig } from "../../../../tooling/src/verify/ops/resource-config.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 function parser(): (path: string, text: string) => import("ts-morph").SourceFile {

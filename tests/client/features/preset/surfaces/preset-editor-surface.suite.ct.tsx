@@ -2,9 +2,9 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { makeCachePolicy, makeCapability, makeGenerationCapability, makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { makeCachePolicy, makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, connectionRow } from "../../credentials/_connection-fixtures.ts";
 import { PresetConnectionTruthStory } from "./_connection-truth-stories.tsx";
 

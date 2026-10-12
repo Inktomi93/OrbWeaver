@@ -11,6 +11,9 @@
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import type { WorkloadProgress } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import { createManualTimer } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { WorkloadContribution } from "#server/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "#server/domain/workloads/contract/service.ts";
@@ -18,9 +21,6 @@ import { getRecentWorkloadEvents } from "#server/domain/workloads/engine/progres
 import { reapOrphanedWorkloads } from "#server/domain/workloads/engine/reaper.ts";
 import { runWorkload } from "#server/domain/workloads/engine/runner.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "#server/domain/workloads/persistence/queries.ts";
-import { createManualTimer } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { contributionsWith, fakeContributions, loadRunnableWorkload, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
 
 // The row read path narrows params against the contribution registry.

@@ -10,8 +10,8 @@
 // Every value is parsed from the shape the installed SDK actually emits (pinned in the module's header).
 
 import { parseVariantMetadata } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { agentSdkVariantMetadata, variantProviderMetadataOf } from "#inference/backends/wire/provider-metadata.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const AGENT_SDK_FACTS = {
   cacheCreation5mTokens: null,

@@ -10,8 +10,8 @@ import {
   SubstituteFindRegex,
   WHOLE_HISTORY_DEPTH,
 } from "@orb/kit/regex";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // Fixed macro context — no Date/random, per the determinism gate.
 function macroOpts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {

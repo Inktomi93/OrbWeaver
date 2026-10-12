@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
 import { motionFactState, motionStatus, motionTimingPolicy } from "../../../../tooling/src/snap/lib/motion-verdict.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("record-only measurement is neither a pass nor a failure, and semantic failures still win under load", () => {
   const recorded = { gaps: [], pass: true, timing: timingCapability({}), loadSuspect: null };

@@ -7,10 +7,10 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTagService, TagNotFoundError } from "@orb/server/domain/tag";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("attachTag / detachTag / bulkAttachTag", () => {

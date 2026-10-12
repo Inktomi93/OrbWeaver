@@ -1,8 +1,8 @@
 // SHAPE shaper: applyNamesBehavior (the chat design doc Part II §3 rule 5 — the trusted out-of-band Name: label).
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { applyNamesBehavior } from "#server/domain/chat/assembly/names.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const SPEAKERS = { user: "User", assistant: "Aria" };
 

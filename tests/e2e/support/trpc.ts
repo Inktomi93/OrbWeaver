@@ -35,7 +35,7 @@ import type {
   TrpcInput,
   TrpcOutput,
   TrpcPath,
-} from "../../support/browser/trpc-wire.ts";
+} from "@orb/testkit/browser/trpc-wire.ts";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
 
 /** The trailing arguments a procedure takes: none for a void input, optional when the input may be omitted. */
@@ -85,7 +85,7 @@ export type {
   TrpcInput,
   TrpcOutput,
   TrpcPath,
-} from "../../support/browser/trpc-wire.ts";
+} from "@orb/testkit/browser/trpc-wire.ts";
 
 type InputArgs<TInput> = [TInput] extends [undefined] ? [] : undefined extends TInput ? [input?: TInput] : [input: TInput];
 

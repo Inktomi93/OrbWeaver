@@ -14,10 +14,10 @@ import { automationRules } from "@orb/db";
 import type { AutomationRuleId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { migratePluginToolWireNames } from "@orb/server/domain/automation";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const RULE_ID = castId<AutomationRuleId>("arule_wirenames00000000001");
 const AT = 1_700_000_000_000;

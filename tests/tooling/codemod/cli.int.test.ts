@@ -2,7 +2,7 @@
 // `--token` from the positional list before dispatching, so an unknown or typo'd flag was answered with a
 // confident wrong result and exit 0 — the silent-accept class. These are DISPATCH tests, not unit tests:
 // the grammar only exists at the process boundary, so a spawned cli is the only thing that can prove it.
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("the bare invocation and both --help spellings are the usage door, exit 0", async ({ runCli }) => {
   for (const args of [[], ["--help"], ["-h"]]) {

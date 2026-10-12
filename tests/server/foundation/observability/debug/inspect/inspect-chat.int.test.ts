@@ -21,11 +21,11 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { inspectChatState } from "@orb/server/foundation/observability/debug";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../../support/db.ts";
-import { makeCharacter } from "../../../../../support/factories/character.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../../support/inference-identities.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-inspect";

@@ -5,10 +5,10 @@
 import { MODEL_ROLES_PATH } from "@orb/client/lib";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { NextTurnInputs } from "#client/features/chat/lib/next-turn-line.ts";
 import { lineRefusal, nextTurnLine, nextTurnReadsChatRole, nextTurnStatesRefusal, sendRefusalKey } from "#client/features/chat/lib/next-turn-line.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 const MINE = castId<UserConnectionId>("user_connection_unitnext0001");
 const MODEL = testModelId("anthropic/claude-sonnet-5");

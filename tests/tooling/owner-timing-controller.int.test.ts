@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 test.skipIf(process.platform !== "linux")(
   "owner timing admission binds hardware, trusted main and one bounded attempt",

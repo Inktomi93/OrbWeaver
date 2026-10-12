@@ -1,14 +1,14 @@
 // verb: loadParticipantViews — the roster display read, driven through the production chat collection (listChats).
 // @subject packages/server/src/domain/chat/verbs/load-participant-views.ts
 
-import "../../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshCountedDb } from "@orb/testkit/node/db.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { freshCountedDb } from "../../../../support/db.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { test as base, expect } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 const test = base.extend<{ db: Db; observed: Awaited<ReturnType<typeof freshCountedDb>> }>({

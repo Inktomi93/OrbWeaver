@@ -5,8 +5,8 @@ import type { AuthMode } from "@orb/contracts/identity";
 import type { BootDisclaimerInput } from "@orb/server/entry/boot";
 import { composeBootDisclaimer } from "@orb/server/entry/boot";
 import { resolveBindPosture, resolveOwnerFallbackPeers } from "@orb/server/foundation/env";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const NO_WARNINGS: readonly string[] = [];
 

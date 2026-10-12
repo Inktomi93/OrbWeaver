@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { APP_SECRET_ENV_KEYS, processEnvSnapshot } from "#server/foundation/env/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 const PROBE = `import { readFileSync } from "node:fs";

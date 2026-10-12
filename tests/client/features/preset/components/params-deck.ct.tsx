@@ -19,15 +19,15 @@
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { TokenizeResult, WordTokens } from "@orb/contracts/inference";
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
+import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
+import { boxWithBeforeFloor, resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { clearNumber, setNumber } from "@orb/testkit/node/set-number.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MIROSTAT_SKIPPED_GLOSS } from "#client/features/preset/lib/effective-knobs.ts";
 import { compactionModeLabel } from "#client/features/preset/lib/preset-nav.ts";
-import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
-import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { clearNumber, setNumber } from "../../../../support/node/set-number.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
   ParamsDeckCapabilityErrorStory,

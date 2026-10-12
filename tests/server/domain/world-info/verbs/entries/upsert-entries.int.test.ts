@@ -8,9 +8,9 @@ import type { UpsertEntriesResult } from "@orb/contracts/world-info";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../../_support.ts";
 
 const SPAN = { fromSeq: 10, toSeq: 40 };

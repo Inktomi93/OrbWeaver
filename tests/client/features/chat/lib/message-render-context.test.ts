@@ -13,8 +13,8 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveMessageRenderContext } from "#client/features/chat/lib/message-render-context.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice_render");

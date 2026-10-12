@@ -23,6 +23,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
 import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { DEV_PORTS } from "@orb/tooling/floor/host/ports";
@@ -36,7 +37,6 @@ import { afterEach, describe, vi } from "vitest";
 // this proof reaches them at their source path — the spelling tests/tooling/snap/ops/stage-marker.int.test.ts
 // already uses for the same modules.
 import { bindSessionToBand, touchRow, unbindSessionFromBand, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CASE_BUDGET_MS = scaledBudget(120_000, 4);

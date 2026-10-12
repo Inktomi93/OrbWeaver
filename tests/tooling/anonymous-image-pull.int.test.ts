@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 for (const scenario of ["tool-pull", "tool-version", "copy-launch", "private-image"] as const) {
   test(`anonymous image proof distinguishes ${scenario} without claiming verified image bytes`, async ({ repoRoot, scratch, fakeBin }) => {

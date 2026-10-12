@@ -1,6 +1,6 @@
 // cpu-profile retains pure evidence/report helpers for Snap, but its independent lifecycle is retired.
 // The barrel must expose the retained engine without resurrecting a parser, stage, or browser run path.
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("the retained barrel exposes pure reports without restoring the retired lifecycle", async () => {
   const cpuProfile = await import("../../../tooling/src/cpu-profile/index.ts");

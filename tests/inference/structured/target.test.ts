@@ -1,7 +1,7 @@
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
+import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { structuredTargetOf } from "#inference/structured/target.ts";
-import { makeGenerationCapability, makeResolved } from "../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const GENERATION = makeGenerationCapability({
   tools: { parallel: true, requiredChoice: true, namedChoice: true },

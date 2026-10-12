@@ -3,6 +3,7 @@
 // LIST renders (deferred = queued + future scheduledAt; waiting = queued + deps; dependency_failed = the DAG
 // terminal keyed on the server message fragment), and the plural wait label.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   dependencyWaitLabel,
   isDeferredWorkload,
@@ -10,7 +11,6 @@ import {
   isWaitingOnDependencies,
   parseRunAt,
 } from "#client/features/workloads/lib/workloads-run-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-local → epoch ms", () => {
   expect(parseRunAt("")).toBeUndefined();

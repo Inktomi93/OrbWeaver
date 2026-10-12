@@ -4,9 +4,9 @@
 import type { RelayStatus } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
 import { getLog } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { startSeatedRelay } from "#server/domain/share/substrate/start-relay.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const STARTING: RelayStatus = { state: "starting", relay: "quick", restartAfter: null };
 

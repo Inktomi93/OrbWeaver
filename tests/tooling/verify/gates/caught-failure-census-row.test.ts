@@ -1,12 +1,13 @@
 // `caught-failure-census-row` on a NARROWED request: the staged-commit shape. The module's own rows prove the
 // matcher on a whole mini-project; a row cannot request a subset, which is the property the pre-commit door needs
 // (`verify --static --changed staged` hands the policy only the staged files).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as censusRow } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/census-row";
 const CENSUS = "tooling/src/verify/gates/caught-failure-ownership.population.json";

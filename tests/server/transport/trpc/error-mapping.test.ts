@@ -17,8 +17,8 @@ import {
 } from "@orb/kit/errors";
 import { CredentialsDecryptError } from "@orb/server/domain/credentials";
 import { classifyDomainError, domainReason } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 describe("classifyDomainError — one case per subclass", () => {
   test("DomainNotFoundError → NOT_FOUND", () => {

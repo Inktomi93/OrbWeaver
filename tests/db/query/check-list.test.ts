@@ -5,7 +5,7 @@
 // silently produces broken DDL at migration time, which is the one moment nothing is watching (#1377 #2).
 
 import { checkList } from "@orb/db/query";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("renders a tuple as a comma-separated quoted literal list", () => {
   expect(checkList(["user", "admin", "owner"])).toBe("'user', 'admin', 'owner'");

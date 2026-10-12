@@ -6,6 +6,8 @@ import type { RelayControllerDeps } from "@orb/server/domain/share";
 import { createRelayController } from "@orb/server/domain/share";
 import { createRelayHostRegistry } from "@orb/server/infra/auth";
 import type { RelayEvents, RelayLauncher } from "@orb/server/infra/relay";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   RELAY_RESTART_BACKOFF,
@@ -14,8 +16,6 @@ import {
   RELAY_STABLE_UP_MS,
   RELAY_URL_WAIT_MS,
 } from "#server/domain/share/relay/controller.ts";
-import { createFrozenClock } from "../../../../support/clock.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ORIGIN = "http://127.0.0.1:8788";
 const FIRST = "https://calm-river-four-birds.trycloudflare.com";

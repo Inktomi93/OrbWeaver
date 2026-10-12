@@ -9,6 +9,7 @@
 // the real tree (`__g_` stays the gate harness's).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
@@ -18,7 +19,6 @@ import type { GatePolicyReceipt } from "../../../../tooling/src/verify/contract/
 import { gate } from "../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
 import { projectCtx } from "../../../../tooling/src/verify/index.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** A clean tracked TypeScript member keeps the fixture's governed population explicit. */

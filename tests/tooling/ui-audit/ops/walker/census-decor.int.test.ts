@@ -16,9 +16,9 @@
 // false positive for a false clean.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 interface AuditRuleProof {
   readonly rule: string;

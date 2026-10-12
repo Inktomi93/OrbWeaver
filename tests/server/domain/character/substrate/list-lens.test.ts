@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { characterListLens } from "#server/domain/character/substrate/list-lens.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("scope normalization retains explicit booleans and removes empty search/tag axes", () => {
   expect(characterListLens({ search: "  RPG  ", archived: false, starred: false, includeTagIds: [], excludeTagIds: [] })).toEqual({

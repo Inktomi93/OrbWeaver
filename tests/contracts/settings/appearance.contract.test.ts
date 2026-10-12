@@ -9,7 +9,7 @@
 import { DEFAULT_USER_SETTINGS, appearanceSettingsSchema as viaBarrel } from "@orb/contracts/settings";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema, BLUR_SURFACES, DEFAULT_BLUR_SURFACES } from "@orb/contracts/settings/appearance";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const OUT_OF_RANGE_FONT_SCALE = 99;
 

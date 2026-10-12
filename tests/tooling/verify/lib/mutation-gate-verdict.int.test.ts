@@ -18,9 +18,9 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { StageDef } from "../../../../tooling/src/verify/index.ts";
 import { auditedExit, auditOf, mutationGateStageAudit, parseMutantProgress, REGISTRY, reachedMutationVerdict } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 

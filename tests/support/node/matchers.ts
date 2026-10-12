@@ -1,6 +1,6 @@
-// tests/support/matchers — the custom matchers (docs/law/Spine-Testing.md §4: hard cap 5; each must encode an
+// tests/support/node/matchers — the custom matchers (docs/law/Spine-Testing.md §4: hard cap 5; each must encode an
 // invariant whose diff message beats a generic assertion). ONE module: runtime impl + the TS `declare
-// module` augmentation. Registered by side-effect import from `support/fixtures.ts` (the barrel every
+// module` augmentation. Registered by side-effect import from `support/node/fixtures.ts` (the barrel every
 // test imports `test`/`expect` from — gate: test-fixture-imports), so any test using the composed `test`
 // has them live.
 //

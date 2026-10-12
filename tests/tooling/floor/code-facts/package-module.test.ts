@@ -1,7 +1,8 @@
 // The module map both import gates and the deep-imports codemod judge by: which dir is a module, and which
 // spelling enters it from outside.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { packageModuleOf } from "../../../../tooling/src/floor/code-facts/package-module.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test.each([
   ["server", "domain/chat/verbs/send.ts", { key: "domain/chat", door: "#domain/chat", kind: "dir" }],

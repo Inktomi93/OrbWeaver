@@ -19,12 +19,12 @@ import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
+import { makeImportedCard } from "@orb/testkit/node/factories/imported-card.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { dropFiles } from "../../../../support/browser/drop-files.ts";
-import { makeImportedCard } from "../../../../support/factories/imported-card.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
 import type { CharacterListResponder } from "../fixtures.ts";

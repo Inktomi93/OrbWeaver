@@ -5,6 +5,7 @@
 // the nonzero sibling proves this is denominator-derived, not a blanket requests refusal.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { aggregateScope, factBatchId } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { installOutputSink } from "@orb/tooling/floor/cli/log";
@@ -16,7 +17,6 @@ import { parseSnapReportArgs } from "../../../../tooling/src/snap/lib/run-report
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { completeSnapRun, registerSnapFactBatch, registerSnapResultPairs } from "../../../../tooling/src/snap/ops/run-bundle.ts";
 import { printSnapReport, readSnapRunIndex } from "../../../../tooling/src/snap/ops/run-report.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STARTED_AT = "2026-09-03T12:00:00.000Z";
 

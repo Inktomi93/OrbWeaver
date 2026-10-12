@@ -1,11 +1,12 @@
 // CT: the log-viewer seal — a role="log"/aria-live="polite" line panel (ui-package-design item
 // 12). Read-only, monospace, level glyph+intent-token pairs (never color alone), pinned-to-bottom
 // autoscroll respecting prefers-reduced-motion, a copy-to-clipboard affordance, and maxLines.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { LogViewer } from "@orb/ui/log-viewer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 function makeLines(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `line ${index}`);

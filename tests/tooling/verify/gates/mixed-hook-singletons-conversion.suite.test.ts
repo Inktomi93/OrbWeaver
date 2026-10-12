@@ -15,10 +15,10 @@
 // @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as toolingInstrumentProof } from "../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 
 function plant(root: string, files: Readonly<Record<string, string>>): Project {
   const project = new Project({ skipAddingFilesFromTsConfig: true });

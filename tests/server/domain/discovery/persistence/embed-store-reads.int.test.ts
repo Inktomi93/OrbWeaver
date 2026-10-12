@@ -6,6 +6,8 @@ import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { ChatDigestId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   distinctCharacterHubOwners,
@@ -25,8 +27,6 @@ import {
   readThemeClusterTimeline,
   readTier0DigestSpans,
 } from "#server/domain/discovery/persistence/embed-store-reads.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   EMBED_MODEL,
   FROZEN_AT,

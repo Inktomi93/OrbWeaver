@@ -9,7 +9,7 @@
 // must TRIM — `?? "Untitled chat"` was defeated by "" and rendered blank rows/options everywhere.
 
 import { authoredChatName, chatRoomTitle, deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("deriveChatTitle: an authored title wins, trimmed", () => {
   expect(deriveChatTitle("  The Weave  ", ["You", "JFC"])).toBe("The Weave");

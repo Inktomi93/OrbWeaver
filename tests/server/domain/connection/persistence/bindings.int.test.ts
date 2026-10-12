@@ -8,12 +8,12 @@ import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
 import type { AutomationRuleId, ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { listBindingsForActor, lookupBinding, upsertBinding } from "#server/domain/connection/persistence/bindings.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedAutomationRule, seedUser } from "../_support.ts";
 
 const ROW_ID = castId<UserConnectionId>("user_connection_000001");

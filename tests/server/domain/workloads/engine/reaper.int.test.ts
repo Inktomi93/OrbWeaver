@@ -5,13 +5,13 @@
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { getRecentWorkloadEvents } from "#server/domain/workloads/engine/progress-bus.ts";
 import { reapOrphanedWorkloads } from "#server/domain/workloads/engine/reaper.ts";
 import { loadWorkload, loadWorkloadStatus } from "#server/domain/workloads/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedWorkloadRow, T0 } from "../_support.ts";
 
 // `loadWorkload` narrows params against the contribution registry; the reaper's own sweep reads RAW rows (#1413).

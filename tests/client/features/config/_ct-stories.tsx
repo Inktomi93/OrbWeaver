@@ -36,6 +36,10 @@ import {
   setPanelMode,
   useActiveSection,
 } from "@orb/client/state";
+import { placeholderConfigGroups, realConfigGroups } from "@orb/testkit/browser/ct-config-groups.ts";
+import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -45,10 +49,6 @@ import { createAnchorFlasher } from "#client/features/config/lib/config-scroll-s
 import { makeConfigSection } from "#client/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "#client/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "#client/features/config/surfaces/config-list-surface.tsx";
-import { placeholderConfigGroups, realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
-import { createManualTimer } from "../../../support/clock.ts";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {

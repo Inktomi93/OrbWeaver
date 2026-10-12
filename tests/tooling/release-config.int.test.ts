@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { releaseTagRef } from "@orb/kit/version-identity";
+import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SpawnNicedOptions, TranscriptResult } from "@orb/tooling/floor/process/proc";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
@@ -15,7 +16,6 @@ import { parse } from "yaml";
 import { z } from "zod";
 import { INSTRUMENT_EXECUTION_COMPONENT_ENV, INSTRUMENT_EXECUTION_COMPONENTS } from "../../tooling/src/verify/contract/instrument-affected.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../tooling/src/verify/contract/selection.ts";
-import { expect, fixturePath, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 function read(repoRoot: string, rel: string): string {
