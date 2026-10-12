@@ -49,6 +49,7 @@ async function loadScopedDependencyStatuses(
   dependsOn: readonly WorkloadId[],
   ownerId: UserId | null,
 ): Promise<readonly { readonly id: WorkloadId; readonly status: WorkloadStatus }[]> {
+  // @orb-waive owner-scoped-reads(workloads): every arm is scoped — the dependent row's owner by `eq(workloads.ownerId, ownerId)`, or a system workload's ownerless dependencies by `isNull(workloads.ownerId)` when that resolved owner is null. Ends if the null arm admits owned rows.
   return await db
     .select({ id: workloads.id, status: workloads.status })
     .from(workloads)

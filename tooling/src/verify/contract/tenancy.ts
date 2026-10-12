@@ -4,9 +4,8 @@
 // exported shape declared there is `no-inline-types`-RED, exactly as a domain substrate exporting a type is.
 import type { CallExpression, Node } from "ts-morph";
 
-/** What a drizzle statement's table argument resolved to. The three READ verdicts a tenancy gate must judge
- *  differently — the fourth state (the argument is not an identifier at all) is `undefined`, because a
- *  property access / call / literal is not a BINDING and the reader makes no claim about it. */
+/** What a drizzle statement's table argument resolved to. The three verdicts a tenancy gate must judge
+ *  differently — the fourth state (the argument is a literal) is `undefined`: a literal names no table. */
 export type TableTarget =
   /** Traced to a table of the CLASS THE CALLER ASKED ABOUT — `ident` is the LOCAL binding the predicate must
    *  name. The class is the reader's first set argument, not a fixed one: the (a)-class gates pass the
@@ -24,3 +23,33 @@ export type TableTarget =
 export type ReadAnchor =
   | { readonly kind: "from"; readonly call: CallExpression; readonly table: Node }
   | { readonly kind: "join"; readonly call: CallExpression; readonly table: Node; readonly on: Node | undefined };
+
+/** The schema's tables as the tenancy readers key them: declared identifiers, and the SQL name to identifier
+ *  map a typed table reference (`_.name`) resolves through. */
+export interface SchemaTableIndex {
+  readonly idents: ReadonlySet<string>;
+  readonly identBySqlName: ReadonlyMap<string, string>;
+}
+
+/** One table a reference can name, on the gate side of the shared floor resolver: a declared schema table, a
+ *  subquery with its inner select, or an honest unresolved. */
+export type TableRef =
+  | { readonly kind: "table"; readonly ident: string }
+  | { readonly kind: "subquery"; readonly select: Node }
+  /** A constant raw `sql` template row source, such as `(select 1)`, that interpolates nothing and names no schema table. */
+  | { readonly kind: "no-table" }
+  | { readonly kind: "unresolved" };
+
+/** The predicates one read statement carries beyond its anchor: every `.where` argument the chain (or a split
+ *  builder's binding) applies, and the ON condition of every inner join after the anchor. */
+export interface ReadStatement {
+  readonly wheres: readonly Node[];
+  readonly innerOns: readonly Node[];
+}
+
+/** One FK-chain term binding a joined table: the bound table's declared identifier and the bound column as
+ *  written (`chats.anchorPersonaId`), which a by-id term must not select on. */
+export interface ChainTerm {
+  readonly boundTable: string;
+  readonly boundColumn: string;
+}

@@ -61,6 +61,7 @@
 //   to THIS family: the classification data is tenancy's, the files it reads are the schema's, and the two
 //   are deliberately not merged.
 import type { SchemaForeignKey, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
 import { TABLE_SCOPING_ROWS } from "./tenancy-scope-rows.ts";
 
@@ -127,18 +128,15 @@ export function membershipScopedTableIdents(model: SchemaModel): ReadonlySet<str
   return tableIdents(model, (table) => classes.get(table.sqlName)?.scope === "membership");
 }
 
-/** EVERY drizzle table identifier the schema declares, regardless of class — the DENOMINATOR the tenancy
- *  write halves need. Without it "this identifier is not an (a) table" and "I could not read this identifier
- *  at all" are the same answer, and the second one is a bypass wearing the first one's clothes. Same
- *  derivation, same home: a table that stops being declared leaves both sets at once. */
-export function schemaTableIdents(model: SchemaModel): ReadonlySet<string> {
-  return tableIdents(model, () => true);
-}
-
-function parentColumnKey(parent: SchemaForeignKey["parent"]): string {
-  return parent.kind === "population-column"
-    ? foreignKeyColumnKey(parent.column.table.declarationName, parent.column.propertyName)
-    : foreignKeyColumnKey(parent.exportedTable, parent.propertyName);
+/** EVERY drizzle table the schema declares, regardless of class — the DENOMINATOR the tenancy readers need.
+ *  Without it "this identifier is not an (a) table" and "I could not read this identifier at all" are the same
+ *  answer, and the second one is a bypass wearing the first one's clothes. The SQL-name map is what a typed
+ *  table reference (a parameter typed `typeof chatTags | typeof characterTags`) resolves through. */
+export function schemaTableIndex(model: SchemaModel): SchemaTableIndex {
+  return {
+    idents: tableIdents(model, () => true),
+    identBySqlName: new Map(model.tables.map((table) => [table.sqlName, table.identity.declarationName])),
+  };
 }
 
 /** One end of a foreign-key edge as {@link foreignKeyEdges} keys it: the table's declared identifier and the
@@ -147,27 +145,69 @@ export function foreignKeyColumnKey(tableIdent: string, propertyName: string): s
   return `${tableIdent}.${propertyName}`;
 }
 
-/** Every declared foreign key as `child->parent` column keys, from both the column-level `.references()` and
- *  the table-level `foreignKey()` forms. This is the edge set the FK-chain inheritance (Spine-Identity-and-Auth
- *  §2b) walks: a joined owner-scoped table inherits a bound row's scope only along an edge that points AT it. */
-export function foreignKeyEdges(model: SchemaModel): ReadonlySet<string> {
-  const edges = new Set<string>();
-  for (const table of model.tables) {
-    for (const column of table.columns) {
-      if (column.foreignKey !== null) {
-        edges.add(`${foreignKeyColumnKey(table.identity.declarationName, column.identity.propertyName)}->${parentColumnKey(column.foreignKey.parent)}`);
+interface ForeignKeyPair {
+  readonly childTable: string;
+  readonly childColumn: string;
+  readonly parentTable: string;
+  readonly parentColumn: string;
+}
+
+function parentEnd(parent: SchemaForeignKey["parent"]): { readonly table: string; readonly column: string } {
+  return parent.kind === "population-column"
+    ? { table: parent.column.table.declarationName, column: parent.column.propertyName }
+    : { table: parent.exportedTable, column: parent.propertyName };
+}
+
+/** Every declared foreign key, from both the column-level `.references()` and the table-level `foreignKey()` forms. */
+function foreignKeyPairs(model: SchemaModel): readonly ForeignKeyPair[] {
+  return model.tables.flatMap((table) => [
+    ...table.columns.flatMap((column) => {
+      if (column.foreignKey === null) {
+        return [];
       }
-    }
-    for (const foreignKey of table.foreignKeys) {
-      foreignKey.children.forEach((child, index) => {
-        const parent = foreignKey.parents[index];
-        if (parent !== undefined) {
-          edges.add(`${foreignKeyColumnKey(child.table.declarationName, child.propertyName)}->${parentColumnKey(parent)}`);
-        }
-      });
+      const parent = parentEnd(column.foreignKey.parent);
+      return [
+        { childTable: table.identity.declarationName, childColumn: column.identity.propertyName, parentTable: parent.table, parentColumn: parent.column },
+      ];
+    }),
+    ...table.foreignKeys.flatMap((foreignKey) =>
+      foreignKey.children.flatMap((child, index) => {
+        const declared = foreignKey.parents[index];
+        const parent = declared === undefined ? undefined : parentEnd(declared);
+        return parent === undefined
+          ? []
+          : [{ childTable: child.table.declarationName, childColumn: child.propertyName, parentTable: parent.table, parentColumn: parent.column }];
+      }),
+    ),
+  ]);
+}
+
+/** Every declared foreign key as `child->parent` column keys. This is the edge set the FK-chain inheritance
+ *  (Spine-Identity-and-Auth §2b) walks: a joined owner-scoped table inherits a bound row's scope only along an
+ *  edge that points AT it. */
+export function foreignKeyEdges(model: SchemaModel): ReadonlySet<string> {
+  return new Set(
+    foreignKeyPairs(model).map(
+      (pair) => `${foreignKeyColumnKey(pair.childTable, pair.childColumn)}->${foreignKeyColumnKey(pair.parentTable, pair.parentColumn)}`,
+    ),
+  );
+}
+
+/** The scope-bearing parents of every DERIVED table (class `parent` or `junction`, D23): the ownerId- or
+ *  membership-class tables its foreign keys reach. A table whose only such parent is the table a read joins
+ *  through it is a satellite of that table, and a chain through it scopes nothing. */
+export function scopeParentsOfDerivedTables(model: SchemaModel): ReadonlyMap<string, ReadonlySet<string>> {
+  const classes = tableScopingClasses();
+  const classByIdent = new Map(model.tables.map((table) => [table.identity.declarationName, classes.get(table.sqlName)?.scope]));
+  const parents = new Map<string, Set<string>>();
+  for (const pair of foreignKeyPairs(model)) {
+    const childClass = classByIdent.get(pair.childTable);
+    const parentClass = classByIdent.get(pair.parentTable);
+    if ((childClass === "parent" || childClass === "junction") && (parentClass === "ownerId" || parentClass === "membership")) {
+      parents.set(pair.childTable, (parents.get(pair.childTable) ?? new Set<string>()).add(pair.parentTable));
     }
   }
-  return edges;
+  return parents;
 }
 
 // biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting reportBlindWhenEmpty to a sibling

@@ -3,9 +3,10 @@
 // ALL-OWNERS form (the bulk passes) drops the owner half and keeps the synthetic half.
 
 import { characters } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+import { describe, expectTypeOf } from "vitest";
 import { ownedRealCharacters, realCharactersOfEveryOwner } from "#server/domain/discovery/persistence/character-scope.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
@@ -24,6 +25,10 @@ describe("ownedRealCharacters", () => {
   });
 
   test("owner-required: another owner's real card never answers for this owner, even when it is the only card", async () => {
+    // A compile-time pin: root typecheck reds this file if an absent owner becomes admissible again.
+    expectTypeOf<undefined>().not.toExtend<Parameters<typeof ownedRealCharacters>[0]>();
+    expectTypeOf<null>().not.toExtend<Parameters<typeof ownedRealCharacters>[0]>();
+    expectTypeOf<UserId>().toExtend<Parameters<typeof ownedRealCharacters>[0]>();
     const db = await freshDb();
     const mine = await seedUser(db, "user_a");
     const theirs = await seedUser(db, "user_b");

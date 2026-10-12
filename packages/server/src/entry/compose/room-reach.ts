@@ -130,6 +130,7 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
         and(
           inArray(
             chatParticipants.userId,
+            // @orb-waive owner-scoped-reads(worldBooks): satellite chain from `global_books`; the `bookId` is the book an owner-gated world-info mutation just changed (`captureRoomReachForDelete` and the room-entity fan run after that verb), and the read returns only that book's owner id to pick the host rooms to notify. Ends if a caller-supplied book id reaches the reach resolver.
             db
               .select({ ownerId: worldBooks.ownerId })
               .from(globalBooks)

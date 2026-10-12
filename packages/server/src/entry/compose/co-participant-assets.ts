@@ -26,7 +26,6 @@ export function createLoadChatAssetRefs(db: Db): NonNullable<AssetsContext["load
     }
     const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
     const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
-    // @orb-waive owner-scoped-reads(assetsTable): membership-scoped through chat_participants — an asset returns only when a `message_assets` row links it into `forChatId` and both the caller seat and the asset owner's seat (`ownerSeat.userId = assets.ownerId`) are present there. Ends if either seat join is dropped.
     const rows = await db
       .selectDistinct({
         assetId: assetsTable.id,
@@ -56,7 +55,6 @@ export function createLoadCoParticipantOwner(db: Db): NonNullable<AssetsContext[
   return async (callerId, hash) => {
     const rosterChar = alias(chatParticipants, "roster_char");
     const callerSeat = alias(chatParticipants, "caller_seat");
-    // @orb-waive owner-scoped-reads(charactersTable): membership-scoped through chat_participants — the character must hold a present `roster_char` seat in a chat where the caller holds a present seat, and the read returns only the avatar asset's `ownerId` partition. Ends if either seat join is dropped.
     const characterRows = await db
       .select({ ownerId: assetsTable.ownerId })
       .from(assetsTable)
@@ -71,7 +69,6 @@ export function createLoadCoParticipantOwner(db: Db): NonNullable<AssetsContext[
 
     const personaSeat = alias(chatParticipants, "persona_seat");
     const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
-    // @orb-waive owner-scoped-reads(personasTable): membership-scoped through chat_participants — the persona must be a present human seat's `activePersonaId` in a chat where the caller holds a present seat, and the read returns only the avatar asset's `ownerId` partition. Ends if either seat join is dropped.
     const personaRows = await db
       .select({ ownerId: assetsTable.ownerId })
       .from(assetsTable)

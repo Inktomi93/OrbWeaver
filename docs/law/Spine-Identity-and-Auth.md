@@ -152,6 +152,8 @@ stamp). Before flagging "missing scope" on a table or query, walk the FK chain t
 verb gate. The cross-tenant IDOR sweep (`cross-tenant-sweep.suite.int.test.ts`) proves this holds at the
 transport boundary.
 
+A D23 satellite gives no scope to the owned row it points at; a read that joins that row from it needs an owner predicate.
+
 The `/blob/:hash` route is the sharpest instance: it resolves the caller from the session cookie and
 runs `fetchOwned` (or the roster-avatar membership exception) — it never serves on bare row existence —
 and answers with `Cache-Control: private`. This is a per-request control-flow property, so it is held

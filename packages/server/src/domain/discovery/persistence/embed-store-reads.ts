@@ -115,8 +115,8 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
 // ── duplicate-character pass ──────────────────────────────────────────────────
 /** Every card embedding with its owner, excluding synthetic (per-room group) characters. No owner is the
  *  every-owner duplicate pass (`computeDuplicatePairs`), which runs with no Principal. */
-export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null): Promise<OwnedCharacterVector[]> {
-  const scope = ownerId === undefined || ownerId === null ? realCharactersOfEveryOwner() : ownedRealCharacters(ownerId);
+export async function readOwnedCharacterVectors(db: Db, ownerId: UserId | null): Promise<OwnedCharacterVector[]> {
+  const scope = ownerId === null ? realCharactersOfEveryOwner() : ownedRealCharacters(ownerId);
   return await db
     .select({
       generationId: characterEmbeddings.generationId,
