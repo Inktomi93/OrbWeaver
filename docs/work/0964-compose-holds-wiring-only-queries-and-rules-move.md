@@ -23,11 +23,11 @@ The gate holds with planted controls; no compose module runs a query or carries 
 
 ## Evidence
 
-Chat and search/discovery moves landed at `980a8e07bd` after combined review and the authenticated-Principal correction. Matching focused behavior and native server evidence passed. The compose policy reports 187 remaining excused sites; chat and search/discovery contain no compose markers. The source census matches the completed policy result.
+Chat and search/discovery moves landed at `980a8e07bd` after review and the authenticated-Principal correction. Automation/plugin landed at `292d99464e`, including canonical contracts and domain-cycle corrections. Focused behavior, affected native programs and the server import graph pass. The budget file owns the remaining compose count; this item stays open.
 
-`codex/compose-chat-964` now owns automation/plugin composition plus its watcher and chat-read helpers. Services, other adapters, imports and boot remain open. The item stays open until the complete boundary is clean.
+`codex/compose-chat-964` owns services/runtime/embedding wiring on current main. Other adapters, imports and boot remain open. Do not build the server harness before this boundary is clean.
 
-Native server import analysis rejects the integrated domain graph: cross-domain type ports close cycles, and a chat verb imports its assembly subsystem directly. The active lane owns these corrections with automation/plugin. Use canonical lower-package shapes and consumer-owned narrow ports; keep sibling imports through their front doors.
+The native server import graph confirms the lower-contract and injected-resolver corrections without rule relaxation. Preserve canonical lower-package shapes, consumer-owned narrow ports and sibling front doors in the remaining legs.
 
 The gate is `compose-wiring-only` (`tooling/src/verify/gates/compose-wiring-only.ts`); its header defines a rule. `pnpm check:structure --check compose-wiring-only` reports one finding per handed-out function or helper, so the counts below are functions, not decisions.
 

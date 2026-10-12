@@ -43,4 +43,4 @@ Testkit citation lookup resolves its world homes and rejects wrong-world basenam
 
 The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Compose and Principal budgets shrink. Only the removed chat catch reduces its application budget; remaining census differences need population-specific adjudication.
 
-Native server import analysis rejects domain cycles and a chat verb-to-assembly import. The compose item owns correction and focused import verification; compiler success does not establish import-policy success.
+Compose import-policy defects are corrected in `292d99464e` with native graph evidence. No whole-application import verdict is claimed.

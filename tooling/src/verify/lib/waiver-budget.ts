@@ -14,7 +14,7 @@ const APPLICATION = Object.freeze({
   "chat-stream-writes-in-bus-only": 1,
   "chat-viewer-plane-canon-reads": 3,
   "client-cache-surgery-only-in-data": 9,
-  "compose-wiring-only": 187,
+  "compose-wiring-only": 158,
   "config-anchor-in-registry": 2,
   "content-part-seam": 5,
   "contract-structural-copy": 92,
