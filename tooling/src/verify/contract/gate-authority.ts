@@ -114,10 +114,12 @@ interface OverBroadGrantAuthorityAlarm {
   readonly message: string;
 }
 
-/** A whole-coverage owner whose waived plus granted count differs from its committed budget (`lib/waiver-ratchet.ts`). */
+/** An owner judged over the run's budget population whose waived plus granted count differs from that population's
+ *  committed budget (`lib/waiver-ratchet.ts`). */
 export interface WaiverBudgetAuthorityAlarm {
   readonly kind: Extract<GateAuthorityAlarmKind, "waiver-budget">;
   readonly policyId: string;
+  readonly population: WaiverBudgetPopulation;
   readonly budget: number;
   readonly count: number;
   readonly message: string;
@@ -171,14 +173,30 @@ export interface GateAuthorityVerdict {
   readonly failOnWarnings: boolean;
 }
 
-/** Committed waived plus granted allowance per policy id over the policy's whole declared population
- *  (`lib/waiver-budget.ts`). A policy with no row has a budget of zero. */
-export type WaiverBudget = Readonly<Record<string, number>>;
+/** The disjoint parts of a policy's declared population: the application part is its intersection with the
+ *  application subject population (`lib/application-programs.ts`), and the implementation part is the remainder. */
+export const WAIVER_BUDGET_PARTS = ["application", "implementation"] as const;
+export type WaiverBudgetPart = (typeof WAIVER_BUDGET_PARTS)[number];
 
-/** Which selected policies this run judged against the budget, and which it could not because their owner did
- *  not walk the whole declared population (a scoped or application selection). An unjudged policy is neither
+/** Committed waived plus granted allowance per part and policy id (`lib/waiver-budget.ts`). A policy with no row
+ *  in a part has a budget of zero there. */
+export type WaiverBudget = Readonly<Record<WaiverBudgetPart, Readonly<Record<string, number>>>>;
+
+/** The population a run judges the budget over, fixed by its selection: an application run walks the application
+ *  part of every policy; every other run walks a policy's whole declared population, both parts. */
+export const WAIVER_BUDGET_POPULATIONS = ["application", "repository"] as const;
+export type WaiverBudgetPopulation = (typeof WAIVER_BUDGET_POPULATIONS)[number];
+
+export interface WaiverBudgetJudgement {
+  readonly population: WaiverBudgetPopulation;
+  readonly budget: WaiverBudget;
+}
+
+/** Which selected policies this run judged against the budget, and which it could not because their owner walked
+ *  only part of the run's population (a requested-path subset) or did not complete. An unjudged policy is neither
  *  within budget nor over it. */
 export interface WaiverBudgetReport {
+  readonly population: WaiverBudgetPopulation;
   readonly judged: readonly string[];
   readonly unjudged: readonly string[];
 }
@@ -189,8 +207,8 @@ export interface GateAuthorityBatchInput {
   readonly ordinaryWaiverSources: readonly OrdinaryWaiverSource[];
   readonly ownerResults: readonly GateOwnerResult[];
   readonly reviewedGrants: readonly ReviewedGateGrant[];
-  /** Per-policy waived plus granted allowance. Absent for fixture and conformance passes, which judge no ratchet. */
-  readonly waiverBudget?: WaiverBudget;
+  /** The budget and the population this run judges it over. Absent for fixture and conformance passes, which judge no ratchet. */
+  readonly waiverBudget?: WaiverBudgetJudgement;
   readonly failOnWarnings: boolean;
 }
 
