@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-12
 priority: P2
 area: verify
+lane: wt/agent-afe5353ae9ba0f311
 ---
 
 # Waivable coordinates never end in whitespace

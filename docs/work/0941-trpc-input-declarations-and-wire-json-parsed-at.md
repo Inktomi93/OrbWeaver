@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-12
 priority: P1
 area: tooling
+lane: wt/agent-afe5353ae9ba0f311
 plan: test-mirror
 ---
 
