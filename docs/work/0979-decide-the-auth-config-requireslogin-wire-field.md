@@ -9,7 +9,7 @@ priority: P3
 
 ## What
 
-The auth config response carries requiresLogin, but no client code reads it (packages/client/src/data/auth-config.ts declares it only). Either the client should use it or the field leaves the contract.
+The auth config response carries requiresLogin, but no client code reads it (packages/client/src/data/auth-config.ts declares it only). Owner ruling: remove it. The route guards moved to me.authenticated on purpose (requiresLogin is false for both single-user and forward-header); delete the field from the server response, the client type and the test fixtures.
 
 ## Why
 
