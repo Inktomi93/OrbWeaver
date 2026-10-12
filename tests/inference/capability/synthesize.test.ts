@@ -3,18 +3,19 @@
 // names the field; the window is estimated unless a tier states it; the endpoint posture floors (§6.4,
 // D143(c)) close `silencesProse` and widen undeclared modalities with `modalitiesEstimated`.
 
-import type { Capability, CapabilityOverride, EmbeddingCapability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
-import { builtinProvider, GENERATION_FLOOR, RERANK_MIN_WINDOW_TOKENS, requirementMet, TURNS_FLOOR, taskDef } from "@orb/contracts/inference";
+import type { Capability, CapabilityOverride, EmbeddingCapability, ProviderDef } from "@orb/contracts/inference";
+import {
+  builtinProvider,
+  GENERATION_FLOOR,
+  RERANK_MIN_WINDOW_TOKENS,
+  requireGenerationCapability,
+  requirementMet,
+  TURNS_FLOOR,
+  taskDef,
+} from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { applyEndpointPosture } from "#inference/capability/floor.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-
-function generationOf(capability: Capability): GenerationCapability {
-  if (capability.kind !== "generation") {
-    throw new Error(`expected a generation capability, got ${capability.kind}`);
-  }
-  return capability.generation;
-}
 
 function embeddingOf(capability: Capability): EmbeddingCapability {
   if (capability.kind !== "embedding") {
@@ -41,7 +42,7 @@ test("higher tiers override only the fields they state; nested objects merge one
     measured: [measured],
     declared: { generation: { reasoning: { effortLevels: ["medium"] } } },
   });
-  const gen = generationOf(out.capability);
+  const gen = requireGenerationCapability(out.capability);
   expect(gen.context.window).toBe(32_768); // advertised beats curated
   expect(gen.context.windowEstimated).toBeUndefined();
   expect(gen.reasoning.mode).toBe("effort"); // curated survives beneath a declared patch of a sibling field
@@ -59,7 +60,9 @@ test("tools merges field by field: an advertised cell keeps a curated sub-fact",
     generation: { tools: { parallel: true, requiredChoice: false, namedChoice: false } },
     evidence: { tier: "curated", dated: "2026-09-22", cite: "test" },
   };
-  const gen = generationOf(synthesizeCapability("generation", "other", { curated: [refusal], advertised: { tools: { parallel: false } } }).capability);
+  const gen = requireGenerationCapability(
+    synthesizeCapability("generation", "other", { curated: [refusal], advertised: { tools: { parallel: false } } }).capability,
+  );
   expect(gen.tools).toEqual({ parallel: false, requiredChoice: false, namedChoice: false });
 });
 
@@ -70,11 +73,11 @@ test("declared over measured warns per field, never silently", () => {
   });
   expect(out.warnings.map((w) => w.code)).toEqual(["declared_overrides_measured"]);
   expect(out.warnings[0]?.field).toBe("turns");
-  expect(generationOf(out.capability).turns?.assistantPrefill).toBe(true);
+  expect(requireGenerationCapability(out.capability).turns?.assistantPrefill).toBe(true);
 });
 
 test("the window is estimated when no tier above the floor states one", () => {
-  const gen = generationOf(synthesizeCapability("generation", "other", {}).capability);
+  const gen = requireGenerationCapability(synthesizeCapability("generation", "other", {}).capability);
   expect(gen.context.windowEstimated).toBe(true);
   expect(gen.context.window).toBe(GENERATION_FLOOR.context.window);
 });
@@ -82,21 +85,21 @@ test("the window is estimated when no tier above the floor states one", () => {
 // A llama.cpp server without `--jinja` reports tools it refuses; the connection's declared no is the fix.
 test("a declared no to tool calls removes a reported yes, and the family floor does not add it back", () => {
   const declared = { generation: { tools: null } };
-  const local = generationOf(synthesizeCapability("generation", "qwen", { advertised: { tools: { parallel: true } }, declared }).capability);
+  const local = requireGenerationCapability(synthesizeCapability("generation", "qwen", { advertised: { tools: { parallel: true } }, declared }).capability);
   expect(local.tools).toBeUndefined();
-  const claude = generationOf(synthesizeCapability("generation", "anthropic", { curated: [curated], declared }).capability);
+  const claude = requireGenerationCapability(synthesizeCapability("generation", "anthropic", { curated: [curated], declared }).capability);
   expect(claude.tools).toBeUndefined();
   // PLANTED CONTROL: without the declaration the floor and the advertised yes both state tools.
-  expect(generationOf(synthesizeCapability("generation", "anthropic", {}).capability).tools).toEqual({ parallel: true });
+  expect(requireGenerationCapability(synthesizeCapability("generation", "anthropic", {}).capability).tools).toEqual({ parallel: true });
 });
 
 // An Ollama model with no pinned `num_ctx`: the server's default floor replaces both the generic floor and a
 // curated trained maximum, because that is what the server runs, and it stays a guess until something states it.
 test("a server's assumed window wins the fold but stays estimated, and a later tier's stated window clears the mark", () => {
   const assumed = { context: { window: 4096, windowEstimated: true } };
-  const gen = generationOf(synthesizeCapability("generation", "other", { curated: [curated], advertised: assumed }).capability);
+  const gen = requireGenerationCapability(synthesizeCapability("generation", "other", { curated: [curated], advertised: assumed }).capability);
   expect(gen.context).toEqual({ window: 4096, windowEstimated: true });
-  const declared = generationOf(
+  const declared = requireGenerationCapability(
     synthesizeCapability("generation", "other", { advertised: assumed, declared: { generation: { context: { window: 16_384 } } } }).capability,
   );
   expect(declared.context).toEqual({ window: 16_384 });
@@ -106,11 +109,11 @@ test("a server's assumed window wins the fold but stays estimated, and a later t
 // and the user's box is the truth about the user's box. Without this the model can serve neither the agent
 // nor the structured task, and a game on it has no write path.
 test("declared tool calls and structured output fold over a model no tier states them for", () => {
-  const bare = generationOf(synthesizeCapability("generation", "other", {}).capability);
+  const bare = requireGenerationCapability(synthesizeCapability("generation", "other", {}).capability);
   expect(bare.tools).toBeUndefined();
   expect(bare.output.structured).toBeUndefined();
   const out = synthesizeCapability("generation", "other", { declared: { generation: { tools: { parallel: false }, output: { structured: true } } } });
-  const gen = generationOf(out.capability);
+  const gen = requireGenerationCapability(out.capability);
   expect(gen.tools).toEqual({ parallel: false });
   expect(gen.output.structured).toBe(true);
   expect(gen.output.maxTokens).toEqual(GENERATION_FLOOR.output.maxTokens); // the sibling the patch did not state survives
@@ -120,9 +123,9 @@ test("declared tool calls and structured output fold over a model no tier states
 });
 
 test("the output cap and an embedder's width are estimated until a tier states them", () => {
-  expect(generationOf(synthesizeCapability("generation", "other", {}).capability).output.maxTokensEstimated).toBe(true);
+  expect(requireGenerationCapability(synthesizeCapability("generation", "other", {}).capability).output.maxTokensEstimated).toBe(true);
   const stated = synthesizeCapability("generation", "other", { advertised: { output: { maxTokens: { min: 1, max: 16_384 }, modalities: ["text"] } } });
-  expect(generationOf(stated.capability).output.maxTokensEstimated).toBeUndefined();
+  expect(requireGenerationCapability(stated.capability).output.maxTokensEstimated).toBeUndefined();
   expect(embeddingOf(synthesizeCapability("embedding", "other", {}).capability).dimsEstimated).toBe(true);
   expect(embeddingOf(synthesizeCapability("embedding", "other", { advertised: { dims: 768 } }).capability)).toMatchObject({ dims: 768 });
   expect(embeddingOf(synthesizeCapability("embedding", "other", { advertised: { dims: 768 } }).capability).dimsEstimated).toBeUndefined();
@@ -130,7 +133,7 @@ test("the output cap and an embedder's width are estimated until a tier states t
 
 test("the family floor ADDS tools/structured for an anthropic id and never subtracts", () => {
   const out = synthesizeCapability("generation", "anthropic", { advertised: { output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] } } });
-  const gen = generationOf(out.capability);
+  const gen = requireGenerationCapability(out.capability);
   expect(gen.tools?.parallel).toBe(true);
   expect(gen.output.structured).toBe(true);
   expect(gen.output.maxTokens.max).toBe(4096);
@@ -180,21 +183,23 @@ const hostedRow = (): ProviderDef => rowOf("openrouter");
 
 test("endpoint posture: tools without coEmitsProse ⇒ silencesProse; undeclared modalities widen with modalitiesEstimated", () => {
   const base = synthesizeCapability("generation", "other", { declared: { generation: { tools: { parallel: false } } } }).capability;
-  const out = generationOf(applyEndpointPosture(endpointRow(), base, false));
+  const out = requireGenerationCapability(applyEndpointPosture(endpointRow(), base, false));
   expect(out.tools).toEqual({ parallel: false, silencesProse: true });
   expect(out.input).toEqual(["text", "image", "video"]);
   expect(out.modalitiesEstimated).toBe(true);
   // A declared modality set is never widened.
   const declared = synthesizeCapability("generation", "other", { declared: { generation: { input: ["text"] } } }).capability;
-  const kept = generationOf(applyEndpointPosture(endpointRow(), declared, true));
+  const kept = requireGenerationCapability(applyEndpointPosture(endpointRow(), declared, true));
   expect(kept.input).toEqual(["text"]);
   expect(kept.modalitiesEstimated).toBeUndefined();
   // A hosted row gets neither floor, and loses the turns estimate: only an endpoint row relaxes an unmeasured
   // turns floor, so a hosted route keeps the fail-closed one.
-  const { turnsEstimated: _localOnly, ...hosted } = generationOf(base);
-  expect(generationOf(base).turnsEstimated).toBeDefined();
+  const { turnsEstimated: _localOnly, ...hosted } = requireGenerationCapability(base);
+  expect(requireGenerationCapability(base).turnsEstimated).toBeDefined();
   expect(applyEndpointPosture(hostedRow(), base, false)).toEqual({ kind: "generation", generation: hosted });
-  expect(generationOf(applyEndpointPosture(endpointRow(), base, false)).turnsEstimated).toEqual(generationOf(base).turnsEstimated);
+  expect(requireGenerationCapability(applyEndpointPosture(endpointRow(), base, false)).turnsEstimated).toEqual(
+    requireGenerationCapability(base).turnsEstimated,
+  );
 });
 
 // `sampling` is the STATED SET of knobs a tier vouches for (§8.7 step 2: absent ⇒ not honoured; D68: absence is
@@ -209,15 +214,17 @@ test("sampling is a stated SET: a measured `{}` erases an advertised range; a de
     generation: { sampling: {} },
     evidence: { tier: "measured", dated: "2026-09-20", cite: "test" },
   };
-  expect(generationOf(synthesizeCapability("generation", "anthropic", { advertised, measured: [measuredEmpty] }).capability).sampling).toEqual({});
+  expect(requireGenerationCapability(synthesizeCapability("generation", "anthropic", { advertised, measured: [measuredEmpty] }).capability).sampling).toEqual(
+    {},
+  );
   // PLANTED CONTROL: without the measured row the advertised set stands (the fold is not simply dropping sampling).
-  expect(generationOf(synthesizeCapability("generation", "anthropic", { advertised }).capability).sampling).toEqual(advertised.sampling);
+  expect(requireGenerationCapability(synthesizeCapability("generation", "anthropic", { advertised }).capability).sampling).toEqual(advertised.sampling);
   // A declared `temperature` alone is "this server honours temperature" — the advertised topP does NOT survive beside it.
   const declared = synthesizeCapability("generation", "other", { advertised, declared: { generation: { sampling: { temperature: { min: 0, max: 1 } } } } });
-  expect(generationOf(declared.capability).sampling).toEqual({ temperature: { min: 0, max: 1 } });
+  expect(requireGenerationCapability(declared.capability).sampling).toEqual({ temperature: { min: 0, max: 1 } });
   // The sibling nested blocks keep their one-level merge (a declared effort list leaves the curated mode in place).
   const nested = synthesizeCapability("generation", "other", { curated: [curated], declared: { generation: { reasoning: { effortLevels: ["low"] } } } });
-  expect(generationOf(nested.capability).reasoning).toMatchObject({ mode: "effort", effortLevels: ["low"] });
+  expect(requireGenerationCapability(nested.capability).reasoning).toMatchObject({ mode: "effort", effortLevels: ["low"] });
 });
 
 // A declared window of 1 to 4 left a reranker no room for its pair's special tokens, and every rerank threw. A stated

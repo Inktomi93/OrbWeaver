@@ -1,5 +1,8 @@
 // @orb-waive-file no-test-fabrication({ cards: string[]; dealt: number; summary: string }): baselined when the gate widened to value casts; burn-down item 906.
 
+import type { PluginToast, PluginToastLevel } from "@orb/contracts/plugin";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createPluginUiOutbox } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { bootShowcase, settle } from "@orb/testkit/node/showcase-guest.ts";
 
@@ -12,18 +15,22 @@ interface Drive {
   readonly published: Record<string, unknown>[];
   readonly draw: (count?: number) => Promise<{ cards: string[]; dealt: number; summary: string }>;
   readonly pageAction: (actionId: string) => Promise<void>;
+  /** What the production outbox admitted so far; the floor refuses every toast after the first inside its cooldown. */
+  readonly admittedToasts: () => readonly PluginToast[];
 }
 
 const GRANTS = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
 
-/** `toast` follows the real outbox's floor: the first lands, every later one throws. */
+// The production outbox owns the toast floor; a frozen clock keeps every later toast inside its cooldown.
+const IDENTITY = { id: mintTypeId(ID_PREFIX.plugin), name: "Oracle Deck", slug: "oracle-deck" };
+
 async function bootDeck(seedKv: Record<string, string> = {}): Promise<Drive> {
   const kv = new Map(Object.entries(seedKv));
   const published: Record<string, unknown>[] = [];
   const tools = new Map<string, Handler>();
   const registrations = new Map<string, { readonly displayName?: string; readonly replayHistory?: boolean }>();
   let page: PageAction | null = null;
-  let toasts = 0;
+  const outbox = createPluginUiOutbox(() => 0);
   const host = {
     version: 1,
     grants: GRANTS,
@@ -65,10 +72,12 @@ async function bootDeck(seedKv: Record<string, string> = {}): Promise<Drive> {
         }
         return Promise.resolve();
       },
-      toast: (): Promise<void> => {
-        toasts += 1;
-        return toasts > 1 ? Promise.reject(new Error("plugin host: ui.toast is limited to one notice")) : Promise.resolve();
-      },
+      // The outbox throws over its floor; inside a Promise executor that throw is the rejected guest promise.
+      toast: (level: PluginToastLevel, message: string): Promise<void> =>
+        new Promise((resolve) => {
+          outbox.pushToast(IDENTITY, level, message);
+          resolve();
+        }),
     },
   };
   await bootShowcase("oracle-deck", host);
@@ -76,6 +85,7 @@ async function bootDeck(seedKv: Record<string, string> = {}): Promise<Drive> {
     registrations,
     kv,
     published,
+    admittedToasts: () => outbox.drain(IDENTITY.id).toasts,
     draw: async (count = 1): Promise<{ cards: string[]; dealt: number; summary: string }> => {
       const handler = tools.get("draw");
       if (handler === undefined) {
@@ -131,4 +141,5 @@ test("a page draw inside the toast floor still republishes the page", async () =
   await drive.pageAction("draw_one");
 
   expect(drive.published.at(-1)?.["dealt"]).toBe(2);
+  expect(drive.admittedToasts()).toHaveLength(1);
 });

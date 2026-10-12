@@ -24,11 +24,6 @@ export const REVIEWED_GRANTS_TEST_PRODUCTION_CLONE: readonly ReviewedGateGrant[]
   ["tests/default-content/index.test.ts", "copies:sha256=packages/server/src/primitives/content-hash/index.ts#sha256Hex"],
   ["tests/inference/backends/anthropic-messages/chat.test.ts", "copies:isRecord=packages/kit/src/guards/index.ts#isPlainObject"],
   ["tests/inference/backends/local-light/_stub-model-cache.ts", "copies:holdThread=tooling/src/snap/ops/stage-marker.ts#waitSync"],
-  ["tests/inference/capability/synthesize.test.ts", "copies:generationOf=packages/contracts/src/inference/capability/reads.ts#requireGenerationCapability"],
-  [
-    "tests/inference/resolve/resolve-task.suite.test.ts",
-    "copies:generationOf=packages/contracts/src/inference/capability/reads.ts#requireGenerationCapability",
-  ],
   ["tests/server/domain/assets/verbs/backfill-avatars.int.test.ts", "copies:sha256=packages/server/src/primitives/content-hash/index.ts#sha256Hex"],
   ["tests/server/domain/import/substrate/persona-review.test.ts", "copies:sha256=packages/server/src/primitives/content-hash/index.ts#sha256Hex"],
   ["tests/server/domain/rpg/stale-actor-key.suite.int.test.ts", "copies:poison=packages/server/src/domain/rpg/persistence/snapshots.ts#updateSnapshotState"],

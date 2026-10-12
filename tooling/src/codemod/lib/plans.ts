@@ -3,6 +3,7 @@
 
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { classifyTestFilename } from "@orb/tooling/floor/testing/test-kinds";
 import type { OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
@@ -60,16 +61,13 @@ export function assertPathString(value: unknown, name: string): asserts value is
 
 // ── §7 ─ Path helpers ────────────────────────────────────────────────────────
 
+const HOST_PATH = { sep };
+
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) {
     return;
   }
   return typeof error.code === "string" ? error.code : undefined;
-}
-
-function isContained(root: string, candidate: string): boolean {
-  const rel = relative(root, candidate);
-  return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
 }
 
 function containmentInspectionError(path: string, error: unknown): CodemodError {
@@ -129,12 +127,12 @@ export function absolutePath(p: string, repoRoot: string): string {
   assertPathString(p, "path");
   const root = resolve(repoRoot);
   const abs = isAbsolute(p) ? normalize(p) : resolve(root, p);
-  if (!isContained(root, abs)) {
+  if (!isWithinRoot(root, abs, HOST_PATH)) {
     throw new CodemodError(`Path escapes repo root: ${p}`, "Codemod helpers refuse to touch files outside the repo. Pass a path relative to the repo root.");
   }
   const physicalRoot = physicalPath(root);
   const physical = physicalPath(abs);
-  if (!isContained(physicalRoot, physical)) {
+  if (!isWithinRoot(physicalRoot, physical, HOST_PATH)) {
     throw new CodemodError(
       `Path resolves outside repo root: ${p}`,
       "Codemod helpers refuse symlinked paths whose physical target leaves the repo. Use a path whose resolved ancestry stays inside the repo root.",

@@ -7,9 +7,10 @@
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ required?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
-import { scrubWireSchema } from "@orb/contracts/inference";
-import type { ExtractionRefs, RpgGameConfig, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
+import { NAME_MAP_KEYWORDS, scrubWireSchema } from "@orb/contracts/inference";
+import type { ExtractionRefs, RpgActorRef, RpgGameConfig, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
+  actorRefKey,
   actorTrackerWriteKeys,
   buildRpgToolDescriptions,
   buildTrackerWriteGroups,
@@ -30,6 +31,7 @@ import {
   recordToolCalls,
   rpgExtractionSchema,
   rpgGameConfigSchema,
+  rpgNpcSlug,
   rpgPopulateSchema,
   rpgTrackerDefSchema,
   salvagedToolCallFields,
@@ -41,6 +43,8 @@ import {
   updateSceneArgsSchema,
 } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
+import type { UserId } from "@orb/kit/ids";
+import { newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
@@ -65,7 +69,8 @@ function tracker(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "lab
 
 /** A carrier (an actor the write surface may target), with no sheet exceptions unless given. */
 function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgTrackerCarrier> = {}): RpgTrackerCarrier {
-  return { actorKey: `${kind === "npcs" ? "npc" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
+  const ref: RpgActorRef = kind === "npcs" ? { kind: "npc", npcKey: rpgNpcSlug(name) } : { kind: "user", userId: newId<UserId>() };
+  return { actorKey: actorRefKey(ref), name, kind, grants: [], revokes: [], ...over };
 }
 
 test("the extraction schema projects to JSON Schema without throwing (the output_config.format class)", () => {
@@ -1103,7 +1108,7 @@ function wireKeywords(node: unknown, acc: Set<string> = new Set<string>()): Set<
   }
   for (const [key, value] of Object.entries(node)) {
     acc.add(key);
-    if (NAME_MAP_KEYS.has(key) && isPlainObject(value)) {
+    if (NAME_MAP_KEYWORDS.has(key) && isPlainObject(value)) {
       for (const child of Object.values(value)) {
         wireKeywords(child, acc);
       }
@@ -1113,8 +1118,6 @@ function wireKeywords(node: unknown, acc: Set<string> = new Set<string>()): Set<
   }
   return acc;
 }
-
-const NAME_MAP_KEYS = new Set<string>(["properties", "$defs", "definitions"]);
 
 // The keywords NO hosted request may carry — the union of what Anthropic documents as unsupported and what
 // `z.toJSONSchema` stamps outside either vendor's list. Spelled out here on purpose: this is the VENDOR
