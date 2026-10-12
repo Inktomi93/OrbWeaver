@@ -49,8 +49,9 @@ export function programClosures(root: string, programs: readonly PolicyProgramMe
   return out;
 }
 
-export function nativeProgramRoots(root: string, program: PolicyProgramMembership): ReadonlySet<string> | undefined {
-  const result = runNicedSync(process.execPath, [TS7_WRAPPER, "--showConfig", "-p", program.config], {
+/** `launcher` is the injected native compiler wrapper; the checkout's own wrapper by default. */
+export function nativeProgramRoots(root: string, program: PolicyProgramMembership, launcher: string = TS7_WRAPPER): ReadonlySet<string> | undefined {
+  const result = runNicedSync(process.execPath, [launcher, "--showConfig", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
   });

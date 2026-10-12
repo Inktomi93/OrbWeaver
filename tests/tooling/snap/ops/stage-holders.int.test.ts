@@ -11,7 +11,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { processStartTicks } from "../../../../tooling/src/floor/host/platform.ts";
 import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
-import type { StageHolder, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import type { EnsureStageOps, StageHolder, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { liveHoldersOf, stageDecision } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { ensureStage } from "../../../../tooling/src/snap/ops/stage.ts";
@@ -28,30 +28,6 @@ const SIBLING = "/repo/main";
 const MINUTE = 60_000;
 const NOW_ISO = new Date(FROZEN_AT_MS).toISOString();
 const DAYS_AGO = new Date(FROZEN_AT_MS - 3 * 24 * 60 * MINUTE).toISOString();
-
-const planted = vi.hoisted(() => ({ home: "", row: null as unknown }));
-
-// @orb-waive test-mock-doctrine(mock): ensureStage's shared-reuse arm needs a sibling's live, healthy stage (bound ports, healthz, served-probe); these stubs stand in for that census and for the repo root, and the hold registration under test runs for real. Ends if ensureStage takes an injected census.
-vi.mock("../../../../tooling/src/snap/ops/stage-git.ts", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  repoRoot: (): string => "/repo/main",
-  resolveRef: (): string => "0".repeat(40),
-}));
-// @orb-waive test-mock-doctrine(mock): ensureStage's shared-reuse arm needs a sibling's live, healthy stage (bound ports, healthz, served-probe); these stubs stand in for that census and for the repo root, and the hold registration under test runs for real. Ends if ensureStage takes an injected census.
-vi.mock("../../../../tooling/src/snap/ops/stage-census.ts", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  acquireStageBand: (): unknown => ({ allocation: { kind: "shared-reuse", band: 3, row: planted.row }, views: [] }),
-}));
-// @orb-waive test-mock-doctrine(mock): ensureStage's shared-reuse arm needs a sibling's live, healthy stage (bound ports, healthz, served-probe); these stubs stand in for that census and for the repo root, and the hold registration under test runs for real. Ends if ensureStage takes an injected census.
-vi.mock("../../../../tooling/src/snap/ops/stage-keeper.ts", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  armStageKeeper: (_home: string, row: unknown): unknown => row,
-}));
-// @orb-waive test-mock-doctrine(mock): ensureStage's shared-reuse arm needs a sibling's live, healthy stage (bound ports, healthz, served-probe); these stubs stand in for that census and for the repo root, and the hold registration under test runs for real. Ends if ensureStage takes an injected census.
-vi.mock("../../../../tooling/src/snap/ops/stage-marker.ts", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  markerRoot: (): string => planted.home,
-}));
 
 function scratchHome(label: string): string {
   const home = mkdtempSync(join(tmpdir(), `cbsn-holders-${label}-`));
@@ -86,12 +62,21 @@ function ownerFresh(home: string): string {
 }
 
 test("a sibling's cache:check that shared-reuses a stage through ensureStage holds it, so the owner's --fresh refuses", () => {
-  planted.home = scratchHome("ensure");
-  planted.row = stageRow();
-  writeRow(planted.home, stageRow());
-  ensureStage({ ref: SHA, fresh: false });
-  expect(readBands(planted.home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: SIBLING })]);
-  expect(ownerFresh(planted.home)).toBe("refuse");
+  const home = scratchHome("ensure");
+  const row = stageRow();
+  writeRow(home, row);
+  // ensureStage's shared-reuse arm needs a sibling's live, healthy stage (bound ports, healthz, served-probe); the
+  // injected ops stand in for that census and for the repo root, and the hold registration runs for real.
+  const ops: EnsureStageOps = {
+    repoRoot: (): string => SIBLING,
+    resolveRef: (): string => SHA,
+    markerRoot: (): string => home,
+    acquireStageBand: () => ({ allocation: { kind: "shared-reuse", band: row.band, row }, views: [] }),
+    armStageKeeper: (_home, armed) => armed,
+  };
+  ensureStage({ ref: SHA, fresh: false }, ops);
+  expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: SIBLING })]);
+  expect(ownerFresh(home)).toBe("refuse");
 });
 
 test("a holder whose pid now belongs to another process does not pin the stage", () => {

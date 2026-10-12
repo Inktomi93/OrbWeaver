@@ -50,6 +50,9 @@ export interface HeldStatement {
   readonly reached: Promise<void>;
   /** Let the held statements enter the real driver. */
   readonly release: () => void;
+  /** Stop matching new arrivals: statements already parked stay parked until {@link release}, later ones pass.
+   *  A race needs this when the competing request runs the same SQL as the held one. */
+  readonly disarm: () => void;
 }
 
 export interface HeldDb {
@@ -86,6 +89,11 @@ export async function freshHeldDb(): Promise<HeldDb> {
       active = gate;
       return {
         reached: gate.reached.promise,
+        disarm: (): void => {
+          if (active === gate) {
+            active = undefined;
+          }
+        },
         release: (): void => {
           if (active === gate) {
             active = undefined;
