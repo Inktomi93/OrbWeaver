@@ -28,6 +28,14 @@ export function coarsePointerNow(): boolean {
   return typeof globals.matchMedia === "function" && globals.matchMedia("(pointer: coarse)").matches;
 }
 
+/** `true` when the primary pointer is fine (mouse, trackpad) per `(pointer: fine)`, read fresh at call time.
+ *  Not the inverse of {@link coarsePointerNow}: a `pointer: none` device matches neither. `false` when
+ *  `matchMedia` doesn't exist. */
+export function finePointerNow(): boolean {
+  const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
+  return typeof globals.matchMedia === "function" && globals.matchMedia("(pointer: fine)").matches;
+}
+
 const coarsePointerQuery: CoarsePointerQuery | null = ((): CoarsePointerQuery | null => {
   const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
   return typeof globals.matchMedia === "function" ? globals.matchMedia("(pointer: coarse)") : null;

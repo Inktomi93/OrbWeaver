@@ -239,7 +239,7 @@ resize never mutates the stored preference. Escape closes the open slide-over, y
 override's intent is honored by restoring it on re-widen, never by discarding it. The mobile regime
 (below 48rem) is the separate, narrower regime that also can never resolve `docked`; it reads the same
 `openOverlayPanel` tracker as the narrow-desktop overlay regime, so the two never drift on separate
-state. The breakpoint is a second `matchMedia` signal (`narrowViewport`) in the `no-raw-matchmedia` legal
+state. The breakpoint is a second `matchMedia` signal (`narrowViewport`) in the `orb/no-raw-matchmedia` legal
 home — overlay is mode-gated rendering, not `@media`-gated, so the one app-shell CSS `@media` (the 48rem
 mobile column flip) stays the only one. User override wins inside each regime: an explicit
 `overlay`/`collapsed` override passes through unchanged in both regimes; only a `docked` resolution

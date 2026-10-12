@@ -100,7 +100,7 @@ The UI enforcement families:
   trio (UI-Theming-and-Content.md §12.6).
 
 **The D62 design-gate set** (lands WITH the D62 feature
-lanes per §11.7): `no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
+lanes per §11.7): `orb/no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
 in `features/**` regardless of className), `no-arbitrary-tw-values` (bracket-value utilities banned in
 features AND ui), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
 interactive primitive's CT asserts focus-visible ring + disabled opacity). **Not yet gated — the
@@ -211,7 +211,7 @@ wave BEFORE feature agents (§11.7).
 - **TWO named editor factories** (homed in `client/forms`, §2.1): `createSavedEntityForm` (button-gated)
   and `createAutosaveEntityForm` (listener-debounced; **`reset` removed from its type** — calling it is
   the autosave infinite loop). The full six-obligation contract is §13.4. Keep neo's single
-  `createFormHook`/`createFormHookContexts` instance (gate `no-direct-useform`). *Gate
+  `createFormHook`/`createFormHookContexts` instance (lint rule `orb/no-direct-useform`). *Gate
   `no-form-reset-in-autosave`.* **Amended by D66 A4:** A4 made AUTOSAVE the standing save model (no manual
   Save button; program doc §7), so `createSavedEntityForm` + the `save-bar` primitive are now orphaned
   pending a no-consumer-remaining removal decision. Both factories still exist (D43/D54 list them); do
@@ -241,7 +241,7 @@ per-theme `color-scheme`).
 
 - **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive
   shape with no `version`/`migrate`; once stale blobs are in users' `localStorage` you can't migrate from
-  a version line you never shipped. \*Gates `no-raw-zustand-persist` + `persist-partialize-and-total-migrate`
+  a version line you never shipped. \*Lint rule `orb/no-raw-zustand-persist` + `persist-partialize-and-total-migrate`
   - a STORAGE_KEYS uniqueness registry *(PHANTOM-REF — never built; only a code-comment concept in `create-gated-store.ts`)*.\*
 - **Determinism reaches the client.** Extend the server's no-`Date.now()`/`new Date()`/`Math.random()`
   rule to client render + optimistic code (seeded PRNG allowed). **Timezone pipeline:** the wire is

@@ -1,4 +1,4 @@
-// Reviewed grants: depcruise-grant-liveness, eslint-grant-liveness, firehose-import-allowlist, json-column-write-parity, knob-wire-coverage....
+// Reviewed grants: depcruise-grant-liveness, eslint-grant-liveness, json-column-write-parity, knob-wire-coverage....
 // Split from reviewed-grants.ts — see that file for the central home comment.
 //
 // TWO `knob-wire-coverage` ROWS RETIRED 2026-09-20 (lane cb-gate-reach, the @orb/inference §12 extraction
@@ -85,24 +85,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `tooling/src/floor/testing/stryker-config.ts` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
       "Stryker's sandbox directory changes or mutation execution is retired — the ignore moves or leaves the config and this row is consumed zero times.",
-  },
-  {
-    id: "firehose-import-allowlist:automation-watcher",
-    policyId: "firehose-import-allowlist",
-    subject: "packages/server/src/entry/compose/automation-watcher.ts",
-    operation: "all-chat-firehose-reference",
-    why: "The server composition root is the sole HOST-authority consumer of the unclamped all-chat stream; it injects the bounded automation operation instead of exposing the stream to a user surface.",
-    endsWhen:
-      "the watcher stops naming the firehose, moves, or the stream gains a caller-bound per-member clamp; central zero-use reconciliation then stales this exact row.",
-  },
-  {
-    id: "firehose-import-allowlist:transport-barrel",
-    policyId: "firehose-import-allowlist",
-    subject: "packages/server/src/transport/trpc/index.ts",
-    operation: "all-chat-firehose-reference",
-    why: "The transport barrel republishes the canonical firehose only so the composition root can wire the HOST-authority consumer; no user-facing module receives the stream.",
-    endsWhen:
-      "the composition root imports the definition directly, the barrel moves, or the re-export disappears; central zero-use reconciliation then stales this exact row.",
   },
   {
     id: "json-column-write-parity:chats-pending-handoff-offer",
@@ -227,22 +209,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     why: "The transcript row resolves settled reasoning and content; its editing branch returns MessageEditTextarea with the raw MessageView first.",
     endsWhen:
       "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
-  },
-  {
-    id: "no-direct-useform:contexts",
-    policyId: "no-direct-useform",
-    subject: "packages/client/src/forms/editor/contexts.ts",
-    operation: "tanstack-form-mint:createFormHookContexts",
-    why: "the ONE `createFormHookContexts()` call the whole toolkit is built on (TanStack Form's own guidance: 'define this once'); it is split from `use-app-form.ts` only so the bound components can import the contexts without a circular edge.",
-    endsWhen: "the form toolkit stops minting its own contexts (a vendor change), or the contexts move.",
-  },
-  {
-    id: "no-direct-useform:use-app-form",
-    policyId: "no-direct-useform",
-    subject: "packages/client/src/forms/editor/use-app-form.ts",
-    operation: "tanstack-form-mint:createFormHook",
-    why: "the single `createFormHook` instance every multi-field form builds from — `useAppForm` IS this call, and it is what the rule points every surface at instead.",
-    endsWhen: "the shared instance is minted somewhere else, which stales this row at its old path.",
   },
   {
     id: "no-direct-users-read:admin-create-user",

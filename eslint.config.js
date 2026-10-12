@@ -87,6 +87,7 @@ import betterTailwindcss from "eslint-plugin-better-tailwindcss";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactWebApi from "eslint-plugin-react-web-api";
+import reactX from "eslint-plugin-react-x";
 import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import tsdoc from "eslint-plugin-tsdoc";
 import tseslint from "typescript-eslint";
@@ -388,6 +389,392 @@ const CLIENT_SYNTAX = [...SHIPPED_SYNTAX, NO_ARRAY_LITERAL_QUERYKEY];
 /** Source globs of a population root, derived from the gate runtime's own root table so the two cannot drift. */
 const rootSources = (...refs) => refs.flatMap((ref) => POPULATION_ROOTS[ref].map((root) => `${root}**/*.{ts,tsx}`));
 const AUTHORED_SRC = POPULATION_SETS["@authored"].flatMap((ref) => rootSources(ref));
+
+// ── RESTRICTIONS: one core restriction rule per structural gate it replaced ─────────────────────────────
+// Each entry publishes ESLint's own `no-restricted-syntax` / `no-restricted-globals` under the former gate's id
+// (`orb/<id>`), so a ban carries its own scope and its own HOME list. Flat config replaces a rule's options
+// per file, which would make two bans on one core rule fight; one rule name per ban makes that impossible.
+//
+// A `homes` entry is the one module that legitimately OWNS the capability the ban fences (the matchMedia
+// reader, the persist factory); `why` says so. A `deferred` entry is a site that still breaks the ban and
+// cannot be fixed locally; `item` is its proposed work item, so the list only shrinks. Neither is ever an
+// inline `eslint-disable`. A path that stops existing reds `eslint-grant-liveness`.
+const TEST_FILES = "**/*.test.{ts,tsx}";
+const CLIENT_FEATURES = "packages/client/src/features/**/*.{ts,tsx}";
+const CLIENT_FEATURES_TSX = "packages/client/src/features/**/*.tsx";
+const SERVER_TRANSPORT = "packages/server/src/transport/**/*.{ts,tsx}";
+const alternation = (names) => `/^(${names.join("|")})$/`;
+const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
+const MATCH_MEDIA = "matchMedia";
+const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
+
+const RESTRICTIONS = [
+  {
+    id: "no-raw-zustand-persist",
+    scope: rootSources("@client"),
+    homes: [
+      {
+        path: "packages/client/src/state/create-entity-draft-store.ts",
+        why: "the draft-store factory bakes partialize / version+total-migrate / key uniqueness in; its `persist(` call and its registered `reset` closure ARE the seal every draft store mints through",
+      },
+      { path: "packages/client/src/state/create-persisted-store.ts", why: "the general persisted-store factory, the same seal one shape over" },
+    ],
+    selectors: [
+      {
+        selector: "ImportDeclaration[source.value='zustand/middleware'] > ImportSpecifier[imported.name='persist']",
+        message:
+          "Raw zustand `persist` outside its sealed homes — partialize / version+total-migrate / key uniqueness are baked into `createEntityDraftStore` / `createPersistedStore` (UI-Gates-and-Lessons.md §11.5).",
+      },
+      {
+        selector: "ExportNamedDeclaration[source.value='zustand/middleware'] > ExportSpecifier[local.name='persist']",
+        message: "Raw zustand `persist` re-exported outside its sealed homes (UI-Gates-and-Lessons.md §11.5).",
+      },
+      {
+        selector:
+          "CallExpression[callee.property.name='setState'][arguments.1.value=true]:has(> CallExpression.arguments[callee.property.name='getInitialState'])",
+        message:
+          "`setState(store.getInitialState(), true)` on a persist-minted store writes the emptied state THROUGH to durable storage (#879, from #837); it belongs to the two mint factories, whose `reset` closures the durable-local registry drives behind the storage blindfold.",
+      },
+    ],
+  },
+  {
+    // The registry's own `reset()` may only run in the function that installs the storage blindfold.
+    id: "no-raw-zustand-persist-registry",
+    scope: ["packages/client/src/state/durable-local.ts"],
+    homes: [],
+    selectors: [
+      {
+        selector: "CallExpression[callee.property.name='reset']:not(FunctionDeclaration[id.name='resetWithoutPersisting'] CallExpression)",
+        message:
+          "A registered store's `reset()` inside the durable-local registry may only run from `resetWithoutPersisting`, which blindfolds the store's storage first — anywhere else drops a store WITHOUT the blindfold (#837 one layer up).",
+      },
+    ],
+  },
+  {
+    id: "no-direct-useform",
+    scope: AUTHORED_SRC,
+    homes: [
+      {
+        path: "packages/client/src/forms/editor/contexts.ts",
+        why: "the ONE `createFormHookContexts()` call the whole form toolkit is built on, split from use-app-form.ts only so bound components can import the contexts without a cycle",
+      },
+      {
+        path: "packages/client/src/forms/editor/use-app-form.ts",
+        why: "the single `createFormHook` instance every multi-field form builds from — `useAppForm` IS this call",
+      },
+    ],
+    selectors: [
+      {
+        selector: `ImportDeclaration[source.value='@tanstack/react-form'] > ImportSpecifier[imported.name=${alternation(TANSTACK_FORM_MINTS)}]`,
+        message:
+          "TanStack Form's raw mint is used outside the shared form toolkit — use `useAppForm` (and `withForm` / `withFieldGroup`) from `#forms/editor`; the raw mints bypass the bound @orb/ui Field components.",
+      },
+      {
+        selector: `CallExpression[callee.type='MemberExpression'][callee.property.name=${alternation(TANSTACK_FORM_MINTS)}]`,
+        message: "TanStack Form's raw mint is called through a namespace outside the shared form toolkit — use `useAppForm` from `#forms/editor`.",
+      },
+    ],
+  },
+  {
+    id: "firehose-import-allowlist",
+    scope: rootSources("@server"),
+    homes: [
+      {
+        path: "packages/server/src/entry/compose/automation-watcher.ts",
+        why: "the server composition root is the sole HOST-authority consumer of the unclamped all-chat stream; it injects the bounded automation operation instead of exposing the stream to a user surface",
+      },
+      {
+        path: "packages/server/src/transport/trpc/index.ts",
+        why: "the transport barrel republishes the canonical firehose only so the composition root can wire the HOST-authority consumer",
+      },
+    ],
+    selectors: [
+      {
+        selector: `:matches(ImportSpecifier[imported.name='${FIREHOSE_SYMBOL}'], ExportSpecifier[local.name='${FIREHOSE_SYMBOL}'])`,
+        message: `The all-chats firehose \`${FIREHOSE_SYMBOL}\` is importable ONLY by the composition root (entry/compose). It is unclamped by type — no chatId, no caller, no per-member history-floor verdict — so any per-user surface fed from it ships a join-history leak (D162). Tail \`subscribeChatEvents\` behind the member-gated \`chatEventBounds\` probe instead.`,
+      },
+      {
+        selector: `:matches(MemberExpression[computed=false][property.name='${FIREHOSE_SYMBOL}'], MemberExpression[computed=true][property.value='${FIREHOSE_SYMBOL}'])`,
+        message: `The all-chats firehose \`${FIREHOSE_SYMBOL}\` is importable ONLY by the composition root (entry/compose) (D162).`,
+      },
+    ],
+  },
+  {
+    id: "bus-channel-primitive",
+    scope: [SERVER_TRANSPORT],
+    homes: [
+      {
+        path: "packages/server/src/transport/trpc/bus-channel.ts",
+        why: "`defineBusChannel`'s own module — the node EventEmitter it wraps is constructed HERE, which is the point of the mint (M9, client-architecture-state-and-gates.md §13/§16 G10)",
+      },
+    ],
+    selectors: [
+      {
+        selector:
+          ":matches(ImportDeclaration[source.value=/^(node:)?events$/] > ImportSpecifier[imported.name='EventEmitter'], ExportNamedDeclaration[source.value=/^(node:)?events$/] > ExportSpecifier[local.name='EventEmitter'])",
+        message:
+          "`EventEmitter` under packages/server/src/transport/ outside the mint — `defineBusChannel` (transport/trpc/bus-channel.ts) is the ONE transport EventEmitter home; a bespoke emitter re-introduces the machinery M9 unified.",
+      },
+      {
+        selector: "NewExpression[callee.type='MemberExpression'][callee.property.name='EventEmitter']",
+        message:
+          "`new events.EventEmitter()` under packages/server/src/transport/ outside the mint — route the bus through `defineBusChannel` (transport/trpc/bus-channel.ts).",
+      },
+    ],
+  },
+  {
+    id: "no-raw-matchmedia",
+    scope: rootSources("@client", "@ui"),
+    homes: [
+      {
+        path: "packages/ui/src/lib/coarse-pointer-now.ts",
+        why: "the ONE `(pointer: coarse)` / `(pointer: fine)` home (`coarsePointerNow()`, `finePointerNow()`, `useCoarsePointer()`)",
+      },
+      { path: "packages/ui/src/lib/reduced-motion-now.ts", why: "the imperative reduced-motion one-home (`prefersReducedMotionNow()`)" },
+      {
+        path: "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts",
+        why: "the shell's viewport one-home: the ONE place the mobile-viewport fact is read; the rest of the client reads it off `#state`",
+      },
+      { path: "packages/ui/src/lib/use-prefers-light-color-scheme.ts", why: "the canonical OS color-scheme query and subscription" },
+      {
+        path: "packages/ui/src/lib/use-prefers-reduced-motion.ts",
+        why: "the render-time reduced-motion one-home: one `matchMedia` + `useSyncExternalStore` subscription for every non-CSS motion path",
+      },
+    ],
+    globals: [{ name: MATCH_MEDIA, message: "A bare `matchMedia` read outside the named media-query one-homes (UI-Gates-and-Lessons.md §11)." }],
+    selectors: [
+      {
+        // `typeof x.matchMedia` is a capability probe, not a read of the api, and every one-home does it first.
+        selector: `MemberExpression[computed=false][property.name='${MATCH_MEDIA}']:not(UnaryExpression[operator='typeof'] > MemberExpression)`,
+        message:
+          "A raw `matchMedia` read outside the named media-query one-homes — use `usePrefersReducedMotion()` / `usePrefersLightColorScheme()` (render), `prefersReducedMotionNow()` / `coarsePointerNow()` / `finePointerNow()` (imperative) from `@orb/ui`'s `#lib`, or the shell's viewport hook (UI-Gates-and-Lessons.md §11).",
+      },
+      {
+        selector: `MemberExpression[computed=true][property.value='${MATCH_MEDIA}']:not(UnaryExpression[operator='typeof'] > MemberExpression)`,
+        message: "A raw `matchMedia` read outside the named media-query one-homes (UI-Gates-and-Lessons.md §11).",
+      },
+    ],
+  },
+  {
+    id: "fetch-fn-in-features",
+    scope: [CLIENT_FEATURES],
+    homes: [],
+    globals: [
+      {
+        name: "fetch",
+        message:
+          "A client feature never writes `fetch(` — HTTP-route egress gets ONE data/ fetch fn each (beside upload-asset.ts / auth-session.ts / post-bug-report.ts), imported via #data; everything else is tRPC (client-architecture-state-and-gates.md §10/§16 R5).",
+      },
+    ],
+    selectors: [
+      {
+        selector:
+          "CallExpression[callee.type='MemberExpression'][callee.object.name=/^(globalThis|window|self)$/]:matches([callee.property.name='fetch'], [callee.property.value='fetch'])",
+        message: "A client feature never writes `fetch(` — use the data/ fetch fn for the route, or tRPC (client-architecture-state-and-gates.md §10/§16 R5).",
+      },
+    ],
+  },
+  {
+    id: "dialog-via-composite",
+    scope: [CLIENT_FEATURES_TSX],
+    homes: [],
+    // Each deferred file hand-assembles a raw Dialog for a species no composite (FormDialog / ConfirmDialog) covers yet.
+    deferred: [
+      {
+        path: "packages/client/src/features/chat/components/variant-wire-viewer.tsx",
+        item: "llint2-dialog-content-viewer",
+        why: "read-only host wire inspector with one Close",
+      },
+      {
+        path: "packages/client/src/features/chat/components/member-card-viewer.tsx",
+        item: "llint2-dialog-content-viewer",
+        why: "read-only level-clamped member-card viewer with one Close",
+      },
+      {
+        path: "packages/client/src/features/rpg/components/rpg-scene-cards.tsx",
+        item: "llint2-dialog-content-viewer",
+        why: "archived ImmersiveCard opens as a read-only lightbox viewer",
+      },
+      {
+        path: "packages/client/src/features/chat/components/gallery-lightbox.tsx",
+        item: "llint2-dialog-content-viewer",
+        why: "gallery lightbox owns its root and its destructive confirm",
+      },
+      {
+        path: "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx",
+        item: "llint2-dialog-picker",
+        why: "character-gallery picker owns its root and selection surface",
+      },
+      {
+        path: "packages/client/src/features/chat/components/gallery-add-picker.tsx",
+        item: "llint2-dialog-picker",
+        why: "gallery add-picker owns its root and selection surface",
+      },
+      {
+        path: "packages/client/src/features/chat/components/reaction-picker.tsx",
+        item: "llint2-dialog-picker",
+        why: "one-press emoji grid whose coarse trigger has no anchor box",
+      },
+      {
+        path: "packages/client/src/features/databank/components/databank-character-attachments.tsx",
+        item: "llint2-dialog-picker",
+        why: "keyset-paged CharacterPicker attaches on selection and has no submit",
+      },
+      {
+        path: "packages/client/src/features/persona/components/persona-from-character-dialog.tsx",
+        item: "llint2-dialog-picker",
+        why: "selecting a CharacterPicker row performs creation and dismisses, with no submit",
+      },
+      {
+        path: "packages/client/src/features/persona/components/persona-connected-characters.tsx",
+        item: "llint2-dialog-picker",
+        why: "keyset-paged CharacterPicker connects on selection and has no submit",
+      },
+      {
+        path: "packages/client/src/features/chat/anchors/join-invite-dialog.tsx",
+        item: "llint2-dialog-flow",
+        why: "/join preview-to-confirm landing owns loading, invalid and ready states rather than a form",
+      },
+      {
+        path: "packages/client/src/features/app-shell/components/modal-host.tsx",
+        item: "llint2-dialog-flow",
+        why: "the shell's generic modal seam renders arbitrary registry-owned bodies and drawer presentation",
+      },
+      {
+        path: "packages/client/src/features/preset/components/variable-editor-dialog.tsx",
+        item: "llint2-dialog-flow",
+        why: "seven-field form needing a pinned title above an internally-scrolled dynamic body; FormDialog lacks that layout",
+      },
+    ],
+    selectors: [
+      {
+        selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name='Dialog']",
+        message: "A features/** file imports the raw `Dialog` root from @orb/ui/dialog — use FormDialog for a form/prompt or ConfirmDialog for an alert.",
+      },
+    ],
+  },
+  {
+    id: "no-raw-interactive-intrinsics",
+    scope: [CLIENT_FEATURES_TSX],
+    homes: [
+      {
+        path: "packages/client/src/features/app-shell/surfaces/app-shell.tsx",
+        why: "the shell scrim is part of the app frame an @orb/ui Button is rendered inside — a borderless pointer-only backdrop painted by shell.css, not a feature affordance",
+      },
+    ],
+    selectors: [
+      {
+        selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name=${alternation(["button", "input", "select", "textarea"])}]`,
+        message:
+          "A raw interactive intrinsic in a feature (D62) — interactivity comes from an @orb/ui primitive (Button, TextField, Select, TextArea, Link), never a hand-rolled <button>/<input>/<select>/<textarea>.",
+      },
+      {
+        // An `<a>` with no href is an anchor TARGET, not a control.
+        selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='a']:has(> JSXAttribute[name.name='href'])",
+        message: "A raw `<a href>` in a feature (D62) — use the @orb/ui Link primitive.",
+      },
+    ],
+  },
+  {
+    id: "no-static-staletime",
+    scope: AUTHORED_SRC,
+    notNamed: [TEST_FILES],
+    homes: [],
+    selectors: [
+      {
+        selector: "Property[computed=false][key.name='staleTime'][value.value='static']",
+        message:
+          "`staleTime: 'static'` silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it).",
+      },
+      {
+        selector: "Property[computed=false][key.name='staleTime'] > TemplateLiteral[expressions.length=0][quasis.0.value.cooked='static']",
+        message: "`staleTime: 'static'` silently ignores invalidateQueries. Use Infinity.",
+      },
+    ],
+  },
+  {
+    id: "no-legacy-react-api",
+    scope: AUTHORED_SRC,
+    homes: [
+      {
+        path: "packages/ui/src/markdown/dialogue-paragraph.tsx",
+        why: "the markdown seal transforms ALREADY-RENDERED children in a `components.p` override running after sanitize, so `Children` is the library's own interface here; there is no data array to map instead",
+      },
+    ],
+    selectors: [
+      {
+        selector: `ImportDeclaration[source.value='react'] > ImportSpecifier[imported.name=${alternation(["cloneElement", "createRef", "Children", "PureComponent"])}]`,
+        message: "A legacy React API (cloneElement, createRef, Children, PureComponent) — use the React 19 function-component equivalent.",
+      },
+      {
+        selector: `ImportDeclaration[source.value='react-dom'] > ImportSpecifier[imported.name=${alternation(["useFormState", "flushSync"])}]`,
+        message: "A retired react-dom API (useFormState, flushSync) — use `useActionState`, and let React schedule the flush.",
+      },
+    ],
+  },
+];
+
+/** A rule that reports each esquery selector and each unresolved global of one RESTRICTIONS entry. It is the
+ *  body of core `no-restricted-syntax` / `no-restricted-globals` with the options closed over, because ESLint
+ *  keeps one options list per rule and file, and the core rules are reachable only through an API ESLint
+ *  marks deprecated. */
+function restrictionRule({ selectors = [], globals = [] }) {
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const listeners = Object.fromEntries(selectors.map(({ selector, message }) => [selector, (node) => context.report({ node, message })]));
+      if (globals.length > 0) {
+        listeners["Program:exit"] = (program) => {
+          for (const { identifier } of context.sourceCode.getScope(program).through) {
+            const banned = globals.find(({ name }) => name === identifier.name);
+            if (banned !== undefined) {
+              context.report({ node: identifier, message: banned.message });
+            }
+          }
+        };
+      }
+      return listeners;
+    },
+  };
+}
+const restrictionPlugin = { rules: Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])) };
+const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], homes, deferred = [] }) => {
+  const ignores = [...notNamed, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
+  return {
+    files: scope,
+    // A flat-config `ignores` array must not be empty.
+    ...(ignores.length === 0 ? {} : { ignores }),
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
+  };
+});
+
+// react-x: React 19 retired these APIs. Its rules take no options. `no-class-component` already passes an error
+// boundary (a class with `getDerivedStateFromError` / `componentDidCatch`), which has no function equivalent.
+const REACT_X_BLOCKS = [
+  {
+    files: AUTHORED_SRC,
+    plugins: { "react-x": reactX },
+    rules: {
+      "react-x/no-forward-ref": "error",
+      "react-x/no-use-context": "error",
+      "react-x/no-context-provider": "error",
+      "react-x/no-clone-element": "error",
+      "react-x/no-create-ref": "error",
+      "react-x/no-children-count": "error",
+      "react-x/no-children-for-each": "error",
+      "react-x/no-children-map": "error",
+      "react-x/no-children-only": "error",
+      "react-x/no-class-component": "error",
+    },
+  },
+  {
+    files: AUTHORED_SRC,
+    ignores: ["packages/ui/src/markdown/dialogue-paragraph.tsx"],
+    plugins: { "react-x": reactX },
+    rules: { "react-x/no-children-to-array": "error" },
+  },
+];
 
 export default tseslint.config(
   {
@@ -989,6 +1376,8 @@ export default tseslint.config(
     files: [CLIENT_SRC],
     rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
   },
+  ...RESTRICTION_BLOCKS,
+  ...REACT_X_BLOCKS,
   {
     // Zustand escape-hatch guard. Outside client state/, components/routes may not call
     // `useFooStore.setState(...)`/`.getState()` on the store's static API — those bypass the action

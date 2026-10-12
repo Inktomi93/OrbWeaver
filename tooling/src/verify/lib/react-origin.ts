@@ -57,7 +57,7 @@ const REACT_MODULE = "react";
 
 /** The `node_modules` directories that declare React's public surface. React ships no types of its own
  *  today, but a future inline `react/index.d.ts` must not silently stop matching. */
-export const REACT_TYPE_HOMES: readonly string[] = ["@types/react", "react"];
+const REACT_TYPE_HOMES: readonly string[] = ["@types/react", "react"];
 
 /** The React export a resolved origin ultimately names. A NAMED or NAMESPACE door lands the export name
  *  directly; a DEFAULT door (`import React from "react"`) lands `default` plus a one-hop member path, and
@@ -70,16 +70,9 @@ function namedReactExport(origin: ModuleMemberOrigin): string | undefined {
   return origin.memberPath.length === 1 && origin.exportedName === "default" ? origin.memberPath[0] : undefined;
 }
 
-/** The complete React export path named by an origin. Named imports start at the exported name; the
- * default object starts at its first member. This is the shared answer for policies that judge a
- * namespace member such as `React.Children.toArray`, rather than only a direct call target. */
-export function reactExportPath(origin: ModuleMemberOrigin): readonly string[] {
-  return origin.exportedName === "default" ? origin.memberPath : [origin.exportedName, ...origin.memberPath];
-}
-
 /** Whether a resolved module-member origin belongs to React. Kept separate from the export-path
  * interpretation so consumers cannot accidentally accept a same-named member from another package. */
-export function isReactOrigin(origin: ModuleMemberOrigin): boolean {
+function isReactOrigin(origin: ModuleMemberOrigin): boolean {
   const { canonical } = origin;
   return canonical.kind === "external-door" ? canonical.moduleSpecifier === REACT_MODULE : declaredByAnyPackage([canonical.declaration], REACT_TYPE_HOMES);
 }

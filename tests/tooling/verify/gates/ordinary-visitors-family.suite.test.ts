@@ -1,8 +1,8 @@
-// Conformance entry for the ORDINARY-VISITOR wave: ten legacy simple-visitor gates converted into fifteen
+// Conformance entry for the ORDINARY-VISITOR wave: ten legacy simple-visitor gates converted into fourteen
 // final policies. Every proof runs through the production dispatcher on an isolated population; the pins
 // below cover what a proof row structurally cannot express — a receipt REFUSAL (a tool error, not a
 // finding), the ordinary marker identity each ordinary policy's report must supply, and the grant liveness
-// the five reviewed-grant policies' whole authority rests on.
+// the four reviewed-grant policies' whole authority rests on.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
@@ -15,7 +15,6 @@ import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-i
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noMutatingRegisterApi } from "../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
-import { gate as noRawInteractiveIntrinsics } from "../../../../tooling/src/verify/gates/no-raw-interactive-intrinsics.ts";
 import { gate as noRejectedCorsProxy } from "../../../../tooling/src/verify/gates/no-rejected-cors-proxy.ts";
 import { gate as noUntypedSoftRef } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as persistedStoreRegistry } from "../../../../tooling/src/verify/gates/persisted-store-registry.ts";
@@ -41,7 +40,6 @@ const FAMILY: readonly GatePolicy[] = [
   noInlineWireInterface,
   noMutatingRegisterApi,
   noRawEgress,
-  noRawInteractiveIntrinsics,
   noRejectedCorsProxy,
   noUntypedSoftRef,
   persistedStoreRegistry,

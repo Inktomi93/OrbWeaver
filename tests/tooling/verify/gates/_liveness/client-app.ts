@@ -16,7 +16,6 @@ import { gate as configAnchorInRegistry } from "../../../../../tooling/src/verif
 import { gate as configGroupCompleteness } from "../../../../../tooling/src/verify/gates/config-group-completeness.ts";
 import { gate as contextDefinitionShape } from "../../../../../tooling/src/verify/gates/context-definition-shape.ts";
 import { gate as contextDefinitionShapeHealth } from "../../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
-import { gate as dialogViaComposite } from "../../../../../tooling/src/verify/gates/dialog-via-composite.ts";
 import { gate as homeTileRegistryCompleteness } from "../../../../../tooling/src/verify/gates/home-tile-registry-completeness.ts";
 import { gate as modalBodyNotPlaceholder } from "../../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
@@ -117,16 +116,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     // A hand-rolled tabs renderer outside the mint.
     overlays: [add(`${CHAT_LIB}/liveness-context-section.tsx`, 'export const badgeMint = { kind: "tabs", useResolved: () => null };\n')],
     messageIncludes: "useResolved",
-  },
-  {
-    policy: dialogViaComposite,
-    overlays: [
-      add(
-        `${CHAT_COMPONENTS}/liveness-dialog.tsx`,
-        'import { Dialog, DialogPopup } from "@orb/ui/dialog";\nexport const X = () => <Dialog><DialogPopup /></Dialog>;\n',
-      ),
-    ],
-    messageIncludes: "raw `Dialog` root",
   },
   {
     policy: homeTileRegistryCompleteness,

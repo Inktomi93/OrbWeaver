@@ -5,7 +5,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// @orb-waive dialog-via-composite(Dialog): the gallery add-picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
 import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Images } from "@orb/ui/icons";
