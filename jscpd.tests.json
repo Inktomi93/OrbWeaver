@@ -18,7 +18,7 @@
   "maxSize": "1mb",
 
   "// threshold": "The ratchet: the duplicated-lines percentage measured over tests/ when this config landed. Lower it when the measured share falls; never raise it to admit a copy.",
-  "threshold": 7.04,
+  "threshold": 6.98,
 
   "// gitignore": "Respect .gitignore.",
   "gitignore": true,

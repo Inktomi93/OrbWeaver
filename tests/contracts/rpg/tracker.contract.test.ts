@@ -5,7 +5,7 @@
 // resolver `trackerCeiling`, and above all the ONE carrier predicate
 // (`resolve(appliesTo) + grants − revokes`) that every consumer derives from instead of re-deciding who
 // carries what. The R6 write-surface GROUPING + the schema projection it feeds are pinned next door in
-// `extraction.contract.test.ts` (they are a property of the projected schema, not of these shapes).
+// `extraction-constraint.contract.test.ts` (they are a property of the projected schema, not of these shapes).
 
 import type { RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {

@@ -47,18 +47,17 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_D: readonly ReviewedGateGra
     "#server/domain/chat/memory/persistence/queries.ts",
     "#server/domain/chat/memory/recall/recall.ts",
   ],
-  "tests/server/domain/chat/engine/pipeline.test.ts": [
+  "tests/server/domain/chat/engine/_pipeline-support.ts": [
     "#inference/backends/v4/prompt.ts",
-    "#inference/capability/synthesize.ts",
-    "#server/domain/chat/assembly/history-budget.ts",
     "#server/domain/chat/assembly/injections.ts",
-    "#server/domain/chat/assembly/user-macros.ts",
     "#server/domain/chat/contract/context.ts",
-    "#server/domain/chat/contract/errors.ts",
     "#server/domain/chat/contract/results.ts",
     "#server/domain/chat/engine/pipeline.ts",
     "#server/domain/chat/substrate/wire-history.ts",
   ],
+  "tests/server/domain/chat/engine/pipeline-preset-knobs.test.ts": ["#server/domain/chat/assembly/user-macros.ts"],
+  "tests/server/domain/chat/engine/pipeline-recurse-loop.test.ts": ["#inference/capability/synthesize.ts"],
+  "tests/server/domain/chat/engine/pipeline.test.ts": ["#server/domain/chat/assembly/history-budget.ts", "#server/domain/chat/contract/errors.ts"],
   "tests/server/domain/chat/engine/recover-narrative.test.ts": [
     "#server/domain/chat/contract/results.ts",
     "#server/domain/chat/engine/pipeline.ts",
