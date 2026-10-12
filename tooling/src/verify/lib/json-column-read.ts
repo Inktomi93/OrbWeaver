@@ -2,7 +2,17 @@
 // whether the value reaches a parse before anything consumes it. A row and a write are judged by the drizzle column facts
 // `pnpm ast columns` shares (`floor/code-facts/drizzle-columns.ts`), never by a receiver's name, and a parse by the
 // parser's declaration (zod, or the versioned-config codec that wraps a zod schema), never by a callee name.
-import type { ArrowFunction, BindingElement, CallExpression, FunctionDeclaration, FunctionExpression, Node, ObjectLiteralExpression, Type } from "ts-morph";
+import type {
+  ArrowFunction,
+  BindingElement,
+  CallExpression,
+  FunctionDeclaration,
+  FunctionExpression,
+  Node,
+  ObjectLiteralExpression,
+  ParameterDeclaration,
+  Type,
+} from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { drizzleWriteOf } from "../../floor/code-facts/drizzle-columns.ts";
 import { readStaticString, resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
@@ -157,25 +167,57 @@ function isRowNode(node: Node, column: string, models: RowModels, query: SchemaQ
   );
 }
 
-// One hop: a parameter of a function in this file that some call in this file hands a select row. A hand-typed
-// parameter does not launder the row it receives.
+// The parameter a receiver reads, and the property path below it: the parameter itself (`card.col`), its binding
+// (`({ col }: Card)`), or a binding nested in its pattern (`({ card: { col } }: Wrap)` is path `["card"]`).
+function parameterPath(receiver: Node): { readonly param: ParameterDeclaration; readonly path: readonly string[] } | undefined {
+  let node: Node = receiver;
+  if (N.isIdentifier(receiver)) {
+    const binding = resolveLexicalValueDeclaration(receiver);
+    if (binding.kind === "unresolved") {
+      return;
+    }
+    node = binding.value;
+  }
+  const path: string[] = [];
+  while (N.isBindingElement(node)) {
+    const key = node.getPropertyNameNode();
+    path.unshift(key === undefined ? node.getNameNode().getText() : (readStringValue(key) ?? key.getText()));
+    node = node.getParent().getParent();
+  }
+  return N.isParameterDeclaration(node) ? { param: node, path } : undefined;
+}
+
+// A call argument's value at a property path is a select row: the argument itself, or the model type its path reaches.
+function argumentRowAt(arg: Node, path: readonly string[], models: RowModels, isRow: (node: Node) => boolean): boolean {
+  if (path.length === 0) {
+    return isRow(arg);
+  }
+  let type: Type | undefined = arg.getType();
+  for (const key of path) {
+    type = type?.getNonNullableType().getProperty(key)?.getTypeAtLocation(arg);
+  }
+  return type !== undefined && isModelType(type, models.select);
+}
+
+// One hop: a parameter of a function in this file that some call in this file hands a select row, read directly or
+// through its destructuring pattern. A hand-typed parameter does not launder the row it receives.
 function parameterTakesRow(receiver: Node, column: string, models: RowModels, query: SchemaQuery): boolean {
-  if (!N.isIdentifier(receiver)) {
+  const reached = parameterPath(receiver);
+  const fn = reached === undefined ? undefined : asHelper(reached.param.getParent());
+  if (reached === undefined || fn === undefined) {
     return false;
   }
-  const binding = resolveLexicalValueDeclaration(receiver);
-  const param = binding.kind === "resolved" && N.isParameterDeclaration(binding.value) ? binding.value : undefined;
-  const fn = param === undefined ? undefined : asHelper(param.getParent());
-  if (param === undefined || fn === undefined) {
-    return false;
-  }
-  const index = fn.getParameters().indexOf(param);
+  const index = fn.getParameters().indexOf(reached.param);
   return receiver
     .getSourceFile()
     .getDescendantsOfKind(SyntaxKind.CallExpression)
     .some((call) => {
       const arg = call.getArguments()[index];
-      return arg !== undefined && helperOf(call.getExpression())?.compilerNode === fn.compilerNode && isRowNode(arg, column, models, query);
+      return (
+        arg !== undefined &&
+        helperOf(call.getExpression())?.compilerNode === fn.compilerNode &&
+        argumentRowAt(arg, reached.path, models, (node) => isRowNode(node, column, models, query))
+      );
     });
 }
 
@@ -317,7 +359,7 @@ function parsedThroughHelper(node: Node): boolean {
   return uses.length > 0 && uses.every((use) => parsedDirectly(use) || isPresenceTest(use));
 }
 
-/** Does the value reach a parse: directly, through a helper handed the schema, or one hop into a parsing helper? */
+/** Does the value reach a parse: a zod or codec parse directly, or one hop into a helper whose body parses it? */
 export function isParsedValue(node: Node): boolean {
   return parsedDirectly(node) || parsedThroughHelper(node);
 }

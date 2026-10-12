@@ -32,7 +32,7 @@ const ZOD_DERIVED_RE = /^z\.(?:infer|output)<typeof (?<schema>\w+)>$/u;
 const MESSAGE =
   "typed JSON column read by cast — the `$type<T>` is the only check, so a row written before a schema change, " +
   "by a hand migration or by an import reaches the domain unvalidated. Parse it on read through its zod twin " +
-  "(`schema.parse`/`safeParse`, a helper handed the schema, or the versioned-config `parseOutcome`), degrading to a reported " +
+  "(`schema.parse`/`safeParse`, a helper whose body parses the value, or the versioned-config `parseOutcome`), degrading to a reported " +
   "fallback where a throw is wrong. " +
   "See docs/law/Spine-TypeScript-and-Patterns.md §7.4.";
 const FIX =
@@ -271,10 +271,14 @@ export const gate = defineGate({
       mode: "types",
       files: proofFiles(
         "function describe(card: { readonly manifest: PluginManifest }): string {\n  return card.manifest.name;\n}\n" +
-          "export const viaHelper = (row: Row): string => describe(row);\n",
+          "export const viaHelper = (row: Row): string => describe(row);\n" +
+          "function unpack({ manifest }: { readonly manifest: PluginManifest }): string {\n  return manifest.name;\n}\n" +
+          "export const viaPattern = (row: Row): string => unpack(row);\n" +
+          "function unwrap({ card: { manifest } }: { readonly card: { readonly manifest: PluginManifest } }): string {\n  return manifest.name;\n}\n" +
+          "export const viaNested = (row: Row): string => unwrap({ card: row });\n",
       ),
-      expect: { count: 1, token: "manifest" },
-      why: "THE ROW-TO-PARAMETER HOP: a row handed to a local helper whose parameter is a hand copy of the row is still a select row",
+      expect: { count: 3, token: "manifest" },
+      why: "THE ROW-TO-PARAMETER HOP: a row handed to a local helper whose parameter is a hand copy of the row is still a select row, read directly, through a destructured parameter, or through a nested pattern",
     },
   ],
   mustRefuse: [
@@ -303,7 +307,7 @@ export const gate = defineGate({
           "export const composed = (row: Row): unknown => pluginManifestSchema.parse({ ...{ name: 'x' }, manifest: row.manifest });\n" +
           "export const codec = (row: Row): string => manifestConfig.parseOutcome(row.manifest).value.name;\n",
       ),
-      why: "the remedies, judged by the parser's declaration: zod `parse`/`safeParse` (through `??` and parentheses), a helper that parses its parameter, a helper handed the schema, a pre-parse heal, a composed parse argument, and the versioned-config codec",
+      why: "the remedies, judged by the parser's declaration: zod `parse`/`safeParse` (through `??` and parentheses), a helper that parses its parameter (also one handed the schema), a pre-parse heal, a composed parse argument, and the versioned-config codec",
     },
     {
       mode: "types",

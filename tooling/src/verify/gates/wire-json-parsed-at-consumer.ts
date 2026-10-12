@@ -1,11 +1,12 @@
 // Gate: wire-json-parsed-at-consumer — a client response body is parsed through its contract schema, never cast.
 // ts-reset types `Response.json()` as `unknown`, so an `as`/`satisfies` over the body is the one way to skip the parse:
 // `<x>.json()` awaited, parenthesised, through an `as unknown` step, typed `Promise<T>`, returned from a `.then` callback,
-// or held one hop in a local `const`; and `JSON.parse` over a `<x>.text()` body. A target of `unknown`, or a literal of
+// or held one hop in an unreassigned local binding; and `JSON.parse` over a `<x>.text()` body. A target of `unknown`, or a literal of
 // only `unknown` members, is still unparsed data and passes. Subject: the `json` (or `parse`) name. Population: `@client`.
-// DECLARED LIMIT: syntax tier, so the global `JSON` and the local `const` are matched lexically. FAMILY: singleton.
+// DECLARED LIMIT: the global `JSON` is matched by spelling. FAMILY: singleton.
 import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import { inspectBindingReassignment, resolveLexicalValueDeclaration } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 
 const JSON_METHOD = "json";
@@ -38,31 +39,22 @@ function unwrapBody(node: Node): Node {
   }
 }
 
-// The initializer of the nearest `const` an identifier names, declared before it in an enclosing block; a parameter of
-// the same name in between shadows it. One lexical hop, so `const body = await res.json(); return body as T` is read.
-function localConstInitializer(identifier: Node): Node | undefined {
-  const name = identifier.getText();
-  const shadows = (scope: Node): boolean =>
-    (N.isArrowFunction(scope) || N.isFunctionExpression(scope) || N.isFunctionDeclaration(scope)) && scope.getParameters().some((p) => p.getName() === name);
-  const declaredIn = (scope: Node): Node | undefined =>
-    N.isBlock(scope) || N.isSourceFile(scope)
-      ? scope
-          .getStatements()
-          .filter((statement) => N.isVariableStatement(statement) && statement.getEnd() <= identifier.getStart())
-          .flatMap((statement) => (N.isVariableStatement(statement) && statement.getDeclarationKind() === "const" ? statement.getDeclarations() : []))
-          .findLast((candidate) => candidate.getName() === name)
-      : undefined;
-  let found: Node | undefined;
-  for (let scope = identifier.getParent(); scope !== undefined && found === undefined && !shadows(scope); scope = scope.getParent()) {
-    found = declaredIn(scope);
+// The initializer of the variable an identifier binds, resolved through scope by the checker, when the binding is never
+// reassigned. One hop, so `const body = await res.json(); return body as T` (or an unreassigned `let`) is read, and an
+// inner binding of the same name answers for itself.
+function localInitializer(identifier: Node): Node | undefined {
+  if (!N.isIdentifier(identifier)) {
+    return;
   }
-  return found !== undefined && N.isVariableDeclaration(found) ? found.getInitializer() : undefined;
+  const binding = resolveLexicalValueDeclaration(identifier);
+  const declaration = binding.kind === "resolved" && N.isVariableDeclaration(binding.value) ? binding.value : undefined;
+  return declaration !== undefined && inspectBindingReassignment(identifier).kind === "resolved" ? declaration.getInitializer() : undefined;
 }
 
-// The body expression a cast operand or a callback result stands for: unwrapped, and through one local `const`.
+// The body expression a cast operand or a callback result stands for: unwrapped, and through one local binding.
 function bodyExpression(node: Node): Node {
   const current = unwrapBody(node);
-  const initializer = N.isIdentifier(current) ? localConstInitializer(current) : undefined;
+  const initializer = localInitializer(current);
   return initializer === undefined ? current : unwrapBody(initializer);
 }
 
@@ -129,7 +121,7 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: "@client",
-  analysis: "syntax",
+  analysis: "types",
   execution: "selected-files",
   facts: [],
   resources: [],
@@ -153,7 +145,7 @@ export const gate = defineGate({
   }),
   mustFlag: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/import-chats.ts":
           "interface ChatImportResult { readonly chatId: string }\nexport async function read(res: Response): Promise<ChatImportResult> {\n  return (await res.json()) as ChatImportResult;\n}\n",
@@ -162,7 +154,7 @@ export const gate = defineGate({
       why: "the founding cast: an awaited body cast to a hand-spelled response shape",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/auth-config.ts":
           "interface AuthConfig { readonly mode: string }\nexport const load = (res: Response): Promise<AuthConfig> => res.json() as Promise<AuthConfig>;\n" +
@@ -172,7 +164,7 @@ export const gate = defineGate({
       why: "the unawaited `Promise<T>` cast and a `satisfies` over the body; a typed error envelope is still a cast shape",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/chained.ts":
           "interface Row { readonly id: string }\n" +
@@ -183,7 +175,7 @@ export const gate = defineGate({
       why: "a `.then` callback returning the body, as an expression body and as a single `return`, is the same unparsed read",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/texted.ts":
           "interface Row { readonly id: string }\nexport const load = async (res: Response): Promise<Row> => JSON.parse(await res.text()) as Row;\n",
@@ -192,21 +184,22 @@ export const gate = defineGate({
       why: "`JSON.parse` over the `.text()` body skips the parse the same way; the position is `parse`",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/stepped.ts":
           "interface Row { readonly id: string }\n" +
           "export async function doubled(res: Response): Promise<Row> {\n  return (await res.json()) as unknown as Row;\n}\n" +
           "export async function twoStep(res: Response): Promise<Row> {\n  const body = await res.json();\n  return body as Row;\n}\n" +
-          "export const inThen = (u: string): Promise<Row> => fetch(u).then(async (r) => {\n  const b = await r.json();\n  return b;\n}) as Promise<Row>;\n",
+          "export const inThen = (u: string): Promise<Row> => fetch(u).then(async (r) => {\n  const b = await r.json();\n  return b;\n}) as Promise<Row>;\n" +
+          "export async function letStep(res: Response): Promise<Row> {\n  let body = await res.json();\n  return body as Row;\n}\n",
       },
-      expect: { count: 3, token: "json" },
-      why: "an `as unknown` step does not launder the body, and a body held in a local `const` (also inside a `.then` block) is the same read",
+      expect: { count: 4, token: "json" },
+      why: "an `as unknown` step does not launder the body, and a body held in an unreassigned local `const` or `let` (also inside a `.then` block) is the same read",
     },
   ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/x.ts":
           "declare const schema: { parse(value: unknown): { id: string } };\n" +
@@ -218,12 +211,13 @@ export const gate = defineGate({
           "export const viaSchema = (u: string): Promise<{ id: string }> => fetch(u).then(async (r) => schema.parse(await r.json()));\n" +
           "declare const stored: string;\nexport const local = (): { id: string } => JSON.parse(stored) as { id: string };\n" +
           "export async function reassigned(res: Response): Promise<{ id: string }> {\n  let body: unknown = await res.json();\n  body = schema.parse(body);\n  return body as { id: string };\n}\n" +
-          "const outer = fetch('/x').then((r) => r.json());\nexport const shadow = (outer: unknown): { id: string } => outer as { id: string };\n",
+          "const outer = fetch('/x').then((r) => r.json());\nexport const shadow = (outer: unknown): { id: string } => outer as { id: string };\n" +
+          "export async function inner(res: Response): Promise<{ id: string }> {\n  const body = await res.json();\n  {\n    let body: unknown = schema.parse(await res.json());\n    return body as { id: string };\n  }\n}\n",
       },
-      why: "a local that is reassigned is not followed, and a same-named parameter shadows an outer const — plus the remedy (a schema parse, also inside a `.then`), an `unknown` target (also through `.then`), a literal of only `unknown` members (nested literals included), a `json` method that takes an argument, and `JSON.parse` of a string that is not a `.text()` body",
+      why: "a reassigned local is not followed, and a same-named parameter or inner-block binding shadows an outer const (resolved by scope, not by name) — plus the remedy (a schema parse, also inside a `.then`), an `unknown` target (also through `.then`), a literal of only `unknown` members (nested literals included), a `json` method that takes an argument, and `JSON.parse` of a string that is not a `.text()` body",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/anchor.ts": "export const anchor = 1;\n",
         "packages/server/src/entry/http/x.ts": "export const read = async (res: Response): Promise<{ id: string }> => (await res.json()) as { id: string };\n",
@@ -231,7 +225,7 @@ export const gate = defineGate({
       why: "the population: the server reads bodies through its route schemas and is outside this policy",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/data/import-chats.ts":
           "interface ChatImportResult { readonly chatId: string }\nexport async function read(res: Response): Promise<ChatImportResult> {\n" +
