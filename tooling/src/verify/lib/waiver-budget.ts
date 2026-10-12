@@ -134,3 +134,7 @@ const IMPLEMENTATION = Object.freeze({
 });
 
 export const WAIVER_BUDGET: WaiverBudget = Object.freeze({ application: APPLICATION, implementation: IMPLEMENTATION });
+
+/** Names the budget a spawned structure run judges against, as JSON in this environment variable. Unset means
+ *  `WAIVER_BUDGET`; the corpus suite sets it so a planted tree is judged against what it plants. */
+export const WAIVER_BUDGET_ENV = "ORB_WAIVER_BUDGET";

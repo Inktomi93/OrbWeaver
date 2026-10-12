@@ -20,10 +20,10 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { WAIVER_BUDGET_PARTS } from "../../../../tooling/src/verify/contract/gate-authority.ts";
+import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import type { FinalPolicyRow, StructurePolicyReport, StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
-import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
+import { WAIVER_BUDGET_ENV } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES = "tooling/src/verify/gates";
@@ -94,9 +94,9 @@ const MATCH_MEDIA_GRANT_IDS = [
   "no-raw-matchmedia:use-prefers-light-color-scheme",
   "no-raw-matchmedia:use-prefers-reduced-motion",
 ] as const;
-/** The production door judges the committed waiver budget on every complete run, planted roots included, so a
- *  planted tree that grants or waives a different count than the real tree alarms by design. */
-const budgetOf = (policyId: string): number => WAIVER_BUDGET_PARTS.reduce((sum, part) => sum + (WAIVER_BUDGET[part][policyId] ?? 0), 0);
+/** A planted tree is judged against the waivers and grants IT plants, never the real tree's committed budget:
+ *  `rows` is the application budget per policy id, and the implementation part is empty. */
+const plantedBudget = (rows: Readonly<Record<string, number>>): string => JSON.stringify({ application: rows, implementation: {} });
 const STRAY_READ = "packages/client/src/features/probe/x.tsx";
 const CLIENT_STRAY_FILE = "packages/client/src/features/probe/y.ts";
 const MATCH_MEDIA_LINE = 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n';
@@ -144,7 +144,7 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   runCli,
 }) => {
   const root = await plantedTree(mixedTree(repoRoot, { [UI_MENU]: AS_CHILD_LINE, [STRAY_READ]: MATCH_MEDIA_LINE }));
-  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({}), () => runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }));
   // violations, no tool error: exit 1, one artifact, one completeness line naming the roster it ran
   await expect(res).toExitWith(1);
   expect(res.stdout).toContain("ran 2/2 registered gate(s) (2/2 policies)");
@@ -181,18 +181,14 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   const reviewed = finalRow(report, REVIEWED);
   expect(reviewed).toMatchObject({ authority: "reviewed-grant", severity: "error", ok: false, withheld: false, granted: 0 });
   expect(reviewed.violations.map((v) => v.file)).toEqual([STRAY_READ]);
-  // No granted subject is planted: every exact central identity must raise its stale alarm, and the grants'
-  // committed budget falls to zero, which the ratchet reports once for the policy.
+  // No granted subject is planted: every exact central identity must raise its stale alarm.
   expect(report.policy).not.toBeNull();
   expect(policyOf(report).authority.toolErrors).toEqual([]);
   expect(policyOf(report).factErrors).toEqual([]);
   expect(policyOf(report).toolErrors).toEqual([]);
-  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual([...MATCH_MEDIA_GRANT_IDS.map(() => "stale-reviewed-grant"), "waiver-budget"]);
-  expect(policyOf(report).authority.alarms.filter((a) => a.kind === "waiver-budget")).toMatchObject([
-    { policyId: REVIEWED, population: "repository", budget: budgetOf(REVIEWED), count: 0, message: expect.stringContaining("lower its rows") },
-  ]);
+  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(MATCH_MEDIA_GRANT_IDS.map(() => "stale-reviewed-grant"));
   expect(policyOf(report).authority.alarms.flatMap((a) => (a.kind === "stale-reviewed-grant" ? [a.grantId] : []))).toEqual(MATCH_MEDIA_GRANT_IDS);
-  const blocking = 2 + MATCH_MEDIA_GRANT_IDS.length + 1;
+  const blocking = 2 + MATCH_MEDIA_GRANT_IDS.length;
   expect(policyOf(report).authority.verdict).toEqual({ errors: blocking, warnings: 0, blocking, failOnWarnings: false });
   // total = the blocking count the authority verdict produced; ok false
   expect(report.total).toBe(blocking);
@@ -260,14 +256,15 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
       [STRAY_READ]: `// @orb-waive ${REVIEWED}(matchMedia): planted — a waiver on a reviewed-grant finding\n${MATCH_MEDIA_LINE}`,
     }),
   );
-  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [ORDINARY]: 1 }), () =>
+    runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }),
+  );
   await expect(res).toExitWith(1);
   const report = readArtifact(root);
   const ordinary = finalRow(report, ORDINARY);
   expect(ordinary.violations).toEqual([]);
   expect(ordinary.waived).toBe(1);
-  // the waiver was consumed, and the planted tree's one waiver exceeds the policy's committed budget, so the row is alarmed
-  expect(ordinary.ok).toBe(false);
+  expect(ordinary.ok).toBe(true);
   // the reviewed-grant finding survives its foreign marker
   expect(finalRow(report, REVIEWED).violations).toHaveLength(1);
   const alarms = policyOf(report).authority.alarms;
@@ -279,13 +276,6 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
         message: expect.stringContaining(`targets unknown policy ${ABSENT_POLICY}`),
       }),
       expect.objectContaining({ kind: "ordinary-waiver", policyId: REVIEWED, message: expect.stringContaining(`targets non-ordinary policy ${REVIEWED}`) }),
-      expect.objectContaining({
-        kind: "waiver-budget",
-        policyId: ORDINARY,
-        budget: budgetOf(ORDINARY),
-        count: 1,
-        message: expect.stringContaining("fix the new finding"),
-      }),
     ]),
   );
 });
@@ -294,7 +284,9 @@ test("a reviewed grant reaches only a final reviewed-grant policy: the real row'
   timeout: RUN_TIMEOUT_MS,
 }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree(mixedTree(repoRoot, { [GRANT_SUBJECT]: MATCH_MEDIA_LINE }));
-  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [REVIEWED]: 1 }), () =>
+    runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }),
+  );
   await expect(res).toExitWith(1);
   const report = readArtifact(root);
   const reviewed = finalRow(report, REVIEWED);
@@ -306,6 +298,23 @@ test("a reviewed grant reaches only a final reviewed-grant policy: the real row'
   expect(stale.map((a) => a.grantId).toSorted()).toEqual(MATCH_MEDIA_GRANT_IDS.filter((id) => id !== "no-raw-matchmedia:coarse-pointer-now"));
   // and the door hands the pass ONLY rows naming a loaded policy: no invalid-grant error for the rest of the table
   expect(policyOf(report).authority.toolErrors).toEqual([]);
+});
+
+// ── the waiver-budget ratchet at the door ───────────────────────────────────────────────────────────────────
+
+test("a planted budget that differs from what the tree waives alarms: a rise says fix the finding, a fall says lower the row", {
+  timeout: RUN_TIMEOUT_MS * 2,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedTree(
+    mixedTree(repoRoot, { [UI_MENU]: `// @orb-waive ${ORDINARY}(asChild): planted — one waiver against a mismatched budget\n${AS_CHILD_LINE}` }),
+  );
+  const budgetAlarms = async (budget: Readonly<Record<string, number>>): Promise<readonly unknown[]> => {
+    await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget(budget), () => runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }));
+    return policyOf(readArtifact(root)).authority.alarms.filter((a) => a.kind === "waiver-budget" && a.policyId === ORDINARY);
+  };
+  expect(await budgetAlarms({ [ORDINARY]: 1 })).toEqual([]);
+  expect(await budgetAlarms({})).toMatchObject([{ budget: 0, count: 1, message: expect.stringContaining("fix the new finding") }]);
+  expect(await budgetAlarms({ [ORDINARY]: 2 })).toMatchObject([{ budget: 2, count: 1, message: expect.stringContaining("lower its rows") }]);
 });
 
 // ── 8-9. the loader's refusals at the door ─────────────────────────────────────────────────────────────────
@@ -356,7 +365,9 @@ test("a resource policy whose resource is missing is withheld with explicit fail
       [UI_MENU]: `// @orb-waive ${ORDINARY}(asChild): planted — reconciled beside a failed owner\n${AS_CHILD_LINE}`,
     }),
   );
-  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [ORDINARY]: 1 }), () =>
+    runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }),
+  );
   await expect(res).toExitWith(2);
   const report = readArtifact(root);
   const failed = finalRow(report, HARD_RESOURCE);
@@ -367,12 +378,9 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   expect(policyOf(report).toolErrors).toEqual([{ policyId: HARD_RESOURCE, phase: "population", message: expect.stringContaining("package.json") }]);
   expect(policyOf(report).authority.withheldPolicyIds).toEqual([HARD_RESOURCE]);
   expect(policyOf(report).authority.toolErrors.map((e) => e.kind)).toEqual(["owner-incomplete"]);
-  // the sibling reconciled: its waiver was consumed and it is NOT withheld; the ratchet judged it against its budget
+  // the sibling reconciled: its waiver was consumed, its row is ok, and it is NOT withheld
   const ordinary = finalRow(report, ORDINARY);
-  expect(ordinary).toMatchObject({ ok: false, waived: 1, withheld: false });
-  expect(policyOf(report).authority.alarms.filter((a) => a.kind === "waiver-budget" && a.policyId === ORDINARY)).toMatchObject([
-    { budget: budgetOf(ORDINARY), count: 1 },
-  ]);
+  expect(ordinary).toMatchObject({ ok: true, waived: 1, withheld: false });
   expect(res.stdout).toContain(`⚠ ${HARD_RESOURCE}`);
   expect(res.stdout).toContain("WITHHELD by authority");
 });
