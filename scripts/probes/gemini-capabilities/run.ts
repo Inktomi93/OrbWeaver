@@ -8,7 +8,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { z } from "zod";
-import { fakeApiKeySecret, fakeConnection, fakeDeps, newUserId } from "../../../tests/inference/_support.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps, newUserId } from "../../../tests/legacy/inference/_support.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "./scenario.ts";
 

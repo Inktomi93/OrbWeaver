@@ -23,7 +23,7 @@ Boot refuses only an exposure that hands an unauthenticated or owner-equivalent 
 - The Host allowlist refuses a request for an unknown name in every mode (`docs/law/Tier-3-Infra.md`, "The Host allowlist refuses; it never admits").
 - The auth mode stays an env var, and `AUTH_FALLBACK` stays. The admin sharing panel is read-only and shows the `.env` line to change.
 
-The checks: `tests/server/foundation/env/bind.test.ts`, `tests/server/infra/auth/forwarded.test.ts`, `tests/server/infra/auth/transport.test.ts`, `tests/server/infra/crypto/key.test.ts`, `tests/server/entry/boot/disclaimer.test.ts`, `tests/server/entry/session-cookie-parity.suite.test.ts` and `tests/tooling/container-security-config.int.test.ts`.
+The checks: `tests/legacy/server/foundation/env/bind.test.ts`, `tests/legacy/server/infra/auth/forwarded.test.ts`, `tests/legacy/server/infra/auth/transport.test.ts`, `tests/legacy/server/infra/crypto/key.test.ts`, `tests/legacy/server/entry/boot/disclaimer.test.ts`, `tests/legacy/server/entry/session-cookie-parity.suite.test.ts` and `tests/tooling/container-security-config.int.test.ts`.
 
 ## Consequences
 

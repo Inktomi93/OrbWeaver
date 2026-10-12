@@ -48,7 +48,7 @@ export interface ConfigGrantRows {
 }
 
 /** Repo-relative resolution of an entry authored inside `config`'s directory. `tooling/tsconfig.json`'s
- *  `src` is `tooling/src`; `packages/client/tsconfig.json`'s `../../tests/client/**` is `tests/client/**`.
+ *  `src` is `tooling/src`; `packages/client/tsconfig.json`'s `../../tests/client/**` is `tests/legacy/client/**`.
  *  Expanding against the repo root instead is the silent-wrong-answer trap BOTH ways — the naive
  *  concatenation leaves a `..` segment that matches nothing at all. */
 function rootedEntry(config: string, entry: string): string {

@@ -2369,7 +2369,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
  *  tools) PLUS the INFRA-originated runner warnings it carried up (resolve/wire drops the
  *  runners raised, narrowed to chat's vocabulary at the compose bridge — D41's read end). Extracted so the
  *  generation lifecycle stays under the cognitive-complexity cap.
- *  @internal exported for the drop-warning unit test (`tests/server/domain/chat/engine/engine.test.ts`): the
+ *  @internal exported for the drop-warning unit test (`tests/legacy/server/domain/chat/engine/engine.test.ts`): the
  *  infra→chat translation below is total over a tuple a turn cannot produce all of. */
 export async function emitCapabilityDropWarnings(
   emit: (event: DurableChatBusEvent) => Promise<void>,

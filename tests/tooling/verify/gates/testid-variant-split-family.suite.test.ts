@@ -80,7 +80,7 @@ test("all four policies preserve their founding fixtures", () => {
 test("testid-liveness excludes non-UI package roots from the legacy producer census", () => {
   // The legacy predicate, verbatim from `07b1b7b19d`.
   const legacyAdmits = (path: string): boolean => (path.includes("packages/") && path.includes("/src/")) || path.includes("tests/");
-  const roots = testid.population as readonly ("@packages" | "@showcase" | "@tests")[];
+  const roots = testid.population as readonly ("@packages" | "@showcase" | "@tests" | "@legacy-tests")[];
   const prefixes = roots
     .flatMap((root) => (root === "@packages" ? ["@client", "@ui", "@server", "@db", "@contracts", "@kit"] : [root]))
     .flatMap((leaf) => POPULATION_ROOTS[leaf as keyof typeof POPULATION_ROOTS]);

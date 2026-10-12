@@ -23,14 +23,14 @@ function addressBar(): AddressBar {
 }
 
 /** The inbound `?join=<token>` handoff, or null.
- *  @public Test-anchored module surface; tests/client/data/join-token.dom.test.ts calls it directly. */
+ *  @public Test-anchored module surface; tests/legacy/client/data/join-token.dom.test.ts calls it directly. */
 export function readJoinToken(): string | null {
   const token = new URLSearchParams(addressBar().location.search).get(JOIN_PARAM);
   return token !== null && token.length > 0 ? token : null;
 }
 
 /** Scrub the token from the address bar (history included) — call as soon as the token is captured.
- *  @public Test-anchored module surface; tests/client/data/join-token.dom.test.ts calls it directly. */
+ *  @public Test-anchored module surface; tests/legacy/client/data/join-token.dom.test.ts calls it directly. */
 export function clearJoinParam(replaceUrl: (href: string) => void): void {
   replaceUrl(withoutUrlSearchParam(addressBar().location, JOIN_PARAM));
 }

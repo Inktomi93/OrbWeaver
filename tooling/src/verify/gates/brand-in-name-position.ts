@@ -75,7 +75,7 @@ import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 /** #2047, §5b.2: this text used to end *"wrong-id values therefore type-check AT THIS BOUNDARY."* That clause
- *  was untrue of one of the policy's own two live real-tree findings. `tests/kit/ids/index.test-d.ts:60:59`
+ *  was untrue of one of the policy's own two live real-tree findings. `tests/legacy/kit/ids/index.test-d.ts:60:59`
  *  is a property signature inside an inline type literal handed to `toEqualTypeOf` as a TYPE ARGUMENT —
  *  a position nothing can be passed through, so it is not a boundary and no value crosses it. The finding
  *  itself is TRUE by the policy's letter (the population deliberately admits `@tests`, per `mustFlag[4]`);

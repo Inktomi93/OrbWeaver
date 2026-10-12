@@ -13,7 +13,7 @@
 //
 // ONE COMPARATOR, TWO CALLERS — the exact `compareSchemaBaseline`/`runDbBaselineParity` shape in
 // ops/db-baseline-parity.ts: this file's CLI (the `structure:asset-refs` stage) and
-// tests/server/domain/assets/persistence/asset-refs.int.test.ts both call `compareAssetRefsCoverage`.
+// tests/legacy/server/domain/assets/persistence/asset-refs.int.test.ts both call `compareAssetRefsCoverage`.
 // Two comparators would be the drift this stage exists to catch.
 //
 // A BARE ZERO IS NEVER CLEAN. Zero tables, no `assets` table, or zero asset-FK columns means the reader

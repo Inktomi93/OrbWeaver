@@ -173,5 +173,5 @@ test("real compiler roots own the formerly missing configs and package-root tool
   expect(programs.filter(({ configPaths }) => configPaths.includes("tsconfig.base.json")).length).toBe(programs.length);
   expect(programs.filter(({ files }) => files.includes("reset.d.ts")).length).toBe(programs.length);
   expect(programs.filter(({ files }) => files.includes("platform.d.ts")).length).toBe(programs.length);
-  expect(programs.filter(({ files }) => files.includes("aggregator-assets.d.ts")).map(({ config }) => config)).toEqual(["tsconfig.json"]);
+  expect(programs.filter(({ files }) => files.includes("aggregator-assets.d.ts")).map(({ config }) => config)).toEqual(["tsconfig.json", "tsconfig.tests-legacy.json"]);
 });

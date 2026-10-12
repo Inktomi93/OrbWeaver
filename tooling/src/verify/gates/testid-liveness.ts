@@ -171,7 +171,8 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   // Cross-file by construction: the producer of a testid is almost never in the file that selects it.
-  population: ["@packages", "@showcase", "@tests"],
+  // Legacy stories still mint and legacy tests still select ids, so the census reads the legacy folder too.
+  population: ["@packages", "@showcase", "@tests", "@legacy-tests"],
   analysis: "syntax",
   execution: "entire-population",
   facts: [],

@@ -14,7 +14,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // field. The root now spells its height from ONE token whose own @media(pointer:fine) override carries the
 // arm, so the unknown-pointer case (which used to get the coarse WIDTH and the fine HEIGHT) is coherent
 // 64x44 too. `TOUCH_TARGET_PSEUDO` stays as the unknown-pointer HIT fallback; the ≥44px coarse floor on
-// the VISIBLE box is pinned in tests/ui/touch-target-floor.suite.ct.tsx.
+// the VISIBLE box is pinned in tests/legacy/ui/touch-target-floor.suite.ct.tsx.
 //
 // #420's CRESCENT RULING SURVIVES — ITS INPUT CHANGED. That ruling read a 48x44 root as "a 1.091-aspect
 // near-circle with track painting on all four sides of the knob … a crescent moon, not a switch", and the
@@ -43,7 +43,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // which is what the translate calc spells. The border has NOT stopped being subtracted — it is subtracted
 // twice inside the inset, once at each end — so #424's defect cannot return; do not "simplify" the
 // padding away on the grounds that the travel no longer names the border. Pinned as a RELATION against the
-// rendered boxes at both pointers in tests/ui/primitives/switch/switch.ct.tsx. The root's border COLOUR is
+// rendered boxes at both pointers in tests/legacy/ui/primitives/switch/switch.ct.tsx. The root's border COLOUR is
 // untouched: `border-border` and the `data-invalid:` / `data-checked:` colour variants ride the colour
 // axis, which the width spelling never names.
 //
@@ -105,7 +105,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 //   Hearth/bg   4.563 (was 12.701) · 7.437 · 5.610 · 6.157   Hearth/card 4.137 (was 11.235) · 7.056 · 5.967 · 6.311
 //   Mocha /bg   4.415 (was 12.351) · 7.375 · 5.562 · 6.070   Mocha /card 3.824 (was 10.425) · 7.285 · 6.008 · 6.229
 //   Light /bg   3.560 (was 11.153) · 6.193 · 3.693 · 4.968   Light /card 3.651 (was 11.606) · 6.292 · 3.750 · 4.895
-// Both bounds are pinned from the FRAMEBUFFER in tests/ui/primitives/switch/switch.ct.tsx, in all three
+// Both bounds are pinned from the FRAMEBUFFER in tests/legacy/ui/primitives/switch/switch.ct.tsx, in all three
 // seeds — computed style can see neither the compositing nor the oklch, and a polarity fix proven on
 // the dark arm alone is this tree's recorded failure family.
 //

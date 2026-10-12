@@ -199,7 +199,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
  *    at the moment this layout effect ran — the guard was written, shipped, and silently inert on every
  *    phone. `use-shell-layout.ts` now seeds the regime during its own render (see its note); a future
  *    change that moves the seed back into an effect re-opens this exact hole, and the pin that catches it
- *    is `tests/client/features/config/lib/config-section.ct.tsx`'s cold-arrival test.
+ *    is `tests/legacy/client/features/config/lib/config-section.ct.tsx`'s cold-arrival test.
  *
  * `useLayoutEffect`, not `useEffect`: the write lands BEFORE the browser paints, so the arrival's first
  * frame is the settings body rather than one frame of the landing followed by a swap.

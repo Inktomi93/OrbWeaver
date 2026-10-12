@@ -80,9 +80,9 @@ difference it happens to produce, and that stays Law 2/3/4 territory — the run
 `off-grid-transform` / `promoted-layer-offset` rules, not a token this system can retune. An
 element's absolute landing depends on its ancestors' offsets too, and that is also Law 2/3/4
 runtime territory; only the offset a primitive itself owns is its to fix. The pins are
-`tests/ui/tokens/index.test.ts` (every snapped spacing token guarded on both the base value and the
+`tests/legacy/ui/tokens/index.test.ts` (every snapped spacing token guarded on both the base value and the
 fine override, and integer at the 16px root) and
-`tests/ui/primitives/switch/switch.ct.tsx` (the four rows above, measured from the rendered boxes,
+`tests/legacy/ui/primitives/switch/switch.ct.tsx` (the four rows above, measured from the rendered boxes,
 plus the rest landing in whole DEVICE px at both pointer classes and both rest positions).
 
 ## 3. The chosen architecture
@@ -267,9 +267,9 @@ tight-leading check goes blind.
 - **Gate:** conformance fixtures (must-flag / must-pass), the `check-gates.int` fixture, a planted
   real-tree violation that REDs then is removed.
 - **Freshness:** `pnpm --filter @orb/ui tokens:build` regenerated artifacts committed together;
-  `tests/ui/tokens` suite.
-- **Behavioral tier:** `tests/ui/density-tier.suite.ct.tsx` (computed-voice pins),
-  `tests/ui/lib/class-merge.test.ts` (new leading members), `touch-target-floor.suite.ct.tsx`,
+  `tests/legacy/ui/tokens` suite.
+- **Behavioral tier:** `tests/legacy/ui/density-tier.suite.ct.tsx` (computed-voice pins),
+  `tests/legacy/ui/lib/class-merge.test.ts` (new leading members), `touch-target-floor.suite.ct.tsx`,
   plus every CT a literal grep finds for the changed values (16.25/20.15/23.25/13.125/21.6/16.4062/
   1.55/1.35/`leading-tight`/`leading-body` across `tests/**`).
 - **Types:** `node scripts/ts7.cjs --noEmit -p tsconfig.json` and per-package `pnpm typecheck`

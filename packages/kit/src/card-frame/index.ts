@@ -30,7 +30,7 @@
 // QUESTION: with `sandbox allow-scripts` (no `allow-top-navigation`/`allow-popups`/`allow-forms`, never
 // `allow-same-origin`), this document's own `default-src 'none'`, and the APP document's `default-src 'self'`
 // above it — where can a card document navigate? ANSWER, per vector (probe:
-// `tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx`, which serves the REAL bytes under the REAL policies
+// `tests/legacy/ui/content/sandbox-frame/sandbox-frame.ct.tsx`, which serves the REAL bytes under the REAL policies
 // inside a parent carrying the app's own directives, and records every target that is actually REQUESTED):
 //   • a card `<a href="https://elsewhere">` navigating the FRAME ITSELF — REFUSED. The EMBEDDER's policy
 //     governs where its frame may go, whoever initiates: the app names no `frame-src`, so `default-src
@@ -171,7 +171,7 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder.
  * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
  * hash below is computed over exactly this string, so any edit (even whitespace) must be re-pinned by
- * `tests/kit/card-frame/index.test.ts`, which recomputes the digest rather than trusting the constant.
+ * `tests/legacy/kit/card-frame/index.test.ts`, which recomputes the digest rather than trusting the constant.
  *
  * `document.body.scrollHeight`, NOT `documentElement.scrollHeight`: the latter is floored at the VIEWPORT
  * height, so a short card in a tall frame would measure the frame it is trying to shrink and never report

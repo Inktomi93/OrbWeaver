@@ -28,7 +28,7 @@ import type { CodemodContext, Plan, SourceFile } from "@orb/tooling/codemod";
 import { moveFiles, Node, printDiagnostics, renameExportedSymbol, runCodemod, SyntaxKind } from "@orb/tooling/codemod";
 
 const CHAT = "packages/server/src/domain/chat";
-const CHAT_TESTS = "tests/server/domain/chat";
+const CHAT_TESTS = "tests/legacy/server/domain/chat";
 
 /** Source moves. `moveFiles` rewrites every importer; the central test mirror moves in the same commit
  *  (the `test-layout` gate pairs `packages/<pkg>/src/<p>.ts` with `tests/<pkg>/<p>.<kind>.test.ts`). */

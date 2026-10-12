@@ -194,7 +194,7 @@ export function cacheDepthCovering(rows: readonly { readonly role: string; reado
  *  depth the conversation cannot reach places nothing at all — that one is loud
  *  (`provider.cache_depth_unreachable`).
  *
- *  @public Test-anchored module surface; tests/inference/backends/wire/cache-control.test.ts calls it
+ *  @public Test-anchored module surface; tests/legacy/inference/backends/wire/cache-control.test.ts calls it
  *  directly, in addition to the in-file use by {@link placeExplicitCacheMarkers}, the placer shared by the
  *  native Anthropic and OpenRouter runners. */
 export function computeCacheBreakpointPlacements(args: {

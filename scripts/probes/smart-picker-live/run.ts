@@ -31,7 +31,7 @@ import { rerankPick } from "../../../packages/server/src/domain/chat/engine/rera
 import { humanPlayerNames } from "../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
 import { speakerArbiterFor } from "../../../packages/server/src/entry/compose/chat.ts";
-import { fakeApiKeySecret, fakeConnection, fakeDeps } from "../../../tests/inference/_support.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps } from "../../../tests/legacy/inference/_support.ts";
 import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { Scene } from "./scenes.ts";

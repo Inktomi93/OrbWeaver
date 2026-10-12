@@ -160,7 +160,7 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
             of the teaser/state separation, which is the clause that must not move; what it lost is the
             ramp step that P3-6 had lent it, and that is the cost H9 is: a stamp voice cannot carry a
             sentence, and this line is a sentence. Pinned by computed type + `data-voice` in
-            tests/client/features/home/surfaces/home-surface.ct.tsx. */}
+            tests/legacy/client/features/home/surfaces/home-surface.ct.tsx. */}
         <Text voice="datumMono">{doorway.reason}</Text>
       </Stack>
     </Row>

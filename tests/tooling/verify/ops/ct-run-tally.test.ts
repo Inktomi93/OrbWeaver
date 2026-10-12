@@ -1,7 +1,7 @@
 // THE PERMANENT PIN for the CT summary counts (#1006) — the block every merge floor and every lane report
 // quotes as its receipt ("N passed · N failed"). On 2026-09-01 it was ACCUSED of inverting a scoped run
 // ("2 passed / 51 failed" against a `--reporter=list` reading of "52 passed / 1 failed"), and no live
-// reproduction found a defect: three arms (trivial pass/fail, 51 retry-then-pass flakes, the real tests/ui
+// reproduction found a defect: three arms (trivial pass/fail, 51 retry-then-pass flakes, the real tests/legacy/ui
 // suites) all agreed with the json reporter's own counts from the SAME run. What the investigation did find
 // is that nothing could ever have cleared or convicted the counter — it was a private function over a
 // Playwright `Suite`. So the counting became pure (`ct-run-tally.ts`) and this is the test that judges it.

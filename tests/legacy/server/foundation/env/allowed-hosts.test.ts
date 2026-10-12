@@ -1,0 +1,66 @@
+// foundation/env/allowed-hosts — the names the request guard admits: ALLOWED_HOSTS, the OIDC callback hosts and the
+// machine's own name on bare metal. The grammar itself is `@orb/kit/allowed-hosts` (tests/legacy/kit/allowed-hosts).
+
+import { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "@orb/server/foundation/env";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
+
+const OWNER_CALLBACK = "https://orbweaver.example.com/api/auth/oidc/callback";
+
+describe("resolveAllowedHosts", () => {
+  test("the owner's box: the OIDC callback host is allowed with no ALLOWED_HOSTS entry", () => {
+    expect(resolveAllowedHosts({ allowedHosts: undefined, oidcRedirectUris: OWNER_CALLBACK, machineHostname: null })).toEqual(["orbweaver.example.com"]);
+  });
+
+  test("configured names come first, callback hosts after, duplicates once", () => {
+    expect(
+      resolveAllowedHosts({
+        allowedHosts: "nas.local,orbweaver.example.com",
+        oidcRedirectUris: `${OWNER_CALLBACK}, http://nas.local:8788/api/auth/oidc/callback`,
+        machineHostname: null,
+      }),
+    ).toEqual(["nas.local", "orbweaver.example.com"]);
+  });
+
+  test("on bare metal the machine's own name and its .local form pass with ALLOWED_HOSTS unset", () => {
+    const input = { allowedHosts: undefined, oidcRedirectUris: undefined, machineHostname: machineHostnameFor(false, "Game-PC") };
+    expect(resolveAllowedHosts(input)).toEqual(["game-pc", "game-pc.local"]);
+    // macOS may already report the .local form; it is not doubled.
+    expect(resolveAllowedHosts({ ...input, machineHostname: machineHostnameFor(false, "Alex-MBP.local") })).toEqual(["alex-mbp.local"]);
+  });
+
+  test("in a container the machine's name (a random id) is not admitted", () => {
+    expect(resolveAllowedHosts({ allowedHosts: undefined, oidcRedirectUris: undefined, machineHostname: machineHostnameFor(true, "3f2a9c1d7e44") })).toEqual(
+      [],
+    );
+  });
+
+  test("an unparseable or IPv6-literal callback adds nothing (IP literals pass without an entry)", () => {
+    expect(resolveAllowedHosts({ allowedHosts: undefined, oidcRedirectUris: "http://[::1]:8788/cb,not a url", machineHostname: null })).toEqual([]);
+  });
+
+  test("a malformed ALLOWED_HOSTS entry is never admitted", () => {
+    expect(resolveAllowedHosts({ allowedHosts: "*.example.com,ok.example", oidcRedirectUris: undefined, machineHostname: null })).toEqual(["ok.example"]);
+  });
+});
+
+describe("publicAddresses", () => {
+  const input = {
+    allowedHosts: "orb.example.com,.example.org,nas.local,friends.example.net",
+    oidcRedirectUris: "https://orb.example.com/api/auth/oidc/callback, https://orb.example.com/other,not a url",
+    machineHostname: "box",
+  };
+
+  test("under oidc: each callback URL's origin, once, and nothing unparseable", () => {
+    expect(publicAddresses("oidc", input)).toEqual(["https://orb.example.com"]);
+  });
+
+  test("under local: the exact public names in ALLOWED_HOSTS, never a suffix entry or a private name", () => {
+    expect(publicAddresses("local", input)).toEqual(["orb.example.com", "friends.example.net"]);
+  });
+
+  test("control: the modes a relay serves or refuses name nothing", () => {
+    expect(publicAddresses("single-user", input)).toEqual([]);
+    expect(publicAddresses("forward-header", input)).toEqual([]);
+  });
+});

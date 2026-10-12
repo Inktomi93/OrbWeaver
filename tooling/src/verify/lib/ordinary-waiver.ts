@@ -5,6 +5,7 @@
 // `policy-legacy-imports` fences gates from; the carrier module holds no parser and no outcome.
 import type { SourceFile } from "ts-morph";
 import { ts } from "ts-morph";
+import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "../contract/gate-authority.ts";
 import type {
   OrdinaryWaiverEngine,
@@ -221,7 +222,8 @@ function resourceBinding(parsed: ParsedMarker, source: string, comment: Resource
 
 function acquireMarkers(input: OrdinaryWaiverEngineInput, policies: ReadonlyMap<string, SelectedGatePolicy>): readonly AcquiredMarker[] {
   const markers: AcquiredMarker[] = [];
-  for (const source of [...input.sources].toSorted((left, right) => left.path.localeCompare(right.path))) {
+  // No strict gate judges the legacy folder, so its markers bind nothing; they leave with their files.
+  for (const source of input.sources.filter(({ path }) => !isLegacyTestPath(path)).toSorted((left, right) => left.path.localeCompare(right.path))) {
     if (source.kind === "typescript") {
       if (!isPolicySourceCandidate(source.path)) {
         continue;

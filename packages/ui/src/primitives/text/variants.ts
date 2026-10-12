@@ -44,7 +44,7 @@ export const textVariants = tv({
     // supplies size/weight/tone/transform, so every conflicting axis a voice sets must come AFTER them for
     // tailwind-merge to keep it. Each voice therefore re-spells EVERY axis it needs to win (family, size,
     // leading, tracking, weight, color) — an under-spelled voice silently inherits a default. Pinned by
-    // computed value in tests/ui/density-tier.suite.ct.tsx, never by reading this file.
+    // computed value in tests/legacy/ui/density-tier.suite.ct.tsx, never by reading this file.
     voice: {
       // A section's NAME — never a datum. The mocks' `.kicker` (9.5px caps, .09em, 650); pair with
       // <Section kicker> for the hairline rule that completes the CD1 "a grouping is not a box" swap.

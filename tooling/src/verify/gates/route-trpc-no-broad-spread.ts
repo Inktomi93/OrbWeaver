@@ -42,7 +42,8 @@ export const gate = defineGate({
   family: "route-trpc-no-broad-spread",
   authority: "hard",
   severity: "error",
-  population: { in: ["@tests"], under: ["tests/client/**"] },
+  // The test kit's own route fixtures call routeTrpc too, so they are judged beside the client tests.
+  population: { in: ["@tests"], under: ["tests/client/**", "tests/support/**"] },
   analysis: "types",
   execution: "selected-files",
   facts: [],

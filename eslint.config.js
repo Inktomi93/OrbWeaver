@@ -79,8 +79,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
+import { BROWSER_PACKAGES, LEGACY_TEST_WORLD_PROGRAMS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
+import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
@@ -138,25 +139,29 @@ const COMPONENT_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(
     family === "component" && !TEST_KIND_DEFINITIONS.some((other) => other.family === family && other.suffix !== suffix && suffix.endsWith(other.suffix)),
 ).map(({ suffix }) => suffix);
 const componentTestGlobs = (root) => COMPONENT_TEST_SUFFIXES.map((suffix) => `${root}/**/*${suffix}`);
-const UI_CT = componentTestGlobs("tests/ui");
-const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
+// Every product test sits in the legacy folder until its domain is rebuilt; a rebuilt mirror home (`tests/<pkg>`) joins
+// this list when its first file lands, because a selector with no member is a dead rule block.
+const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`];
+const homeGlobs = (pkg, glob) => testHomes(pkg).map((home) => `${home}/${glob}`);
+const UI_CT = testHomes("ui").flatMap((home) => componentTestGlobs(home));
+const UI_FIXTURES = homeGlobs("ui", "**/*.fixtures.tsx");
 // #1590: `tests/ui/**` grew underscore-prefixed story modules (the same "not a real test file" naming
 // convention as `_ct-stories.tsx` elsewhere) and a `.stories.tsx` suffix of its own — neither had a home
 // here, so `pnpm exec eslint <file>` answered "File ignored" for both (a real defect: the CT surface's
 // react-hooks/Compiler/jsx-a11y rules never reached them). Both are directory globs, not a filename list,
 // same doctrine as CLIENT_STORIES below.
-const UI_STORIES = "tests/ui/**/_*.tsx";
-const UI_STORIES_SUFFIX = "tests/ui/**/*.stories.tsx";
-const CLIENT_CT = componentTestGlobs("tests/client");
+const UI_STORIES = homeGlobs("ui", "**/_*.tsx");
+const UI_STORIES_SUFFIX = homeGlobs("ui", "**/*.stories.tsx");
+const CLIENT_CT = testHomes("client").flatMap((home) => componentTestGlobs(home));
 // #1590: widened from the exact `_ct-stories.tsx` filename to every underscore-prefixed `.tsx` under
 // `tests/client/**` — story/fixture modules share that naming convention regardless of their suffix
 // (`_cascade-fixtures.tsx`, `_slash-command-stories.tsx`, …), and a per-filename list here would rot the
 // same way the exact-name-only version already had (32 files, none of them named `_ct-stories.tsx`,
 // were "File ignored" before this widened). Still matches the original `_ct-stories.tsx` files too.
-const CLIENT_STORIES = "tests/client/**/_*.tsx";
+const CLIENT_STORIES = homeGlobs("client", "**/_*.tsx");
 // #1590: `*.fixtures.tsx` under `tests/client/**` had no home (only `tests/ui/**/*.fixtures.tsx` did) —
 // 12 files (11 `components/*.fixtures.tsx` + `state/config-row-annotation.fixtures.tsx`) were uncovered.
-const CLIENT_FIXTURES = ["tests/client/**/*.fixtures.tsx", "tests/client/**/*-fixtures.tsx"];
+const CLIENT_FIXTURES = [...homeGlobs("client", "**/*.fixtures.tsx"), ...homeGlobs("client", "**/*-fixtures.tsx")];
 // tests/tooling grew a browser tree of its own (the design-audit walker + snap's overflow op are
 // in-page instruments, so their proofs MOUNT), and tests/support/browser carries the shared CT providers.
 // Both are React under playwright-ct exactly like the ui/client trees — without these rows the
@@ -166,21 +171,21 @@ const TOOLING_CT = componentTestGlobs("tests/tooling");
 const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
 const SUPPORT_CT = "tests/support/browser/**/*.tsx";
 // The showcase plugins mount their frame surfaces under playwright-ct like the ui and client trees.
-const SHOWCASE_CT = componentTestGlobs("tests/showcase-plugins");
-const SHOWCASE_STORIES = "tests/showcase-plugins/**/_*.tsx";
+const SHOWCASE_CT = testHomes("showcase-plugins").flatMap((home) => componentTestGlobs(home));
+const SHOWCASE_STORIES = homeGlobs("showcase-plugins", "**/_*.tsx");
 const CT_SURFACE = [
   ...UI_CT,
-  UI_FIXTURES,
-  UI_STORIES,
-  UI_STORIES_SUFFIX,
+  ...UI_FIXTURES,
+  ...UI_STORIES,
+  ...UI_STORIES_SUFFIX,
   ...CLIENT_CT,
-  CLIENT_STORIES,
+  ...CLIENT_STORIES,
   ...CLIENT_FIXTURES,
   ...TOOLING_CT,
   TOOLING_STORIES,
   SUPPORT_CT,
   ...SHOWCASE_CT,
-  SHOWCASE_STORIES,
+  ...SHOWCASE_STORIES,
 ];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
@@ -292,7 +297,7 @@ const NON_BROWSER_PACKAGE_SRC = NON_BROWSER_PACKAGES.map((name) => `packages/${n
 // Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in
 // tsconfig.tests-dom.json any more). They keep riding the escapee parser below rather than
 // projectService, because the parser is handed BOTH root programs and picks whichever owns a file.
-const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.map((name) => `tests/${name}/**/*.ts`);
+const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.flatMap((name) => homeGlobs(name, "**/*.ts"));
 // The trees the root program does NOT own — see the parser note above; every one of them is rooted by
 // `tsconfig.tests-dom.json`, which is why they share the escapee parser.
 //
@@ -307,7 +312,7 @@ const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.map((name) => `tests/${name}/**/*.ts
 // every underscore-prefixed `.tsx` under `tests/client/**`.
 // These two trees are exactly what tsconfig.tests-dom.json claims wholesale (#1243), so the escapee
 // parser already has their program; no tsconfig moves with this.
-const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", "tests/client/**/*.ts", "tests/ui/**/*.ts"];
+const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", ...homeGlobs("client", "**/*.ts"), ...homeGlobs("ui", "**/*.ts")];
 // Every TS program that ROOTS a file under tests/**: the node world, the browser-tests world (type-worlds
 // program, #1351 — the package programs check nothing under tests/ any more), and the ISOMORPHIC helper
 // world. The escapee parser is handed all of them and uses whichever one owns the file, so no block here
@@ -319,7 +324,8 @@ const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", "tests/cl
 // there and its sibling test answered `Parsing error: … The file was not found in any of the provided
 // project(s)`, because a helper module that something imports is pulled into the importer's program while
 // a test that nothing imports is rooted only by its own world.
-const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+// The legacy folder compiles in its own two programs (item 961), so they join the list too.
+const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json", ...Object.values(LEGACY_TEST_WORLD_PROGRAMS)];
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];

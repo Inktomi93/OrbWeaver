@@ -50,7 +50,7 @@
 // policy. The served-document path is therefore exempted in `security-headers.ts` via `PLUGIN_FRAME_DOC_PREFIX`
 // — the second member of an existing class, the card frame being the first. Without it this route would serve
 // its documents under the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an
-// "isolated" frame that is not isolated. `tests/server/entry/http/plugin-frame.test.ts` pins the actual response
+// "isolated" frame that is not isolated. `tests/legacy/server/entry/http/plugin-frame.test.ts` pins the actual response
 // header for exactly that reason.
 
 import type { Principal } from "@orb/contracts/identity";

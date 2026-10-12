@@ -134,7 +134,7 @@ export type UserId = Branded<"UserId">;
  *
  * THE SUBTYPING IS THE POINT: `VerifiedUserId` is assignable to `UserId` (it IS one — it flows into every
  * `UserId`-typed read unchanged), and `UserId` is NOT assignable to `VerifiedUserId` (it lacks the second
- * phantom). Pinned both directions in `tests/kit/ids/index.test-d.ts`.
+ * phantom). Pinned both directions in `tests/legacy/kit/ids/index.test-d.ts`.
  *
  * IT CARRIES ITS OWN PHANTOM KEY, NOT A SECOND `Branded` alias. Measured 2026-08-30: intersecting a second
  * `Branded` reuses the ONE `brand` key, so tsc sees a discriminant property with two disjoint literal types

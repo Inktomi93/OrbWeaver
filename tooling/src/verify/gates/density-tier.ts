@@ -114,7 +114,7 @@
 // `tv()`/`cva()` object literals inside `className=` / `cn`/`clsx`/`cva`/`tv` calls. A className assembled
 // from a variable, a conditional, or `cn(cond && STYLES)` where the classes live in another module is
 // INVISIBLE to it, and an AST reader blind to computed shapes reports a silent GREEN. That is why the
-// computed-value CTs (tests/ui/density-tier.suite.ct.tsx, UI-Density-Law.md §5.3) are the REQUIRED second
+// computed-value CTs (tests/legacy/ui/density-tier.suite.ct.tsx, UI-Density-Law.md §5.3) are the REQUIRED second
 // lens, not a nice-to-have: they read back what the browser resolved.
 import { defineGate } from "../contract/policy.ts";
 import { densityOccurrences } from "../lib/density-tier.ts";

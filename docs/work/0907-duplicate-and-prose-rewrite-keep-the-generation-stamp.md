@@ -19,7 +19,7 @@ Item 903 closed this for engine-committed replies only; the predicate's comment 
 
 ## Done when
 
-Int tests in tests/server/domain/chat/verbs/seeded-greeting.suite.int.test.ts show setSeededGreeting refuses with notGreetingRow on a duplicated generated reply and on a prose-rewritten reply, and that stepping a hand-edited greeting keeps the edit as a variant, red on the current code.
+Int tests in tests/legacy/server/domain/chat/verbs/seeded-greeting.suite.int.test.ts show setSeededGreeting refuses with notGreetingRow on a duplicated generated reply and on a prose-rewritten reply, and that stepping a hand-edited greeting keeps the edit as a variant, red on the current code.
 
 ## Evidence
 

@@ -57,7 +57,7 @@ export function RewriteDialog({ open, onOpenChange, instruction, onInstructionCh
         {/* No `aria-label` (#1621, the Textarea family): this box is its Field's sole `Field.Control`, so Base
             UI reaches it with the label's `aria-labelledby`, which outranks an `aria-label` — the attribute
             named nothing and repeated the label it lost to. MEASURED per family at
-            `tests/client/a11y/field-control-name.suite.ct.tsx`; the computed name is unchanged
+            `tests/legacy/client/a11y/field-control-name.suite.ct.tsx`; the computed name is unchanged
             (`rewrite-dialog.ct.tsx` still finds "Correction instruction" by role+name). The Switch below is
             the same accname story with a DIFFERENT verdict — see its own note. */}
         <Field label="Correction instruction">

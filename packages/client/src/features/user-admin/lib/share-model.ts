@@ -207,7 +207,7 @@ const POLL_MS: Record<ShareState, (relay: RelayStatus) => number> = {
 };
 
 /** The `share.status` poll interval for the current state.
- *  @public Test-anchored module surface; tests/client/features/user-admin/lib/share-model.test.ts calls
+ *  @public Test-anchored module surface; tests/legacy/client/features/user-admin/lib/share-model.test.ts calls
  *  it directly. */
 export function sharePollMs(relay: RelayStatus): number {
   return POLL_MS[relay.state](relay);

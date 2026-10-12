@@ -19,7 +19,7 @@
 //     lanes are pointed at to copy, so the sentence read as a policy declaring an authority two lines before
 //     declaring the opposite one.)
 //   - `ct-poll-schedule-and-paint-health` (sibling file): the FORMER "ARM C" whole-corpus blindness
-//     tripwire — the founding CT file (tests/client/lib/motion-stats.ct.tsx) rotting against the matchers
+//     tripwire — the founding CT file (tests/legacy/client/lib/motion-stats.ct.tsx) rotting against the matchers
 //     here. It is a whole-population self-health question the per-file occurrence policy's dispatch cannot
 //     answer, and it differs on `execution` (`entire-population` vs `selected-files`) — the split the design
 //     doc requires whenever an old multi-arm module's arms differ in more than message text.

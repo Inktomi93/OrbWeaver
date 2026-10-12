@@ -29,7 +29,7 @@ test("native dependency rules reject upward helper-world edges and retain compat
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), source);
   }
-  // The CT consumer lives outside `tests/support`, so only the repo adapter (whose roots include `tests/client`) cruises it.
+  // The CT consumer lives outside `tests/support`, so only the repo adapter (whose roots include `tests/legacy/client`) cruises it.
   const ctConsumer = "tests/client/helper.ct.tsx";
   mkdirSync(join(scratch, "tests/client"));
   writeFileSync(join(scratch, ctConsumer), 'import "../support/node/ct-consumed.ts";');

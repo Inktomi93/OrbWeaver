@@ -160,7 +160,7 @@ function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly 
  * ACCESSIBLE-NAME SOURCE, Field-wrapped vs Field-LESS (#1645). Wrapped in a real `<Field label>`
  * (`macro-field.tsx`'s `<MacroField>`), Base UI's `Field.Control` wires `aria-labelledby`, which OUTRANKS
  * whatever this component sets on the control itself — so a regression at the `aria-label` prop is
- * invisible from a Field-wrapped mount (measured: `tests/ui/primitives/macro-textarea/macro-textarea.ct.tsx`'s
+ * invisible from a Field-wrapped mount (measured: `tests/legacy/ui/primitives/macro-textarea/macro-textarea.ct.tsx`'s
  * `GhostDefaultStory` pin stays green under a planted `aria-label={placeholder}` fall-through). TWO real
  * consumers mount this component WITHOUT a `<Field>` — `template-drill-in.tsx`'s `ProseTemplateBody` and
  * `section-body.tsx`'s `TemplatedMarkerBody`, both passing `aria-label` directly because a `<Field label>`

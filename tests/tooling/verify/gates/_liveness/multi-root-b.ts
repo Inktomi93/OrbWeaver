@@ -57,7 +57,7 @@ import { probeGate } from "./tooling-tests.ts";
 const DOMAIN = "packages/server/src/domain/character";
 const FEATURE = "packages/client/src/features/chat";
 const PRIMITIVE = "packages/ui/src/primitives/livenessthing";
-const STANDING_CONTRAST_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
+const STANDING_CONTRAST_CT = "tests/legacy/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 /** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
  *  source (the noRawRandom fixture below) does. */
 const RANDOM_CALL = ["Math", ".random()"].join("");

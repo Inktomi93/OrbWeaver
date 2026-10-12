@@ -26,7 +26,7 @@
 // The reminder still resolves each slot against `LiteReminderInput.prose` and the delta against
 // `DeltaContext.prose` — the builders' signatures never knew where the overrides came from; only chat's gather
 // args changed. An ABSENT override is byte-identical to the pre-PROSE-1 constant, which is the whole safety
-// story for this migration (asserted per-slot in `tests/contracts/prose/`).
+// story for this migration (asserted per-slot in `tests/legacy/contracts/prose/`).
 //
 // MACRO MODE (§6.1): the TEACHES are `names-only` — the reminder resolves a host override's `{{user}}`/`{{char}}`
 // through the same identity-only registry `renderSteeringNote` uses (a default carries no macro, so it resolves

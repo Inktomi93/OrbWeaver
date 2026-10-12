@@ -14,19 +14,21 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
 import { describe } from "vitest";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // This ledger lives under tests/tooling (a non-mirror exempt tree — it guards the whole chat feature, not
 // one source file), so paths are REPO_ROOT-relative, not sibling-relative.
 const REPO_ROOT = join(HERE, "..", "..");
-const CHAT_TESTS_DIR = join(REPO_ROOT, "tests/client/features/chat");
+// The chat CTs are legacy tests until the client CTs are rebuilt; a rebuilt CT lands in the strict mirror.
+const CHAT_TESTS_DIRS = ["tests/client/features/chat", `${LEGACY_TEST_ROOT}/client/features/chat`].map((dir) => join(REPO_ROOT, dir));
 const COMPONENTS_DIR = join(REPO_ROOT, "packages/client/src/features/chat/components");
 // The five homes a chat component's CT can live in, under the chat CT tree.
 // Every home a chat CT can live in. `hooks` is included because a component whose whole behaviour is
 // driven through a hook (the slash strip through `use-slash-commands`) is covered by that hook's CT — and a
 // `coveredBy` naming a CT this list can't see would read as DANGLING, which is a false red.
-const CT_DIRS = ["components", "surfaces", "anchors", "hooks", "lib"].map((d) => join(CHAT_TESTS_DIR, d));
+const CT_DIRS = CHAT_TESTS_DIRS.flatMap((root) => ["components", "surfaces", "anchors", "hooks", "lib"].map((d) => join(root, d)));
 const TSX_SUFFIX = /\.tsx$/u;
 const CT_SUFFIX = /\.ct\.tsx$/u;
 

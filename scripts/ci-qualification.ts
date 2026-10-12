@@ -47,7 +47,7 @@ function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): Pick<CiQualificati
   const runtimeJobs: string[] = [];
   const runtimeJobGroups: CiQualificationJobGroup[] = [];
   const needs = jobs["ci-ok"]?.needs;
-  if (!(Array.isArray(needs) && ["changes", "static", "node", "ct", "e2e-smoke"].every((id) => needs.includes(id)))) {
+  if (!(Array.isArray(needs) && ["changes", "static", "node", "node-legacy", "ct", "ct-legacy", "e2e-smoke"].every((id) => needs.includes(id)))) {
     throw new Error("product qualification requires the closed changes/static/runtime/smoke aggregate");
   }
   if (jobs["static"]?.if !== undefined || JSON.stringify(jobs["static"]?.needs) !== JSON.stringify(["changes"])) {

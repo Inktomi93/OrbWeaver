@@ -2,7 +2,7 @@
 // `check:structure` never runs a vitest suite, so an enforcement test going RED on main is invisible to
 // every merge gate — the next cold lane pays the diagnosis. Paid twice in one day (2026-08-24):
 //   1. B2's merge left `automation.createRuleFromPreset`/`listRulePresets` unclassified in the cross-tenant
-//      IDOR sweep (`tests/server/transport/cross-tenant-sweep.suite.int.test.ts`) — red on main for hours.
+//      IDOR sweep (`tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`) — red on main for hours.
 //   2. #640's merge left `add-chat-book-dialog` with no coverage decision in `chat-component-presence.test.ts`
 //      — red on main until a sibling lane's floor tripped it.
 // This is the ONE cheap command a merge train runs to catch exactly that class, in sub-minute time.
@@ -11,7 +11,7 @@
 //   • every `tests/tooling/**/*.test.ts` / `*.int.test.ts` whose BASENAME contains "ratchet", "presence",
 //     or "conformance" (case-insensitive) — the tooling package's OWN coverage/structure ratchets and their
 //     permanent gate pins. A brand-new file shaped like this is picked up automatically (no row to add).
-//   • every `tests/contracts/**/*.contract.test.ts` — the exact-tuple wire pins (already a suffix
+//   • every `tests/legacy/contracts/**/*.contract.test.ts` — the exact-tuple wire pins (already a suffix
 //     convention; the `.contract.test.ts` name IS the routing decision).
 //   • `EXPLICIT_INCLUDES` — a DELIBERATELY tiny hand list for ratchets that live OUTSIDE tests/tooling/**
 //     (the naming convention structurally cannot reach them because they're not the tooling package's own
@@ -46,6 +46,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import type { TestFamily } from "../../floor/testing/test-kinds.ts";
 import { classifyTestFilename, runtimeForTestFamily } from "../../floor/testing/test-kinds.ts";
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 
 // This is a LIBRARY module — the real door is `pnpm test:ratchets` (→ `cli.ts ratchet-gate`). Refuse being
 // the process entry so `node <this path>` cannot load, run nothing, and print a bare zero a reader trusts.
@@ -53,7 +54,8 @@ refuseDirectInvocation(import.meta.url, "pnpm test:ratchets");
 
 const RATCHET_NAME_RE = /(ratchet|presence|conformance)/iu;
 const TOOLING_TESTS_PREFIX = "tests/tooling/";
-const CONTRACT_PIN_PREFIX = "tests/contracts/";
+// The wire pins and the cross-tenant sweep are still legacy tests; the train runs them wherever they live.
+const CONTRACT_PIN_PREFIXES: readonly string[] = ["tests/contracts/", `${LEGACY_TEST_ROOT}/contracts/`];
 const NODE_MODULES = "node_modules";
 const TESTS_DIR = "tests";
 
@@ -74,6 +76,7 @@ export interface RatchetClassification {
  *  place with the escape it would have caught (#667). */
 const EXPLICIT_INCLUDES: readonly string[] = [
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts", // #667 escape 1 — the cross-tenant IDOR completeness guard
+  `${LEGACY_TEST_ROOT}/server/transport/cross-tenant-sweep.suite.int.test.ts`,
 ];
 
 /** Convention-matching files pulled OUT, each with a reason + how it's covered instead. Rename-safe: a row
@@ -135,7 +138,7 @@ export function isRatchetShaped(relPath: string): boolean {
   if (testKind === undefined || !hasVitestCapability(testKind.definition.family)) {
     return false;
   }
-  if (relPath.startsWith(CONTRACT_PIN_PREFIX) && testKind.definition.family === "contract") {
+  if (CONTRACT_PIN_PREFIXES.some((prefix) => relPath.startsWith(prefix)) && testKind.definition.family === "contract") {
     return true;
   }
   if (relPath.startsWith(TOOLING_TESTS_PREFIX)) {

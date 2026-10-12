@@ -131,8 +131,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
-    name: node (${{ matrix.shard }}/3)
+        shard: [1]
+    name: node (${{ matrix.shard }}/1)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -142,14 +142,14 @@ jobs:
         name: Set up FFmpeg and FFprobe
         timeout-minutes: 15
         run: bash scripts/ci/install-media.sh
-      - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3
+      - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1
       - if: failure()
         name: Say how to reproduce
         run: |
           {
             echo "### $GITHUB_JOB failed"
             echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3\`"
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1\`"
             echo
             echo "Logs and reports are in the \`reports-node-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -157,6 +157,44 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-node-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+
+  # The legacy folder (tests/legacy) is its own project: the regression net for tests not yet rebuilt.
+  node-legacy:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: *media-runner
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: node legacy (${{ matrix.shard }}/3)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - id: media
+        name: Set up FFmpeg and FFprobe
+        timeout-minutes: 15
+        run: bash scripts/ci/install-media.sh
+      - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3 --population=legacy
+      - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3 --population=legacy\`"
+            echo
+            echo "Logs and reports are in the \`reports-node-legacy-${{ matrix.shard }}\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-node-legacy-${{ matrix.shard }}
           path: reports/
           retention-days: 7
 
@@ -168,8 +206,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
-    name: ct (${{ matrix.shard }}/5)
+        shard: [1]
+    name: ct (${{ matrix.shard }}/1)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -179,14 +217,14 @@ jobs:
           browsers: "true"
       # Showcase CT mounts the release-built plugin bundles, which a fresh checkout does not have.
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5
+      - run: pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/1
       - if: failure()
         name: Say how to reproduce
         run: |
           {
             echo "### $GITHUB_JOB failed"
             echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5\`"
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/1\`"
             echo
             echo "Logs and reports are in the \`reports-ct-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -195,6 +233,44 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-ct-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+
+  ct-legacy:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: *media-runner
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    name: ct legacy (${{ matrix.shard }}/5)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      # Showcase CT mounts the release-built plugin bundles, which a fresh checkout does not have.
+      - run: pnpm --filter @orb/showcase-plugins build
+      - run: pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5 --population=legacy
+      - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5 --population=legacy\`"
+            echo
+            echo "Logs and reports are in the \`reports-ct-legacy-${{ matrix.shard }}\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+      # A flaky shard can pass overall; retain its failed-attempt details instead of only its summary.
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-ct-legacy-${{ matrix.shard }}
           path: reports/
           retention-days: 7
 
@@ -233,7 +309,7 @@ jobs:
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
-    needs: [changes, static, node, ct, e2e-smoke]
+    needs: [changes, static, node, node-legacy, ct, ct-legacy, e2e-smoke]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
@@ -251,7 +327,7 @@ jobs:
           echo "$NEEDS" | jq -e '
             .changes.result == "success" and .static.result == "success" and
             (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
-            (.changes.outputs.code as $code | [.node, .ct, .["e2e-smoke"]]
+            (.changes.outputs.code as $code | [.node, .["node-legacy"], .ct, .["ct-legacy"], .["e2e-smoke"]]
               | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))
           ' > /dev/null || {
             echo "::error title=CI gate::changes.outputs.code=$(echo "$NEEDS" | jq -r '.changes.outputs.code')"

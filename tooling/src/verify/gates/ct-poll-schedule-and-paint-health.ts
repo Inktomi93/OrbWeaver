@@ -1,6 +1,6 @@
 // Policy: ct-poll-schedule-and-paint-health — the founding-file blindness tripwire for the sibling
 // `ct-poll-schedule-and-paint` occurrence policy (family `ct-poll-schedule-and-paint`; the family/authority
-// receipts are recorded there). tests/client/lib/motion-stats.ct.tsx is the ONE file every matcher in that
+// receipts are recorded there). tests/legacy/client/lib/motion-stats.ct.tsx is the ONE file every matcher in that
 // gate is derived from — every legal shape (a freshly-minted schedule, a derived paint barrier, an
 // untrusted evaluate-driven trigger, a layout-shift-derived poll) must still be exercised there, or the
 // occurrence gate is policing a vocabulary nothing on the tree demonstrates any more.
@@ -40,7 +40,7 @@
 // `ct-poll-schedule-and-paint` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // Over the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 2,869 and final `population` admits 1. legacy − final = 2,868 `tests/**` sources other
-// than the founding file — the arm counted only `tests/client/lib/motion-stats.ct.tsx`. final − legacy = ∅. Controls:
+// than the founding file — the arm counted only `tests/legacy/client/lib/motion-stats.ct.tsx`. final − legacy = ∅. Controls:
 // inside `tests/client/lib/__cbbhr_in/motion-stats.ct.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
@@ -48,7 +48,8 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { barrierNames, isFreshSchedule, isMotionPoll, isUntrustedTrigger, MOTION_READS, PAINT_API, pollOptionsArg } from "../lib/ct-poll-schedule-and-paint.ts";
 
-const ANCHOR_UNDER = "tests/client/lib/**";
+// The founding file is a legacy CT; this policy reads it as the vocabulary exemplar, not to judge legacy code.
+const ANCHOR_UNDER = "tests/legacy/client/lib/**";
 const ANCHOR_NAME = "motion-stats.ct.tsx";
 
 interface AnchorFacts {
@@ -96,7 +97,7 @@ export const gate = defineGate({
   family: "ct-poll-schedule-and-paint",
   authority: "hard",
   severity: "error",
-  population: { in: ["@tests"], under: [ANCHOR_UNDER], named: [ANCHOR_NAME] },
+  population: { in: ["@legacy-tests"], under: [ANCHOR_UNDER], named: [ANCHOR_NAME] },
   analysis: "syntax",
   execution: "entire-population",
   facts: [],
@@ -144,7 +145,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        [`tests/client/lib/${ANCHOR_NAME}`]:
+        [`tests/legacy/client/lib/${ANCHOR_NAME}`]:
           'import { expect, test } from "@playwright/experimental-ct-react";\n' +
           `function settle(page) { return page.evaluate(() => ${PAINT_API}(() => {})); }\n` +
           'test("g", async ({ page }) => {\n' +
@@ -162,7 +163,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        [`tests/client/lib/${ANCHOR_NAME}`]:
+        [`tests/legacy/client/lib/${ANCHOR_NAME}`]:
           'import { expect, test } from "@playwright/experimental-ct-react";\n' +
           `function settlePaint(page) { return page.evaluate(() => ${PAINT_API}(() => {})); }\n` +
           'test("g", async ({ page }) => {\n' +

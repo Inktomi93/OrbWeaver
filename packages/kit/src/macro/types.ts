@@ -318,7 +318,7 @@ export interface MacroContext {
   resolve: (content: string | MacroAST, opts?: MacroResolveOptions) => string;
   // Optional post-processing hook for macro values (e.g. escaping regex chars)
   postProcess?: (val: string) => string;
-  // Optional warning sink. Server layer injects getLog().warn; tests/client can leave undefined.
+  // Optional warning sink. Server layer injects getLog().warn; tests/legacy/client can leave undefined.
   // Kept as a plain callback (not a Logger import) so kit stays isolated from server/.
   onWarn?: (msg: string, err?: unknown) => void;
   // Optional ordered log of runtime variable mutations. When present, the setvar/addvar/incvar/
@@ -335,7 +335,7 @@ export interface MacroContext {
   //   • `frozenMacros` — **COMMITTED, NOT YET WIRED (D129-G).** The freeze-site WRITES are live; the swipe /
   //     greeting-re-selection re-resolution this arm exists for is not built, so today its only callers are
   //     tests. It ships with the record because a record you cannot reproduce FROM is an untested claim — the
-  //     round-trip pin (tests/kit/macro/registry.test.ts + the volatile-freeze-record suite) is what makes the
+  //     round-trip pin (tests/legacy/kit/macro/registry.test.ts + the volatile-freeze-record suite) is what makes the
   //     stored provenance a fact rather than an assertion. A future swipe caller inherits the semantics below.
   //     A PRIOR record replayed POSITIONALLY: an entry whose name+args match the call being
   //     evaluated supplies its value and the handler is NOT run (so the PRNG/clock is not consulted and the

@@ -44,7 +44,7 @@
 //     `noNonNullAssertion` markers claiming "the backend always implements runChatTurn", a claim about the
 //     runtime the type deliberately does not make. Replaced by ONE `requireRunChatTurn` guard that throws
 //     by name.
-//   · tests/ui/styles/css-structure.suite.test.ts:58,133 — two `noAssignInExpressions` markers on the
+//   · tests/legacy/ui/styles/css-structure.suite.test.ts:58,133 — two `noAssignInExpressions` markers on the
 //     assign-in-condition exec loop. Both loops are now `css.matchAll(re)`, which also retires the
 //     hand-rolled regex clone the first one carried.
 // The remaining 25 occurrences across 12 classes are exact grant rows in `lib/reviewed-grants.ts`, each
@@ -151,6 +151,7 @@
 // package's (`eslint.config.js`, `.dependency-cruiser.cjs`, the showcase QuickJS guest bundles). The policy
 // source vocabulary is `.ts`/`.tsx` only (`contract/population.ts#LoadableExt`), so their directives remain
 // outside this gate.
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { GovernedScope } from "../contract/suppressions.ts";
 import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -202,11 +203,12 @@ export const gate = defineGate({
   severity: "error",
   // EVERY authored TypeScript file the gate corpus loads (work item 0036 — see the header's WIDENING note).
   // `notUnder` is the captured foreign SillyTavern runtime, which Orbweaver does not
-  // author and therefore does not rule on — the authored generator BESIDE it stays governed.
+  // author and therefore does not rule on — the authored generator BESIDE it stays governed — and the legacy
+  // test folder, which no strict gate judges.
   population: {
     of: "all",
     why: "a suppression is a foreign analyzer's permission wherever it sits, so a repo-root config, a package build file and a script are judged exactly like package source",
-    notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"],
+    notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**", `${LEGACY_TEST_ROOT}/**`],
   },
   analysis: "syntax",
   // A per-class verdict cannot compose over a subset: a scoped run seeing one file of a class would report

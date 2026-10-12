@@ -5,9 +5,10 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
-import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
+import { isLegacyTestProgram, isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
 import { runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { isLegacyTestPath } from "@orb/tooling/floor/testing/test-population";
 import type { CompilerProgram, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject } from "../contract/typecheck-plan.ts";
 import { readCompilerProgramsFromInventory, resolvePolicyPathOwnership } from "./policy-program-membership.ts";
@@ -202,12 +203,18 @@ interface SubjectContext {
   readonly mode: TypecheckPlanMode;
 }
 
+/** The legacy programs reach almost every product file through their tests, and CI's whole typecheck owns them, so
+ *  an affected plan keeps one only for a legacy file the caller named. */
+function outsideLegacy(path: PolicySemanticPath, programs: readonly string[]): readonly string[] {
+  return isLegacyTestPath(path.path) ? programs : programs.filter((program) => !isLegacyTestProgram(program));
+}
+
 /** `configs` is the path's compiler ownership, resolved for every subject in one pass by the caller. */
 function planSubject(context: SubjectContext, path: PolicySemanticPath, configs: readonly string[]): TypecheckPlanSubject {
   const rootedBy = context.rooted.get(path.path) ?? [];
   const containedBy = context.contained.get(path.path) ?? [];
   if (path.status === "deleted") {
-    return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: context.everyProgram, reason: "deleted-conservative" });
+    return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: outsideLegacy(path, context.everyProgram), reason: "deleted-conservative" });
   }
   if (configs.length > 0 && context.programs.some((program) => program.configPaths.includes(path.path))) {
     return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: configs, reason: "compiler-config-input" });
@@ -233,7 +240,7 @@ function planSubject(context: SubjectContext, path: PolicySemanticPath, configs:
   if (containedBy.length === 0) {
     throw new Error(`typecheck affected plan for ${path.path} found no native compiler closure`);
   }
-  return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: containedBy, reason: "affected-closure" });
+  return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: outsideLegacy(path, containedBy), reason: "affected-closure" });
 }
 
 function nonTypePlan(paths: readonly PolicySemanticPath[], mode: TypecheckPlanMode): TypecheckPlan | undefined {

@@ -238,7 +238,7 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
  * and healing them here would re-pay a BOOT-4X-class fetch on every room open. `chat.getChat` is absent for
  * the same reason it is not duplicated: the heal's caller carries it as its own row.
  *
- * @public Test-anchored module surface; tests/client/data/invalidation-reads.test.ts asserts its keys
+ * @public Test-anchored module surface; tests/legacy/client/data/invalidation-reads.test.ts asserts its keys
  *  match {@link ROOM_ENTITY_KINDS} directly, in addition to the in-file use by `roomEntityHealReads`.
  */
 export const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
@@ -271,7 +271,7 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 // `invalidation.ts`, for one structural reason: that file sits AT the 450-line component cap, and this map is
 // the one self-contained third of it — its own event union, its own router namespace, its own gap-heal set,
 // and zero references from the chat/user maps. The seam is unchanged; `invalidation.ts` imports these two
-// names. Its behavioral pins stay in `tests/client/data/invalidation.test.ts`, which drives them through
+// names. Its behavioral pins stay in `tests/legacy/client/data/invalidation.test.ts`, which drives them through
 // `invalidateRpg`/`gapHealRpg` — the surface a reader cares about — not through the map object.
 //
 // Third map: the feature-root rpg game bus (`rpg.stream`). LIVE-ONLY like the user bus; the client's tracker/

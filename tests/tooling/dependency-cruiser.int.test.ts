@@ -369,7 +369,7 @@ function writeAllFixtures(): void {
   fx("tests/support/node/__dc/tool-internal.ts", `import "../../../../tooling/src/__dc_tb/ops/y.ts";\n`);
   // tooling-no-testkit: a tool importing the test kit.
   fx("tooling/src/__dc_ta/testkit.ts", `import "../../../tests/support/iso/clock.ts";\n`);
-  // A client story or spec reaching the door directly is judged too: `tests/client` is a cruise entry root.
+  // A client story or spec reaching the door directly is judged too: `tests/legacy/client` is a cruise entry root.
   fx("tests/client/__dc/compose-door.ts", `import "../../../packages/client/src/compose/__dc_t.ts";\n`);
 
   // ── @orb/tooling (the tool fleet ABOVE the cake — Core-Tooling-Law.md §4.6) ──

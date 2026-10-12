@@ -1,0 +1,1160 @@
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(PluginHandlerRef): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<): baselined when the gate widened to value casts; burn-down item 906.
+
+import { readdirSync, readFileSync, readlinkSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
+import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
+import type { ChatId } from "@orb/kit/ids";
+import type { HostSeams } from "@orb/server/infra/plugin-host";
+import { createPluginHost, PLUGIN_MEMORY_LIMIT_BYTES } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
+import { unzipSync } from "fflate";
+import { afterEach, beforeAll, vi } from "vitest";
+import { env } from "#server/foundation/env/index.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
+import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS } from "#server/infra/plugin-host/budgets.ts";
+import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "#server/infra/plugin-host/process-permission.ts";
+import {
+  __countLiveAuthorityTailsForTest,
+  __hasManagedPluginBrokerForTest,
+  __killManagedPluginBrokerOnBridgeForTest,
+  __killManagedPluginBrokerOnCommandForTest,
+  __killManagedPluginWatchdogForTest,
+  __pauseManagedPluginBridgeDeliveryForTest,
+  __pauseManagedPluginConnectChaseForTest,
+  __readManagedPluginDirectoryForTest,
+  __terminateManagedPluginBrokerForTest,
+} from "#server/infra/plugin-host/process-runtime.ts";
+import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "#showcase-plugins/index.ts";
+
+const LONG = 30_000;
+const CHAT = "chat_process0000000000000000" as ChatId;
+const noChat: null = null;
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..", "..");
+
+// The showcase authoring tree ships TypeScript source; the cold-wake case needs the real release-built
+// guest JS, the same bytes `packShowcaseBundle` serves to the per-user seeder.
+beforeAll(async () => {
+  const built = await writeShowcaseArtifacts(REPO_ROOT);
+  expect(built.diagnostics).toEqual([]);
+});
+
+afterEach(async () => {
+  await __terminateManagedPluginBrokerForTest();
+});
+
+function seams(): HostSeams {
+  let id = 0;
+  return { nowEpochMs: () => 1_700_000_000_000, nextRandom: () => 0.5, mintId: () => `process-id-${id++}` };
+}
+
+function durableSource(
+  mainJs: string,
+  reload: () => Promise<string> = () => Promise.resolve(mainJs),
+): {
+  readonly mainJs: string;
+  readonly reloadMainJs: () => Promise<string>;
+} {
+  return { mainJs, reloadMainJs: reload };
+}
+
+function bridge(): PluginBridge {
+  return {
+    chat: {
+      listMessages: () => Promise.resolve([]),
+      getVariables: () => Promise.resolve({}),
+      listCharacters: () => Promise.resolve([]),
+      applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
+      requestTurn: () => Promise.resolve(),
+    },
+    worldInfo: { listBooks: () => Promise.resolve([]), listEntries: () => Promise.resolve([]), upsertEntry: () => Promise.resolve() },
+    imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_process" }) },
+    variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
+    assets: { read: () => Promise.resolve(null), storeFetched: () => Promise.resolve({ assetId: "asset_process" }) },
+    search: { documents: () => Promise.resolve([]) },
+    storage: {
+      get: () => Promise.resolve(null),
+      set: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+      list: () => Promise.resolve([]),
+      compareAndSet: () => Promise.resolve({ applied: true, current: "next" }),
+    },
+    notifications: { post: () => Promise.resolve() },
+    llm: { quiet: () => Promise.resolve({ text: "quiet" }) },
+    suggest: () => Promise.resolve(),
+    admitEgress: () => undefined,
+    admitAssetEgress: () => undefined,
+    surfaceQuickReply: () => Promise.resolve(),
+    ui: { setState: () => Promise.resolve(), toast: () => Promise.resolve(), openDialog: () => Promise.resolve() },
+    databank: { ingest: () => Promise.resolve({ documentId: "document_process" }) },
+    character: {
+      ingest: () => Promise.resolve({ characterId: "character_process", created: true }),
+      ingestAsset: () => Promise.resolve({ characterId: "character_process", created: true }),
+      setCardData: () => Promise.resolve(),
+      getCardData: () => Promise.resolve(null),
+    },
+    pubsub: { emit: () => Promise.resolve() },
+  };
+}
+
+async function activateTool(
+  host: ReturnType<typeof createPluginHost>,
+  runtimeBridge: PluginBridge,
+): Promise<{ readonly instance: PluginInstance; readonly handler: PluginHandlerRef }> {
+  const outcome = await host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      h.tools.register({
+        name: "wait",
+        description: "wait",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.get("key"); return "done"; },
+      });`),
+    grants: ["tools.register", "global_vars"],
+    bridge: runtimeBridge,
+    chat: noChat,
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  const handler = outcome.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: tool did not register");
+  }
+  return { instance: outcome.instance, handler };
+}
+
+test("broker exit during activation rejects the call and permits an explicit later activation", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  __killManagedPluginBrokerOnCommandForTest("create");
+  await expect(host.createInstance({ ...durableSource("'never completes';"), grants: [], bridge: bridge(), chat: noChat })).rejects.toMatchObject({
+    name: "PluginHostUnavailable",
+  });
+
+  const retried = await host.createInstance({ ...durableSource("'explicit retry';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(retried.ok).toBe(true);
+  if (retried.ok) {
+    host.dispose(retried.instance);
+  }
+});
+
+test("a create still resolving its connection when the broker dies is served exactly once by the reconnect, never replayed", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const victim = await host.createInstance({ ...durableSource("'victim';"), grants: [], bridge: bridge(), chat: noChat });
+  if (!victim.ok) {
+    throw new Error(victim.error);
+  }
+  __killManagedPluginBrokerOnCommandForTest("create");
+  let sets = 0;
+  const base = bridge();
+  const countingBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      set: (): Promise<void> => {
+        sets += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  // `killer`'s own "create" write triggers the kill against the connection `victim` already opened.
+  const killer = host.createInstance({ ...durableSource("'killer';"), grants: [], bridge: base, chat: noChat });
+  await expect(killer).rejects.toMatchObject({ name: "PluginHostUnavailable" });
+  const pause = __pauseManagedPluginConnectChaseForTest();
+  const bystander = host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      void h.storage.set('activated', '1');`),
+    grants: ["storage.kv"],
+    bridge: countingBridge,
+    chat: noChat,
+  });
+  await pause.reached;
+  // The chase has not run yet — nothing has served `bystander`'s command a second time before its first go.
+  expect(sets).toBe(0);
+  pause.release();
+  const outcome = await bystander;
+  expect(outcome.ok).toBe(true);
+  expect(sets).toBe(1);
+  if (outcome.ok) {
+    host.dispose(outcome.instance);
+  }
+  host.dispose(victim.instance);
+});
+
+test("connectOnce never respawns a broker once the app tears it down with nothing pending", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const outcome = await host.createInstance({ ...durableSource("'settled';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(outcome.ok).toBe(true);
+  if (outcome.ok) {
+    host.dispose(outcome.instance);
+  }
+  await __terminateManagedPluginBrokerForTest();
+  // A clean teardown with no in-flight command must leave the broker gone — no straggling reconnect chase
+  // should spawn a replacement process nobody asked for.
+  await sleep(100);
+  expect(__hasManagedPluginBrokerForTest()).toBe(false);
+});
+
+test("once the watchdog dies the app never sends its broker another command and serves the next one from a fresh broker", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const first = await host.createInstance({ ...durableSource("'first';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(first.ok).toBe(true);
+  const orphanDirectory = __readManagedPluginDirectoryForTest();
+
+  await __killManagedPluginWatchdogForTest();
+  const second = await host.createInstance({ ...durableSource("'second';"), grants: [], bridge: bridge(), chat: noChat });
+
+  expect(second.ok).toBe(true);
+  expect(__hasManagedPluginBrokerForTest()).toBe(true);
+  expect(__readManagedPluginDirectoryForTest()).not.toBe(orphanDirectory);
+  if (second.ok) {
+    host.dispose(second.instance);
+  }
+});
+
+test("the app creates and owns the watchdog without a preconfigured broker endpoint", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const outcome = await host.createInstance({ ...durableSource("'app-owned watchdog';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(outcome.ok).toBe(true);
+  if (outcome.ok) {
+    host.dispose(outcome.instance);
+  }
+});
+
+test("broker death while a Worker waits on the synchronous seam cannot block the app", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  __killManagedPluginBrokerOnBridgeForTest("seam.mintId");
+  await expect(
+    host.createInstance({
+      ...durableSource("orb.host(1).ids.mint();"),
+      grants: [],
+      bridge: bridge(),
+      chat: noChat,
+    }),
+  ).rejects.toMatchObject({ name: "PluginHostUnavailable" });
+});
+
+test("broker exit during an async invoke fails the call and marks the resident crashed", { timeout: LONG }, async () => {
+  const { promise: called, resolve: reached } = Promise.withResolvers<void>();
+  const base = bridge();
+  const waitingBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      get: () => {
+        reached();
+        return new Promise<string | null>(() => undefined);
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const resident = await activateTool(host, waitingBridge);
+  const invocation = host.invoke(resident.instance, resident.handler, "{}", { chatId: CHAT, canWrite: true, automationDepth: 0 });
+  // Attach a reaction to `invocation` NOW, not at the `expect(...).rejects` below: the forced teardown two
+  // lines down rejects it mid-`await`, before that assertion would otherwise get a chance to attach its own
+  // handler, and Node flags that gap as an unhandled rejection even though it settles correctly moments later.
+  invocation.catch(() => undefined);
+  await called;
+  await __terminateManagedPluginBrokerForTest();
+  await expect(invocation).rejects.toMatchObject({ name: "PluginHostUnavailable" });
+  await expect(host.invoke(resident.instance, resident.handler, "{}", { chatId: CHAT, canWrite: true, automationDepth: 0 })).rejects.toMatchObject({
+    name: "PluginHostUnavailable",
+  });
+  host.dispose(resident.instance);
+});
+
+test("disposing a pinned logical plugin cancels its Worker and rejects late callback reuse", { timeout: LONG }, async () => {
+  let release = (): void => undefined;
+  const { promise: called, resolve: reached } = Promise.withResolvers<void>();
+  const held = new Promise<string | null>((resolve) => {
+    release = (): void => resolve("late");
+  });
+  const base = bridge();
+  const waitingBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      get: () => {
+        reached();
+        return held;
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const resident = await activateTool(host, waitingBridge);
+  const invocation = host.invoke(resident.instance, resident.handler, "{}", noChat);
+  await called;
+  host.dispose(resident.instance);
+  await expect(invocation).rejects.toThrow();
+  release();
+  await expect(host.invoke(resident.instance, resident.handler, "{}", noChat)).rejects.toThrow(/unknown\/disposed/u);
+});
+
+test("a bridge frame already on the parent wire cannot dispatch after dispose revokes its authority", { timeout: LONG }, async () => {
+  let writes = 0;
+  const base = bridge();
+  const writingBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      set: () => {
+        writes += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const outcome = await host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      h.tools.register({
+        name: "write",
+        description: "write",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.set("revoked", "must-not-land"); return "done"; },
+      });`),
+    grants: ["tools.register", "global_vars"],
+    bridge: writingBridge,
+    chat: noChat,
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  const handler = outcome.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: write tool did not register");
+  }
+  const delivery = __pauseManagedPluginBridgeDeliveryForTest("variables.set");
+  try {
+    const invocation = host.invoke(outcome.instance, handler, "{}", noChat);
+    await delivery.reached;
+    host.dispose(outcome.instance);
+    delivery.release();
+
+    await expect(invocation).rejects.toThrow();
+    expect(writes).toBe(0);
+  } finally {
+    delivery.release();
+    host.dispose(outcome.instance);
+  }
+});
+
+test("disposing a runtime clears the command-authority tail timers it holds", { timeout: LONG }, async () => {
+  const base = bridge();
+  const parkedBridge: PluginBridge = {
+    ...base,
+    storage: { ...base.storage, get: () => new Promise<string | null>(() => undefined) },
+  };
+  const host = createPluginHost(seams());
+  // A zero settlement grace returns activation with the call still parked, so its authority is in its tail.
+  const outcome = await host.createInstance({
+    ...durableSource("orb.host(1).storage.get('parked').then(function () {}); 'activated';"),
+    grants: ["storage.kv"],
+    bridge: parkedBridge,
+    chat: noChat,
+    budgets: { cpuDeadlineMs: 200, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: 0 },
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  expect(__countLiveAuthorityTailsForTest()).toBe(1);
+  host.dispose(outcome.instance);
+  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0));
+});
+
+// cb-265 — a FAILED activation with a parked host call used to stall `retireFailedActivation` for the full
+// 30 s `create` command timeout; the parent then destroyed the broker socket and `onDisconnect` marked EVERY
+// dispatched resident on this connection crashed, including ones with no relation to the failing plugin. The
+// abort now reaches the bridge call directly (bridge-rpc.ts's `createRemoteBridge` forwards it to `callAsync`),
+// so the Worker settles the call locally well inside the command timeout and the connection is never torn down.
+test("a failed activation with a parked host call retires within the settle wall and a sibling resident keeps running", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const sibling = await activateTool(host, bridge());
+  await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
+
+  const base = bridge();
+  const parkedBridge: PluginBridge = {
+    ...base,
+    storage: { ...base.storage, get: () => new Promise<string | null>(() => undefined) },
+  };
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — proving the failed activation retires promptly instead of stalling the 30 s command timeout, no frozen clock to inject.
+  const started = performance.now();
+  const outcome = await host.createInstance({
+    ...durableSource("orb.host(1).storage.get('parked').then(function () {}); throw new Error('activation boom');"),
+    grants: ["storage.kv"],
+    bridge: parkedBridge,
+    chat: noChat,
+  });
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — see the waiver above.
+  const elapsedMs = performance.now() - started;
+  expect(outcome.ok).toBe(false);
+  // Well inside the 30 s command timeout that used to destroy the socket and crash every dispatched resident.
+  expect(elapsedMs).toBeLessThan(5000);
+
+  // The failed activation's own authority (and the pending bridge call it carried) cleared promptly — well
+  // under the fixed PLUGIN_AUTHORITY_TAIL_MS fallback the parent would otherwise have relied on.
+  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0), { timeout: 5000 });
+
+  // The broker connection was never destroyed, so the sibling's binding was never crashed.
+  expect(__hasManagedPluginBrokerForTest()).toBe(true);
+  await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
+  host.dispose(sibling.instance);
+});
+
+const FIXTURE_HOST = "hub.fixture.test";
+const LAN_HOST = "lan.fixture.test";
+// The resolver seam stands in for DNS: the allowlisted fixture answers from a public address, the LAN name from a
+// private one, so safeFetch's own private-range wall is what refuses it.
+const FIXTURE_PUBLIC_ADDRESS = "93.184.216.34";
+const FIXTURE_PRIVATE_ADDRESS = "10.0.0.7";
+const FIXTURE_BODY = '{"hits":3}';
+const ONE_PX_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+
+async function activateHandler(
+  host: ReturnType<typeof createPluginHost>,
+  input: {
+    readonly handler: string;
+    readonly grants: Parameters<ReturnType<typeof createPluginHost>["createInstance"]>[0]["grants"];
+    readonly bridge: PluginBridge;
+    readonly netHosts?: readonly string[];
+  },
+): Promise<{ readonly instance: PluginInstance; readonly handler: PluginHandlerRef }> {
+  const outcome = await host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      h.tools.register({ name: "probe", description: "probe", parameters: { type: "object", properties: {} }, handler: ${input.handler} });`),
+    grants: ["tools.register", ...input.grants],
+    bridge: input.bridge,
+    chat: noChat,
+    ...(input.netHosts === undefined ? {} : { netHosts: input.netHosts }),
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  const handler = outcome.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: probe tool did not register");
+  }
+  return { instance: outcome.instance, handler };
+}
+
+// 0697: the broker runs with no network grant, so a fetch performed inside it dies at getaddrinfo. The fetch is
+// the app's: the broker forwards the guest's URL, and the app applies the binding's own netHosts, safeFetch's
+// SSRF wall and the image guard. The resolver and transport seams below only exist in the app process, so a
+// fetch still performed in the broker can never reach the fixture.
+test("a granted plugin's net.fetch and net.fetchAsset reach the allowlisted fixture through the broker while the wall still refuses", {
+  timeout: LONG,
+}, async () => {
+  const requested: string[] = [];
+  __setEgressResolverForTest((hostname) => Promise.resolve([hostname === LAN_HOST ? FIXTURE_PRIVATE_ADDRESS : FIXTURE_PUBLIC_ADDRESS]));
+  vi.stubGlobal("fetch", (input: URL | string) => {
+    const url = String(input);
+    requested.push(url);
+    return Promise.resolve(
+      url.endsWith(".png")
+        ? new Response(new Uint8Array(ONE_PX_PNG), { status: 200, headers: { "content-type": "application/octet-stream" } })
+        : new Response(FIXTURE_BODY, { status: 200, headers: { "content-type": "application/json" } }),
+    );
+  });
+  const stored: string[] = [];
+  const base = bridge();
+  const runtimeBridge: PluginBridge = {
+    ...base,
+    assets: {
+      ...base.assets,
+      storeFetched: (_bytes, mime) => {
+        stored.push(mime);
+        return Promise.resolve({ assetId: "asset_fetched" });
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  try {
+    const probe = await activateHandler(host, {
+      handler: `async () => {
+        const settle = (p) => p.then((ok) => ({ ok }), (e) => ({ refused: e.name + ": " + e.message }));
+        return JSON.stringify({
+          allowed: await settle(h.net.fetch("https://${FIXTURE_HOST}/search?q=lighthouse")),
+          asset: await settle(h.net.fetchAsset("https://${FIXTURE_HOST}/cover.png")),
+          offList: await settle(h.net.fetch("https://evil.example/steal")),
+          privateRange: await settle(h.net.fetch("https://${LAN_HOST}/x")),
+        });
+      }`,
+      grants: ["net.fetch", "net.fetch_asset"],
+      bridge: runtimeBridge,
+      netHosts: [FIXTURE_HOST, LAN_HOST],
+    });
+    const result = JSON.parse(await host.invoke(probe.instance, probe.handler, "{}", noChat)) as Record<
+      string,
+      { readonly ok?: unknown; readonly refused?: string }
+    >;
+
+    expect(result["allowed"]).toEqual({ ok: { status: 200, body: FIXTURE_BODY } });
+    expect(result["asset"]).toEqual({ ok: { assetId: "asset_fetched" } });
+    // The CAS write records the SNIFFED mime, never the served Content-Type.
+    expect(stored).toEqual(["image/png"]);
+    expect(result["offList"]?.refused).toMatch(/^EgressBlockedError: .*not in the allowlist/u);
+    expect(result["privateRange"]?.refused).toMatch(/^EgressBlockedError: .*private/u);
+    // Neither refused destination reached the transport.
+    expect(requested).toEqual([`https://${FIXTURE_HOST}/search?q=lighthouse`, `https://${FIXTURE_HOST}/cover.png`]);
+    host.dispose(probe.instance);
+  } finally {
+    vi.unstubAllGlobals();
+    __setEgressResolverForTest(null);
+  }
+});
+
+const CONTINUATION_STEP_MS = 3500;
+
+// 0698: an action handler floats its slow work and returns at once, and the continuation publishes the result
+// after the command settled. Three sequential host calls of ~3.5 s each carry the publish well past one host-call
+// deadline after the command returned; the continuation still holds the command's authority for its publish.
+test("a floated continuation keeps its accepted command's authority to publish after the command settles", { timeout: LONG }, async () => {
+  const published: Record<string, unknown>[] = [];
+  const base = bridge();
+  const slowBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: (key) => new Promise((resolve) => setTimeout(() => resolve(`value-${key}`), CONTINUATION_STEP_MS)),
+    },
+    ui: {
+      ...base.ui,
+      setState: (_surfaceId, state) => {
+        published.push(state);
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        const a = await h.storage.get("a");
+        const b = await h.storage.get("b");
+        await h.ui.setState("page", { a, b, loading: false });
+      })().catch((e) => h.log.warn("late publish refused: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv", "ui.surface"],
+    bridge: slowBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  await vi.waitFor(() => expect(published).toEqual([{ a: "value-a", b: "value-b", loading: false }]), { timeout: 4 * CONTINUATION_STEP_MS });
+  expect(host.readLog(probe.instance).filter((line) => line.message.startsWith("late publish refused"))).toEqual([]);
+  host.dispose(probe.instance);
+});
+
+test("a continuation that keeps calling after its command settled is cut off at the tail's call budget", { timeout: LONG }, async () => {
+  let served = 0;
+  const firstRead = Promise.withResolvers<null>();
+  const base = bridge();
+  const countingBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () => {
+        served += 1;
+        return served === 1 ? firstRead.promise : Promise.resolve(null);
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    // Hold the first read until command completion; an immediate result can post another read before the tail arms.
+    handler: `async () => {
+      void (async () => {
+        for (;;) {
+          await h.storage.get("spin");
+        }
+      })().catch((e) => h.log.warn("continuation stopped: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: countingBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  expect(served).toBe(1);
+  firstRead.resolve(null);
+  await vi.waitFor(() => expect(host.readLog(probe.instance).some((line) => line.message.startsWith("continuation stopped"))).toBe(true));
+  expect(served).toBe(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
+  expect(host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message).toMatch(/continuation call budget/u);
+  host.dispose(probe.instance);
+});
+
+// The window half of the tail's bound: a SLOW chain never nears the call budget, so the refusal it meets after
+// the continuation window has to be the expired authority.
+test("a slow continuation is refused as stale once the continuation window has passed, well inside its call budget", {
+  timeout: PLUGIN_AUTHORITY_TAIL_MS + 2 * LONG,
+}, async () => {
+  let served = 0;
+  const base = bridge();
+  const slowBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () =>
+        new Promise((resolve) => {
+          served += 1;
+          setTimeout(() => resolve(null), CONTINUATION_STEP_MS);
+        }),
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        for (;;) {
+          await h.storage.get("tick");
+        }
+      })().catch((e) => h.log.warn("continuation stopped: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: slowBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time across two processes — the window is a wall-clock bound the app and the Worker each enforce, so no frozen clock reaches it.
+  const settledAt = performance.now();
+  const stopped = (): string | undefined => host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message;
+  await vi.waitFor(() => expect(stopped()).toBeDefined(), { timeout: PLUGIN_AUTHORITY_TAIL_MS + LONG, interval: 250 });
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — see the waiver above.
+  const elapsedMs = performance.now() - settledAt;
+
+  expect(stopped()).toContain("stale command authority");
+  expect(elapsedMs).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_MS);
+  expect(served).toBeLessThan(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
+  host.dispose(probe.instance);
+});
+
+test("a continuation acts only within its command's grants", { timeout: LONG }, async () => {
+  let writes = 0;
+  const base = bridge();
+  const recordingBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      set: () => {
+        writes += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        await h.storage.get("first");
+        await h.variables.set("outside", "the grant");
+      })().catch((e) => h.log.warn("refused: " + e.name));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: recordingBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  await vi.waitFor(() => expect(host.readLog(probe.instance).map((line) => line.message)).toContain("refused: PluginCapabilityError"));
+  expect(writes).toBe(0);
+  host.dispose(probe.instance);
+});
+
+test("broker exit during deactivation releases the runtime and a later lifecycle may reactivate", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const active = await host.createInstance({ ...durableSource("'active';"), grants: [], bridge: bridge(), chat: noChat });
+  if (!active.ok) {
+    throw new Error(active.error);
+  }
+  __killManagedPluginBrokerOnCommandForTest("dispose");
+  host.dispose(active.instance);
+  await expect(host.invoke(active.instance, "stale" as PluginHandlerRef, "{}", noChat)).rejects.toThrow(/unknown\/disposed instance/u);
+  await __terminateManagedPluginBrokerForTest();
+
+  const reactivated = await host.createInstance({ ...durableSource("'reactivated';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(reactivated.ok).toBe(true);
+  if (reactivated.ok) {
+    host.dispose(reactivated.instance);
+  }
+});
+
+test("broker death invalidates sleeping logical residents instead of silently replaying them", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const runtimeBridge = bridge();
+  const first = await activateTool(host, runtimeBridge);
+  const second = await activateTool(host, runtimeBridge);
+  const third = await activateTool(host, runtimeBridge);
+  await __terminateManagedPluginBrokerForTest();
+  await expect(host.invoke(first.instance, first.handler, "{}", noChat)).rejects.toMatchObject({ name: "PluginHostUnavailable" });
+  host.dispose(first.instance);
+  host.dispose(second.instance);
+  host.dispose(third.instance);
+
+  const explicit = await activateTool(host, runtimeBridge);
+  await expect(host.invoke(explicit.instance, explicit.handler, "{}", noChat)).resolves.toBe("done");
+  host.dispose(explicit.instance);
+});
+
+test("one hundred logical plugins remain discoverable and cold-callable through the configured bounded pool", { timeout: 180_000 }, async () => {
+  const host = createPluginHost(seams());
+  const runtimeBridge = bridge();
+  const residents: { readonly instance: PluginInstance; readonly handler: PluginHandlerRef; readonly value: string }[] = [];
+  try {
+    const activated: { readonly instance: PluginInstance; readonly handler: PluginHandlerRef; readonly value: string }[] = [];
+    for (let index = 0; index < 100; index += 1) {
+      const value = `value-${index}`;
+      const outcome = await host.createInstance({
+        ...durableSource(`
+            const h = orb.host(1);
+            h.tools.register({
+              name: "tool_${index}",
+              description: "resident ${index}",
+              parameters: { type: "object", properties: {} },
+              handler: () => ${JSON.stringify(value)},
+            });`),
+        grants: ["tools.register"],
+        bridge: runtimeBridge,
+        chat: noChat,
+      });
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) {
+        continue;
+      }
+      const handler = outcome.instance.tools[0]?.handler;
+      if (handler === undefined) {
+        throw new Error("test: logical plugin lost its tool registration");
+      }
+      activated.push({ instance: outcome.instance, handler, value });
+    }
+    residents.push(...activated);
+    expect(residents).toHaveLength(100);
+    expect(residents.every(({ instance }) => instance.tools.length === 1)).toBe(true);
+    const results: string[] = [];
+    for (const { instance, handler } of residents) {
+      results.push(await host.invoke(instance, handler, "{}", noChat));
+    }
+    expect(results).toEqual(residents.map(({ value }) => value));
+  } finally {
+    for (const resident of residents) {
+      host.dispose(resident.instance);
+    }
+  }
+});
+
+test("a near-limit durable source is reloaded on cold wake before catalog comparison without replaying its activation write", { timeout: LONG }, async () => {
+  let writes = 0;
+  const base = bridge();
+  const runtimeBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () => Promise.resolve("catalog-ready"),
+      set: () => {
+        writes += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  let reloads = 0;
+  const source = `
+      const h = orb.host(1);
+      void (async () => {
+        await h.storage.get("catalog");
+        h.tools.register({
+          name: "async_tool",
+          description: "async registration",
+          parameters: { type: "object", properties: {} },
+          handler: () => "rehydrated",
+        });
+        await h.storage.set("activation_effect", "once");
+      })().catch(() => {});\n/*${"x".repeat(900_000)}*/`;
+  expect(source.length).toBeGreaterThan(890_000);
+  const asyncPlugin = await host.createInstance({
+    ...durableSource(source, () => {
+      reloads += 1;
+      return Promise.resolve(source);
+    }),
+    grants: ["tools.register", "storage.kv"],
+    bridge: runtimeBridge,
+    chat: noChat,
+  });
+  if (!asyncPlugin.ok) {
+    throw new Error(asyncPlugin.error);
+  }
+  const fillers: PluginInstance[] = [];
+  try {
+    const handler = asyncPlugin.instance.tools[0]?.handler;
+    if (handler === undefined) {
+      throw new Error("test: async registration did not settle before activation returned");
+    }
+    expect(writes).toBe(1);
+    // Fill every remaining warm slot up to the configured physical cap so the pool must evict the async
+    // plugin's runtime (LRU, unpinned) — matching the sibling lifecycle tests below.
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+      const filler = await host.createInstance({ ...durableSource(`'filler-${index}'`), grants: [], bridge: base, chat: noChat });
+      if (!filler.ok) {
+        throw new Error(filler.error);
+      }
+      fillers.push(filler.instance);
+    }
+    await expect(host.invoke(asyncPlugin.instance, handler, "{}", noChat)).resolves.toBe("rehydrated");
+    expect(reloads).toBe(1);
+    expect(writes).toBe(1);
+    expect(asyncPlugin.instance.tools).toHaveLength(1);
+  } finally {
+    host.dispose(asyncPlugin.instance);
+    for (const filler of fillers) {
+      host.dispose(filler);
+    }
+  }
+});
+
+async function assertShowcaseColdWake(host: ReturnType<typeof createPluginHost>, slug: string): Promise<void> {
+  const runtimeBridge = bridge();
+  const [bundle, manifest] = await Promise.all([packShowcaseBundle(slug), readShowcaseManifest(slug)]);
+  if (bundle === null || manifest === null) {
+    throw new Error(`${slug}: release-built showcase bundle is missing`);
+  }
+  const entry = unzipSync(bundle)[PLUGIN_MAIN_ENTRY];
+  if (entry === undefined) {
+    return;
+  }
+  const mainJs = new TextDecoder().decode(entry);
+  let reloads = 0;
+  const outcome = await host.createInstance({
+    ...durableSource(mainJs, () => {
+      reloads += 1;
+      return Promise.resolve(mainJs);
+    }),
+    grants: manifest.capabilities,
+    bridge: runtimeBridge,
+    chat: noChat,
+    label: slug,
+    ...(manifest.netHosts === undefined ? {} : { netHosts: manifest.netHosts }),
+  });
+  if (!outcome.ok) {
+    throw new Error(`${slug}: ${outcome.error}`);
+  }
+  const instance = outcome.instance;
+  const handler =
+    instance.surfaces.find((surface) => surface.onAction !== undefined)?.onAction ??
+    instance.tools[0]?.handler ??
+    instance.transforms[0]?.handler ??
+    instance.events[0]?.handler ??
+    instance.pubsub[0]?.handler ??
+    instance.commands[0]?.onRun ??
+    instance.displayTransforms[0]?.handler ??
+    instance.macros[0]?.handler;
+  const catalog = JSON.stringify(instance);
+  const input = JSON.stringify({ actionId: "__rehydration_probe__", values: {}, chat: null, draft: "proof draft", env: {} });
+  const warm = handler === undefined ? undefined : await Promise.allSettled([host.invoke(instance, handler, input, noChat)]);
+  const fillers: PluginInstance[] = [];
+  try {
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+      const filler = await host.createInstance({ ...durableSource(`'${slug}-filler-${index}'`), grants: [], bridge: runtimeBridge, chat: noChat });
+      if (!filler.ok) {
+        throw new Error(filler.error);
+      }
+      fillers.push(filler.instance);
+    }
+    const cold = handler === undefined ? undefined : await Promise.allSettled([host.invoke(instance, handler, input, noChat)]);
+    expect(reloads, `${slug} wakes only for a server callback`).toBe(handler === undefined ? 0 : 1);
+    expect(JSON.stringify(instance)).toBe(catalog);
+    expect(cold).toEqual(warm);
+    expect(outcome.instance).toBe(instance);
+  } finally {
+    host.dispose(instance);
+    for (const filler of fillers) {
+      host.dispose(filler);
+    }
+  }
+}
+
+test("every showcase retains its catalog through eviction and its callbacks through a cold wake", { timeout: 300_000 }, async () => {
+  expect.hasAssertions();
+  const host = createPluginHost(seams());
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    await assertShowcaseColdWake(host, slug);
+  }
+});
+
+const BROKER_ENTRY = fileURLToPath(new URL("../../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
+
+const WATCHDOG_ENTRY = fileURLToPath(new URL("../../../../../packages/server/src/infra/plugin-host/broker-watchdog.ts", import.meta.url));
+
+interface LiveProcess {
+  readonly execArgv: readonly string[];
+  readonly environ: readonly string[];
+  readonly cwd: string;
+}
+
+function liveProcess(pid: string, entry: string): LiveProcess | null {
+  const argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0");
+  const index = argv.indexOf(entry);
+  return index > 0
+    ? {
+        execArgv: argv.slice(1, index),
+        environ: readFileSync(`/proc/${pid}/environ`, "utf8").split("\0").filter(Boolean),
+        cwd: readlinkSync(`/proc/${pid}/cwd`),
+      }
+    : null;
+}
+
+// The live broker and its watchdog, read from /proc: the app spawns the watchdog, which spawns the broker, so the test
+// holds neither pid. The private directory identifies this process tree; the watchdog is the broker parent.
+function livePluginProcesses(brokerDirectory: string): { readonly broker: LiveProcess; readonly watchdog: LiveProcess } {
+  for (const pid of readdirSync("/proc").filter((entry) => /^\d+$/u.test(entry))) {
+    let argv: string[];
+    try {
+      argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0");
+    } catch {
+      continue;
+    }
+    if (argv[argv.indexOf(BROKER_ENTRY) + 1] !== brokerDirectory) {
+      continue;
+    }
+    const parent = /^PPid:\s+(\d+)$/mu.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1];
+    const broker = liveProcess(pid, BROKER_ENTRY);
+    const watchdog = parent === undefined ? null : liveProcess(parent, WATCHDOG_ENTRY);
+    if (broker !== null && watchdog !== null) {
+      return { broker, watchdog };
+    }
+  }
+  throw new Error(`test: no live broker serves ${brokerDirectory}`);
+}
+
+test.skipIf(process.platform !== "linux")(
+  "every showcase plugin activates in a broker the watchdog started under the permission model",
+  { timeout: 180_000 },
+  async () => {
+    const host = createPluginHost(seams());
+    const activated: string[] = [];
+    for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+      const [bundle, manifest] = await Promise.all([packShowcaseBundle(slug), readShowcaseManifest(slug)]);
+      if (bundle === null || manifest === null) {
+        throw new Error(`${slug}: release-built showcase bundle is missing`);
+      }
+      const entry = unzipSync(bundle)[PLUGIN_MAIN_ENTRY];
+      // A frame-only plugin ships no server main.
+      if (entry === undefined) {
+        continue;
+      }
+      const outcome = await host.createInstance({
+        ...durableSource(new TextDecoder().decode(entry)),
+        grants: manifest.capabilities,
+        bridge: bridge(),
+        chat: noChat,
+        label: slug,
+        ...(manifest.netHosts === undefined ? {} : { netHosts: manifest.netHosts }),
+      });
+      if (!outcome.ok) {
+        throw new Error(`${slug}: ${outcome.error}`);
+      }
+      activated.push(slug);
+      host.dispose(outcome.instance);
+    }
+    expect(activated.length).toBeGreaterThan(SHOWCASE_PLUGIN_SLUGS.length / 2);
+
+    const brokerDirectory = __readManagedPluginDirectoryForTest();
+    if (brokerDirectory === undefined) {
+      throw new Error("test: the app holds no broker endpoint");
+    }
+    const { broker, watchdog } = livePluginProcesses(brokerDirectory);
+    expect(watchdog.execArgv).toEqual(pluginWatchdogExecArgv());
+    expect(broker.execArgv).toEqual(pluginBrokerExecArgv());
+    // A watchdog under --permission would hand its own grants, child processes included, to a spawn without any.
+    expect(broker.environ.filter((entry) => entry.startsWith("NODE_OPTIONS="))).toEqual([]);
+    // A Worker under the permission model can read its process's working directory, so neither runs in the app's.
+    expect([watchdog.cwd, broker.cwd]).toEqual([brokerDirectory, brokerDirectory]);
+  },
+);
+
+test.each(["disable", "upgrade", "uninstall"] as const)(
+  "%s during a deferred cold loader cannot publish a Worker or reach the retired bridge",
+  {
+    timeout: 180_000,
+  },
+  async (lifecycle) => {
+    let bridgeEffects = 0;
+    const base = bridge();
+    const staleBridge: PluginBridge = {
+      ...base,
+      variables: {
+        ...base.variables,
+        get: () => {
+          bridgeEffects += 1;
+          return Promise.resolve("stale");
+        },
+      },
+    };
+    const { promise: started, resolve: loaderStarted } = Promise.withResolvers<void>();
+    const { promise: loaderGate, resolve: releaseLoader } = Promise.withResolvers<void>();
+    const source = `
+      const h = orb.host(1);
+      void h.variables.get("activation");
+      h.tools.register({
+        name: "stale",
+        description: "stale",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.get("invoke"); return "stale"; },
+      });`;
+    const host = createPluginHost(seams());
+    const victim = await host.createInstance({
+      ...durableSource(source, async () => {
+        loaderStarted();
+        await loaderGate;
+        return source;
+      }),
+      grants: ["tools.register", "global_vars"],
+      bridge: staleBridge,
+      chat: noChat,
+    });
+    if (!victim.ok) {
+      throw new Error(victim.error);
+    }
+    const handler = victim.instance.tools[0]?.handler;
+    if (handler === undefined) {
+      throw new Error("test: victim tool did not register");
+    }
+    const fillers: PluginInstance[] = [];
+    let replacement: PluginInstance | undefined;
+    try {
+      for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+        const filler = await host.createInstance({ ...durableSource(`'filler-${index}'`), grants: [], bridge: base, chat: noChat });
+        if (!filler.ok) {
+          throw new Error(filler.error);
+        }
+        fillers.push(filler.instance);
+      }
+      bridgeEffects = 0;
+      const invocation = host.invoke(victim.instance, handler, "{}", noChat);
+      await started;
+
+      // Disable and uninstall both terminate the resident. Upgrade does the same first, then publishes a
+      // replacement binding; the paused old loader must be unable to cross either lifecycle transition.
+      host.dispose(victim.instance);
+      if (lifecycle === "upgrade") {
+        const upgraded = await host.createInstance({
+          ...durableSource("'replacement';"),
+          grants: [],
+          bridge: base,
+          chat: noChat,
+        });
+        if (!upgraded.ok) {
+          throw new Error(upgraded.error);
+        }
+        replacement = upgraded.instance;
+      }
+      releaseLoader();
+
+      await expect(invocation).rejects.toThrow(/lifecycle changed/u);
+      expect(bridgeEffects).toBe(0);
+    } finally {
+      releaseLoader();
+      host.dispose(victim.instance);
+      if (replacement !== undefined) {
+        host.dispose(replacement);
+      }
+      for (const filler of fillers) {
+        host.dispose(filler);
+      }
+    }
+  },
+);
+
+test("dispose during cold activation retires the partially published runtime before replacement", { timeout: 180_000 }, async () => {
+  let activationCalls = 0;
+  const coldStarted = Promise.withResolvers<void>();
+  const coldGate = Promise.withResolvers<string | null>();
+  const base = bridge();
+  const runtimeBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      get: () => {
+        activationCalls += 1;
+        if (activationCalls === 1) {
+          return Promise.resolve("ready");
+        }
+        if (activationCalls === 2) {
+          coldStarted.resolve();
+          return coldGate.promise;
+        }
+        return Promise.resolve("invoked");
+      },
+    },
+  };
+  const source = `
+    const h = orb.host(1);
+    void (async () => {
+      await h.variables.get("activation");
+      h.tools.register({
+        name: "partial",
+        description: "partial",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.get("invoke"); return "stale"; },
+      });
+    })().catch(() => {});`;
+  const host = createPluginHost(seams());
+  const victim = await host.createInstance({
+    ...durableSource(source),
+    grants: ["tools.register", "global_vars"],
+    bridge: runtimeBridge,
+    chat: noChat,
+  });
+  if (!victim.ok) {
+    throw new Error(victim.error);
+  }
+  const handler = victim.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: partial tool did not register");
+  }
+  const fillers: PluginInstance[] = [];
+  let replacement: PluginInstance | undefined;
+  try {
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+      const filler = await host.createInstance({
+        ...durableSource(`'partial-filler-${index}'`),
+        grants: [],
+        bridge: base,
+        chat: noChat,
+      });
+      if (!filler.ok) {
+        throw new Error(filler.error);
+      }
+      fillers.push(filler.instance);
+    }
+    const invocation = host.invoke(victim.instance, handler, "{}", noChat);
+    await coldStarted.promise;
+    host.dispose(victim.instance);
+    coldGate.resolve("ready");
+
+    await expect(invocation).rejects.toThrow();
+    expect(activationCalls).toBe(2);
+    const created = await host.createInstance({
+      ...durableSource("'replacement';"),
+      grants: [],
+      bridge: base,
+      chat: noChat,
+    });
+    expect(created.ok).toBe(true);
+    if (created.ok) {
+      replacement = created.instance;
+    }
+  } finally {
+    coldGate.resolve("ready");
+    host.dispose(victim.instance);
+    if (replacement !== undefined) {
+      host.dispose(replacement);
+    }
+    for (const filler of fillers) {
+      host.dispose(filler);
+    }
+  }
+});

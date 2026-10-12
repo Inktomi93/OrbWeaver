@@ -19,7 +19,7 @@ export type { ToolCallInput } from "@orb/inference";
  *  tools" tense died with #648): the `run_tool` arm is a member of the action tuple
  *  (`contracts/automation/index.ts`), executed at `engine/arm-executors.ts` and composed at
  *  `entry/compose/automation-plugin.ts` (composed-real tested in
- *  `tests/server/entry/compose/automation-plugin.int.test.ts`); per-TURN attach rides the S2
+ *  `tests/legacy/server/entry/compose/automation-plugin.int.test.ts`); per-TURN attach rides the S2
  *  `toolNames` axis. Rules resolve tools AUTHOR-scoped through the per-owner registry partition
  *  (`substrate/partition.ts`, #677). */
 export const TOOL_SOURCES = ["builtin", "plugin"] as const;

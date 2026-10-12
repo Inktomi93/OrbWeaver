@@ -13,7 +13,7 @@
 // motion-stats.ts already classifies (`virtualized: true`) and warn-suppresses but still folded into the
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
-// half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
+// half — that a virtualized-tagged shift really does move only raw — is tests/legacy/client/lib/motion-stats.ct.tsx.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence, MotionFlagRecord } from "../../../tooling/src/motion-audit/index.ts";

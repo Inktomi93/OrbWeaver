@@ -35,7 +35,7 @@ import { createGatherRetrieval } from "../../../packages/server/src/domain/datab
 import { countOwnedVectors } from "../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
 import type { SearchService } from "../../../packages/server/src/domain/search/index.ts";
 import { seedLocalLightOnBoot } from "../../../packages/server/src/entry/boot/seed-local-light.ts";
-import { makeChatContext } from "../../../tests/server/domain/chat/_support.ts";
+import { makeChatContext } from "../../../tests/legacy/server/domain/chat/_support.ts";
 import {
   makeSearch,
   seedAsset,
@@ -51,7 +51,7 @@ import {
   seedImageEmbedding,
   seedUser,
   vec,
-} from "../../../tests/server/domain/search/_support.ts";
+} from "../../../tests/legacy/server/domain/search/_support.ts";
 import { ROOMS } from "../speaker-pick/fixtures.ts";
 import type { LongItem } from "./corpus.ts";
 import { ARC_CREDITS, ARC_TEXTS, CAPTIONS, GAZETTEER_CHUNKS, PERSONA_TEXTS, QUERIES, reachSweep } from "./corpus.ts";

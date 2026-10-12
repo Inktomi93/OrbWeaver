@@ -132,7 +132,7 @@ export function compositeOver(fg: Rgb, bg: Rgb, alpha: number): Rgb {
 
 const quantize = (c: Rgb): Rgb => ({ r: Math.round(c.r), g: Math.round(c.g), b: Math.round(c.b) });
 /** The WORSE of the float and 8-bit-quantized ratio — the pixel a reader sees is the rounded one
- *  (the house rule, tests/ui/content/theme-scope/palette-contrast.suite.test.ts). */
+ *  (the house rule, tests/legacy/ui/content/theme-scope/palette-contrast.suite.test.ts). */
 export function worstContrast(a: Rgb, b: Rgb): number {
   return Math.min(wcagContrastRatio(a, b), wcagContrastRatio(quantize(a), quantize(b)));
 }

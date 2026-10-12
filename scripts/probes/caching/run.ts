@@ -23,7 +23,7 @@ import { responseCacheOf } from "../../../packages/inference/src/backends/http/r
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { redactSecretsFromText } from "../../../packages/inference/src/backends/wire/openai-body.ts";
 import type { ProviderScrubSet } from "../../../packages/inference/src/contract/errors.ts";
-import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../tests/inference/backends/_hosted-support.ts";
+import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../tests/legacy/inference/backends/_hosted-support.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import { appendEvidence } from "./evidence.ts";
 import type { Scenario } from "./scenario.ts";

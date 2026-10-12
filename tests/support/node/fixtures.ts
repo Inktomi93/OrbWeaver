@@ -124,7 +124,7 @@ function refusingFetch(): typeof fetch {
 }
 
 // No-op rate-limit gate: integration tests through these callers must not throttle as a side effect of
-// the ladder; the rate-limit primitive has its own slice test (tests/server/transport/rate-limit).
+// the ladder; the rate-limit primitive has its own slice test (tests/legacy/server/transport/rate-limit).
 const ALLOW_ALL_RATE_LIMIT: RateLimitGate = { enforce: (): Promise<void> => Promise.resolve() };
 
 /** Seed the caller's `users` row (the FK target for everything it creates) and build its Principal. */

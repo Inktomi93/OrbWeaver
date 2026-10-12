@@ -10,6 +10,7 @@ import type { Expression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { resolveExportedDeclarations } from "../../floor/code-facts/reference-fact.ts";
 import type { TestFamily } from "../../floor/testing/test-kinds.ts";
+import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
@@ -445,6 +446,9 @@ function declaredFamilies(
       out.set(subject, (out.get(subject) ?? new Set<TestFamily>()).add(family));
       continue;
     }
+    if (isLegacyTestPath(test)) {
+      continue;
+    }
     ctx.report.file(test, {
       line: 1,
       column: 1,
@@ -545,7 +549,8 @@ export const gate = defineGate({
   family: "mirror-index",
   authority: "reviewed-grant",
   severity: "error",
-  population: ["@server", "@contracts", "@inference", "@client", "@ui", "@tests"],
+  // Legacy tests still prove reach until their rebuilt suite replaces them; only their `@subject` headers go unjudged.
+  population: ["@server", "@contracts", "@inference", "@client", "@ui", "@tests", "@legacy-tests"],
   // `resource` keeps the checker (alias resolution through barrels) and admits the mirror-index declarations.
   analysis: "resource",
   // Reach is a whole-graph relation: a changed test can drop a module no selected file names.

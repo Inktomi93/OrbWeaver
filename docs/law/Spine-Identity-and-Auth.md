@@ -92,7 +92,7 @@ Code comments cite the numbered invariants below as "invariant N":
    path is refused (403) when `x-orb-csrf` is missing; the fallback path with `application/json` and no
    `x-orb-csrf` still runs (200) — the un-cookied loopback dev tooling relies on that. GET is untouched —
    tRPC's method map admits GET for queries and subscriptions only. Enforcer:
-   `tests/server/entry/app.test.ts:565`, the describe covering the tRPC mount's refusal of a non-JSON
+   `tests/legacy/server/entry/app.test.ts:565`, the describe covering the tRPC mount's refusal of a non-JSON
    mutation, driven through the real mount. The tRPC gate rests on this: `application/json` is not a
    CORS-simple content-type, and this app mounts no CORS middleware.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the

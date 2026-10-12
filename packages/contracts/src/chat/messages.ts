@@ -229,7 +229,7 @@ const pluginProviderMetadataSchema = z.object({
  *  where `safeParse` does not contain it and neither does `.catch`. A throwing read seam is strictly
  *  worse than the open bag it replaced (it fails the history read that lists a chat), so the named arms keep
  *  their fast literal dispatch and the pattern arm is a plain union member beside them. Pinned by the
- *  `providerMetadata union is CLOSED by provider` case in tests/contracts/chat/messages.contract.test.ts. */
+ *  `providerMetadata union is CLOSED by provider` case in tests/legacy/contracts/chat/messages.contract.test.ts. */
 export const variantProviderMetadataSchema = z.union([namedProviderMetadataSchema, pluginProviderMetadataSchema]);
 /** The parsed `providerMetadata` arm — what a typed reader (an OpenRouter cost pill, a cache-receipt badge)
  *  narrows on. A plugin provider's arm carries `raw` and NO reader by key. */

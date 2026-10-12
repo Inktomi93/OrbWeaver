@@ -108,7 +108,7 @@ packages/ui/
   import) — the generated `@theme` rides inside it.
 - **`package-layout` gate:** `ui` is added to `tooling/src/verify/gates/package-layout.ts` (no loose
   `.ts` at `src/` root except nothing — even `index.ts` doesn't exist here) and `test-layout.ts`
-  gains the `tests/ui` mirror.
+  gains `tests/legacy/ui`.
 
 ## 3. Dependencies — the sealed satellites (each lib seals ONE dir)
 
@@ -171,7 +171,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
   API) emits BOTH `src/styles/theme.css` (the Tailwind v4 `@theme` block → utility namespaces) and
   `src/tokens/index.ts` (the typed TS map). Both are **committed, generated artifacts** with a
   DO-NOT-EDIT header.
-- **Freshness is machine-enforced:** `tests/ui/tokens/index.test.ts` re-runs the codegen
+- **Freshness is machine-enforced:** `tests/legacy/ui/tokens/index.test.ts` re-runs the codegen
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
   from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
 - **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
@@ -281,8 +281,8 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 | runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
 | deferred | `no-media-queries-in-features` as a gate (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |
 
-**CT wiring:** the root `playwright-ct.config.ts` gains `testDir: "tests"` (covers `tests/ui` +
-`tests/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
+**CT wiring:** the root `playwright-ct.config.ts` gains `testDir: "tests"` (covers `tests/legacy/ui`,
+`tests/legacy/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
 entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-browser).
 
 ## 9. Build order

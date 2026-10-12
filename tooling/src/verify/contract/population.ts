@@ -55,6 +55,10 @@ export const POPULATION_ROOTS = {
   "@inference": ["packages/inference/src/"],
   "@tooling": ["tooling/src/"],
   "@tests": ["tests/"],
+  /** The legacy test folder (`docs/plans/test-foundation/design.md`, item 961): tests not yet rebuilt. It is NESTED
+   *  inside `@tests`, and a path belongs to its most specific root, so `@tests` and every set built on it exclude
+   *  this subtree. A policy that reads legacy tests as evidence declares this root itself. */
+  "@legacy-tests": ["tests/legacy/"],
   "@scripts": ["scripts/"],
 } as const satisfies Readonly<Record<`@${string}`, readonly string[]>>;
 
@@ -103,6 +107,10 @@ const AUTHORED_MEMBERSHIP: Readonly<Record<PopulationRoot, AuthoredMembership>> 
   "@inference": { authored: true },
   "@tooling": { authored: true },
   "@tests": { authored: true },
+  "@legacy-tests": {
+    authored: false,
+    why: "legacy tests run in CI as the regression net and are rewritten, never retrofitted, so the strict gates do not judge them (item 961)",
+  },
   "@scripts": { authored: true },
 };
 
@@ -170,6 +178,7 @@ const PRODUCT_MEMBERSHIP = {
       "declarers exclude it for a load-bearing reason of their own — scanning tests reds their own proofs " +
       "(`freeze-provenance.ts`'s declared limit). A policy whose subject is a test declares `@tests` itself",
   },
+  "@legacy-tests": { product: false, why: "legacy tests mirror product sources and are outside every strict gate" },
   "@scripts": {
     product: false,
     why: "repo-level dev supervisors, probes and one-shots: authored, never shipped, and imported by nothing the product runs",

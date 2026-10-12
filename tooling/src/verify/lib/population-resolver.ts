@@ -240,12 +240,24 @@ function matchesAny(value: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(value));
 }
 
+// Longest first: a path belongs to its MOST SPECIFIC root, so a nested root (`@legacy-tests` inside `@tests`)
+// carves its subtree out of the enclosing root rather than being counted by both.
+const ROOT_PATHS_BY_SPECIFICITY: readonly string[] = Object.values(POPULATION_ROOTS)
+  .flat()
+  .toSorted((left, right) => right.length - left.length);
+
+function owningRoot(path: string): string | undefined {
+  return ROOT_PATHS_BY_SPECIFICITY.find((root) => path.startsWith(root));
+}
+
 function hasRoot(path: string, roots: readonly string[]): boolean {
-  return roots.some((root) => path.startsWith(root));
+  const owner = owningRoot(path);
+  return owner !== undefined && roots.includes(owner);
 }
 
 function isFlatChild(path: string, roots: readonly string[]): boolean {
-  return roots.some((root) => path.startsWith(root) && !path.slice(root.length).includes("/"));
+  const owner = owningRoot(path);
+  return owner !== undefined && roots.includes(owner) && !path.slice(owner.length).includes("/");
 }
 
 function passesNameFilters(basename: string, named: readonly RegExp[] | undefined, notNamed: readonly RegExp[] | undefined): boolean {

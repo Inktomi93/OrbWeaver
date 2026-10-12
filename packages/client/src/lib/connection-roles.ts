@@ -200,7 +200,7 @@ export function bindRefusal(row: { readonly allowBackground: boolean }, task: Ro
 // runs on something when nothing runs at all.
 //
 // THE DIVERGENCE CONDITION IS DRAFT-vs-PERSISTED, NEVER REQUEST-IN-FLIGHT. A `busDriven` write's read
-// serves the PRE-write row between its 200 and the bus tick (`tests/client/data/_ct-stories.tsx`, the
+// serves the PRE-write row between its 200 and the bus tick (`tests/legacy/client/data/_ct-stories.tsx`, the
 // `createEntityMutation` `echo` seam), so a surface keying honesty on request state calls a SAVED
 // selection unsaved for the length of that window. `draftConnectionId === undefined` means the picker has
 // not been touched this mount, which is the only state that can never diverge.

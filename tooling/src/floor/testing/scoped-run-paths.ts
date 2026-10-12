@@ -35,6 +35,7 @@
 // honest question to ask of a pattern.
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
+import { isLegacyTestPath, LEGACY_SCOPED_FLAG, LEGACY_TEST_ROOT } from "./test-population.ts";
 
 /** One caller-supplied operand, resolved against the repo root once so every arm reads the same facts. */
 export interface ScopedOperand {
@@ -135,5 +136,55 @@ export function barrenRefusal(barren: readonly ScopedOperand[], collected: reado
     `(${String(collected.length)} test file(s) collected in total).\n` +
     "  usual causes: a --grep/--project/-t filter that excludes everything in the file, a support module " +
     "named as if it were a spec, or a spec whose every case is skipped."
+  );
+}
+
+const LEGACY_REFUSAL =
+  `runs in CI's legacy jobs, not in a lane floor (docs/plans/test-foundation/design.md, the legacy folder).\n` +
+  `  pass ${LEGACY_SCOPED_FLAG} to run legacy tests on purpose, or name tests outside ${LEGACY_TEST_ROOT}/.`;
+
+/** A path claim inside the legacy folder, or a directory that holds it (`tests`, the repo root), made without
+ *  the opt-in flag. */
+export function legacyOperandRefusal(operands: readonly ScopedOperand[]): string | undefined {
+  const legacy = operands.filter(({ rel }) => rel !== undefined && (isLegacyTestPath(rel) || rel === "" || LEGACY_TEST_ROOT.startsWith(`${rel}/`)));
+  return legacy.length === 0 ? undefined : `${legacy.map(({ raw }) => raw).join(", ")} ${LEGACY_REFUSAL}`;
+}
+
+/** A pattern operand can still collect legacy files; the refusal names how many. */
+export function collectedLegacyRefusal(collected: readonly string[]): string | undefined {
+  const legacy = collected.filter(isLegacyTestPath);
+  return legacy.length === 0 ? undefined : `the selection collects ${String(legacy.length)} legacy test file(s), which ${LEGACY_REFUSAL}`;
+}
+
+/** The scoped doors keep the legacy folder out unless the caller opts in; the flag never reaches the runner. */
+export function splitLegacyFlag(argv: readonly string[]): { readonly legacy: boolean; readonly rest: readonly string[] } {
+  return { legacy: argv.includes(LEGACY_SCOPED_FLAG), rest: argv.filter((arg) => arg !== LEGACY_SCOPED_FLAG) };
+}
+
+/** THE CT TITLE FILTER NEEDS A PATH (#2457, second half of the same door). `pnpm test:ct -g='<title>'`
+ *  with no path operand collects ZERO specs and exits 1 — even for a title a path-scoped run executes.
+ *  Measured 2026-09-19 on the unmodified door: `pnpm test:ct -g='aria-expanded follows'` (a title that
+ *  lives in tests/legacy/client/features/config/components/config-search-input.ct.tsx) printed
+ *  `CT SUMMARY — FAILED · 0 passed · 0 failed · 0 flaky · 0 skipped` and exited 1 — a run that certifies
+ *  nothing while LOOKING like a failing test. There is nothing for the
+ *  preflight to audit either: with no path claims it returns early and never collects, so the barren arm
+ *  cannot see it. Refuse at parse instead, naming the operand that makes the invocation real.
+ *
+ *  CT ONLY. A bare `-t` on the NODE tier is a supported shape (vitest scans its projects and the door
+ *  records the empty attribution as "no type claim" — `nodeConfigModeArgs`), so the same refusal there
+ *  would break a working invocation. */
+export function bareCtGrepRefusal(rest: readonly string[], pathOperandCount: number): string | undefined {
+  if (pathOperandCount > 0) {
+    return;
+  }
+  const grep = rest.find((arg) => arg === "-g" || arg === "--grep" || arg.startsWith("-g=") || arg.startsWith("--grep="));
+  if (grep === undefined) {
+    return;
+  }
+  const flag = grep.includes("=") ? grep.slice(0, grep.indexOf("=")) : grep;
+  return (
+    `${flag} needs a path operand: the CT config answers a title filter with no spec path by collecting nothing and exiting 1,\n` +
+    "  so a bare title filter is a run that says nothing about the title it named.\n" +
+    "  name the spec(s) too: pnpm test:ct tests/ui/x.ct.tsx -g='<title>'"
   );
 }

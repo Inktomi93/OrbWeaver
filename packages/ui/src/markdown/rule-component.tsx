@@ -25,7 +25,7 @@
 // seal root's descendant variant (markdown.tsx) rather than as a utility on this element, because the
 // root's own spacing trim (`space-y-0`, the compiled replacement for the vendor's 1rem block gap) governs
 // every direct child's block margins and would otherwise decide this one. Pinned by rendered GEOMETRY in
-// tests/ui/markdown/markdown-typography.ct.tsx, never by class string.
+// tests/legacy/ui/markdown/markdown-typography.ct.tsx, never by class string.
 import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import type { StreamdownProps } from "streamdown";
 import { cn } from "#lib";

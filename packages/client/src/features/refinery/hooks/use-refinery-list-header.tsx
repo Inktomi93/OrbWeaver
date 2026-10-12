@@ -26,7 +26,7 @@ import { useRefineryCensus } from "./use-refinery-sessions.ts";
  * affordance sat in the content pane below a scroll. The owner ruled the inversion IS the defect: "the
  * primary action must not be a visible dead control while the real affordance hides below the fold."
  * (The kept-as-designed review this reverses, and the CT pin that recorded it, are named in
- * `tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx`.)
+ * `tests/legacy/client/features/refinery/surfaces/refinery-list-surface.ct.tsx`.)
  *
  * So the `+` now opens the SAME picker the landing shows and fires the SAME flow (`useOpenRefinery` —
  * one resume-or-mint rule for all three doors), from cold open and with a session open alike. The

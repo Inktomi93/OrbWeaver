@@ -55,7 +55,7 @@ export const badgeVariants = tv({
       // had been dropped. A user pasting that into a bug report, a diff or another template gets prose
       // with holes in it. `select-text` is declared on the SIZE axis, so tailwind-merge's `select` group
       // resolves it over the base. Pinned by a Selection read in
-      // tests/client/features/preset/components/macro-text.ct.tsx.
+      // tests/legacy/client/features/preset/components/macro-text.ct.tsx.
       // …and a FIFTH thing, which the F-6 fix could not have foreseen and side-eye N-1 (2026-08-19)
       // measured: `display:inline` is an inline box, and Tailwind's PREFLIGHT blockifies every `svg`. A
       // block child SPLITS an inline box in two — so the icon+label chip this primitive's own doc invites
@@ -66,7 +66,7 @@ export const badgeVariants = tv({
       // it on the x-height rather than dropping it to the baseline (an `xs` glyph on a 13px run then fits
       // inside the run's own inline box, so the line rhythm is still arithmetically unchanged), and
       // `me-field` is the gap the base's `gap-field` cannot supply here — `gap` is a flex property and this
-      // arm is deliberately not a flex box. Pinned by geometry in tests/ui/primitives/badge/badge.ct.tsx.
+      // arm is deliberately not a flex box. Pinned by geometry in tests/legacy/ui/primitives/badge/badge.ct.tsx.
       inline: "inline select-text rounded-inset [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle",
       // THE INDICATOR ARM (#1798) — the CHILDLESS dot: "something is here", with no number in it. The owner
       // ruled the counted pill out of the topbar bell ("ugly as fuck"): a full status pill — the lozenge that
@@ -111,7 +111,7 @@ export const badgeVariants = tv({
     // ONE tint strength, no per-intent exception to keep in sync. The hairline stays at /30, so the pill
     // keeps its shape and reads as a `soft` chip, not a ghost (the destructive arm has shipped at 8% since
     // 2026-08-08 and reads correctly). Pinned by canvas-composited contrast measurements in BOTH polarities
-    // in tests/ui/primitives/badge/badge.ct.tsx, and statically for every seed by the
+    // in tests/legacy/ui/primitives/badge/badge.ct.tsx, and statically for every seed by the
     // `seed-theme-ink-contrast` gate.
     { intent: "neutral", tone: "soft", class: "bg-muted/8 text-muted-foreground border-border" },
     { intent: "primary", tone: "soft", class: "bg-primary/8 text-primary border-primary/30" },
@@ -132,7 +132,7 @@ export const badgeVariants = tv({
     // outside a line box they cannot grow. Declared LAST so tailwind-merge's border-width group resolves in
     // its favour over the tone's `border`; the tone's `border-<intent>/30` is a different group and simply
     // stops being painted. Pinned by computed border-width in
-    // tests/client/features/preset/components/macro-text.ct.tsx (the one in-flow consumer).
+    // tests/legacy/client/features/preset/components/macro-text.ct.tsx (the one in-flow consumer).
     { size: "inline", class: "border-0" },
   ],
   defaultVariants: { intent: "neutral", tone: "solid", size: "sm" },

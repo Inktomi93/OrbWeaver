@@ -46,6 +46,7 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
 import { MEMBER_ACCESS_KINDS } from "../lib/symbol-reference.ts";
 
@@ -117,7 +118,11 @@ export const gate = defineGate({
   family: "no-form-state-in-useeffect",
   authority: "ordinary",
   severity: "error",
-  population: { of: "all", why: "a form can be wired into a useEffect from any authored file — the anti-pattern is not tier-scoped" },
+  population: {
+    of: "all",
+    why: "a form can be wired into a useEffect from any authored file — the anti-pattern is not tier-scoped",
+    notUnder: [`${LEGACY_TEST_ROOT}/**`],
+  },
   analysis: "syntax",
   execution: "selected-files",
   facts: [],

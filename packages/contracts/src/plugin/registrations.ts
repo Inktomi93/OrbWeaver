@@ -84,7 +84,7 @@ export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
  *  mint is injective. It is stated rather than shipped: nothing in the app decodes a wire name — the client
  *  consumes the server's projected `toolWireName` and the #1391 data migration keys off the installed
  *  plugins' own slugs — so a production decoder would be an unused second home for the rule. The rule is
- *  PINNED as an executable decoder in `tests/contracts/plugin/ui-tool-wire-names.contract.test.ts`, which is what keeps this
+ *  PINNED as an executable decoder in `tests/legacy/contracts/plugin/ui-tool-wire-names.contract.test.ts`, which is what keeps this
  *  proof falsifiable.
  *
  *  LENGTH WAS A SEPARATE WALL that this change's own doubling made worse, and #1803 closed it at the

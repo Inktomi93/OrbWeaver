@@ -26,7 +26,7 @@ export const HIDE_AT_COARSE = "pointer-coarse:hidden";
  *  `display: none`, so the element it hides is out of the a11y tree as well as out of layout — correct for
  *  an alternative spelling of a control that exists in both arms, never for a label whose spoken job
  *  survives its sighted one ({@link LABEL_TO_SR_ONLY_AT_COARSE} is that case). CT:
- *  tests/client/features/chat/components/chat-controls-band.ct.tsx. */
+ *  tests/legacy/client/features/chat/components/chat-controls-band.ct.tsx. */
 export const SHOW_ONLY_AT_COARSE = "pointer-fine:hidden";
 
 /** Collapse a LABEL to the accessibility tree at a coarse pointer — it stops spending layout, and stays
@@ -38,7 +38,7 @@ export const SHOW_ONLY_AT_COARSE = "pointer-fine:hidden";
  *  Live: the chat character strip's member names (#511) — a crowded roster wrapped that strip to 5 rows / 160px
  *  at 320px, and the wrap tax GREW as the screen narrowed, all of it taken from the transcript. Collapsed,
  *  the strip is one 40px row at every width and every roster size, and a screen-reader user still hears the
- *  whole set of names. CT: tests/client/features/chat/components/chat-character-bar.ct.tsx. */
+ *  whole set of names. CT: tests/legacy/client/features/chat/components/chat-character-bar.ct.tsx. */
 export const LABEL_TO_SR_ONLY_AT_COARSE = "pointer-coarse:sr-only";
 
 /** Reveal an opacity/pointer-events reveal cluster PERMANENTLY at a coarse pointer (there is no hover to
@@ -56,7 +56,7 @@ export const FINE_INERT_UNTIL_HOVER =
 /** The rpg tracker chip's coarse touch floor: its FLOORLESS glyph ✕ rides an overflowing `::after` that a
  *  flex-wrap gap clips, so the CHIP takes the ≥44px min-height at coarse and the pseudo fits inside its own
  *  chip. Fine is untouched (a 30px chip in a dense tracker row). CT:
- *  tests/client/features/rpg/components/rpg-actor-trackers.ct.tsx. */
+ *  tests/legacy/client/features/rpg/components/rpg-actor-trackers.ct.tsx. */
 export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
 
 /** A GLYPH-ONLY CHIP's coarse touch floor on its NARROW axis (#875 F6, side-eye 2026-08-30). `Button`'s
@@ -66,7 +66,7 @@ export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
  *  floor ({@link CHIP_TOUCH_FLOOR_AT_COARSE}) cannot answer that; this is its inline twin, and the two are
  *  separate constants because a chip that is short and a chip that is narrow are different defects with
  *  different call sites. Fine is untouched (a 34px chip in a dense topbar row).
- *  CT: tests/client/features/chat/components/chat-recall-indicator.ct.tsx. */
+ *  CT: tests/legacy/client/features/chat/components/chat-recall-indicator.ct.tsx. */
 export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-touch-target";
 
 /** A STACKED TEXT-HEIGHT VALUE ROW's coarse touch floor — the row, never the value (#869).
@@ -87,7 +87,7 @@ export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-touch-targ
  *  `layout="inline"`, text-height at every pointer) and defeat the `inline` arm's whole contract. At
  *  `min-h-touch-target` the pseudo fits inside its own row and the neighbour keeps its datum. Fine is
  *  untouched (a 28px target on an 18px box overflows 5px into a 6px gap — it never reaches the neighbour).
- *  CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx ("the coarse tap on a visible datum"). */
+ *  CT: tests/legacy/client/features/rpg/lib/rpg-context-section.ct.tsx ("the coarse tap on a visible datum"). */
 export const VALUE_ROW_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
 
 /** A TEXT-HEIGHT DISCLOSURE TRIGGER's coarse touch floor. `CollapsibleTrigger` is `inline-flex` with no
@@ -97,12 +97,12 @@ export const VALUE_ROW_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-targe
  *  has width to spare and only wants HEIGHT, so the floor goes on the trigger's own box (no overflowing
  *  pseudo to collide with the rows above/below, which is the failure mode the chip floor below documents).
  *  Fine is untouched — a 16px line in a dense transcript footer. CT:
- *  tests/client/features/rpg/components/turn-tool-calls-disclosure.ct.tsx. */
+ *  tests/legacy/client/features/rpg/components/turn-tool-calls-disclosure.ct.tsx. */
 export const DISCLOSURE_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
 
 /** The rpg item-icon picker's coarse gap: `gap-block` (12px) makes the tiled 32px cells' pitch exactly 44 so
  *  each cell's overflowing hit `::after` is not clipped by the wrap gap. Fine keeps the tighter `gap-field`.
- *  CT: tests/client/features/rpg/components/rpg-pack-rows.ct.tsx. */
+ *  CT: tests/legacy/client/features/rpg/components/rpg-pack-rows.ct.tsx. */
 export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
 
 /** The context bracket rail's narrow-panel FOLD (born as the rpg HUD rail's, universal since #860): at a
@@ -111,7 +111,7 @@ export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
  *  pointer it does not fire at all — a phone stays ONE row and scrolls (the phone tab-strip idiom: 50px of
  *  rail, not 105px). The rail's caller decides WHICH rails are long enough to be worth a second row; the
  *  ≥44px cell width floor is `TabsTab`'s own sealed `min-w-touch-target`, not spelled here. CT:
- *  tests/client/features/rpg/lib/rpg-context-section.ct.tsx.
+ *  tests/legacy/client/features/rpg/lib/rpg-context-section.ct.tsx.
  *
  *  THIS CONSTANT USED TO CARRY THE NO-CLIP TRACK SIZING TOO, and that is exactly what broke (#208,
  *  2026-08-18). It bundled the fold with `minmax(max-content,1fr)` + `overflow-x-auto` under one
@@ -134,14 +134,14 @@ export const CONTEXT_RAIL_WRAP = "pointer-fine:@max-xs:grid-flow-row pointer-fin
  *  folds; the active treatment in the wrapped state is the cell's own fill + ink, a WHOLE-cell mark with no
  *  direction to be wrong about. The coarse arm is untouched — there the rail stays one row and scrolls.
  *  Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`).
- *  CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx. */
+ *  CT: tests/legacy/client/features/rpg/lib/rpg-context-section.ct.tsx. */
 export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-active:border-transparent";
 
 /** The context rail CELL's coarse HEIGHT floor (#860 — the mock's phone arms draw 52px cells; the first
  *  token step at or above that is `control-lg`, 56px at a coarse pointer). `TabsTab`'s `stacked` arm seals
  *  `min-h-control-sm` (44px coarse), the D62 P1 floor for any control; a rail cell on a phone is the pane's
  *  PRIMARY navigation under a thumb and takes the taller step. Fine pointers are untouched (the seal's
- *  32px, under a content-sized two-line cell). CT: tests/client/features/app-shell/components/context-tabs-panel.ct.tsx. */
+ *  32px, under a content-sized two-line cell). CT: tests/legacy/client/features/app-shell/components/context-tabs-panel.ct.tsx. */
 export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg";
 
 /** The faint reveal of a row toggle that is secondary chrome (the persona crown, card pin and favorite
@@ -151,6 +151,6 @@ export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg";
  *  display/visibility swaps under a hover key are hit-test oscillators), keyed on the row's `group` like
  *  the action cluster; direct hover/focus restore full strength so nobody aims at a 40%-opacity target.
  *  Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`).
- *  CT: tests/client/features/persona/components/persona-panel-row.ct.tsx (the pin arms). */
+ *  CT: tests/legacy/client/features/persona/components/persona-panel-row.ct.tsx (the pin arms). */
 export const PIN_REVEAL =
   "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:opacity-60 group-has-focus-visible:opacity-60 hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-40";
