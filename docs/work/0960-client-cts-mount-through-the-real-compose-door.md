@@ -18,7 +18,7 @@ A CT that mounts a hand-built tree proves a product that does not ship.
 
 ## Done when
 
-Every CT mounts through the door or a named isolation; the CT door gate holds.
+Every CT mounts through the door or a named isolation; the CT door gate holds. A browser-world test module (a story, a `*.fixtures.tsx`, `tests/support/browser`) cannot value-import `@orb/server`; a dependency-cruiser rule with a planted control holds it, because one such import drags the server and its node modules into the CT bundle.
 
 ## Evidence
 
