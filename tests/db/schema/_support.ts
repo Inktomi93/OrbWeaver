@@ -1,8 +1,7 @@
 // Shared raw FK-parent seeders for the db/schema .int tests (NOT a test file — no `.test` suffix).
-// DELIBERATELY below the factory layer: schema tests pin constraint/CASCADE/unique semantics against the
-// minimal parent row (id + the one notNull column the FK needs), not a fully-populated entity — a factory
-// row would obscure WHICH column's constraint fired. ~24 of 35 schema files hand-rolled these identical
-// one-liners; this is their one home. For a fully-valid entity row, use `support/factories/` instead.
+// These insert the minimal parent row (id + the one notNull column the FK needs), so a constraint test shows
+// WHICH column fired. A table with a factory in `support/factories/` is seeded there instead: character
+// rows come from `seedCharacter`/`makeCharacter`, so they carry the product's invariants (contentHash).
 
 import type { Db } from "@orb/db";
 import { chats, users } from "@orb/db";
