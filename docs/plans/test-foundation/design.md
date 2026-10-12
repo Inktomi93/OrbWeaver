@@ -27,6 +27,7 @@ Tests run the real product through one harness, and one code-facts engine serves
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.
+- Each test layer answers its own question. e2e owns user flows and every wire: router, auth, streams, the database and the plugin host. CT owns component behaviour, rendered measurement and states a real backend does not produce on demand; a CT never mounts a route to walk a flow. Server integration tests own domain logic and permissions on the composition root. Unit tests own pure logic in `@orb/kit` and `@orb/contracts`.
 
 ## Rejected
 
