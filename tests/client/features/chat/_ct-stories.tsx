@@ -8,6 +8,7 @@
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
+import { shellContentWidth } from "@orb/client/features/app-shell";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -2295,7 +2296,7 @@ export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }
   // this csstype version does not admit --custom-property keys natively.
   const paneStyle: CSSProperties & { "--width-shell-content": string } = {
     width: paneWidth,
-    "--width-shell-content": `clamp(var(--dimension-shell-content-floor), ${DEFAULT_USER_SETTINGS.appearance.chatWidthPct}dvw, 100dvw)`,
+    "--width-shell-content": shellContentWidth(DEFAULT_USER_SETTINGS.appearance.chatWidthPct),
   };
   return (
     <CtDataProviders>
