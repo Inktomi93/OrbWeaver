@@ -9,10 +9,10 @@ import { join } from "node:path";
 import { automationRules } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createCas } from "@orb/server/infra/storage";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createApp } from "#server/entry/app.ts";
+import { createCas } from "#server/infra/storage/index.ts";
 import { principal } from "../../../domain/automation/_support.ts";
 import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
 

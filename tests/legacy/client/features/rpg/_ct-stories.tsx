@@ -12,7 +12,6 @@
 
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
-import { rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat, useRequestedConnectionEditor, useSectionRegistry } from "@orb/client/state";
@@ -37,6 +36,7 @@ import { RpgCardLightbox, RpgSceneCards } from "#client/features/rpg/components/
 import { RpgTakeoverHeader } from "#client/features/rpg/components/rpg-takeover-header.tsx";
 import { RpgVeiledSection } from "#client/features/rpg/components/rpg-veiled-section.tsx";
 import { useUpdateConfig } from "#client/features/rpg/hooks/use-rpg-mutations.ts";
+import { rpgTurnToolCallsSurface } from "#client/features/rpg/index.ts";
 import type { ArchivedCard } from "#client/features/rpg/lib/archived-cards.ts";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
 

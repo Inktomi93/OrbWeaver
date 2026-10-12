@@ -9,11 +9,11 @@ import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import type { NotificationsService } from "#server/domain/notifications/index.ts";
 import { ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedUser } from "../_support.ts";
 
 let db: Db;

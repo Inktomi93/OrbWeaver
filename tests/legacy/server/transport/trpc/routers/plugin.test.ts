@@ -5,10 +5,10 @@
 import { PLUGIN_TEXT_MAX_CHARS } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PluginService, PluginSurfaceView, PluginView } from "@orb/server/domain/plugin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { PluginService, PluginSurfaceView, PluginView } from "#server/domain/plugin/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const PLUGIN_ID: PluginId = mintTypeId(ID_PREFIX.plugin);

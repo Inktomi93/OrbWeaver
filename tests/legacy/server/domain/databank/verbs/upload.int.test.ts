@@ -11,13 +11,13 @@ import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
-import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import type { DatabankContext, DatabankService } from "#server/domain/databank/contract/service.ts";
 import { createDatabankService } from "#server/domain/databank/index.ts";
+import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 

@@ -4,10 +4,10 @@
 // (ADR 0076). Hono isn't test-resolvable, so the registrar runs over a captured mock app + context.
 
 import type { VersionIdentity } from "@orb/kit/version-identity";
-import type { HealthzDeps } from "@orb/server/entry/http";
-import { registerHealthz } from "@orb/server/entry/http";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { HealthzDeps } from "#server/entry/http/index.ts";
+import { registerHealthz } from "#server/entry/http/index.ts";
 
 const IDENTITY: VersionIdentity = { version: "1.2.3", commit: "a".repeat(40), short: "a".repeat(12), source: "checkout", channel: "main" };
 const LOOPBACK = "127.0.0.1";

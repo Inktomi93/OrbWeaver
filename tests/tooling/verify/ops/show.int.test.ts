@@ -320,7 +320,7 @@ test("an unknown stage name answers with the names that DO exist, rather than an
 // ── THE FAILED-VERIFY-RUN SUMMARY (docs/work item 0267) ────────────────────────────────────────────
 //
 // THE DEFECT THIS CLOSES. `--errors-only` (and the bare default) read ONLY `reports/check-structure.json`.
-// After a `pnpm verify --push` whose `tests:node`/`browser:ct`/`browser:e2e-smoke`/`deps:orphan-ratchet`/
+// After a `pnpm verify --push` whose `tests:node`/`browser:ct`/`browser:e2e-smoke`/`deps:knip-prod`/
 // `quality:boot-chunk` stages failed but whose structure gates happened to be clean, the reader printed a
 // green structure verdict and nothing else — a false clean nobody reading only `check:show` could catch.
 
@@ -397,15 +397,15 @@ function failingVerifyReport(runId: string): string {
         notices: [],
       },
       {
-        name: "deps:orphan-ratchet",
+        name: "deps:knip-prod",
         group: "deps",
         mode: "full",
         ok: false,
         exitCode: 1,
         childExit: 1,
         durationMs: 50,
-        logFile: `reports/runs/verify/${runId}/stages/deps-orphan-ratchet.log`,
-        failureExcerpt: "orphan-export-ratchet — 2 unexempted orphan export(s)",
+        logFile: `reports/runs/verify/${runId}/stages/deps-knip-prod.log`,
+        failureExcerpt: "Unused exports (2)",
         runsAt: null,
         notices: [],
       },
@@ -444,8 +444,8 @@ const TESTS_NODE_LOG =
   "some setup\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| tests/x/y.test.ts > widget renders the roster\nAssertionError: expected 1 to be 2\n\n Test Files  1 failed | 1 passed (2)\n      Tests  1 failed | 1 passed (2)\n";
 const CT_LOG =
   "  CT SUMMARY — FAILED  ·  10 passed · 1 failed · 0 flaky · 0 skipped\n  FAILED (1):\n  ✗ tests/client/features/foo.ct.tsx:10  chromium › foo › bar breaks\n";
-const ORPHAN_LOG =
-  "orphan-export-ratchet — 2 unexempted orphan export(s)\n  ✗ packages/contracts/src/a.ts:1  `Foo` — reached by nobody (prod or test) and unused in its own file\n  ✗ packages/contracts/src/b.ts:2  `Bar` — reached by nobody (prod or test) and unused in its own file\n";
+const KNIP_LOG =
+  "Unused exports (2)\n  ✗ packages/contracts/src/a.ts:1  `Foo` — reached by nobody (prod or test) and unused in its own file\n  ✗ packages/contracts/src/b.ts:2  `Bar` — reached by nobody (prod or test) and unused in its own file\n";
 const BOOT_CHUNK_LOG = "boot-chunk-ratchet — boot payload = 100 B (ceiling 90 B)\n  ✗ OVER by 10 B (11.1%)\n";
 const E2E_SMOKE_LOG = "[WebServer] dev: booting the server\nError: Timed out waiting 180000ms from config.webServer.\n";
 
@@ -456,7 +456,7 @@ function failingSlot(runId: string): Readonly<Record<string, string>> {
     [`reports/runs/verify/${runId}/stages/structure-full.log`]: STRUCTURE_STAGE_LOG,
     [`reports/runs/verify/${runId}/stages/tests-node.log`]: TESTS_NODE_LOG,
     [`reports/runs/verify/${runId}/stages/browser-ct.log`]: CT_LOG,
-    [`reports/runs/verify/${runId}/stages/deps-orphan-ratchet.log`]: ORPHAN_LOG,
+    [`reports/runs/verify/${runId}/stages/deps-knip-prod.log`]: KNIP_LOG,
     [`reports/runs/verify/${runId}/stages/quality-boot-chunk.log`]: BOOT_CHUNK_LOG,
     [`reports/runs/verify/${runId}/stages/browser-e2e-smoke.log`]: E2E_SMOKE_LOG,
     [`reports/runs/verify/${runId}/.published`]: '["verify.json","verify"]\n',
@@ -511,7 +511,7 @@ test("--errors-only names every failing stage of a red verify run, not only chec
   expect(result.stdout).toContain("FAIL  |unit| tests/x/y.test.ts > widget renders the roster");
   expect(result.stdout).toContain("browser:ct");
   expect(result.stdout).toContain("tests/client/features/foo.ct.tsx:10  chromium › foo › bar breaks");
-  expect(result.stdout).toContain("deps:orphan-ratchet");
+  expect(result.stdout).toContain("deps:knip-prod");
   expect(result.stdout).toContain("`Foo` — reached by nobody");
   expect(result.stdout).toContain("`Bar` — reached by nobody");
   expect(result.stdout).toContain("quality:boot-chunk");
@@ -537,7 +537,7 @@ test("a failing stage's lines are capped with a count and the widening flag", as
   publishVerify(root, FAIL_RUN);
 
   const result = await runCli("verify", ["show", "--errors-only", "--limit", "1"], { cwd: root });
-  expect(result.stdout).toContain("…and 1 more (pnpm check:show --stage deps:orphan-ratchet to widen)");
+  expect(result.stdout).toContain("…and 1 more (pnpm check:show --stage deps:knip-prod to widen)");
 });
 
 function checkStructureAt(runId: string, startedAt: string): string {
@@ -670,14 +670,12 @@ test("an UNPARSEABLE verify.json gets a one-line advisory instead of a silent fa
 test("a red stage with an empty log says so, rather than printing only the header", async ({ runCli, plantedTree }) => {
   const root = await plantedTree({
     ...failingSlot(FAIL_RUN),
-    [`reports/runs/verify/${FAIL_RUN}/stages/deps-orphan-ratchet.log`]: "",
+    [`reports/runs/verify/${FAIL_RUN}/stages/deps-knip-prod.log`]: "",
   });
   publishVerify(root, FAIL_RUN);
 
   const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
-  expect(result.stdout).toContain(
-    "deps:orphan-ratchet (exit 1)\n  (this stage's log is empty — no output was captured — pnpm check:show --stage deps:orphan-ratchet)",
-  );
+  expect(result.stdout).toContain("deps:knip-prod (exit 1)\n  (this stage's log is empty — no output was captured — pnpm check:show --stage deps:knip-prod)");
 });
 
 test("the fallback tail (no extractor matched) reports how many lines it dropped", async ({ runCli, plantedTree }) => {

@@ -4,10 +4,10 @@
 // into the SPA root carrying the token as a URL-encoded `join` search param (the client runs the real
 // preview-then-confirm over the gated tRPC surface). Mock-app pattern (healthz.test.ts).
 
-import type { JoinDeps } from "@orb/server/entry/http";
-import { registerJoin } from "@orb/server/entry/http";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { JoinDeps } from "#server/entry/http/index.ts";
+import { registerJoin } from "#server/entry/http/index.ts";
 
 interface MockResult {
   readonly kind: "text" | "redirect";

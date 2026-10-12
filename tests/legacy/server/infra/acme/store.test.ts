@@ -6,12 +6,12 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { IP_CERTIFICATE_FILE_NAMES } from "@orb/server/foundation/data-layout";
-import type { IssuedCertificate } from "@orb/server/infra/acme";
-import { createCertificateStore } from "@orb/server/infra/acme";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ipCertificatePem } from "@orb/testkit/node/x509.ts";
 import { afterEach, beforeEach, describe } from "vitest";
+import type { IssuedCertificate } from "#server/infra/acme/index.ts";
+import { createCertificateStore } from "#server/infra/acme/index.ts";
 
 const ADDRESS = "81.2.69.160";
 const LIFETIME_MS = 160 * 3_600_000;

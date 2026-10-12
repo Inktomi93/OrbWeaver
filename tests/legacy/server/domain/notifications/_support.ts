@@ -10,10 +10,10 @@ import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
-import type { NotificationsService } from "@orb/server/domain/notifications";
-import { createNotificationsService } from "@orb/server/domain/notifications";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import type { NotificationsService } from "#server/domain/notifications/index.ts";
+import { createNotificationsService } from "#server/domain/notifications/index.ts";
 
 export const ALICE = castId<UserId>("user_alice");
 export const BOB = castId<UserId>("user_bob");

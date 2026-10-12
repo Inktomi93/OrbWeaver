@@ -4,10 +4,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPersonaService, createResolveConnectedPersona } from "@orb/server/domain/persona";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createPersonaService, createResolveConnectedPersona } from "#server/domain/persona/index.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 describe("resolveConnectedPersona", () => {

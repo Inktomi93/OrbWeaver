@@ -10,7 +10,6 @@ import { GenerationObservationPersistenceError, ProviderError } from "@orb/infer
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
-import { reconcileStats } from "@orb/server/domain/stats";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
@@ -19,6 +18,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { ZodError, z } from "zod";
 import { observeChatResult } from "#inference/backends/http/generation-observation.ts";
+import { reconcileStats } from "#server/domain/stats/index.ts";
 import { buildRpg } from "#server/entry/compose/rpg.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 

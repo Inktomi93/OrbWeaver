@@ -14,12 +14,12 @@
 import { chatParticipants } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
 import type { AutomationContext } from "#server/domain/automation/contract/service.ts";
 import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
+import type { AutomationOps, AutomationTurnRequest } from "#server/domain/automation/index.ts";
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";

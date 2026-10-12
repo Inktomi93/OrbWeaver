@@ -8,9 +8,6 @@
 // from the resolver and is never written back) — the macro-gate's data-flow blind spot is exactly this
 // hazard, so the `<output>` mirrors the saved key set, not just one field.
 
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
-import type { AppFormInstance } from "@orb/client/forms/editor";
-import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { builtinProvider } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -23,6 +20,9 @@ import { ParamsDeck } from "#client/features/preset/components/params-deck.tsx";
 import { samplerSpellingOf } from "#client/features/preset/lib/capability-panel-model.ts";
 import { validatePresetConfig } from "#client/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "#client/features/preset/lib/resolve-failure.ts";
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
+import type { AppFormInstance } from "#client/forms/editor/index.ts";
+import { AutosaveStatus, createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = "preset_deckstoryaaaa";
 

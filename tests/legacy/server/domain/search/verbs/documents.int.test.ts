@@ -9,11 +9,11 @@
 import { documentChunks, embedGenerations, embedSpaceState, userConnections } from "@orb/db";
 import type { EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { SEARCH_SPACE_REINDEXING, SearchError } from "@orb/server/domain/search";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { SEARCH_SPACE_REINDEXING, SearchError } from "#server/domain/search/index.ts";
 import {
   makeSearch,
   seedChat,

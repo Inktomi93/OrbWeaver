@@ -6,10 +6,10 @@
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createImageryService } from "@orb/server/domain/imagery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { createImageryService } from "#server/domain/imagery/index.ts";
 import { makeHarness, principal, seedGenerationOwner, seedOwner } from "../_support.ts";
 
 let db: Db;

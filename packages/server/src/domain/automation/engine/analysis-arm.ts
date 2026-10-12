@@ -51,8 +51,8 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { VarOp } from "@orb/kit/macro";
 import { neutralizeMacros, setVarKey } from "@orb/kit/macro";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { getLog } from "#foundation/observability";
+import { sha256Hex } from "#primitives/content-hash";
 import type {
   AnalysisAuditTarget,
   AnalysisConfirmAct,

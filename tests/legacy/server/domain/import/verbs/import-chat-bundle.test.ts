@@ -17,12 +17,12 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import { rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImportService } from "@orb/server/domain/import";
-import { createImportService } from "@orb/server/domain/import";
-import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
-import { buildChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ImportService } from "#server/domain/import/index.ts";
+import { createImportService } from "#server/domain/import/index.ts";
+import type { PortableChat } from "#server/primitives/serde/chat-bundle/index.ts";
+import { buildChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
 import type { ProfileHarness } from "../_support.ts";
 import { makeProfileHarness } from "../_support.ts";
 

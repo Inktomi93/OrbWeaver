@@ -210,12 +210,7 @@ export function materializeApplicationKnipView(
 }
 
 /** Execute both native issue populations over one pre-analysis view; native findings are never filtered. */
-export function runApplicationKnip(
-  root: string,
-  population: ApplicationSubjects,
-  production = false,
-  configured = ordinaryConfig({ production, strict: production }),
-): number {
+export function runApplicationKnip(root: string, population: ApplicationSubjects, configured = ordinaryConfig({})): number {
   const view = materializeApplicationKnipView(root, population, configured);
   try {
     const workspaces = [
@@ -231,7 +226,7 @@ export function runApplicationKnip(
     }
     const run = (args: readonly string[]): number =>
       asViolations(runNicedSync(join(root, "node_modules/.bin/knip"), ["--config", CONFIG, ...args], { cwd: view.root, stdio: "inherit" }).status);
-    const packages = run([...workspaces.flatMap((workspace) => ["--workspace", workspace]), ...(production ? ["--production", "--strict"] : [])]);
+    const packages = run(workspaces.flatMap((workspace) => ["--workspace", workspace]));
     const composition = run([
       "--workspace",
       ".",
@@ -239,7 +234,7 @@ export function runApplicationKnip(
       "--include",
       "unlisted,unresolved,binaries",
     ]);
-    process.stdout.write(`application native Knip: ${workspaces.join(", ")}; composition imports/binaries; production=${String(production)}\n`);
+    process.stdout.write(`application native Knip: ${workspaces.join(", ")}; composition imports/binaries\n`);
     return aggregateExit([packages, composition]);
   } finally {
     view.cleanup();

@@ -10,11 +10,11 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { AutomationChatNotFoundError, AutomationReservedTriggerError, RuleValidationError } from "@orb/server/domain/automation";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
+import { AutomationChatNotFoundError, AutomationReservedTriggerError, RuleValidationError } from "#server/domain/automation/index.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 

@@ -7,10 +7,10 @@
 
 import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
 import { characterSnapshots } from "@orb/db";
-import { RefinerySessionCompletedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { RefinerySessionCompletedError, RefineryStageNotReadyError } from "#server/domain/refinery/index.ts";
 import { makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 const SNAPSHOT_INSERT = /insert into "character_snapshots"/iu;

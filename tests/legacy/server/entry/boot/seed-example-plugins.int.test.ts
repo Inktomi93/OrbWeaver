@@ -21,10 +21,10 @@ import type { PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ChatOperationError } from "@orb/server/domain/chat";
-import type { PluginHostOps } from "@orb/server/domain/plugin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { PluginHostOps } from "#server/domain/plugin/index.ts";
 import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
 import {

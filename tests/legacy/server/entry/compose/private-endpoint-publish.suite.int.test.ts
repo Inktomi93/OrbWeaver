@@ -7,12 +7,12 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import "@orb/testkit/node/composed-real.ts";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
-import { installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, beforeAll, describe } from "vitest";
+import { installEgressFirewall, publishPrivateEndpointAllowlist } from "#server/infra/network/index.ts";
 
 const ENDPOINT_PROVIDER = "custom-openai";
 // A normal high port with nothing listening: an admitted dial fails ECONNREFUSED, which is the evidence that

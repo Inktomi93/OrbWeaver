@@ -3,9 +3,9 @@
 // extension; and the update-check union must pin `newVersion` to the arm that owns it.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { pluginSurfaceViewSchema, pluginUpdateCheckSchema } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { pluginSurfaceViewSchema, pluginUpdateCheckSchema } from "#server/domain/plugin/index.ts";
 
 const pluginId = mintTypeId(ID_PREFIX.plugin);
 

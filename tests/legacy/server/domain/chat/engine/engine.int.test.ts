@@ -32,7 +32,6 @@ import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId,
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { applyStatsDelta, reconcileStats } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -58,6 +57,7 @@ import type { WitnessInterval } from "#server/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadStreamReplay, loadTurnOrigin } from "#server/domain/chat/persistence/queries.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
+import { applyStatsDelta, reconcileStats } from "#server/domain/stats/index.ts";
 import {
   fakeRecallResult,
   makeChatContext,

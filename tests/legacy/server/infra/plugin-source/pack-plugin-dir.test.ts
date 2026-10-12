@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PLUGIN_SCRIPT_ENTRY_MAX_BYTES } from "@orb/contracts/plugin";
-import { packPreparedPluginDir } from "@orb/server/infra/plugin-source";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { unzipSync } from "fflate";
+import { packPreparedPluginDir } from "#server/infra/plugin-source/index.ts";
 
 async function withSource(run: (root: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "orb-plugin-source-"));

@@ -80,8 +80,6 @@ test("an explicit changed path outside the repository is CLI misuse, not a tool 
 // ts-morph project first is not a refusal, it is an OOM. Red-first, measured on the unmodified source:
 //   `ledgers-fresh --scope packages/ui`      → exit 0, re-derived EVERY committed ledger over the whole tree
 //   `scoped --package @orb/kit --bogus-flag` → exit 0 after a full scoped pass, flag dropped on the floor
-//   `orphan-ratchet --updat`                 → exit 1 from a CHECK the operator never asked for (they asked
-//                                              for the baseline REWRITE, which is the opposite verdict)
 // `new-gate` and `baseline` are read-proven rather than run-proven in the same direction: their pre-fix
 // effect IS the write we are refusing (a scaffolded gate file, a rewritten committed ledger), so the
 // receipt for them is the refusal below, taken before either door opens.
@@ -101,7 +99,6 @@ const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] =
   // The refusal must ROUTE, so the assertion is on the door rather than on the refusal's first clause.
   ["eslint", ["packages/ui/src/lib/class-merge.ts"], "pnpm exec eslint <files>"],
   ["tests-membership", ["--scope", "tests"], "accepts only --json"],
-  ["orphan-ratchet", ["--updat"], "does not recognize"],
   ["new-gate", ["a-gate", "b-gate"], "ONE gate per invocation"],
   ["baseline", ["prose", "--chekc"], "unexpected argument"],
   ["scoped", ["--package", "@orb/kit", "--bogus-flag"], "unrecognised argument"],

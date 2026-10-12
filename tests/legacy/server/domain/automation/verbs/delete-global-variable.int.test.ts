@@ -1,10 +1,10 @@
 // verb: deleteGlobalVariable — owner-scoped removal; idempotent on absent; a foreign owner can't delete.
 // @subject packages/server/src/domain/automation/verbs/delete-global-variable.ts
 
-import { createAutomationService } from "@orb/server/domain/automation";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createAutomationService } from "#server/domain/automation/index.ts";
 import { makeAutomationHarness, principal, seedUser } from "../_support.ts";
 
 describe("deleteGlobalVariable", () => {

@@ -7,7 +7,9 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { PortableParse } from "@orb/contracts/portability";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PersonaBackup, PersonaCandidate, PersonaIdentity } from "@orb/server/primitives/serde/persona";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
+import type { PersonaBackup, PersonaCandidate, PersonaIdentity } from "#server/primitives/serde/persona/index.ts";
 import {
   buildPersonaBackup,
   findDuplicatePersona,
@@ -15,9 +17,7 @@ import {
   parsePersonaBackup,
   personaContentKey,
   personaPlacementOf,
-} from "@orb/server/primitives/serde/persona";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+} from "#server/primitives/serde/persona/index.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

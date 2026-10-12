@@ -33,7 +33,6 @@ import {
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, timeLib, toNotice } from "@orb/client/lib";
-import { AppRootSessionBoundary } from "@orb/client/routes/app-root-session-boundary";
 import {
   __readSurfaceBoxForTest,
   activeDurableLocalUserId,
@@ -58,6 +57,7 @@ import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts"
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { AppRootSessionBoundary } from "#client/routes/app-root-session-boundary/index.ts";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from

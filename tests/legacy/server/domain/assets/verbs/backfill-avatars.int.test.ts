@@ -11,12 +11,12 @@ import { assets, characters } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished, vi } from "vitest";
 import type { BackfillCard } from "#server/domain/assets/contract/maintenance.ts";
+import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";
 
 async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: CharacterId): Promise<AssetId | null | undefined> {

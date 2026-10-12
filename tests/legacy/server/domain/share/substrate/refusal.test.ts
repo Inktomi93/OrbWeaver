@@ -2,9 +2,9 @@
 
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES } from "@orb/contracts/identity";
-import type { ShareFacts } from "@orb/server/domain/share";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ShareFacts } from "#server/domain/share/index.ts";
 import { shareRefusal } from "#server/domain/share/substrate/refusal.ts";
 
 const SETUP = "http://localhost:9999";

@@ -5,10 +5,10 @@
 import { PLUGIN_UI_ASSET_MAX_BYTES } from "@orb/contracts/plugin";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginInstance } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
+import type { PluginInstance } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const FRAME_INSTANCE: PluginInstance = {

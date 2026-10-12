@@ -13,9 +13,9 @@ import type { InvocationChat, PluginHandlerRef, PluginInvokeArgs } from "@orb/co
 import { PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginInvokeHandler } from "@orb/server/domain/plugin";
-import { createPluginEventBus } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { PluginInvokeHandler } from "#server/domain/plugin/index.ts";
+import { createPluginEventBus } from "#server/domain/plugin/index.ts";
 
 const A = castId<UserId>("user_installer_a000000000000");
 const B = castId<UserId>("user_installer_b000000000000");

@@ -16,8 +16,6 @@ import { embedGenerations, embedGenerationTargets, embedSpaceState, imageAnalyse
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -28,6 +26,8 @@ import { runOpenAiCompatImageEmbed } from "#inference/backends/openai-compat/ima
 import { passthroughImageNormalizer } from "#inference/backends/wire/image-normalize.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { EmbeddingsContext } from "#server/domain/embeddings/index.ts";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { createImageAnalysisCounter } from "#server/domain/embeddings/indexer/image.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";

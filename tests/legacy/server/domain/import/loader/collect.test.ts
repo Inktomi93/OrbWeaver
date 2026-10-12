@@ -6,10 +6,10 @@
 // naming the affected path + operation. Table-driven over the 8 catch arms `collect.ts` carries (verified
 // exactly 8 via `grep -n catch packages/server/src/domain/import/loader/collect.ts` while authoring this).
 
-import type { ImportFsPort } from "@orb/server/domain/import";
-import { collectBundlesFromDir, ImportInfraFailureError } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ImportFsPort } from "#server/domain/import/index.ts";
+import { collectBundlesFromDir, ImportInfraFailureError } from "#server/domain/import/index.ts";
 
 const ENC = new TextEncoder();
 const SETTINGS_PATH = "root/settings.json";

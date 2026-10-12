@@ -6,12 +6,12 @@
 import { assets, pluginAssets, plugins } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { HostVersionUnservedError } from "@orb/server/domain/plugin";
-import { CapabilityNotGrantedError, ManifestInvalidError, PluginAlreadyInstalledError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import { eq, inArray } from "drizzle-orm";
+import type { HostVersionUnservedError } from "#server/domain/plugin/index.ts";
+import { CapabilityNotGrantedError, ManifestInvalidError, PluginAlreadyInstalledError, PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("installs a valid bundle: disabled row, granted subset, origin upload, bytes in the CAS", async () => {

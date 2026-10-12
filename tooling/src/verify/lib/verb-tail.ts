@@ -18,7 +18,6 @@
 //   scoped-test  ops/scoped-test.ts (the runner name, then the caller's path claims + runner flags)
 //   baseline     cli.ts runBaseline (the kind table + `--check`)
 //   new-gate     ops/new-gate.ts  (exactly one kebab name)
-//   orphan-ratchet ops/orphan-export-ratchet.ts (`--update`, and nothing else)
 //   tests-membership ops/tests-type-membership.ts (`--json`, and nothing else)
 //   config-snapshot ops/config-snapshot.ts (runner kind + config path)
 //   typecheck-plan ops/typecheck-plan.ts (mode + file paths + optional JSON)
@@ -54,7 +53,6 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "tests-execution-membership": "own",
   "db-baseline": NO_TAIL,
   "asset-refs": NO_TAIL,
-  "orphan-ratchet": "own",
   "boot-chunk": NO_TAIL,
   "ledgers-fresh": "own",
   debt: "own",

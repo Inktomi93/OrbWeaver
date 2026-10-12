@@ -6,9 +6,9 @@
 // pass every case here — AND that it carries the tighter 1 MiB plugin-bundle download cap (the DoS bound before
 // `parseBundle` ever allocates). Injected resolver + stubbed transport (no live DNS, no live network).
 
-import { __setEgressResolverForTest, EgressBlockedError, fetchPluginBundle } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
+import { __setEgressResolverForTest, EgressBlockedError, fetchPluginBundle } from "#server/infra/network/index.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

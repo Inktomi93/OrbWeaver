@@ -3,9 +3,9 @@
 import type { CharacterId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
-import { runProfileDirImport } from "@orb/server/entry/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { runProfileDirImport } from "#server/entry/import/index.ts";
 import {
   chatJsonl,
   deps,

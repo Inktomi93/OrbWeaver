@@ -3,13 +3,13 @@
 // never sees A's — the WHERE-clause plane the cross-tenant sweep also probes with a marker).
 // @subject packages/server/src/domain/roster-preset/verbs/list.ts
 
-import { createRosterPresetService } from "@orb/server/domain/roster-preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedAsset } from "@orb/testkit/node/factories/asset.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createRosterPresetService } from "#server/domain/roster-preset/index.ts";
 import { makeHarness, memberSpec, principal } from "../_support.ts";
 
 describe("list", () => {

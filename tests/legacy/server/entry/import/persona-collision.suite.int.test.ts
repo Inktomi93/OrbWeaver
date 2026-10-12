@@ -20,7 +20,6 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter, seedPersona, seedUser } from "@orb/testkit/node/factories/index.ts";
@@ -34,6 +33,7 @@ import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
 import { createImportPersonas } from "#server/domain/import/verbs/import-personas.ts";
 import { createBulkImportPersonas } from "#server/domain/persona/persistence/import-write.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { parseChatJsonl } from "#server/primitives/serde/chat/index.ts";
 
 const NOW = 1_700_000_000_000;
 const CHARACTER_NAME = "Eleni Northwell";

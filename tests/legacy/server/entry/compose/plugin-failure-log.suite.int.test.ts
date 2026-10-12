@@ -15,13 +15,13 @@ import type { PluginCapability } from "@orb/contracts/plugin";
 import { connectionBindings, plugins, userConnections } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
-import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { logger } from "@orb/server/foundation/observability";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
+import { startAutomationWatcher } from "#server/domain/automation/index.ts";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 
 interface LogLine {

@@ -26,12 +26,12 @@ import {
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
-import { deepMergePlain } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { CharacterThemeFormValues } from "#client/features/character/lib/character-theme-form-model.ts";
 import { characterThemeFormFromOverride, overrideFromCharacterThemeForm } from "#client/features/character/lib/character-theme-form-model.ts";
 import { projectMessageHandlingForm, toMessageHandlingPatch } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
+import { deepMergePlain } from "#server/domain/settings/index.ts";
 
 // The SERVER SHAPE for a `userSettings` section: the section patch is deep-merged into the settings blob
 // and re-parsed (the `updateUserSettingsSection` write path), then the section is plucked back. This runs

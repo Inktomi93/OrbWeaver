@@ -8,9 +8,9 @@ import process from "node:process";
 import { promisify } from "node:util";
 import type { VideoMaxResolution } from "@orb/contracts/inference";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
-import { createVideoPreparer, prepareVideo } from "@orb/server/infra/media";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
+import { createVideoPreparer, prepareVideo } from "#server/infra/media/index.ts";
 
 const run = promisify(execFile);
 const FRAME_WIDTH = 2000;

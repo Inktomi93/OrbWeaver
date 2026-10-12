@@ -7,11 +7,11 @@ import { chatDigests, chatSegments } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { makeStoreHarness, seedCharacter, seedChat, seedUser } from "../../domain/embeddings/_support.ts";
 
 interface Room {

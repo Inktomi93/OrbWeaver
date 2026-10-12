@@ -10,10 +10,10 @@ import { join } from "node:path";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImportFsPort } from "@orb/server/domain/import";
-import { createNodeFsImportPort, runProfileDirImport } from "@orb/server/entry/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ImportFsPort } from "#server/domain/import/index.ts";
+import { createNodeFsImportPort, runProfileDirImport } from "#server/entry/import/index.ts";
 import { cardPng, chatJsonl, deps, ENC, fakes, fixtureFiles, memoryFs, OWNER } from "./_profile-dir-import-support.ts";
 
 describe("runProfileDirImport", () => {

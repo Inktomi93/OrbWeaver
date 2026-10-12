@@ -27,12 +27,12 @@ import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { SocketId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { WorkloadRowAnyKind, WorkloadService } from "@orb/server/domain/workloads";
-import { emitWorkloadEvent } from "@orb/server/domain/workloads";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { WorkloadRowAnyKind, WorkloadService } from "#server/domain/workloads/index.ts";
+import { emitWorkloadEvent } from "#server/domain/workloads/index.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 import { consumeServerReady } from "../_support.ts";
 

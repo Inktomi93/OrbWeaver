@@ -3,11 +3,11 @@
 // same theme set with the palette intact.
 
 import type { PortableParse } from "@orb/contracts/portability";
-import { createExportTheme, createSettingsContext } from "@orb/server/domain/settings";
-import { parseThemeBackup } from "@orb/server/primitives/serde/theme";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createExportTheme, createSettingsContext } from "#server/domain/settings/index.ts";
+import { parseThemeBackup } from "#server/primitives/serde/theme/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

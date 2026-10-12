@@ -7,9 +7,9 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { Handle, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CredentialView } from "@orb/server/domain/credentials";
 import { seedCredentialFromEnv } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { CredentialView } from "#server/domain/credentials/index.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("u_owner"),

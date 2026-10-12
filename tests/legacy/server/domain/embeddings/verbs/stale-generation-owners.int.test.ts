@@ -8,11 +8,11 @@ import type { Db } from "@orb/db";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { EmbeddingsService } from "@orb/server/domain/embeddings";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import type { EmbeddingsService } from "#server/domain/embeddings/index.ts";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
 import { makeStoreHarness, seedUser } from "../_support.ts";
 

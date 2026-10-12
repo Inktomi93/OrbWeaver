@@ -18,16 +18,16 @@ import { ProviderError, providerErrorFromHttp, resolvedScrubSet } from "@orb/inf
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { AdminService } from "@orb/server/domain/admin";
 import type { ChatService } from "@orb/server/domain/chat";
-import type { PersonaService } from "@orb/server/domain/persona";
-import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
+import type { AdminService } from "#server/domain/admin/index.ts";
+import type { PersonaService } from "#server/domain/persona/index.ts";
+import type { SettingsService } from "#server/domain/settings/index.ts";
 import { caller, denyRateLimit, inertPresence, inviteResults, makeContext, principal } from "./_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.

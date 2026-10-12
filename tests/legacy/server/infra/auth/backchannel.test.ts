@@ -1,8 +1,8 @@
-import { createBackchannelLogoutVerifier, resetJwksCache } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { beforeEach, describe } from "vitest";
+import { createBackchannelLogoutVerifier, resetJwksCache } from "#server/infra/auth/index.ts";
 
 // A5 — the OIDC Back-Channel Logout `logout_token` VERIFY surface (infra/auth/backchannel). Exercises the
 // REAL jose crypto against a locally-signed token + its public JWKS literal (jwksFor's `{…}` path builds a

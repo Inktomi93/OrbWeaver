@@ -11,8 +11,6 @@ import { characters, chatDigestSpeakers, chatDigests, chatSegments, embedGenerat
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
-import type { EmbeddingsService } from "@orb/server/domain/embeddings";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import type {
@@ -24,6 +22,8 @@ import type {
   SummarizeOp,
 } from "#server/domain/chat/contract/context.ts";
 import type { MemoryScope } from "#server/domain/chat/memory/types.ts";
+import type { EmbeddingsService } from "#server/domain/embeddings/index.ts";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import type { StoreHarness } from "../../embeddings/_support.ts";
 import { makeStoreHarness, SUMMARIZER_MODEL, seedVectorConnection } from "../../embeddings/_support.ts";
 import { makeChatContext, seedMessage } from "../_support.ts";

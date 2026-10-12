@@ -6,9 +6,9 @@
 // fail-closed: the chatId is the untrusted input and present-membership is the chokepoint.
 // @subject packages/server/src/domain/automation/verbs/resolve-stream-authority.ts
 
-import { AutomationChatNotFoundError } from "@orb/server/domain/automation";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { AutomationChatNotFoundError } from "#server/domain/automation/index.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 

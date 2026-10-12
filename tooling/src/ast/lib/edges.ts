@@ -16,12 +16,8 @@ import { KEY_SEP } from "./root.ts";
 // head of the chain only. The edge therefore has to name the DECLARATION a consuming reference sits inside.
 //
 // THE EDGE IS PARALLEL AND OPT-IN; both halves are load-bearing.
-//   • PARALLEL — a new map on `Liveness`, never a change to usedProd/usedClientProd/usedServerProd/usedTest/
-//     starTargets/arms/namespaceSites. The push-tier `deps:orphan-ratchet` judges the SAME candidate set the
-//     `orphans` verb prints, so perturbing those sets is a GATE regression, not a lens change. Both arms are
-//     pinned identical in the self-test, and the whole-workspace digests were diffed before/after (0 bytes).
-//   • OPT-IN — it costs one identifier walk per source file, which the ratchet must not pay for a map it
-//     never reads. `buildLiveness(project)` is unchanged in output AND in cost.
+//   • PARALLEL — liveness sets remain unchanged; only the consumers map is added.
+//   • OPT-IN — callers that do not request the map avoid its identifier walk.
 //
 // HOW A REFERENCE IS ATTRIBUTED — syntactically, by ANCESTRY. Not the language service: `findReferences` per
 // import specifier is the `refs` verb's cost times every import in the workspace, which would price the

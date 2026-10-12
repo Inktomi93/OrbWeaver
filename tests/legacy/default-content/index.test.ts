@@ -31,8 +31,8 @@ import {
 } from "@orb/default-content";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 
 const CONTENT_DIR = fileURLToPath(new URL("../../../packages/default-content/", import.meta.url));
 

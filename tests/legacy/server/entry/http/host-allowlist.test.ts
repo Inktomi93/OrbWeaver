@@ -4,12 +4,12 @@
 // @orb-waive-file no-test-fabrication({ host: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { HOST_NETWORK_OVERLAY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
-import { hostAllowlist } from "@orb/server/entry/http";
 import { settingInstruction } from "@orb/server/foundation/env";
-import { allowedHostsReader, createRelayHostRegistry } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe, vi } from "vitest";
+import { hostAllowlist } from "#server/entry/http/index.ts";
+import { allowedHostsReader, createRelayHostRegistry } from "#server/infra/auth/index.ts";
 
 const OK = 200;
 const MISDIRECTED = 421;

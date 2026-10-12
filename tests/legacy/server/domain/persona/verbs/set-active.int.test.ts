@@ -5,13 +5,13 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
 import type { ChatId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can } from "@orb/server/domain/admin";
-import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { can } from "#server/domain/admin/index.ts";
 import { requireAuthorOrHost, setParticipantActivePersona } from "#server/domain/chat/index.ts";
+import { createPersonaService, PersonaNotFoundError } from "#server/domain/persona/index.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 

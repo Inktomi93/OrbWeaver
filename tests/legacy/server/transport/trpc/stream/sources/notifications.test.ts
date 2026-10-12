@@ -28,11 +28,11 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";
 import type { ChatId, NotificationId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { InboxView, NotificationsService } from "@orb/server/domain/notifications";
 import type { Context } from "@orb/server/transport/trpc";
 import { publishNotification, publishUserEvent, ROOM_SOURCES } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { InboxView, NotificationsService } from "#server/domain/notifications/index.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 import { consumeServerReady } from "../_support.ts";
 

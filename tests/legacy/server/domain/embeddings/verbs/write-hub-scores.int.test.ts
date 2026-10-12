@@ -6,11 +6,11 @@
 import { characterEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { EMBED_MODEL, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
 const CARD_TEXT = "a card to score";

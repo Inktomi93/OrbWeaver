@@ -10,9 +10,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { versionIdentity } from "@orb/server/foundation/version";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, vi } from "vitest";
+import { versionIdentity } from "#server/foundation/version/index.ts";
 
 // The OS assigns this invocation's listener port (`listenPort: 0` below); reserving a port and then
 // rebinding would recreate the race. The whole data root (db, assets, secrets, caches) is process-owned too.

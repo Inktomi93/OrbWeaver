@@ -7,9 +7,9 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginSnippetBusyError } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { PluginSnippetBusyError } from "#server/domain/plugin/index.ts";
 import { createSnippetGate, SNIPPET_CONCURRENCY_PER_USER } from "#server/domain/plugin/substrate/snippet-gate.ts";
 
 const ALICE = castId<UserId>("user_alice0000000000000000000");

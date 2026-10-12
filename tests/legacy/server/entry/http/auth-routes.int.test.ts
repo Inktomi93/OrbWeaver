@@ -13,10 +13,7 @@ import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, Sessio
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import { isReservedSignupHandle } from "@orb/server/domain/sessions";
-import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator, SignupRouteDeps } from "@orb/server/entry/http";
-import { registerAuthRoutes } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
-import { createPublicHttpMintNotice, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedChat, seedUser } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -29,8 +26,11 @@ import { createSessionsService } from "#server/domain/sessions/service.ts";
 import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
+import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator, SignupRouteDeps } from "#server/entry/http/index.ts";
+import { registerAuthRoutes } from "#server/entry/http/index.ts";
 import { env } from "#server/foundation/env/index.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
+import { createPublicHttpMintNotice, ownerFallbackAllowed } from "#server/infra/auth/index.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

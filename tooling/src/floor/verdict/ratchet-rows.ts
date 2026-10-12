@@ -14,8 +14,7 @@
 // outlive the thing that justified it. NOTHING ENFORCES THAT MECHANICALLY ANY MORE: `ratchet-row-integrity`
 // was the enforcer and it RETIRED 2026-09-14 with its subject — gates are mechanically forbidden from owning
 // baseline ledgers (`lib/gate-contract.ts`, `[baseline-ledger]`), so the gate corpus holds zero ledgers to
-// judge. The two surviving ratchets are ops-tier (`ops/ct-unfed-ratchet.ts` CT, `ops/orphan-export-ratchet.ts`
-// push), both drained to zero rows, and their row integrity is their own tier's business. The migrated half
+// judge. Ops-tier CT baselines own their row integrity. The migrated half
 // of the property — cites that moved into reviewed-grant `why`/`endsWhen` prose — is owed by #2349. DECLARED LIMIT: a `§`/`#` suffix on a cite is prose (stripped before the existence check),
 // and a D-number named inside a `why` is NOT resolved here — `d-citation-integrity` owns D-number integrity
 // over packages/** + docs/law/**, and re-spelling its registry reader here would be a second
@@ -25,7 +24,7 @@
 // consumer that reads a new ledger as zero rows):
 //   • BUDGET-MAP — `{ "<subject>": 3 }` (a bare number IS class debt, the default spelling) or
 //     `{ "<subject>": { "count": 3, "ratified": 3, "why": "…", "cite": ["…"] } }`.
-//   • ENTRIES-MAP — the orphan ratchet's `{ "note": "…", "entries": { "<subject>": "<reason>" } }`, where a
+//   • ENTRIES-MAP — the reasoned membership `{ "note": "…", "entries": { "<subject>": "<reason>" } }`, where a
 //     row is one membership (count 1) carrying its reason as its `why`.
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve, sep } from "node:path";
@@ -263,7 +262,7 @@ export function readRatchetLedger(root: string, rel: string): RatchetLedgerFile 
 }
 
 /** An entries-map row: ONE membership, its reason as the `why`. Its class is DEBT by construction — the
- *  orphan ratchet's rows are the sweep's UNDECIDED set, which is the definition of burnable. */
+ *  Membership rows represent undecided debt, not a ratified count. */
 function parseEntriesRow(subject: string, reason: unknown): RatchetRow {
   if (typeof reason !== "string") {
     throw new RatchetRowError(`row "${subject}": an entries-map row's value is its reason string, got ${JSON.stringify(reason)}`);

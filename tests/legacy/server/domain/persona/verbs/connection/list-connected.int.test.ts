@@ -5,10 +5,10 @@
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPersonaService } from "@orb/server/domain/persona";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createPersonaService } from "#server/domain/persona/index.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../../_support.ts";
 
 const ONE_MINUTE = 60_000;

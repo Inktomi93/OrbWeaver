@@ -2,9 +2,9 @@
 // claim once and spends the code for every other held login, an unheld login spends nothing, and a re-issued code
 // retires the old one with its held logins.
 
-import { createOwnerClaimCode } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createOwnerClaimCode } from "#server/infra/auth/index.ts";
 
 const BASE64URL_32_BYTES = /^[A-Za-z0-9_-]{43}$/u;
 

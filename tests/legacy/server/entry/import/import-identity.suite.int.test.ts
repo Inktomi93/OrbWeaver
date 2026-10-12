@@ -11,11 +11,11 @@ import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { runProfileImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
 import { relativePathOf } from "#client/data/import-tree.ts";
 // Deep import of the PURE planner module (the barrel drags browser TSX into the node program).
 import { planTreeImport } from "#client/data/import-tree-plan.ts";
+import { runProfileImport } from "#server/entry/import/index.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";

@@ -8,11 +8,11 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ExportService } from "@orb/server/domain/export";
-import type { ExportDeps } from "@orb/server/entry/http";
-import { registerExport } from "@orb/server/entry/http";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ExportService } from "#server/domain/export/index.ts";
+import type { ExportDeps } from "#server/entry/http/index.ts";
+import { registerExport } from "#server/entry/http/index.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

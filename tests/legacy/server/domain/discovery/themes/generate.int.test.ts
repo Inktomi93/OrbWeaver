@@ -3,11 +3,11 @@
 // full-space-size invariant (esoteric #3).
 
 import { chatDigests, digestThemeAssignments, themeClusters } from "@orb/db";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { makeDiscoveryHarness, makeSummarizeRecorder, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 describe("computeThemes", () => {

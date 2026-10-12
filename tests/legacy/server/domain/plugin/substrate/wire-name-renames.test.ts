@@ -7,8 +7,8 @@
 // would move one plugin's persisted tool cards onto another plugin's namespace, which is strictly worse than
 // the stale name it replaced. Each refusal case below is a shape that would have been silently mis-migrated.
 
-import { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused } from "#server/domain/plugin/index.ts";
 
 test("a hyphenated slug alone on the box is renamed, prefix to prefix", () => {
   expect(pluginToolWireNameRenames(["oracle-deck"])).toEqual([{ from: "plugin_oracle_deck_", to: "plugin_oracle__deck_" }]);

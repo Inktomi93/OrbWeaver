@@ -6,8 +6,6 @@ import type { Db } from "@orb/db";
 import { characters, personas, rosterPresetMembers, rosterPresets, users } from "@orb/db";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CastRuleWrite } from "@orb/server/domain/roster-preset";
-import { RosterPresetNotFoundError } from "@orb/server/domain/roster-preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
@@ -15,6 +13,8 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import type { CastRuleWrite } from "#server/domain/roster-preset/index.ts";
+import { RosterPresetNotFoundError } from "#server/domain/roster-preset/index.ts";
 import {
   insertPresetWithMembers,
   listOwnedPresetRows,

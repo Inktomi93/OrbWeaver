@@ -3,11 +3,11 @@
 // duplicate tag); the attach is idempotent and reports newly-attached (the boolean bulkAddCardTag counts).
 
 import { characterTags, tags } from "@orb/db";
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 describe("attach card tag by name", () => {

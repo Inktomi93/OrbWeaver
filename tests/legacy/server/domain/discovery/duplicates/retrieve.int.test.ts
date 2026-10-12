@@ -5,11 +5,11 @@ import type { Db } from "@orb/db";
 import { chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
 import type { DuplicateCharacterPairId, DuplicateChatPairId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedChatSegment, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 async function seedNearDupPair(db: Db, ownerId: UserId): Promise<void> {

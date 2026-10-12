@@ -14,12 +14,12 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { bumpStatsCanonVersion } from "@orb/server/domain/stats";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { commitHostFencedWrite } from "#server/domain/chat/substrate/host-fenced-write.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/index.ts";
 import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;

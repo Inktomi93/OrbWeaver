@@ -20,10 +20,10 @@ import type { PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { PluginNotFoundError } from "#server/domain/plugin/index.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const ROOM = castId<ChatId>("chat_0000000000000000000001");

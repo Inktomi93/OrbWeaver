@@ -10,10 +10,10 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
-import { createCas } from "@orb/server/infra/storage";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { createApp } from "#server/entry/app.ts";
+import { createCas } from "#server/infra/storage/index.ts";
 import { principal } from "../../../server/transport/trpc/_support.ts";
 
 const CASES = [

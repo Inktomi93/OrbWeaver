@@ -13,11 +13,11 @@ import type {
 } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
-import type { ShareService } from "@orb/server/domain/share";
-import { createShareService } from "@orb/server/domain/share";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { requireAdmin, requireOwner } from "#server/domain/admin/index.ts";
+import type { ShareService } from "#server/domain/share/index.ts";
+import { createShareService } from "#server/domain/share/index.ts";
 
 export const LOCAL_SETUP_URL = "http://localhost:8788";
 /** The app listener's port the harness reports. */

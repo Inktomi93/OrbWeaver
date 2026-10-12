@@ -12,11 +12,11 @@
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { ScrapeFailedError } from "#server/domain/databank/contract/errors.ts";
+import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 
 const VIDEO_ID = "dQw4w9WgXcQ";

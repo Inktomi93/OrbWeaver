@@ -12,13 +12,13 @@
 import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
-import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/observability/debug";
-import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
+import { createRpgTraceRecorder } from "#server/domain/rpg/index.ts";
 import { createRpgTraceInspector } from "#server/entry/compose/debug-inspectors.ts";
+import type { RpgTraceInspector, SocketInspector } from "#server/foundation/observability/debug/index.ts";
+import { registerDebugRoutes } from "#server/foundation/observability/debug/index.ts";
 
 const TOKEN = "debug-secret-token";
 

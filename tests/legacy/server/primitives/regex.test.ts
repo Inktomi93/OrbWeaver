@@ -14,9 +14,9 @@
 // @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import type { RegexReplacer } from "@orb/kit/regex";
 import { matchEntryKeys } from "@orb/kit/world-info";
-import { createRegexApplyReplace, createRegexTest, REGEX_APPLY_TIMEOUT_MS } from "@orb/server/primitives/regex";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createRegexApplyReplace, createRegexTest, REGEX_APPLY_TIMEOUT_MS } from "#server/primitives/regex/index.ts";
 
 // A generous deadline: the watchdog fires at REGEX_APPLY_TIMEOUT_MS (50ms) so the throwing assertions
 // resolve in well under this. If the guard were broken, the 60-'a' backtrack (~2^60 steps) would never

@@ -6,10 +6,10 @@
 
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { RuleValidationError } from "@orb/server/domain/automation";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ErasedRulePresetDef } from "#server/domain/automation/contract/presets.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
+import { RuleValidationError } from "#server/domain/automation/index.ts";
 import {
   resolveChatRulePresetKnobs,
   resolveRulePresetKnobs,

@@ -8,8 +8,8 @@
 // (a foreign on-demand id collapses to NOT_FOUND) is covered by `verbs/distill.int.test.ts`.
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { DistillCharactersOptions, DistillTargetNarrow } from "@orb/server/domain/discovery";
 import { expectTypeOf, test } from "vitest";
+import type { DistillCharactersOptions, DistillTargetNarrow } from "#server/domain/discovery/index.ts";
 
 declare const characterId: CharacterId;
 declare const ownerId: UserId;

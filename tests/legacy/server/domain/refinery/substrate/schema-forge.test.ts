@@ -3,10 +3,10 @@
 // refusal routes to its own arm with the transpiled skeleton attached, and a design with zero fields is a
 // `failed` arm rather than a silently-empty draft.
 
-// @orb-waive-file no-test-fabrication(Extract<SchemaForgeResult, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
-import type { SchemaForgeResult } from "@orb/server/domain/refinery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+// @orb-waive-file no-test-fabrication(Extract<SchemaForgeResult, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
+import type { SchemaForgeResult } from "#server/domain/refinery/index.ts";
 import { resolveForgeCall, runForgeTurn } from "#server/domain/refinery/substrate/schema-forge.ts";
 import { makeRefineryHarness, seedUser } from "../_support.ts";
 

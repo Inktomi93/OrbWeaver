@@ -7,10 +7,10 @@
 import { characterDocuments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "@orb/server/domain/databank";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "#server/domain/databank/index.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedRosterCharacter, seedUser } from "../../_support.ts";
 
 test("owner attaches an owned document to an owned character; re-attach idempotent; detach removes it", async () => {

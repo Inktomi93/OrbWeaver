@@ -1,12 +1,12 @@
 import { chatParticipants } from "@orb/db";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { seedAsset } from "@orb/testkit/node/factories/asset.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import {
   seedCharacterEmbedding,
   seedChatDigest,

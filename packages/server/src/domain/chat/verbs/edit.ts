@@ -46,7 +46,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";

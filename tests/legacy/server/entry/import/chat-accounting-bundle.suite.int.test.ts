@@ -6,12 +6,7 @@ import { join } from "node:path";
 import { generationUsageLegSchema } from "@orb/contracts/inference";
 import { chatGenerationObservations, chatParticipants, chats, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
 import { castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
-import { reconcileStats } from "@orb/server/domain/stats";
-import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
-import type { PrincipalEnv } from "@orb/server/entry/http";
-import { registerExport, registerImportBundle } from "@orb/server/entry/http";
-import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
@@ -22,6 +17,11 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
+import { reconcileStats } from "#server/domain/stats/index.ts";
+import { loadWorkload, runWorkload } from "#server/domain/workloads/index.ts";
+import type { PrincipalEnv } from "#server/entry/http/index.ts";
+import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
+import { parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 test("two-box native workload preserves retained legs and pending positional facts, remints private parents and settles once", async ({

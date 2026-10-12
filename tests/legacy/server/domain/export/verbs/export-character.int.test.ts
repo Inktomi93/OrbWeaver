@@ -13,14 +13,14 @@ import { characterBooks } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
-import { createExportService } from "@orb/server/domain/export";
-import { parseCardPng } from "@orb/server/domain/import";
-import { createLinkCarriedBooks } from "@orb/server/domain/world-info";
 import { cardFromJson } from "@orb/server/primitives/serde/card";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createExportService } from "#server/domain/export/index.ts";
+import { parseCardPng } from "#server/domain/import/index.ts";
+import { createLinkCarriedBooks } from "#server/domain/world-info/index.ts";
 import {
   AVATAR_PNG,
   makeHarness,

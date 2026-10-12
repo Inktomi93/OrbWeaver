@@ -5,9 +5,6 @@
 // The fixture deliberately CUSTOMIZES one guided template and leaves everything else untouched: the
 // Default/Customized chip's derivation ("empty IS the default") is only observable against both states.
 
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
-import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
-import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -17,6 +14,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ActionsView } from "#client/features/preset/components/actions-view.tsx";
 import { mergeOnSubmit } from "#client/features/preset/lib/preset-editor-model.ts";
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
+import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
+import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_actionsstoryy");
 

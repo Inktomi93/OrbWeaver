@@ -3,11 +3,11 @@
 // EXPORTS WITHOUT IT — exercised through the REAL read path (a stored user_settings row), not just the serde.
 
 import type { PortableParse } from "@orb/contracts/portability";
-import { createExportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
-import { parseUserSettingsBackup } from "@orb/server/primitives/serde/user-settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createExportUserSettings, createSettingsContext } from "#server/domain/settings/index.ts";
+import { parseUserSettingsBackup } from "#server/primitives/serde/user-settings/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

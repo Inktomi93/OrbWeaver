@@ -1,10 +1,10 @@
 // verb: list — owner-scoped, secret-free, ordered (provider, createdAt). Cross-owner isolation.
 // @subject packages/server/src/domain/credentials/verbs/list.ts
 
-import { createCredentialsService } from "@orb/server/domain/credentials";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("list", () => {

@@ -8,11 +8,11 @@
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CollectedGroup, ImportContext, ImportGroupsInput } from "@orb/server/domain/import";
-import { createImportService, importFileHash, parseStGroupFile } from "@orb/server/domain/import";
-import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { CollectedGroup, ImportContext, ImportGroupsInput } from "#server/domain/import/index.ts";
+import { createImportService, importFileHash, parseStGroupFile } from "#server/domain/import/index.ts";
+import { parseChatJsonl } from "#server/primitives/serde/chat/index.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const ARIA = castId<CharacterId>("chr_aria");

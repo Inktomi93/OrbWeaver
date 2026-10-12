@@ -1,3 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import {
   __setEgressResolverForTest,
   ANY_HOST,
@@ -7,9 +9,7 @@ import {
   privateEgressRanges,
   safeFetch,
   shouldBlockEgress,
-} from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { afterEach, beforeEach, describe, vi } from "vitest";
+} from "#server/infra/network/index.ts";
 
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);
 const ABORT_RE = /abort/i;

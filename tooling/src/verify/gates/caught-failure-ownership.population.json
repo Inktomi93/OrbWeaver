@@ -3446,11 +3446,6 @@
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced."
     },
     {
-      "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::runOrphanRatchet::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced."
-    },
-    {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::runPasses::error::1",
       "verdict": "deliberate-absorb",
       "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status"

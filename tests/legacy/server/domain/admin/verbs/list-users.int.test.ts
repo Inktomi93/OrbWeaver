@@ -4,10 +4,10 @@
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createAdminService } from "@orb/server/domain/admin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createAdminService } from "#server/domain/admin/index.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("listUsers", () => {

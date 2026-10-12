@@ -8,10 +8,10 @@
 import type { ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadScheduleRef } from "@orb/contracts/workloads";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { WorkloadScheduleRow } from "@orb/server/domain/workloads";
 import { seedCasSchedules } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { WorkloadScheduleRow } from "#server/domain/workloads/index.ts";
 
 const OWNER = castId<UserId>("u_owner");
 

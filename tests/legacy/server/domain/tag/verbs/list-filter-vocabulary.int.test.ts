@@ -3,10 +3,10 @@
 // omitting a live id would falsely delete the filter.
 // @subject packages/server/src/domain/tag/verbs/list-filter-vocabulary.ts
 
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 describe("listTagFilterVocabulary", () => {

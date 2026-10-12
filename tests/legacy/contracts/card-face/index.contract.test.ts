@@ -8,14 +8,14 @@
 // literals (persona NAME 1/200 + DESCRIPTION 100_000; character NAME_MIN/NAME_MAX/TEXT_MAX — read off
 // the pre-C1 sources), so a composed schema that shifts any limit reds here.
 
-import type { ResolvedCardFace } from "@orb/contracts/card-face";
-import { CARD_FACE_LIMITS, cardFaceFields } from "@orb/contracts/card-face";
 import { characterCardSchema, createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
 import type { ChatPersonaIdentity } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { ResolvedCardFace } from "#contracts/card-face/index.ts";
+import { CARD_FACE_LIMITS, cardFaceFields } from "#contracts/card-face/index.ts";
 import type { CharacterDetail } from "#server/domain/character/contract/views.ts";
 
 // ── Reference equality — one home, proven per field per composer ─────────────────────────────────────

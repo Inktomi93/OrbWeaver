@@ -2,11 +2,11 @@
 // keep their override power, and the resolver records which ones the operator set, because the layout
 // migration moves only a defaulted slot.
 
-import { DEFAULT_IMPORT_STAGING_DIR } from "@orb/server/domain/import";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DATA_LAYOUT_SLOT_KEYS, DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { DEFAULT_IMPORT_STAGING_DIR } from "#server/domain/import/index.ts";
 
 describe("resolveDataLayout", () => {
   test("every slot derives from the default root, keeping the relative spelling", () => {

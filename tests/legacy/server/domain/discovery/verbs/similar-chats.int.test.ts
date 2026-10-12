@@ -6,11 +6,11 @@
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { makeDiscoveryHarness, seedChatSegment, seedDepartedHost, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 // Seed a hosted chat with a title + one segment vector (one block = one centroid input).

@@ -7,10 +7,10 @@
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImportContext } from "@orb/server/domain/import";
-import { createImportService } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { ImportContext } from "#server/domain/import/index.ts";
+import { createImportService } from "#server/domain/import/index.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

@@ -16,14 +16,14 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { presets, tags, themes } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
-import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
-import { registerExport, registerImportBundle } from "@orb/server/entry/http";
-import { extractZip } from "@orb/server/infra/storage";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
+import { loadWorkload, runWorkload } from "#server/domain/workloads/index.ts";
+import type { ExportDeps, ImportBundleDeps } from "#server/entry/http/index.ts";
+import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
+import { extractZip } from "#server/infra/storage/index.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // The portability route suite builds the full service graph + drives a real `import-bundle` workload; it

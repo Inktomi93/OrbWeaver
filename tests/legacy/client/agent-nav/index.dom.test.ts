@@ -5,7 +5,6 @@
 // `queryClient` are faked to the minimal shape `fetchQuery(queryOptions())` needs — this bridge does no
 // I/O of its own beyond that read, so a real server is not required to prove the dispatch contract.
 
-import { buildAgentNav } from "@orb/client/agent-nav";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import {
@@ -35,6 +34,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QueryClient } from "@tanstack/react-query";
 import { QueryClient as RealQueryClient } from "@tanstack/react-query";
 import { beforeEach } from "vitest";
+import { buildAgentNav } from "#client/agent-nav/index.ts";
 
 const CHAT_ID = castId<ChatId>("chat_agentnav_a");
 const CHARACTER_ID = castId<CharacterId>("character_agentnav_a");

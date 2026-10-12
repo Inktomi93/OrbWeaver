@@ -1,12 +1,12 @@
 import { assets, imageryGenerations, imageryImportCalls } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { bumpStatsCanonVersion } from "@orb/server/domain/stats";
 import { seedAsset } from "@orb/testkit/node/factories/asset.ts";
 import { makeImageryCall } from "@orb/testkit/node/factories/imagery-call.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { writeImportedImageryCall } from "#server/domain/imagery/persistence/portability-write.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/index.ts";
 
 test("one foreign sibling refuses the entire execution, then complete owned retries restore only missing outputs", async ({ db }) => {
   const owner = await seedUser(db);

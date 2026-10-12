@@ -1,7 +1,7 @@
-import type { OidcDiscover } from "@orb/server/infra/auth";
-import { createOidcConfigCache } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { OidcDiscover } from "#server/infra/auth/index.ts";
+import { createOidcConfigCache } from "#server/infra/auth/index.ts";
 
 // The openid-client Configuration type, borrowed through the module's own injected-thunk type (the tests
 // workspace does not depend on openid-client directly).

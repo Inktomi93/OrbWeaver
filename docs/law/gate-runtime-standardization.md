@@ -119,8 +119,7 @@ cache, import another registered gate module, or implement binding/origin resolu
 `lib/`; recognition of a registered gate is by contract registration, not directory name. A corpus-wide
 reference-resolution primitive consumed by more than one tool (not only `verify`) lives in
 `tooling/src/floor/` instead. The `reference-fact` family lives in `floor/code-facts/` because `tooling/src/ast/`
-also reads it; `verify` importing `ast` (`ops/orphan-export-ratchet.ts`) would make the reverse import a
-direction reversal, not a placement choice. This does not widen the family boundary: `policy-family-readers`
+also reads it; a reverse import from the floor into either tool would reverse the package direction. This does not widen the family boundary: `policy-family-readers`
 still requires each family's shared canonical declaration to resolve inside `tooling/src/verify/lib/`, so a
 family whose only shared production dependency is a floor primitive needs a `verify/lib/`-declared
 sibling dependency too, or its own singleton reason.

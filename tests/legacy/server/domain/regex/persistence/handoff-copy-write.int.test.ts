@@ -18,11 +18,11 @@ import { chatRegexScripts, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRegexService } from "@orb/server/domain/regex";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createRegexService } from "#server/domain/regex/index.ts";
 import { createCopyHandoffRegexScripts } from "#server/domain/regex/persistence/handoff-copy-write.ts";
 import { allowChat, behavior, makeHarness, principal, seedChat, seedScript, seedUser } from "../_support.ts";
 

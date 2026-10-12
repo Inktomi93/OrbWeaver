@@ -13,12 +13,12 @@ import { users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createAdminService } from "@orb/server/domain/admin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
+import { createAdminService } from "#server/domain/admin/index.ts";
 import { auditActions, makeHarness, principal, seedUser, withBrokenAudit, withBrokenBind } from "../_support.ts";
 
 const EXT = castId<ExternalId>("authentik|subject-123");

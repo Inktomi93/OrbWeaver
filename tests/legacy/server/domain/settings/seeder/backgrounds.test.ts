@@ -22,16 +22,16 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type {
   DefaultBackgroundSeederDeps,
   SeedBackgroundPlateRef,
   SeededLibraryEntry,
   SeededPlateAsset,
   SeededSlugResolver,
-} from "@orb/server/domain/settings";
-import { createDefaultBackgroundSeeder } from "@orb/server/domain/settings";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "#server/domain/settings/index.ts";
+import { createDefaultBackgroundSeeder } from "#server/domain/settings/index.ts";
 
 const PLATES: readonly SeedBackgroundPlateRef[] = [
   { slug: "assistant-bg", label: "Charlotte's study" },

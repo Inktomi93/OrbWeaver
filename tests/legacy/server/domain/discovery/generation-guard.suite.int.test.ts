@@ -8,12 +8,12 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, characterSummaries, characters, chatDigests, chatSegments, embedGenerations, imageEmbeddings } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { computeGroupHubs } from "#server/domain/discovery/substrate/hub-math.ts";
 import {
   EMBED_MODEL,

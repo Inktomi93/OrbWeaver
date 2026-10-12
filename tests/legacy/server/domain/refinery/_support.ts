@@ -18,10 +18,10 @@ import {
   createLoadOwnedCard,
   createStampRefinerySignals,
 } from "@orb/server/domain/character";
-import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "@orb/server/domain/refinery";
-import { createRefineryService } from "@orb/server/domain/refinery";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { FAKE_SUMMARIZE_MODEL, makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "#server/domain/refinery/index.ts";
+import { createRefineryService } from "#server/domain/refinery/index.ts";
 import { makeHarness, principal } from "../character/_support.ts";
 
 export { principal, seedUser } from "../character/_support.ts";

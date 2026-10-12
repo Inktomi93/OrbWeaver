@@ -8,16 +8,16 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { PortableUserSettings } from "@orb/server/primitives/serde/user-settings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
+import type { PortableUserSettings } from "#server/primitives/serde/user-settings/index.ts";
 import {
   buildUserSettingsBackup,
   parseUserSettingsBackup,
   projectShareSafe,
   SHARE_SAFE_SETTINGS_NAMESPACES,
   USER_SETTINGS_SCHEMA_KIND,
-} from "@orb/server/primitives/serde/user-settings";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+} from "#server/primitives/serde/user-settings/index.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

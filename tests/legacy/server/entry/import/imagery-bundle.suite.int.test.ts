@@ -8,11 +8,7 @@ import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, imageryGenerations, modelStats, ownerStats } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
-import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
-import type { PrincipalEnv } from "@orb/server/entry/http";
-import { registerExport, registerImportBundle } from "@orb/server/entry/http";
-import { buildImageryCall, parseImageryCall } from "@orb/server/primitives/serde/imagery";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
@@ -24,6 +20,10 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
+import { loadWorkload, runWorkload } from "#server/domain/workloads/index.ts";
+import type { PrincipalEnv } from "#server/entry/http/index.ts";
+import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
+import { buildImageryCall, parseImageryCall } from "#server/primitives/serde/imagery/index.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 async function imageSpend(db: Db, ownerId: UserId): Promise<number | undefined> {

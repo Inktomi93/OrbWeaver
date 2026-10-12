@@ -8,7 +8,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { formatPluginAuthorDiagnostics, packPluginDirectory } from "@orb/plugin-toolchain";
-import { ManifestInvalidError, parseBundle } from "@orb/server/domain/plugin";
+import { ManifestInvalidError, parseBundle } from "#server/domain/plugin/index.ts";
 
 const USAGE = "usage: pnpm plugin:pack <slug> [outDir]\n  <slug> is a directory under packages/showcase-plugins/bundles/";
 const EXIT_VIOLATION = 1;

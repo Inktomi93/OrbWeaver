@@ -20,7 +20,6 @@ import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AutomationOps, AutomationToolOutcome, AutomationToolRequest } from "@orb/server/domain/automation";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -29,6 +28,7 @@ import type { ArmExecutorDeps, AutomationImageRequest, DispatchFrame } from "#se
 import type { AutomationContext, AutomationService } from "#server/domain/automation/contract/service.ts";
 import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
 import { runDispatch } from "#server/domain/automation/engine/dispatch.ts";
+import type { AutomationOps, AutomationToolOutcome, AutomationToolRequest } from "#server/domain/automation/index.ts";
 import { loadEnabledChatRules } from "#server/domain/automation/persistence/rules.ts";
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import type { RuleFixture } from "../_support.ts";

@@ -1,5 +1,7 @@
 // @orb-waive-file no-test-fabrication({ reason?: unknown } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
 // foundation/observability/debug/routes — the /api/_debug two-tier auth gate (this gate previously
 // shipped untested). Pins: timing-safe token equality;
 // admin-session short-circuit; DEBUG_TOKEN fallback; `expectedToken === undefined` → 404 only when no
@@ -13,10 +15,8 @@
 // The middleware is exercised through a minimal mock Context (Hono isn't a test-reachable dep): it touches
 // only c.req.header(), c.json(body,status), and next() — all mocked here — plus whatever the injected
 // `isAdmin` reads off the context, which in production is the request's already-resolved principal.
-import type { DebugAuthOptions } from "@orb/server/foundation/observability/debug";
-import { createDebugAuthMiddleware, toDebugLimit, tokenMatches } from "@orb/server/foundation/observability/debug";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+import type { DebugAuthOptions } from "#server/foundation/observability/debug/index.ts";
+import { createDebugAuthMiddleware, toDebugLimit, tokenMatches } from "#server/foundation/observability/debug/index.ts";
 
 interface MockResult {
   readonly body: unknown;

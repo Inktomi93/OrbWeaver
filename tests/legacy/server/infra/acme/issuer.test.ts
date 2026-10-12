@@ -2,8 +2,6 @@
 // every signed request, so the order's payload is read as the wire carried it, and its CSR is read by a DER reader
 // written apart from the library, so the SAN's GeneralName tag is checked independently.
 
-import type { AcmeIssuer } from "@orb/server/infra/acme";
-import { createAcmeIssuer, IP_IDENTIFIER_TYPE, openChallengeResponder, SHORTLIVED_PROFILE } from "@orb/server/infra/acme";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import type { FakeAcme } from "@orb/testkit/node/fake-acme.ts";
 import { startFakeAcme } from "@orb/testkit/node/fake-acme.ts";
@@ -11,6 +9,8 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { freeLoopbackPort } from "@orb/testkit/node/free-port.ts";
 import { GENERAL_NAME_DNS_TAG, GENERAL_NAME_IP_TAG, ipBytes, readCsr } from "@orb/testkit/node/x509.ts";
 import { afterEach, describe } from "vitest";
+import type { AcmeIssuer } from "#server/infra/acme/index.ts";
+import { createAcmeIssuer, IP_IDENTIFIER_TYPE, openChallengeResponder, SHORTLIVED_PROFILE } from "#server/infra/acme/index.ts";
 
 const ADDRESS = "81.2.69.160";
 const TOKEN = "tok_Abc123-xyz";

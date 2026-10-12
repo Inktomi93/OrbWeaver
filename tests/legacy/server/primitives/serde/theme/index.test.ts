@@ -5,7 +5,9 @@
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { PortableParse } from "@orb/contracts/portability";
-import type { CanonicalTheme, ThemeBackup, ThemeFileParse } from "@orb/server/primitives/serde/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
+import type { CanonicalTheme, ThemeBackup, ThemeFileParse } from "#server/primitives/serde/theme/index.ts";
 import {
   buildThemeBackup,
   parseThemeBackup,
@@ -13,9 +15,7 @@ import {
   THEME_SCHEMA_KIND,
   THEME_SCHEMA_VERSION,
   themeContentKey,
-} from "@orb/server/primitives/serde/theme";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+} from "#server/primitives/serde/theme/index.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function must<T>(result: PortableParse<T>): T {

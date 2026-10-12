@@ -12,11 +12,11 @@ import { regexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SubstituteFindRegex } from "@orb/kit/regex";
-import { createRegexService } from "@orb/server/domain/regex";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createRegexService } from "#server/domain/regex/index.ts";
 import { behavior, makeHarness, principal, seedScript, seedUser } from "./_support.ts";
 
 /** The refusal must NAME the family it could not read — matched loosely, since the serde owns the exact

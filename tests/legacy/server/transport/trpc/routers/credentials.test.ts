@@ -9,12 +9,12 @@ import type { CredentialView } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { CredentialsService } from "@orb/server/domain/credentials";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { CredentialsService } from "#server/domain/credentials/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

@@ -4,9 +4,9 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
-import { createPluginGitSource, materializePluginGitEntries } from "@orb/server/infra/network";
 import { expect, test as houseTest } from "@orb/testkit/node/fixtures.ts";
 import { add, commit, indexPack, init } from "isomorphic-git";
+import { createPluginGitSource, materializePluginGitEntries } from "#server/infra/network/index.ts";
 
 const COMMIT = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const OBJECT_CAP = 2 * 1024 * 1024;

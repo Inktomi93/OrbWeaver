@@ -5,12 +5,12 @@ import { IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery"
 import type { AssetId, ChatId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import type { GeneratedPicture, GeneratePictureParams } from "@orb/server/domain/imagery";
-import { imageryToolDefinitions } from "@orb/server/domain/imagery";
-import type { ToolExecutionContext } from "@orb/server/domain/tool-use";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { GeneratedPicture, GeneratePictureParams } from "#server/domain/imagery/index.ts";
+import { imageryToolDefinitions } from "#server/domain/imagery/index.ts";
+import type { ToolExecutionContext } from "#server/domain/tool-use/index.ts";
 import { principal } from "./_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

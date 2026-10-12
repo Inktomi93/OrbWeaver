@@ -1,8 +1,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
-import { registerExport, registerImportBundle } from "@orb/server/entry/http";
+import type { ExportDeps, ImportBundleDeps } from "#server/entry/http/index.ts";
+import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
 
 export function principalOf(userId: UserId): Principal {
   return { userId, role: "owner", handle: castId<Handle>(userId), externalId: null, via: "header" };

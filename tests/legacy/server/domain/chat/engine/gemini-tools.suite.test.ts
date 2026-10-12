@@ -3,8 +3,6 @@ import { parseVariantMetadata, projectViewForMember } from "@orb/contracts/chat"
 import { createInferenceRuntime } from "@orb/inference";
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
-import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
@@ -16,6 +14,8 @@ import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { buildCommittedMessageView } from "#server/domain/chat/persistence/canon-write.ts";
 import { continuedSignatureMetadata, signaturesForContent } from "#server/domain/chat/substrate/content-signatures.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
+import type { PortableChat } from "#server/primitives/serde/chat-bundle/index.ts";
+import { buildChatBundleFile, parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "../../../../../../scripts/probes/gemini-capabilities/scenario.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved, newUserId } from "../../../../inference/_support.ts";
 

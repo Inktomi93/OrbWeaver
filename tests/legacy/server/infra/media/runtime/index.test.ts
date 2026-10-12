@@ -1,9 +1,9 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { isAbsolute } from "node:path";
-import { verifyMediaRuntime } from "@orb/server/infra/media/runtime";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
+import { verifyMediaRuntime } from "#server/infra/media/runtime/index.ts";
 
 vi.mock("node:child_process", async (original) => ({ ...(await original<typeof import("node:child_process")>()), spawnSync: vi.fn() }));
 afterEach(() => vi.mocked(spawnSync).mockReset());

@@ -4,10 +4,10 @@
 // carries no owner), and narrowable to ONE character.
 // @subject packages/server/src/domain/tag/verbs/list-pending-suggestions.ts
 
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 describe("listPendingSuggestions", () => {

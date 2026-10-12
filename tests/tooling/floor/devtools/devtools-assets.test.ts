@@ -1,13 +1,13 @@
 // @orb-waive-file no-test-fabrication({ readonly files: { readonly includes: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/floor/devtools/devtools-assets";
 import {
@@ -53,7 +53,7 @@ async function syntheticRoot(): Promise<{ readonly root: string; readonly asset:
         url: "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/inspector.html",
         file: asset,
         bytes: assetBody.byteLength,
-        sha256: sha256Hex(assetBody),
+        sha256: createHash("sha256").update(assetBody).digest("hex"),
         mimeType: "text/html",
         licenseFamily: "devtools-frontend",
       },
@@ -71,7 +71,7 @@ async function syntheticRoot(): Promise<{ readonly root: string; readonly asset:
             file: notice,
             source: "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/LICENSE",
             bytes: noticeBody.byteLength,
-            sha256: sha256Hex(noticeBody),
+            sha256: createHash("sha256").update(noticeBody).digest("hex"),
           },
         ],
       },
@@ -86,7 +86,7 @@ async function syntheticRoot(): Promise<{ readonly root: string; readonly asset:
     protocolVersion: "1.3",
     resourceCount: 1,
     decodedBytes: assetBody.byteLength,
-    manifestSha256: sha256Hex(manifestText),
+    manifestSha256: createHash("sha256").update(manifestText).digest("hex"),
   };
   await Promise.all([
     writeFile(join(root, "manifest.json"), manifestText),
@@ -193,7 +193,7 @@ function walkCensus(root: string, directory = root, into: DevToolsClosureFile[] 
       walkCensus(root, path, into);
     } else {
       const body = readFileSync(path);
-      into.push({ file: relative(root, path).replaceAll("\\", "/"), bytes: body.byteLength, sha256: sha256Hex(body) });
+      into.push({ file: relative(root, path).replaceAll("\\", "/"), bytes: body.byteLength, sha256: createHash("sha256").update(body).digest("hex") });
     }
   }
   return into;

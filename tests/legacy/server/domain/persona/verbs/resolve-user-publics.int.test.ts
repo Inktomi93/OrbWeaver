@@ -7,12 +7,12 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { personas } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPersonaService, createResolveUserPublics } from "@orb/server/domain/persona";
 import { selectHandleById } from "@orb/server/domain/sessions";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createPersonaService, createResolveUserPublics } from "#server/domain/persona/index.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 const PROFILE_AVATAR = "asset_profile";

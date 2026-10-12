@@ -1,9 +1,9 @@
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AuthConfig, ForwardJwtClaims, ForwardJwtVerifier, ResolveDeps } from "@orb/server/infra/auth";
-import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { AuthConfig, ForwardJwtClaims, ForwardJwtVerifier, ResolveDeps } from "#server/infra/auth/index.ts";
+import { MODE_RESOLVERS } from "#server/infra/auth/index.ts";
 
 // forward-header — the UNSIGNED header-trust path + the SIGNED JWT path's fail-closed framing (the jose
 // crypto is the injected `verifyForwardJwt` port; here a fake verifier exercises the policy). Driven

@@ -6,10 +6,10 @@
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { SearchError } from "@orb/server/domain/search";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { SearchError } from "#server/domain/search/index.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 function opts(chat: ChatId, scopedCharacterId: CharacterId | undefined, over: Partial<MemoryQueryOptions> = {}): MemoryQueryOptions {

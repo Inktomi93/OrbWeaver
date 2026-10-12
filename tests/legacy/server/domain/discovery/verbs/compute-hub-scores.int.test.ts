@@ -3,10 +3,10 @@
 // per-(tier,model) digest grouping (esoteric #5), and the segment/image passes.
 // @subject packages/server/src/domain/discovery/verbs/compute-hub-scores.ts
 
-import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import type { HubScoreRecorder } from "../_support.ts";
 import {
   makeDiscoveryHarness,

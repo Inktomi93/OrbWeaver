@@ -23,12 +23,12 @@ import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
 import type { SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
-import { publishRpgEvent } from "@orb/server/domain/rpg";
-import type { WorkloadRowAnyKind } from "@orb/server/domain/workloads";
 import type { Context, PresenceRegistry, SocketRegistry } from "@orb/server/transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import { publishRpgEvent } from "#server/domain/rpg/index.ts";
+import type { WorkloadRowAnyKind } from "#server/domain/workloads/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 import { consumeServerReady } from "../stream/_support.ts";
 

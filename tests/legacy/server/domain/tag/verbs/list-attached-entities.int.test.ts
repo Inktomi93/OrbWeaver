@@ -5,9 +5,9 @@ import type { TagAttachedEntity, TagTargetRef } from "@orb/contracts/tag";
 import { TAG_REACH_PREVIEW_LIMIT, TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { characterTags, personaTags, presetTags, worldBookTags } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import { createTagService } from "@orb/server/domain/tag";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness, principal, seedCharacter, seedChat, seedPersona, seedPreset, seedTag, seedUser, seedWorldBook } from "../_support.ts";
 
 test("every target kind returns an adopted destination and the caller reaches its reader", async () => {

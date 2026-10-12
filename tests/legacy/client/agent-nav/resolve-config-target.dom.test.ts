@@ -2,10 +2,10 @@
 // an `openConfig` `sub`/`setting` address. Pure over a fixture registry (no store, no bridge); the wiring
 // through the real `__orb.nav.openConfig` handle is `tests/legacy/client/agent-nav/index.dom.test.ts`.
 
-import { resolveConfigTarget } from "@orb/client/agent-nav";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { resolveConfigTarget } from "#client/agent-nav/index.ts";
 
 const GROUP = "appearance" as ConfigGroupId;
 const OTHER_GROUP = "chat-behavior" as ConfigGroupId;

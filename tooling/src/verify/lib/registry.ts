@@ -303,34 +303,12 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "deps:knip-prod",
     applicationClassify: ownScheme,
-    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "knip-prod"],
+    applicationArgv: ["pnpm", "knip:prod"],
     group: "deps",
-    // The production-strict view (`--production --strict`): its DELTA over deps:knip is the
-    // kept-alive-only-by-tests rot lens (knip.ts header). FULL tier during the buildout, not static/push:
-    // leaf-first build order legitimately lands a contract type one commit before its consumer, so a
-    // commit-bar row would red on normal wave state; post-buildout it can promote (the api-surface
-    // "surface freeze" trigger class). Wired 2026-07-17 — it had NEVER run anywhere despite the registry
-    // doc claiming it live; the parity gate's shape list gained `knip*` the same day so a knip script can
-    // never dangle again.
-    tiers: ["full", "product"],
+    // D318: the production export baseline rejects new debt and requires resolved rows to be removed.
+    tiers: ["push", "full", "product"],
     argv: ["pnpm", "knip:prod"],
     classify: asViolations,
-  },
-
-  {
-    name: "deps:orphan-ratchet",
-    applicationArgv: ["pnpm", "check:orphan-ratchet"],
-    group: "deps",
-    // PUSH tier, never the commit bar: it resolves the whole type graph to key liveness on origin
-    // declarations (~30s). knip CANNOT stand in for it — probe-verified (dispositions doc, "Correction"):
-    // each package's `exports` map already makes these subpaths public API in knip's eyes, so knip flags
-    // none of them and its `tags: ["-@public"]` exemption never fires. This stage reads `@public <reason>`
-    // itself and ratchets the swept tree (tooling/src/verify/ops/orphan-export-ratchet.ts).
-    tiers: ["push", "full", "product"],
-    argv: ["pnpm", "check:orphan-ratchet"],
-    classify: ownScheme,
-    // A WHOLE-TREE liveness reconciliation (an export is only an orphan relative to the ENTIRE workspace's
-    // import graph) — whole-only, deferred at a scoped tier like the other cross-file reconciliations.
   },
 
   // ── docs stage-group ──

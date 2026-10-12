@@ -7,12 +7,6 @@
 import { rosterPresetMembers, rosterPresets } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createRosterPresetService,
-  RosterPresetCharacterNotFoundError,
-  RosterPresetNameConflictError,
-  RosterPresetPersonaNotFoundError,
-} from "@orb/server/domain/roster-preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
@@ -21,6 +15,12 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { ZodError } from "zod";
+import {
+  createRosterPresetService,
+  RosterPresetCharacterNotFoundError,
+  RosterPresetNameConflictError,
+  RosterPresetPersonaNotFoundError,
+} from "#server/domain/roster-preset/index.ts";
 import { makeHarness, memberSpec, principal } from "../_support.ts";
 
 describe("create", () => {

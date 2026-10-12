@@ -4,8 +4,8 @@ import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 
 const SPACE = localLightEmbedSpaceTag(DEFAULT_EMBED_MODEL, "q8");
 

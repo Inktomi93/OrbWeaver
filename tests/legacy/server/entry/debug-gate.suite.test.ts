@@ -48,15 +48,15 @@ import type { ChatId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
-import { createAuthSeam } from "@orb/server/entry/auth";
-import type { PrincipalEnv } from "@orb/server/entry/http";
-import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
-import type { AuthConfig, ForwardJwtVerifier } from "@orb/server/infra/auth";
-import { sessionCookieFor } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe } from "vitest";
+import { createAuthSeam } from "#server/entry/auth/index.ts";
+import type { PrincipalEnv } from "#server/entry/http/index.ts";
+import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "#server/foundation/observability/debug/index.ts";
+import type { AuthConfig, ForwardJwtVerifier } from "#server/infra/auth/index.ts";
+import { sessionCookieFor } from "#server/infra/auth/index.ts";
 
 const OK = 200;
 const BAD_REQUEST = 400;

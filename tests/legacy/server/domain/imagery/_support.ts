@@ -16,10 +16,10 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterOwned } from "@orb/server/domain/character";
-import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeResolved, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { ImageGenerateRequest, ImageryContext } from "#server/domain/imagery/index.ts";
 
 /** A tiny valid PNG header — sniffMime resolves it to image/png. */
 export const PNG_BYTES = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

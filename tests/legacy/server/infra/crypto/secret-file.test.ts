@@ -4,9 +4,9 @@ import { execFileSync } from "node:child_process";
 import { lstat, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readSecretFile, removeSecretFile, writeSecretFile } from "@orb/server/infra/crypto";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
+import { readSecretFile, removeSecretFile, writeSecretFile } from "#server/infra/crypto/index.ts";
 
 const OWNER_ONLY = 0o600;
 const PERMISSION_BITS = 0o777;

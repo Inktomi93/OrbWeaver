@@ -5,7 +5,6 @@
 // ordinary tracker), and every op arm carries only its own field's datum (the op vocabulary is the plane's
 // write surface — an arm that grew a foreign field would be a second image contract creeping back in).
 
-import { CARD_FACE_LIMITS } from "@orb/contracts/card-face";
 import {
   actorRefKey,
   clampActorCardName,
@@ -22,6 +21,7 @@ import {
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { CARD_FACE_LIMITS } from "#contracts/card-face/index.ts";
 
 test("actor ref parses all three lite arms (character/user/cast)", () => {
   const characterId = mintTypeId(ID_PREFIX.character);

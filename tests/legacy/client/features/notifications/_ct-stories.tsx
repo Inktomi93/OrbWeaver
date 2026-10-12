@@ -8,7 +8,6 @@
 // the stream to exist at all.
 
 import { useOrbSocket } from "@orb/client/data";
-import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
 import { closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
 import { CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { configSections } from "@orb/testkit/browser/ct-door.ts";
@@ -16,6 +15,7 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
+import { NotificationBell, notificationsChrome } from "#client/features/notifications/index.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */

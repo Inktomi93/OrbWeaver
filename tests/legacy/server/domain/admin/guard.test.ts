@@ -7,9 +7,9 @@ import type { UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can, isAdmin, isOwner, requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { can, isAdmin, isOwner, requireAdmin, requireOwner } from "#server/domain/admin/index.ts";
 import { principal } from "./_support.ts";
 
 /** A Principal carrying the given role, with a deterministic per-role userId. */

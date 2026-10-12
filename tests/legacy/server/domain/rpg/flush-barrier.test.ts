@@ -12,10 +12,10 @@
 // @orb-waive-file no-test-fabrication({ name?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRpgFlushBarrier } from "@orb/server/domain/rpg";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createRpgFlushBarrier } from "#server/domain/rpg/index.ts";
 
 const CHAT: ChatId = castId<ChatId>("chat_barrier_1");
 const OWNER: UserId = castId<UserId>("user_owner");

@@ -5,11 +5,11 @@
 // ST corpus trips none of them (all five shipped themes are dark and convert cleanly), so a gate proven only
 // against the corpus would be a gate that has never been shown to fire.
 
-// @orb-waive-file no-test-fabrication({ override: { background: string; userBubble: { bg: string } } }): baselined when the gate widened to value casts; burn-down item 906.
-import type { ParsedStTheme } from "@orb/server/primitives/serde/theme";
-import { parseThemeFile, stThemeFromJson, stThemeName } from "@orb/server/primitives/serde/theme";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+// @orb-waive-file no-test-fabrication({ override: { background: string; userBubble: { bg: string } } }): baselined when the gate widened to value casts; burn-down item 906.
+import type { ParsedStTheme } from "#server/primitives/serde/theme/index.ts";
+import { parseThemeFile, stThemeFromJson, stThemeName } from "#server/primitives/serde/theme/index.ts";
 
 /** The real `themes/Azure.json` from the corpus, verbatim (trimmed to the keys that matter here). */
 const AZURE = {

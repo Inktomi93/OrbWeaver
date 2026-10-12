@@ -2,9 +2,9 @@
 // proxy's assertion: the app never terminates TLS, so an absent, mixed or untrusted `X-Forwarded-Proto` is
 // plain http. The trusted-peer predicate is the one `resolveClientIp` uses for `X-Forwarded-For`.
 
-import { resolveClientScope, resolveTransport } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { resolveClientScope, resolveTransport } from "#server/infra/auth/index.ts";
 
 const NO_PROXIES: readonly string[] = [];
 

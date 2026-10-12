@@ -6,10 +6,10 @@
 import type { WorkloadStatus } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { nextRunnableWorkload, workloadStreamEmitter } from "@orb/server/domain/workloads";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { nextRunnableWorkload, workloadStreamEmitter } from "#server/domain/workloads/index.ts";
 import {
   failQueuedRow,
   findStaleInFlight,

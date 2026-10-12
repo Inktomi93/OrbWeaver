@@ -163,29 +163,26 @@ test("native view preserves exact manifests, source bytes and workspace resoluti
 });
 
 test.for([
-  { name: "clean app with unrelated tooling defects", patch: {}, production: false, exit: 0, includes: [] },
+  { name: "clean app with unrelated tooling defects", patch: {}, exit: 0, includes: [] },
   {
     name: "app-reached helper",
     patch: { [TOOL]: 'import "app-reached-unlisted"; import "./missing-helper.ts";\n' },
-    production: false,
     exit: 1,
     includes: ["app-reached-unlisted", "missing-helper.ts"],
   },
   {
     name: "previously unselected public export",
     patch: { [ENTRY]: 'import "@orb/tooling/unreached";\n' },
-    production: false,
     exit: 1,
     includes: ["unreached-tool-poison"],
   },
   {
     name: "conditional public export",
     patch: { [ENTRY]: 'import "@orb/tooling/branch";\n' },
-    production: false,
     exit: 1,
     includes: ["selected-import-branch"],
   },
-  { name: "real import of projected launcher", patch: { [TOOL]: 'import "../verify/cli.ts";\n' }, production: false, exit: 1, includes: ["dispatch-poison"] },
+  { name: "real import of projected launcher", patch: { [TOOL]: 'import "../verify/cli.ts";\n' }, exit: 1, includes: ["dispatch-poison"] },
   {
     name: "app package dependency",
     patch: {
@@ -197,7 +194,6 @@ test.for([
         exports: { ".": "./src/index.ts" },
       }),
     },
-    production: false,
     exit: 1,
     includes: ["unused-app-dependency"],
   },
@@ -212,7 +208,6 @@ test.for([
         exports: { ".": "./src/index.ts" },
       }),
     },
-    production: false,
     exit: 1,
     includes: ["unused-app-devdependency"],
   },
@@ -222,14 +217,12 @@ test.for([
       [APP]: 'import "./types.ts"; export const application = true;\n',
       "packages/kit/src/types.ts": "export type UnusedApplicationType = { readonly name: string };\n",
     },
-    production: false,
     exit: 1,
     includes: ["UnusedApplicationType"],
   },
   {
     name: "app unresolved source",
     patch: { [APP]: 'import "./missing-app.ts"; export const application = true;\n' },
-    production: false,
     exit: 1,
     includes: ["missing-app.ts"],
   },
@@ -241,7 +234,6 @@ test.for([
         scripts: { "test:ct": `node ${LAUNCHER} scoped-test ct && app-view-missing-binary` },
       }),
     },
-    production: false,
     exit: 1,
     includes: ["app-view-missing-binary"],
   },
@@ -253,33 +245,17 @@ test.for([
         scripts: { "check:drizzle-kit": "pnpm exec app-view-missing-binary --config=build.ts" },
       }),
     },
-    production: false,
     exit: 1,
     includes: ["app-view-missing-binary"],
   },
-  {
-    name: "production native package dependency",
-    patch: {
-      "packages/kit/package.json": JSON.stringify({
-        name: "@proof/kit",
-        private: true,
-        type: "module",
-        dependencies: { "unused-app-dependency": "1.0.0" },
-        exports: { ".": "./src/index.ts" },
-      }),
-    },
-    production: true,
-    exit: 1,
-    includes: ["unused-app-dependency"],
-  },
-])("composed application Knip: $name", { timeout: scaledBudget(30_000) }, async ({ patch, production, exit, includes }, { plantedTree, repoRoot }) => {
+])("composed application Knip: $name", { timeout: scaledBudget(30_000) }, async ({ patch, exit, includes }, { plantedTree, repoRoot }) => {
   const root = await plantedTree({ ...FILES, ...patch });
   execFixtureGit(root, ["init", "--quiet", "--template="]);
   symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
   const runner = join(root, "run-view.ts");
   writeFileSync(
     runner,
-    `import { runApplicationKnip } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/application-knip.ts")).href)}; process.exitCode = runApplicationKnip(${JSON.stringify(root)}, ${JSON.stringify(population(root))}, ${production}, ${JSON.stringify(CONFIGURED)});\n`,
+    `import { runApplicationKnip } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/application-knip.ts")).href)}; process.exitCode = runApplicationKnip(${JSON.stringify(root)}, ${JSON.stringify(population(root))}, ${JSON.stringify(CONFIGURED)});\n`,
   );
   const result = await spawnNiced(process.execPath, [runner], { cwd: root, timeoutMs: scaledBudget(30_000) });
   expect(result.code, result.stdout + result.stderr).toBe(exit);
@@ -290,35 +266,5 @@ test.for([
   expect(result.stdout + result.stderr).not.toContain("unrelated-proof-poison");
   expect(result.stdout + result.stderr).not.toContain("unselected-require-branch");
   expect(result.stdout + result.stderr).not.toContain("unselected-default-branch");
-  expect(result.stdout).toContain(`production=${String(production)}`);
-});
-
-test("production application Knip retains canonical shipped-script entry semantics", { timeout: scaledBudget(30_000) }, async ({ plantedTree, repoRoot }) => {
-  const media = "packages/server/src/entry/check-media.ts";
-  const root = await plantedTree({
-    ...FILES,
-    "packages/server/package.json": JSON.stringify({
-      name: "@proof/server",
-      private: true,
-      type: "module",
-      exports: { ".": "./src/index.ts" },
-      scripts: { postinstall: "node src/entry/check-media.ts" },
-    }),
-    "packages/server/src/index.ts": "export const server = true;\n",
-    [media]: 'import "shipped-script-unlisted";\n',
-  });
-  execFixtureGit(root, ["init", "--quiet", "--template="]);
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
-  const base = population(root);
-  const selected = { ...base, files: [...base.files, media, "packages/server/src/index.ts"] };
-  const runner = join(root, "run-view.ts");
-  writeFileSync(
-    runner,
-    `import { runApplicationKnip } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/application-knip.ts")).href)}; process.exitCode = runApplicationKnip(${JSON.stringify(root)}, ${JSON.stringify(selected)}, true);\n`,
-  );
-  const result = await spawnNiced(process.execPath, [runner], { cwd: root, timeoutMs: scaledBudget(30_000) });
-  expect(result.code, result.stdout + result.stderr).toBe(1);
-  expect(result.stdout + result.stderr).toContain("shipped-script-unlisted");
-  expect(result.stdout + result.stderr).toContain("check-media.ts");
-  expect(result.stdout + result.stderr).not.toContain("dispatch-poison");
+  expect(result.stdout).toContain("application native Knip:");
 });

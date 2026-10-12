@@ -8,13 +8,13 @@ import { join } from "node:path";
 import { assets } from "@orb/db";
 import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createCas } from "@orb/server/infra/storage";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { assetIdForHash, galleryItemViewById, insertGalleryItem, metadataForOwnedHash, storeBlob } from "#server/domain/assets/persistence/queries.ts";
+import { createCas } from "#server/infra/storage/index.ts";
 import { pngBytes, pngBytesWithDims, seedUser } from "../_support.ts";
 
 const PNG = "image/png";

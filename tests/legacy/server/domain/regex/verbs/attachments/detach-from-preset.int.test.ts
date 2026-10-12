@@ -4,10 +4,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createRegexService, RegexNotFoundError } from "#server/domain/regex/index.ts";
 import { makeHarness, principal, seedPreset, seedScript, seedUser } from "../../_support.ts";
 
 describe("detachFromPreset", () => {

@@ -5,10 +5,10 @@
 import type { AuthMode, AuthModeSource, InstallKind, IpCertificateSetting, SignInModeView } from "@orb/contracts/identity";
 import { isCookieAuthMode, SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import type { IpCertificateRefusalNotice, ShareFacts } from "@orb/server/domain/share";
-import { certificateRefusal, modeShareRefusal } from "@orb/server/domain/share";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
+import type { IpCertificateRefusalNotice, ShareFacts } from "#server/domain/share/index.ts";
+import { certificateRefusal, modeShareRefusal } from "#server/domain/share/index.ts";
 
 function authConfigFor(mode: AuthMode): AuthConfig {
   return {

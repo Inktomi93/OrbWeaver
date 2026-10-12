@@ -6,10 +6,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
+import { PluginNotFoundError, recordPluginFetchedAsset } from "#server/domain/plugin/index.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("projects the plugin's own bundle images, path-keyed and path-ordered", async () => {

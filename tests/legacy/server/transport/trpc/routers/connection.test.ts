@@ -7,11 +7,11 @@ import { modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { ConnectionService, ConnectionView } from "@orb/server/domain/connection";
 import type { Context } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { ConnectionService, ConnectionView } from "#server/domain/connection/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

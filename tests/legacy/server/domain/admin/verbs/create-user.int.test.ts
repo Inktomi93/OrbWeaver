@@ -7,11 +7,11 @@ import { userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createAdminService } from "@orb/server/domain/admin";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, vi } from "vitest";
+import { createAdminService } from "#server/domain/admin/index.ts";
 import { auditActions, makeHarness, principal, seedAdminCaller, seedUser, withBrokenAudit } from "../_support.ts";
 
 const GOOD_PASSWORD = "correct-horse";
