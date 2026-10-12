@@ -41,7 +41,7 @@ const initial: TrpcWireOutput<"automation.listRules">[number] = {
 };
 
 test("warm chat switch unmounts the old editor but its in-flight teardown keeps the original target", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"automation.createRule">();
   let created: TrpcWireOutput<"automation.createRule"> | null = null;
   const recorder = await routeTrpc(page, {
     "automation.listRules": (input) => (input.chatId === firstChat && created !== null ? [created] : []),

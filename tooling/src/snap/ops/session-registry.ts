@@ -12,6 +12,7 @@ import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
 import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { killPidGroup } from "../../floor/process/proc.ts";
+import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { SessionLimits, SessionRow } from "../contract/session.ts";
 import {
   resolveSessionLimits,
@@ -24,7 +25,7 @@ import {
   sessionSocketPath,
 } from "../lib/session-plan.ts";
 import { readSessionRow } from "../lib/session-wire.ts";
-import { markerRoot, waitSync } from "./stage-marker.ts";
+import { markerRoot } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session-status");
 

@@ -172,7 +172,7 @@ export const gate = defineGate({
         "packages/client/src/features/other/x.ts": "declare const view: { ghostBracket?: boolean };\nexport const a = view.ghostBracket;\n",
       },
       expect: { count: 1, token: "ghostBracket", messageIncludes: "no write field in the admin surfaces" },
-      why: 'THE SCHEMA BUILDER, BRACKET-SPELLED (#2353). `collectCallMembers` required a `PropertyAccessExpression` callee, so `z["object"]({ … })` THREW `unsupported appSettingsSchema expression` — loud, but still a policy that stopped judging six of its own fixtures under the mechanical respelling, because a fact tool error is not a finding. The method is read through `lib/symbol-reference.ts#readMemberAccess`, so the bracket twin declares the same leaf and reaches the same arm',
+      why: 'THE SCHEMA BUILDER, BRACKET-SPELLED (#2353). `collectCallMembers` required a `PropertyAccessExpression` callee, so `z["object"]({ … })` THREW `unsupported appSettingsSchema expression` — loud, but still a policy that stopped judging six of its own fixtures under the mechanical respelling, because a fact tool error is not a finding. The method is read through `floor/code-facts/reference-fact.ts#staticMemberAccess`, so the bracket twin declares the same leaf and reaches the same arm',
     },
     {
       // Arm B2 (#1094 G4): an appSettingsSchema key arriving through an object SPREAD. Arm C flags both

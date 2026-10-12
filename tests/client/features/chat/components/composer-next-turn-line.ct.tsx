@@ -5,16 +5,22 @@
 // composer at desktop, narrow and mobile widths.
 
 import { MODEL_ROLES_PATH_TEXT } from "@orb/client/lib";
+import type { UserConnectionId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeConnectionRow } from "@orb/testkit/node/factories/connection-view.ts";
+import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { ComposerStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const LINE = '[data-slot="composer-next-turn"]';
 const WORK_KEY_ID = "user_connection_ctnextturn01";
@@ -24,34 +30,33 @@ const FAILED_SENTENCE = "Next reply: the connection couldn't be checked.";
 // Type steps are authored in rem; computed font-size resolves to px at the 16px root.
 const ROOT_PX = 16;
 
-const WORK_KEY = {
+const WORK_KEY = makeConnectionRow({
   id: WORK_KEY_ID,
   label: "Work key",
   providerId: "openrouter",
   providerLabel: "OpenRouter",
   model: MODEL,
   tasks: ["chat"],
-} satisfies TrpcFixtureOutput<"connection.list">[number];
+});
 
-const EMBED_ONLY = {
+const EMBED_ONLY = makeConnectionRow({
   id: "user_connection_ctnextturnembed",
   label: "Built-in embeddings",
   providerId: "local-light",
   providerLabel: "Built-in (this device)",
   model: "jinaai/jina-clip-v2",
   tasks: ["embed", "imageEmbed"],
-} satisfies TrpcFixtureOutput<"connection.list">[number];
+});
 
-const RESOLVED = {
-  task: "chat",
-  connectionId: WORK_KEY_ID,
-  providerId: "openrouter",
-  model: MODEL,
-} satisfies TrpcFixtureOutput<"connection.resolveChatCapability">;
+const RESOLVED = makeResolvedView({
+  connectionId: castId<UserConnectionId>(WORK_KEY_ID),
+  providerId: testProviderId("openrouter"),
+  model: testModelId(MODEL),
+});
 
-const HOST_ROOM = { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerIsHost: true } satisfies TrpcFixtureOutput<"chat.getChat">;
-const MEMBER_ROOM = { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerIsHost: false } satisfies TrpcFixtureOutput<"chat.getChat">;
-const NO_CONNECTION = { available: false, cause: "no-connection" } satisfies TrpcFixtureOutput<"chat.checkSendAvailability">;
+const HOST_ROOM = makeChatDetail({ ...CHAT_ROOM_DETAIL, viewerIsHost: true });
+const MEMBER_ROOM = makeChatDetail({ ...CHAT_ROOM_DETAIL, viewerIsHost: false });
+const NO_CONNECTION = { available: false, cause: "no-connection" } satisfies TrpcWireOutput<"chat.checkSendAvailability">;
 const UNBOUND = trpcError({ code: "BAD_REQUEST", message: 'no connection is bound for "chat"' });
 
 function line(component: Locator): Locator {
@@ -282,7 +287,7 @@ test("while the host's chat-role read is in flight the line stays away rather th
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": HOST_ROOM,
     "connection.list": [WORK_KEY],
-    "connection.resolveChatCapability": trpcHold(),
+    "connection.resolveChatCapability": trpcHold<"connection.resolveChatCapability">(),
   });
   const component = await mount(<ComposerStory />);
 

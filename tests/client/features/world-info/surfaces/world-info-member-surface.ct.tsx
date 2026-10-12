@@ -8,7 +8,7 @@
 // path: @dnd-kit's KeyboardSensor picks up on Space, moves 10px per ArrowDown, drops on Space (its own
 // defaults). DEF-14: every assertion is web-first / expect.poll — no bare live-DOM read.
 
-import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { WorldInfoEditorReorderStory, WorldInfoMemberStory } from "../_ct-stories.tsx";
@@ -42,7 +42,7 @@ function entry(id: string, title: string, priority: number, keys: string[] = [])
   };
 }
 
-const ENTRIES: TrpcFixtureOutput<"worldInfo.listEntries"> = [entry(ALPHA, "Alpha", 3), entry(BRAVO, "Bravo", 2), entry(CHARLIE, "Charlie", 1)];
+const ENTRIES: TrpcWireOutput<"worldInfo.listEntries"> = [entry(ALPHA, "Alpha", 3), entry(BRAVO, "Bravo", 2), entry(CHARLIE, "Charlie", 1)];
 
 test("a member id no book matches renders the GONE arm, not a dead form", async ({ mount, page }) => {
   await routeTrpc(page, { "worldInfo.listBooksWithUsage": () => [BOOK_ROW] });
@@ -113,7 +113,7 @@ test("drag-reorders an entry and persists the new order via applyEntryOrder", as
 // different weight (the same class as the transparent toggle chips the report groups it with). The pin is
 // PAINT, not a variant name: a resting background or a resting border, plus the primary still outranking it.
 test("the editor's secondary verb reads as a control at rest, and the primary still outranks it", async ({ mount, page }) => {
-  const withBlankKeyed: TrpcFixtureOutput<"worldInfo.listEntries"> = [...ENTRIES, entry("world_entry_reorder0d", "", 0, ["harbor"])];
+  const withBlankKeyed: TrpcWireOutput<"worldInfo.listEntries"> = [...ENTRIES, entry("world_entry_reorder0d", "", 0, ["harbor"])];
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.getBook": () => ({ id: BOOK_ID, name: "Reorder Book", description: "a book with three entries", createdAt: 1 }),
@@ -143,7 +143,7 @@ test("the editor's secondary verb reads as a control at rest, and the primary st
 
 // "Backfill titles" fills a blank title from the entry's keys, so it is offered only while such an entry exists.
 test("Backfill titles shows only when a blank-titled entry has keys to fill it from", async ({ mount, page }) => {
-  const entries: TrpcFixtureOutput<"worldInfo.listEntries"> = [...ENTRIES, entry("world_entry_reorder0d", "", 0)];
+  const entries: TrpcWireOutput<"worldInfo.listEntries"> = [...ENTRIES, entry("world_entry_reorder0d", "", 0)];
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.getBook": () => ({ id: BOOK_ID, name: "Reorder Book", description: "a book with three entries", createdAt: 1 }),

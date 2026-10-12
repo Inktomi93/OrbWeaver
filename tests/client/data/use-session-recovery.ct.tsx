@@ -27,7 +27,7 @@ test("binds the durable-local namespace to the viewer id off `sessions.me` (F1)"
 });
 
 test("mounts without suspending or navigating when the identity read is still in flight", async ({ mount, page }) => {
-  const identity = trpcHold();
+  const identity = trpcHold<"sessions.me">();
   await routeTrpc(page, { "sessions.me": identity });
 
   await mount(<SessionRecoveryStory />);

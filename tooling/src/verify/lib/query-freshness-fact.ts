@@ -10,11 +10,11 @@
 // widened accusing side alone would have turned correctly invalidated bracket-spelled reads into findings.
 // The visitor subscribes `MEMBER_ACCESS_KINDS`, not half the family.
 
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS } from "./symbol-reference.ts";
 
 const SEAM_FACTORY = "createInvalidation";
 const SEAM_ANCHOR = "Invalidation";
@@ -41,13 +41,13 @@ function baseIsTrpc(base: MorphNode): boolean {
   if (Node.isIdentifier(base)) {
     return /^trpc$/iu.test(base.getText());
   }
-  const read = readMemberAccess(base);
+  const read = staticMemberAccess(base);
   return read !== undefined && /^trpc$/iu.test(read.name);
 }
 
 /** The RECEIVER of a member read whose member is one of `terminals`, whatever the spelling. */
 function terminalReceiver(node: MorphNode, terminals: ReadonlySet<string>): MorphNode | undefined {
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   return read !== undefined && terminals.has(read.name) ? read.receiver : undefined;
 }
 
@@ -56,11 +56,11 @@ function trpcChain(node: MorphNode, terminals: ReadonlySet<string>): QueryKey | 
   if (terminal === undefined) {
     return;
   }
-  const proc = readMemberAccess(terminal);
+  const proc = staticMemberAccess(terminal);
   if (proc === undefined) {
     return;
   }
-  const router = readMemberAccess(proc.receiver);
+  const router = staticMemberAccess(proc.receiver);
   if (router === undefined || !baseIsTrpc(router.receiver)) {
     return;
   }
@@ -72,7 +72,7 @@ function trpcRoot(node: MorphNode, terminals: ReadonlySet<string>): string | und
   if (terminal === undefined) {
     return;
   }
-  const router = readMemberAccess(terminal);
+  const router = staticMemberAccess(terminal);
   return router !== undefined && baseIsTrpc(router.receiver) ? router.name : undefined;
 }
 

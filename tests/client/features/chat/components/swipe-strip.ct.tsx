@@ -50,7 +50,7 @@ const backAtIdx0Of2: MessageView = makeMessageView({
 const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.swipe">;
 
 test("pending sibling history never turns a Next step into paid regeneration", async ({ mount, page }) => {
-  const history = trpcHold();
+  const history = trpcHold<"chat.listMessageVariants">();
   const trpc = await routeTrpc(page, {
     "chat.listMessageVariants": history,
     "chat.swipe": () => EMPTY_TURN,

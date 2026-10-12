@@ -3,7 +3,7 @@
 // never writes the source.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -11,7 +11,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { stageOwnerKey, stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { clonedStageWarning, cloneStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
+import { clonedStageWarning, cloneStageDb, seedStageData } from "../../../../tooling/src/snap/ops/stage-source.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OWNER_ID = "owner_abc";
@@ -121,12 +121,86 @@ test("a missing source refuses before it creates anything in the stage", () => {
   }
 });
 
-test("--stage-db names a db source: it forces the isolated rebuild that clones it, and refuses a local stage or a --base", () => {
+test("--stage-db names a db source: it forces the isolated rebuild that clones it, and refuses a --base", () => {
   const staged = parseSnapArgs(["--stage-db", "/scratch/orbweaver.db"]);
   expect(staged.errors).toEqual([]);
   expect(staged.stageDb).toBe("/scratch/orbweaver.db");
   expect(staged.isolated).toBe(true);
   expect(staged.fresh).toBe(true);
-  expect(parseSnapArgs(["--stage-db", "/scratch/orbweaver.db", "--stage-auth", "local"]).errors).toHaveLength(1);
   expect(parseSnapArgs(["--stage-db", "/scratch/orbweaver.db", "--base", "http://localhost:5173"]).errors).toHaveLength(1);
+});
+
+/** A container-shaped data root (`db/` and `assets/` side by side) built around `sourceDb`'s db. */
+function containerRoot(): { readonly root: string; readonly db: string; readonly writer: DatabaseSync; readonly asset: string } {
+  const source = sourceDb();
+  const data = join(source.root, "container");
+  mkdirSync(join(data, "db"), { recursive: true });
+  const db = join(data, "db", "orbweaver.db");
+  source.writer.exec(`VACUUM INTO '${db}'`);
+  const asset = join(data, "assets", OWNER_ID, "avatars", "ayla.png");
+  mkdirSync(join(data, "assets", OWNER_ID, "avatars"), { recursive: true });
+  writeFileSync(asset, "avatar-bytes");
+  return { root: source.root, db, writer: source.writer, asset };
+}
+
+test("a clone brings the owner's assets from beside the db, where the stage's server reads them, and leaves the source alone", () => {
+  const { root, db, writer, asset } = containerRoot();
+  try {
+    const before = sha256(asset);
+    const paths = stagePaths(join(root, "checkout"), SHA);
+
+    cloneStageDb(db, paths);
+
+    const cloned = join(paths.assetsDir, OWNER_ID, "avatars", "ayla.png");
+    expect(readFileSync(cloned, "utf8")).toBe("avatar-bytes");
+    expect(lstatSync(paths.assetsDir).isSymbolicLink()).toBe(false);
+    writeFileSync(cloned, "stage-write");
+    expect(sha256(asset)).toBe(before);
+  } finally {
+    writer.close();
+  }
+});
+
+test("a db with no assets directory beside it clones without one", () => {
+  const { root, path, writer } = sourceDb();
+  try {
+    const paths = stagePaths(join(root, "checkout"), SHA);
+    cloneStageDb(path, paths);
+    expect(existsSync(paths.assetsDir)).toBe(false);
+  } finally {
+    writer.close();
+  }
+});
+
+test("--stage-db composes with a local stage: the clone lands in the local stage's own data root, and a local stage alone copies nothing", () => {
+  const { root, db, writer } = containerRoot();
+  try {
+    const checkout = join(root, "checkout");
+    mkdirSync(join(checkout, "data", "db"), { recursive: true });
+    writeFileSync(join(checkout, "data", "db", "orbweaver.db"), "dev-db");
+    const local = stagePaths(checkout, SHA, "local");
+
+    expect(seedStageData(checkout, local, undefined, "local")).toBeNull();
+    expect(existsSync(local.dataDir)).toBe(false);
+
+    const provenance = seedStageData(checkout, local, db, "local");
+
+    expect(provenance?.cloned).toBe(true);
+    const clone = new DatabaseSync(join(local.dataDir, "db", "orbweaver.db"));
+    try {
+      expect(clone.prepare("SELECT count(*) AS n FROM characters WHERE owner_id = ?").get(OWNER_ID)).toEqual({ n: 2 });
+    } finally {
+      clone.close();
+    }
+    expect(existsSync(join(local.assetsDir, OWNER_ID, "avatars", "ayla.png"))).toBe(true);
+  } finally {
+    writer.close();
+  }
+});
+
+test("--stage-db and --stage-auth local parse together", () => {
+  const args = parseSnapArgs(["--stage-db", "/scratch/orbweaver.db", "--stage-auth", "local"]);
+  expect(args.errors).toEqual([]);
+  expect(args.stageAuth).toBe("local");
+  expect(args.stageDb).toBe("/scratch/orbweaver.db");
 });

@@ -1,6 +1,8 @@
 // The retained, JSON-safe slice of DevTools' trace-engine output. Raw trace events are written beside
 // the report; this summary keeps the actual boot metric and the six insight families observed in the
 // Chrome-MCP retirement census without trying to serialize trace-engine Maps, Sets, or event graphs.
+
+import { finiteNumberOrNull } from "@orb/kit/guards";
 import type { BootTraceInsightName, BootTraceInsightReceipt, BootTraceReceipt } from "../contract/types.ts";
 import { BOOT_TRACE_INSIGHTS } from "../contract/types.ts";
 
@@ -18,10 +20,6 @@ function record(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-function number(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 function size(value: unknown): number {
   if (Array.isArray(value)) {
     return value.length;
@@ -30,7 +28,7 @@ function size(value: unknown): number {
 }
 
 function microToMs(value: unknown): number | null {
-  const measured = number(value);
+  const measured = finiteNumberOrNull(value);
   return measured === null ? null : measured / MICROSECONDS_PER_MILLISECOND;
 }
 
@@ -45,7 +43,7 @@ function state(model: Record<string, unknown>, name: BootTraceInsightName): Boot
 function lcpDetails(model: Record<string, unknown>): Record<string, unknown> {
   const subparts = record(model["subparts"]);
   const durations = Object.fromEntries(Object.entries(subparts).map(([name, subpart]) => [name, microToMs(record(subpart)["range"])]));
-  return { lcpMs: number(model["lcpMs"]), subpartsMs: durations, hasImageRequest: model["lcpRequest"] !== undefined };
+  return { lcpMs: finiteNumberOrNull(model["lcpMs"]), subpartsMs: durations, hasImageRequest: model["lcpRequest"] !== undefined };
 }
 
 function insightDetails(name: BootTraceInsightName, model: Record<string, unknown>): Record<string, unknown> {
@@ -57,23 +55,23 @@ function insightDetails(name: BootTraceInsightName, model: Record<string, unknow
     case "NetworkDependencyTree":
       return { roots: size(model["rootNodes"]), maxCriticalPathMs: microToMs(model["maxTime"]), failed: model["fail"] === true };
     case "ImageDelivery":
-      return { optimizableImages: size(model["optimizableImages"]), wastedBytes: number(model["wastedBytes"]) };
+      return { optimizableImages: size(model["optimizableImages"]), wastedBytes: finiteNumberOrNull(model["wastedBytes"]) };
     case "DocumentLatency": {
       const data = record(model["data"]);
       const checklist = record(data["checklist"]);
       return {
-        serverResponseMs: number(data["serverResponseTime"]),
-        redirectMs: number(data["redirectDuration"]),
-        uncompressedBytes: number(data["uncompressedResponseBytes"]),
+        serverResponseMs: finiteNumberOrNull(data["serverResponseTime"]),
+        redirectMs: finiteNumberOrNull(data["redirectDuration"]),
+        uncompressedBytes: finiteNumberOrNull(data["uncompressedResponseBytes"]),
         checklist: Object.fromEntries(Object.entries(checklist).map(([key, item]) => [key, record(item)["value"] === true])),
       };
     }
     case "ForcedReflow": {
       const top = record(model["topLevelFunctionCallData"]);
       const frames: unknown[] = Array.isArray(model["aggregatedBottomUpData"]) ? model["aggregatedBottomUpData"] : [];
-      const attributedTotal = frames.reduce<number>((total, frame) => total + (number(record(frame)["totalTime"]) ?? 0), 0);
+      const attributedTotal = frames.reduce<number>((total, frame) => total + (finiteNumberOrNull(record(frame)["totalTime"]) ?? 0), 0);
       return {
-        totalReflowMs: microToMs(number(top["totalReflowTime"]) ?? attributedTotal),
+        totalReflowMs: microToMs(finiteNumberOrNull(top["totalReflowTime"]) ?? attributedTotal),
         callFrames: frames.length,
       };
     }
@@ -108,7 +106,7 @@ export function summarizeBootTrace(analyzed: { readonly insights: unknown }, eve
     }
     receipts[name] = { state: state(model, name), details: insightDetails(name, model) };
   }
-  const lcpMs = number(record(models["LCPBreakdown"])["lcpMs"]);
+  const lcpMs = finiteNumberOrNull(record(models["LCPBreakdown"])["lcpMs"]);
   if (lcpMs === null || lcpMs <= 0) {
     throw new Error("boot trace has no positive LCP; capture likely began after navigation");
   }

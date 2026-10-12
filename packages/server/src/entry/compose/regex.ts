@@ -11,12 +11,12 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats } from "@orb/db";
+import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
-import { parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
+import { loadPresentHostUserId, parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -65,12 +65,7 @@ function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayP
       // `[]` regardless — so the roster read never happens on the default path.
       return { enabled: false, hostUserId: null };
     }
-    const [host] = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(LIMIT_ONE);
-    return { enabled: true, hostUserId: host?.userId ?? null };
+    return { enabled: true, hostUserId: await loadPresentHostUserId(db, chatId) };
   };
 }
 

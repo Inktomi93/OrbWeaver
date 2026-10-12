@@ -3,7 +3,7 @@
 // game against the GM PRESET's `promptConfig.prose`. Two things have to be true forever, and this file is
 // where they are true. The POPULATE round's own prose (populate census rows 1-7) joined the same discipline
 // as `rpg.populate.*`; its byte-identity is proven at the COMPOSED-REAL tier instead (the round's system + user
-// prompts, `tests/server/entry/compose/rpg.int.test.ts`), because four of its seven slots live at the server
+// prompts, `tests/server/entry/compose/rpg-populate.int.test.ts`), because four of its seven slots live at the server
 // seam and only the driven round renders them together.
 //
 //
@@ -31,13 +31,15 @@
 // silently changed every prompt.
 
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
+import { PROSE_SLOT_IDS, PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { ExtractionPromptContext, RpgGameConfig, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
   buildRpgToolDescriptions,
+  buildToolRoundWireTools,
   composePlaneTeaching,
   composePopulateTeaching,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
+  RPG_NO_CHANGES_TOOL,
   rpgGameConfigSchema,
 } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -333,4 +335,19 @@ test("a BLANK override resolves to the shipped default — empty bytes never rea
 
 test("an override for a DIFFERENT domain's slot changes nothing here (no cross-slot leak)", () => {
   expect(composePlaneTeaching(ctx(everythingConfig(), override("rpg.reminder.steeringLicense", "not this surface")))).toBe(EVERYTHING_PLANE_TEACHING);
+});
+
+test("every wire tool the state round hands a model carries its rendered description, and no_changes carries its slot", () => {
+  const config = everythingConfig();
+  const prose = override("rpg.extract.tool.updateParty", "Record bodies.{{actorTrackers}} Like so: `{{partyExample}}`.");
+  const described = buildRpgToolDescriptions({ config, refs: REFS, prose });
+  const tools = buildToolRoundWireTools(REFS, config, prose);
+
+  expect(tools.map((tool) => tool.name)).toContain("update_party");
+  for (const tool of tools) {
+    const expected = tool.name === RPG_NO_CHANGES_TOOL ? resolveProseText("rpg.extract.tool.noChanges", prose) : described.get(tool.name);
+    expect(expected, `${tool.name} has a rendered description`).toBeTruthy();
+    expect(tool.description).toBe(expected);
+  }
+  expect(tools.find((tool) => tool.name === "update_party")?.description).toContain("Record bodies.");
 });

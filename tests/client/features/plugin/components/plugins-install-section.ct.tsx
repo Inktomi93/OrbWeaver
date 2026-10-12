@@ -327,8 +327,8 @@ test("installing from Git discloses arbitrary code, previews through the server,
 });
 
 test("the latest Git preview owns consent after both batched previews settle", async ({ mount, page }) => {
-  const urlPreview = trpcHold();
-  const gitPreview = trpcHold();
+  const urlPreview = trpcHold<"plugin.previewFromUrl">();
+  const gitPreview = trpcHold<"plugin.previewFromGit">();
   await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
@@ -374,8 +374,8 @@ test("the latest Git preview owns consent after both batched previews settle", a
 });
 
 test("a stale preview settlement keeps every door locked until the latest preview settles", async ({ mount, page }) => {
-  const urlPreview = trpcHold();
-  const gitPreview = trpcHold();
+  const urlPreview = trpcHold<"plugin.previewFromUrl">();
+  const gitPreview = trpcHold<"plugin.previewFromGit">();
   await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
@@ -411,7 +411,7 @@ test("a stale preview settlement keeps every door locked until the latest previe
 });
 
 test("a queued folder selection supersedes a late URL preview", async ({ mount, page }) => {
-  const urlPreview = trpcHold();
+  const urlPreview = trpcHold<"plugin.previewFromUrl">();
   await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
@@ -436,7 +436,7 @@ test("a queued folder selection supersedes a late URL preview", async ({ mount, 
 });
 
 test("a held install retains its source and locks Cancel until settlement", async ({ mount, page }) => {
-  const install = trpcHold();
+  const install = trpcHold<"plugin.install">();
   const server: { installed: boolean } = { installed: false };
   await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),
@@ -887,7 +887,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
 });
 
 test("a same-task repeat admits one enable write, owns only its plugin row, and rejection releases retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"plugin.setEnabled">();
   const siblingRow = { ...INSTALLED_ROW, id: "plugin_ct0000000000000000002", name: "Rain Teller", slug: "rain-teller" };
   const recorder = await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),

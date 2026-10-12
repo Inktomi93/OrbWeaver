@@ -9,23 +9,28 @@
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
 // @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { deriveEffectiveDelivery } from "@orb/server/domain/rpg";
 import { ariaTreeFindings } from "@orb/testkit/browser/accessible-names.ts";
 import { expectCircle } from "@orb/testkit/browser/expect-circle.ts";
 import { hitBoxes, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
 import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "@orb/testkit/node/chat-settings-sections-reads-empty.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makePresetSummary } from "@orb/testkit/node/factories/preset-view.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
-import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { EXTRACTION_CONTEXT_LABEL } from "#client/features/rpg/lib/host-console-labels.ts";
 import { revealActionName } from "#ui/lib/action-names.ts";
+import { makeMessageView } from "../../chat/fixtures.ts";
 import {
   RpgTakeoverDockedStory,
   RpgTakeoverFloorStory,
@@ -34,6 +39,7 @@ import {
   RpgTakeoverStory,
   RpgTakeoverWindowNoticeStory,
 } from "../_ct-stories.tsx";
+import { makeRpgConfigView } from "../fixtures.ts";
 
 const GAME_ID = "rpg_game_ct_keystone";
 const PERSONA_ID = "persona_ct_keystone";
@@ -48,17 +54,17 @@ const VITALITY_CELLS = /^(Mira )?Vitality (value|max)$/;
 
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
 // `viewerActivePersonaId` is what the resync control's opt-in restamp stamps TO (null ⇒ nothing to stamp to).
-function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): TrpcFixtureOutput<"chat.getChat"> {
-  return {
-    participants: [{ kind: "human", role: "host", userId: "user_ct", characterId: null }],
+function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
+    participants: [makeParticipantView({ kind: "human", role: "host", userId: "user_ct", characterId: null })],
     viewerUserId: "user_ct",
     viewerIsHost: true,
     viewerActivePersonaId,
     pendingHostUserId: null,
     roomOverrides: {},
     background: null,
-    rpg: { gameId: GAME_ID },
-  };
+    rpg: { gameId: GAME_ID, engaged: true },
+  });
 }
 
 // A `rpg.getGame` stub — the lite mode trim + the read-only flag (the CP pill gate) + the delivery-model
@@ -74,11 +80,13 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
     // The born-state round's own capability verdict (`hasStructuredWriter`) — a real `getGame` always carries it.
     canPopulate: true,
     extractionMode,
-    // What the knob RESOLVES to on this room's connection — the server derives it (`deriveEffectiveDelivery`);
-    // the stub mirrors the un-degraded arm of that derivation, plus the readonly case's no-vehicle verdict.
-    effectiveDelivery: trackersReadOnly
-      ? { path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }
-      : { path: extractionMode === "folded" ? "folded" : "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null },
+    // What the knob RESOLVES to on this room's connection, derived by the server's own rule on an unguarded connection.
+    effectiveDelivery: deriveEffectiveDelivery(extractionMode, {
+      trackersReadOnly,
+      foldGuarded: false,
+      structuredUnavailable: false,
+      stateRoundOverflow: null,
+    }),
     publicConfig: {
       statProfile: {
         attributes: [],
@@ -199,71 +207,6 @@ function revealView(
   };
 }
 
-// A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, the TRACKER defs,
-// relationship hints, the deception knobs). Empty-but-valid defaults; the console renders it.
-function configView(
-  macros: TrpcWireOutput<"rpg.getConfigView">["userMacros"] = [],
-  presetNames: readonly string[] = [],
-  gmPresetId: string | null = null,
-): TrpcWireOutput<"rpg.getConfigView"> {
-  return {
-    statProfile: {
-      attributes: [{ key: "str", label: "Strength", hint: "raw power" }],
-      range: { min: 1, max: 20 },
-      modifier: { center: 10, step: 2 },
-      skillGoverning: {},
-      defaultAttribute: "str",
-      perceptionAttribute: "str",
-      resolution: { kind: "house-d20" },
-    },
-    ruleset: "freeform",
-    dateMode: "structured",
-    steeringNote: "Keep the tone grim.",
-    // #1032 — the GM-VOICE knob. Default null (the born "your own preset" arm every other pin here drives).
-    gmPresetId,
-    extractionMode: "cheap",
-    trackers: [
-      {
-        key: "trust",
-        label: "Trust",
-        shape: "text",
-        write: "set",
-        subject: "actor",
-        appliesTo: "npcs",
-        max: null,
-        hint: "",
-        color: null,
-        icon: null,
-        sort: 0,
-        pinned: false,
-        locked: false,
-      },
-    ],
-    relationshipHints: { debtor: "owes the party a debt" },
-    journalTypeHints: {},
-    deception: false,
-    omniscience: false,
-    hiddenContentReveal: true,
-    recentBeatsKeepLast: 6,
-    // The §1.3 extraction-depth trio the scalar form now edits (`toHostConsoleForm` reads all three).
-    extractionContext: "window",
-    stateCaptureVehicle: "auto",
-    extractionWindowTokens: 4096,
-    reconcileEveryBeats: 10,
-    // The P4/P5 knobs the scalar form projects (`toHostConsoleForm`).
-    immersiveHtml: false,
-    immersiveHtmlInteractive: false,
-    cardKeepLastX: 3,
-    cyoa: false,
-    cyoaChoiceBehavior: "compose",
-    plotProgression: true,
-    // WAVE MU — the two macro-editor fields: the GAME's own authored macros and the NAMES the chat's active
-    // preset declares (the shadow gloss). Overridable per test.
-    userMacros: macros,
-    presetMacroNames: presetNames,
-  };
-}
-
 /**
  * THE CHAT PANEL'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
  *
@@ -376,10 +319,10 @@ function stubTakeover(
   opts: {
     readonly readOnly?: boolean;
     readonly reveal?: TrpcWireOutput<"rpg.revealHidden">;
-    readonly tracker?: TrpcWireOutput<"rpg.getTrackerView"> | ReturnType<typeof trpcHold>;
+    readonly tracker?: TrpcWireOutput<"rpg.getTrackerView"> | ReturnType<typeof trpcHold<"rpg.getTrackerView">>;
     readonly game?: TrpcWireOutput<"rpg.getGame">;
-    readonly messages?: TrpcFixtureOutput<"chat.listMessages"> | ReturnType<typeof trpcError>;
-    readonly chat?: TrpcFixtureOutput<"chat.getChat">;
+    readonly messages?: TrpcWireOutput<"chat.listMessages"> | ReturnType<typeof trpcError>;
+    readonly chat?: TrpcWireOutput<"chat.getChat">;
     readonly config?: TrpcWireOutput<"rpg.getConfigView">;
     /** Fail the resync dialog's opt-in restamp (the ordering probe — a failed stamp must abort the rebuild). */
     readonly restampFails?: boolean;
@@ -449,14 +392,14 @@ function stubTakeover(
             configUnreadable: null,
           },
         }),
-    "rpg.getConfigView": () => opts.config ?? configView(),
+    "rpg.getConfigView": () => opts.config ?? makeRpgConfigView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened) + the transcript
     // read the Scene choice echo / card archive projects (fetched only when the play-style knobs gate on).
     "chat.listChatInjections": () => [],
     "chat.listMessages": () => opts.messages ?? { messages: [] },
     "chat.send": () => ({ messages: [], aborted: false }),
-    ...(opts.presets === undefined ? {} : { "preset.list": opts.presets }),
+    ...(opts.presets === undefined ? {} : { "preset.list": opts.presets.map((preset) => makePresetSummary(preset)) }),
     // The Game tab's connection reads: a walk that lands on it (the rail is one cell shorter without Map) must not hit an unfed read.
     "connection.list": [],
     "connection.listBindings": [],
@@ -539,7 +482,7 @@ test("the GM-voice knob renders the preset library and shows the game's current 
       { id: "preset_gm_ct", name: "Grim Narrator" },
       { id: "preset_other_ct", name: "Warm Companion" },
     ],
-    config: configView([], [], "preset_gm_ct"),
+    config: makeRpgConfigView([], [], "preset_gm_ct"),
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
@@ -556,7 +499,7 @@ test("picking a preset writes the knob through updateConfig; picking the shown v
       { id: "preset_gm_ct", name: "Grim Narrator" },
       { id: "preset_other_ct", name: "Warm Companion" },
     ],
-    config: configView([], [], "preset_gm_ct"),
+    config: makeRpgConfigView([], [], "preset_gm_ct"),
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
@@ -578,7 +521,7 @@ test("picking a preset writes the knob through updateConfig; picking the shown v
 test("choosing `Your own preset` CLEARS the knob to null (the augment arm), never an empty string", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, {
     presets: [{ id: "preset_gm_ct", name: "Grim Narrator" }],
-    config: configView([], [], "preset_gm_ct"),
+    config: makeRpgConfigView([], [], "preset_gm_ct"),
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
@@ -594,7 +537,7 @@ test("choosing `Your own preset` CLEARS the knob to null (the augment arm), neve
 test("a DANGLING pick shows as its own degraded option, never silently as the default arm", async ({ mount, page }) => {
   await stubTakeover(page, {
     presets: [{ id: "preset_other_ct", name: "Warm Companion" }],
-    config: configView([], [], "preset_gone_ct"),
+    config: makeRpgConfigView([], [], "preset_gone_ct"),
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
@@ -1590,15 +1533,15 @@ test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue;
       cyoaChoiceBehavior: "send",
     },
   };
-  const messages: TrpcFixtureOutput<"chat.listMessages"> = {
+  const messages: TrpcWireOutput<"chat.listMessages"> = {
     messages: [
-      { id: "message_ct_u1", role: "user", content: "We hold the door.", createdAt: 1000 },
-      {
-        id: "message_ct_a1",
+      makeMessageView({ id: castId<MessageId>("message_ct_u1"), role: "user", content: "We hold the door.", createdAt: 1000 }),
+      makeMessageView({
+        id: castId<MessageId>("message_ct_a1"),
         role: "assistant",
         content: "The bandits circle.\n\n:::choices\n1. Bar the door\n2. Parley through the window\n:::",
         createdAt: 2000,
-      },
+      }),
     ],
     identities: [],
   };
@@ -1626,14 +1569,14 @@ function cardsGame(): TrpcWireOutput<"rpg.getGame"> {
   return { ...base, publicConfig: { ...base.publicConfig, immersiveHtml: true } };
 }
 
-const CARD_MESSAGES: TrpcFixtureOutput<"chat.listMessages"> = {
+const CARD_MESSAGES: TrpcWireOutput<"chat.listMessages"> = {
   messages: [
-    {
-      id: "message_ct_card1",
+    makeMessageView({
+      id: castId<MessageId>("message_ct_card1"),
       role: "assistant",
       content: 'The courier hands it over.\n\n:::card title="Zandik\'s letter"\n<div>secret page</div>\n:::',
       createdAt: 1000,
-    },
+    }),
   ],
   identities: [],
 };
@@ -1686,16 +1629,26 @@ test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, 
 
 // Synthetic malformed card bodies preserve three failure shapes: nested closers and generations truncated
 // mid-attribute. Repair must keep readable prose rather than silently dropping the card.
-const BROKEN_CARD_MESSAGES: TrpcFixtureOutput<"chat.listMessages"> = {
+const BROKEN_CARD_MESSAGES: TrpcWireOutput<"chat.listMessages"> = {
   messages: [
-    {
-      id: "message_ct_nest1",
+    makeMessageView({
+      id: castId<MessageId>("message_ct_nest1"),
       role: "assistant",
       content: ':::card title="The Blade’s Whisper"\n\nA flicker of steel.\n\n:::choices\n1. Demand answers\n2. Walk away\n:::',
       createdAt: 1000,
-    },
-    { id: "message_ct_trunc2", role: "assistant", content: ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New', createdAt: 2000 },
-    { id: "message_ct_trunc3", role: "assistant", content: ':::card title="The Watcher’s Shadow"\n<div style="background: #1a', createdAt: 3000 },
+    }),
+    makeMessageView({
+      id: castId<MessageId>("message_ct_trunc2"),
+      role: "assistant",
+      content: ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New',
+      createdAt: 2000,
+    }),
+    makeMessageView({
+      id: castId<MessageId>("message_ct_trunc3"),
+      role: "assistant",
+      content: ':::card title="The Watcher’s Shadow"\n<div style="background: #1a',
+      createdAt: 3000,
+    }),
   ],
   identities: [],
 };
@@ -2559,7 +2512,7 @@ function gameMacro(name: string, description = ""): TrpcWireOutput<"rpg.getConfi
 }
 
 test("WAVE MU: the Game tab lists the game's macros and ADDS one — the WHOLE list rides the config door", async ({ mount, page }) => {
-  const trpc = await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")]) });
+  const trpc = await stubTakeover(page, { config: makeRpgConfigView([gameMacro("waystone", "how the stone reads")]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
   await component.getByRole("button", { name: "Advanced", exact: true }).click();
@@ -2582,7 +2535,7 @@ test("WAVE MU: the Game tab lists the game's macros and ADDS one — the WHOLE l
 });
 
 test("WAVE MU: a name that collides with the active preset's macro carries the honest 'overrides preset' gloss", async ({ mount, page }) => {
-  await stubTakeover(page, { config: configView([gameMacro("tone"), gameMacro("waystone")], ["tone", "narrator"]) });
+  await stubTakeover(page, { config: makeRpgConfigView([gameMacro("tone"), gameMacro("waystone")], ["tone", "narrator"]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
   await component.getByRole("button", { name: "Advanced", exact: true }).click();
@@ -2595,7 +2548,7 @@ test("WAVE MU: a name that collides with the active preset's macro carries the h
 });
 
 test("WAVE MU: the macro editor COMPLETES against both planes — the game's defs and the preset's names", async ({ mount, page }) => {
-  await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")], ["narrator"]) });
+  await stubTakeover(page, { config: makeRpgConfigView([gameMacro("waystone", "how the stone reads")], ["narrator"]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
   await component.getByRole("button", { name: "Advanced", exact: true }).click();
@@ -2619,7 +2572,7 @@ test("WAVE MU: the macro editor COMPLETES against both planes — the game's def
 });
 
 test("WAVE MU: a shadowed preset name is offered ONCE, as the GAME's definition (the resolver's precedence)", async ({ mount, page }) => {
-  await stubTakeover(page, { config: configView([gameMacro("tone", "the game's own tone")], ["tone"]) });
+  await stubTakeover(page, { config: makeRpgConfigView([gameMacro("tone", "the game's own tone")], ["tone"]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
   await component.getByRole("button", { name: "Advanced", exact: true }).click();
@@ -3600,7 +3553,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
 /** The default config's ONE tracker def re-shaped to a `meter` — the arm that renders the colour SWATCH
  *  (`def.shape === "meter"`), which the default `text` def never mounts. */
 function meterTrackerConfig(): TrpcWireOutput<"rpg.getConfigView"> {
-  const base = configView();
+  const base = makeRpgConfigView();
   const def = base.trackers[0];
   if (def === undefined) {
     throw new Error("config fixture must contain a tracker");
@@ -4261,7 +4214,7 @@ const HUD_BAND = '[data-slot="rpg-hud-band"]';
 const HUD_BAND_RESERVATION = `${HUD_BAND} [data-tile-reserved]`;
 
 test("#149 the band holds its box open while `getTrackerView` is in flight, and the read SHRINKS it — never pushes", async ({ mount, page }) => {
-  const tracker = trpcHold();
+  const tracker = trpcHold<"rpg.getTrackerView">();
   await stubTakeover(page, { tracker });
 
   const component = await mount(<RpgTakeoverStory />);

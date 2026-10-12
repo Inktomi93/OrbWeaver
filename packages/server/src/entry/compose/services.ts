@@ -48,7 +48,7 @@ import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
+import { automationRules, plugins, userCredentials } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { BindingActor, InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
@@ -56,7 +56,6 @@ import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference"
 import type { AssetId, CharacterId, ChatId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
-import { and, eq, isNull } from "drizzle-orm";
 import type { ServerRestartPort } from "#domain/admin";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
@@ -64,7 +63,7 @@ import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import type { ChatContext, ChatUserMacroDefs, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
-import { createChatBus, createMemoryRecallRecorder, createResolveViewerVisibility, requireParticipant } from "#domain/chat";
+import { createChatBus, createMemoryRecallRecorder, createResolveViewerVisibility, loadPresentHostUserId, requireParticipant } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
@@ -679,14 +678,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   };
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority a room picture runs as.
-  const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
-    const rows = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    return rows.at(0)?.userId ?? null;
-  };
+  const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
   // WHICH preset a Utility-role background task reads (D299) — one home for every side-gen consumer. `preset`
   // composes below (the search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset`
   // precedent — derefed only when a side-gen call fires, never at boot).

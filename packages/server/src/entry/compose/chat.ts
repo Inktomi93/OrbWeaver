@@ -91,6 +91,7 @@ import {
   estimateMemoryBackfillCalls,
   getGroupConfig,
   getRoomOverrides,
+  loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { readOwnedDistillates } from "#domain/discovery";
@@ -914,14 +915,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
   // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
-  const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
-    const hostRows = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    return hostRows.at(0)?.userId ?? null;
-  };
+  const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
   // ⇒ no declared variables.

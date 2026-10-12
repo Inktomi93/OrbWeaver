@@ -203,11 +203,6 @@ export function seriesTokenProvenance(points: readonly { readonly tokensOutProve
   return points.reduce<TokenProvenance>((combined, point) => combineTokenProvenance(combined, point.tokensOutProvenance), "unrecorded");
 }
 
-/** A signed integer delta for a momentum bar-end label: `+5` · `-3` · `0`. */
-export function formatSignedDelta(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
-}
-
 /** Rising / falling momentum rows → ranked bars (magnitude of the swing; the label carries the sign). */
 export function momentumBarItems(rows: readonly { readonly characterId: CharacterId; readonly name: string; readonly delta: number }[]): BarListItem[] {
   return rows.map((row) => ({

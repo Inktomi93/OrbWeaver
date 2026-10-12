@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { AntipatternVerdict } from "../../../../tooling/src/ast/index.ts";
 import { ANTIPATTERN_CLASSES, judgeAntipatternPass } from "../../../../tooling/src/ast/index.ts";
+import type { StructureArtifact, StructureArtifactGate } from "../../../../tooling/src/floor/artifacts/structure-artifact-contract.ts";
 
 const ARTIFACT = "reports/runs/structure/lane-1/check-structure.json";
 const PASS_STDOUT = `structure done; read ${ARTIFACT}\n`;
@@ -14,40 +15,15 @@ const RED_GATE = FIRST_CLASS.gates[0];
 const WAIVED_FILE = "packages/server/src/domain/x/queries.ts";
 
 interface GateRowOptions {
-  readonly violations?: readonly { readonly file: string; readonly line: number; readonly token?: string }[];
+  readonly violations?: StructureArtifactGate["violations"];
   readonly waived?: number;
   readonly withheld?: boolean;
 }
 
-// The artifact slice the verb reads, as the structure pass writes it.
-interface GateRow {
-  readonly name: string;
-  readonly withheld: boolean;
-  readonly violations: NonNullable<GateRowOptions["violations"]>;
-  readonly waived: number;
-  readonly granted: number;
-  readonly population: { readonly effectiveSourcePaths: number };
-}
+type PolicyFixture = NonNullable<StructureArtifact["policy"]>;
+type Alarm = PolicyFixture["authority"]["alarms"][number];
 
-interface Alarm {
-  readonly kind: string;
-  readonly policyId: string;
-  readonly message: string;
-}
-
-interface ArtifactFixture {
-  readonly gates: readonly GateRow[];
-  readonly policy: {
-    readonly toolErrors: readonly never[];
-    readonly authority: {
-      readonly alarms: readonly Alarm[];
-      readonly toolErrors: readonly never[];
-      readonly ordinaryConsumption: readonly { readonly id: string; readonly count: number }[];
-    };
-  };
-}
-
-function gateRow(name: string, options: GateRowOptions = {}): GateRow {
+function gateRow(name: string, options: GateRowOptions = {}): StructureArtifactGate {
   return {
     name,
     withheld: options.withheld ?? false,
@@ -58,7 +34,7 @@ function gateRow(name: string, options: GateRowOptions = {}): GateRow {
   };
 }
 
-function artifactOf(gates: readonly GateRow[], extra: { alarms?: readonly Alarm[]; consumed?: readonly string[] } = {}): ArtifactFixture {
+function artifactOf(gates: readonly StructureArtifactGate[], extra: { alarms?: readonly Alarm[]; consumed?: readonly string[] } = {}): StructureArtifact {
   return {
     gates,
     policy: {
@@ -82,7 +58,7 @@ function reader(files: Readonly<Record<string, string>>): (rel: string) => strin
   };
 }
 
-function passOf(artifact: ArtifactFixture, extraFiles: Readonly<Record<string, string>> = {}, scoped = false): AntipatternVerdict {
+function passOf(artifact: StructureArtifact, extraFiles: Readonly<Record<string, string>> = {}, scoped = false): AntipatternVerdict {
   return judgeAntipatternPass(
     { code: 0, stdout: PASS_STDOUT, stderr: "", timedOut: false },
     scoped,

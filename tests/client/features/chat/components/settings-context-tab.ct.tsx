@@ -11,17 +11,19 @@ import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { setNumber } from "@orb/testkit/node/set-number.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.
-const CHAT_DETAIL = {
+const CHAT_DETAIL = makeChatDetail({
   id: "chat_ct",
   viewerIsHost: true,
   toolRecurseLimit: 7,
@@ -29,7 +31,7 @@ const CHAT_DETAIL = {
   memberPersonaLore: true,
   roomOverrides: {},
   participants: [],
-} satisfies TrpcFixtureOutput<"chat.getChat">;
+});
 
 // The Macro-picks section's own suspense read (#24) — this tab is its production mount, so every committed
 // arm must stub it or the section's boundary would swallow the failure and the tab's composition contract
@@ -252,7 +254,7 @@ for (const arm of [
 // the whole BATCH (one HTTP response per batch), so sibling sections skeleton too; every assertion below
 // is therefore scoped to the Group-behavior section itself rather than to the tab.
 test("committed host + group: the Group-behavior section shows a skeleton (never a spinner void) while loading", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.getGroupConfig">();
   await routeTrpc(page, {
     "chat.getGroupConfig": hold,
     "chat.setRoomOverrides": () => ({}),
@@ -524,9 +526,9 @@ function stubOfferChoices(page: Page, room: boolean | null, userDefault: boolean
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     // Same contract rule as USER_SETTINGS: `config.chat` is a WHOLE `ChatSettings`, so the arm's one knob
     // rides the contract defaults rather than replacing the section with a one-key object.
-    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, offerChoices: userDefault } } }),
+    "settings.getUserSettings": () => userSettingsView({ chat: { ...DEFAULT_CHAT_SETTINGS, offerChoices: userDefault } }),
     ...REGEX_READS,
-    "chat.getChat": () => ({ ...CHAT_DETAIL, offerChoices: room }),
+    "chat.getChat": () => makeChatDetail({ ...CHAT_DETAIL, offerChoices: room }),
     [UPDATE_OFFER_CHOICES]: () => true,
   });
 }
@@ -596,7 +598,7 @@ function stubMemberPersonaLore(page: Page, memberPersonaLore: boolean): Promise<
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
     ...REGEX_READS,
-    "chat.getChat": () => ({ ...CHAT_DETAIL, memberPersonaLore }),
+    "chat.getChat": () => makeChatDetail({ ...CHAT_DETAIL, memberPersonaLore }),
     [UPDATE_MEMBER_PERSONA_LORE]: () => memberPersonaLore,
   });
 }
@@ -682,9 +684,9 @@ function stubReactionToggles(
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
-    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, ...args.userDefaults } } }),
+    "settings.getUserSettings": () => userSettingsView({ chat: { ...DEFAULT_CHAT_SETTINGS, ...args.userDefaults } }),
     ...REGEX_READS,
-    "chat.getChat": () => ({ ...CHAT_DETAIL, ...args.room }),
+    "chat.getChat": () => makeChatDetail({ ...CHAT_DETAIL, ...args.room }),
     [UPDATE_REACTIONS_ENABLED]: () => true,
     [UPDATE_CHARACTERS_CAN_REACT]: () => true,
   });
@@ -909,16 +911,16 @@ type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
       : never
     : never
   : never;
-type ChatParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
+type ChatParticipantFixture = FixtureArrayElement<TrpcWireOutput<"chat.getChat">, "participants">;
 const SOLO_ROSTER_WITH_CARD_BG = [
-  { id: "p_human", kind: "human", characterId: null, displayName: "You" },
-  {
+  makeParticipantView({ id: "p_human", kind: "human", characterId: null, displayName: "You" }),
+  makeParticipantView({
     id: "p_birdie",
     kind: "character",
     characterId: "character_birdie",
     displayName: "Birdie Mae Holloway",
     backgroundOverride: { kind: "asset", externalUrl: "", assetId: "asset_birdie_bg", assetHash: "hash_birdie_bg", mime: "image/jpeg", provenanceUrl: "" },
-  },
+  }),
 ] satisfies readonly ChatParticipantFixture[];
 
 test("BG-C: with no chat-set background, the Background row names the CARD-carried source that is painting", async ({ mount, page }) => {
@@ -931,7 +933,7 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
     ...REGEX_READS,
-    "chat.getChat": () => ({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
+    "chat.getChat": () => makeChatDetail({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
   await openContextSections(component, HOST_BAND);
@@ -1203,7 +1205,7 @@ test("#640: a room with NO books attached says so rather than rendering an empty
 const SETTLE_SHIFT_BUDGET_PX = 20;
 
 test("#821: resolving Injections does not move the sections around it", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listChatInjections">();
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
@@ -1256,7 +1258,7 @@ test("#821: resolving Injections does not move the sections around it", async ({
   const documentsBefore = await settledDocumentTop();
   const overridesBefore = await documentTop(fieldOverrides);
 
-  hold.release([HELD_INJECTIONS[0]]);
+  hold.release(HELD_INJECTIONS.slice(0, 1));
 
   // The release must actually land — a fallback that never resolves would satisfy a position fence forever.
   await expect(component.getByRole("heading", { name: "Injections 1", level: 3 })).toBeVisible();
@@ -1273,7 +1275,7 @@ test("#821: resolving Injections does not move the sections around it", async ({
 // count is in cache and the reserve is exact; this pin proves the WIRING — the fallback is the section's
 // own collapse-row skeleton (intro painted for real, cards below it), not a fixed one-line bar.
 test("#821: the Injections fallback is the section's own shape, not a line", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listChatInjections">();
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
@@ -1312,7 +1314,7 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
 // its arrival grew the kicker's line box 13.125px → 30.25px (measured by lane cb-this-chat-fixes, 3d9d31280e).
 // Same `trpcHold` barrier as the fence test above — the heading's own bounding-box height, absent vs present.
 test("#829: the count chip's arrival does not resize the kicker's own line box", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listChatInjections">();
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,

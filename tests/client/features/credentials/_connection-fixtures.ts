@@ -8,7 +8,7 @@
 
 import type { USER_ROLES } from "@orb/contracts/identity";
 import type { ProviderAvailability } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, ROUTABLE_TASKS } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, mintConnectionLabel, providerDisplayLabel, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -16,6 +16,7 @@ import { expect } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Deep relative, pure `.ts`: the step titles are read from their one home, never re-typed here.
 import { ADD_DIALOG_COPY } from "#client/features/credentials/lib/add-connection-form-model.ts";
+import { appSettingsView, effectiveAppSettings } from "../user-admin/app-settings-fixtures.ts";
 
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];
@@ -43,12 +44,12 @@ export const SUBSCRIPTION_RUNTIME_MISSING: readonly AvailabilityRow[] = BUILTIN_
   (provider): ProviderAvailability => (provider.id === "claude-sub" ? { provider, available: false, cause: "runtime-missing" } : { provider, available: true }),
 );
 
-function providerLabelOf(providerId: string): string {
+function builtinProvider(providerId: string): (typeof BUILTIN_PROVIDERS)[number] {
   const provider = BUILTIN_PROVIDERS.find((row) => row.id === providerId);
   if (provider === undefined) {
     throw new Error(`no built-in provider ${providerId}`);
   }
-  return provider.label;
+  return provider;
 }
 
 export function catalogEntry(id: string, name = id): CatalogEntry {
@@ -160,11 +161,17 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     return row;
   };
   const createConnection = (input: TrpcInput<"connection.create">): ConnectionRow => {
+    const provider = builtinProvider(input.providerId);
     const row = connectionRow({
       id: `user_connection_ctcreated0${connections.length + 1}`,
-      label: input.label ?? `${providerLabelOf(input.providerId)} · ${input.model}`,
+      label: mintConnectionLabel(
+        provider,
+        input.model,
+        connections.map((existing) => existing.label),
+        input.label,
+      ),
       providerId: input.providerId,
-      providerLabel: providerLabelOf(input.providerId),
+      providerLabel: providerDisplayLabel(provider),
       credentialId: input.credentialId,
       baseUrl: input.baseUrl,
       model: input.model,
@@ -230,13 +237,10 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
         return binding;
       }),
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
-    "settings.getAppSettingsWithOverrides": () => ({
-      resolved: { privateEndpointAllowlist: [...allowlist] },
-      overrides: { privateEndpointAllowlist: null },
-    }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView({ privateEndpointAllowlist: [...allowlist] }, { privateEndpointAllowlist: null }),
     "settings.updateAppSettings": ({ partial }) => {
       allowlist = partial.privateEndpointAllowlist ?? allowlist;
-      return { privateEndpointAllowlist: [...allowlist] };
+      return effectiveAppSettings({ privateEndpointAllowlist: [...allowlist] });
     },
   });
 }

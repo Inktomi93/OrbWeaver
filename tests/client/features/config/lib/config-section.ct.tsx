@@ -27,10 +27,13 @@
 // driver is gone with the defect; the arrival is asserted instead.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeDocumentListPage } from "@orb/testkit/node/factories/databank-view.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { ConfigMobileShellStory } from "../_ct-stories.tsx";
 
 /** The shell's mobile way back — `Back to ${activeSectionLabel}`, and the config section's label is
@@ -79,7 +82,7 @@ const ENTRY = {
   priority: 100,
   ignoreBudget: false,
   metadata: null,
-} satisfies TrpcFixtureOutput<"worldInfo.listEntries">[number];
+} satisfies TrpcWireOutput<"worldInfo.listEntries">[number];
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -97,14 +100,15 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "rosterPreset.list": () => [],
     "rosterPreset.count": 0,
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
     // THE WHOLE SHELL IS MOUNTED, so the shell's own ambient reads are this file's to feed as well — the
     // notifications bell, and the home/databank tiles the rail's other sections keep warm. Fed rather than
     // baselined: an empty list is a real view for every one of them, and the unfed-read ratchet is right
     // that a `null` would leave those pipelines inert inside a mount that does render them.
     "notifications.list": () => ({ items: [], nextCursor: null }),
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
-    "databank.list": () => ({ items: [], nextCursor: null }),
+    "plugin.listCommands": [],
+    "chat.listChats": () => makeChatListPage(),
+    "databank.list": () => makeDocumentListPage(),
     "databank.bankHealth": () => ({
       total: 0,
       passages: 0,

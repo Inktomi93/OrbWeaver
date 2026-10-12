@@ -70,6 +70,10 @@ type EnqueueReindexOp = (args: { ownerId: UserId; scope: ReindexScope; mode: Rei
  *  participant's prompts on the host's dime — write authority is host, not any member. */
 type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
+/** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
+ *  nor `chats`, so the panel's host/member branch asks chat. */
+type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
+
 /** The D18 chat-member predicate (chat's own guard). `listActiveForChat` is member-readable — every
  *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
 type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void>;
@@ -181,6 +185,7 @@ export interface DatabankContext {
   readonly enqueueReindex: EnqueueReindexOp;
   readonly ensureChatHost: EnsureChatHostOp;
   readonly ensureChatMember: EnsureChatMemberOp;
+  readonly resolveChatHost: ResolveChatHostOp;
   /** The leak-safe reverse-room read `listAttachments` names its rooms through (#276) — chat's answer to "of
    *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two
    *  guards above are: D18 rooms scope on `chat_participants`, and databank reads neither the roster nor

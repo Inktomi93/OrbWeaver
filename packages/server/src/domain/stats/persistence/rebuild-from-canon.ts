@@ -251,6 +251,7 @@ async function scanEmbeddingSpend(db: Db, ownerId: string, a: Accums): Promise<v
   let lastId = "";
   for (;;) {
     // @orb-waive no-await-db-in-loop(limit): keyset pagination bounds the retained embedding-call corpus per page, matching the message/swipe scans. Ends if rebuild folds server-side.
+    // @orb-waive owner-scoped-reads(embeddingCalls): owner-scoped inside the raw `sql` template (`embedding_calls.owner_id = ownerId`); the `id >` term is the keyset cursor, not a selection by a caller's id. Ends if the template loses its owner term.
     const calls = await db
       .select()
       .from(embeddingCalls)

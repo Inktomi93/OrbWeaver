@@ -42,6 +42,7 @@ export async function listReadableThemes(db: Db, ownerId: UserId): Promise<Theme
 
 /** One theme readable by this owner: their own row OR any seed. */
 export async function readableTheme(db: Db, ownerId: UserId, id: ThemeId): Promise<ThemeRow | undefined> {
+  // @orb-waive owner-scoped-reads(themes): readable = the caller's own theme or a seed palette, and the `or` arm admits only `isNull(themes.ownerId)` rows, the code-authored seeds no user can edit (D44/D63). Ends if a user-owned theme can be ownerless.
   const rows = await db
     .select()
     .from(themes)

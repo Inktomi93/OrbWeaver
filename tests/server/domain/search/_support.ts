@@ -8,7 +8,6 @@
 // gate scopes only `packages/server/src/domain`).
 
 import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
-import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
@@ -28,7 +27,6 @@ import {
   documents as documentsTable,
   embedGenerations,
   embedGenerationTargets,
-  embedSpaceState,
   globalDocuments,
   imageAnalyses,
   imageEmbeddings,
@@ -53,16 +51,21 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { consolidationHash, createResolveViewerVisibility, resolveTier0Range } from "@orb/server/domain/chat";
+import { consolidationHash, createResolveViewerVisibility, loadPresentHostUserId, resolveTier0Range } from "@orb/server/domain/chat";
+import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
+import { createEmbeddingsService, SpaceMismatchError } from "@orb/server/domain/embeddings";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
+import { and, eq, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
-import { generationIdOf, vectorSpaceFingerprint } from "#server/primitives/embedding-generation/index.ts";
+import { makeStoreHarness } from "../embeddings/_support.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
@@ -74,58 +77,89 @@ export const EMBED_MODEL = "test-embed-model-1024";
 /** The default IMAGE-embed model the harness scopes the cross-modal `images` scan to. */
 export const IMAGE_EMBED_MODEL = "test-image-embed-model-1024";
 
-async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask, model: string): Promise<EmbedGenerationId> {
-  const roleClients = makeSearchRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
-  const resolved = await roleClients.resolved(task);
-  if (resolved === null) {
+/** A one-element vector: no encoder the harness binds makes it, so a width probe that reads it refuses. */
+const UNMAKEABLE_WIDTH = (): Float32Array<ArrayBuffer> => new Float32Array(1);
+
+/**
+ * The owner's generation for `model`, minted by production's own target resolve. The owner's FIRST space becomes
+ * their target and every scope of it completes, so search reads it as ready. A LATER space is the row a target move
+ * leaves behind when its width probe refuses: production inserts the generation, then keeps the old target.
+ */
+/** Mint the owner's `task` generation for `encoder` through the embeddings service and complete every scope it
+ *  needs. A second encoder for an owner who already has a target is a move whose width probe refuses, so its
+ *  generation exists beside the readable one, the way a refused re-point leaves it. */
+export async function seedGeneration(
+  db: Db,
+  ownerId: UserId,
+  task: EmbeddingTask,
+  encoder: Pick<FakeRoleClientControls, "embedInstructionAware"> & { readonly model: string },
+): Promise<EmbedGenerationId> {
+  const { model, ...controls } = encoder;
+  const prior = await db
+    .select({ generationId: embedGenerationTargets.generationId })
+    .from(embedGenerationTargets)
+    .where(and(eq(embedGenerationTargets.ownerId, ownerId), eq(embedGenerationTargets.task, task)))
+    .limit(1);
+  const space = { ...controls, ...(task === "embed" ? { embedModel: model } : { imageEmbedModel: model }) };
+  const refuses = prior[0] !== undefined;
+  const roleClients = makeSearchRoleClients(refuses ? { ...space, embedVector: UNMAKEABLE_WIDTH, imageEmbedVector: UNMAKEABLE_WIDTH } : space);
+  const bound = await roleClients.resolved(task);
+  if (bound === null) {
     throw new Error(`missing test ${task} connection`);
   }
-  const connection = {
-    ...resolved,
-    connectionId: castId<UserConnectionId>(`connection_${ownerId}_${task}`),
-    api: "test",
-    wire: "test",
-    baseUrl: null,
-    features: {},
-    extras: null,
-    transport: null,
-    embed: roleClients.embed,
-    imageEmbed: roleClients.imageEmbed,
-  } as const;
-  const id = generationIdOf({ ownerId, task, via: task, connection, space: model });
+  // The FK parent of the generation's connection — the owner's own row.
   await db
     .insert(userConnections)
-    .values({ id: connection.connectionId, ownerId, label: `Test ${task}`, providerId: connection.providerId, model: connection.model })
+    .values({ id: ownConnection(ownerId, task), ownerId, label: `Test ${task}`, providerId: bound.providerId, model: bound.model })
     .onConflictDoNothing();
-  await db
-    .insert(embedGenerations)
-    .values({
-      id,
-      ownerId,
-      task,
-      via: task,
-      connectionId: connection.connectionId,
-      connectionRef: connection.connectionId,
-      fingerprint: vectorSpaceFingerprint(connection),
-      space: model,
-      createdAt: FROZEN_AT,
-    })
-    .onConflictDoNothing();
-  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
-  await db
-    .insert(embedSpaceState)
-    .values(
-      VECTOR_SCOPES_BY_TASK[task].map((scope) => ({
-        ownerId,
-        scope,
-        activeGenerationId: id,
-        candidateGenerationId: null,
-        candidateEpoch: null,
-        completedAt: FROZEN_AT,
-      })),
-    )
-    .onConflictDoNothing();
-  return id;
+  // The embeddings service over this owner's search encoder: its verbs mint the target and record each scope.
+  const embeddings = createEmbeddingsService({ ...makeStoreHarness(db).ctx, resolveEmbeddingConnection: searchEmbeddingConnection(roleClients) });
+  if (refuses) {
+    const existing = await generationOf(db, ownerId, task, model);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const refused = await embeddings.resolveGeneration(ownerId, task).then(
+      () => false,
+      (error: unknown) => {
+        if (error instanceof SpaceMismatchError) {
+          return true;
+        }
+        throw error;
+      },
+    );
+    if (!refused) {
+      throw new Error(`the ${model} move's width probe must refuse`);
+    }
+    const minted = await generationOf(db, ownerId, task, model);
+    if (minted === undefined) {
+      throw new Error(`the refused move minted no ${model} generation`);
+    }
+    return minted;
+  }
+  const generation = await embeddings.resolveGeneration(ownerId, task);
+  if (generation === null) {
+    throw new Error(`the ${model} target must resolve`);
+  }
+  // Each scope completes through the sweep that records it in production.
+  const signal = new AbortController().signal;
+  if (task === "embed") {
+    await embeddings.embedCorpus({ ownerId, force: false, signal });
+    await embeddings.purgeMemoryVectors({ ownerId, generation });
+    await embeddings.purgeDocumentVectors({ ownerId, generation });
+  } else {
+    await embeddings.embedAssets({ ownerId, force: false, signal });
+  }
+  return generation.id;
+}
+
+async function generationOf(db: Db, ownerId: UserId, task: EmbeddingTask, space: string): Promise<EmbedGenerationId | undefined> {
+  const rows = await db
+    .select({ id: embedGenerations.id })
+    .from(embedGenerations)
+    .where(and(eq(embedGenerations.ownerId, ownerId), eq(embedGenerations.task, task), eq(embedGenerations.space, space)))
+    .limit(1);
+  return rows[0]?.id;
 }
 
 function ownerOf<T extends { ownerId: UserId | null }>(rows: readonly T[], subject: string): UserId {
@@ -137,12 +171,9 @@ function ownerOf<T extends { ownerId: UserId | null }>(rows: readonly T[], subje
 }
 
 async function chatOwner(db: Db, chatId: ChatId, model: string): Promise<UserId> {
-  const hosts = await db
-    .select({ ownerId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
-  if (hosts[0]?.ownerId !== undefined && hosts[0]?.ownerId !== null) {
-    return hosts[0].ownerId;
+  const host = await loadPresentHostUserId(db, chatId);
+  if (host !== null) {
+    return host;
   }
   const digestOwners = await db
     .select({ ownerId: characters.ownerId })
@@ -199,6 +230,8 @@ export interface FakeRoleClientControls {
   readonly embed?: RoleClients["embed"];
   readonly embedModel?: string;
   readonly imageEmbedModel?: string;
+  /** The text embedder conditions on a task instruction; without it the funnel drops the instruction. */
+  readonly embedInstructionAware?: boolean;
 }
 
 /** A scripted `RoleClients` — only `embed` / `rerank` matter to search; the other roles are never called
@@ -249,7 +282,18 @@ function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClien
     embedDim: VECTOR_DIM,
     embedModel,
     imageEmbedModel,
+    embedInstructionAware: controls.embedInstructionAware,
   });
+}
+
+/** Compose's embedding-connection resolve over a fake runtime that embeds through `roleClients`. */
+function searchEmbeddingConnection(roleClients: RoleClients): ResolveEmbeddingConnection {
+  return createResolveEmbeddingConnection(makeEmbeddingRuntime(roleClients, ownConnection), (userId) => Promise.resolve(makePrincipal(userId)));
+}
+
+/** Each owner binds their own connection row, as two real users do. */
+function ownConnection(ownerId: UserId, task: EmbeddingTask): UserConnectionId {
+  return castId<UserConnectionId>(`connection_${ownerId}_${task}`);
 }
 
 /** Build the search service over a real db + a scripted role-clients bundle + the frozen clock. `now` is
@@ -264,23 +308,8 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
     tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
-    resolveEmbeddingConnection: async (ownerId, task) => {
-      const resolved = await roleClients.resolved(task);
-      return resolved === null
-        ? null
-        : {
-            ...resolved,
-            connectionId: castId<UserConnectionId>(`connection_${ownerId}_${task}`),
-            api: "test",
-            wire: "test",
-            baseUrl: null,
-            features: {},
-            extras: null,
-            transport: null,
-            embed: roleClients.embed,
-            imageEmbed: roleClients.imageEmbed,
-          };
-    },
+    // Compose's own resolve over the scripted encoders: the snapshot and the explicit-row rule are production's.
+    resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
     now,
     resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
   };
@@ -328,7 +357,7 @@ export async function seedDocumentChunk(db: Db, o: SeedDocumentChunkOverrides): 
   const id = castId<DocumentChunkId>(o.id ?? `document_chunk_${o.documentId}_${o.chunkIdx}`);
   const model = o.model ?? EMBED_MODEL;
   const ownerId = ownerOf(await db.select({ ownerId: documentsTable.ownerId }).from(documentsTable).where(eq(documentsTable.id, o.documentId)), o.documentId);
-  const generationId = await seedGeneration(db, ownerId, "embed", model);
+  const generationId = await seedGeneration(db, ownerId, "embed", { model });
   await db.insert(documentChunks).values({
     id,
     documentId: o.documentId,
@@ -432,7 +461,7 @@ export async function seedCharacterEmbedding(db: Db, overrides: SeedCharacterEmb
     await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, overrides.characterId)),
     overrides.characterId,
   );
-  const generationId = await seedGeneration(db, ownerId, "embed", model);
+  const generationId = await seedGeneration(db, ownerId, "embed", { model });
   await db.insert(characterEmbeddings).values({
     id,
     characterId: overrides.characterId,
@@ -504,7 +533,7 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
   const id = castId<ImageEmbeddingId>(o.id ?? `image_embedding_${o.assetId}_${lens}`);
   const model = o.model ?? IMAGE_EMBED_MODEL;
   const ownerId = ownerOf(await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, o.assetId)), o.assetId);
-  const generationId = await seedGeneration(db, ownerId, "imageEmbed", model);
+  const generationId = await seedGeneration(db, ownerId, "imageEmbed", { model });
   await db.insert(imageEmbeddings).values({
     id,
     assetId: o.assetId,
@@ -553,6 +582,8 @@ interface SeedDigestOverrides {
   readonly model?: string;
   readonly contentHash?: string;
   readonly keywords?: readonly string[];
+  /** The owner's encoder conditions on a task instruction: the space is minted under that capability. */
+  readonly embedInstructionAware?: boolean;
 }
 
 /** Legacy vector fixtures represent hosted rooms; explicit rosters remain authoritative. */
@@ -572,7 +603,10 @@ export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<Ch
   const model = o.model ?? EMBED_MODEL;
   const ownerId = ownerOf(await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, o.scopedCharacterId)), o.scopedCharacterId);
   await seedVectorHost(db, o.chatId, ownerId);
-  const generationId = await seedGeneration(db, ownerId, "embed", model);
+  const generationId = await seedGeneration(db, ownerId, "embed", {
+    model,
+    ...(o.embedInstructionAware === undefined ? {} : { embedInstructionAware: o.embedInstructionAware }),
+  });
   await db.insert(chatDigests).values({
     id,
     chatId: o.chatId,
@@ -613,7 +647,7 @@ export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<
   const model = o.model ?? EMBED_MODEL;
   const ownerId = await chatOwner(db, o.chatId, model);
   await seedVectorHost(db, o.chatId, ownerId);
-  const generationId = await seedGeneration(db, ownerId, "embed", model);
+  const generationId = await seedGeneration(db, ownerId, "embed", { model });
   await db.insert(chatSegments).values({
     id,
     chatId: o.chatId,

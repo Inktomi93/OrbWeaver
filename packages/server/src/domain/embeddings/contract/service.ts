@@ -16,6 +16,7 @@ import type {
   CharacterEmbeddingId,
   CharacterId,
   ChatDigestId,
+  ChatId,
   ChatSegmentId,
   DocumentChunkId,
   DocumentId,
@@ -142,6 +143,9 @@ export interface EmbeddingsContext {
   /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
+  /** The chat's PRESENT host (chat's own read), `null` for a hostless room: the funder whose generation a
+   *  memory prune pins. */
+  readonly loadChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
   /** The owner's target generation just moved and its old vectors are gone: queue their full rebuild. Called
    *  after the switch commits, by whichever caller moved it; fire-and-forget. */
   readonly onTargetGenerationMoved: (ownerId: UserId) => void;

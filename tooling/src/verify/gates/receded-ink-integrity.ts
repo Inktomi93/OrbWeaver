@@ -30,10 +30,12 @@
 // consumer measured 2026-09-19 is under `packages/client/src`). New policy, so there is no legacy port;
 // the fence is the IMPORT, not the path: a file that never imports the binding contributes nothing.
 // RETIRED MARKERS: none — new policy, no legacy owner, no marker grammar to translate.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess } from "../lib/symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier } from "../lib/symbol-reference.ts";
 import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const RECEDED_INK = "RECEDED_INK";
@@ -113,7 +115,7 @@ function recededInkTokenOffset(node: Node, sourceFile: SourceFile): number | und
     return node.getText() === RECEDED_INK && importsRecededInk(sourceFile) ? 0 : undefined;
   }
   // The NAME is checked before the import walk: these kinds are every member access in @client + @ui.
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   if (read?.name !== RECEDED_INK || namespaceImportSpecifier(read.receiver) === undefined) {
     return;
   }

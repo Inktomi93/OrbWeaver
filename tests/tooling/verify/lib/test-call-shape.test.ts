@@ -82,7 +82,7 @@ test("EVERY MEMBER HOP IS SPELLING-INDEPENDENT: the bracket twin of a modifier c
     ['test["concurrent"]["each"]([1])', true],
     // The tagged template is not a CallExpression, so the table form yields exactly one call.
     ['test["each"]`a | b`("d", () => {})', true],
-    // A same-file `const` standing for the member name is the third spelling `readMemberAccess` resolves.
+    // A same-file `const` standing for the member name is the third spelling `staticMemberAccess` resolves.
     ['test[MODIFIER]("e", () => {})', true],
   ]);
 });

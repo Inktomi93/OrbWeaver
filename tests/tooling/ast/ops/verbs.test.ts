@@ -8,6 +8,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { MINI_DRIZZLE_ORM_FILES } from "@orb/testkit/node/mini-drizzle-orm.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CompilerOptions } from "ts-morph";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
@@ -457,10 +458,9 @@ collision.sendTurn();
       "packages/db/src/drizzle.ts": `
 export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
-export declare const db: {
-  insert: (table: unknown) => { values: (value: unknown) => void };
-  select: () => { from: (table: unknown) => unknown[] };
-};`,
+import type { Db } from "drizzle-orm";
+export declare const db: Db;`,
+      ...MINI_DRIZZLE_ORM_FILES,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });
@@ -493,10 +493,9 @@ db.select().from(healthy);`,
       "packages/db/src/drizzle.ts": `
 export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
-export declare const db: {
-  insert: (table: unknown) => { values: (value: unknown) => void };
-  update: (table: unknown) => { set: (value: unknown) => void };
-};`,
+import type { Db } from "drizzle-orm";
+export declare const db: Db;`,
+      ...MINI_DRIZZLE_ORM_FILES,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });`,
@@ -615,7 +614,9 @@ export const readGhost = (): unknown => widgets.ghost;`,
       "packages/db/src/drizzle.ts": `
 export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
-export declare const db: { insert: (table: unknown) => { values: (value: unknown) => void } };`,
+import type { Db } from "drizzle-orm";
+export declare const db: Db;`,
+      ...MINI_DRIZZLE_ORM_FILES,
       "packages/db/src/schema/a.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const events = sqliteTable("a_events", { aValue: text("a_value") });`,

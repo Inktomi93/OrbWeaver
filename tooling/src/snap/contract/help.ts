@@ -157,11 +157,13 @@ Sessions:
   --stage-auth local      boot the stage with local sign-in, an empty data dir and the fixture's seeded
                           owner + member, so --contexts/--as drive multi-human flows on the staged tree
   --stage-db <path>       boot the stage from a CLONE of this db file (+ its -wal/-shm), say a docker cp of
-                          the container db. The source is only read. The owner row keeps its id and the
-                          stage's boot renames it onto the stage's owner handle; saved provider keys,
-                          sessions, password hashes and pending invites are dropped from the clone.
-                          Implies --isolated and --fresh; no --stage-auth local. A later plain
-                          --isolated run on the same commit reuses the clone and prints a WARNING.
+                          the container db, and of the assets/ directory beside its db/ directory (the
+                          owner's avatars and art). The source is only read. The owner row keeps its id
+                          and the stage's boot renames it onto the stage's owner handle; saved provider
+                          keys, sessions, password hashes and pending invites are dropped from the clone.
+                          Implies --isolated and --fresh. With --stage-auth local the fixture owner and
+                          member are seeded into the clone. A later plain --isolated run on the same
+                          commit reuses the clone and prints a WARNING.
   --isolated | --dirty    warm isolated stage from HEAD or working tree
   --ref <sha|branch|tag>  pin the isolated stage to a commit instead of HEAD (survives a merge train)
   --fresh                 force a full re-stage even when the stage is warm (implies --isolated)

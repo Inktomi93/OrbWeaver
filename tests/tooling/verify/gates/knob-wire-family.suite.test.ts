@@ -28,18 +28,19 @@ test("every declared row conforms", () => {
 
 // ── §6.2 authority: the central grant door, and the two-sided liveness that replaced the tables ────────
 
-// ── the five real central rows: shape, uniqueness, and vocabulary ───────────────────────────────────────
+// ── the real central rows: shape, uniqueness, and vocabulary ───────────────────────────────────────
+
+const DEFERRED_TRACKER = "#2283";
+const IP_CERTIFICATE_GRANT = "knob-wire-coverage:app-key-ip-certificate";
 
 test("every committed knob-wire grant names a real arm operation and a uniquely identifiable member", () => {
   const rows = REVIEWED_GRANTS.filter((row) => row.policyId === gate.id);
   const operations = new Set<string>(Object.values(KNOB_WIRE_OPERATIONS));
-  // The two retired ExemptionTables carried 1 DOORWAY + 5 DEFERRED rows. BOTH halves shrank at 77bf95dc18
-  // (the @orb/inference §12 extraction audit): `metadata-provider-routing` — the sole DOORWAY — and the
-  // DEFERRED `config-allow-non-owner-local-compute` were retired with the fields they named, leaving four
-  // DEFERRED rows and no doorway. 3327e53fa6 added a fifth row, `app-key-ip-certificate`: not DEFERRED debt
-  // but a cited grant for a key that arm B2's admin-dir scan cannot see, because its write goes through a
-  // dedicated verb rather than a generic editor field.
-  expect(rows.length, "4 DEFERRED rows plus the 3327e53fa6 ip-certificate grant").toBe(5);
+  // Every grant is either DEFERRED debt citing the durable tracker #2283, or the one live-wired grant
+  // (`app-key-ip-certificate`: a cited grant for a key arm B2's admin-dir scan cannot see, because its write goes
+  // through a dedicated verb). The row count follows the table, so retiring a DEFERRED row never stales this test.
+  const wired = rows.filter((row) => !row.endsWhen.includes(DEFERRED_TRACKER));
+  expect(wired.map((row) => row.id)).toEqual([IP_CERTIFICATE_GRANT]);
   for (const row of rows) {
     expect(operations.has(row.operation), `${row.id} names a live arm operation`).toBe(true);
     // The subject grammar is `<member source>.<member>`; a row that cannot be produced by the policy would
@@ -50,9 +51,6 @@ test("every committed knob-wire grant names a real arm operation and a uniquely 
   // 1:1 identity is what makes the over-broad alarm unreachable for this policy: no two rows share one
   // (subject, operation), and the policy emits at most one finding per pair.
   expect(new Set(rows.map((row) => `${row.subject}|${row.operation}`)).size).toBe(rows.length);
-  // Four surviving rows are DEFERRED debt carrying the durable tracker #2283 — the one sanctioned-doorway
-  // row (D107 audit Q2) went out with the field it named, so the doorway arm is now an emptiness claim.
-  // The fifth (ip-certificate) is a live-wired grant, not deferred debt, so it names no #2283 tracker.
-  expect(rows.filter((row) => row.endsWhen.includes("#2283"))).toHaveLength(4);
+  // The sanctioned-doorway row went out with the field it named, so the doorway arm is an emptiness claim.
   expect(rows.filter((row) => row.why.includes("THE ONE SANCTIONED DOORWAY"))).toHaveLength(0);
 });

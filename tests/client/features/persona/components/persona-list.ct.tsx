@@ -12,12 +12,15 @@
 //    deleted default names where the crown went; the band's From-character door.
 
 // @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
+
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makePersonaView } from "@orb/testkit/node/factories/persona-view.ts";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { PersonaListStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";
@@ -226,7 +229,7 @@ test("clicking a row opens its editor and writes nothing", async ({ mount, page 
 });
 
 test("the editor footer's Duplicate fires the verb", async ({ mount, page }) => {
-  const trpc = await stub(page, { "persona.duplicate": () => PERSONAS[0] });
+  const trpc = await stub(page, { "persona.duplicate": () => makePersonaView({ id: "persona_nova_copy", name: "Nova copy" }) });
   await mount(<PersonaListStory />);
   await page.getByRole("button", { name: "Nova", exact: true }).click();
   await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: "Duplicate", exact: true }).click();
@@ -248,12 +251,8 @@ const CHAR_ID = "character_ct_source";
 
 test("the From-character door opens the picker dialog; picking a character mints via createFromCharacter with the swap flag", async ({ mount, page }) => {
   const trpc = await stub(page, {
-    "character.list": () => ({
-      items: [{ id: CHAR_ID, name: "Captain Vale", avatarHash: null, starred: false }],
-      nextCursor: null,
-      totalCount: 1,
-    }),
-    "persona.createFromCharacter": () => ({ ...PERSONAS[0], id: "persona_minted", name: "Captain Vale" }),
+    "character.list": characterListResponder([makeCharacterSummary({ id: CHAR_ID, name: "Captain Vale" })]),
+    "persona.createFromCharacter": () => makePersonaView({ id: "persona_minted", name: "Captain Vale" }),
   });
   await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
@@ -273,12 +272,8 @@ test("the From-character door opens the picker dialog; picking a character mints
 
 test("flipping the swap switch OFF is honored on the wire", async ({ mount, page }) => {
   const trpc = await stub(page, {
-    "character.list": () => ({
-      items: [{ id: CHAR_ID, name: "Captain Vale", avatarHash: null, starred: false }],
-      nextCursor: null,
-      totalCount: 1,
-    }),
-    "persona.createFromCharacter": () => ({ ...PERSONAS[0], id: "persona_minted", name: "Captain Vale" }),
+    "character.list": characterListResponder([makeCharacterSummary({ id: CHAR_ID, name: "Captain Vale" })]),
+    "persona.createFromCharacter": () => makePersonaView({ id: "persona_minted", name: "Captain Vale" }),
   });
   await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();

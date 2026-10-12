@@ -48,6 +48,19 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
     a.isolated = true;
     a.fresh = true;
   },
+  // Queue for a busy table: a detached waiter boots the stage in order and the wait outlives the caller.
+  "--stage-wait": (a, rest) => {
+    const minutes = Number(rest.shift());
+    a.isolated = true;
+    if (Number.isInteger(minutes) && minutes > 0) {
+      a.stageWait = minutes;
+    } else {
+      a.errors.push("--stage-wait expects a positive whole number of minutes");
+    }
+  },
+  "--stage-waiter": (a, rest) => {
+    a.stageWaiter = rest.shift() ?? "";
+  },
   "--stage-down": (a) => {
     a.stageDown = true;
   },

@@ -15,7 +15,8 @@
 //     a narrow viewport alone renders a fine-pointer layout no phone produces.
 
 import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "#client/features/chat/lib/message-action-names.ts";
@@ -30,14 +31,14 @@ const VIEWER_SEAT = "chat_participant_ct_viewer";
 const OTHER_SEAT = "chat_participant_ct_other";
 
 /** A `ChatDetail`-shaped stub carrying only what the seat resolution reads (`viewerUserId` + the roster). */
-const CHAT_DETAIL = {
+const CHAT_DETAIL = makeChatDetail({
   id: CHAT_ID,
   viewerUserId: VIEWER_ID,
   participants: [
-    { id: VIEWER_SEAT, userId: VIEWER_ID, leftSeq: null },
-    { id: OTHER_SEAT, userId: "user_ct_other", leftSeq: null },
+    makeParticipantView({ id: VIEWER_SEAT, userId: VIEWER_ID, leftSeq: null }),
+    makeParticipantView({ id: OTHER_SEAT, userId: "user_ct_other", leftSeq: null }),
   ],
-};
+});
 
 type ReactionGroup = TrpcWireOutput<"chat.listReactions">["groups"][number];
 
@@ -55,7 +56,7 @@ function group(emoji: ReactionGroup["emoji"], reactors: readonly string[]): Reac
 }
 
 /** The B7 wire view — `listReactions` carries the room's resolved posture beside the groups. */
-function view(groups: readonly ReactionGroup[]): TrpcFixtureOutput<"chat.listReactions"> {
+function view(groups: readonly ReactionGroup[]): TrpcWireOutput<"chat.listReactions"> {
   return { reactionsEnabled: true, groups };
 }
 

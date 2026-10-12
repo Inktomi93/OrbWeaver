@@ -41,14 +41,14 @@
 // The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
 // legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
 
-import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS } from "./symbol-reference.ts";
 import { declaredByAnyPackage } from "./type-member-origin.ts";
 
 /** The module door React is authored as. A re-export shim keeps its OWN specifier, so the canonical
@@ -232,7 +232,7 @@ export function reactExportVisitors(exportedName: string, onFinding: (node: Morp
     {
       kinds: MEMBER_ACCESS_KINDS,
       visit: (node): void => {
-        if (readMemberAccess(node)?.name === exportedName && !isCalleeOfCall(node)) {
+        if (staticMemberAccess(node)?.name === exportedName && !isCalleeOfCall(node)) {
           emit(node, matcher.reference(node));
         }
       },

@@ -222,7 +222,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/automation/persistence/rule-state.ts",
     "#server/domain/automation/service.ts",
   ],
-  "tests/server/domain/automation/verbs/create-rule-from-preset.int.test.ts": [
+  "tests/server/domain/automation/verbs/_create-rule-from-preset-support.ts": [
     "#server/domain/automation/contract/ops.ts",
     "#server/domain/automation/contract/results.ts",
     "#server/domain/automation/contract/service.ts",
@@ -231,14 +231,12 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/automation/persistence/rule-state.ts",
     "#server/domain/automation/substrate/suggestions.ts",
   ],
-  "tests/server/domain/automation/verbs/create-rule.int.test.ts": ["#server/domain/automation/persistence/rules.ts"],
   "tests/server/domain/automation/verbs/dismiss-suggestion.int.test.ts": [
     "#server/domain/automation/contract/ops.ts",
     "#server/domain/automation/substrate/suggestions.ts",
   ],
   "tests/server/domain/automation/verbs/list-chat-activity.int.test.ts": ["#server/domain/automation/persistence/fires.ts"],
   "tests/server/domain/automation/verbs/list-rule-presets.test.ts": ["#server/domain/automation/verbs/list-rule-presets.ts"],
-  "tests/server/domain/automation/verbs/reorder-rules.int.test.ts": ["#server/domain/automation/persistence/rules.ts"],
   "tests/server/domain/automation/verbs/run-rule-now.int.test.ts": [
     "#server/domain/automation/contract/service.ts",
     "#server/domain/automation/engine/arm-executors.ts",
@@ -314,7 +312,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/chat/contract/memory.ts",
     "#server/domain/chat/contract/results.ts",
     "#server/domain/chat/teaching-contribution.ts",
-    "#server/domain/embeddings/persistence/clear.ts",
   ],
   "tests/server/domain/chat/active-turns.test.ts": ["#server/domain/chat/active-turns.ts"],
   "tests/server/domain/chat/assembly/assemble.test.ts": [
@@ -329,13 +326,12 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/chat/substrate/wire-history.ts",
   ],
   "tests/server/domain/chat/assembly/budget.test.ts": ["#server/domain/chat/assembly/budget.ts", "#server/domain/chat/contract/results.ts"],
-  "tests/server/domain/chat/assembly/context.int.test.ts": [
-    "#server/domain/chat/assembly/assemble.ts",
-    "#server/domain/chat/assembly/context.ts",
+  "tests/server/domain/chat/assembly/_context-support.ts": ["#server/domain/chat/assembly/context.ts", "#server/domain/chat/context.ts"],
+  "tests/server/domain/chat/assembly/context-character-notes-and-host-tier.int.test.ts": [
     "#server/domain/chat/assembly/injections.ts",
     "#server/domain/chat/assembly/macros.ts",
-    "#server/domain/chat/context.ts",
   ],
+  "tests/server/domain/chat/assembly/context-personas.int.test.ts": ["#server/domain/chat/assembly/assemble.ts"],
   "tests/server/domain/chat/assembly/context.suite.int.test.ts": ["#server/domain/chat/assembly/assemble.ts", "#server/domain/chat/assembly/context.ts"],
   "tests/server/domain/chat/assembly/history-budget.test.ts": [
     "#inference/capability/families.ts",
@@ -363,13 +359,13 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
   ],
   "tests/server/domain/chat/assembly/role-squash.test.ts": ["#server/domain/chat/assembly/role-squash.ts"],
   "tests/server/domain/chat/assembly/sections.test.ts": ["#server/domain/chat/assembly/sections.ts"],
-  "tests/server/domain/chat/assembly/shape.test.ts": [
-    "#server/domain/chat/assembly/assemble.ts",
+  "tests/server/domain/chat/assembly/_shape-support.ts": [
     "#server/domain/chat/assembly/injections.ts",
     "#server/domain/chat/assembly/shape.ts",
     "#server/domain/chat/contract/results.ts",
     "#server/domain/chat/substrate/wire-history.ts",
   ],
+  "tests/server/domain/chat/assembly/shape-system-row-placement.test.ts": ["#server/domain/chat/assembly/assemble.ts"],
   "tests/server/domain/chat/assembly/speaker-card.test.ts": ["#server/domain/chat/assembly/speaker-card.ts", "#server/domain/chat/contract/errors.ts"],
   "tests/server/domain/chat/assembly/speaker-stamp.test.ts": ["#server/domain/chat/assembly/speaker-stamp.ts"],
   "tests/server/domain/chat/assembly/trace.test.ts": ["#server/domain/chat/assembly/trace.ts"],

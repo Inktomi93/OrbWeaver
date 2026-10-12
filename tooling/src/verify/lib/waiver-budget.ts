@@ -61,7 +61,7 @@ const APPLICATION = Object.freeze({
   "no-raw-matchmedia": 6,
   "no-raw-random": 1,
   "no-raw-zustand-persist": 4,
-  "no-test-fabrication": 1653,
+  "no-test-fabrication": 1647,
   "no-unruled-flip-inversion": 1,
   "no-untyped-soft-ref": 13,
   "no-vanity-alias": 148,
@@ -69,7 +69,7 @@ const APPLICATION = Object.freeze({
   "one-principal-mint-population": 4,
   "over-art-plate-arm": 1,
   "owner-role-split": 5,
-  "owner-scoped-reads": 31,
+  "owner-scoped-reads": 48,
   "owner-scoped-writes": 29,
   "package-subpath-crossing": 17,
   "persistence-boundary": 4,
@@ -90,11 +90,10 @@ const APPLICATION = Object.freeze({
   suppressions: 57,
   "surface-a11y-focus": 5,
   "test-determinism": 80,
-  "test-file-size": 73,
+  "test-file-size": 52,
   "test-hand-shape": 19,
-  "test-production-clone": 17,
   "test-reach": 112,
-  "tests-raw-package-reach": 2487,
+  "tests-raw-package-reach": 2471,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,
   "tooling-browser-door": 2,
@@ -119,14 +118,12 @@ const IMPLEMENTATION = Object.freeze({
   "caught-failure-ownership": 23,
   "no-inline-types": 2,
   "no-loose-id-cast": 20,
-  "no-test-fabrication": 583,
+  "no-test-fabrication": 582,
   "no-vanity-alias": 23,
   "platform-spellings": 29,
   suppressions: 7,
   "test-determinism": 32,
-  "test-file-size": 14,
-  "test-mock-doctrine": 7,
-  "test-production-clone": 8,
+  "test-file-size": 11,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,
@@ -135,3 +132,7 @@ const IMPLEMENTATION = Object.freeze({
 });
 
 export const WAIVER_BUDGET: WaiverBudget = Object.freeze({ application: APPLICATION, implementation: IMPLEMENTATION });
+
+/** Names the budget a spawned structure run judges against, as JSON in this environment variable. Unset means
+ *  `WAIVER_BUDGET`; the corpus suite sets it so a planted tree is judged against what it plants. */
+export const WAIVER_BUDGET_ENV = "ORB_WAIVER_BUDGET";

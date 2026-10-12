@@ -3,7 +3,7 @@
 // OpenRouter route — all through the real runtime fold.
 
 import type { Capability, GenerationCapability } from "@orb/contracts/inference";
-import { GENERATION_FLOOR, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { GENERATION_FLOOR, requireGenerationCapability, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
@@ -343,25 +343,18 @@ async function ollamaResolved(model: string, task: "chat" | "embed"): Promise<Ca
   return (await runtime.resolve({ task, principal: principal(ownerId), connectionId: row.id })).resolved.capability;
 }
 
-function generationOf(capability: Capability): GenerationCapability {
-  if (capability.kind !== "generation") {
-    throw new Error(`expected a generation capability, got ${capability.kind}`);
-  }
-  return capability.generation;
-}
-
 test("an Ollama tool model folds tools and text-only input from `/api/show`, and the posture keeps the stated list", async () => {
-  const qwen = generationOf(await ollamaResolved("qwen2.5:0.5b", "chat"));
+  const qwen = requireGenerationCapability(await ollamaResolved("qwen2.5:0.5b", "chat"));
   expect(qwen).toMatchObject({ input: ["text"], tools: { parallel: false, silencesProse: true }, output: { structured: true } });
   expect(qwen.modalitiesEstimated).toBeUndefined();
-  const moondream = generationOf(await ollamaResolved("moondream:latest", "chat"));
+  const moondream = requireGenerationCapability(await ollamaResolved("moondream:latest", "chat"));
   expect(moondream.input).toEqual(["text", "image"]);
   expect(moondream.tools).toBeUndefined();
 });
 
 test("an untagged Ollama model id finds its `:latest` catalog entry, so the server's stated facts reach the fold", async () => {
-  const bare = generationOf(await ollamaResolved("moondream", "chat"));
-  const tagged = generationOf(await ollamaResolved("moondream:latest", "chat"));
+  const bare = requireGenerationCapability(await ollamaResolved("moondream", "chat"));
+  const tagged = requireGenerationCapability(await ollamaResolved("moondream:latest", "chat"));
   expect(bare.input).toEqual(["text", "image"]);
   expect(bare.modalitiesEstimated).toBeUndefined();
   expect(bare.context).toEqual(tagged.context);
@@ -381,7 +374,7 @@ test("an id-only list states no modalities, so the posture still widens the row 
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: idOnlyModelList() }));
   const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
-  expect(generationOf(capability)).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
+  expect(requireGenerationCapability(capability)).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
 });
 
 // ── the endpoint mirror is per (URL × reader): one server, two users, two providers ──────────────────────
@@ -412,7 +405,9 @@ async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Pro
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama") }));
   const out: Record<string, GenerationCapability> = {};
   for (const { providerId, ownerId, row } of rows) {
-    out[providerId] = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
+    out[providerId] = requireGenerationCapability(
+      (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability,
+    );
   }
   expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:")).sort()).toEqual(
     order.map((providerId) => `catalog:endpoint:http://127.0.0.1:1/v1#${providerId === "ollama" ? "ollama" : "list"}`).sort(),
@@ -447,7 +442,9 @@ test("a snapshot written under the old URL-only key carries no native facts and 
   );
   const seen: string[] = [];
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama", {}, seen) }));
-  const capability = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
+  const capability = requireGenerationCapability(
+    (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability,
+  );
   expect(
     seen.some((url) => url.endsWith("/api/show")),
     "the reader dialed the server instead of trusting the old snapshot",

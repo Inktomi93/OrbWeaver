@@ -4,13 +4,13 @@
 //
 // These assertions MOVED here from `chat-landing-surface.ct.tsx` when the launcher moved to home.
 
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
+import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
 import { ChatQuickPicksTileStory } from "../_ct-stories.tsx";
 import { chatListResponder } from "../fixtures.ts";
 import { QuickPicksResumeStory } from "./home-quick-picks-tile-body.fixtures.tsx";
@@ -20,13 +20,13 @@ const NO_ROOMS = { "chat.listChats": chatListResponder([]) };
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
-const CHAR_PAGE = { items: [ARIA, BOLT], nextCursor: null };
+const CHAR_PAGE = characterListResponder([ARIA, BOLT]);
 
 test("a returning character resumes its latest room; New chat remains a separate deliberate action", async ({ mount, page }) => {
   let creates = 0;
   await routeTrpc(page, {
     ...NO_ROOMS,
-    "character.list": { items: [makeCharacterSummary({ id: "char_aria", name: "Aria", lastChatId: castId<ChatId>("chat_latest") })], nextCursor: null },
+    "character.list": characterListResponder([makeCharacterSummary({ id: "char_aria", name: "Aria", lastChatId: castId<ChatId>("chat_latest") })]),
     "chat.startChat": () => {
       creates += 1;
       return startChatResult("chat_new");
@@ -45,23 +45,8 @@ const LONG_GLOSS = /^An immortal/u;
 
 /** The `chat.startChat` response the launcher awaits — the same shape `use-start-chat.ct.tsx` serves (a
  *  full `ChatDetail` under `chat`, because the seam seeds `chat.getChat` with it). */
-function startChatResult(id: string): TrpcFixtureOutput<"chat.startChat"> {
-  return {
-    chat: {
-      id,
-      title: "A new room",
-      participants: [],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-      temporary: false,
-      viewerIsHost: true,
-      roomOverrides: {},
-      background: null,
-      rpg: null,
-    },
-    opening: null,
-  };
+function startChatResult(id: string): TrpcWireOutput<"chat.startChat"> {
+  return makeStartChatResult({ chat: makeChatDetail({ id, title: "A new room" }) });
 }
 
 test("renders the character faces inside the tile frame", async ({ mount, page }) => {
@@ -83,7 +68,7 @@ test("renders the character faces inside the tile frame", async ({ mount, page }
 // with no focus at all. Asserted through the affordances: the pressed cell is STILL the focused element
 // while the mutation is in flight (it was gone), and the rail arrives when the room does.
 test("P2-7 picking a face keeps focus on the cell until the room exists, then moves the rail — assert the STORE", async ({ mount, page }) => {
-  const started = trpcHold();
+  const started = trpcHold<"chat.startChat">();
   await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE, "chat.startChat": started });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -113,14 +98,11 @@ test("the trailing action jumps to the characters section", async ({ mount, page
 test("each row carries an HONEST tagline off the summary it already reads — pitch → tag line → NOTHING (#119)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...NO_ROOMS,
-    "character.list": {
-      items: [
-        makeCharacterSummary({ id: "char_pitch", name: "Pitched", elevatorPitch: "The winter-court envoy" }),
-        makeCharacterSummary({ id: "char_tags", name: "Tagged", tags: [makeTagFixture({ id: "t1", name: "noir" })] }),
-        makeCharacterSummary({ id: "char_bare", name: "Bare", handle: castId<CharacterHandle>("bare_handle") }),
-      ],
-      nextCursor: null,
-    },
+    "character.list": characterListResponder([
+      makeCharacterSummary({ id: "char_pitch", name: "Pitched", elevatorPitch: "The winter-court envoy" }),
+      makeCharacterSummary({ id: "char_tags", name: "Tagged", tags: [makeTagFixture({ id: "t1", name: "noir" })] }),
+      makeCharacterSummary({ id: "char_bare", name: "Bare", handle: castId<CharacterHandle>("bare_handle") }),
+    ]),
   });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -142,12 +124,9 @@ test("each row carries an HONEST tagline off the summary it already reads — pi
 test("P2-8 a quick-pick is named by the character alone, with its pitch as the DESCRIPTION", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...NO_ROOMS,
-    "character.list": {
-      items: [
-        makeCharacterSummary({ id: "char_pitch", name: "Calamity, Doomblade of the Ninth Epoch", elevatorPitch: "A legendary, apocalypse-forged blade" }),
-      ],
-      nextCursor: null,
-    },
+    "character.list": characterListResponder([
+      makeCharacterSummary({ id: "char_pitch", name: "Calamity, Doomblade of the Ninth Epoch", elevatorPitch: "A legendary, apocalypse-forged blade" }),
+    ]),
   });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -165,16 +144,13 @@ test("P2-8 a quick-pick is named by the character alone, with its pitch as the D
 test("P2-9 the cell's name is a step above its gloss, and both wrap instead of cutting mid-word", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...NO_ROOMS,
-    "character.list": {
-      items: [
-        makeCharacterSummary({
-          id: "char_long",
-          name: "Morgatha, the Undying Dark",
-          elevatorPitch: "An immortal, bureaucratically-minded necromancer with a filing system",
-        }),
-      ],
-      nextCursor: null,
-    },
+    "character.list": characterListResponder([
+      makeCharacterSummary({
+        id: "char_long",
+        name: "Morgatha, the Undying Dark",
+        elevatorPitch: "An immortal, bureaucratically-minded necromancer with a filing system",
+      }),
+    ]),
   });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -222,17 +198,14 @@ test("P2-9 the cell's name is a step above its gloss, and both wrap instead of c
 test("#216 every cell in a row starts its pitch at the same baseline, whatever its name's length", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...NO_ROOMS,
-    "character.list": {
-      items: [
-        makeCharacterSummary({ id: "char_short", name: "Tamsin", elevatorPitch: "A burnt-out night-shift medic." }),
-        makeCharacterSummary({
-          id: "char_long",
-          name: "Calamity, Doomblade of the Ninth Epoch",
-          elevatorPitch: "A legendary, apocalypse-forged blade.",
-        }),
-      ],
-      nextCursor: null,
-    },
+    "character.list": characterListResponder([
+      makeCharacterSummary({ id: "char_short", name: "Tamsin", elevatorPitch: "A burnt-out night-shift medic." }),
+      makeCharacterSummary({
+        id: "char_long",
+        name: "Calamity, Doomblade of the Ninth Epoch",
+        elevatorPitch: "A legendary, apocalypse-forged blade.",
+      }),
+    ]),
   });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -271,17 +244,14 @@ test("#216 every cell in a row starts its pitch at the same baseline, whatever i
 test("P3-5 every cell in a row ENDS at the same edge, whatever its pitch's length", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...NO_ROOMS,
-    "character.list": {
-      items: [
-        makeCharacterSummary({ id: "char_terse", name: "Tamsin", elevatorPitch: "A medic." }),
-        makeCharacterSummary({
-          id: "char_wordy",
-          name: "Renata",
-          elevatorPitch: "A burnt-out night-shift medic who has stopped counting the ones she could not save.",
-        }),
-      ],
-      nextCursor: null,
-    },
+    "character.list": characterListResponder([
+      makeCharacterSummary({ id: "char_terse", name: "Tamsin", elevatorPitch: "A medic." }),
+      makeCharacterSummary({
+        id: "char_wordy",
+        name: "Renata",
+        elevatorPitch: "A burnt-out night-shift medic who has stopped counting the ones she could not save.",
+      }),
+    ]),
   });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -337,7 +307,7 @@ test("the tile's trailing action lives INSIDE the tile's own named region — '�
 });
 
 test("an empty library renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
-  await routeTrpc(page, { ...NO_ROOMS, "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": characterListResponder([]) });
 
   const home = await mount(<ChatQuickPicksTileStory />);
   const tile = home.locator('[data-home-tile="chat.quickPicks"]');

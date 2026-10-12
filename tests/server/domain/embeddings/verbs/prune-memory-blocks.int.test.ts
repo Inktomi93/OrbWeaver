@@ -13,8 +13,8 @@
 // @subject packages/server/src/domain/embeddings/verbs/prune-memory-blocks.ts
 
 import type { Db } from "@orb/db";
-import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
-import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
+import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments } from "@orb/db";
+import type { ChatDigestId, ChatParticipantId, ChatSegmentId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -156,6 +156,102 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
     expect(result.rowsDeleted).toBe(1);
     const left = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
     expect(left.map((d) => d.scopedCharacterId)).toEqual([theirs]);
+  });
+
+  // A host handoff leaves the old host's digests in their generation while the new host funds a new one; a
+  // shrink pass in the new host's space must never reach into the old host's rows.
+  test("digests: the prune is GENERATION-keyed — the previous host's generation is never collateral", async () => {
+    const db = await freshDb();
+    const first = await seedUser(db, { handle: castId<Handle>("first") });
+    const second = await seedUser(db, { handle: castId<Handle>("second") });
+    const scopedCharacterId = await seedCharacter(db, first);
+    const chatId = await seedChat(db, "chat_test", first);
+    const harness = makeStoreHarness(db);
+    const writeBlocks = async (generation: NonNullable<Awaited<ReturnType<typeof resolveTargetGeneration>>>): Promise<void> => {
+      for (const blockIdx of [0, 1]) {
+        await upsertChatDigest(db, {
+          id: castId<ChatDigestId>(`chat_digest_${generation.id}_${blockIdx}`),
+          chatId,
+          scopedCharacterId,
+          isGroup: false,
+          tier: 0,
+          blockIdx,
+          text: `digest ${blockIdx}`,
+          topicAnchor: `[g${blockIdx}]`,
+          keywords: [],
+          embedding: fakeVector(EMBED_DIM, 1),
+          contentHash: `hg${blockIdx}`,
+          model: generation.space,
+          generationId: generation.id,
+          dim: EMBED_DIM,
+          now: NOW,
+          speakerCharacterIds: [],
+        });
+      }
+    };
+    const firstGeneration = await resolveTargetGeneration(harness.ctx, first, "embed");
+    if (firstGeneration === null) {
+      throw new Error("the first host's generation must resolve");
+    }
+    await writeBlocks(firstGeneration);
+    await db.update(chatParticipants).set({ leftSeq: 1 }).where(eq(chatParticipants.chatId, chatId));
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_chat_test_second"),
+      chatId,
+      kind: "human",
+      userId: second,
+      role: "host",
+      joinedAt: NOW,
+      joinSeq: 2,
+    });
+    const secondGeneration = await resolveTargetGeneration(harness.ctx, second, "embed");
+    if (secondGeneration === null || secondGeneration.id === firstGeneration.id) {
+      throw new Error("the new host must fund a generation of their own");
+    }
+    await writeBlocks(secondGeneration);
+
+    const result = await createEmbeddingsService(harness.ctx).pruneMemoryBlocks({ lens: "digest", chatId, scopedCharacterId, keepPerTier: [1] });
+
+    expect(result.rowsDeleted).toBe(1);
+    const left = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+    expect(left.map((d) => `${d.generationId === secondGeneration.id ? "new host" : "old host"}:${d.blockIdx}`).sort()).toEqual([
+      "new host:0",
+      "old host:0",
+      "old host:1",
+    ]);
+  });
+
+  // The funder is the room's PRESENT host: once the host has left, no one's generation is pinned and nothing goes.
+  test("digests: a room whose host departed prunes nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
+    const scopedCharacterId = await seedCharacter(db, owner);
+    const chatId = await seedChat(db, "chat_test", owner);
+    await upsertChatDigest(db, {
+      id: castId<ChatDigestId>("chat_digest_departed"),
+      chatId,
+      scopedCharacterId,
+      isGroup: false,
+      tier: 0,
+      blockIdx: 3,
+      text: "beyond the ceiling",
+      topicAnchor: "[d]",
+      keywords: [],
+      embedding: fakeVector(EMBED_DIM, 1),
+      contentHash: "hd",
+      model: EMBED_MODEL,
+      generationId,
+      dim: EMBED_DIM,
+      now: NOW,
+      speakerCharacterIds: [],
+    });
+    await db.update(chatParticipants).set({ leftSeq: 1 }).where(eq(chatParticipants.chatId, chatId));
+
+    const result = await createEmbeddingsService(makeStoreHarness(db).ctx).pruneMemoryBlocks({ lens: "digest", chatId, scopedCharacterId, keepPerTier: [0] });
+
+    expect(result.rowsDeleted).toBe(0);
+    expect(await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId))).toHaveLength(1);
   });
 
   test("digests: the pruned rows take their chat_digest_speakers join rows with them (no orphan joins)", async () => {

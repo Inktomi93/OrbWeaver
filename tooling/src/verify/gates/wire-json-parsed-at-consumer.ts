@@ -6,9 +6,8 @@
 // DECLARED LIMIT: the global `JSON` is matched by spelling. FAMILY: singleton.
 import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import { inspectBindingReassignment, resolveLexicalValueDeclaration } from "../../floor/code-facts/reference-fact.ts";
+import { inspectBindingReassignment, resolveLexicalValueDeclaration, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 const JSON_METHOD = "json";
 const TEXT_METHOD = "text";
@@ -65,7 +64,7 @@ function bodyRead(node: Node, method: string): Node | undefined {
   if (!N.isCallExpression(node)) {
     return;
   }
-  const read = readMemberAccess(node.getExpression());
+  const read = staticMemberAccess(node.getExpression());
   return read?.name === method && node.getArguments().length === 0 ? read.nameNode : undefined;
 }
 
@@ -89,7 +88,7 @@ function bodyReadUnder(operand: Node): Node | undefined {
   if (json !== undefined || !N.isCallExpression(current)) {
     return json;
   }
-  const callee = readMemberAccess(current.getExpression());
+  const callee = staticMemberAccess(current.getExpression());
   if (callee === undefined) {
     return;
   }

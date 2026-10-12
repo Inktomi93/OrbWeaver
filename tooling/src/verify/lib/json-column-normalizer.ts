@@ -1,6 +1,6 @@
 // Bounded valid-row normalization proof for JSON write provenance. Schema output parity alone is not
 // identity: transforms/custom parses refuse, and catch explicitly retains a historical-heal arm.
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -8,7 +8,6 @@ import type { JsonNormalizerProof } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { jsonColumnSchemaFactoryProof } from "./json-column-schema-factory-proof.ts";
 import { readStaticAuthoredValue, resolveAuthoredComposite } from "./static-authored-value.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 type SchemaBodyProof = Pick<JsonNormalizerProof, "historicalHeal">;
 
@@ -25,7 +24,7 @@ const VALIDATORS = ["int", "min", "max", "nonnegative", "positive", "finite", "o
 const CONSTRUCTORS = ["object", "strictObject", "looseObject", "array", "record", "union", "enum", "literal", "number", "string", "boolean"] as const;
 
 function zodMethod(node: MorphNode, name: string): boolean {
-  const member = readMemberAccess(node);
+  const member = staticMemberAccess(node);
   if (member === undefined) {
     return false;
   }
@@ -59,8 +58,8 @@ function pureUniqueness(callback: MorphNode): boolean {
   ) {
     return false;
   }
-  const size = readMemberAccess(expression.getLeft());
-  const length = readMemberAccess(expression.getRight());
+  const size = staticMemberAccess(expression.getLeft());
+  const length = staticMemberAccess(expression.getRight());
   if (size?.name !== "size" || length?.name !== "length" || !sameParameter(length.receiver, parameter) || !Node.isNewExpression(size.receiver)) {
     return false;
   }
@@ -99,7 +98,7 @@ function refinementFunction(callback: MorphNode): MorphNode | undefined {
 }
 
 function readOnlyBuiltinCall(call: import("ts-morph").CallExpression): boolean {
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   if (member === undefined || !READ_ONLY_BUILTINS.some((name) => name === member.name)) {
     return false;
   }
@@ -140,7 +139,7 @@ function pureIssueRefinement(callback: MorphNode): boolean {
       return Node.isPrefixUnaryExpression(node) && ![SyntaxKind.PlusPlusToken, SyntaxKind.MinusMinusToken].includes(node.getOperatorToken());
     }
     if (Node.isCallExpression(node)) {
-      const member = readMemberAccess(node.getExpression());
+      const member = staticMemberAccess(node.getExpression());
       const issue = member?.name === "addIssue" && sameParameter(member.receiver, ctx);
       return issue || readOnlyBuiltinCall(node);
     }
@@ -237,7 +236,7 @@ function schemaCallProof(call: import("ts-morph").CallExpression, seen: Readonly
   if (jsonColumnSchemaFactoryProof(call)) {
     return { historicalHeal: false };
   }
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   if (member === undefined || !zodMethod(call.getExpression(), member.name)) {
     return refusal(call, "schema operation is not the installed Zod method");
   }
@@ -294,7 +293,7 @@ function schemaProof(node: MorphNode, seen: ReadonlySet<object>): SchemaBodyProo
 
 /** Prove the actual schema/body before treating parse as a valid-row normalizer, never as universal identity. */
 export function jsonColumnNormalizer(call: import("ts-morph").CallExpression): JsonNormalizerProof | undefined {
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   if (member?.name !== "parse") {
     return;
   }

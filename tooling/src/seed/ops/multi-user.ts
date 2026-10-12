@@ -104,9 +104,12 @@ export async function runMultiUserSeed(): Promise<ExitCode> {
   await trpc(config.baseUrl, "settings.updateAppSettings", { partial: { localMultiUser: true } });
   print("multi-user-seed: localMultiUser AppSetting = true");
 
-  const handles = new Set((await listUsers(config.baseUrl)).map((u) => (u.handle ?? "").toLowerCase()));
-  if (handles.has(config.memberHandle.toLowerCase())) {
-    print(`multi-user-seed: member "${config.memberHandle}" already present — skipped`);
+  const existing = (await listUsers(config.baseUrl)).find((u) => (u.handle ?? "").toLowerCase() === config.memberHandle.toLowerCase());
+  if (existing?.id !== undefined) {
+    // A cloned container db can already hold a user of this name; its password is whatever the box set, so the
+    // fixture password is written over it or the member could never sign in.
+    await trpc(config.baseUrl, "admin.resetPassword", { userId: existing.id, password: config.memberPassword });
+    print(`multi-user-seed: member "${config.memberHandle}" already present — password reset to the fixture password`);
   } else {
     await trpc(config.baseUrl, "admin.createUser", { handle: config.memberHandle, password: config.memberPassword, role: "user" });
     print(`multi-user-seed: member "${config.memberHandle}" created (role=user)`);

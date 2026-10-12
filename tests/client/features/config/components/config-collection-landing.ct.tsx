@@ -21,10 +21,11 @@
 // assert neither.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The CONTENT pane — the box whose height the windowed arm now inherits. */
@@ -56,7 +57,7 @@ const SCRIPT = {
   updatedAt: 1_760_000_000_000,
   substituteRegex: 0,
   placement: ["AI_OUTPUT"],
-} satisfies TrpcFixtureOutput<"regex.listScripts">[number];
+} satisfies TrpcWireOutput<"regex.listScripts">[number];
 
 /** The regex rows render in the order the read returns, so the fixture's last script is the last row. */
 const WINDOWED_SCRIPTS = Array.from({ length: WINDOWED_SCRIPT_COUNT }, (_unused, index) => ({
@@ -95,9 +96,9 @@ const BOOK_DETAIL = { id: BOOK.id, name: BOOK.name, description: BOOK.descriptio
 
 function stub(
   page: Page,
-  scripts: TrpcFixtureOutput<"regex.listScripts"> = [SCRIPT],
+  scripts: TrpcWireOutput<"regex.listScripts"> = [SCRIPT],
   books: readonly (typeof BOOK)[] = [BOOK],
-  bookCreate: { readonly failFirst?: boolean; readonly hold?: ReturnType<typeof trpcHold> } = {},
+  bookCreate: { readonly failFirst?: boolean; readonly hold?: ReturnType<typeof trpcHold<"worldInfo.createBook">> } = {},
 ): Promise<TrpcRecorder> {
   let bookCreates = 0;
   return routeTrpc(page, {
@@ -120,7 +121,7 @@ function stub(
     "regex.createScript": () => SCRIPT,
     "worldInfo.listEntries": () => [],
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
   });
 }
 
@@ -366,7 +367,7 @@ for (const width of [NARROW_WIDTH, MEDIUM_WIDTH]) {
 }
 
 test("a create in flight cannot be submitted twice: Enter then Create makes exactly one request", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"worldInfo.createBook">();
   const trpc = await stub(page, [SCRIPT], [BOOK], { hold });
   const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
   const row = workspace.locator(CONTROL_ROW);

@@ -12,6 +12,7 @@
 // string at every width and the phone's only extra is that `truncate` may clip it — which is a geometry
 // fact about the topbar, not about the title this hook returns.
 
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -31,7 +32,7 @@ const ROSTER_OF_THREE: TrpcRoutes<"chat.listChats" | "chat.countChats"> = {
 test("the mobile screen title leads with the user's own room name, then the participants", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...ROSTER_OF_THREE,
-    "chat.getChat": { title: "The Ashfall Road", participants: [makeParticipant({ displayName: "Elias Thorn" })], identities: [] },
+    "chat.getChat": makeChatDetail({ title: "The Ashfall Road", participants: [makeParticipant({ displayName: "Elias Thorn" })], identities: [] }),
   });
 
   await mount(<ChatsSelectionTitleStory />);
@@ -43,7 +44,7 @@ test("the mobile screen title leads with the user's own room name, then the part
 test("a seeded character names an untitled new room on mobile through the canonical fallback", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...ROSTER_OF_THREE,
-    "chat.getChat": { title: "", participants: [makeParticipant({ displayName: "Elias Thorn" })], identities: [] },
+    "chat.getChat": makeChatDetail({ title: "", participants: [makeParticipant({ displayName: "Elias Thorn" })], identities: [] }),
   });
 
   await mount(<ChatsSelectionTitleStory />);
@@ -52,7 +53,7 @@ test("a seeded character names an untitled new room on mobile through the canoni
 });
 
 test("a truly blank room uses the canonical untitled fallback instead of the section name or roster census", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_OF_THREE, "chat.getChat": { title: "", participants: [], identities: [] } });
+  await routeTrpc(page, { ...ROSTER_OF_THREE, "chat.getChat": makeChatDetail({ title: "", participants: [], identities: [] }) });
 
   await mount(<ChatsSelectionTitleStory />);
 

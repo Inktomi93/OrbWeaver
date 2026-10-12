@@ -20,6 +20,7 @@ export function createGalleryCharacterOps(
 ): Required<Pick<AssetsContext, "resolveCharacterHandle" | "findCharacterByHandle">> {
   return {
     resolveCharacterHandle: async (characterId): Promise<string | null> => {
+      // @orb-waive owner-scoped-reads(charactersTable): the ids are the exporting owner's own `gallery_items` subjects, written only by `addToGallery` (gated by `assertCharacterOwned`, assets-character compose) and by the gallery import (`restoreItem` relinks a handle through the owner-scoped `findCharacterByHandle({ ownerId, handle })`), so they are already-authorized canon, never caller input. Ends if a gallery subject can be written another way.
       const rows = await db.select({ handle: charactersTable.handle }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(LIMIT_ONE);
       return rows[0]?.handle ?? null;
     },

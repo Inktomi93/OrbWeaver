@@ -27,6 +27,7 @@ import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
+import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
 import { parseStageDbProvenance } from "../lib/stage-identity.ts";
@@ -301,13 +302,6 @@ export function unbindSessionFromBand(home: string, band: number, name: string):
 
 function lockPath(home: string): string {
   return join(home, LOCK_REL);
-}
-
-/** A synchronous pause. The whole stage path is sync (spawnSync boots, `ss` probes, JSON writes), so the
- *  waiter cannot yield to an event loop — `Atomics.wait` on a throwaway buffer is node's sanctioned
- *  sync sleep and burns no CPU, unlike a spin. */
-export function waitSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, ms);
 }
 
 function lockHolderPid(path: string): number | null {

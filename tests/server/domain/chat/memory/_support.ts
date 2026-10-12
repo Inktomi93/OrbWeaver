@@ -3,17 +3,18 @@
 // injected fakes (summarize / embeddingsStore / searchDigests) the build + recall close over. The digest/
 // segment rows carry a dummy F32_BLOB(1024) embedding (memory never reads the vector column — only the facets).
 
-import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import { characters, chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, embedGenerations, userConnections } from "@orb/db";
-import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import { characters, chatDigestSpeakers, chatDigests, chatSegments, embedGenerations, embedGenerationTargets, userConnections } from "@orb/db";
+import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
-import { and, eq, isNull } from "drizzle-orm";
+import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
+import { and, eq } from "drizzle-orm";
 import type {
   ChatContext,
   EmbeddingsStoreOp,
@@ -23,17 +24,42 @@ import type {
   SummarizeOp,
 } from "#server/domain/chat/contract/context.ts";
 import type { MemoryScope } from "#server/domain/chat/memory/types.ts";
-import { loadPresentHostUserId } from "#server/domain/chat/persistence/reactions.ts";
-import { createMemoryEmbeddingOps } from "#server/entry/compose/memory-embedding-ops.ts";
 import type { StoreHarness } from "../../embeddings/_support.ts";
-import { makeStoreHarness } from "../../embeddings/_support.ts";
+import { makeStoreHarness, SUMMARIZER_MODEL, seedVectorConnection } from "../../embeddings/_support.ts";
 import { makeChatContext, seedMessage } from "../_support.ts";
 
-export const MODEL = "test-embed-1024";
-const DIM = 1024;
+/** The space every memory fixture row is written in: the owner's target generation. */
+interface MemorySpace {
+  readonly id: EmbedGenerationId;
+  readonly space: string;
+  readonly epoch: number;
+}
 
-export function testGenerationId(ownerId: UserId): EmbedGenerationId {
-  return castId<EmbedGenerationId>(`embed_generation_memory_${ownerId}`);
+/** Memory never reads the vector column, so a fixture row's vector is a zero vector of this width. */
+const FIXTURE_VECTOR_WIDTH = 1024;
+
+/**
+ * The owner's memory space: their TARGET embed generation. An owner with no target yet gets one minted by
+ * production's own resolve over the embeddings harness encoder (their bound row is seeded first); an owner whose
+ * target another harness already minted keeps it, since a second encoder would move the target and purge it.
+ * Every digest and segment fixture lands in it, so the generation-scoped reads and the prune see what a real
+ * build would have written.
+ */
+export async function memoryGeneration(db: Db, ownerId: UserId): Promise<MemorySpace> {
+  const [current] = await db
+    .select({ id: embedGenerations.id, space: embedGenerations.space, epoch: embedGenerationTargets.epoch })
+    .from(embedGenerationTargets)
+    .innerJoin(embedGenerations, eq(embedGenerations.id, embedGenerationTargets.generationId))
+    .where(and(eq(embedGenerationTargets.ownerId, ownerId), eq(embedGenerationTargets.task, "embed")));
+  if (current !== undefined) {
+    return current;
+  }
+  await seedVectorConnection(db, ownerId);
+  const generation = await createEmbeddingsService(makeStoreHarness(db).ctx).resolveGeneration(ownerId, "embed");
+  if (generation === null) {
+    throw new Error(`the memory fixture owner ${ownerId} must resolve an embed generation`);
+  }
+  return generation;
 }
 
 /** The synthetic group-as-character id (`scopedCharacterId` for the shared bucket — inv 8, no `''` sentinel).
@@ -54,50 +80,32 @@ export function sharedScope(chatId: ChatId): MemoryScope {
   return { chatId, scopedCharacterId: GROUP_CHAR, isGroup: false };
 }
 
-/** A zeroed F32_BLOB(1024) — memory never reads the vector column, so the value is irrelevant. */
-function dummyVector(): Float32Array {
-  return new Float32Array(DIM);
+/** A zeroed vector at the space's width — memory never reads the vector column, so the value is irrelevant. */
+function dummyVector(dims: number): Float32Array {
+  return new Float32Array(dims);
 }
 
-async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<EmbedGenerationId> {
-  const hosts = await db
-    .select({ ownerId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
-  const ownerId = knownOwnerId ?? (hosts[0]?.ownerId as UserId | null | undefined);
-  if (ownerId === undefined || ownerId === null) {
+/** Every scope of the owner's memory space completes through the sweeps that record it (the card sweep, the memory
+ *  and document reclaims), so search reads it as ready. */
+export async function completeMemorySpace(db: Db, ownerId: UserId): Promise<void> {
+  const generation = await memoryGeneration(db, ownerId);
+  const receipt = { id: generation.id, task: "embed", via: "embed", epoch: generation.epoch, space: generation.space } as const;
+  const embeddings = createEmbeddingsService(makeStoreHarness(db).ctx);
+  await embeddings.embedCorpus({ ownerId, force: false, signal: new AbortController().signal });
+  await embeddings.purgeMemoryVectors({ ownerId, generation: receipt });
+  await embeddings.purgeDocumentVectors({ ownerId, generation: receipt });
+}
+
+async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<MemorySpace> {
+  const ownerId = knownOwnerId ?? (await loadPresentHostUserId(db, chatId));
+  if (ownerId === null) {
     // D18: there is no `chats.ownerId` — the present human HOST participant is the authority, and that is
     // what the generation's owner is derived from. A fixture chat with no host must say whose generation it
     // is: pass `ownerId` (what `seedSegment`'s callers do; `seedDigest` can also fall back to the scoped
     // character's owner), or seat a host with `seedParticipant({ userId, role: "host" })`.
     throw new Error(`missing host for ${chatId} — pass \`ownerId\` to the seeder, or seat a human host participant`);
   }
-  const id = testGenerationId(ownerId);
-  const connectionId = castId<UserConnectionId>(`user_connection_memory_${ownerId}`);
-  await db
-    .insert(userConnections)
-    .values({
-      id: connectionId,
-      ownerId,
-      label: "memory fixture embed",
-      providerId: providerIdSchema.parse("custom-openai"),
-      model: modelIdSchema.parse(MODEL),
-    })
-    .onConflictDoNothing();
-  await db
-    .insert(embedGenerations)
-    .values({
-      id,
-      ownerId,
-      task: "embed",
-      via: "embed",
-      connectionId,
-      connectionRef: connectionId,
-      fingerprint: `test:embed:${MODEL}`,
-      space: MODEL,
-    })
-    .onConflictDoNothing();
-  return id;
+  return await memoryGeneration(db, ownerId);
 }
 
 /** Seed a `chat_digests` row (+ its `chat_digest_speakers` join) — the facets memory recalls. */
@@ -127,7 +135,7 @@ export async function seedDigest(
   const text = opts.text ?? (keywords.length > 0 ? `${anchor}\nkeywords: ${keywords.join(", ")}` : anchor);
   const characterOwners =
     opts.ownerId === undefined ? await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, scoped)).limit(1) : [];
-  const generationId = await seedGeneration(db, opts.chatId, opts.ownerId ?? characterOwners[0]?.ownerId);
+  const generation = await seedGeneration(db, opts.chatId, opts.ownerId ?? characterOwners[0]?.ownerId);
   await db.insert(chatDigests).values({
     id,
     chatId: opts.chatId,
@@ -136,13 +144,13 @@ export async function seedDigest(
     tier: opts.tier,
     blockIdx: opts.blockIdx,
     text,
-    embedding: dummyVector(),
+    embedding: dummyVector(FIXTURE_VECTOR_WIDTH),
     contentHash: opts.contentHash ?? `hash_${opts.tier}_${opts.blockIdx}`,
     topicAnchor: anchor,
     keywords,
-    model: MODEL,
-    generationId,
-    dim: DIM,
+    model: generation.space,
+    generationId: generation.id,
+    dim: FIXTURE_VECTOR_WIDTH,
   });
   const speakers = opts.speakers ?? [];
   if (speakers.length > 0) {
@@ -168,7 +176,7 @@ export async function seedSegment(
 ): Promise<ChatSegmentId> {
   const chunkIdx = opts.chunkIdx ?? 0;
   const id = castId<ChatSegmentId>(`chat_segment_${opts.chatId}_${opts.blockIdx}_${chunkIdx}`);
-  const generationId = await seedGeneration(db, opts.chatId, opts.ownerId);
+  const generation = await seedGeneration(db, opts.chatId, opts.ownerId);
   await db.insert(chatSegments).values({
     id,
     chatId: opts.chatId,
@@ -177,11 +185,11 @@ export async function seedSegment(
     seqStart: opts.seqStart,
     seqEnd: opts.seqEnd,
     text: opts.text ?? `verbatim block ${opts.blockIdx}`,
-    embedding: dummyVector(),
+    embedding: dummyVector(FIXTURE_VECTOR_WIDTH),
     contentHash: opts.contentHash ?? `seg_${opts.blockIdx}_${chunkIdx}`,
-    model: MODEL,
-    generationId,
-    dim: DIM,
+    model: generation.space,
+    generationId: generation.id,
+    dim: FIXTURE_VECTOR_WIDTH,
   });
   return id;
 }
@@ -211,7 +219,7 @@ export function fakeSummarize(): {
       const text = `[entities — scene ${calls.length}]\nFacts about turn ${calls.length}.\nkeywords: alpha, beta, gamma`;
       return { text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } };
     });
-    return Promise.resolve({ items, model: MODEL });
+    return Promise.resolve({ items, model: SUMMARIZER_MODEL });
   };
   const op: SummarizeOp = (_funderUserId, inputs, opts) => fn([...inputs], opts);
   return { fn, op, calls, optsSeen, batchSizes };
@@ -246,7 +254,8 @@ export function fakeEmbeddingsStore(db: Db): {
       speakers: [...params.speakerCharacterIds],
       ownerId: params.ownerId,
     });
-    return { ownerId: params.ownerId, model: params.model, generationId: testGenerationId(params.ownerId), generationEpoch: 1 };
+    const generation = await memoryGeneration(db, params.ownerId);
+    return { ownerId: params.ownerId, model: params.model, generationId: generation.id, generationEpoch: generation.epoch };
   };
   const storeSegments: EmbeddingsStoreSegmentsOp = async (batch) => {
     segmentBatchSizes.push(batch.length);
@@ -263,7 +272,12 @@ export function fakeEmbeddingsStore(db: Db): {
         ownerId: params.ownerId,
       });
     }
-    return batch.map((params) => ({ ownerId: params.ownerId, model: params.model, generationId: testGenerationId(params.ownerId), generationEpoch: 1 }));
+    return await Promise.all(
+      batch.map(async (params) => {
+        const generation = await memoryGeneration(db, params.ownerId);
+        return { ownerId: params.ownerId, model: params.model, generationId: generation.id, generationEpoch: generation.epoch };
+      }),
+    );
   };
   return { store, storeSegments, digests, segments, segmentBatchSizes };
 }
@@ -312,7 +326,7 @@ export async function realMemoryWiring(
   const ctx = makeChatContext(db, {
     summarize: fakeSummarize().op,
     // The vector seam compose wires: the host's real space, the owner-coherence guard and the generation-scoped prune.
-    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: async (chatId) => (await loadPresentHostUserId(db, chatId)) ?? null }),
+    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId) }),
     ...overrides,
   });
   return { ctx, embeddings, resolved };

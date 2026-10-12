@@ -238,7 +238,10 @@ function importedTarget(current: Identifier, declaration: import("ts-morph").Imp
     : resolved(targetDeclaration, target, targetDeclaration);
 }
 
-function constInitializer(current: Identifier, declaration: MorphNode, target: ResolutionState): ReferenceFact<MorphNode> {
+/** Which bindings a stable read follows: `const`, or also a `let` the file never reassigns (a member key). */
+export type StableBindings = "const" | "unreassigned";
+
+function constInitializer(current: Identifier, declaration: MorphNode, target: ResolutionState, bindings: StableBindings): ReferenceFact<MorphNode> {
   if (!Node.isVariableDeclaration(declaration)) {
     if (Node.isParameterDeclaration(declaration)) {
       return unresolved("missing", declaration, target, `parameter ${current.getText()} has no stable initializer`);
@@ -251,7 +254,8 @@ function constInitializer(current: Identifier, declaration: MorphNode, target: R
   if (!enterDeclaration(target, declaration)) {
     return unresolved("cycle", declaration, target, `const alias cycle at ${declaration.getName()}`);
   }
-  if (declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() !== VariableDeclarationKind.Const) {
+  const kind = declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind();
+  if (kind !== VariableDeclarationKind.Const && !(bindings === "unreassigned" && kind === VariableDeclarationKind.Let)) {
     return unresolved("write", declaration, target, `binding ${declaration.getName()} is mutable`);
   }
   const write = writtenBinding(declaration, target, "binding");
@@ -264,7 +268,7 @@ function constInitializer(current: Identifier, declaration: MorphNode, target: R
     : resolved(initializer, target, initializer);
 }
 
-function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState): ReferenceFact<MorphNode> {
+function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState, bindings: StableBindings = "const"): ReferenceFact<MorphNode> {
   let current = unwrapExpression(raw);
   while (Node.isIdentifier(current)) {
     const binding = uniqueDeclaration(current, target);
@@ -275,7 +279,7 @@ function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState
     if (declaration.kind === "unresolved") {
       return declaration;
     }
-    const initializer = constInitializer(current, declaration.value, target);
+    const initializer = constInitializer(current, declaration.value, target, bindings);
     if (initializer.kind === "unresolved") {
       return initializer;
     }
@@ -319,8 +323,8 @@ export function resolveStableExpression(node: MorphNode): ReferenceFact<MorphNod
 }
 
 /** Read a static string through the shared stable-binding resolver. */
-export function readStaticString(node: MorphNode): ReferenceFact<string> {
-  const fact = resolveStableExpression(node);
+export function readStaticString(node: MorphNode, bindings: StableBindings = "const"): ReferenceFact<string> {
+  const fact = resolveStableExpressionInternal(node, state(), bindings);
   if (fact.kind === "unresolved") {
     return fact;
   }
@@ -334,12 +338,12 @@ export function readStaticString(node: MorphNode): ReferenceFact<string> {
 }
 
 /** Read a static number, including unary signs, through the shared stable-binding resolver. */
-export function readStaticNumber(node: MorphNode): ReferenceFact<number> {
+export function readStaticNumber(node: MorphNode, bindings: StableBindings = "const"): ReferenceFact<number> {
   const target = state();
   let current = node;
   let sign = 1;
   for (;;) {
-    const fact = resolveStableExpressionInternal(current, target);
+    const fact = resolveStableExpressionInternal(current, target, bindings);
     if (fact.kind === "unresolved") {
       return fact;
     }
@@ -362,7 +366,7 @@ export function readStaticNumber(node: MorphNode): ReferenceFact<number> {
 }
 
 function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<string> {
-  const stringFact = readStaticString(node);
+  const stringFact = readStaticString(node, "unreassigned");
   if (stringFact.kind === "resolved") {
     appendTrace(target, stringFact.trace.declarations);
     return resolved(stringFact.value, target, stringFact.trace.origin);
@@ -370,7 +374,7 @@ function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<s
   if (stringFact.reason === "write" || stringFact.reason === "cycle" || stringFact.reason === "ambiguous") {
     return mergeUnresolved(stringFact, target);
   }
-  const numberFact = readStaticNumber(node);
+  const numberFact = readStaticNumber(node, "unreassigned");
   if (numberFact.kind === "resolved") {
     appendTrace(target, numberFact.trace.declarations);
     return resolved(String(numberFact.value), target, numberFact.trace.origin);
@@ -389,6 +393,13 @@ export function readMemberReference(node: MorphNode): ReferenceFact<MemberRefere
 /** Read a static member's syntax, including assignment, update and delete targets; identity is separate. */
 export function readMemberAccess(node: MorphNode): ReferenceFact<MemberReference> {
   return readMemberAccessWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
+}
+
+/** The member `node` itself reads in any of the three spellings (`x.foo`, `x?.foo`, `x["foo"]`), or undefined
+ *  when it names no ONE static member. Callers needing the refusal reason or a wrapped access use `readMemberAccess`. */
+export function staticMemberAccess(node: MorphNode): MemberReference | undefined {
+  const fact = Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node) ? readMemberAccess(node) : undefined;
+  return fact?.kind === "resolved" ? fact.value : undefined;
 }
 
 function declarationOf(identifier: Identifier): ReferenceFact<MorphNode> {

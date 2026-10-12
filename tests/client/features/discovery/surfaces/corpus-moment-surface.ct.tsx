@@ -99,7 +99,9 @@ test("alternate takes preserve their exact stable message identity", async ({ mo
   await routeTrpc(page, {
     "chat.getMessageWindow": EMPTY_WINDOW,
     "discovery.similarChats": [],
-    "discovery.swipeHotspots": [{ messageId, seq: 3017, snippet: "The selected alternate take", variantCount: 4 }],
+    "discovery.swipeHotspots": [
+      { messageId, seq: 3017, characterId: mintTypeId(ID_PREFIX.character), characterName: "Aria", snippet: "The selected alternate take", variantCount: 4 },
+    ],
   });
   const component = await mount(<CorpusArtifactReaderStory destination={DESTINATION} />);
   await component.getByRole("button", { name: "Select evidence" }).click();

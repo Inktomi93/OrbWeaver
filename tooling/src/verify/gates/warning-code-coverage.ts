@@ -62,13 +62,12 @@
 // a fixture under the OLD directory now admits zero paths and refuses for empty population, which proves nothing.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
 import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../lib/static-authored-value.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 import { resolveArrayElementTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 
@@ -187,7 +186,7 @@ function bindsLocalValue(receiver: MorphNode): boolean {
  *  `<receiver>.warnings` when the RECEIVER provably binds a parameter or a local, which keeps the
  *  imported-lookalike fence that the original narrowing was actually about. */
 function isWarningsSink(node: MorphNode): boolean {
-  const member = readMemberAccess(node);
+  const member = staticMemberAccess(node);
   if (member !== undefined) {
     return (member.name === SINK || canonicalWarningAccumulator(node)) && bindsLocalValue(member.receiver);
   }
@@ -210,11 +209,11 @@ function calleeName(call: CallExpression): string | undefined {
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  return readMemberAccess(expression)?.name;
+  return staticMemberAccess(expression)?.name;
 }
 
 function isPushedWarning(object: ObjectLiteralExpression, call: CallExpression): boolean {
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   if (member === undefined) {
     return false;
   }

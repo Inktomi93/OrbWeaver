@@ -142,7 +142,7 @@ test("the activation body owns the Everywhere write and states where the documen
 });
 
 test("the Everywhere switch locks while its write is held, then remains actionable after a rejection", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"databank.attachGlobal">();
   let attempts = 0;
   const trpc = await stubDatabank(page, {
     "databank.listGlobal": () => [],
@@ -413,7 +413,7 @@ test("the picker exposes read failure recovery without dropping its dialog seman
 });
 
 test("the picker keeps its labeled dialog and rendered loading rows while the owner library is pending", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"character.list">();
   await stubDatabank(page, { "character.list": () => held });
   const workspace = await mount(<DatabankWorkspaceStory />);
   await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
@@ -429,7 +429,7 @@ test("the picker keeps its labeled dialog and rendered loading rows while the ow
 });
 
 test("an in-flight attach announces its target and locks duplicate attachment", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"databank.attachToCharacter">();
   await stubDatabank(page, {
     "character.list": characterListResponder([NEW_CHARACTER]),
     "databank.attachToCharacter": () => held,

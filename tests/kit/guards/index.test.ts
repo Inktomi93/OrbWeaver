@@ -1,4 +1,4 @@
-import { isPlainObject } from "@orb/kit/guards";
+import { finiteNumberOrNull, isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("isPlainObject is true for non-null, non-array objects", () => {
@@ -30,4 +30,13 @@ test("isPlainObject narrows unknown to a record for property access", () => {
   // Compiles only because the guard narrowed `value` to Record<string, unknown>.
   // Bracket access: `noPropertyAccessFromIndexSignature` requires it for index-signature reads.
   expect(value["kind"]).toBe("x");
+});
+
+test("finiteNumberOrNull keeps a finite number and nulls everything else", () => {
+  expect(finiteNumberOrNull(0)).toBe(0);
+  expect(finiteNumberOrNull(-1.5)).toBe(-1.5);
+  expect(finiteNumberOrNull(Number.NaN)).toBeNull();
+  expect(finiteNumberOrNull(Number.POSITIVE_INFINITY)).toBeNull();
+  expect(finiteNumberOrNull("3")).toBeNull();
+  expect(finiteNumberOrNull(undefined)).toBeNull();
 });

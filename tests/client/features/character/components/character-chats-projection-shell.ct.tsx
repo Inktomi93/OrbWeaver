@@ -19,7 +19,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -72,20 +72,9 @@ const ANY_ROW_MENU = /^Chat actions for /;
 const FROZEN_NOW = FROZEN_AT_MS;
 const HOUR_MS = 3_600_000;
 
-/** R1: New chat mints a REAL room — the minimal ChatDetail the startChat responder returns. */
+/** R1: New chat mints a REAL room — the ChatDetail the startChat responder returns. */
 const CREATED_CHAT_ID = "chat_ctx_created";
-const CREATED_CHAT: TrpcFixtureOutput<"chat.startChat">["chat"] = {
-  id: CREATED_CHAT_ID,
-  title: null,
-  participants: [],
-  anchorPersonaId: null,
-  identities: [],
-  temporary: false,
-  viewerIsHost: true,
-  roomOverrides: {},
-  background: null,
-  rpg: null,
-};
+const CREATED_CHAT = makeChatDetail({ id: CREATED_CHAT_ID });
 
 function routeAll(page: Page, chats: readonly ScopedChatSummaryFixture[]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
