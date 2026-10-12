@@ -1,10 +1,7 @@
-// @orb-waive-file testid-typed-only-stories("draft-live-value"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("draft-save-count"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("draft-save-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("draft-server-value"): baselined when the gate widened; burn-down item 906.
 import { hashServerBaseline } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { createEntityDraftStore } from "@orb/client/state";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { z } from "zod";
@@ -56,7 +53,7 @@ export function UnsubmittedDraftCompletionStory({ restored = false }: { readonly
               <button type="button" onClick={session.retrySave}>
                 Submit snapshot
               </button>
-              <output data-testid="draft-save-state">{session.saveState}</output>
+              <output data-testid={storyTestId("draftSaveState")}>{session.saveState}</output>
             </div>
           )}
         </Boundary>
@@ -70,9 +67,9 @@ export function UnsubmittedDraftCompletionStory({ restored = false }: { readonly
       <button type="button" onClick={(): void => setServer({ text: "external C" })}>
         Receive external change
       </button>
-      <output data-testid="draft-live-value">{draft.text ?? "no draft"}</output>
-      <output data-testid="draft-save-count">{calls}</output>
-      <output data-testid="draft-server-value">{server.text}</output>
+      <output data-testid={storyTestId("draftLiveValue")}>{draft.text ?? "no draft"}</output>
+      <output data-testid={storyTestId("draftSaveCount")}>{calls}</output>
+      <output data-testid={storyTestId("draftServerValue")}>{server.text}</output>
     </div>
   );
 }

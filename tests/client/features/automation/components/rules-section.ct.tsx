@@ -36,6 +36,12 @@ import { RulesActivityFreshnessStory, RulesInThisChatTabStory, RulesSectionStory
 
 const CHAT = castId<ChatId>("chat_ct_rules_0001");
 
+// A nested disclosure is pressed while the outer row's CollapsiblePanel is still folding open. Under load Playwright's
+// scroll-into-view shifts that clipped panel and the press lands in the gap beside the trigger, which is a test artefact:
+// a real pointer cannot press a clipped control, and the trigger stays attached and uncovered. The reduced-motion floor
+// removes the fold, so the press lands on settled geometry.
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 // A FIXED epoch, never `Date.now()` (test-determinism): the row and the log both render relative time.
 const A_PAST_INSTANT = 1_760_000_000_000;
 
@@ -1277,7 +1283,8 @@ for (const theme of THEMES) {
 //   0.00613  the fire log's 2-line skeleton is replaced by twelve real rows — the picker trigger leaves
 //            the viewport (~480px appears where ~64px stood). The largest term, 76% of the session.
 //   0.00155  the mint's refetched list adds a row — the picker trigger moves again
-// Total 0.00961, an order of magnitude under the 0.1 "good" bar.
+// The terms above sum to 0.00961; the measured total is now 0.01816 against the 0.02 budget, with the
+// extra shift not yet split by mover. Both sit far under the 0.1 "good" bar.
 //
 // THESE MOVERS SATURATE, which is the one thing to know before tightening the budget: every term's
 // impact region is bounded by the VIEWPORT, and by the third step the picker trigger is already at the

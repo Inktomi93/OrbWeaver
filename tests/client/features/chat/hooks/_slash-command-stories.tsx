@@ -10,11 +10,11 @@
 //               send, never silently posted.
 // `registered: false` mounts the same tree with an EMPTY registry — the zero-registrant baseline.
 
-// @orb-waive-file testid-typed-only-stories("ct-slash-fired"): baselined when the gate widened; burn-down item 906.
 import type { ContributorRegistry, SlashCommandContribution, SlashCommandMountProps } from "@orb/client/lib";
 import { SlashCommandRegistryProvider } from "@orb/client/state";
 import { slashCommands } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerStory } from "../_ct-stories.tsx";
@@ -75,7 +75,7 @@ export function SlashComposerStory({ registered = true }: SlashComposerStoryProp
   return (
     <SlashCommandRegistryProvider value={registry}>
       <ComposerStory />
-      <div data-testid="ct-slash-fired">{fired ?? ""}</div>
+      <div data-testid={storyTestId("ctSlashFired")}>{fired ?? ""}</div>
     </SlashCommandRegistryProvider>
   );
 }

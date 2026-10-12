@@ -4,6 +4,7 @@ import {
   RPG_BUS_EVENT_TYPES,
   RPG_DELIVERY_PATHS,
   RPG_FLUSH_OUTCOMES,
+  RPG_FOLD_FALLBACK_REASONS,
   RPG_TOOL_CALL_VERDICTS,
   rpgTraceEventSchema,
   rpgTraceRecordSchema,
@@ -55,6 +56,15 @@ test("a flush receipt and a bus event are checked against their homed vocabulari
   expect(rpgTraceEventSchema.safeParse({ ...flush, path: "teleport" }).success).toBe(false);
   expect(rpgTraceEventSchema.safeParse({ phase: "bus", chatId: CHAT_ID, type: RPG_BUS_EVENT_TYPES[0] }).success).toBe(true);
   expect(rpgTraceEventSchema.safeParse({ phase: "bus", chatId: CHAT_ID, type: "nope" }).success).toBe(false);
+  for (const fallbackReason of RPG_FOLD_FALLBACK_REASONS) {
+    expect(rpgTraceEventSchema.safeParse({ ...flush, fallbackReason }).success, fallbackReason).toBe(true);
+  }
+  expect(rpgTraceEventSchema.safeParse({ ...flush, fallbackReason: "nope" }).success).toBe(false);
+});
+
+test("a chat id is a typed chat id, not any string or another kind's id", () => {
+  expect(rpgTraceEventSchema.safeParse({ ...FLUSHED, chatId: TURN_ID }).success).toBe(false);
+  expect(rpgTraceEventSchema.safeParse({ ...FLUSHED, chatId: "chat" }).success).toBe(false);
 });
 
 test("a recorded tool call keeps its raw args and refuses a verdict outside the tuple", () => {

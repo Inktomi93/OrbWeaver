@@ -12,10 +12,6 @@
 // PROMPT pair (D121-G), where the same binding decides whether the rack's bars carry the bound chat's REAL
 // materialized costs or the chat-free `~—` floor.
 
-// @orb-waive-file testid-typed-only-stories("hosted-id-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("pending-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("retry-count"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("settled-panel"): baselined when the gate widened; burn-down item 906.
 import { PresetReadout } from "@orb/client/features/preset";
 import {
   __resetPresetSelection,
@@ -34,6 +30,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { makeCachePolicy, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
@@ -216,7 +213,7 @@ function RetryProbe({ error }: { readonly error: unknown }): ReactElement {
           setRetries((n) => n + 1);
         }}
       />
-      <span data-testid="retry-count">{retries}</span>
+      <span data-testid={storyTestId("retryCount")}>{retries}</span>
     </div>
   );
 }
@@ -349,7 +346,7 @@ export function LongModelPathReadoutStory(): ReactElement {
         />
         {/* The NO-OP arm, in the same mount (playwright-ct allows one `mount` per test): a hosted id is
             already its own display name, so the row must carry NO gloss. */}
-        <div data-testid="hosted-id-panel">
+        <div data-testid={storyTestId("hostedIdPanel")}>
           <CapabilityCard capability={makeGenerationCapability()} model="claude-opus-4-8" />
         </div>
       </div>
@@ -365,10 +362,10 @@ export function EffectiveProfileShapeMatchStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ display: "flex", gap: 24 }}>
-        <div data-testid="pending-panel" style={{ width: 380 }}>
+        <div data-testid={storyTestId("pendingPanel")} style={{ width: 380 }}>
           <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} subject="chat role" />
         </div>
-        <div data-testid="settled-panel" style={{ width: 380 }}>
+        <div data-testid={storyTestId("settledPanel")} style={{ width: 380 }}>
           <EffectiveProfile
             subject="chat role"
             contextWindow={32_768}

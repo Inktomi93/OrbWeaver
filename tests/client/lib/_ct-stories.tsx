@@ -6,42 +6,12 @@
 // QueryClient (the one whose MutationCache.onError reads `meta.errorToast`), binds `notify` to a real
 // toast manager, and fires a mutation whose `meta.errorToast` message must reach a rendered toast.
 
-// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("audit-pause-animation"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("audit-pause-flaggers-settled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("blocked-animation"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("bridge-installed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("bridge-motion"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("bridge-ready-shared"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("carve-out-colour-card"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("carve-out-geometry-card"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("checkpoint-animation"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cls-victim"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dead-class-drain-receipt"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dead-class-drain-receipts"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dead-class-reports"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("devtool-scan-complete"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dirty-color-transition"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dirty-height-target"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("grace-elapsed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("motion-flaggers-settled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("out-of-flow-canvas"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ratified-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rearm-animation"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("reflow-target"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rescan-nudge"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("retained-chat-section"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("route-mounted"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tsd-main-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("unreserved-img"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("virtual-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("waapi-animation"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("waapi-blocked-frame-order"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("waapi-effects-retired"): baselined when the gate widened; burn-down item 906.
 import { createAppQueryClient } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { AppBlockingReceipt } from "@orb/testkit/iso/app-blocking-receipt.ts";
 import { APP_BLOCKING_MARKS } from "@orb/testkit/iso/app-blocking-receipt.ts";
 import { blockMainThread } from "@orb/testkit/node/block-main-thread.ts";
@@ -189,7 +159,7 @@ export function MotionShiftFlaggerStory(): ReactElement {
       </button>
       {/* The spacer IS the shift: 0 → 200px pushes everything after it down the page. */}
       <div style={{ height: pushed ? 200 : 0 }} />
-      <div data-testid="cls-victim" style={{ height: 300, background: "#ccc" }}>
+      <div data-testid={storyTestId("clsVictim")} style={{ height: 300, background: "#ccc" }}>
         pushed block
       </div>
     </div>
@@ -233,7 +203,7 @@ export function MotionVirtualizedShiftStory(): ReactElement {
       </button>
       <div data-slot="message-list-viewport" style={{ height: 400, overflow: "hidden" }}>
         <div style={{ height: pushed ? 200 : 0 }} />
-        <div data-testid="virtual-row" style={{ height: 300 }}>
+        <div data-testid={storyTestId("virtualRow")} style={{ height: 300 }}>
           reconciled row
         </div>
       </div>
@@ -513,7 +483,7 @@ export function MotionFlaggersSpaceStory(): ReactElement {
         add image
       </button>
       {/* A src that never resolves: the flagger judges the BOX (attrs/CSS), never whether content loaded. */}
-      {showImg ? <img data-testid="unreserved-img" src="/__ct_blocked__.png" alt="" /> : null}
+      {showImg ? <img data-testid={storyTestId("unreservedImg")} src="/__ct_blocked__.png" alt="" /> : null}
       {/* THE OUT-OF-FLOW ARM (#516) — the login backdrop's exact anatomy: a `relative` host with an
           `absolute inset-0` full-bleed canvas carrying no width/height attrs and no aspect-ratio. It is
           removed from normal flow, so nothing lays out against it and its content can shift nothing; the
@@ -522,10 +492,10 @@ export function MotionFlaggersSpaceStory(): ReactElement {
           which the silence asserted here would pass for free. */}
       {showImg ? (
         <div style={{ position: "relative", width: 120, height: 60 }}>
-          <canvas data-testid="out-of-flow-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+          <canvas data-testid={storyTestId("outOfFlowCanvas")} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
         </div>
       ) : null}
-      {nudge ? <div data-testid="rescan-nudge" /> : null}
+      {nudge ? <div data-testid={storyTestId("rescanNudge")} /> : null}
     </div>
   );
 }
@@ -551,8 +521,8 @@ export function MotionFlaggersInteractiveColourStory(): ReactElement {
           .orb-ct-geometry-card { background-color: rgb(0 0 255); transition: width 120ms linear; width: 120px; height: 40px }
           .orb-ct-geometry-card:hover { width: 260px }`}
       </style>
-      <div className="orb-ct-colour-card" data-testid="carve-out-colour-card" />
-      <div className="orb-ct-geometry-card" data-testid="carve-out-geometry-card" />
+      <div className="orb-ct-colour-card" data-testid={storyTestId("carveOutColourCard")} />
+      <div className="orb-ct-geometry-card" data-testid={storyTestId("carveOutGeometryCard")} />
     </div>
   );
 }
@@ -583,12 +553,12 @@ export function MotionFlaggersRatifiedHeightStory(): ReactElement {
     <div>
       <Collapsible>
         <CollapsibleTrigger>Reveal the panel</CollapsibleTrigger>
-        <CollapsiblePanel data-testid="ratified-panel">The ratified height lifecycle.</CollapsiblePanel>
+        <CollapsiblePanel data-testid={storyTestId("ratifiedPanel")}>The ratified height lifecycle.</CollapsiblePanel>
       </Collapsible>
       <button type="button" onClick={(): void => setGrown(true)}>
         grow the box
       </button>
-      <div data-testid="dirty-height-target" style={{ height: grown ? 200 : 40, transition: "height 150ms linear", background: "#ccc" }} />
+      <div data-testid={storyTestId("dirtyHeightTarget")} style={{ height: grown ? 200 : 40, transition: "height 150ms linear", background: "#ccc" }} />
     </div>
   );
 }
@@ -615,7 +585,7 @@ export function MotionFlaggersReducedMotionStory(): ReactElement {
       <button type="button" onClick={(): void => setActive(true)}>
         change color
       </button>
-      <div data-testid="dirty-color-transition" style={{ color: active ? "red" : "blue", transition: "color 100ms linear" }}>
+      <div data-testid={storyTestId("dirtyColorTransition")} style={{ color: active ? "red" : "blue", transition: "color 100ms linear" }}>
         color target
       </div>
     </div>
@@ -639,7 +609,7 @@ export function MotionFlaggersCheckpointStory(): ReactElement {
       <button type="button" onClick={__resetMotionFlags}>
         reset evidence
       </button>
-      <div data-testid="checkpoint-animation" style={active ? { animation: "orb-ct-checkpoint-motion 2s linear" } : undefined}>
+      <div data-testid={storyTestId("checkpointAnimation")} style={active ? { animation: "orb-ct-checkpoint-motion 2s linear" } : undefined}>
         moving target
       </div>
     </div>
@@ -666,7 +636,7 @@ export function MotionFlaggersDropStory(): ReactElement {
       </button>
       <div
         ref={targetRef}
-        data-testid="blocked-animation"
+        data-testid={storyTestId("blockedAnimation")}
         style={{ transform: active ? "translateX(20px)" : "translateX(0)", transition: "transform 2s linear" }}
       >
         moving target
@@ -696,7 +666,7 @@ export function MotionFlaggersAuditPauseStory(): ReactElement {
   }, []);
   return (
     <div>
-      <div data-testid="audit-pause-flaggers-settled">{settled ? "settled" : "pending"}</div>
+      <div data-testid={storyTestId("auditPauseFlaggersSettled")}>{settled ? "settled" : "pending"}</div>
       <button type="button" onClick={(): void => setFrameDropTrackingPaused(true)}>
         pause audit drop tracking
       </button>
@@ -719,7 +689,7 @@ export function MotionFlaggersAuditPauseStory(): ReactElement {
         plant WAAPI drop
       </button>
       <div
-        data-testid="audit-pause-animation"
+        data-testid={storyTestId("auditPauseAnimation")}
         ref={targetRef}
         style={{ transform: active ? "translateX(20px)" : "translateX(0)", transition: "transform 2s linear" }}
       >
@@ -805,11 +775,11 @@ export function MotionFlaggersWaapiDropStory({ overlap = false }: { readonly ove
       >
         start blocked WAAPI
       </button>
-      <div ref={targetRef} data-testid="waapi-animation">
+      <div ref={targetRef} data-testid={storyTestId("waapiAnimation")}>
         moving target
       </div>
-      <div data-testid="waapi-blocked-frame-order">{blockedFrameOrder ?? "pending"}</div>
-      {retired ? <div data-testid="waapi-effects-retired">retired</div> : null}
+      <div data-testid={storyTestId("waapiBlockedFrameOrder")}>{blockedFrameOrder ?? "pending"}</div>
+      {retired ? <div data-testid={storyTestId("waapiEffectsRetired")}>retired</div> : null}
     </div>
   );
 }
@@ -834,11 +804,11 @@ export function MotionFlaggersExternalDevtoolsStory(): ReactElement {
         inject devtools
       </button>
       {show ? (
-        <div data-testid="tsd-main-panel">
+        <div data-testid={storyTestId("tsdMainPanel")}>
           <img src="/__ct_blocked_devtool__.png" alt="" />
         </div>
       ) : null}
-      {done ? <div data-testid="devtool-scan-complete">scan complete</div> : null}
+      {done ? <div data-testid={storyTestId("devtoolScanComplete")}>scan complete</div> : null}
     </div>
   );
 }
@@ -897,7 +867,7 @@ export function MotionFlaggersCssBatchStory(): ReactElement {
           ))}
         </div>
       ) : null}
-      <div data-testid="dead-class-drain-receipts">{drains === null ? "pending" : JSON.stringify(drains)}</div>
+      <div data-testid={storyTestId("deadClassDrainReceipts")}>{drains === null ? "pending" : JSON.stringify(drains)}</div>
     </div>
   );
 }
@@ -944,8 +914,8 @@ export function DeadClassConfirmStory({ lateDefine }: { readonly lateDefine: boo
           is the barrier that proves the post-arm scan RAN — without it, "the late token was not reported"
           is satisfied by a scan that simply had not happened yet. */}
       <div className={armed ? "orb-ct-always-dead-marker" : undefined}>control</div>
-      <div data-testid="dead-class-reports">{reported.join(",")}</div>
-      <div data-testid="dead-class-drain-receipt">{drain === null ? "pending" : JSON.stringify(drain)}</div>
+      <div data-testid={storyTestId("deadClassReports")}>{reported.join(",")}</div>
+      <div data-testid={storyTestId("deadClassDrainReceipt")}>{drain === null ? "pending" : JSON.stringify(drain)}</div>
     </div>
   );
 }
@@ -957,7 +927,7 @@ export function MotionFlaggersSettleStory(): ReactElement {
     installMotionFlaggers();
     void motionFlaggersSettled().then(() => setSettled(true));
   }, []);
-  return <div data-testid="motion-flaggers-settled">{settled ? "settled" : "pending"}</div>;
+  return <div data-testid={storyTestId("motionFlaggersSettled")}>{settled ? "settled" : "pending"}</div>;
 }
 
 /** One deliberately slow click. Event Timing emits a family of DOM entries for it; the tracer should
@@ -1037,7 +1007,7 @@ export function MotionFlaggersDropRearmStory(): ReactElement {
       </button>
       <div
         ref={targetRef}
-        data-testid="rearm-animation"
+        data-testid={storyTestId("rearmAnimation")}
         style={{ transform: active ? "translateX(20px)" : "translateX(0)", transition: "transform 2s linear" }}
       >
         moving target
@@ -1135,7 +1105,7 @@ export function MotionFrameReflowStory(): ReactElement {
       >
         reset frame evidence
       </button>
-      <div ref={thrashRef} data-testid="reflow-target" style={{ width: REFLOW_WIDTH_BASE_PX }}>
+      <div ref={thrashRef} data-testid={storyTestId("reflowTarget")} style={{ width: REFLOW_WIDTH_BASE_PX }}>
         reflow target
       </div>
     </div>
@@ -1191,7 +1161,7 @@ function StoryRouteComponent({ client, read }: { readonly client: QueryClient; r
   useEffect(() => {
     void client.fetchQuery({ queryKey: ["ct-route-read"], queryFn: () => read });
   }, [client, read]);
-  return <div data-testid="route-mounted">route mounted</div>;
+  return <div data-testid={storyTestId("routeMounted")}>route mounted</div>;
 }
 
 /** The ROUTE-RESOLUTION half of the readiness contract (issue #145) — the exact `snap --isolated` shape:
@@ -1214,7 +1184,7 @@ export function AppReadyRouteResolutionStory(): ReactElement {
   }, [client, route]);
   return (
     <div>
-      {graceElapsed ? <div data-testid="grace-elapsed">grace elapsed</div> : null}
+      {graceElapsed ? <div data-testid={storyTestId("graceElapsed")}>grace elapsed</div> : null}
       <button
         type="button"
         onClick={(): void => {
@@ -1257,7 +1227,7 @@ export function AppReadySignalStory(): ReactElement {
   }, [client, gate]);
   return (
     <div>
-      {graceElapsed ? <div data-testid="grace-elapsed">grace elapsed</div> : null}
+      {graceElapsed ? <div data-testid={storyTestId("graceElapsed")}>grace elapsed</div> : null}
       <button
         type="button"
         onClick={(): void => {
@@ -1294,7 +1264,7 @@ export function AppReadyBootReadStory(): ReactElement {
   }, [client, parentGate]);
   return (
     <div>
-      {graceElapsed ? <div data-testid="grace-elapsed">grace elapsed</div> : null}
+      {graceElapsed ? <div data-testid={storyTestId("graceElapsed")}>grace elapsed</div> : null}
       <button type="button" onClick={(): void => parentGate.resolve("parent landed")}>
         land the parent read
       </button>
@@ -1400,9 +1370,9 @@ export function AgentBridgeStory(): ReactElement {
   }, [client]);
   return (
     <div>
-      {bridgeReady ? <div data-testid="bridge-installed">installed</div> : null}
-      <div data-testid="bridge-ready-shared">{sharedReady ? "shared" : "forked"}</div>
-      <section data-testid="retained-chat-section" style={{ display: "none" }}>
+      {bridgeReady ? <div data-testid={storyTestId("bridgeInstalled")}>installed</div> : null}
+      <div data-testid={storyTestId("bridgeReadyShared")}>{sharedReady ? "shared" : "forked"}</div>
+      <section data-testid={storyTestId("retainedChatSection")} style={{ display: "none" }}>
         <article aria-label="Retained inactive chat">retained chat</article>
       </section>
       <button type="button" onClick={(): void => setVisibleChat((open) => !open)}>
@@ -1430,7 +1400,7 @@ export function AgentBridgeStory(): ReactElement {
       </button>
       <div
         ref={motionTargetRef}
-        data-testid="bridge-motion"
+        data-testid={storyTestId("bridgeMotion")}
         style={{ width: 80, height: 20, animation: motionActive ? "orb-ct-bridge-dirty 10s linear" : undefined }}
       />
       {/* #1122 · THE PANEL-ROW TRI-STATE `shell()` MUST CARRY. `shell()` is DOM-derived, so these three

@@ -23,6 +23,7 @@ import type {
   GateOwnerCompletion,
   GateSeverity,
   UnjudgedReviewedGrant,
+  WaiverBudgetReport,
 } from "./gate-authority.ts";
 import type { Violation } from "./harness.ts";
 import type { OrdinaryWaiverCarrierRefusal } from "./ordinary-waiver-source.ts";
@@ -87,6 +88,7 @@ export interface StructurePolicyReport extends StructureArtifactPolicy {
   readonly authority: {
     readonly alarms: readonly GateAuthorityAlarm[];
     readonly unjudgedReviewedGrants: readonly UnjudgedReviewedGrant[];
+    readonly waiverBudget: WaiverBudgetReport | null;
     readonly toolErrors: readonly GateAuthorityToolError[];
     readonly withheldPolicyIds: readonly string[];
     readonly ordinaryConsumption: readonly AuthorityConsumption[];

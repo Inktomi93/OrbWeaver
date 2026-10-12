@@ -16,7 +16,7 @@
 // because every value in it was derived from that component's own tv config (plan module).
 
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("variant-arm-root"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Badge } from "@orb/ui/badge";
 import type { ButtonProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";
@@ -154,7 +154,7 @@ export function VariantArmCells({ storyKey, theme, cells, withDisabled }: Varian
   // variables leaves `color` inherited from the harness body as an ALREADY-RESOLVED dark-base value —
   // measured on this suite's first light run as a 1.07:1 wall across every `text-current`/inherit arm.
   return (
-    <div className="bg-background p-block text-foreground" data-testid="variant-arm-root" {...(theme === "hearth" ? {} : { "data-theme": theme })}>
+    <div className="bg-background p-block text-foreground" data-testid={storyTestId("variantArmRoot")} {...(theme === "hearth" ? {} : { "data-theme": theme })}>
       {states.map((disabled) =>
         cells.map((cell) => (
           <div data-cell={cell.id} data-cell-state={disabled ? "disabled" : "rest"} key={`${disabled ? "disabled" : "rest"}:${cell.id}`}>
@@ -174,7 +174,7 @@ export function VariantArmCells({ storyKey, theme, cells, withDisabled }: Varian
  */
 export function VariantArmContrastProbe(): ReactElement {
   return (
-    <div className="bg-background p-block text-foreground" data-testid="variant-arm-root">
+    <div className="bg-background p-block text-foreground" data-testid={storyTestId("variantArmRoot")}>
       <div data-cell="probe=fg-eq-bg" data-cell-state="rest">
         <span className="text-background">unreadable probe glyphs</span>
       </div>
