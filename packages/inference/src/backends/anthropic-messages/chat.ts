@@ -65,6 +65,7 @@ import { refusalEventOf } from "./refusal.ts";
 const SDK_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 type SdkEffort = (typeof SDK_EFFORTS)[number];
 
+// @orb-waive no-inline-package-interface(AnthropicChatDeps): baselined when the gate landed; burn-down item 952.
 export interface AnthropicChatDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;

@@ -10,9 +10,9 @@ import { freeformTestidInitializer } from "../lib/testid-value.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
-  'freeform data-testid string in a CT story — use the typed registry: data-testid={testId("key")} (client lib/test-ids.ts), so a renamed id fails to compile instead of silently breaking a selector. See UI-Gates-and-Lessons.md §11.5.';
+  'freeform data-testid string in a CT story — use a typed registry: data-testid={storyTestId("key")} (tests/support/browser/story-test-ids.ts) for a story-only id, or testId("key") (client lib/test-ids.ts) for a production id, so a renamed id fails to compile instead of silently breaking a selector. See UI-Gates-and-Lessons.md §11.5.';
 const FIX =
-  'use the typed registry: data-testid={testId("key")}. A baselined id is waived with `@orb-waive testid-typed-only-stories(<position>): <reason naming its burn-down item>` above the element, or `@orb-waive-file` with the same position; <position> is the attribute value exactly as written, quotes included (`"composer-input"`).';
+  'add a row to STORY_TEST_IDS and stamp data-testid={storyTestId("key")}, or use testId("key") when the id is a production TEST_IDS value. A deliberate raw id is waived with `@orb-waive testid-typed-only-stories(<position>): <reason + end condition>` above the element, or `@orb-waive-file` with the same position; <position> is the attribute value exactly as written, quotes included (`"composer-input"`).';
 
 export const gate = defineGate({
   id: "testid-typed-only-stories",
@@ -84,6 +84,11 @@ export const gate = defineGate({
         "tests/client/features/chat/composer.ct.tsx": 'export const B = () => <div data-testid="inline" />;\n',
       },
       why: "a typed id passes, and a CT spec that is not a story module is outside the population",
+    },
+    {
+      mode: "source",
+      files: { "tests/client/features/chat/_ct-stories.tsx": 'export const A = () => <div data-testid={storyTestId("rowScrollport")} />;\n' },
+      why: "a story-registry id passes: the story-side typed door is the sanctioned spelling for a story-only id",
     },
     {
       mode: "source",

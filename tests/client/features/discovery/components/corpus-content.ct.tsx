@@ -1,4 +1,5 @@
 import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
+import { makeCatalogStats, makeHomeView, makeModelRoutingRow, makeThemeRow } from "@orb/testkit/node/factories/discovery-view.ts";
 // CT: the Corpus CONTENT region — the ANALYSIS-STATE SWAP, the chrome diet, and the region's own inset
 // (program #102 corpus leg, issue #127; mockup A "The Cartographer" + the ruled invitation-focal state).
 //
@@ -102,7 +103,7 @@ const UNANALYSED: TrpcRoutes<
     arcThemes: [],
     duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
   },
-  "discovery.catalog": { totalDistilled: 0, genres: [], tones: [], topTags: [] },
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 0, genres: [], tones: [], topTags: [] }),
   "discovery.visualArchetypes": FAMILIES,
   "discovery.forgottenGems": [],
   "discovery.unusedCharacters": [],
@@ -119,19 +120,19 @@ const UNANALYSED: TrpcRoutes<
 /** …and the same library after both passes ran — the control for every absence below. */
 const ANALYSED: TrpcRoutes<"discovery.home" | "discovery.catalog"> = {
   ...UNANALYSED,
-  "discovery.home": {
+  "discovery.home": makeHomeView({
     coverage: { characters: 10, digests: 40, segments: 12 },
-    sceneThemes: [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
+    sceneThemes: [makeThemeRow({ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 })],
     arcThemes: [],
     duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  },
-  "discovery.catalog": { totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] },
+  }),
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] }),
 };
 
 /** THE THIN IN-BETWEEN the ruling calls out: distillation ran, the story-theme pass did not. */
 const THIN: TrpcRoutes<"discovery.catalog"> = {
   ...UNANALYSED,
-  "discovery.catalog": { totalDistilled: 3, genres: [], tones: [], topTags: [] },
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 3, genres: [], tones: [], topTags: [] }),
 };
 
 /** A library with nothing in it at all — not the same thing as an un-analysed one. */
@@ -400,12 +401,12 @@ test("clickable insight collections expose named lists with real listitem childr
 /** A populated analysed library: the state in which the deleted tail USED to render 6,900px of bars. */
 const POPULATED: TrpcRoutes<"discovery.catalog"> = {
   ...ANALYSED,
-  "discovery.catalog": {
+  "discovery.catalog": makeCatalogStats({
     totalDistilled: 6,
     genres: [{ value: "fantasy", count: 6 }],
     tones: [{ value: "melancholic", count: 4 }],
     topTags: [{ tag: "tsundere", count: 9 }],
-  },
+  }),
 };
 
 test("THE UN-DRAWN TAIL IS GONE: no facet bars, no duplicate theme chart (forensics R4)", async ({ mount, page }) => {
@@ -427,29 +428,30 @@ test("THE UN-DRAWN TAIL IS GONE: no facet bars, no duplicate theme chart (forens
 
 /** Two routes with real generations and no spend — a local-model instance, exactly. */
 const FREE_ROUTES = [
-  {
+  makeModelRoutingRow({
     genre: "fantasy",
     model: "local/qwen",
     provider: null,
     generations: 40,
     tokensOut: 9000,
-    tokensOutProvenance: "measured" as const,
+    tokensOutProvenance: "measured",
     genTimeSamples: 40,
     avgGenTimeMs: 800,
     costUsd: null,
-  },
-  {
+  }),
+  makeModelRoutingRow({
     genre: "romance",
     model: "local/qwen",
     provider: null,
     generations: 12,
     tokensOut: 2000,
-    tokensOutProvenance: "measured" as const,
+    tokensOutProvenance: "measured",
     genTimeSamples: 12,
     avgGenTimeMs: 700,
     costUsd: null,
-  },
+  }),
 ];
+const FREE_ROUTE = FREE_ROUTES[0] ?? makeModelRoutingRow();
 
 // ── THE SPEND GUARD IS REVERSED, AND BOTH RULINGS ARE RECORDED (side-eye populated arm 2026-08-23, #553)
 // THE OLD PIN (verbatim, so the reversal is legible): "MODEL ECONOMICS IS GUARDED ON SPEND, not on row
@@ -484,8 +486,8 @@ test("…and a PAID route is annotated, never promoted over the quantities (#553
     ...POPULATED,
     "discovery.modelRouting": [
       ...FREE_ROUTES,
-      { ...FREE_ROUTES[0], model: "anthropic/claude", costUsd: 0.04 },
-      { ...FREE_ROUTES[0], model: "unknown-cost", costUsd: null },
+      { ...FREE_ROUTE, model: "anthropic/claude", costUsd: 0.04 },
+      { ...FREE_ROUTE, model: "unknown-cost", costUsd: null },
     ],
   });
   const component = await mount(<CorpusContentStory />);

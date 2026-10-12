@@ -97,7 +97,11 @@ async function replaceSelectionWhileHeld(component: Locator, replacement: Replac
   await expect(component.getByRole("status", { name: "Bulk selected IDs" })).toHaveText(replacement === "overlap" ? "char_a,char_d" : "char_d");
 }
 
-async function routeBulkAction(page: Page, action: BulkAction, held: ReturnType<typeof trpcHold>): Promise<void> {
+async function routeBulkAction(
+  page: Page,
+  action: BulkAction,
+  held: ReturnType<typeof trpcHold<"character.bulkArchive" | "character.bulkAddCardTag" | "character.bulkRemove">>,
+): Promise<void> {
   switch (action) {
     case "archive":
       await routeTrpc(page, { "character.bulkArchive": held });
@@ -110,7 +114,10 @@ async function routeBulkAction(page: Page, action: BulkAction, held: ReturnType<
   }
 }
 
-function releaseBulkSuccess(action: BulkAction, held: ReturnType<typeof trpcHold>): void {
+function releaseBulkSuccess(
+  action: BulkAction,
+  held: ReturnType<typeof trpcHold<"character.bulkArchive" | "character.bulkAddCardTag" | "character.bulkRemove">>,
+): void {
   switch (action) {
     case "archive":
       held.release(undefined);
@@ -134,7 +141,7 @@ for (const action of BULK_ACTIONS) {
   for (const replacement of REPLACEMENTS) {
     for (const verdict of VERDICTS) {
       test(`${LABEL_BY_ACTION[action]} ${replacement} ${verdict}: the completion retires only IDs owned by the submitted snapshot`, async ({ mount, page }) => {
-        const held = trpcHold();
+        const held = trpcHold<"character.bulkArchive" | "character.bulkAddCardTag" | "character.bulkRemove">();
         await routeBulkAction(page, action, held);
         const component = await mount(<CharacterBulkBarStory />);
 

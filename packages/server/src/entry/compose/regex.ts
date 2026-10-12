@@ -69,6 +69,7 @@ function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayP
   };
 }
 
+// @orb-waive no-inline-package-interface(RegexComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {
   readonly db: Db;
@@ -80,7 +81,7 @@ export interface RegexComposeDeps {
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
-// @orb-waive no-inline-wire-interface(RegexComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(RegexComposeResult): baselined when the gate landed; burn-down item 952.
 /** The regex compose product: the service + the four portability ops + the chat-turn resolve op. */
 export interface RegexComposeResult {
   readonly regex: RegexService;

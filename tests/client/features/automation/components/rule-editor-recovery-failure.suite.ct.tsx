@@ -17,7 +17,7 @@ for (const newerInvalidEdit of [false, true]) {
   test(`recovered A with failed B update retains B across reopen (${newerInvalidEdit ? "newer invalid edit" : "settled retry"})`, async ({ mount, page }) => {
     const rows: TrpcWireOutput<"automation.listRules">[number][] = [];
     const scenario: { failUpdate: boolean } = { failUpdate: true };
-    const heldRetry = trpcHold();
+    const heldRetry = trpcHold<"automation.updateRule">();
     const recorder = await routeTrpc(page, {
       "automation.listRules": () => rows,
       "automation.listRulePresets": [],
@@ -86,7 +86,11 @@ for (const newerInvalidEdit of [false, true]) {
     if (newerInvalidEdit) {
       await heldRetry.requested;
       await name.fill("");
-      heldRetry.release(rows[0]);
+      const saved = rows[0];
+      if (saved === undefined) {
+        throw new Error("the held retry has no rule row to release");
+      }
+      heldRetry.release(saved);
     }
     await expect(page.getByText(newerInvalidEdit ? "Not saved" : "Saved", { exact: true })).toBeVisible();
     await expect(name).toHaveValue(newerInvalidEdit ? "" : "Intended B");

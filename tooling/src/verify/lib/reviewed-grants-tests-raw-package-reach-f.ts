@@ -145,7 +145,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F: readonly ReviewedGateGra
     "#server/domain/rpg/tools/apply.ts",
     "#server/domain/tool-use/index.ts",
   ],
-  "tests/server/domain/rpg/chat-ops/fork-game.int.test.ts": [
+  "tests/server/domain/rpg/chat-ops/_fork-game-support.ts": [
     "#server/domain/rpg/persistence/checkpoints.ts",
     "#server/domain/rpg/persistence/games.ts",
     "#server/domain/rpg/persistence/journal.ts",
@@ -175,7 +175,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F: readonly ReviewedGateGra
   ],
   "tests/server/domain/rpg/claim-on-write.suite.int.test.ts": ["#server/transport/trpc/routers/rpg.ts"],
   "tests/server/domain/rpg/contract/service.int.test.ts": ["#server/domain/rpg/contract/service.ts", "#server/domain/rpg/persistence/snapshots.ts"],
-  "tests/server/domain/rpg/field-reachability.suite.int.test.ts": [
+  "tests/server/domain/rpg/_field-reachability-support.ts": [
     "#server/domain/rpg/contract/params.ts",
     "#server/domain/rpg/index.ts",
     "#server/domain/rpg/substrate/delta.ts",

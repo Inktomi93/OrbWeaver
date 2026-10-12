@@ -4,8 +4,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterTagsRowStory } from "../_ct-stories.tsx";
 
 test("tag removal admits one durable intent, holds the cluster inert, and rejection restores retry", async ({ mount, page }) => {
-  const first = trpcHold();
-  const retry = trpcHold();
+  const first = trpcHold<"character.bulkRemoveCardTag">();
+  const retry = trpcHold<"character.bulkRemoveCardTag">();
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     "character.bulkRemoveCardTag": () => (attempts++ === 0 ? first : retry),
@@ -38,8 +38,8 @@ test("tag removal admits one durable intent, holds the cluster inert, and reject
 });
 
 test("tag apply admits one durable intent and rejection restores the picker", async ({ mount, page }) => {
-  const first = trpcHold();
-  const retry = trpcHold();
+  const first = trpcHold<"character.bulkAddCardTag">();
+  const retry = trpcHold<"character.bulkAddCardTag">();
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     "tag.listTagsWithUsage": [],

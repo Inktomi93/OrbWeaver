@@ -36,6 +36,7 @@ const REDIRECT_MIN = 300;
 const REDIRECT_MAX = 399;
 const JSON_CONTENT_TYPE = "application/json";
 
+// @orb-waive no-inline-package-interface(FetchJsonArgs): baselined when the gate landed; burn-down item 952.
 export interface FetchJsonArgs {
   readonly fetch: typeof fetch;
   readonly url: string;
@@ -49,7 +50,7 @@ export interface FetchJsonArgs {
   readonly label: string;
 }
 
-// @orb-waive no-inline-wire-interface(FetchJsonResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(FetchJsonResult): baselined when the gate landed; burn-down item 952.
 export interface FetchJsonResult {
   readonly status: number;
   readonly headers: Headers;

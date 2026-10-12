@@ -4,6 +4,7 @@
 // source with its count, the drill-in reveals that source's assembled text, plain-chat vs game-chat row sets,
 // the a11y model (text is the datum, the bar is hidden), plus the error + retry paths.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 // @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -13,7 +14,7 @@ import { AssemblyPreviewPanelStory } from "../_ct-stories.tsx";
 // `AssembleTrace` is carried BOTH at `AssembledPrompt.trace` (the required field on the prompt shape) AND
 // at the top-level `AssemblyPreview.trace` that `PreviewBody` destructures — same value, two homes on the
 // real wire shape (contracts/chat/index.ts AssembledPrompt + AssemblyPreview).
-const PREVIEW_TRACE = {
+const PREVIEW_TRACE: TrpcWireOutput<"chat.previewAssembly">["trace"] = {
   staticSections: ["persona", "scenario"],
   dynamicSections: ["authorsNote"],
   worldInfoIncluded: 2,
@@ -25,6 +26,7 @@ const PREVIEW_TRACE = {
   matchedKeys: [{ key: "cake", matchedLatestUserMessage: true }],
   compactSummaryIncluded: true,
   memoryIncluded: false,
+  databankIncluded: false,
   // The recall slice (#250) — the wire shape `recallMemory` produces: two surfaced blocks with the scores
   // they were admitted on, plus the rejects carrying the STAGE that eliminated each.
   memoryRecall: {
@@ -57,12 +59,13 @@ const PREVIEW_TRACE = {
 const MIRA_CARD = "Mira — a bold knight of the Lantern Road.";
 const NIKO_CARD = "Niko — a wary scout.";
 
-const PLAIN_BUDGET = {
+const PLAIN_BUDGET: TrpcWireOutput<"chat.previewAssembly">["budget"] = {
   ceilingTokens: 8192,
   ceilingEstimated: false,
   limit: null,
   reserveOutputTokens: 0,
   totalTokens: 4300,
+  sections: [],
   sources: [
     {
       source: "system" as const,
@@ -101,7 +104,7 @@ const PLAIN_BUDGET = {
 
 const GAME_STATE_TEXT = "## Game state\nroster: Mira (VIT 24/30)";
 
-const PREVIEW_ASSEMBLY_DATA = {
+const PREVIEW_ASSEMBLY_DATA: TrpcWireOutput<"chat.previewAssembly"> = {
   prompt: {
     static: "You are Aria, a helpful assistant.",
     dynamic: "Stay concise.",
@@ -216,6 +219,7 @@ test("a barely-used window renders as a SLIVER, not a full bar (the fill-vs-head
         limit: null,
         reserveOutputTokens: 0,
         totalTokens: 891,
+        sections: [],
         sources: [{ source: "system" as const, detail: "Main", tokens: 891, parts: [{ label: "Main", tokens: 891, text: "You are…" }], text: "You are…" }],
       },
     }),
@@ -310,6 +314,7 @@ test("a GAME chat adds the game-state row + the mono state excerpt; a plain chat
       budget: {
         ...PLAIN_BUDGET,
         totalTokens: 4702,
+        sections: [],
         sources: [
           ...PLAIN_BUDGET.sources,
           {

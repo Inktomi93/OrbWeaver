@@ -6,7 +6,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -23,7 +24,7 @@ const PERSONAS: TrpcWireOutput<"persona.list"> = [
 ];
 
 /** The viewer hosts a solo room, pinned to their own persona. */
-const SOLO: TrpcFixtureOutput<"chat.getChat"> = {
+const SOLO = makeChatDetail({
   id: CHAT_ID,
   title: "Solo",
   viewerUserId: "user_ct",
@@ -34,15 +35,15 @@ const SOLO: TrpcFixtureOutput<"chat.getChat"> = {
   viewerOwnedCharacterIds: [],
   participants: [],
   identities: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
-};
+});
 
 /** A second present human plays Zara, and the host pinned HER persona. */
-const MULTI: TrpcFixtureOutput<"chat.getChat"> = {
+const MULTI: TrpcWireOutput<"chat.getChat"> = {
   ...SOLO,
   anchorPersonaId: ZARA,
   participants: [
-    { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
-    { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null },
+    makeParticipantView({ kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null }),
+    makeParticipantView({ kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null }),
   ],
   identities: [
     { kind: "persona", id: NOVA, name: "Nova", description: "", avatarHash: null },
@@ -52,20 +53,20 @@ const MULTI: TrpcFixtureOutput<"chat.getChat"> = {
 };
 
 /** Rowan left; the pin still names Zara (the server's identity producer keeps her name). */
-const HELD: TrpcFixtureOutput<"chat.getChat"> = {
+const HELD: TrpcWireOutput<"chat.getChat"> = {
   ...MULTI,
   anchorState: "held",
-  participants: [{ kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null }],
+  participants: [makeParticipantView({ kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null })],
 };
 
-const MEMBER: TrpcFixtureOutput<"chat.getChat"> = { ...MULTI, viewerIsHost: false, viewerUserId: "user_member" };
+const MEMBER: TrpcWireOutput<"chat.getChat"> = { ...MULTI, viewerIsHost: false, viewerUserId: "user_member" };
 
 function stub(
   page: Page,
-  chat: TrpcFixtureOutput<"chat.getChat">,
+  chat: TrpcWireOutput<"chat.getChat">,
   opts: { showNotifications?: boolean; defaultPersonaId?: string | null } = {},
 ): Promise<TrpcRecorder> {
-  const settings = (): TrpcFixtureOutput<"settings.getUserSettings"> => ({
+  const settings = (): TrpcWireOutput<"settings.getUserSettings"> => ({
     userId: "user_ct",
     schemaVersion: 1,
     config: {

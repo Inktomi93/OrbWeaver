@@ -116,7 +116,7 @@ test("#980 F22: the global-scope row is the shared settings row, not a hand-roll
 });
 
 test("a same-task repeat admits one global-scope write, and rejection releases retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"regex.attachGlobal">();
   const trpc = await routeTrpc(page, {
     "regex.listScripts": () => [SCRIPT],
     "regex.listGlobal": () => [],

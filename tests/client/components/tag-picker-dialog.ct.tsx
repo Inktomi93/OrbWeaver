@@ -17,13 +17,13 @@
 // because a source assertion would have passed for the popup too.
 
 import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures.tsx";
 
-type TagWithUsageFixture = TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
+type TagWithUsageFixture = TrpcWireOutput<"tag.listTagsWithUsage">[number];
 
 const tag = (id: string, name: string, total: number): TagWithUsageFixture => ({
   id,
@@ -51,7 +51,7 @@ const CROWDED = [
  *  is the only state that keeps a full suggestion list open (an exact match ends the suggesting). */
 const CONFIRM = 'Create "fantas"';
 
-function stub(page: Page, tags: TrpcFixtureOutput<"tag.listTagsWithUsage">): Promise<unknown> {
+function stub(page: Page, tags: TrpcWireOutput<"tag.listTagsWithUsage">): Promise<unknown> {
   const listTags: TrpcResponder<"tag.listTagsWithUsage"> = () => tags;
   return routeTrpc(page, { "tag.listTagsWithUsage": listTags });
 }

@@ -2,11 +2,13 @@
 // selection remains the host section contract.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeWorldInfoImportResult } from "@orb/testkit/node/factories/world-info-view.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { characterListResponder } from "../../character/fixtures.ts";
 import {
   ConfigHostStory,
   ConfigListDefaultStory,
@@ -59,7 +61,7 @@ const FIRST_GROUP_ID = "appearance";
  *  here because a test may not import a source constant and then assert it against itself. */
 const CONFIG_MODIFIED_MARK = "Modified";
 
-type BookWithUsage = TrpcFixtureOutput<"worldInfo.listBooksWithUsage">[number];
+type BookWithUsage = TrpcWireOutput<"worldInfo.listBooksWithUsage">[number];
 function bookRow(index: number): BookWithUsage {
   return {
     id: `world_book_ct${String(index).padStart(9, "0")}`,
@@ -95,7 +97,7 @@ function scriptRow(over: {
   readonly name: string;
   readonly findRegex: string;
   readonly placement: TrpcWireOutput<"regex.listScripts">[number]["placement"];
-}): TrpcFixtureOutput<"regex.listScripts">[number] {
+}): TrpcWireOutput<"regex.listScripts">[number] {
   return {
     replaceString: "",
     enabled: true,
@@ -148,8 +150,8 @@ const BOOKS = [BOOK];
 
 function stub(
   page: Page,
-  books: TrpcFixtureOutput<"worldInfo.listBooksWithUsage"> = BOOKS,
-  scripts: TrpcFixtureOutput<"regex.listScripts"> = SCRIPTS,
+  books: TrpcWireOutput<"worldInfo.listBooksWithUsage"> = BOOKS,
+  scripts: TrpcWireOutput<"regex.listScripts"> = SCRIPTS,
   overrides: Partial<TrpcRoutes<"settings.getUserSettings">> = {},
 ): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -187,8 +189,8 @@ function stub(
     // a view — the pipeline would run inert here and a regression inside it would be invisible.
     "worldInfo.listAttachmentsForBook": () => ({ characters: [], personaIds: [] }),
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
-    "worldInfo.importFile": () => ({ created: true }),
+    "character.list": characterListResponder([]),
+    "worldInfo.importFile": () => makeWorldInfoImportResult({ created: true }),
     // LAST, so an arm can swap ONE read without re-spelling the table — `routeTrpc` REPLACES the table it
     // is given, so a second call would leave every other procedure unfed (the ratchet's whole point).
     ...overrides,

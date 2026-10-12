@@ -90,7 +90,7 @@ test("Add fires attachToChat with THAT row's id, and the picker closes on the fi
 });
 
 test("the picker owns a held attach, ignores a same-tick repeat, and closes only after success", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"databank.attachToChat">();
   const trpc = await routeTrpc(page, {
     "databank.list": () => ({ items: [TREATISE], nextCursor: null, totalCount: 1 }),
     "databank.attachToChat": hold,
@@ -114,8 +114,8 @@ test("the picker owns a held attach, ignores a same-tick repeat, and closes only
 });
 
 test("a rejected attach stays visible and retryable, then closes after the retry succeeds", async ({ mount, page }) => {
-  const rejected = trpcHold();
-  const retry = trpcHold();
+  const rejected = trpcHold<"databank.attachToChat">();
+  const retry = trpcHold<"databank.attachToChat">();
   let attempts = 0;
   await routeTrpc(page, {
     "databank.list": () => ({ items: [TREATISE], nextCursor: null, totalCount: 1 }),

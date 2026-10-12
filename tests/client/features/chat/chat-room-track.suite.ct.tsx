@@ -12,7 +12,7 @@
 // fixed-width box carrying that exact expression, so a pane state is one number: the box's width.
 //
 // THE FOUR PANE STATES ARE MEASURED ONES, not invented (the design rescoring pass, 2026-08-18,
-// pane-states, viewport 1360, chatWidthPct 50): `list:docked+context:collapsed` → a 894px pane;
+// pane-states, viewport 1360; each is a fixed-width box here, so the dial does not move it):`list:docked+context:collapsed` → a 894px pane;
 // `list:docked+context:docked` → 509px BEFORE #242 and 587px after it (the shell grid's conditional
 // squeeze hands that state +78.4px of content track — the delta is read off the real
 // `grid-template-columns` in app-shell.ct.tsx, and it is the ONLY state that moved: the other three carry
@@ -21,16 +21,18 @@
 // +260 px between the transcript column and the composer. Mobile was clean at every state, so this stage is
 // desktop-only by design.
 
-import type { ChatIdentity, GroupConfig, ParticipantView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { makeCharacterDetail } from "../character/fixtures.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
 
@@ -121,19 +123,12 @@ async function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LON
   return await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
-    "settings.getUserSettings": () => ({
-      userId: castId<UserId>("user_ct"),
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
-      configUnreadable: null,
-      updatedAt: 0,
-    }),
-    "chat.getChat": (): { participants: readonly ParticipantView[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
-      participants: [seat()],
-      anchorPersonaId: null,
-      identities: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "settings.getUserSettings": () => userSettingsView({ appearance: { chatStyle } }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [seat()],
+        identities: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
+      }),
     "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({
@@ -155,7 +150,7 @@ async function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LON
       { variantId: "msgvar_track_1", idx: 1 },
       { variantId: "msgvar_track_2", idx: 2 },
     ],
-    "character.get": () => ({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
+    "character.get": () => makeCharacterDetail({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
     ...extra,
   });
 }
@@ -242,7 +237,11 @@ function expectTrackGeometry({ row, body, column, composer, strip, actions }: Tr
   // The reading column itself is offset only by the row's own anatomy — the avatar gutter, a SIBLING of
   // the content column by law (§B.1, not this lane's to reverse) — so its centre sits within half a
   // chip of the track's, at EVERY pane state. The measured defect was 107 → 260px of DRIFT.
-  const gutter = body.right - body.left - (column.right - column.left);
+  // The gutter is the identity side only (`column.left - body.left`). `body.width - column.width` also counts
+  // the slack right of a column held at the 75ch cap, which appears once the track clears cap + gutter (at the
+  // production 60dvw dial and 1360 the track is 816px against a 750px column: 66px, of which 48 is the gutter).
+  // The centre bound below then covers that slack: the column sits (gutter - slack) / 2 off the track centre.
+  const gutter = column.left - body.left;
   expect(gutter).toBeLessThanOrEqual(MAX_GUTTER_PX);
   expect(Math.abs(column.centre - composer.centre)).toBeLessThanOrEqual(gutter / 2 + AXIS_TOLERANCE_PX);
   // The pager is the message's bottom edge, matched to its top: its › ends where the header bar's last
@@ -806,14 +805,16 @@ test("the reserved edit footprint is a minimum: a longer draft grows and Cancel 
 // once the track is wide enough to contain it. A regression in the floor breaks flat; a regression in
 // echo's declared box breaks echo; neither is visible from the other.
 //
-// THE VIEWPORT IS BELOW THE CROSSOVER ON PURPOSE (1280 x 50dvw = 640 < the floor), so the clamp really
-// resolves to its floor term and this measures the dial's worst case rather than a viewport-lucky one.
-const FLOOR_STAGE = { width: 1280, height: 900 };
+// THE VIEWPORT IS BELOW THE CROSSOVER ON PURPOSE (1200 x 60dvw = 720 < the 746px floor), so the clamp really
+// resolves to its floor term and this measures the dial's worst case rather than a viewport-lucky one. The
+// crossover is floor / default pct = 1243px; the stage was 1280 while the default was assumed to be 50, which
+// at the shipped 60 resolves to the viewport term (768px) and measures nothing about the floor.
+const FLOOR_STAGE = { width: 1200, height: 900 };
 /** The pane must be wide enough that the TRACK, not the pane, is what bounds the row — otherwise this
  *  measures a pane deficit (which is #242's question) instead of the dial floor (which is this one). */
-const FLOOR_STAGE_PANE = 1212;
-/** The dial's default percentage, the one the crossover above is computed against. */
-const DEFAULT_CHAT_WIDTH_PCT = 50;
+const FLOOR_STAGE_PANE = 1100;
+/** The dial's shipped default percentage, the one the crossover above is computed against. */
+const DEFAULT_CHAT_WIDTH_PCT = DEFAULT_USER_SETTINGS.appearance.chatWidthPct;
 /** The pre-#1204 literal, replayed onto the same mount as the planted control: at the floor it replaced,
  *  the identical measurement is SHORT for both skins. Without it "the line clears the measure" would pass
  *  on any track that happens to be generous. */

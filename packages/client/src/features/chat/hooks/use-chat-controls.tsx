@@ -76,7 +76,6 @@ function sameControls(a: readonly ChatControl[], b: readonly ChatControl[]): boo
   );
 }
 
-// @orb-waive no-inline-wire-interface(ChatControlsView): baselined when the gate widened; burn-down item 904.
 export interface ChatControlsView {
   /** Every live control, in door order (sources) then arrival order (within a source). */
   readonly controls: readonly ChatControl[];

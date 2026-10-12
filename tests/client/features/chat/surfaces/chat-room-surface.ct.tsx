@@ -11,7 +11,6 @@
 // `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `identities` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -20,14 +19,18 @@ import { modelDisplayName } from "@orb/kit/model-name";
 import { waitFrames } from "@orb/testkit/browser/weave-drive.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeConnectionRow } from "@orb/testkit/node/factories/connection-view.ts";
+import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_FORK_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
+import { characterListResponder, makeCharacterDetail } from "../../character/fixtures.ts";
 import { PluginPhoneShellStory } from "../../plugin/_ct-stories.tsx";
 import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory, ChatsSectionRoomStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
@@ -76,17 +79,13 @@ const CANON = [
 
 const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   ...PREVIEW_FIT_STUB,
-  "chat.getChat": (): {
-    participants: never[];
-    anchorPersonaId: null;
-    identities: readonly ChatIdentity[];
-    group: GroupConfig;
-  } => ({
-    participants: [],
-    anchorPersonaId: null,
-    identities: [],
-    group: DEFAULT_GROUP_CONFIG,
-  }),
+  "chat.getChat": () =>
+    makeChatDetail({
+      participants: [],
+      anchorPersonaId: null,
+      identities: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
 };
 
 // ── ONE renderer for the room's body — the pins that used to run over the DRAFT greeting and its
@@ -131,17 +130,13 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_greeting"), role: "assistant", content: FORMATTED_BODY })]),
     // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the identity entry that carries it
     // (the exact pair the draft arm predicts client-side).
-    "chat.getChat": (): {
-      participants: never[];
-      anchorPersonaId: string;
-      identities: readonly ChatIdentity[];
-      group: GroupConfig;
-    } => ({
-      participants: [],
-      anchorPersonaId: NOVA,
-      identities: [{ kind: "persona", id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer", avatarHash: null }],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [],
+        anchorPersonaId: NOVA,
+        identities: [{ kind: "persona", id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer", avatarHash: null }],
+        group: DEFAULT_GROUP_CONFIG,
+      }),
   });
 
   const component = await mount(<ChatRoomSurfaceStory />);
@@ -378,7 +373,7 @@ test("the flank's centring counter is half the capped width change, signed by th
     ...CHAT_AND_INBOX_READS_EMPTY,
     // The shell's own reads, all empty: this test's subject is the room's geometry, not the rail or the library.
     "rosterPreset.count": 0,
-    "character.list": { items: [], nextCursor: null, totalCount: 0 },
+    "character.list": characterListResponder([]),
     "persona.list": [],
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 },
@@ -495,7 +490,7 @@ test("Fork chat here switches the open room to the new fork", async ({ mount, pa
     ...CHAT_AMBIENT_ROUTES,
     ...ROSTER_STUB,
     "chat.listMessages": (input) => makeMessagesPage(input.chatId === forkChatId ? forkCanon : CANON),
-    "chat.forkChat": () => ({ chat: { id: forkChatId } }),
+    "chat.forkChat": () => ({ chat: makeChatDetail({ id: forkChatId }) }),
   });
 
   await mount(<ChatsSectionRoomStory />);
@@ -917,24 +912,25 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage(CANON),
-    "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
-      participants: [
-        { id: "cp_human", kind: "human", characterId: null, displayName: "Alex", leftSeq: null, avatarHash: null, role: "host" },
-        {
-          id: "cp_aria",
-          kind: "character",
-          characterId: "char_ct_room",
-          displayName: "Aria",
-          leftSeq: null,
-          avatarHash: null,
-          role: "member",
-          themeOverride: CARD_THEME,
-        },
-      ],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [
+          makeParticipantView({ id: "cp_human", kind: "human", characterId: null, displayName: "Alex", leftSeq: null, avatarHash: null, role: "host" }),
+          makeParticipantView({
+            id: "cp_aria",
+            kind: "character",
+            characterId: "char_ct_room",
+            displayName: "Aria",
+            leftSeq: null,
+            avatarHash: null,
+            role: "member",
+            themeOverride: CARD_THEME,
+          }),
+        ],
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+      }),
   });
 
   const component = await mount(<ChatRoomSurfaceStory />);
@@ -972,16 +968,24 @@ const ALT_2 = "Rain, again.";
 const ALTERNATES = [ALT_0, ALT_1, ALT_2];
 const GREETING_ID = castId<MessageId>("msg_room_seeded_greeting");
 
-const GREETING_ROOM = {
+const GREETING_ROOM = makeChatDetail({
   participants: [
-    { id: "cp_greeter", kind: "character", characterId: GREETING_CHARACTER, displayName: "Aria", avatarHash: null, leftSeq: null, role: "member" },
+    makeParticipantView({
+      id: "cp_greeter",
+      kind: "character",
+      characterId: GREETING_CHARACTER,
+      displayName: "Aria",
+      avatarHash: null,
+      leftSeq: null,
+      role: "member",
+    }),
   ],
   anchorPersonaId: null,
   identities: [],
   group: DEFAULT_GROUP_CONFIG,
   // Stepping a greeting is a host verb, so the host is the viewer who reads the alternates.
   viewerIsHost: true,
-} as const;
+});
 
 /** A room whose canon is ONE seeded greeting and NO user row — the malleable window, and the state a
  *  just-created room is in. `alternateIdx` moves the served canon, standing in for the write the verb makes. */
@@ -1002,12 +1006,13 @@ function greetingWindowRoutes(alternateIdx: number): TrpcRoutes<"chat.listMessag
     "chat.getChat": () => GREETING_ROOM,
     // The card is where the ALTERNATES live — the strip reads them to know how many there are and which one
     // is showing; the server re-reads the same card to resolve the index it is handed.
-    "character.get": () => ({
-      id: GREETING_CHARACTER,
-      name: "Aria",
-      avatarHash: null,
-      greetings: ALTERNATES.map((text) => ({ text })),
-    }),
+    "character.get": () =>
+      makeCharacterDetail({
+        id: GREETING_CHARACTER,
+        name: "Aria",
+        avatarHash: null,
+        greetings: ALTERNATES.map((text) => ({ text })),
+      }),
     "chat.setSeededGreeting": () =>
       makeMessageView({ id: GREETING_ID, role: "assistant", characterId: GREETING_CHARACTER, content: ALTERNATES[alternateIdx] ?? ALT_0, seq: 1 }),
   };
@@ -1147,7 +1152,7 @@ test("a member in the greeting window never reads the host's cards: only the hos
   // The host's card is owner-scoped, so a member's read can only fail, and each failure retries.
   const trpc = await routeTrpc(page, {
     ...greetingWindowRoutes(0),
-    "chat.getChat": () => ({ ...GREETING_ROOM, viewerIsHost: false }),
+    "chat.getChat": () => makeChatDetail({ ...GREETING_ROOM, viewerIsHost: false }),
     "character.get": trpcError({ code: "NOT_FOUND", message: "character not found" }),
   });
 
@@ -1247,29 +1252,27 @@ test("colorQuotedSpeech OFF renders the same body plain — the knob really reac
 // so every place that COULD name it has the data to.
 const ATTRIBUTION_MODEL = "anthropic/claude-sonnet-5";
 const ATTRIBUTION_KEY_ID = castId<UserConnectionId>("user_connection_ctroom0001");
-const ATTRIBUTION_KEY = {
+const ATTRIBUTION_KEY = makeConnectionRow({
   id: ATTRIBUTION_KEY_ID,
   label: "Work key",
   providerId: "anthropic",
   providerLabel: "Anthropic",
   model: ATTRIBUTION_MODEL,
   tasks: ["chat"],
-} satisfies TrpcFixtureOutput<"connection.list">[number];
+});
 
 test("the room names the model only in the per-message stamp and mounts no model or preset swap", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     ...ROSTER_STUB,
-    "settings.getUserSettings": () => ({
-      userId: castId<UserId>("user_ct"),
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, showModelIcon: true } },
-      configUnreadable: null,
-      updatedAt: 0,
-    }),
+    "settings.getUserSettings": () => userSettingsView({ appearance: { showModelIcon: true } }),
     "connection.list": [ATTRIBUTION_KEY],
-    "connection.resolveChatCapability": { task: "chat", connectionId: ATTRIBUTION_KEY_ID, providerId: "anthropic", model: ATTRIBUTION_MODEL },
+    "connection.resolveChatCapability": makeResolvedView({
+      connectionId: ATTRIBUTION_KEY_ID,
+      providerId: testProviderId("anthropic"),
+      model: testModelId(ATTRIBUTION_MODEL),
+    }),
     "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({

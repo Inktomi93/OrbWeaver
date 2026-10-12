@@ -2,6 +2,7 @@
 // (never a bare component), stub tRPC at the network with routeTrpc, assert decoded inputs off the
 // recorder. Copy this file's shape for every client-feature CT.
 
+import { makeTagView } from "@orb/testkit/node/factories/tag-view.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, ReservedBoundaryStory } from "../data/_ct-stories.tsx";
@@ -50,7 +51,7 @@ test("offline + pending shows 'Waiting for connection…'; reconnect resumes and
 // pends, as the offline test above pins). These two prove the arm at the seam that motivated it.
 
 test("trpcHold parks a query at a STABLE pending render; releasing it settles the same request", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"echo">();
   const trpc = await routeTrpc(page, { echo: hold });
 
   await mount(<DeferredEchoBoundaryStory />);
@@ -71,9 +72,9 @@ test("trpcHold parks a query at a STABLE pending render; releasing it settles th
 });
 
 test("a held batch answers its siblings correctly on release — one well-formed, index-aligned envelope", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"echo">();
   // Only `length` is read off the sibling (see BatchedHoldProbe), so one plausible row is the whole stub.
-  const trpc = await routeTrpc(page, { echo: hold, "tag.listTags": [{ id: "tag_ct_hold_sibling", name: "sibling" }] });
+  const trpc = await routeTrpc(page, { echo: hold, "tag.listTags": [makeTagView({ id: "tag_ct_hold_sibling", name: "sibling" })] });
 
   await mount(<BatchedHoldStory />);
   await hold.requested;
@@ -127,7 +128,7 @@ test("#885 a seeded box reserves the held fallback EXACTLY, re-fills the skeleto
   mount,
   page,
 }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"echo">();
   await routeTrpc(page, { echo: hold });
 
   const component = await mount(<ReservedBoundaryStory />);
@@ -174,7 +175,7 @@ test("#885 a seeded box reserves the held fallback EXACTLY, re-fills the skeleto
 });
 
 test("#885 an UNKEYED boundary mounts no reservation wrapper (the 108 unkeyed mounts' contract)", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"echo">();
   await routeTrpc(page, { echo: hold });
 
   await mount(<DeferredEchoBoundaryStory />);

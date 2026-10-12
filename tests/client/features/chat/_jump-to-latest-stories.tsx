@@ -2,16 +2,7 @@
 // mounts from a non-test module) DELIBERATELY separate from `_ct-stories.tsx`, so these stories pull
 // in ONLY the pill + its hook + the message-list seal, never the whole chat surface graph.
 
-// @orb-waive-file testid-typed-only-stories("arrive"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("at-tail"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctl-inc"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctl-toggle"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ctl-zero"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dist"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("jumps"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("read-dist"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("toggle-live"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("toggle-pin"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement } from "react";
@@ -28,16 +19,16 @@ export function JumpToLatestPillStory(): ReactElement {
   const [jumps, setJumps] = useState(0);
   return (
     <div style={{ position: "relative", height: 120 }}>
-      <button type="button" data-testid="ctl-toggle" onClick={(): void => setVisible((v) => !v)}>
+      <button type="button" data-testid={storyTestId("ctlToggle")} onClick={(): void => setVisible((v) => !v)}>
         toggle visible
       </button>
-      <button type="button" data-testid="ctl-inc" onClick={(): void => setCount((c) => c + 1)}>
+      <button type="button" data-testid={storyTestId("ctlInc")} onClick={(): void => setCount((c) => c + 1)}>
         inc count
       </button>
-      <button type="button" data-testid="ctl-zero" onClick={(): void => setCount(0)}>
+      <button type="button" data-testid={storyTestId("ctlZero")} onClick={(): void => setCount(0)}>
         zero count
       </button>
-      <output data-testid="jumps">{jumps}</output>
+      <output data-testid={storyTestId("jumps")}>{jumps}</output>
       <JumpToLatestPill count={count} visible={visible} onJump={(): void => setJumps((j) => j + 1)} />
     </div>
   );
@@ -78,18 +69,18 @@ export function JumpToLatestRegressionStory(): ReactElement {
           `at-tail` readout lets the CT wait for the settle debounce deterministically (poll until
           "false") before triggering an arrival, without a fixed timeout. */}
       <div>
-        <button type="button" data-testid="arrive" onClick={(): void => setCount((c) => c + 1)}>
+        <button type="button" data-testid={storyTestId("arrive")} onClick={(): void => setCount((c) => c + 1)}>
           arrive
         </button>
-        <button type="button" data-testid="toggle-live" onClick={(): void => setLive((v) => !v)}>
+        <button type="button" data-testid={storyTestId("toggleLive")} onClick={(): void => setLive((v) => !v)}>
           toggle live
         </button>
-        <button type="button" data-testid="toggle-pin" onClick={(): void => setPinActive((v) => !v)}>
+        <button type="button" data-testid={storyTestId("togglePin")} onClick={(): void => setPinActive((v) => !v)}>
           toggle pin
         </button>
         <button
           type="button"
-          data-testid="read-dist"
+          data-testid={storyTestId("readDist")}
           onClick={(): void => {
             const handle = listHandleRef.current;
             setDist(handle === null ? "no-handle" : String(Math.round(handle.getDistanceFromEnd())));
@@ -97,8 +88,8 @@ export function JumpToLatestRegressionStory(): ReactElement {
         >
           read dist
         </button>
-        <output data-testid="dist">{dist}</output>
-        <output data-testid="at-tail">{String(jump.atTail)}</output>
+        <output data-testid={storyTestId("dist")}>{dist}</output>
+        <output data-testid={storyTestId("atTail")}>{String(jump.atTail)}</output>
       </div>
       <div style={{ position: "relative", height: 300 }}>
         <MessageList

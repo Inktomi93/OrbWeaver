@@ -80,6 +80,7 @@ function assertNeverEvent(event: never): never {
   throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
 }
 
+// @orb-waive no-inline-package-interface(SearchDiscoveryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the search/discovery cluster seam needs from the composition root. */
 export interface SearchDiscoveryComposeDeps {
   readonly db: Db;
@@ -116,7 +117,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
 }
 
-// @orb-waive no-inline-wire-interface(SearchDiscoveryComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(SearchDiscoveryComposeResult): baselined when the gate landed; burn-down item 952.
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
  *  late-bound embed-space-change holder (the trigger). */
 export interface SearchDiscoveryComposeResult {

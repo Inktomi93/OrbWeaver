@@ -76,6 +76,7 @@ const MESSAGES_KEY = "messages";
  *  perfectly; `debug` (D3) would have inherited it. A new extras door adds its key HERE in the same commit. */
 const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug", "session_id", "prompt_cache_key"] as const;
 
+// @orb-waive no-inline-package-interface(ShapeArgs): baselined when the gate landed; burn-down item 952.
 export interface ShapeArgs {
   readonly cacheMarkers?: ReadonlyMap<number, Record<string, unknown>> | undefined;
   readonly cacheFormat?: PromptCacheFormat | undefined;

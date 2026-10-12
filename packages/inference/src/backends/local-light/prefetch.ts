@@ -19,12 +19,14 @@ import type { LocalLightModelCache } from "./model-cache.ts";
 const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;
 type LocalLightPrefetchStatus = (typeof LOCAL_LIGHT_PREFETCH_STATUSES)[number];
 
+// @orb-waive no-inline-package-interface(LocalLightPrefetchRecord): baselined when the gate landed; burn-down item 952.
 export interface LocalLightPrefetchRecord {
   readonly status: LocalLightPrefetchStatus;
   readonly detail: string;
   readonly updatedAt: number;
 }
 
+// @orb-waive no-inline-package-interface(LocalLightPrefetchTarget): baselined when the gate landed; burn-down item 952.
 export interface LocalLightPrefetchTarget {
   readonly slot: LocalLightModelSlot;
   readonly modelId: ModelId;
@@ -32,6 +34,7 @@ export interface LocalLightPrefetchTarget {
   readonly onnx?: RerankOnnx | undefined;
 }
 
+// @orb-waive no-inline-package-interface(LocalLightPrefetchHandle): baselined when the gate landed; burn-down item 952.
 export interface LocalLightPrefetchHandle {
   /** Schedule the walk (detached — boot never awaits it). Returns the drain: stops BEFORE the next slot. */
   readonly start: (targets: readonly LocalLightPrefetchTarget[]) => () => void;
@@ -42,6 +45,7 @@ export interface LocalLightPrefetchHandle {
   readonly onProgress: (progress: LocalLightLoadProgress) => void;
 }
 
+// @orb-waive no-inline-package-interface(LocalLightPrefetchDeps): baselined when the gate landed; burn-down item 952.
 export interface LocalLightPrefetchDeps {
   readonly cache: () => Pick<LocalLightModelCache, "preload">;
   readonly now: () => number;

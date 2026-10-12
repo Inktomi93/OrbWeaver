@@ -261,7 +261,7 @@ controls, per-policy structure delta, population counts, authority consumption a
 native programs selected by generated world/config intent. Read completed results, including errors and withheld owners;
 a zero exit from an uninvoked library is not evidence. Use the verifier CLI, never execute an `ops/*.ts` library as a command.
 
-Whole-corpus conformance and integrated structure belong to the coordinated quiescent boundary. A scoped green cannot
+Whole-corpus conformance and integrated structure belong to the barrier (`AGENTS.md` glossary) and CI. A scoped green cannot
 close that obligation. Do not launch duplicate heavy suites from a docs lane. Fixture work must clean up exactly its own
 changes; never use stash, checkout/restore or git-revert probes to erase concurrent work.
 

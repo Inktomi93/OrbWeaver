@@ -79,12 +79,14 @@ const PAYLOAD_TOO_LARGE = 413;
 
 const HTML_MIME = "text/html; charset=utf-8";
 
+// @orb-waive no-inline-package-interface(CardFrameParticipantsPort): baselined when the gate landed; burn-down item 952.
 /** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
  *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
   readonly listParticipants: (params: { readonly principal: Principal; readonly chatId: ChatId }) => Promise<readonly ParticipantView[]>;
 }
 
+// @orb-waive no-inline-package-interface(CardFrameDeps): baselined when the gate landed; burn-down item 952.
 export interface CardFrameDeps {
   readonly participants: CardFrameParticipantsPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */

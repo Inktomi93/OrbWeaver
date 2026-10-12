@@ -143,7 +143,6 @@ function lastFailure(rows: readonly PassRow[]): PassRow | null {
   return failed[0] ?? null;
 }
 
-// @orb-waive no-inline-wire-interface(UnderstandingPassView): baselined when the gate widened; burn-down item 904.
 export interface UnderstandingPassView {
   /** A run of this pass is queued or running right now — the card is a progress state, not a door. */
   readonly running: boolean;

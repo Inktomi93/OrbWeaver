@@ -57,7 +57,7 @@ test("worldOf: package src by PACKAGE_WORLDS, the test surface by directory then
 
 test("primary compiler ownership follows package homes and the complete test-world map", () => {
   expect(predictedProgram("tests/ui/primitives/badge/badge.ct.tsx")).toBe(TEST_WORLD_PROGRAMS.browser);
-  expect(predictedProgram("tests/server/foundation/env/index.test.ts")).toBe(TEST_WORLD_PROGRAMS.node);
+  expect(predictedProgram("tests/server/foundation/env/floor-defaults.test.ts")).toBe(TEST_WORLD_PROGRAMS.node);
   expect(predictedProgram("packages/ui/src/x.ts")).toBe("packages/ui/tsconfig.json");
   expect(predictedProgram("packages/plugin-sdk/main.d.ts")).toBe("packages/plugin-sdk/tsconfig.author-main.json");
   expect(predictedProgram("packages/showcase-plugins/bundles/example/frame.ts")).toBe("packages/showcase-plugins/tsconfig.author-frame.json");

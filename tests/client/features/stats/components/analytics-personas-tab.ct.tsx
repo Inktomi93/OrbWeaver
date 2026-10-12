@@ -1,13 +1,14 @@
 // CT: the Analytics CONTEXT "Personas" tab — the same two findings as the Models tab beside it
 // (side-eye ANALYTICS 2026-08-19, P2c + P1e), which is why they are fixed as one class rather than one row.
 
+import { makePersonaUsageRow } from "@orb/testkit/node/factories/stats-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
 const PERSONAS = [
-  { personaId: "persona_ct_one", name: "Wanderer", chatCount: 12, messageCount: 3400, tokensOut: 120_000, lastUsedAt: null },
-  { personaId: "persona_ct_two", name: "Archivist", chatCount: 3, messageCount: 210, tokensOut: 8000, lastUsedAt: null },
+  makePersonaUsageRow({ personaId: "persona_ct_one", name: "Wanderer", chatCount: 12, messageCount: 3400, tokensOut: 120_000, lastUsedAt: null }),
+  makePersonaUsageRow({ personaId: "persona_ct_two", name: "Archivist", chatCount: 3, messageCount: 210, tokensOut: 8000, lastUsedAt: null }),
 ];
 
 test("persona aggregates label missing token accounting beside a recorded control", async ({ mount, page }) => {

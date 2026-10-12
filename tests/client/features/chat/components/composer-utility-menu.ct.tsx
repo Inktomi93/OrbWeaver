@@ -5,17 +5,18 @@
 
 import { ROOM_PICTURES_NOTE } from "@orb/client/lib";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { ChatSurfaceContributorStory, ComposerStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
-type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+type ParticipantFixture = NonNullable<TrpcWireOutput<"chat.getChat">["participants"]>[number];
 
 function human(key: string, role: ParticipantRole, leftSeq: number | null = null): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `chat_participant_${key}`,
     kind: "human",
     userId: `user_ct_${key}`,
@@ -23,11 +24,11 @@ function human(key: string, role: ParticipantRole, leftSeq: number | null = null
     role,
     displayName: key,
     leftSeq,
-  };
+  });
 }
 
-function roomWith(participants: readonly ParticipantFixture[]): TrpcFixtureOutput<"chat.getChat"> {
-  return { ...CHAT_ROOM_ROUTES["chat.getChat"], participants, viewerIsHost: true };
+function roomWith(participants: readonly ParticipantFixture[]): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({ ...CHAT_ROOM_DETAIL, participants, viewerIsHost: true });
 }
 
 async function openMediaGroup(page: Page): Promise<void> {
@@ -136,7 +137,7 @@ for (const viewport of [
 // single-character Tools shortcut; a guest must never receive another owner's door.
 
 function characterSeat(key: string, name: string): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `chat_participant_${key}`,
     kind: "character",
     userId: null,
@@ -144,17 +145,17 @@ function characterSeat(key: string, name: string): ParticipantFixture {
     role: "member",
     displayName: name,
     leftSeq: null,
-  };
+  });
 }
 
 /** A shared room with Aria seated: the host owns her, the guest owns nothing. Shared, so the Media label's
  *  room note is the rendered sign that this roster has landed. */
-function galleryRoom(viewerOwnsAria: boolean): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function galleryRoom(viewerOwnsAria: boolean): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     ...roomWith([human("hostess", "host"), human("guest", "member"), characterSeat("aria", "Aria")]),
     viewerGalleryCharacterId: viewerOwnsAria ? "character_ct_aria" : null,
     viewerOwnedCharacterIds: viewerOwnsAria ? ["character_ct_aria"] : [],
-  };
+  });
 }
 
 for (const viewport of [

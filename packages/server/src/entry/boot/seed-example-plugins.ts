@@ -91,6 +91,7 @@ interface HeldShowcasePlugin {
   readonly version: string;
 }
 
+// @orb-waive no-inline-package-interface(ExamplePluginSeederDeps): baselined when the gate landed; burn-down item 952.
 export interface ExamplePluginSeederDeps {
   /** Pack one example's source directory into installable bundle bytes; `null` when the pack ships no such
    *  slug. A missing example skips ONE plugin and does not fail the pass (the other slugs still install) —
@@ -119,6 +120,7 @@ export interface ExamplePluginSeederDeps {
   readonly writeSeededVersions: (principal: Principal, versions: Readonly<Record<string, string>>) => Promise<void>;
 }
 
+// @orb-waive no-inline-package-interface(ExamplePluginSeeder): baselined when the gate landed; burn-down item 952.
 export interface ExamplePluginSeeder {
   readonly ensureSeeded: (principal: Principal) => Promise<void>;
 }

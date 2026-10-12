@@ -24,6 +24,7 @@
 // forget). `domain/rpg/flush-barrier.ts` folds the same way for the same reason and cannot import this
 // (providers is sealed to domain); its header cites this law.
 
+// @orb-waive no-inline-package-interface(FlattenedAbort): baselined when the gate landed; burn-down item 952.
 /** A caller signal flattened onto a signal we own — hand `signal` to the provider call, `dispose()` on
  *  settle so a long-lived caller signal doesn't accumulate listeners across calls. */
 export interface FlattenedAbort {

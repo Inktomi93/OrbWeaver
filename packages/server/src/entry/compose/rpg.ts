@@ -165,6 +165,7 @@ const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable";
 const STRUCTURED_REPLY_UNREADABLE = "the model's state reply was not a list of changes";
 const INVENTORY_NAME_WHITESPACE = /\s+/u;
 
+// @orb-waive no-inline-package-interface(RpgComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the rpg seam needs from the composition root: db + the sibling front doors rpg's injected ops route
  *  through (chat's rpg-facing ops, the connection resolve, the executor, the host-principal bridge, the tool
  *  registry). */
@@ -340,7 +341,7 @@ export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarrator
   return (chatId, content, buildSnapshotStatement) => post(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement });
 }
 
-// @orb-waive no-inline-wire-interface(RpgComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(RpgComposeResult): baselined when the gate landed; burn-down item 952.
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
  *  injection (the `input.rpg ?? null` seam). */
 export interface RpgComposeResult {
