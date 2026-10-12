@@ -13,6 +13,7 @@ import {
   VITEST_RUNTIME_FAMILY_GROUPS,
   VITEST_RUNTIME_ONLY_GROUP_FILTER,
   VITEST_TYPECHECK_GROUP_NAMES,
+  vitestLegacyTypecheckGroupName,
   vitestTypecheckGroupName,
 } from "@orb/tooling/floor/testing/test-kinds";
 
@@ -79,7 +80,12 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
   ]);
   expect(TEST_RESOURCE_NAMES).toEqual(["repository", "semantic-corpus"]);
   expect(VITEST_RUNTIME_FAMILY_GROUPS).toEqual(["contract", "integration", "unit"]);
-  expect(VITEST_TYPECHECK_GROUP_NAMES).toEqual([vitestTypecheckGroupName("browser"), vitestTypecheckGroupName("node")]);
+  expect(VITEST_TYPECHECK_GROUP_NAMES).toEqual([
+    vitestTypecheckGroupName("browser"),
+    vitestLegacyTypecheckGroupName("browser"),
+    vitestLegacyTypecheckGroupName("node"),
+    vitestTypecheckGroupName("node"),
+  ]);
   expect(VITEST_RUNTIME_ONLY_GROUP_FILTER).toBe("!types-*");
   expect(runtimeForTestFamily("type")).toBe("vitest-typecheck");
   expect(runtimeForTestFamily("component")).toBe("playwright-ct");

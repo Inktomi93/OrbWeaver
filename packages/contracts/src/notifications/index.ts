@@ -198,7 +198,7 @@ export type NotificationType = NotificationEvent["type"];
 // needs a NON-EMPTY TUPLE type, which rules out deriving the values from a mapped Record at runtime:
 //   • NO NON-MEMBER — `satisfies readonly NotificationType[]` here (a typo fails `tsc` on this line);
 //   • NO MISSING MEMBER — the `Exclude<NotificationType, …>` proof in
-//     `tests/contracts/notifications/index.test-d.ts`, which `pnpm check`'s `types:testd` stage runs.
+//     `tests/legacy/contracts/notifications/index.test-d.ts`, which `pnpm check`'s `types:testd` stage runs.
 // Between them the tuple cannot drift from the union, which is strictly stronger than the runtime
 // assertion (over zod's internal option shape) this replaces.
 

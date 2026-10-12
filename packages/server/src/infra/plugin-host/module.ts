@@ -84,7 +84,7 @@ export function getPluginQuickJS(): Promise<QuickJSWASMModule> {
   return modulePromise;
 }
 
-/** @public twin: tests/server/infra/plugin-host/heap-growth.suite.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/heap-growth.suite.test.ts */
 export function __readGuestMemoryBytesForTest(): number {
   return guestMemoryBuffer?.byteLength ?? 0;
 }

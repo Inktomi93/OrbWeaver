@@ -52,7 +52,7 @@ export const selectVariants = tv({
     // Both arms live here rather than at the call site because the chrome they swap is custom-token
     // (`h-control-sm`, `px-block`): twMerge cannot classify those, so an override neither wins nor loses
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
-    // as Button `size`/TabsTab `layout`. Pinned by COMPUTED box in tests/ui/primitives/select/select.ct.tsx.
+    // as Button `size`/TabsTab `layout`. Pinned by COMPUTED box in tests/legacy/ui/primitives/select/select.ct.tsx.
     layout: {
       field: { trigger: [FIELD_CONTROL, "h-control-sm"] },
       inline: { trigger: [FIELD_CONTROL_BOX, "h-auto min-h-0 w-auto border-transparent bg-transparent px-field py-0 text-label leading-label"] },

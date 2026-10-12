@@ -1,11 +1,13 @@
 // Policy: test-layout (docs/law/Core-0-Architecture-and-Structure.md §5) — where a test lives. A test carries a
 // registered kind suffix; `.spec.ts` lives only under `tests/e2e`; a module-kind test sits in a directory that mirrors
 // a source directory (`tests/<pkg>/<dir>/` ↔ `packages/<pkg>/src/<dir>/`, `tests/tooling/<tool>/<dir>/` ↔
-// `tooling/src/<tool>/<dir>/`) and is named for its behaviour. Suites sit anywhere in their package tree. Whether a
-// test reaches its subject is `test-reach`. Family `mirror-index`: the directory facts come from that resource.
+// `tooling/src/<tool>/<dir>/`). The legacy folder is not judged for layout and only shrinks: `LEGACY_FILE_CEILING`
+// refuses a file added under it. Family `mirror-index`: the directory facts come from that resource.
 import { PACKAGE_NAMES } from "../../floor/compiler/project-worlds.ts";
 import type { TestFilenameClassification } from "../../floor/testing/test-kinds.ts";
 import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../floor/testing/test-kinds.ts";
+import { isLegacyTestPath, LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
@@ -13,6 +15,13 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 const PKGS: ReadonlySet<string> = new Set(PACKAGE_NAMES);
 /** `tooling/<dir>/<file>` — anything shorter is a flat tests/tooling file (the exempt non-mirror tier). */
 const MIRROR_MIN_SEGS = 3;
+
+/** Files under the legacy folder when it was founded, lowered as rebuilt domains delete theirs. A count, not a list:
+ *  the folder is its own ledger (item 961). It rises only when a file is added there, which this policy refuses. The
+ *  arm and this constant are deleted with the last legacy file. */
+const LEGACY_FILE_CEILING = 2902;
+const LEGACY_ADDED_OPERATION = "legacy-added";
+const LEGACY_STALE_OPERATION = "legacy-ceiling-stale";
 
 const MESSAGE =
   "a test under tests/ has the wrong home — a module test lives in the directory it mirrors under packages/<pkg>/src, and native .spec.ts belongs only under tests/e2e. See docs/law/Core-0-Architecture-and-Structure.md §5.";
@@ -96,6 +105,43 @@ function violationFor(packages: MirrorIndex, tooling: MirrorIndex, rel: string, 
   };
 }
 
+/** The legacy folder only shrinks. Above the ceiling, a narrowed run names its selected legacy files (an added file is
+ *  among them) and a whole run names the first; below it, a whole run asks for the ceiling to come down. */
+function judgeLegacyCeiling(ctx: GatePolicyContext, legacyFiles: readonly string[]): void {
+  const count = legacyFiles.length;
+  if (count > LEGACY_FILE_CEILING) {
+    const anchors = ctx.subset ? legacyFiles.filter(ctx.includesSubject) : legacyFiles.slice(0, 1);
+    for (const anchor of anchors) {
+      ctx.report.file(anchor, {
+        line: 1,
+        column: 1,
+        operation: LEGACY_ADDED_OPERATION,
+        message: `${LEGACY_TEST_ROOT}/ holds ${String(count)} files, above its ceiling of ${String(LEGACY_FILE_CEILING)}: a file was added to the legacy folder. A new test lives in the strict mirror; the untracked or staged file under ${LEGACY_TEST_ROOT}/ is the one to move.`,
+      });
+    }
+    return;
+  }
+  const first = legacyFiles[0];
+  if (count < LEGACY_FILE_CEILING && !ctx.subset && first !== undefined) {
+    ctx.report.file(first, {
+      line: 1,
+      column: 1,
+      operation: LEGACY_STALE_OPERATION,
+      message: `${LEGACY_TEST_ROOT}/ holds ${String(count)} files: lower LEGACY_FILE_CEILING in tooling/src/verify/gates/test-layout.ts to ${String(count)} so a re-added file is refused.`,
+    });
+  }
+}
+
+/** `count` legacy files in a directory with no source twin, beside the anchors every proof row needs. */
+function legacyProof(count: number): Readonly<Record<string, string>> {
+  return {
+    "packages/server/src/domain/real.ts": "export const s = 1;\n",
+    "tooling/src/snapx/cli.ts": "export {};\n",
+    "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",
+    ...Object.fromEntries(Array.from({ length: count }, (_, index) => [`tests/legacy/server/nowhere/case-${String(index)}.test.ts`, "export const x = 1;\n"])),
+  };
+}
+
 export const gate = defineGate({
   id: "test-layout",
   application: "resources",
@@ -120,7 +166,8 @@ export const gate = defineGate({
       const packages = readyResourceValue(ctx.resources.mirrorIndex("package-test"));
       const tooling = readyResourceValue(ctx.resources.mirrorIndex("tooling-test"));
       const prefix = `${packages.testRoot}/`;
-      for (const testPath of [...packages.testFiles].filter(ctx.includesSubject)) {
+      judgeLegacyCeiling(ctx, [...packages.testFiles].filter(isLegacyTestPath));
+      for (const testPath of [...packages.testFiles].filter((path) => ctx.includesSubject(path) && !isLegacyTestPath(path))) {
         const rel = testPath.slice(prefix.length);
         const name = rel.slice(rel.lastIndexOf("/") + 1);
         const finding = violationFor(packages, tooling, rel, name);
@@ -131,6 +178,18 @@ export const gate = defineGate({
     },
   }),
   mustFlag: [
+    {
+      mode: "resource",
+      files: legacyProof(LEGACY_FILE_CEILING + 1),
+      expect: { count: 1, messageIncludes: "above its ceiling" },
+      why: "THE LEGACY FOLDER IS CLOSED: one file more than the ceiling is a file added under tests/legacy, refused",
+    },
+    {
+      mode: "resource",
+      files: legacyProof(LEGACY_FILE_CEILING - 1),
+      expect: { count: 1, messageIncludes: "lower LEGACY_FILE_CEILING" },
+      why: "a deleted legacy file lowers the ceiling in the same change, so the freed slot cannot be refilled",
+    },
     {
       mode: "resource",
       files: {
@@ -210,6 +269,11 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "resource",
+      files: legacyProof(LEGACY_FILE_CEILING),
+      why: "a legacy folder at its ceiling passes, and a legacy test in a directory with no source twin is not judged for layout",
+    },
     {
       mode: "resource",
       files: {

@@ -51,7 +51,7 @@ The tab title still tracks the active entity even with the URL pinned to `/`: re
 
 #### 6.2 Testing
 
-Playwright CT (`.ct.tsx` under the `tests/ui` mirror — LIVE, `playwright-ct.config.ts`) for component tests + Playwright e2e (`.spec.ts`); central `tests/` mirror. Browser is Playwright, NOT Vitest (it hangs) — separate runners, never in `pnpm check`. The CT contract (token assertions, providers, fixtures): §13.7. Visual-regression screenshots: parked, adopt when the first themed surfaces stabilize.
+Playwright CT (`.ct.tsx` under `tests/legacy/ui` — LIVE, `playwright-ct.config.ts`) for component tests + Playwright e2e (`.spec.ts`); central `tests/` mirror. Browser is Playwright, NOT Vitest (it hangs) — separate runners, never in `pnpm check`. The CT contract (token assertions, providers, fixtures): §13.7. Visual-regression screenshots: parked, adopt when the first themed surfaces stabilize.
 
 #### 6.3 Markdown + code → `@orb/ui/markdown` = Streamdown — BUILT
 

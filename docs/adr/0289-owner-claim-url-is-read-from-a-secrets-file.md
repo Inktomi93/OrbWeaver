@@ -18,7 +18,7 @@ The verifier, the state hold and the single spend stay as D258 rules them. Only 
 
 This decision supersedes only D258's delivery: the boot logs the claim URL, and a restart logs a fresh code. It also replaces D258's boot-log residual. Every other D258 ruling remains active.
 
-Homes: `packages/server/src/entry/boot/owner-claim.ts`, `packages/server/src/infra/crypto/secret-file.ts` and `packages/server/src/foundation/env/container.ts`. Check: `tests/server/entry/boot/owner-claim.test.ts`.
+Homes: `packages/server/src/entry/boot/owner-claim.ts`, `packages/server/src/infra/crypto/secret-file.ts` and `packages/server/src/foundation/env/container.ts`. Check: `tests/legacy/server/entry/boot/owner-claim.test.ts`.
 
 ## Consequences
 

@@ -4,7 +4,7 @@ This is a headless **real persisted app** probe, not a handcrafted SDK conversat
 
 ## Evidence planes
 
-- `tests/server/entry/compose/caching.suite.int.test.ts`: 816 scripted persisted app cells, factorized as 34 route/control configurations × three cohorts × two naming settings × four requested turn floors. Requested/effective clamps remain explicit. Each cell exercises ordinary and adjacent human/character turns, shaping, names, funding, send and fresh operations. This proves application behavior, not provider cache availability.
+- `tests/legacy/server/entry/compose/caching.suite.int.test.ts`: 816 scripted persisted app cells, factorized as 34 route/control configurations × three cohorts × two naming settings × four requested turn floors. Requested/effective clamps remain explicit. Each cell exercises ordinary and adjacent human/character turns, shaping, names, funding, send and fresh operations. This proves application behavior, not provider cache availability.
 - `results.jsonl`: append-only physical live request/response facts from the bounded initial battery. Content and signatures are hashed; credentials are excluded. Original summaries remain unchanged even when offline reporting is corrected.
 - `summary.json`: corrected offline projection of the same raw facts. It does not make requests or replace the raw evidence.
 - `RESULTS.md`: interpretation and remaining acceptance limits.

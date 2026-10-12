@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.world-node.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  },
+  "include": ["reset.d.ts", "platform.d.ts", "aggregator-assets.d.ts", "tests/support/vitest-tags.d.ts", "tests/legacy/**/*.ts"],
+  "exclude": ["**/node_modules", "tests/**/*.dom.test-d.ts", "tests/**/*.dom.test.ts", "tests/**/*.spec.ts", "tests/**/*.ct.tsx"]
+}

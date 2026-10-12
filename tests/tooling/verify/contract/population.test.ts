@@ -64,6 +64,10 @@ const ROOTS_WITHOUT_A_MEMBER: readonly ExclusionRow[] = [
     why: '`tests/` is the CENTRAL test mirror (AGENTS.md "Test layout"), a top-level authored tree owned by no package: its members prefix-swap INTO the packages rather than living in one.',
   },
   {
+    key: "@legacy-tests",
+    why: "`tests/legacy/` is the legacy test folder nested inside `tests/`; like `@tests` it is an authored tree owned by no package.",
+  },
+  {
     key: "@scripts",
     why: "`scripts/` is the repo-level script tree (dev supervisors, probes, one-shots). It is deliberately not a workspace package — nothing imports it and it publishes nothing — but it is authored, so it needs a root.",
   },

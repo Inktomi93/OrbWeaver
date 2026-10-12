@@ -5,7 +5,7 @@ Do Smart's two speaker pickers work on real models through the app's own path? R
 
 ## What runs
 
-`run.ts` builds the real `@orb/inference` runtime over in-memory stores (the `tests/inference/_support.ts`
+`run.ts` builds the real `@orb/inference` runtime over in-memory stores (the `tests/legacy/inference/_support.ts`
 ports), adds a user connection for the cell, and binds it as the user's Utility row (`summarize`, which
 `structured` rides) or rerank row. Each scene then goes through the production code:
 

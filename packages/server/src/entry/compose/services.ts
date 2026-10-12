@@ -21,7 +21,7 @@
 // registration, the domain's `DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES` row if it carries a non-template root file
 // (`tooling/src/verify/gates/feature-structure.ts`), its `BASELINE_RIDER_PRODUCERS` entry removed the moment the
 // real producer lands (`tooling/src/verify/gates/db-structure.ts` — the row is self-staling), and a PROBED-or-
-// EXEMPT classification for every new procedure in `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`
+// EXEMPT classification for every new procedure in `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`
 // (its completeness guard enumerates the live router, so the sweep grows with it).
 //
 // TWO STANDING HAZARDS AT THIS SEAM, both silent:

@@ -212,7 +212,7 @@ function buildQuietResponseFormat(schema: PluginQuietSchema): ResponseFormat {
 }
 
 /** The plugin `llm.quiet` op; the op bundle's `llm` arm below states its posture.
- * @public Test-anchored module surface; the grant binding it resolves through is pinned at `tests/server/entry/compose/plugin-quiet-grant.suite.int.test.ts`. */
+ * @public Test-anchored module surface; the grant binding it resolves through is pinned at `tests/legacy/server/entry/compose/plugin-quiet-grant.suite.int.test.ts`. */
 export function buildPluginQuietLlm(
   deps: Pick<AutomationPluginComposeDeps, "roleClientsFor" | "resolveUtilityPresetParams" | "assets" | "resolveOwnerPrincipal">,
 ): PluginHostOps["llm"]["quiet"] {

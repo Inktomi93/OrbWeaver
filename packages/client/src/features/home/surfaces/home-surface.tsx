@@ -55,7 +55,7 @@
 // container step shared by the shelf's roster rows and foot, so Home is two even columns exactly where the shelf
 // reflows to answer the hearth's height, and one column below it, hearth first. No tile changes columns for a
 // populated house: the roster rows go two-up and the foot pairs blocks side by side.
-// `tests/client/features/home/surfaces/home-column-balance.suite.ct.tsx` holds both houses to a 120px budget and
+// `tests/legacy/client/features/home/surfaces/home-column-balance.suite.ct.tsx` holds both houses to a 120px budget and
 // pins the step.
 //
 // ZERO tiles ⇒ ONE designed empty state (never a blank surface). The Weave decoration rides HERE and only

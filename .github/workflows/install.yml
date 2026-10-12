@@ -178,11 +178,11 @@ jobs:
         shell: bash
         env:
           PLUGIN_BROKER_PROOF_RECEIPT: ${{ runner.temp }}/plugin-broker-proof-1.json
-        run: pnpm test:scoped tests/server/infra/plugin-host/platform-proof.suite.test.ts
+        run: pnpm test:scoped --legacy tests/legacy/server/infra/plugin-host/platform-proof.suite.test.ts
         if: steps.seen.outputs.cache-hit != 'true'
       - name: Prove plugin broker supervision
         if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
-        run: pnpm test:scoped tests/server/infra/plugin-host/broker-supervision.suite.test.ts
+        run: pnpm test:scoped --legacy tests/legacy/server/infra/plugin-host/broker-supervision.suite.test.ts
       - name: Add plugin broker receipt to the run summary
         if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
         shell: bash
@@ -286,7 +286,7 @@ jobs:
       - name: Prove the plugin broker cannot read the data dir in the production image
         run: |
           for file in _broker-containment-proof.ts _broker-permission-probe.ts _worker-drop-preload.ts; do
-            docker compose exec --user node -T orbweaver sh -c "cat > /app/.cache/$file" < "tests/server/infra/plugin-host/$file"
+            docker compose exec --user node -T orbweaver sh -c "cat > /app/.cache/$file" < "tests/legacy/server/infra/plugin-host/$file"
           done
           docker compose exec --user node -T orbweaver node /app/.cache/_broker-containment-proof.ts --root=/app
         if: steps.seen.outputs.cache-hit != 'true'
@@ -296,7 +296,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/docker-proof"
           chmod 0777 "$RUNNER_TEMP/docker-proof"
           docker compose run --rm --no-deps -T --user node --entrypoint node \
-            -v "$PWD/tests/server/infra/plugin-host/_platform-proof.ts:/app/.cache/plugin-platform-proof.ts:ro" \
+            -v "$PWD/tests/legacy/server/infra/plugin-host/_platform-proof.ts:/app/.cache/plugin-platform-proof.ts:ro" \
             -v "$RUNNER_TEMP/docker-proof:/proof" \
             orbweaver /app/.cache/plugin-platform-proof.ts --run-proof --root=/app --json=/proof/plugin-broker-proof.json
         if: steps.seen.outputs.cache-hit != 'true'

@@ -84,7 +84,7 @@ export function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number
  *
  * The values are projected POSITIONALLY through `insert().select()`, which drizzle renders with the table's
  * full column list in declared order — so a new `audit_logs` column makes this a loud column-count error at
- * runtime (and `tests/server/foundation/observability/audit.int.test.ts` pins guarded ≡ unguarded row), never
+ * runtime (and `tests/legacy/server/foundation/observability/audit.int.test.ts` pins guarded ≡ unguarded row), never
  * a silently mis-bound column. `metadata` is hand-serialized because a raw `sql` param bypasses the column's
  * json mode.
  */

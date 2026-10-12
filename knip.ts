@@ -63,7 +63,7 @@ export const config = {
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",
-        "tests/server/infra/plugin-host/_broker-containment-proof.ts",
+        "tests/legacy/server/infra/plugin-host/_broker-containment-proof.ts",
       ],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.

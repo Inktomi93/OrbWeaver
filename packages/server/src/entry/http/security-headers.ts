@@ -37,7 +37,7 @@
 // script ever lands in index.html, use a boot-time hash-allowlist — never `'unsafe-inline'`. This is not a
 // prose-only wish: the interactive-card srcdoc FLOOR (@orb/ui sandbox-frame's degraded arm) stays
 // script-DEAD because a srcdoc inherits+intersects THIS policy, so a widening here silently reanimates it.
-// ENFORCED by tests/server/entry/http/security-headers.test.ts ("prod script-src grants no script-execution
+// ENFORCED by tests/legacy/server/entry/http/security-headers.test.ts ("prod script-src grants no script-execution
 // escape") — the prod `script-src` admits none of `'unsafe-inline'`/`'unsafe-eval'`/`'strict-dynamic'`/a
 // host wildcard. The #111 security review (CLEAN, verdict on the issue's review comment) named this the
 // one durable watch-item.
@@ -77,7 +77,7 @@ import { requestTransport } from "#infra/auth";
 //
 // The exemption is the DOCUMENT path only — each route's `POST` MINT is a JSON reply and keeps the full app
 // header set. The SERVED document and its MISS-404 both build their headers from their own file's
-// frame-header builder, and `tests/server/entry/http/{card,plugin}-frame.test.ts` pin the ACTUAL served
+// frame-header builder, and `tests/legacy/server/entry/http/{card,plugin}-frame.test.ts` pin the ACTUAL served
 // header on both. What the exemption may NOT assume is that one of those arms ran at all (#1594) — see
 // {@link securityHeaders}.
 //
@@ -114,7 +114,7 @@ const OK_STATUS = 200;
  * `decodeURIComponent`, both readings would move TOGETHER (`a/b` → two segments → not exempt → the app
  * policy lands on the router's 404), which is the safe direction. The unsafe direction needs hono to stop
  * sharing that one string, or an app-level `getPath` OPTION overriding it — we set neither, and
- * `tests/server/entry/http/security-headers.test.ts` pins the observable so a regression is loud.
+ * `tests/legacy/server/entry/http/security-headers.test.ts` pins the observable so a regression is loud.
  */
 function servesOwnPolicy(path: string): boolean {
   return OWN_POLICY_DOC_PREFIXES.some((prefix) => {

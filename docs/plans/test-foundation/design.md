@@ -40,7 +40,7 @@ Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, whic
 
 ### Rules
 
-- Not yet built: the engine, the composition root, the builders and corpus, and the legacy folder.
+- Not yet built: the engine, the composition root, and the builders and corpus.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.

@@ -10,6 +10,7 @@
 // local-`getMembers()` reader lost them while the workspace scan stayed healthy. Each verb keeps its
 // DECLARING interface for the diagnostic, the scan line prints local/inherited/total, and an `extends`
 // clause that resolves to nothing (or a member with no declaration) is a loud refusal, never a smaller set.
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
 import { contractVerbPresenceFact } from "../lib/contract-verb-presence-fact.ts";
 
@@ -27,8 +28,8 @@ export const gate = defineGate({
   authority: "reviewed-grant",
   severity: "error",
   population: {
-    in: ["@server", "@tests"],
-    under: ["packages/server/src/domain/**", "tests/server/domain/**"],
+    in: ["@server", "@tests", "@legacy-tests"],
+    under: ["packages/server/src/domain/**", "tests/server/domain/**", `${LEGACY_TEST_ROOT}/server/domain/**`],
   },
   analysis: "types",
   execution: "entire-population",

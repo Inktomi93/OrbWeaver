@@ -19,15 +19,20 @@ import { runLeaseEnv, runMarkerEnv } from "@orb/tooling/floor/process/run-marker
 import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
 import type { ScopedOperand } from "@orb/tooling/floor/testing/scoped-run-paths";
 import {
+  bareCtGrepRefusal,
   barrenOperands,
   barrenRefusal,
+  collectedLegacyRefusal,
   isPathShaped,
+  legacyOperandRefusal,
   resolveOperand,
+  splitLegacyFlag,
   toRepoRelative,
   unresolvedOperands,
   unresolvedRefusal,
 } from "@orb/tooling/floor/testing/scoped-run-paths";
 import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/floor/testing/test-kinds";
+import { legacyTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import type { NativeCtCaseCollection, NativeNodeShardCollection, ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
@@ -41,7 +46,8 @@ export const SCOPED_TEST_USAGE =
   "  node = the vitest projects (pnpm test:scoped) · ct = the playwright CT config (pnpm test:ct).\n" +
   "  node --related <sources…> = Vitest's dependency graph through the supervised node runner.\n" +
   "  Every path-shaped operand must EXIST (else exit 3). Direct test filters must contribute a collected\n" +
-  "  test (else exit 2); related source inputs may have zero runtime dependents, reported explicitly.";
+  "  test (else exit 2); related source inputs may have zero runtime dependents, reported explicitly.\n" +
+  "  --legacy = admit tests/legacy, which is otherwise refused as an operand and excluded from patterns (exit 3).";
 
 /** Playwright's `--list --reporter=json` dumps the whole resolved config beside the specs; vitest's list
  *  file is small. 64MiB so a large CT selection can never come back as an ENOBUFS kill read as "no tests". */
@@ -319,39 +325,11 @@ function runNodeScoped(root: string, rawRest: readonly string[]): number {
   return spawnNode(root, rest, "related", []);
 }
 
-/** THE CT TITLE FILTER NEEDS A PATH (#2457, second half of the same door). `pnpm test:ct -g='<title>'`
- *  with no path operand collects ZERO specs and exits 1 — even for a title a path-scoped run executes.
- *  Measured 2026-09-19 on the unmodified door: `pnpm test:ct -g='aria-expanded follows'` (a title that
- *  lives in tests/client/features/config/components/config-search-input.ct.tsx) printed
- *  `CT SUMMARY — FAILED · 0 passed · 0 failed · 0 flaky · 0 skipped` and exited 1 — a run that certifies
- *  nothing while LOOKING like a failing test. There is nothing for the
- *  preflight to audit either: with no path claims it returns early and never collects, so the barren arm
- *  cannot see it. Refuse at parse instead, naming the operand that makes the invocation real.
- *
- *  CT ONLY. A bare `-t` on the NODE tier is a supported shape (vitest scans its projects and the door
- *  records the empty attribution as "no type claim" — `nodeConfigModeArgs`), so the same refusal there
- *  would break a working invocation. */
-export function bareCtGrepRefusal(rest: readonly string[], pathOperandCount: number): string | undefined {
-  if (pathOperandCount > 0) {
-    return;
-  }
-  const grep = rest.find((arg) => arg === "-g" || arg === "--grep" || arg.startsWith("-g=") || arg.startsWith("--grep="));
-  if (grep === undefined) {
-    return;
-  }
-  const flag = grep.includes("=") ? grep.slice(0, grep.indexOf("=")) : grep;
-  return (
-    `${flag} needs a path operand: the CT config answers a title filter with no spec path by collecting nothing and exiting 1,\n` +
-    "  so a bare title filter is a run that says nothing about the title it named.\n" +
-    "  name the spec(s) too: pnpm test:ct tests/ui/x.ct.tsx -g='<title>'"
-  );
-}
-
 /** The preflight verdict: an exit code to return INSTEAD of running, or the runner's own project
  *  attribution for the selection it cleared. The projects travel out because the node arm's config-mode
  *  door is decided by what the runner said it would SELECT, never by a filename (#2232) — and a bare
  *  `--grep` run clears with an EMPTY attribution, which `nodeConfigModeArgs` reads as "no type claim". */
-type PreflightVerdict = { readonly refused: number } | { readonly projects: readonly string[] };
+type PreflightVerdict = { readonly refused: number } | { readonly projects: readonly string[]; readonly files: readonly string[] };
 
 function preflight(runner: ScopedTestRunner, root: string, rest: readonly string[], operands: readonly ScopedOperand[]): PreflightVerdict {
   const unresolved = unresolvedOperands(operands, "runner");
@@ -361,7 +339,7 @@ function preflight(runner: ScopedTestRunner, root: string, rest: readonly string
     throw new UsageError(unresolvedRefusal(unresolved));
   }
   if (operands.length === 0) {
-    return { projects: [] }; // no path claims to audit (a bare `--grep` run) — nothing to certify, nothing to refuse
+    return { projects: [], files: [] }; // no path claims to audit (a bare `--grep` run) — nothing to certify, nothing to refuse
   }
   const collected = collect(runner, root, rest);
   if ("error" in collected) {
@@ -370,7 +348,7 @@ function preflight(runner: ScopedTestRunner, root: string, rest: readonly string
   }
   const barren = barrenOperands(operands, collected.files);
   if (barren.length === 0) {
-    return { projects: collected.projects };
+    return { projects: collected.projects, files: collected.files };
   }
   warn(`UNFED PATH   ${barrenRefusal(barren, collected.files)}`);
   return { refused: EXIT.toolError };
@@ -387,11 +365,20 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
     throw new UsageError(`unknown runner ${runner === undefined ? "(none given)" : JSON.stringify(runner)}\n${SCOPED_TEST_USAGE}`);
   }
   const tier = runner as ScopedTestRunner;
-  const rest = rawRest;
+  const { legacy, rest } = splitLegacyFlag(rawRest);
   const operands = rest.filter(isPathShaped).map((arg) => resolveOperand(root, arg));
-  if (tier === "node") {
-    return runNodeScoped(root, rest);
+  const legacyRefusal = legacy ? undefined : legacyOperandRefusal(operands);
+  if (legacyRefusal !== undefined) {
+    throw new UsageError(legacyRefusal);
   }
+  if (tier === "node") {
+    // A pattern or a `--related` source can still reach a legacy test; Vitest's own exclusion keeps it out.
+    return runNodeScoped(root, legacy ? rest : [...rest, ...legacyTestExclusions().map((glob) => `--exclude=${glob}`)]);
+  }
+  return await runCtScoped(root, rest, operands, legacy);
+}
+
+async function runCtScoped(root: string, rest: readonly string[], operands: readonly ScopedOperand[], legacy: boolean): Promise<number> {
   const bareGrep = bareCtGrepRefusal(rest, operands.length);
   if (bareGrep !== undefined) {
     // Before the lock: a refused argv must not take the worktree's CT lease even for an instant.
@@ -437,8 +424,16 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
     warn(`CT RUNNER SLOTS   host slot ${String(lock.lease.hostSlot)} acquired after ${String(Math.round(hostWaitedMs / MS_PER_SECOND))}s of queueing.`);
   }
   try {
-    const verdict = preflight(tier, root, rest, operands);
-    return "refused" in verdict ? verdict.refused : spawnCt(root, rest, lock.lease);
+    const verdict = preflight("ct", root, rest, operands);
+    if ("refused" in verdict) {
+      return verdict.refused;
+    }
+    // Playwright has no file exclusion flag, so a pattern that collects a legacy CT is refused here instead.
+    const collectedLegacy = legacy ? undefined : collectedLegacyRefusal(verdict.files);
+    if (collectedLegacy !== undefined) {
+      throw new UsageError(collectedLegacy);
+    }
+    return spawnCt(root, rest, lock.lease);
   } finally {
     lock.lease.release();
   }

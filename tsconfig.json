@@ -25,6 +25,7 @@
     "tests/**/*.dom.test.ts",
     "tests/**/*.spec.ts",
     "tests/**/*.ct.tsx",
+    "tests/legacy",
     "tests/e2e",
     "tests/support/browser",
     "tests/support/iso/**/*",

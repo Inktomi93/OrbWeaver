@@ -121,49 +121,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the analyzer stops mis-reading this shape — an upgrade whose `@typescript-eslint/no-unnecessary-condition` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:tests-lint-correctness-no-process-global",
-    policyId: "suppressions",
-    subject: "lint/correctness/noProcessGlobal",
-    operation: "tests",
-    why: "RULING — a `vi.hoisted` setup body runs before the file's own `node:process` import binds, so the ambient global is the only process handle available inside that pre-import body.",
-    endsWhen:
-      "the remaining hoisted setup bodies no longer need process, or their runner provides an explicit process handle that is safe before imports bind.",
-  },
-  {
-    id: "suppressions:tests-lint-correctness-use-unique-element-ids",
-    policyId: "suppressions",
-    subject: "lint/correctness/useUniqueElementIds",
-    operation: "tests",
-    why: "RULING — the test's SUBJECT is the id itself. `tests/client/a11y/accessible-name-quality.suite.ct.tsx:130`: \"a FIXED id is the point — this one mount pins the describedby target the probe must strip; a `useId` value would be unwritable in the sibling's attribute.\" The rule exists to stop a component minting a colliding id; a single-mount a11y probe asserting an `aria-describedby` relationship has to spell both halves.",
-    endsWhen: "the accessible-name probe drives its describedby target through a `useId` handle the sibling attribute can read, or the arm is deleted.",
-  },
-  {
-    id: "suppressions:tests-lint-nursery-no-playwright-wait-for-timeout",
-    policyId: "suppressions",
-    subject: "lint/nursery/noPlaywrightWaitForTimeout",
-    operation: "tests",
-    why: 'RULING, and the one with a MEASUREMENT behind it — the source table already rules this rule for probe/golden harnesses that "deliberately observe a bounded time window"; these four are the same shape where THERE IS NO STATE TO WAIT FOR, so the rule\'s premise (a readiness guess) does not hold. `tests/ui/code-editor/code-editor.ct.tsx:256`: "inverted premise — this wait is what REMOVES the flake (4/20 red without it, 0/40 with it), and CM6 exposes no state to wait FOR at `timestamp + interactionDelay`". `tests/ui/primitives/message-list/message-list.ct.tsx:537`: "the sampling interval of a stability trace — there is no state to wait FOR, the absence of movement is the assertion." `tests/client/lib/motion-flaggers.ct.tsx:527`: "this negative control must leave enough wall time for forbidden observer work to occur"; `:552`: "Chrome tracing has no DOM condition; the plant owns a fixed 250ms block inside this capture interval." Deleting any of the four would delete the assertion, not the wait.',
-    endsWhen:
-      "CodeMirror 6 exposes an observable post-interaction state, the stability traces move to a rendered settle signal, and the tracing control gains a DOM condition — at which point every site converts to a barrier and this row is consumed zero times.",
-  },
-  {
-    id: "suppressions:tests-lint-nursery-use-explicit-return-type",
-    policyId: "suppressions",
-    subject: "lint/nursery/useExplicitReturnType",
-    operation: "tests",
-    why: "RULING — the local agent-seed factory is checked against the production client parameter with `satisfies`, while an inferred return preserves each `vi.fn` mock's exact call signature for assertions; annotating the factory with the broad client port would erase those mock members.",
-    endsWhen:
-      "the factory can spell a return type that both satisfies the production client port and preserves the exact `vi.fn` call signatures used by its assertions.",
-  },
-  {
-    id: "suppressions:tests-lint-nursery-use-nullish-coalescing",
-    policyId: "suppressions",
-    subject: "lint/nursery/useNullishCoalescing",
-    operation: "tests",
-    why: "TOOL FALSE POSITIVE, in the same family as the source table's own `useNullishCoalescing` row — `??` is not equivalent to the ternary these sites spell. `tests/server/domain/chat/_support.ts:158` and `tests/server/domain/stats/_support.ts:87` both read \"an EXPLICIT null IS the husk (the whole opt-in), and `??` would coalesce it back into the claimed default — only an OMITTED field may fall through.\" The predicate is `=== undefined`, deliberately narrower than `??`'s null-or-undefined, because a seeded explicit `null` is a value the fixture means.",
-    endsWhen: "the seed helpers stop distinguishing an explicit `null` from an omitted field (the husk opt-in is expressed some other way).",
-  },
-  {
     id: "suppressions:tests-lint-performance-no-namespace-import",
     policyId: "suppressions",
     subject: "lint/performance/noNamespaceImport",
@@ -191,15 +148,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed tests site under `lint/style/useNamingConvention` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:tests-lint-style-use-throw-only-error",
-    policyId: "suppressions",
-    subject: "lint/style/useThrowOnlyError",
-    operation: "tests",
-    why: "RULING — a DEPENDENCY's non-Error throw is the test's SUBJECT — the arm proves the app's error path (policied 500, request id, ring entry) holds when foreign code throws a string; our own code obeys the rule and the fixture is the instrument, never a value the code under test owns (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 65aa7f4743; 1 live site(s) under governed tests at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed tests site under `lint/style/useThrowOnlyError` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:tests-lint-suspicious-no-bitwise-operators",
     policyId: "suppressions",
     subject: "lint/suspicious/noBitwiseOperators",
@@ -207,15 +155,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     why: "RULING — specification-defined codecs, byte mutations, and bit masks (including POSIX permission masks) are written in the bitwise operators that define them; these fixtures exercise that exact representation.",
     endsWhen:
       "the ruling itself is reversed, or the last governed tests site under `lint/suspicious/noBitwiseOperators` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:tests-lint-suspicious-no-explicit-any",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noExplicitAny",
-    operation: "tests",
-    why: "RULING — `any` remains where it is the test instrument (deliberately off-schema hostile input proving runtime refusal, or Vitest's declaration-compatible `Matchers<T = any>` default), plus two exact structural-fake exceptions. `buildAgentNav` accepts the full generated `TRPCOptionsProxy`, while its test constructs only four query-option branches; `buildAgentRpg` accepts the full generated `TrpcClient`, while its test constructs four RPG reads with intentionally partial response views. These fixtures are ordinary typing debt, not hostile input, and stay explicit until the production builders expose their real narrow read ports.",
-    endsWhen:
-      "the hostile-input tests gain a typed unsafe-input helper, Vitest's matcher declaration no longer requires its `any`-compatible generic default, and `buildAgentNav` plus `buildAgentRpg` narrow their dependencies to testable ports their structural fakes can satisfy without casts.",
   },
   {
     id: "suppressions:tests-lint-suspicious-no-misplaced-assertion",
@@ -233,30 +172,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     why: 'TOOL FALSE POSITIVE — the source table already rules this rule for "gate self-proof strings [that] intentionally carry template-literal source text for the synthetic project to parse", and both remaining test sites are that same shape. `tests/tooling/review-mirror/index.test.ts:64` is "the parser fixture\'s template source" and `:68` asserts the "expected source bytes, not a test interpolation". (The three former `split-arm-parity.test.ts` sites were retired with the legacy fixture suite at #2176 Phase F.)',
     endsWhen:
       "the gate and parser fixtures are authored as files rather than as embedded source strings, at which point the interpolation is real code and the rule stops firing.",
-  },
-  {
-    id: "suppressions:tests-lint-suspicious-no-unknown-attribute",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noUnknownAttribute",
-    operation: "tests",
-    why: "TOOL FALSE POSITIVE — `tests/client/lib/_ct-stories.tsx:519`: \"React supports transition lifecycle events absent from Biome's DOM allowlist.\" `onTransitionStart` is a real React synthetic event the analyzer's attribute table does not carry; the story mounts it precisely to drive the transition-lifecycle arm the CT asserts.",
-    endsWhen: "biome's DOM attribute allowlist gains the React transition lifecycle events, or the story stops driving them.",
-  },
-  {
-    id: "suppressions:tests-lint-suspicious-use-await",
-    policyId: "suppressions",
-    subject: "lint/suspicious/useAwait",
-    operation: "tests",
-    why: "RULING — the buffered replay generator has nothing to await but must remain async to implement the `AsyncIterable` contract consumed by `packZip`; its lazy 50k-entry producer must not preallocate an array.",
-    endsWhen: "`packZip` accepts a synchronous iterable or the numbered-entry fixture no longer implements its lazy `AsyncIterable` producer.",
-  },
-  {
-    id: "suppressions:tests-lint-suspicious-use-error-message",
-    policyId: "suppressions",
-    subject: "lint/suspicious/useErrorMessage",
-    operation: "tests",
-    why: 'RULING — the test\'s SUBJECT is the very case the rule forbids, which is the stated rationale of the whole RATIFIED_TEST_RULES table. `tests/kit/error-message/index.test.ts:10`: "the whole point of this test is the no-message case" — `errorMessage(new Error())` must return the empty string, and constructing the message-less Error is how that arm is reached.',
-    endsWhen: "`errorMessage` stops having a no-message arm to pin.",
   },
   {
     id: "suppressions:tests-ts-expect-error",

@@ -3,7 +3,7 @@
 // and the client all derive from the SAME tuple — §7.5 `no-inline-union-redecl`), imported here TYPE-ONLY
 // so the verb signatures reference one name (consumers reach it via `@orb/contracts/assets` directly). This
 // stays a pure-type file (no `z.object` → no contract-test obligation here; the kind schema is tested in
-// `tests/contracts/assets/`).
+// `tests/legacy/contracts/assets/`).
 //
 // Every verb carries the resolved `principal` (spine §7.1) — ownership is scoped off `principal.userId`,
 // the single source of truth for "whose blobs" (NEVER a `users` read — the `no-direct-users-read` gate).

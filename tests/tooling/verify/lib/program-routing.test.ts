@@ -2,6 +2,7 @@
 import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { isLegacyTestProgram } from "@orb/tooling/floor/compiler/project-worlds";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { processEnvValue, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { planTypecheckPrograms } from "@orb/tooling/verify";
@@ -49,10 +50,10 @@ test("primary routing follows native roots for DOM runtime/type tests, Node test
   timeout: scaledBudget(22_000),
 }, ({ repoRoot }) => {
   const cases: readonly (readonly [string, string])[] = [
-    ["tests/client/agent-nav/index.dom.test.ts", "tsconfig.tests-dom.json"],
-    ["tests/ui/primitives/input/index.dom.test-d.ts", "tsconfig.tests-dom.json"],
-    ["tests/server/entry/compose/services.test.ts", "tsconfig.json"],
-    ["tests/client/routes/app-root.ct.tsx", "tsconfig.tests-dom.json"],
+    ["tests/legacy/client/agent-nav/index.dom.test.ts", "tsconfig.tests-legacy-dom.json"],
+    ["tests/legacy/ui/primitives/input/index.dom.test-d.ts", "tsconfig.tests-legacy-dom.json"],
+    ["tests/legacy/server/entry/compose/services.test.ts", "tsconfig.tests-legacy.json"],
+    ["tests/legacy/client/routes/app-root.ct.tsx", "tsconfig.tests-legacy-dom.json"],
     ["tests/support/node/set-number.ts", "tsconfig.json"],
     ["tests/support/browser/ct-data-providers.tsx", "tsconfig.tests-dom.json"],
     ["tooling/src/verify/lib/program-routing.ts", "tooling/tsconfig.json"],
@@ -87,13 +88,17 @@ test("ambient and inherited tsconfig edits select every native dependent program
 
   const deleted = planTypecheckPrograms(repoRoot, [{ path: "tests/deleted.test.ts", status: "deleted", previousPath: null }], "affected");
   expect(deleted.subjects[0]?.reason).toBe("deleted-conservative");
-  expect(deleted.programs).toEqual(ambient);
+  // An affected plan leaves the legacy programs to CI unless the deleted path was itself a legacy file.
+  expect(deleted.programs).toEqual(ambient?.filter((program) => !isLegacyTestProgram(program)));
+  expect(ambient).toContain("tsconfig.tests-legacy.json");
+  const deletedLegacy = planTypecheckPrograms(repoRoot, [{ path: "tests/legacy/deleted.test.ts", status: "deleted", previousPath: null }], "affected");
+  expect(deletedLegacy.programs).toEqual(ambient);
 });
 
 test("non-TypeScript inputs are explicit not-applicable results", ({ repoRoot }) => {
   const plan = planTypecheckPrograms(
     repoRoot,
-    [present("packages/ui/src/styles/globals.css"), present("tests/kit/cel/cel-goldens.json"), present("docs/law/Core-Tooling-Law.md")],
+    [present("packages/ui/src/styles/globals.css"), present("tests/legacy/kit/cel/cel-goldens.json"), present("docs/law/Core-Tooling-Law.md")],
     "primary",
   );
   expect(plan.programs).toEqual([]);

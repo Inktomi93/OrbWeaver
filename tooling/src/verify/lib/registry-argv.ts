@@ -6,11 +6,13 @@
 // Each builder answers the same question — "given the selection's paths for this tool, what child do we
 // spawn?" — and each may answer `skip-empty` (nothing in scope) or `whole-only` (this stage cannot be
 // narrowed honestly). That vocabulary is `../contract/stage.ts`'s `ScopedArgv`.
-import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
+import { applicationTestExclusions, isLegacyTestPath, LEGACY_SCOPED_FLAG, legacyTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
+import { existsRel } from "./repo-paths.ts";
 
-const PRODUCT_RUNTIME_EXCLUDES = applicationTestExclusions(true).map((glob) => `--exclude=${glob}`);
+// The inner loop never runs the legacy folder; CI's legacy jobs do.
+const PRODUCT_RUNTIME_EXCLUDES = [...applicationTestExclusions(true), ...legacyTestExclusions()].map((glob) => `--exclude=${glob}`);
 const NODE_TEST_RE = /\.test\.tsx?$/u;
 
 /** Vitest scope composition, using its native selectors instead of a copied project roster.
@@ -27,16 +29,20 @@ export function vitestScopedArgv(selection: Selection): ScopedArgv {
   if (selection.kind === "package") {
     const prefix = selection.paths[0];
     const packageName = prefix === "tooling/" ? "tooling" : prefix?.match(/^packages\/([^/]+)\/$/u)?.[1];
-    return packageName === undefined || packageName.length === 0 || packageName === "tooling"
+    const testDir = `tests/${packageName ?? ""}`;
+    // A package whose tests are all still in the legacy folder has no strict mirror directory yet.
+    return packageName === undefined || packageName.length === 0 || packageName === "tooling" || !existsRel(testDir)
       ? "skip-empty"
-      : ["pnpm", "test:scoped", `tests/${packageName}`, ...PRODUCT_RUNTIME_EXCLUDES];
+      : ["pnpm", "test:scoped", testDir, ...PRODUCT_RUNTIME_EXCLUDES];
   }
   const subjects = selection.runtimeSubjects.filter((path) => !path.startsWith("tests/tooling/"));
   if (subjects.length === 0) {
     return "skip-empty";
   }
   if (subjects.every((path) => NODE_TEST_RE.test(path)) === true) {
-    return ["pnpm", "test:scoped", ...subjects, ...PRODUCT_RUNTIME_EXCLUDES];
+    // Only an explicit `--file` claim can carry a legacy path here; the caller named it, so it runs.
+    const legacy = subjects.some(isLegacyTestPath) ? [LEGACY_SCOPED_FLAG] : [];
+    return ["pnpm", "test:scoped", ...legacy, ...subjects, ...applicationTestExclusions(true).map((glob) => `--exclude=${glob}`)];
   }
   return ["pnpm", "test:scoped", "--related", ...subjects, ...PRODUCT_RUNTIME_EXCLUDES];
 }

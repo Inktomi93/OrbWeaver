@@ -13,7 +13,7 @@
 // Both rulings survive because the correction's SUBSTANCE is the bundler fold, and `IS_DEV` is that same
 // `import.meta.env.DEV` behind the house's one typed discriminant. The fold is not assumed — it is
 // MEASURED on the CT's own production bundle, and the receipt is in
-// `tests/client/components/setting-row-actions.fixtures.tsx`. Do NOT "clean this up" into a local
+// `tests/legacy/client/components/setting-row-actions.fixtures.tsx`. Do NOT "clean this up" into a local
 // `const isDev = …`: a module-local hoist is exactly what breaks the fold.
 //
 // THE FOUR ARMS, exactly:

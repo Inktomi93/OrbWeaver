@@ -58,7 +58,7 @@ async function materialize(
   // refusal is ALREADY owned twice — `blockEgress` (infra/network/egress.ts:624) securityEvent's every
   // `EgressBlockedError` before it throws, and the caller's `absorbInlineReplyImages`
   // (domain/chat/engine/engine.ts:1498) emits the `reply_image_failed` bus warning the author reads as "the
-  // picture didn't save" (pinned: tests/server/domain/chat/engine/inline-reply-images.suite.int.test.ts:240).
+  // picture didn't save" (pinned: tests/legacy/server/domain/chat/engine/inline-reply-images.suite.int.test.ts:240).
   // The same reasoning and the same marker sit on the sibling fetch at egress.ts:530. Ends if a refusal can
   // reach here un-securityEvent'd, or if the engine stops emitting that warning.
   try {

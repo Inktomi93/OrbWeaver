@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 // The card identity hash's ONE home — `@orb/server/primitives` is the server-only-PURE bottom tier
 // (`.dependency-cruiser.cjs`: node:* + db + contracts + kit, reaching up to nothing), so importing it
 // downward from a factory pulls `node:crypto` and two contracts, never a domain graph. D9 names this
-// subpath family canonical and 19 of them are already imported across `tests/server/**`.
+// subpath family canonical and 19 of them are already imported across `tests/legacy/server/**`.
 import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";

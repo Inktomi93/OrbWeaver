@@ -13,7 +13,7 @@
 //   2. THE BLINDNESS GUARD CHANGED MECHANISM. The legacy `finalize` self-guarded on a REAL-TREE ANCHOR
 //      (`fileLoaded(packages/db/src/schema/index.ts)`) so a conformance mini-project could not "prove" the
 //      founding file rotted. The final health policy has no anchor: it narrows its own POPULATION to the
-//      founding file (`{ in: ["@tests"], under: ["tests/client/lib/**"], named: ["motion-stats.ct.tsx"] }`)
+//      founding file (`{ in: ["@tests"], under: ["tests/legacy/client/lib/**"], named: ["motion-stats.ct.tsx"] }`)
 //      and declares `execution: "entire-population"`, so a narrowed request defers it. Over a two-file
 //      fixture the two therefore disagree by design, which is why ARM A+B are replayed against the
 //      occurrence policy and ARM C gets its own successor proof below with the legacy anchor present.

@@ -21,7 +21,7 @@ The pin holds. While chats.anchorPersonaId names a persona whose owner left the 
 
 Persona deletes heal. A deleted default moves to the last-played persona, else the newest remaining, and the result names it so the client says so. A seat that held the deleted persona is re-seated with its owner's default, else last played.
 
-Card and preset {{user}} resolution from the two columns is unchanged (ADR 0250, ADR 0284), and the test code of tests/server/domain/chat/persona-resolution.suite.int.test.ts stays untouched and green; its comments may change. Homes: start-chat.ts resolveFoundingAnchor, invites.ts resolveJoinerPersona, compose/chat.ts createTurnPersonaResolver, persona/persistence/queries.ts loadPinnedPersonaView, substrate/participants-humans.ts resolveAnchorState, persona/verbs/remove.ts.
+Card and preset {{user}} resolution from the two columns is unchanged (ADR 0250, ADR 0284), and the test code of tests/legacy/server/domain/chat/persona-resolution.suite.int.test.ts stays untouched and green; its comments may change. Homes: start-chat.ts resolveFoundingAnchor, invites.ts resolveJoinerPersona, compose/chat.ts createTurnPersonaResolver, persona/persistence/queries.ts loadPinnedPersonaView, substrate/participants-humans.ts resolveAnchorState, persona/verbs/remove.ts.
 
 ## Consequences
 

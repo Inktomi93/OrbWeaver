@@ -25,7 +25,7 @@ import type { DeliveredCue } from "../../../packages/server/src/domain/chat/cont
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { createRunChatTurnBridge } from "../../../packages/server/src/entry/compose/chat.ts";
-import { fakeConnection, fakeDeps } from "../../../tests/inference/_support.ts";
+import { fakeConnection, fakeDeps } from "../../../tests/legacy/inference/_support.ts";
 import { http, jsonl, waitFor } from "./_kit.ts";
 
 const BASE_URL = "http://127.0.0.1:28111/v1";

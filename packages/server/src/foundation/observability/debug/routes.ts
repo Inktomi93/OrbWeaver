@@ -8,7 +8,7 @@
 // this middleware admits reads the whole deployment. Two credentials pass and nothing else: an OWNER
 // SESSION (`AdminAuthChecker`) or the `x-debug-token` operator secret. An un-credentialed caller must never
 // pass in any AUTH_MODE, with or without a configured token; that invariant's enforcer is
-// `tests/server/entry/debug-gate.suite.test.ts` (AUTHFIX-2 — it did not hold until 2026-08-07).
+// `tests/legacy/server/entry/debug-gate.suite.test.ts` (AUTHFIX-2 — it did not hold until 2026-08-07).
 //
 // A DELEGATED `admin` IS NOT ADMITTED (2026-09-20, D17): this is BOX-OPERATOR scope. The session arm's
 // verdict (`entry/auth/seam.ts::debugGateAdmits`) asks `can(p,'owner',global)`, one rung narrower than every
@@ -123,7 +123,7 @@ const bugReportInput = z.object({
  * one. A media-type PREFIX test, lowercased — a legal `; charset=utf-8` must still pass.
  *
  * The READ probes are deliberately untouched: they carry no body, and a cross-site page cannot read their
- * response. ENFORCER: `tests/server/foundation/observability/debug/routes.int.test.ts`, the content-type
+ * response. ENFORCER: `tests/legacy/server/foundation/observability/debug/routes.int.test.ts`, the content-type
  * belt describe (all four simple types + the no-content-type arm, with JSON positive controls).
  */
 const bugReportJsonOnly: MiddlewareHandler = (c, next) => {
@@ -471,7 +471,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     // type-checked clean and every `?backend=` read silently returned the WHOLE ring. A filter that answers
     // "everything" to a narrowing ask is a lying instrument, which is worse than an absent one. Spelling the
     // object as `WireCaptureFilter` makes the next divergence a COMPILE error rather than a silent superset;
-    // the behavioural half is pinned in `tests/server/foundation/observability/debug/routes.int.test.ts`.
+    // the behavioural half is pinned in `tests/legacy/server/foundation/observability/debug/routes.int.test.ts`.
     const chatId = c.req.query("chatId");
     const filter: WireCaptureFilter = {
       chatId: chatId === undefined ? undefined : castId<ChatId>(chatId),

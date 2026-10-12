@@ -1,11 +1,13 @@
 // Visitor-fed service-contract and domain-test call reconciliation for contract verb coverage.
 import type { CallExpression, InterfaceDeclaration, Node, Type } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
+import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineFact } from "../contract/fact.ts";
 import { unwrapExpression } from "./ast-read.ts";
 
 const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
-const DOMAIN_TEST_RE = /\/tests\/server\/domain\/(?<domain>[^/]+)\//u;
+// A legacy domain test (`LEGACY_TEST_ROOT`) still proves its verbs until the rebuilt suite replaces it.
+const DOMAIN_TEST_RE = /\/tests\/(?:legacy\/)?server\/domain\/(?<domain>[^/]+)\//u;
 const SERVICE_FACTORY_RE = /^create[A-Z].*Service$/u;
 const SERVICE_CONTRACT_SUFFIX_RE = /\/contract\/service\.ts$/u;
 
@@ -283,7 +285,10 @@ function reconcileContractVerbPresence(interfaces: readonly InterfaceDeclaration
 
 export const contractVerbPresenceFact = defineFact({
   id: "contract-verb-presence",
-  population: { in: ["@server", "@tests"], under: ["packages/server/src/domain/**", "tests/server/domain/**"] },
+  population: {
+    in: ["@server", "@tests", "@legacy-tests"],
+    under: ["packages/server/src/domain/**", "tests/server/domain/**", `${LEGACY_TEST_ROOT}/server/domain/**`],
+  },
   analysis: "types",
   resources: [],
   create: (ctx) => {

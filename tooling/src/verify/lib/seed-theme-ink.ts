@@ -79,7 +79,7 @@
 // themes/light.json = the light arm, everything else a [data-theme] override) is tokens.build.ts's
 // decision, and re-deriving it here would be a second home for it that drifts the first time the
 // build changes. The emitted stylesheet is what the BROWSER resolves, so judging it is judging the
-// shipped pixel; freshness against tokens.json is separately machine-enforced (tests/ui/tokens).
+// shipped pixel; freshness against tokens.json is separately machine-enforced (tests/legacy/ui/tokens).
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import { atRulesContaining, rulesContaining, selectorSubject, splitSelectorList } from "./css-rules.ts";

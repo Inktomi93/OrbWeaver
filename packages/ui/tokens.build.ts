@@ -2,7 +2,7 @@
 // design-value source; this script derives THREE artifacts — src/styles/theme.css (the Tailwind v4
 // @theme block + the [data-theme] seed blocks), src/tokens/index.ts (the typed TS map), and
 // src/tokens/themes.gen.ts (the seed value-sets as TS, re-exported by index). The generated artifacts
-// are committed; tests/ui/tokens/index.test.ts re-runs generateArtifacts() and diffs — hand-editing any
+// are committed; tests/legacy/ui/tokens/index.test.ts re-runs generateArtifacts() and diffs — hand-editing any
 // output, or editing tokens.json without regenerating, FAILS the test ("derived, never hand-authored"
 // as a machine invariant, not a hope). Run: pnpm --filter @orb/ui tokens:build
 //
@@ -342,7 +342,7 @@ export function renderGeneratedCss(tokens: readonly GeneratedCssValue[]): string
  * token. The floor answers a COARSE-POINTER PLATFORM fact (iOS's focus zoom), and every fine arm in this
  * block is authored BELOW that floor on purpose — the fine field steps are 15px and 13px. Flooring them
  * here would enlarge every desktop form and delete the dense step outright, which is the failure
- * `tests/ui/primitives/input/input.ct.tsx`'s fine-pointer case exists to catch.
+ * `tests/legacy/ui/primitives/input/input.ct.tsx`'s fine-pointer case exists to catch.
  */
 function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
   if (overrides.length === 0) {

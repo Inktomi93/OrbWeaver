@@ -324,7 +324,7 @@ function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: Deploymen
 // THIS EXEMPTION IS ENFORCED, NOT ASSERTED (constitution §2 — a prose-only boundary is a wish). Its whole
 // premise is "the gate ran first", and until AUTHFIX-2 (2026-08-07) that premise was FALSE: the gate's admin
 // arm admitted the un-credentialed owner fallback, so these reads served anyone who could reach the port.
-// The enforcer is now `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × Host × token state,
+// The enforcer is now `tests/legacy/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × Host × token state,
 // driven through the real registrar. The exemption ENDS if the admitted set ever widens past the box owner:
 // any other per-user principal here makes this a cross-tenant read of arbitrary caller-supplied ids, and
 // then these reads must take an ownerId and filter on it. Turn that suite red before widening anything.

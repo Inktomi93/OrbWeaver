@@ -197,7 +197,7 @@ every reader in the same commit.
 identity (an invite handle, a persona name, an API-key label). `off` is a decision, not an omission.
 
 **Enforcement.** N2/N5/N6 plus "every interactive role has a non-empty name" are machine-checked by
-`tests/client/a11y/accessible-name-quality.suite.ct.tsx` over a growing roster of real feature stories;
+`tests/legacy/client/a11y/accessible-name-quality.suite.ct.tsx` over a growing roster of real feature stories;
 adding a surface there is how a new pane joins the contract. N1/N3/N4/N7/N8/N9 are REVIEW rules — a CT that
 tried to score whether a verb is the user's verb would be vacuous or wrong. The suite plants each defect class
 as its own negative control, so a silently-broken predicate cannot make every surface pass.

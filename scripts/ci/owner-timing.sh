@@ -80,7 +80,7 @@ set +e
   "$PNPM_BIN" install --frozen-lockfile
   "$PNPM_BIN" exec playwright install chromium
   "$PNPM_BIN" --filter @orb/showcase-plugins build
-  "$PNPM_BIN" test:ct tests/client/lib/motion-stats.ct.tsx
+  "$PNPM_BIN" test:ct --legacy tests/legacy/client/lib/motion-stats.ct.tsx
   test reports/ct-flaky.json -nt "$run_dir/source.sha"
   "$PNPM_BIN" exec node scripts/ci/owner-timing-receipt.ts reports/ct-flaky.json "$TIMING_HARDWARE_CLASS"
 ) > "$run_dir/measurement.log" 2>&1

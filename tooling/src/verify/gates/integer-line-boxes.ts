@@ -16,10 +16,10 @@
 // 2026-09-19 the vault held 26 `spacing.*` tokens, all snapped and all integer at the 16px root, of which
 // 7 carry an `orb.pointerFine` arm, also all integer. (#1711's body said 27+8; re-derive with
 // `python3 -c` over `packages/ui/src/tokens/tokens.json` rather than trusting either number — the SET is
-// policed here, the count is not.) `tests/ui/tokens/index.test.ts` keeps its claim as the weaker twin.
+// policed here, the count is not.) `tests/legacy/ui/tokens/index.test.ts` keeps its claim as the weaker twin.
 //
 // DECLARED LIMITS: the generated theme.css is the ONE emitter of the leading scale and is freshness-enforced
-// by tests/ui/tokens, so it is carved out of ARM C rather than re-judged here (the `no-raw-color-in-css`
+// by tests/legacy/ui/tokens, so it is carved out of ARM C rather than re-judged here (the `no-raw-color-in-css`
 // precedent — an authoritative home is a population carve-out, never a waiver); box = font-size via
 // leading-none is legal when the step is integer; the chat reading surface rides a waiver, below.
 //
@@ -463,7 +463,7 @@ function judgeCssDeclaration(scan: CssScan, declaration: CssDeclarationFact): vo
 }
 
 /** ARM C over the whole authored corpus, MINUS the generated theme — the ONE emitter of the leading scale,
- *  freshness-enforced by tests/ui/tokens, and an authoritative home is a population carve-out rather than a
+ *  freshness-enforced by tests/legacy/ui/tokens, and an authoritative home is a population carve-out rather than a
  *  waiver (the `no-raw-color-in-css` precedent). */
 function judgeStylesheets(ctx: GatePolicyContext, inventory: CssFacts, scale: TypeScale): void {
   const declarationsByFile = Map.groupBy(inventory.declarations, (declaration) => declaration.file);

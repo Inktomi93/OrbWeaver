@@ -1,6 +1,6 @@
 // CT kit — THE INK-TO-INK VOID of a library row, and the one home for that measurement.
 //
-// Minted in `tests/client/features/tag/components/tag-collection-rows.ct.tsx` for #1824 and lifted here
+// Minted in `tests/legacy/client/features/tag/components/tag-collection-rows.ct.tsx` for #1824 and lifted here
 // unchanged when #1838 needed the same matrix on the roster rows. The
 // approved config-collections design makes this measurement owed by EVERY
 // collection row — "Rows at pane width carry more air than at 307px — the width matrix (both ends + the

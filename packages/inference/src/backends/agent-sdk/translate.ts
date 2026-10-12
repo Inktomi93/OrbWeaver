@@ -197,7 +197,7 @@ function knobOf(name: string): AdjustedKnob | undefined {
  * so a user writing a `declared.sampling` block on a `claude-sub` connection widens the axis with no code
  * change and no review, and the silent path opens for them alone. The guard was one unasserted data row;
  * now the code holds it and the row is pinned besides
- * (`tests/inference/conformance/unsupported-settings.suite.test.ts`).
+ * (`tests/legacy/inference/conformance/unsupported-settings.suite.test.ts`).
  */
 function droppedSamplerWarnings(resolved: ResolvedChatKnobs): ResolvedWarning[] {
   const out: ResolvedWarning[] = [];

@@ -182,7 +182,8 @@ is RED.
 prefix swap (`packages/<pkg>/src/` ↔ `tests/<pkg>/`); the file name says the behaviour the test proves, not the
 module it touches. One test file may cover several modules of its directory, and one module may be proved by several
 files. `tests/tooling/<tool>/<dir>/` mirrors `tooling/src/<tool>/<dir>/` when that tool exists (§9); flat
-`tests/tooling` files and directories with no tool twin are exempt. `support/` and `e2e/` mirror nothing. A
+`tests/tooling` files and directories with no tool twin are exempt. `support/` and `e2e/` mirror nothing. `legacy/`
+holds the tests not yet rebuilt and takes no new file (`Spine-Testing.md` §2). A
 `.suite.*` kind asserts one property across many modules, so it may sit anywhere in its package tree. **Kind by
 suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) · `.contract.test.ts` (golden/surface) · `.test-d.ts`
 (types) · `.suite.test.ts`/`.suite.int.test.ts` (cross-cutting property suites). The node lanes are Vitest

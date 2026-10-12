@@ -46,7 +46,7 @@
 // so the ruling above never fired at the width most people run, and 1920 got a 33px slice of a face. Both
 // halves of the pair moved to `--reading-measure-min` — the design law's low reading bound, 65ch — which
 // keeps the guarantee byte-for-byte and buys the band ~68px at 1280 / ~210px at 1920. Pinned by geometry,
-// not by property, in tests/client/features/chat/components/home-recents-tile-body.ct.tsx (this component
+// not by property, in tests/legacy/client/features/chat/components/home-recents-tile-body.ct.tsx (this component
 // has no CT file of its own — it is pinned through the tile body that renders it; the citation this line
 // replaced named a path that has never existed on the tree).
 //

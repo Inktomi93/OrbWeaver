@@ -106,8 +106,17 @@ export function vitestTypecheckGroupName(world: TestCompilerWorld): `types-${Tes
   return `${VITEST_TYPECHECK_GROUP_PREFIX}${world}`;
 }
 
-export const VITEST_TYPECHECK_GROUP_NAMES: readonly `types-${TestCompilerWorld}`[] = Object.freeze(
-  [...new Set(TEST_KIND_DEFINITIONS.filter(({ family }) => family === "type").map(({ compilerWorld }) => vitestTypecheckGroupName(compilerWorld)))].toSorted(),
+/** The legacy folder's type tests compile in the legacy world programs, so each world has a second typecheck group. */
+export function vitestLegacyTypecheckGroupName(world: TestCompilerWorld): `types-legacy-${TestCompilerWorld}` {
+  return `${VITEST_TYPECHECK_GROUP_PREFIX}legacy-${world}`;
+}
+
+const TYPE_TEST_WORLDS: readonly TestCompilerWorld[] = [
+  ...new Set(TEST_KIND_DEFINITIONS.filter(({ family }) => family === "type").map(({ compilerWorld }) => compilerWorld)),
+];
+
+export const VITEST_TYPECHECK_GROUP_NAMES: readonly (`types-${TestCompilerWorld}` | `types-legacy-${TestCompilerWorld}`)[] = Object.freeze(
+  TYPE_TEST_WORLDS.flatMap((world) => [vitestTypecheckGroupName(world), vitestLegacyTypecheckGroupName(world)]).toSorted(),
 );
 export const VITEST_RUNTIME_ONLY_GROUP_FILTER = `!${VITEST_TYPECHECK_GROUP_PREFIX}*`;
 export const VITEST_RUNTIME_FAMILY_GROUPS: readonly TestFamily[] = Object.freeze(

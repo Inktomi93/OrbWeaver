@@ -121,7 +121,7 @@ export interface AuthSeam {
  * the seam authenticates one value while logout revokes another and the expiry-slide re-issues a third:
  * this reader, `entry/http/auth-routes.ts` (logout → `revokeByToken`), and `entry/app.ts` (the slide's
  * `Set-Cookie` re-issue). It was three byte-identical copies; the drift-equality proof is
- * `tests/server/entry/session-cookie-parity.suite.test.ts`, which drives all three paths over one crafted
+ * `tests/legacy/server/entry/session-cookie-parity.suite.test.ts`, which drives all three paths over one crafted
  * header per transport. Do not re-inline a copy.
  *
  * It reads ONLY the transport's own name: an https request never reads the prefix-less http name, which a
@@ -418,7 +418,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * Behind the gate sit principal-blind whole-db reads whose `@owner-scope-ok` exemption
    * (`foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
    *
-   * The enforcer is `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × peer × posture × token
+   * The enforcer is `tests/legacy/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × peer × posture × token
    * state, asserted through the REAL registrar. Do not weaken this without turning that suite red first.
    *
    * TOTAL — no throw, no await, no I/O: a record lookup plus the kernel's own caught verdict. The gate's

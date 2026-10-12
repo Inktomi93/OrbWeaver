@@ -1,6 +1,6 @@
 // E2E (@live) — "the group modes work the way they are MEANT to", proven end-to-end through the real
 // stack with real turns. The arbitration ENGINE is pure and exhaustively unit-tested
-// (tests/server/domain/chat/engine/select-speakers.test.ts pins every policy, the soft ban-last yield, the
+// (tests/legacy/server/domain/chat/engine/select-speakers.test.ts pins every policy, the soft ban-last yield, the
 // talkativeness weighting and the forced/@mention hard override) — this spec does NOT re-test it. Its job
 // is the other claim: that each mode still MANIFESTS after the whole stack has had its say (roster load →
 // group config → arbitration → the per-speaker round driver → the engine → canon).

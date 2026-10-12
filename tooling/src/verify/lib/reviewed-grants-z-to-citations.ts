@@ -292,12 +292,4 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     why: "The canonical collection factory owns the one raw useInfiniteQuery import behind every paginated browse surface.",
     endsWhen: "the factory stops importing useInfiniteQuery, moves, or another raw infinite-query home is introduced",
   },
-  {
-    id: "query-machine-seals:ct-stories",
-    policyId: "query-machine-seals",
-    subject: "tests/client/lib/_ct-stories.tsx",
-    operation: "raw-useMutation-import",
-    why: "The CT story reproduces the app MutationCache error-toast channel and must drive a raw mutation without inserting the production entity-mutation belt into the behavior under test.",
-    endsWhen: "the CT story stops importing useMutation or the tested global mutation-error channel moves to a different harness",
-  },
 ];

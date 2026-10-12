@@ -52,7 +52,8 @@ const BRIDGE = "packages/client/src/lib/agent-bridge.ts";
 const READY = "packages/client/src/lib/app-ready-signal.ts";
 const MAIN = "packages/client/src/main.tsx";
 const ROUTER = "packages/client/src/routes/router.tsx";
-const CT = "tests/client/lib/agent-bridge.ct.tsx";
+// The mounted CT is a legacy test until the client CTs are rebuilt; this policy reads its proof markers there.
+const CT = "tests/legacy/client/lib/agent-bridge.ct.tsx";
 /** Anchor preference order: the door first, then the entry points, then the proof surface. */
 const SUBJECTS = [BRIDGE, MAIN, ROUTER, READY, CT] as const;
 const CLIENT_SOURCE = "packages/client/src/";
@@ -145,7 +146,7 @@ export const gate = defineGate({
   family: "agent-bridge-lock",
   authority: "hard",
   severity: "error",
-  population: { in: ["@client", "@tests"], under: ["packages/client/src/**", CT] },
+  population: { in: ["@client", "@legacy-tests"], under: ["packages/client/src/**", CT] },
   analysis: "syntax",
   execution: "entire-population",
   facts: [],

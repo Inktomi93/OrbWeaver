@@ -110,15 +110,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
       "turn slots are written by the stream store itself rather than applied from bus events, or the applier moves — either way this row stops being consumed.",
   },
   {
-    id: "chat-stream-writes-in-bus-only:chat-ct-stories",
-    policyId: "chat-stream-writes-in-bus-only",
-    subject: "tests/client/features/chat/_ct-stories.tsx",
-    operation: "chat-stream-write-handle",
-    why: "the chat CT story harness seeds turn state directly because a component test mounts without a live bus: there is no `applyChatBusEvent` producer in a story, so the write api is how a phase gets rendered at all. This site is NEW EVIDENCE from the conversion — the legacy check keyed on the literal `#state` specifier and this file imports through `@orb/client/state`, so it was never judged.",
-    endsWhen:
-      "the CT stories seed turn state through a bus-event fixture instead of the write handle (the honest fix, and the reason this is a row rather than a population exclusion).",
-  },
-  {
     id: "client-cache-surgery-only-in-data:create-entity-mutation-cancel",
     policyId: "client-cache-surgery-only-in-data",
     subject: "packages/client/src/data/create-entity-mutation.ts",

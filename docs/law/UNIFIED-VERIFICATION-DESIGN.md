@@ -478,7 +478,9 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 - **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** A type, lint, boundary or file-local structure red in the staged change ⇒ cannot commit (§4.3).
 - **pre-push → the GitHub sync guard only.** Whole-tree static and behavioral checks run in CI, not again during local push.
 - **CI → application qualification** (`.github/workflows/ci.yml`) on every push to main and every PR: `pnpm check --application`, the
-  push tier's whole-only checks, `test:node` and the CT suite sharded across runners, and `e2e:smoke`. Its
+  push tier's whole-only checks, `test:node` and the CT suite sharded across runners, and `e2e:smoke`. The legacy test folder
+  (`Spine-Testing.md` §2) runs as its own `node-legacy` and `ct-legacy` jobs; `scripts/ci-shard.ts` with `--population=legacy` cuts it from
+  the same native collection as the strict `node` and `ct` jobs. Its
   `ci-ok` job is the required check, and `pnpm release` refuses a commit whose run is not green. Nightly,
   `pnpm verify --full` runs on main when main changed since its last successful full qualification.
 
@@ -490,7 +492,8 @@ beside an explicit tier is only the selector, so the related tests of the `chang
 commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
 checkout's run.
 
-- The type check runs every native program whose import closure contains a changed file.
+- The type check runs every native program whose import closure contains a changed file, except the legacy test programs.
+- The selection drops paths under the legacy test folder, and the related-test lane excludes it; CI's legacy jobs run it.
 - The structure walk runs the file-local policies. It defers and prints the cross-file policies.
 - A whole-only stage defers when its path trigger matches and skips when it does not
   (`tooling/src/verify/lib/registry-triggers.ts`). Other scoped selections run a triggered whole command.

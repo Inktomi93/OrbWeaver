@@ -13,13 +13,13 @@ paths:
 ## Routers and transport
 
 - A new tRPC router or procedure needs a PROBED or EXEMPT(reason) row in
-  `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`; the sweep fails on an unclassified
+  `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`; the sweep fails on an unclassified
   procedure. A procedure with no foreign id is not automatically EXEMPT. Probe it with a marker or a
   two-distinct-value seed. An owner-scoped update or void-returning write also needs a post-sweep
   re-read of the owner's row; the sweep's marker-leak check proves read authority only.
 - A new router or procedure also needs three coupled sites in the same change: the `transport/trpc/
   context.ts` Services member, the `router.ts` mount, and the compose services key-count test
-  (`tests/server/entry/compose/services.test.ts`). Miss one and the router is unreachable or the count
+  (`tests/legacy/server/entry/compose/services.test.ts`). Miss one and the router is unreachable or the count
   test fails.
 - The client turn surface (`transport/trpc/stream/**`) is bus-driven: send/swipe/continue carry no read
   data. Advance a resume cursor at delivery, never at enqueue, so a shed frame stays replayable.

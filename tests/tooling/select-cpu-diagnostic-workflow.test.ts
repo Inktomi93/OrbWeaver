@@ -143,9 +143,9 @@ test("manual Select diagnostics stay outside qualification and preserve native e
     ["ORB_SELECT_CPU_PROFILING"]: "${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}",
   });
   expect(native?.run).toBe(
-    "pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0",
+    "pnpm test:ct --legacy tests/legacy/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0",
   );
-  expect(diagnostic?.run).toBe("pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0");
+  expect(diagnostic?.run).toBe("pnpm test:ct --legacy tests/legacy/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0");
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
   expect(uploads.map((step) => step.with?.["name"])).toEqual(["select-native-control", "select-cpu-diagnostic-only"]);
   expect(uploads.map((step) => step.if)).toEqual([

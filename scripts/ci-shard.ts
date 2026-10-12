@@ -7,9 +7,13 @@ import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { toRepoRelative } from "@orb/tooling/floor/testing/scoped-run-paths";
+import type { ApplicationTestPopulation } from "@orb/tooling/floor/testing/test-population";
+import { APPLICATION_TEST_POPULATIONS, isLegacyTestPath, LEGACY_SCOPED_FLAG } from "@orb/tooling/floor/testing/test-population";
 import type { NativeDurationShardCollection, NativeNodeShard, ScopedTestRunner } from "@orb/tooling/verify";
 import { balanceNativeFiles, collectCtCases, collectNode, ownScheme, readNativeCtCases, requireNativeSelection } from "@orb/tooling/verify";
 import { z } from "zod";
+
+const POPULATION_OPTION = "--population=";
 
 const BASELINE = z.object({
   node: z.array(z.object({ file: z.string(), durationMs: z.number().nonnegative() })),
@@ -64,12 +68,25 @@ function runE2eShard(root: string, shard: NativeNodeShard, list: boolean, report
       }).status ?? 2);
 }
 
+const USAGE = `ci-shard requires node|ct|e2e <index>/<count> [--population=${APPLICATION_TEST_POPULATIONS.join("|")}] [--list]`;
+
 await runTool(() => {
-  const [runner, operand, option] = process.argv.slice(2);
+  const [runner, operand, ...options] = process.argv.slice(2);
   const match = /^(\d+)\/(\d+)$/u.exec(operand ?? "");
-  if (runner === undefined || !["node", "ct", "e2e"].includes(runner) || match === null || (option !== undefined && option !== "--list")) {
-    throw new UsageError("ci-shard requires node|ct|e2e <index>/<count> [--list]");
+  const populationOption = options.find((option) => option.startsWith(POPULATION_OPTION));
+  const population = populationOption === undefined ? "strict" : populationOption.slice(POPULATION_OPTION.length);
+  const known = options.every((option) => option === "--list" || option === populationOption);
+  if (
+    runner === undefined ||
+    !["node", "ct", "e2e"].includes(runner) ||
+    match === null ||
+    !known ||
+    !isApplicationTestPopulation(population) ||
+    (runner === "e2e" && populationOption !== undefined)
+  ) {
+    throw new UsageError(USAGE);
   }
+  const list = options.includes("--list");
   const root = process.cwd();
   const shard = { index: Number(match[1]), count: Number(match[2]) };
   const slot = openRunSlot(root, "ci-shard");
@@ -78,26 +95,33 @@ await runTool(() => {
   if (slot.racing.length > 0) {
     process.stderr.write(`[ci-shard] CONCURRENT run(s): ${slot.racing.join(", ")} — each keeps its own slot\n`);
   }
-  const code =
-    runner === "e2e"
-      ? runE2eShard(root, shard, option === "--list", reportFile)
-      : runWeightedShard(root, runner, shard, { list: option === "--list", reportFile });
+  const code = runner === "e2e" ? runE2eShard(root, shard, list, reportFile) : runWeightedShard(root, runner, shard, { list, reportFile, population });
   publishRunSlot(root, slot, [{ alias: "ci-shard.json", target: "ci-shard.json" }]);
   return ownScheme(code);
 });
 
-function runWeightedShard(
-  root: string,
-  runner: string,
-  shard: NativeNodeShard,
-  { list, reportFile }: { readonly list: boolean; readonly reportFile: string },
-): number {
+function isApplicationTestPopulation(value: string): value is ApplicationTestPopulation {
+  return (APPLICATION_TEST_POPULATIONS as readonly string[]).includes(value);
+}
+
+interface WeightedShardOptions {
+  readonly list: boolean;
+  readonly reportFile: string;
+  readonly population: ApplicationTestPopulation;
+}
+
+// The legacy folder is its own CI job (item 961): each population is cut from ONE native collection, so the strict and
+// legacy jobs together run exactly what the application runner collects.
+function runWeightedShard(root: string, runner: string, shard: NativeNodeShard, { list, reportFile, population }: WeightedShardOptions): number {
   const baseline = BASELINE.parse(JSON.parse(readFileSync(join(root, "tooling/ci-duration-weights.json"), "utf8")));
   const args = runner === "node" ? ["--config=vitest.runtime.config.ts", "--exclude=tests/tooling/**"] : ["--config=playwright-ct.product.config.ts"];
   const nativeRunner = runner === "node" ? "node" : "ct";
-  const whole = collectBalancedPopulation(nativeRunner, root, args);
+  const inPopulation = (file: string): boolean => isLegacyTestPath(file) === (population === "legacy");
+  const collected = collectBalancedPopulation(nativeRunner, root, args);
+  const whole = { files: collected.files.filter(inPopulation), cases: collected.cases?.filter((row) => inPopulation(row.file)) ?? null };
   const selection = balanceNativeFiles(whole.files, baseline[runner === "node" ? "node" : "ct"], shard);
   const filters = runner === "node" ? [...selection.selected] : selection.selected.map((file) => `${RegExp.escape(file)}$`);
+  const legacyFlag = runner === "ct" && population === "legacy" ? [LEGACY_SCOPED_FLAG] : [];
   const selected = collectBalancedPopulation(nativeRunner, root, [...args, ...filters]);
   requireNativeSelection(selection.selected, selected.files);
   if (whole.cases !== null && selected.cases !== null) {
@@ -108,9 +132,9 @@ function runWeightedShard(
   }
   writeFileSync(
     reportFile,
-    `${JSON.stringify({ runner, ...selection, caseFiles: whole.cases, caseIds: whole.cases?.map((row) => row.id) ?? null, selectedCaseIds: selected.cases?.map((row) => row.id) ?? null }, null, 2)}\n`,
+    `${JSON.stringify({ runner, population, ...selection, caseFiles: whole.cases, caseIds: whole.cases?.map((row) => row.id) ?? null, selectedCaseIds: selected.cases?.map((row) => row.id) ?? null }, null, 2)}\n`,
   );
-  const argv = runner === "node" ? ["test:node", ...filters] : ["test:ct", ...filters, ...args, "--retries=2"];
+  const argv = runner === "node" ? ["test:node", ...filters] : ["test:ct", ...legacyFlag, ...filters, ...args, "--retries=2"];
   return list ? 0 : (runNicedSync("pnpm", argv, { cwd: root, env: testProcessEnv(), stdio: "inherit" }).status ?? 2);
 }
 

@@ -61,7 +61,7 @@ test("bad credentials mint no session (login is a real gate)", async ({ baseURL 
 // so this member is `via:"cookie"`, `role:"user"` — and the gate must refuse them whatever the box's posture
 // is. That is the arm that matters in any multi-human deployment: a logged-in ordinary user must not read
 // principal-blind whole-db probes (and, with WIRE_CAPTURE=on as this stack runs, provider request BODIES).
-// The anonymous/PRODUCTION-posture refusal is the unit suite's (`tests/server/entry/debug-gate.suite.test.ts`
+// The anonymous/PRODUCTION-posture refusal is the unit suite's (`tests/legacy/server/entry/debug-gate.suite.test.ts`
 // — "the PRODUCTION posture refuses the same loopback owner, single-user included"); it cannot be booted here.
 //
 // TIER: deliberately NOT `@smoke` (owner-side ruling 2026-09-02). The push tier would have to boot the whole

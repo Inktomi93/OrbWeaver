@@ -6,7 +6,7 @@
 //   pnpm test:ct corpus-list-header.ct.tsx corpus-context-header.ct.tsx \
 //                  tests/client/features/discovery/components/character-library-surface.ct.tsx --workers=2
 //     → `CT SUMMARY — PASS  ·  4 passed · 0 failed`, exit 0. The third path does not exist (the real file
-//       is tests/client/features/character/surfaces/…), and the run named it NOWHERE. That is the shape
+//       is tests/legacy/client/features/character/surfaces/…), and the run named it NOWHERE. That is the shape
 //       that certified a merge floor over a file nobody opened.
 //   pnpm test:scoped tests/tooling/smoke.test.ts tests/tooling/nope-does-not-exist.test.ts --maxWorkers=4
 //     → `Test Files 1 passed (1)`, exit 0.

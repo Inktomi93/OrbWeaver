@@ -242,7 +242,7 @@ const CONTROL_ASPECT_FLOOR = 1.4;
  *    sanctioned shape from the defect is a coin flip, not a detector.
  *  - `slider`: on this tree `role="slider"` does not land on the track at all — Base UI puts it on the
  *    visually-hidden native `<input type="range">` INSIDE the thumb (receipt:
- *    tests/ui/primitives/slider/slider.ct.tsx:129-131), and ARIA generally puts it on the focusable
+ *    tests/legacy/ui/primitives/slider/slider.ct.tsx:129-131), and ARIA generally puts it on the focusable
  *    THUMB of a range widget, which is a circle by design. Judging the track would mean keying on a
  *    product-specific `data-slot`, and this walker hardcodes no product name by law. So the track's
  *    silhouette is out of this lens's reach and is DECLARED so rather than approximated.

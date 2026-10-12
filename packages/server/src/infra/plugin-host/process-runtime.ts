@@ -802,37 +802,37 @@ const PLUGIN_INSTANCE_KEYS = ["tools", "transforms", "events", "pubsub", "surfac
 
 const broker = new BrokerClient();
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __terminateManagedPluginBrokerForTest(): Promise<void> {
   return broker.terminateManagedForTest();
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __hasManagedPluginBrokerForTest(): boolean {
   return broker.hasManagedChild();
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __readManagedPluginDirectoryForTest(): string | undefined {
   return broker.managedDirectoryForTest();
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __killManagedPluginWatchdogForTest(): Promise<void> {
   return broker.killWatchdogForTest();
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __killManagedPluginBrokerOnCommandForTest(operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"]): void {
   broker.killManagedOnCommandForTest(operation);
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __killManagedPluginBrokerOnBridgeForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): void {
   broker.killManagedOnBridgeForTest(operation);
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __pauseManagedPluginBridgeDeliveryForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): {
   readonly reached: Promise<void>;
   readonly release: () => void;
@@ -840,12 +840,12 @@ export function __pauseManagedPluginBridgeDeliveryForTest(operation: Extract<Bro
   return broker.pauseBridgeDeliveryForTest(operation);
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __pauseManagedPluginConnectChaseForTest(): { readonly reached: Promise<void>; readonly release: () => void } {
   return broker.pauseConnectChaseForTest();
 }
 
-/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
 export function __countLiveAuthorityTailsForTest(): number {
   return liveAuthorityTails;
 }

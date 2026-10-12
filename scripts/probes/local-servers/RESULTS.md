@@ -4,7 +4,7 @@ Rig: `rig.sh`, CPU only, `--cpus 4 --memory 6g` per container, loopback ports 28
 on the run date: Ollama `0.35.1`, llama.cpp server `b11347-5fc4f3c8c`, KoboldCpp `1.122.1`. Models:
 Qwen2.5-0.5B-Instruct Q4_K_M, SmolVLM-256M-Instruct Q8_0 + mmproj, nomic-embed-text-v1.5 Q8_0; on Ollama
 `qwen2.5:0.5b`, `moondream`, `nomic-embed-text`. Raw evidence: `results/<arm>.jsonl` (gitignored) and the
-recorded advertisements in `tests/inference/catalog/_local-servers-fixtures.ts`.
+recorded advertisements in `tests/legacy/inference/catalog/_local-servers-fixtures.ts`.
 
 ## Detected versus proven
 

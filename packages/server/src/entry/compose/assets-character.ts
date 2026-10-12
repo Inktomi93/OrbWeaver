@@ -124,7 +124,7 @@ export interface AssetsCharacterComposeResult {
  *  make relitigating impossible — while its premise does not cover a pointer that is already null, which is
  *  exactly the state the #461 blob-reset leaves behind and the state the heal now repairs.
  *
- * @public Test-anchored module surface; the pick law is pinned at `tests/server/entry/compose/assets-character.int.test.ts`.
+ * @public Test-anchored module surface; the pick law is pinned at `tests/legacy/server/entry/compose/assets-character.int.test.ts`.
  */
 export function createPersonaSeedLatch(deps: {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;

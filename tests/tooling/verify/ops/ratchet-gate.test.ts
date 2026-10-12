@@ -35,6 +35,7 @@ test("isRatchetShaped: a fake NEVER-SEEN-BEFORE tooling file matches by NAME alo
 
 test("isRatchetShaped: an exact-tuple contract pin matches by SUFFIX, a plain unit test under the same tree does not", () => {
   expect(isRatchetShaped("tests/contracts/theme/card-embeddable-partition.contract.test.ts")).toBe(true);
+  expect(isRatchetShaped("tests/legacy/contracts/theme/card-embeddable-partition.contract.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/contracts/theme/card-embeddable-partition.suite.test.ts")).toBe(false);
 });
 

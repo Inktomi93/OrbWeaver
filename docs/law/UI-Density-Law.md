@@ -168,7 +168,7 @@ A ruled call site is one exact `(subject, operation)` row in `tooling/src/verify
 
 ### 5.3 Computed-value CT assertions
 
-`tests/ui/density-tier.suite.ct.tsx`. Authored-STRING assertions stay green through visual regressions; every assertion here reads back the RENDERED value:
+`tests/legacy/ui/density-tier.suite.ct.tsx`. Authored-STRING assertions stay green through visual regressions; every assertion here reads back the RENDERED value:
 
 1. `getComputedStyle(card).paddingTop` equals the document-resolved `--spacing-row` under `tier="instrument"` — resolve the var from the same document, never compare to a hardcoded px.
 2. RELATIONAL: for the same primitive, form-tier padding > instrument-tier padding. This survives any future token retune; an absolute assertion does not.

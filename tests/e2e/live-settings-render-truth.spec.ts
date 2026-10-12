@@ -111,7 +111,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // plate's CAS hash landed) — this ties the DOM assertion below to real server truth having committed,
     // and absorbs the debounce+save+bus-refetch latency deterministically (no fixed sleep, no race on a bare
     // 10s DOM wait). The hash is asserted NON-EMPTY rather than byte-pinned: it is the plate's content hash,
-    // which `tests/default-content/index.test.ts` owns — pinning it twice would be a second home for it.
+    // which `tests/legacy/default-content/index.test.ts` owns — pinning it twice would be a second home for it.
     await expect.poll(async () => (await getAppearanceTheme()).config.appearance.backgroundAssetHash.length > 0, { timeout: WAIT_SURFACE_MS }).toBe(true);
 
     // The shell root gains `data-has-bg-image` once that server truth flows back through the query — the

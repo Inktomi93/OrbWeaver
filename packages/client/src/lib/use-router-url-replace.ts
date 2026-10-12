@@ -12,7 +12,7 @@ export function useRouterUrlReplace(): (href: string) => void {
       hash: url.hash.slice(1),
     });
     // navigate's href door parses and stringifies search; this handoff must retain the surviving bytes.
-    // @orb-waive caught-failure-ownership(router.commitLocation): false positive: the original rejection is rethrown on the queued microtask error surface, proved by tests/client/lib/use-router-url-replace.dom.test.ts. The classifier excludes nested callbacks. Ends when it recognizes native queued throws.
+    // @orb-waive caught-failure-ownership(router.commitLocation): false positive: the original rejection is rethrown on the queued microtask error surface, proved by tests/legacy/client/lib/use-router-url-replace.dom.test.ts. The classifier excludes nested callbacks. Ends when it recognizes native queued throws.
     router.commitLocation({ ...next, href, publicHref: href, searchStr: url.search, replace: true, resetScroll: false }).catch((error) => {
       queueMicrotask(() => {
         throw error;

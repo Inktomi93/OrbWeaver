@@ -23,7 +23,7 @@
 // 404s), and `reasoningHostOnly` is consumed only INSIDE the chat ROOM source on the multiplexed socket (not a query),
 // as is the durable `replayChatEvents` replay. So the reasoning-channel projection AND the SSE/replay body
 // strip stay exhaustively DOMAIN-proven (`packages/server/src/domain/chat/substrate/member-visibility.ts` +
-// `tests/server/domain/chat/verbs/read.int.test.ts`), not faked at E2E. This spec proves the security-critical
+// `tests/legacy/server/domain/chat/verbs/read.int.test.ts`), not faked at E2E. This spec proves the security-critical
 // BODY strip end-to-end with a real member + the deception-active GATE — the layer the capstone could not reach.
 
 import type { Handle } from "@orb/kit/ids";
