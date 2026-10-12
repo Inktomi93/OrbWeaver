@@ -91,7 +91,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "surface-a11y-focus": 5,
   "test-determinism": 80,
   "test-file-size": 74,
-  "test-hand-shape": 11,
+  "test-hand-shape": 40,
   "test-mock-doctrine": 33,
   "test-production-clone": 17,
   "test-reach": 112,

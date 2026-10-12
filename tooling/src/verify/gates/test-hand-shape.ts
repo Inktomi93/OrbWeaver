@@ -4,11 +4,15 @@
 // the checker judges (an argument, an initializer, a return, a property value, an assignment, a cast or `satisfies`),
 // one side's type is that hand shape and the other's is declared outside the test tree. Judged by type: the relation
 // of the two types decides the wording (copies, narrows, widens, diverges), never a field name or a count. A shape
-// bound to no production value passes whatever fields it shares. DECLARED LIMIT: only whole-type bindings are seen;
-// a hand shape reached through a mapped or generic wrapper (`Partial<Hand>`) is not unwrapped.
+// bound to no production value passes whatever fields it shares, unless it is a DECLARED COPY: the one exported
+// production shape that is assignable to it and either assignable back, has exactly its field names, or is
+// overridden by it (the hand shape has an optional field). A hand shape that fits several production shapes copies
+// none of them. DECLARED LIMIT: only whole-type bindings are seen; a hand shape reached through a mapped or generic
+// wrapper (`Partial<Hand>`) is not unwrapped, and a hand shape that drifted (renamed or retyped a field) is judged
+// only where a value binds it.
 // FAMILY `contract-derives-not-respells`. Debt: `lib/reviewed-grants-test-hand-shape.ts`.
 import type { InterfaceDeclaration, Node, SourceFile, Type, TypeAliasDeclaration } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
+import { Node as N, SyntaxKind, ts } from "ts-morph";
 import { readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -149,13 +153,22 @@ function bindingAcross(
 
 /** Every site whose one side is a judged hand shape and whose other side is a type declared outside the test tree. */
 function bindingsOf(sites: readonly Node[], candidates: ReadonlyMap<Node, HandShape>, isProduction: (declaration: Node) => boolean): readonly Binding[] {
+  const namedByType = new Map<unknown, boolean>();
+  const isNamed = (type: Type): boolean => {
+    const plain = leaf(type);
+    const known = namedByType.get(plain.compilerType);
+    if (known !== undefined) {
+      return known;
+    }
+    const named = handOf(plain, candidates) !== undefined || declarationsOf(plain).some(isProduction);
+    namedByType.set(plain.compilerType, named);
+    return named;
+  };
   return sites
     .filter((node) => N.isExpression(node))
     .flatMap((site) => {
       const value = site.getType();
-      const named =
-        declarationsOf(leaf(value)).some((declaration) => candidates.has(declaration) || isProduction(declaration)) || leaf(value).getBaseTypes().length > 0;
-      const contextual = named ? site.getContextualType() : undefined;
+      const contextual = isNamed(value) ? site.getContextualType() : undefined;
       if (contextual === undefined) {
         return [];
       }
@@ -170,6 +183,63 @@ const RELATION_BY_DIRECTIONS: Readonly<Record<string, Relation>> = {
   "false:true": "widens",
   "false:false": "diverges",
 };
+
+interface DeclaredShape {
+  readonly node: HandShape;
+  readonly names: ReadonlySet<string>;
+  /** Some property is optional: a defaults-shaped override or patch. */
+  readonly hasOptional: boolean;
+}
+
+/** The properties of a declared plain object shape, or undefined for a union, array, tuple, callable or empty type. */
+function declaredShape(node: HandShape): DeclaredShape | undefined {
+  const type = node.getType();
+  if (!type.isObject() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0) {
+    return;
+  }
+  const properties = type.getProperties();
+  return properties.length === 0
+    ? undefined
+    : {
+        node,
+        names: new Set(properties.map((property) => property.getName())),
+        hasOptional: properties.some((property) => property.hasFlags(ts.SymbolFlags.Optional)),
+      };
+}
+
+/** A hand shape is a second spelling of the one exported production shape that is assignable to it and either is
+ *  assignable back, has exactly its field names, or is overridden by it (the hand shape has an optional field). Judged by the
+ *  two types' relation and field sets; a hand shape that fits several production shapes copies none of them. */
+function declaredCopies(
+  hands: readonly HandShape[],
+  productions: readonly HandShape[],
+  assignability: { readonly isTypeAssignableTo: (source: unknown, target: unknown) => boolean },
+): readonly Binding[] {
+  const postings = new Map<string, DeclaredShape[]>();
+  for (const production of productions.map(declaredShape)) {
+    for (const name of production?.names ?? []) {
+      postings.set(name, [...(postings.get(name) ?? []), production as DeclaredShape]);
+    }
+  }
+  return hands.flatMap((handNode) => {
+    const hand = declaredShape(handNode);
+    if (hand === undefined) {
+      return [];
+    }
+    const handType = handNode.getType();
+    const narrowest = [...hand.names].map((name) => postings.get(name) ?? []).reduce((least, list) => (list.length < least.length ? list : least));
+    const matches = narrowest.filter((production) => {
+      const productionType = production.node.getType();
+      return (
+        [...hand.names].every((name) => production.names.has(name)) &&
+        assignability.isTypeAssignableTo(productionType.compilerType, handType.compilerType) &&
+        (hand.hasOptional || production.names.size === hand.names.size || assignability.isTypeAssignableTo(handType.compilerType, productionType.compilerType))
+      );
+    });
+    const [only] = matches;
+    return matches.length === 1 && only !== undefined ? [{ hand: handType, handNode, production: only.node.getType(), productionNode: only.node }] : [];
+  });
+}
 
 export const gate = defineGate({
   id: "test-hand-shape",
@@ -187,6 +257,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const candidates = new Map<Node, HandShape>();
     const sites: Node[] = [];
+    const productionShapes: HandShape[] = [];
     let judgedSites = 0;
     return {
       visitors: [
@@ -206,6 +277,9 @@ export const gate = defineGate({
           visit: (node, sourceFile: SourceFile) => {
             const file = ctx.relativePath(sourceFile);
             if (!file.startsWith(TESTS)) {
+              if ((N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) && node.hasExportKeyword()) {
+                productionShapes.push(node);
+              }
               return;
             }
             if (N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) {
@@ -228,12 +302,19 @@ export const gate = defineGate({
             "test-hand-shape: this TypeScript build exposes no `checker.isTypeAssignableTo`, so a hand shape cannot be compared with its production type.",
           );
         }
+        const productionFiles = new Map<SourceFile, boolean>();
         const isProduction = (declaration: Node): boolean => {
           const file = declaration.getSourceFile();
-          return !(file.isDeclarationFile() || file.isInNodeModules() || declarationHome(ctx, file).startsWith(TESTS));
+          const known = productionFiles.get(file);
+          if (known !== undefined) {
+            return known;
+          }
+          const production = !(file.isDeclarationFile() || file.isInNodeModules() || declarationHome(ctx, file).startsWith(TESTS));
+          productionFiles.set(file, production);
+          return production;
         };
         const reported = new Set<string>();
-        for (const { hand, handNode, production, productionNode } of bindingsOf(sites, candidates, isProduction)) {
+        const report = ({ handNode, hand, production, productionNode }: Binding, evidence: string): void => {
           const directions = `${String(assignability.isTypeAssignableTo(production.compilerType, hand.compilerType))}:${String(assignability.isTypeAssignableTo(hand.compilerType, production.compilerType))}`;
           const relation = RELATION_BY_DIRECTIONS[directions] ?? "diverges";
           const file = ctx.relativePath(handNode.getSourceFile());
@@ -246,11 +327,17 @@ export const gate = defineGate({
             ctx.report.node(handNode.getNameNode(), {
               token: name,
               offset: 0,
-              message: `\`${name}\` ${RELATIONS[relation]} \`${productionName}\` (${productionFile}), which a value in the test tree is bound to. ${MESSAGE}`,
+              message: `\`${name}\` ${RELATIONS[relation]} \`${productionName}\` (${productionFile}), ${evidence}. ${MESSAGE}`,
               subject: file,
               operation,
             });
           }
+        };
+        for (const binding of bindingsOf(sites, candidates, isProduction)) {
+          report(binding, "which a value in the test tree is bound to");
+        }
+        for (const binding of declaredCopies([...candidates.values()], productionShapes, assignability)) {
+          report(binding, "and nothing derives the hand shape from it");
         }
       },
     };
@@ -302,8 +389,50 @@ export const gate = defineGate({
       expect: { count: 1, token: "PageRows", messageIncludes: "copies" },
       why: "A DERIVED INTERFACE KEEPS ITS BASE'S FIELDS: a value typed by an interface that extends the hand shape is bound to production through the shape it extends",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/contract/summary.ts":
+          'export interface Summary {\n  readonly id: "a" | "b";\n  readonly title: string;\n  readonly starred: boolean;\n}\n',
+        "tests/server/domain/x/_support.ts":
+          'export interface SummaryFixture {\n  readonly id: string;\n  readonly title: string;\n  readonly starred: boolean;\n}\nexport const fixture: SummaryFixture = { id: "a", title: "t", starred: false };\n',
+      },
+      expect: { count: 1, token: "SummaryFixture", messageIncludes: "narrows" },
+      why: "A LOOSENED COPY: the hand shape has the production shape's field names with wider types, so the production type is assignable to it and a retyped field still compiles. No value need bind it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/contract/view.ts":
+          "export interface AccountView {\n  readonly id: string;\n  readonly handle: string;\n  readonly role: string;\n  readonly createdAt: number;\n  readonly disabled: boolean;\n}\n",
+        "tests/server/domain/x/_support.ts":
+          'export interface SeedAccountOverrides {\n  readonly id: string;\n  readonly handle?: string;\n  readonly role?: string;\n}\nexport const overrides: SeedAccountOverrides = { id: "a", role: "owner" };\n',
+      },
+      expect: { count: 1, token: "SeedAccountOverrides", messageIncludes: "narrows" },
+      why: "AN OVERRIDE PROJECTION: the hand shape has optional fields and one production shape carries them all, so the overrides restate that shape's fields without `Partial<Pick<…>>`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/contract/params.ts":
+          "export interface LookupParams {\n  readonly handle: string;\n  readonly scope: string;\n  readonly limit?: number;\n}\n",
+        "tests/server/domain/x/_support.ts":
+          'export interface LookupCall {\n  readonly handle: string;\n  readonly scope: string;\n}\nexport const call: LookupCall = { handle: "h", scope: "s" };\n',
+      },
+      expect: { count: 1, token: "LookupCall", messageIncludes: "copies" },
+      why: "MUTUAL ASSIGNABILITY: the production shape differs only by an optional field, so each type is assignable to the other and the hand shape is the same type spelled twice",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/contract/a.ts": "export interface AView {\n  readonly id: string;\n  readonly name: string;\n}\n",
+        "packages/server/src/domain/x/contract/b.ts": "export interface BView {\n  readonly id: string;\n  readonly label: string;\n}\n",
+        "tests/server/domain/x/_support.ts": 'export interface IdOnly {\n  readonly id?: string;\n}\nexport const row: IdOnly = { id: "a" };\n',
+      },
+      why: "A SHARED VOCABULARY IS NOT A COPY: a hand shape that fits several production shapes is a copy of none of them, so there is no one type to derive from",
+    },
     {
       mode: "types",
       files: {

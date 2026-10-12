@@ -4,10 +4,29 @@
 import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as ctConfigMirrorParity } from "../../../../../tooling/src/verify/gates/ct-config-mirror-parity.ts";
 import { gate as ctPollHealth } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
+import { gate as testHandShape } from "../../../../../tooling/src/verify/gates/test-hand-shape.ts";
 import { gate as testsPackageSubpath } from "../../../../../tooling/src/verify/gates/tests-package-subpath.ts";
 import { gate as testsRawPackageReach } from "../../../../../tooling/src/verify/gates/tests-raw-package-reach.ts";
 
 export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
+  {
+    policy: testHandShape,
+    // A production shape and a support module that spells the same fields by hand: the pair the gate exists to find.
+    overlays: [
+      {
+        kind: "add",
+        path: "packages/contracts/src/liveness-hand-source.ts",
+        source: "export interface LivenessHandSource {\n  readonly livenessAlpha: string;\n  readonly livenessBeta: number;\n}\n",
+      },
+      {
+        kind: "add",
+        path: "tests/support/node/liveness-hand-copy.ts",
+        source:
+          'export interface LivenessHandCopy {\n  readonly livenessAlpha: string;\n  readonly livenessBeta: number;\n}\nexport const livenessHandRow: LivenessHandCopy = { livenessAlpha: "a", livenessBeta: 1 };\n',
+      },
+    ],
+    messageIncludes: "`LivenessHandCopy` copies `LivenessHandSource`",
+  },
   {
     policy: ctPollHealth,
     // The population is exactly one named anchor file; the health arm derives its facts from that file, so
