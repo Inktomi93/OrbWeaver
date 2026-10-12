@@ -25,14 +25,14 @@ The aim is three things at once. Honest: a test proves what production does, nev
 
 ### Why this order
 
-The hard parts come first because they decide the shape of every rebuilt test. A test written before its foundation exists gets written twice. Build these before any suite is ported:
+The hard parts come first because they decide the shape of every rebuilt test. A test written before its foundation exists gets written twice. Build all of these before any suite is ported. The engine and the harness run in parallel, as the order of work says:
 
-1. The compose cleanup (964), because the composition root can only reach a rule that lives in its domain.
-2. The server test composition root with every edge injectable (958): database, clock, ids, random, timers, the provider edge, the plugin host and the network. Production exposes each seam; a seam missing here forces a fake back into every test.
-3. One builder per shape and the corpus (959), because every layer draws its data from them.
-4. The CT door (960), because every CT mounts through it.
-5. The engine readers (953 to 957), because the strict gates that judge rebuilt files read code through them.
-6. The legacy ledger (961), because it is the switch that lets rebuilt files run strict while legacy files keep running in CI.
+- The compose cleanup (964), because the composition root can only reach a rule that lives in its domain.
+- The server test composition root with every edge injectable (958): database, clock, ids, random, timers, the provider edge, the plugin host and the network. Production exposes each seam; a seam missing here forces a fake back into every test.
+- One builder per shape and the corpus (959), because every layer draws its data from them.
+- The CT door (960), because every CT mounts through it.
+- The engine readers (953 to 957), because the strict gates that judge rebuilt files read code through them.
+- The legacy ledger (961), because it is the switch that lets rebuilt files run strict while legacy files keep running in CI.
 
 Dependencies that hold the order: 958 waits on 964; 966 waits on 954; 939's remaining splits wait on 961; a structural move such as a file split runs after the content lanes in the same files, never beside them.
 
