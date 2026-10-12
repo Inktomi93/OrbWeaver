@@ -18,6 +18,7 @@
 //     `tests/tooling/verify/lib/gate-authority.test.ts` ("distinct reviewed identities each consume one exact
 //     grant"), so it is CITED here rather than re-planted — what this file proves is that this policy's
 //     finding granularity cannot produce that state in the first place.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as suppressions } from "../../../../tooling/src/verify/gates/suppressions.ts";

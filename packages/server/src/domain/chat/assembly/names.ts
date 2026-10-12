@@ -38,6 +38,7 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
+// @orb-waive no-vanity-alias(WireRole): baselined when the gate widened; burn-down item 906.
 /** The delivered wire-row role axis. `system` rows exist only as capability-kept INJECTIONS — at the tail
  *  (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`). They are the operator/system
  *  channel, not a speaker, so every names mode passes them through untouched (no prefix, no completion

@@ -4,6 +4,9 @@
 // those keys accumulate into (`Vocab`, `addWrite`), and the two TypeScript-side writer collections. Split
 // out of `open-json-parity-fact.ts` at the size cap (2026-09-18); the SQL-side `json_set` writers stay with
 // the SQL reader there because they share its templates. One-way: this module imports nothing from it.
+import type { DrizzleWrite } from "@orb/tooling/floor/code-facts/drizzle-columns";
+import { readDrizzleWrite } from "@orb/tooling/floor/code-facts/drizzle-columns";
+import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { BinaryExpression, CallExpression, PropertyAssignment, Node as TsNode, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { SchemaModel } from "../contract/schema-fact.ts";
@@ -216,38 +219,23 @@ function returnedValues(call: CallExpression): TsNode[] {
 }
 
 // ── writer collection ───────────────────────────────────────────────────────────────────────────────────
+/** The write methods whose argument carries a column's value; a `select({…})` projection carries none. */
 const WRITE_CALLEES: ReadonlySet<string> = new Set(["set", "values", "onConflictDoUpdate"]);
 
-/** The drizzle table variable a `.set(`/`.values(` chain targets — walk back to `.update(<t>)`/`.insert(<t>)`. */
-const TABLE_CALLEES: ReadonlySet<string> = new Set(["update", "insert"]);
-
-function targetTable(node: TsNode): string | undefined {
-  let cur: TsNode | undefined = node;
-  let table: string | undefined;
-  while (cur !== undefined && table === undefined) {
-    const here = cur.asKind(SyntaxKind.CallExpression);
-    const callee = here?.getExpression().asKind(SyntaxKind.PropertyAccessExpression);
-    const arg = callee !== undefined && TABLE_CALLEES.has(callee.getName()) ? here?.getArguments()[0] : undefined;
-    table = arg === undefined ? undefined : unwrap(arg).getText();
-    cur = Node.isCallExpression(cur) || Node.isPropertyAccessExpression(cur) ? cur.getExpression() : undefined;
-  }
-  return table;
-}
-
-/** Is this property assignment inside a drizzle WRITE argument (`.set({…})` / `.values({…})` /
- *  `onConflictDoUpdate({ set: {…} })`)? Returns the write CALL, else undefined. */
+/** The drizzle write a property assignment sits in (`.set({…})` / `.values({…})` / `onConflictDoUpdate({ set: {…} })`):
+ *  the enclosing call's own drizzle write, `resolved(null)` when that call is no drizzle write, or the refusal. */
 const MAX_ANCESTOR_HOPS = 8; // object literal → property → nested object → argument: a write is always closer than this
 
-function enclosingWriteCall(prop: TsNode): CallExpression | undefined {
+function enclosingWrite(prop: TsNode): ReferenceFact<DrizzleWrite | null> | undefined {
   let cur: TsNode | undefined = prop.getParent();
-  let call: CallExpression | undefined;
-  for (let depth = 0; cur !== undefined && call === undefined && depth < MAX_ANCESTOR_HOPS; depth += 1) {
+  let write: ReferenceFact<DrizzleWrite | null> | undefined;
+  for (let depth = 0; cur !== undefined && write === undefined && depth < MAX_ANCESTOR_HOPS; depth += 1) {
     const here = cur.asKind(SyntaxKind.CallExpression);
     const callee = here?.getExpression().asKind(SyntaxKind.PropertyAccessExpression);
-    call = callee !== undefined && WRITE_CALLEES.has(callee.getName()) ? here : undefined;
+    write = here !== undefined && callee !== undefined && WRITE_CALLEES.has(callee.getName()) ? readDrizzleWrite(here) : undefined;
     cur = here === undefined ? cur.getParent() : undefined;
   }
-  return call;
+  return write;
 }
 
 function vocabOf(vocabs: Map<string, Vocab>, key: string): Vocab {
@@ -276,7 +264,8 @@ export function addWrite(vocabs: Map<string, Vocab>, targets: readonly OpenJsonC
 export const colKey = (c: OpenJsonColumn): string => `${c.table}.${c.prop}`;
 
 /** Every writer's key contribution, per column. A write whose table is unresolvable contributes to EVERY
- *  column of that property name (the lenient direction — a missed writer would be a false accusation). */
+ *  column of that property name (the lenient direction — a missed writer would be a false accusation); a call
+ *  drizzle does not declare is no writer at all. */
 export function collectPropertyWrites(
   nodes: readonly PropertyAssignment[],
   byProp: ReadonlyMap<string, readonly OpenJsonColumn[]>,
@@ -284,10 +273,11 @@ export function collectPropertyWrites(
 ): void {
   for (const pa of nodes) {
     const cols = byProp.get(pa.getName());
-    if (cols === undefined || enclosingWriteCall(pa) === undefined) {
+    const write = cols === undefined ? undefined : enclosingWrite(pa);
+    if (cols === undefined || write === undefined || (write.kind === "resolved" && write.value === null)) {
       continue;
     }
-    const table = targetTable(pa);
+    const table = write.kind === "resolved" ? write.value?.target.getText() : undefined;
     const attributed = table === undefined ? [] : cols.filter((c) => c.table === table);
     addWrite(vocabs, attributed.length > 0 ? attributed : cols, valueKeys(pa.getInitializer(), 0));
   }

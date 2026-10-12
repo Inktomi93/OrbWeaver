@@ -1,5 +1,6 @@
 // verb: listGlobal — the caller's global books only (owner-scoped via the book). Load-bearing: another
 // user's global book never surfaces; newest first.
+// @subject packages/server/src/domain/world-info/verbs/attachments/list-global.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -26,6 +26,7 @@ const useGenerateImageMutation = createEntityMutation<GenerateImageVars, unknown
   errorToast: "Couldn't generate the image.",
 });
 
+// @orb-waive no-inline-wire-interface(UseGenerateImageResult): baselined when the gate widened; burn-down item 904.
 export interface UseGenerateImageResult {
   /** `onSuccess` fires only once the post-message mutation SETTLES green — the composer clears the typed
    *  prompt there, never synchronously, so a failed generate leaves the prompt intact for retry (F-P1). */

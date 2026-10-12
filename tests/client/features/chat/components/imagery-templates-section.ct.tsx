@@ -4,6 +4,7 @@
 // fires updateUserSettingsSection("imagery") with the nested {templates,captions} patch, and CLEARING an
 // override sends the leaf `null` (reset-to-default). Asserts the fired patch shape (assert-the-mutation-fired).
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";

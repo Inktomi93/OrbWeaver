@@ -2,6 +2,7 @@
 // classification + candidate collection.
 import type { SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
+import { shapeFitsColumns } from "../../floor/code-facts/drizzle-columns.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { canonicalCompilerPath } from "../../floor/compiler/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, ProducerlessTableCandidate, TableDef } from "../contract/types.ts";
@@ -281,16 +282,6 @@ function recordQueryRead(symbol: ts.Symbol, checker: ts.TypeChecker, site: strin
  *  the workspace so the per-column cost stays a map lookup. */
 type RowReadScan = ReadonlyMap<string, string[]>;
 
-/** The property NAMES of a type, or undefined when the type carries no usable shape (`any`/`unknown`/a
- *  primitive/an empty object) — those must never match, or every column of every table would read as live. */
-function shapePropertyNames(type: Type): readonly string[] | undefined {
-  if (type.isAny() || type.isUnknown()) {
-    return;
-  }
-  const names = type.getProperties().map((p) => p.getName());
-  return names.length === 0 ? undefined : names;
-}
-
 /** The tables `type` could be a ROW (or a projection/view) of: every property it carries is a column of T.
  *  Cached per type object — `.id`/`.name`/`.createdAt` accesses number in the thousands and re-deriving a
  *  property list per site is the difference between a minute and an hour. */
@@ -299,8 +290,7 @@ function rowTablesOf(type: Type, tables: readonly TableDef[], cache: Map<unknown
   if (cached !== undefined) {
     return cached;
   }
-  const names = shapePropertyNames(type);
-  const matches = names === undefined ? [] : tables.filter((t) => names.every((n) => t.columns.some((c) => c.jsProp === n)));
+  const matches = tables.filter((t) => shapeFitsColumns(type, new Set(t.columns.map((c) => c.jsProp))));
   cache.set(type.compilerType, matches);
   return matches;
 }

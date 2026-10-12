@@ -1,6 +1,7 @@
 // verb: list — the caller's parties, NAME-sorted, each summary carrying its position-ordered member
 // preview (name + avatar hash joined) and the hasGroupConfig flag. Load-bearing: owner partition (B
 // never sees A's — the WHERE-clause plane the cross-tenant sweep also probes with a marker).
+// @subject packages/server/src/domain/roster-preset/verbs/list.ts
 
 import { createRosterPresetService } from "@orb/server/domain/roster-preset";
 import { describe } from "vitest";

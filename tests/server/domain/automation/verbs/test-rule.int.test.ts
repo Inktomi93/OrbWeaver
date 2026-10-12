@@ -1,5 +1,6 @@
 // verb: testRule — the dry-run (host-only): renders arm previews + evaluates the predicate, executing
 // NOTHING (no op, no budget), and logs a test_run fire. A predicate runtime error surfaces without throwing.
+// @subject packages/server/src/domain/automation/verbs/test-rule.ts
 
 import { automationRules } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

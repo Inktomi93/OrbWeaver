@@ -172,6 +172,7 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
   readonly variant: CanonVariantInput;
 }
 
+// @orb-waive contract-structural-copy(VariantEconomics): baselined when the gate widened; burn-down item 904.
 /** The economics fields shared by the `message_variants` insert AND the `MessageView` read-model — one
  *  home so the committed view can't drift from the persisted row. */
 interface VariantEconomics {

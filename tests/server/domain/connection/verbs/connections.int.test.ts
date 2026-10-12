@@ -4,7 +4,10 @@
 // not, the URL passes the F12 admission, the credential is the caller's, the label is unique per owner. Plus
 // the two reads' owner fence (a stranger's row is `not found`, never `forbidden` — no existence oracle), the
 // FIELD-WISE patch (an absent key is NOT overwritten), and the embed-space trigger's exact condition.
+// @subject packages/server/src/domain/connection/verbs/connections.ts
 
+// @orb-waive-file no-test-fabrication({ dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@orb/contracts/inference";

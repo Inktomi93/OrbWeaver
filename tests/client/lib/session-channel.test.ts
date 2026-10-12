@@ -73,6 +73,7 @@ async function freshModule(): Promise<Channel> {
   FakeBroadcastChannel.instances = [];
   vi.stubGlobal("BroadcastChannel", FakeBroadcastChannel);
   vi.stubGlobal("navigator", { locks: fakeLocks() });
+  // @orb-waive no-test-fabrication(Channel): baselined when the gate widened to value casts; burn-down item 906.
   return (await import(MODULE)) as Channel;
 }
 
@@ -146,6 +147,7 @@ describe("session channel — single-flight", () => {
   test("two contenders: exactly one RUNS, the other FOLLOWS without running the work", async () => {
     let runs = 0;
     let releaseLeader: (() => void) | undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<void>((resolve) => {
       releaseLeader = resolve;
     });
@@ -178,6 +180,7 @@ describe("session channel — single-flight", () => {
     vi.stubGlobal("navigator", undefined);
     let runs = 0;
     let release: (() => void) | undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -199,6 +202,7 @@ describe("session channel — single-flight", () => {
   test("with no BroadcastChannel at all, posting is a no-op instead of a throw", async () => {
     vi.resetModules();
     vi.stubGlobal("BroadcastChannel", undefined);
+    // @orb-waive no-test-fabrication(Channel): baselined when the gate widened to value casts; burn-down item 906.
     const fresh = (await import(MODULE)) as Channel;
     expect(() => fresh.postSessionMessage({ kind: "signed-out" })).not.toThrow();
     expect(() => fresh.onSessionMessage(() => undefined)()).not.toThrow();

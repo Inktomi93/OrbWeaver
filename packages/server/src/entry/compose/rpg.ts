@@ -333,6 +333,7 @@ export function rpgPromotionProvenance(chatId: ChatId, sourceActorKey: string): 
   return { importedFrom, importHash: sha256Hex(importedFrom) };
 }
 
+// @orb-waive no-inline-wire-interface(RpgComposeResult): baselined when the gate widened; burn-down item 904.
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
  *  injection (the `input.rpg ?? null` seam). */
 export interface RpgComposeResult {

@@ -11,6 +11,7 @@ import type { CapabilityOverride, ChatApi, NativeChatApi, ProviderId, Wire } fro
 import { capabilityOverrideSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
+// @orb-waive no-inline-wire-interface(CompiledRow): baselined when the gate widened; burn-down item 904.
 export interface CompiledRow {
   readonly row: CapabilityOverride;
   readonly model: RegExp | null;

@@ -17,6 +17,7 @@ import { automationFires } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { and, desc, eq, ne } from "drizzle-orm";
 
+// @orb-waive no-inline-wire-interface(AutomationFireRow): baselined when the gate widened; burn-down item 904.
 /** One fire-log row as the probe serves it — the ledger row with the internal `reserved` state excluded. */
 export interface AutomationFireRow {
   readonly id: AutomationFireId;

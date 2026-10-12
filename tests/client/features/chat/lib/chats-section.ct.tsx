@@ -13,12 +13,14 @@
 // form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's ROSTER_STUB. Every
 // value crosses the routeTrpc JSON boundary as a plain object.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
+import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "../../../../support/node/chat-settings-sections-reads-empty.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -33,7 +35,15 @@ import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 // boundary and the headings are all this file asserts. Found by the CT reporter's unfed-read census, whose
 // per-file line for this test named all three. Empty declarations = each section's teaching empty state,
 // the arm with the smallest blast radius on the heading/count assertions around them.
-const THIS_CHAT_TAB_READS: TrpcRoutes<"chat.getUserMacroPicks" | "chat.getVariablePicks" | "databank.listActiveForChat" | "worldInfo.listForChat"> = {
+const THIS_CHAT_TAB_READS: TrpcRoutes<
+  | "chat.getUserMacroPicks"
+  | "chat.getVariablePicks"
+  | "databank.listActiveForChat"
+  | "worldInfo.listForChat"
+  | "automation.listRules"
+  | "plugin.list"
+  | "plugin.listSurfaces"
+> = {
   "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "databank.listActiveForChat": () => [],
@@ -49,6 +59,8 @@ const THIS_CHAT_TAB_READS: TrpcRoutes<"chat.getUserMacroPicks" | "chat.getVariab
   // its fourth borrower): this file counts rail cells and asserts "no read-error surface", so the section
   // must render its real quiet arm rather than rows.
   ...REGEX_READS_EMPTY,
+  // The door's own "This chat" sections (Rules, Plugin panels), mounted for real by the harness.
+  ...CHAT_SETTINGS_SECTIONS_READS_EMPTY,
 };
 
 /** One TAB of the pane's header strip (the context bracket's one tablist, named by the section's `railLabel`).

@@ -152,6 +152,7 @@ function harness(
     live,
     holdNextSave: (): (() => void) => {
       let release = (): void => undefined;
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       heldSave = new Promise<void>((resolve) => {
         release = resolve;
       });
@@ -320,6 +321,7 @@ describe("createCertificateController", () => {
   test("an order still in flight when the owner turns the certificate off is dropped: nothing stored, nothing served", async () => {
     const clock = createFrozenClock();
     let answer: (outcome: IssueOutcome) => void = () => undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const slow = new Promise<IssueOutcome>((resolve) => {
       answer = resolve;
     });

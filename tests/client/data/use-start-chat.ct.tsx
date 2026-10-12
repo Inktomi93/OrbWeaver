@@ -10,6 +10,7 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -73,6 +74,7 @@ test("the response seeds both room reads and confirms the message page after the
         return { ready: updateCallbackDone, finished: updateCallbackDone.then(() => finished), updateCallbackDone };
       },
     });
+    // @orb-waive no-test-fabrication(typeof globalThis & { __finishStartChatTransition:): baselined when the gate widened to value casts; burn-down item 906.
     (globalThis as typeof globalThis & { __finishStartChatTransition: () => void }).__finishStartChatTransition = (): void => {
       if (finish === undefined) {
         throw new Error("held View Transition has no release function");
@@ -96,6 +98,7 @@ test("the response seeds both room reads and confirms the message page after the
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(0);
 
+  // @orb-waive no-test-fabrication(typeof globalThis & { __finishStartChatTransition:): baselined when the gate widened to value casts; burn-down item 906.
   await page.evaluate(() => (globalThis as typeof globalThis & { __finishStartChatTransition: () => void }).__finishStartChatTransition());
   await listMessages.requested;
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);

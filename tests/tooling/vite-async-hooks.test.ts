@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(ConfiguredPlugin): baselined when the gate widened to value casts; burn-down item 906.
+
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ServerResponse } from "node:http";
 import { afterEach, vi } from "vitest";
 import viteConfig from "../../packages/client/vite.config.ts";

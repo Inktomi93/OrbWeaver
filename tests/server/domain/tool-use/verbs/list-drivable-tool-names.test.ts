@@ -6,7 +6,9 @@
 // its documented "at attach time this is OUR wiring bug" posture — so if this list could ever name a tool the
 // registry no longer holds, an ordinary "I switched my plugin off" would become a FAILED TURN. These pins are
 // what say it cannot.
+// @subject packages/server/src/domain/tool-use/verbs/list-drivable-tool-names.ts
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";

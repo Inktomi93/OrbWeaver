@@ -1,5 +1,6 @@
 // verb: detachGlobal — clear a script's GLOBAL attachment. Idempotent: an already-absent row returns
 // `{detached:false}` rather than throwing, and emits NOTHING (a no-op is not an event).
+// @subject packages/server/src/domain/regex/verbs/attachments/detach-global.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

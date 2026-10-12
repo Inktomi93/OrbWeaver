@@ -1,6 +1,7 @@
 // .int tests for `listRuns` — the CONTEXT ledger: oldest first, reachable only through an OWNED session
 // (leak-free collapse), and a corrupt stored payload row is DROPPED from the view (the observable
 // read-seam heal), never fabricated.
+// @subject packages/server/src/domain/refinery/verbs/list-runs.ts
 
 import { refineryRuns } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

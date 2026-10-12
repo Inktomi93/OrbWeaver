@@ -469,6 +469,7 @@ export interface ExportCardFields {
   readonly spec?: CardSpec;
 }
 
+// @orb-waive contract-structural-copy(ExportWorldEntry): baselined when the gate widened; burn-down item 904.
 /** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
  *  columns PLUS the preserved `metadata` blob — so import → export → reimport doesn't strip
  *  `constant` / `position` / vendor extensions. */
@@ -497,6 +498,7 @@ const SPEC_VERSION_BY_SPEC = { [CHARA_CARD_V2_SPEC]: "2.0", [CHARA_CARD_V3_SPEC]
  * heuristic vanilla ST needs to fire a keyless entry). This is the ONE place the at-depth encoding is
  * written (load-bearing — preserve it).
  */
+// @orb-waive contract-structural-copy(LoreEntryIdentityInput): baselined when the gate widened; burn-down item 904.
 /** The typed columns of one lore entry, as every identity reads them. */
 export interface LoreEntryIdentityInput {
   readonly title: string;
@@ -577,6 +579,7 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
 // The lorebook IN half — the byte-identical inverse of exportBookEntry, co-located here. Pure — no DB, no
 // domain types.
 
+// @orb-waive contract-structural-copy(LoreEntryColumns): baselined when the gate widened; burn-down item 904.
 /** The `world_entries` column projection derived from ONE ST `character_book` entry (everything but the
  *  `metadata` blob, which {@link loreEntryMetadata} builds). `keys` is filtered to strings (ST keys are
  *  free-form JSON); the writer null-collapses an empty list to honor the `world_entries.keys` NULL-vs-`[]`

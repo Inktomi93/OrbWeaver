@@ -4,6 +4,7 @@
 // ResponseFormat wire opts, the null-drop parse (strict-compatible survival), the stripped-key
 // itemization on the run row, the independent signal-stamp halves, and the typed double-failure refusal
 // (no fallback write). Real freshDb + the REAL character service; the model is the ONE faked edge.
+// @subject packages/server/src/domain/refinery/verbs/run-stage.ts
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns } from "@orb/db";
@@ -265,6 +266,7 @@ test("a run whose own preset cap sits under its payload is REFUSED with the fit 
 
   // The caller's explicit cap, one token under what the surface already told them the run needs.
   const cap = need - 1;
+  // @orb-waive no-test-fabrication({ resolveUtilityPresetParams:): baselined when the gate widened to value casts; burn-down item 906.
   const ctx = h.ctx as { resolveUtilityPresetParams: (userId: unknown) => Promise<SideGenSampling> };
   ctx.resolveUtilityPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: cap });
 

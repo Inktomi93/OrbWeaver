@@ -1,5 +1,6 @@
 // Integration: composed views (CONTENT-only) — home (coverage + top themes + dup counts) + themeDetail
 // (cluster + story-time timeline + member characters). Owner-scoped (audit #1).
+// @subject packages/server/src/domain/discovery/verbs/views.ts
 
 import type { Db } from "@orb/db";
 import { characterSummaries, digestThemeAssignments, themeClusters } from "@orb/db";

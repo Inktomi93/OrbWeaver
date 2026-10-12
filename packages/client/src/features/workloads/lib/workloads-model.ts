@@ -274,6 +274,7 @@ export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): 
   return { kind, params } as StartWorkloadWire["input"];
 }
 
+// @orb-waive no-inline-wire-interface(WorkloadProgressView): baselined when the gate widened; burn-down item 904.
 /** The row-local live-progress view model. `pct: null` renders the indeterminate bar. */
 export interface WorkloadProgressView {
   readonly pct: number | null;
@@ -284,6 +285,7 @@ const PERCENT_SCALE = 100;
 
 /** Derive a progress view from a workload `progress` SSE event — explicit `pct` wins, else current/total derive one, else indeterminate. */
 export function toProgressView(fields: {
+  // @orb-waive contract-structural-copy(pct): baselined when the gate widened; burn-down item 904.
   readonly pct?: number;
   readonly current?: number;
   readonly total?: number;

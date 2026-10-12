@@ -1,6 +1,7 @@
 // The D48 generate_image tool projection. Unit test (no db): the registered def's
 // shape + the handler's arg→param mapping onto the injected generatePicture op, and the non-chat refusal.
 
+// @orb-waive-file no-loose-id-cast(def?.argsSchema): baselined when the gate widened; burn-down item 906.
 import { IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";
 import type { AssetId, ChatId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

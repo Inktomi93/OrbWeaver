@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(keyof typeof POLICY_PASS_REFUSALS): baselined when the gate widened to value casts; burn-down item 906.
+
 // The refusal envelope's own pins (#2111): the envelope is DERIVED from the same contract constants the runner and
 // the dispatcher compose their refusals from, and these pins hold that two-sided — every member is text a real
 // refusal carries (driven through `verifyPolicyProofs`), and the containment predicate refuses a generic needle
@@ -262,6 +264,7 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
   }
 });
 
+// @orb-waive no-vanity-alias(DISPATCHER_MODULES): baselined when the gate widened; burn-down item 906.
 // ═══ THE ENVELOPE IS COMPLETE OVER THE EMITTERS, NOT ONLY OVER THE CONSTANTS (#2155, forge recommendation #4;
 // REWRITTEN AT THE INTEGRATION REVIEW, and the rewrite is the lesson) ═══
 //

@@ -1,5 +1,6 @@
 // verb: detachFromPersona — idempotent removal. Load-bearing: detached:true then detached:false; a foreign
 // persona is NotFound.
+// @subject packages/server/src/domain/world-info/verbs/attachments/detach-from-persona.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

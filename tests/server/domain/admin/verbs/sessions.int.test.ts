@@ -1,5 +1,6 @@
 // verbs: listSessions / revokeSession / revokeUserSessions — admin-gated delegation to the injected
 // SessionAdminPort. Asserts the gate + the delegation (the fake port records the calls) + the audit on writes.
+// @subject packages/server/src/domain/admin/verbs/sessions.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, SessionId } from "@orb/kit/ids";

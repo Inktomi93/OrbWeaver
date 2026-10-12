@@ -46,6 +46,7 @@ import type { Trpc } from "#data";
 // Re-derived locally from the wire (§7.4 — never a hand-picked exported alias).
 type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
 
+// @orb-waive no-inline-wire-interface(LaneView): baselined when the gate widened; burn-down item 904.
 /** One lane of the workbench: the run it stands on and the three states it has to be able to say. */
 export interface LaneView {
   readonly stage: RefineryStage;

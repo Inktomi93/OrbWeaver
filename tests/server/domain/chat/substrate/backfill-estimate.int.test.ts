@@ -1,6 +1,7 @@
 // substrate/backfill-estimate — the memory backfill confirm's call count, read without the planner: it equals
 // the summarize calls the real sweep makes, drops to zero once the chat is built, mints nothing, and honours an import window.
 
+// @orb-waive-file no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chatImportClaims, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";

@@ -21,6 +21,7 @@
 // founding seat. Any arm added here that touches the chat/character grains carries a second seat, or it
 // re-opens the blind spot.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import { generationUsageLegSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -661,9 +662,11 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // The compose-root wrappers: the chat op type erases the batch to `unknown`.
     const chatCtx = makeChatContext(db, {
       applyStatsDelta: (batch, opDb, delta) => {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta(batch as BatchStmt[], opDb, delta);
       },
       bumpStatsCanonVersion: (batch, opDb, owner) => {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         bumpStatsCanonVersion(batch as BatchStmt[], opDb, owner);
       },
     });

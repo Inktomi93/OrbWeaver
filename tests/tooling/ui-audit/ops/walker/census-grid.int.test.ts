@@ -44,6 +44,7 @@ test("Law 4 judges promoted text and counts BOTH exclusions into the same denomi
   expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(readingSurface=1 snapped=1\)/u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 
+  // @orb-waive no-test-fabrication(GridReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
   expect(law4, "the promoted text is the one candidate the rule applies to").toHaveLength(1);
@@ -81,6 +82,7 @@ test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin i
   expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(srOnly=2\)/u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 
+  // @orb-waive no-test-fabrication(GridReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   // SERIALIZED, not only printed — the JSON is what a consumer reads.
   const row = report.populationAccounting?.["off-grid-text"];
@@ -120,6 +122,7 @@ test("Law 3 recognises all three promotion shapes and names each one in its Law-
   });
 
   expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=3 /u);
+  // @orb-waive no-test-fabrication(GridReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   const kinds = report.findings.filter((finding) => finding.rule === "off-grid-text").map((finding) => finding.value);
   for (const kind of ["backdrop-filter", "will-change", "3d"]) {
@@ -168,7 +171,9 @@ test("the landing fraction is measured in DEVICE pixels, so the same CSS offset 
   expect(desktop.stdout).not.toContain("INSTRUMENT ERROR");
   expect(mobile.stdout).not.toContain("INSTRUMENT ERROR");
 
+  // @orb-waive no-test-fabrication(GridReport): baselined when the gate widened to value casts; burn-down item 906.
   const desktopReport = JSON.parse(await readFile(auditReport(desktop.stdout), "utf8")) as GridReport;
+  // @orb-waive no-test-fabrication(GridReport): baselined when the gate widened to value casts; burn-down item 906.
   const mobileReport = JSON.parse(await readFile(auditReport(mobile.stdout), "utf8")) as GridReport;
   const desktopValue = desktopReport.findings.find((finding) => finding.rule === "off-grid-text")?.value;
   const mobileValue = mobileReport.findings.find((finding) => finding.rule === "off-grid-text")?.value;

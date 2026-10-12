@@ -5,6 +5,88 @@
 // for a different layer). Data-layer stories wrap in <CtDataProviders> (Query + real tRPC over the
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
+// @orb-waive-file testid-typed-only-stories("abort"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("parity-ghost"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("parity-settled"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("actions-host"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("anchor-prose"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("anchor-row"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("begin"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("book-picker-closes"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("bump-aria"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("complete"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("composer-config-target"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("composer-gallery-target"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("composer-imagine-seed"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("composer-notified"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-active-chat"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-control-source-ran"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-fake-context-tab-body"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-fake-surface-contribution"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-invite-landing"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-join-done"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-lineage"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-open-gallery-in-chat"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-open-gallery-outside"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-palette-command-ran"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-unstyled-detail"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctl-enter"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctl-toggle-a"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctl-toggle-b"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("custom-tool"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("deleted"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-abort"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-begin"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-chat-deleted"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-delta"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-message-committed"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-message-edited"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-source-relabel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-source-republish"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("drive-turn-begin"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("fired-toggles"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ghost-scrollport"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("group-config-saved"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("import-closes"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("import-notice"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("injections-reserve"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("injections-settled"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("mark-stopping"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("members-last-action"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("message-fold"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("metadata-host"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("narrator-row"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("narrow-picker-mount"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("new-chat-intent"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("new-count"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("next-chunk"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("own-row"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("phase"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("picked-offer"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("picker-closes"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("prefix-tool"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("raise-budget-clamp"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("raise-knob-drop"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("recall-idle"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("recall-recalled"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("recall-recalling"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("regex-section-pane"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("remove-kestrel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("removed-index"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("reopen"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("room-overrides-saved"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("room-pane"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("row-scrollport"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("selected"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("selection-title"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("sent-choices"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("shell-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("temp-topbar"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("token"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("turn-top-p"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("turn-top-p-effort"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("walk-end"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("walk-start"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
@@ -1165,10 +1247,25 @@ export function GhostRowScriptedStory({
 
 const PARITY_CHAT_ID = castId<ChatId>("chat_ct_row_parity");
 const PARITY_CHARACTER = castId<CharacterId>("character_ct_row_parity");
+const NO_PARITY_METADATA: MessageMetadataVisibility = {
+  showTimestamps: false,
+  showMessageId: false,
+  showModelIcon: false,
+  showTokenCount: false,
+  showGenerationTimer: false,
+  showGenerationCost: false,
+};
 
 /** The same short reply from the same no-image speaker, once as the streaming ghost and once as the settled row,
  *  in two equal-width columns: the geometry-parity CT compares their art slots and bubbles box for box. */
-export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatStyle }): ReactElement {
+export function RowParityStory({
+  chatStyle,
+  showModelIcon,
+}: {
+  readonly chatStyle: ThemeChatStyle;
+  /** The "Show model" appearance toggle: the settled row's credit glyph, which the streaming row must reserve. */
+  readonly showModelIcon: boolean;
+}): ReactElement {
   const phase = useTurnPhase(PARITY_CHAT_ID);
   useEffect(() => {
     chatStream.beginTurn(PARITY_CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null });
@@ -1183,6 +1280,7 @@ export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatSty
               chatId={PARITY_CHAT_ID}
               chatStyle={chatStyle}
               streaming={phase === "streaming"}
+              generationCredit={showModelIcon}
               attribution={{ name: "Alice", kind: "character", avatarAssetId: null, avatarHash: null, hueSeed: "Alice", tokens: null }}
             />
           </CtDataProviders>
@@ -1196,6 +1294,7 @@ export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatSty
           characters={[{ id: PARITY_CHARACTER, name: "Alice", avatarHash: null }]}
           content="Hi."
           width={360}
+          metadataVisibility={{ ...NO_PARITY_METADATA, showModelIcon }}
         />
       </div>
     </div>

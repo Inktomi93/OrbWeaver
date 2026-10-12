@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(typeof source.getDescendantsOfKind): baselined when the gate widened to value casts; burn-down item 906.
+
 import { Project, SyntaxKind } from "ts-morph";
 import { loadPackageMetadata, loadStaticConfig } from "../../../../tooling/src/verify/ops/resource-config.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
@@ -56,6 +58,7 @@ test("package metadata refuses malformed JSON, missing identity, malformed fact 
   expect(loadPackageMetadata(createResourceReader({ root: malformed }), "ui").status).toBe("unresolved");
   expect(loadPackageMetadata(createResourceReader({ root: missingName }), "ui").status).toBe("unresolved");
   expect(loadPackageMetadata(createResourceReader({ root: invalid }), "ui").status).toBe("unresolved");
+  // @orb-waive no-loose-id-cast("forged"): baselined when the gate widened; burn-down item 906.
   expect(loadPackageMetadata(createResourceReader({ root: invalid }), "forged" as never).status).toBe("unresolved");
 });
 
@@ -117,6 +120,7 @@ test("static configs refuse missing, broken, empty, cyclic, written, and dynamic
   expect(loadStaticConfig(createResourceReader({ root: cyclic }), "eslint", parse).status).toBe("unresolved");
   expect(loadStaticConfig(createResourceReader({ root: written }), "eslint", parse).status).toBe("unresolved");
   expect(loadStaticConfig(createResourceReader({ root: dynamic }), "eslint", parse).status).toBe("unresolved");
+  // @orb-waive no-loose-id-cast("forged"): baselined when the gate widened; burn-down item 906.
   expect(loadStaticConfig(createResourceReader({ root: dynamic }), "forged" as never, parse).status).toBe("unresolved");
 });
 

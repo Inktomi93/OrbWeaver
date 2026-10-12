@@ -17,6 +17,7 @@ import { EXIT } from "../floor/cli/exit-contract.ts";
 import { warn } from "../floor/cli/log.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import {
+  ANTIPATTERNS_VERB,
   ARGLESS_VERBS,
   AstToolError,
   beginRun,
@@ -29,6 +30,7 @@ import {
   loadProject,
   noteToolError,
   parseFlags,
+  runAntipatterns,
   runDepcruise,
   TYPED_VERBS,
   USAGE,
@@ -139,4 +141,6 @@ async function main(): Promise<number> {
   return typeof process.exitCode === "number" ? process.exitCode : EXIT.clean;
 }
 
-await runTool(main);
+// `antipatterns` runs the structure gates, not a ts-morph walk, so it never enters the verb table.
+const [, , requestedVerb, ...verbTail] = process.argv;
+await runTool(() => (requestedVerb === ANTIPATTERNS_VERB ? runAntipatterns(verbTail) : main()));

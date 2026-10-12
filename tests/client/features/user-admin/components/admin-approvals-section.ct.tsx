@@ -71,7 +71,9 @@ test("a same-task repeat admits one approval, owns only its account row, and rej
   const first = approvals.nth(0);
   const sibling = approvals.nth(1);
   await first.evaluate((element) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
   });
   await held.requested;

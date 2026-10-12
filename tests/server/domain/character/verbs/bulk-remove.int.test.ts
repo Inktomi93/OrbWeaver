@@ -1,4 +1,5 @@
 // verb: bulkRemove — delete many owned; skip missing/foreign (don't throw); reap avatars once.
+// @subject packages/server/src/domain/character/verbs/bulk-remove.ts
 
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

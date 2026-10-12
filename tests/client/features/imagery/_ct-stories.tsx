@@ -6,6 +6,7 @@
 // the whole app-shell. Ids + the blob url ride in as PROPS (minted node-side in the test, serialized to the
 // page) so recorded tRPC inputs assert against the exact values used. Components only (the _ct-stories rule).
 
+// @orb-waive-file testid-typed-only-stories("ct-roster-landed"): baselined when the gate widened; burn-down item 906.
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { ImageDetailBody, ImageEditBody, ImagineBody } from "@orb/client/features/imagery";
 import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/client/state";

@@ -10,6 +10,7 @@
 // integration arm cannot isolate: what is EXCLUDED (this process and its ancestors — a nested `test:ct`
 // inside `pnpm test` inherits the marker and must never sweep its own parents), what escalates (TERM, a
 // grace, then KILL), and which foreign runs are fair game (only those whose OWNER PID is gone).
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

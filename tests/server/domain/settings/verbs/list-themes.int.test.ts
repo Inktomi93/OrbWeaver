@@ -1,4 +1,5 @@
 // verb: listThemes — owned ∪ seeds, as views; never another user's rows.
+// @subject packages/server/src/domain/settings/verbs/list-themes.ts
 
 import { describe } from "vitest";
 import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";

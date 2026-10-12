@@ -9,6 +9,9 @@
 //
 // Components only — playwright-ct rewrites this module's named imports into generated component consts, so
 // a mixed import (component + constant) fails to parse in the consuming CT.
+// @orb-waive-file testid-typed-only-stories("accepted-chart-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("contextual-chart-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("midlight-chart-panel"): baselined when the gate widened; burn-down item 906.
 import { BarList } from "@orb/ui/bar-list";
 import type { OrbChartOption, OrbEChartsInstance } from "@orb/ui/chart";
 import { Chart } from "@orb/ui/chart";

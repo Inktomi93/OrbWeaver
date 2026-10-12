@@ -3,6 +3,8 @@
 // a `node:sqlite` open of each path, tries a spawn, and starts the real `worker-runtime.ts` to confirm that its own
 // permission drop leaves a guest Worker unable to start a Worker or read a secret.
 
+// @orb-waive-file no-test-fabrication([ProbeResult]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(readonly string[]): baselined when the gate widened to value casts; burn-down item 906.
 import { spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";

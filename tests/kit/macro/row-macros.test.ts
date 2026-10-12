@@ -1,6 +1,7 @@
 // resolveRowMacros — the §6 parity fixture (Chat-Macro-Resolution.md): one shared atom, both server
 // ASSEMBLE and client DISPLAY call it, so pinning it here pins BOTH consumers at once.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";

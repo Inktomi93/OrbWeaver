@@ -3,6 +3,7 @@
 // @instrument-absence-proof: every over-cap channel must report omissions; a bounded population may not
 // look complete merely because its retained suffix is non-empty.
 
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";

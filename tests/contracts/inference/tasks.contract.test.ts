@@ -6,6 +6,7 @@
 // `scope: "owner"` — an owner has ONE embedding space, so a rule's or a plugin's ref must not be able to
 // re-point it and silently split the corpus across two spaces.
 
+// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { bindingTaskOf, isRoutableTask, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS, routableTaskSchema, TASK_DEFS, TASKS, taskDef } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
 

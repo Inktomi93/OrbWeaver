@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication("biome"): baselined when the gate widened to value casts; burn-down item 906.
+
 // The strict-JSON door. The capability under test is the REFUSAL SPLIT, not the parse: missing, empty and
 // unparseable are three different answers, and collapsing any of them into `{}` is how a liveness gate
 // reports a clean zero over a config it never read (the ResourceHost access-pattern ruling). It is the same

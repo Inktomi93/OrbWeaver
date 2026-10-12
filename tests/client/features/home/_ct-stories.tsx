@@ -3,6 +3,7 @@
 // FAKES and drive the REAL `HomeSurface` — proving order, `useVisible` gating, the dormant arm, and the
 // zero-tile empty state against the shipped grid, not a bespoke double.
 
+// @orb-waive-file testid-typed-only-stories("also-open-box"): baselined when the gate widened; burn-down item 906.
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatQuickPicksTile } from "@orb/client/features/chat";
 import { HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
@@ -178,6 +179,7 @@ export function HomeSplitPressureStory(): ReactElement {
 // the test releases it — the shape of a real boot, where localStorage already holds the last settled box.
 
 let releaseSlowBody: () => void = (): void => undefined;
+// @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 const slowBodyReady: Promise<void> = new Promise<void>((resolve) => {
   releaseSlowBody = resolve;
 });
@@ -223,6 +225,7 @@ export function HomeTileReserveStory(): ReactElement {
 // same skeleton geometry and the tile below it never moves.
 
 let releaseFirstBootBody: () => void = (): void => undefined;
+// @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 const firstBootBodyReady: Promise<void> = new Promise<void>((resolve) => {
   releaseFirstBootBody = resolve;
 });

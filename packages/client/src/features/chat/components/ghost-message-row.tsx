@@ -52,7 +52,7 @@ import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
-import { GhostActionsFootprint } from "./message-actions-row.tsx";
+import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
@@ -227,6 +227,9 @@ export interface GhostMessageRowProps {
    *  reader can no longer see who is speaking. Pins the ghost's name row to the top of the scrollport, the
    *  same mechanism and the same layout-neutral chip the settled row takes. Absent/false ⇒ no sticky. */
   readonly stickyAttribution?: boolean | undefined;
+  /** The settled row's `showModelIcon` gate: the credit glyph its action cluster will carry, reserved here so
+   *  commit does not widen the card. Absent ⇒ no credit. */
+  readonly generationCredit?: boolean | undefined;
 }
 
 export function GhostMessageRow({
@@ -249,6 +252,7 @@ export function GhostMessageRow({
   reasoningAutoCollapse = true,
   enterMotion = false,
   stickyAttribution = false,
+  generationCredit = false,
 }: GhostMessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
@@ -319,7 +323,7 @@ export function GhostMessageRow({
       placement: skin.headerPlacement,
       pinnedPaint: skin.pinnedHeader.paint("assistant"),
       named: skin.actionsRow.identity,
-      actionsFootprint: <GhostActionsFootprint chatId={chatId} surface={skin.actionsRow.surface} />,
+      actionsFootprint: <GhostActionsFootprint chatId={chatId} generationCredit={generationCredit} surface={skin.actionsRow.surface} />,
     }),
     skin.headerPlacement,
   );

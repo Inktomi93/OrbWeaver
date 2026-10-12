@@ -142,6 +142,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────
 
+// @orb-waive no-inline-wire-interface(AgentToolResult): baselined when the gate widened; burn-down item 904.
 /** A tool's result — a thin, SDK-free shape mapped to the MCP `CallToolResult` at the boundary. */
 export interface AgentToolResult {
   readonly content: ReadonlyArray<{ readonly type: "text"; readonly text: string }>;

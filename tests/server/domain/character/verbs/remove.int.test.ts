@@ -1,6 +1,7 @@
 // verb: remove — delete + best-effort avatar reap. Load-bearing: an owned delete reaps the avatar asset
 // (FK is SET NULL, so the asset isn't FK-deleted), no character.updated emit fires (delete cascades the
 // embedding), and not-owned throws.
+// @subject packages/server/src/domain/character/verbs/remove.ts
 
 import { characters, statsCanonVersions } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

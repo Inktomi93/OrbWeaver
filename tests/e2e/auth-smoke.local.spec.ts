@@ -6,6 +6,7 @@
 // The seeded local users (global-setup → multi-user-seed): `owner` (role=owner, via the login form) and
 // `member` (role=user). The HOST/owner also resolves un-credentialed via the 127.0.0.1 fallback seam.
 
+// @orb-waive-file no-test-fabrication({ readonly reason?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";

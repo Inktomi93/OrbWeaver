@@ -1,3 +1,8 @@
+// @orb-waive-file no-test-fabrication({ readonly runId: string; readonly pid: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly runId: string; readonly prunedAt: string }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ runId: string }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ runId: string; complete: boolean }): baselined when the gate widened to value casts; burn-down item 906.
+
 // CONCURRENT RUNS (#1029) — the planted-control proof that two invocations of one instrument on one
 // checkout keep BOTH verdicts, and that the published pointer only ever names a run that FINISHED.
 //
@@ -16,6 +21,7 @@
 // THE PLANTED CONTROL IS THE PRE-FIX WRITER. The last case replays exactly what every instrument used to do
 // — stub to a FIXED path, work, final to the same FIXED path — driven the same way, and asserts that one
 // run's artifact is destroyed. Without it, the green arm below would only prove that two runs both exited.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -82,6 +88,7 @@ function slotDir(root: string): string {
 
 /** Every run slot this fixture project holds, with the manifest each one wrote. */
 function slots(root: string): readonly RunView[] {
+  // @orb-waive no-test-fabrication({ run: RunView }): baselined when the gate widened to value casts; burn-down item 906.
   return readdirSync(slotDir(root))
     .filter((name) => existsSync(join(slotDir(root), name, REPORT)))
     .map((name) => (JSON.parse(readFileSync(join(slotDir(root), name, REPORT), "utf8")) as { run: RunView }).run);
@@ -89,6 +96,7 @@ function slots(root: string): readonly RunView[] {
 
 /** What `reports/check-structure.json` — the path EVERY reader in the repo opens — resolves to. */
 function published(root: string): RunView {
+  // @orb-waive no-test-fabrication({ run: RunView }): baselined when the gate widened to value casts; burn-down item 906.
   return (JSON.parse(readFileSync(join(root, "reports", REPORT), "utf8")) as { run: RunView }).run;
 }
 

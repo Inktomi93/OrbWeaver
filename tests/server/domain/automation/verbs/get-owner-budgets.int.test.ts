@@ -5,6 +5,7 @@
 // and `engine/budget-gate.ts`), both reading `AUTOMATION_OWNER_BUDGET_DEFAULTS`, and if they ever disagreed
 // the pane would display a ceiling nobody is actually bounded by — a belt that lies about its own value. The
 // gate side is pinned at `../engine/dispatch.int.test.ts`; this is the projection side.
+// @subject packages/server/src/domain/automation/verbs/get-owner-budgets.ts
 
 import { AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import { describe } from "vitest";

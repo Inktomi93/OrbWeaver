@@ -4,6 +4,8 @@
 // STAGES into the `ChatTurnId` accumulator (asserted via `ctx.staging.peek`, the effective state the flush
 // would take), that read-through composes two tool calls in one turn, and the off-game/errors-as-data lanes.
 
+// @orb-waive-file no-test-fabrication(Extract<ToolHandlerResult, { ok: false }>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(def.argsSchema): baselined when the gate widened; burn-down item 906.
 import { RPG_LITE_TOOL_NAMES } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

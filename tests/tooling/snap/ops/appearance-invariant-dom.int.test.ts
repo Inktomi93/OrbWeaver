@@ -100,8 +100,8 @@ test("a pseudo-carrier subject is reached through its host and sampled on the ca
 // resolves a child of a `display:none` subtree to its own DECLARED `display`, so the census's
 // `style.display === "none"` test never fired for it and the node landed in `offViewport` with an all-zero
 // rect — the one bucket whose reason ("the subject scrolled out of view") is the opposite of the truth, and
-// the bucket the anchor exists to drive to zero. The same blindness aborted `--matrix` cell v04 on the
-// live shell's `:is(.shell-topbar-title, .shell-topbar-jump-label)` union.
+// the bucket the anchor exists to drive to zero. The shell's theme-ink union has this shape on desktop: its
+// first match, the narrow topbar title, sits under a `display:none` arm.
 test("a candidate hidden by an ancestor is counted as display-none, never as off-viewport", { timeout: BROWSER_TIMEOUT_MS }, async () => {
   const browser = await chromium.launch({ headless: true });
   try {

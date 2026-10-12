@@ -82,7 +82,9 @@ export async function withTree(files: Record<string, string>, fn: (h: KitTreeHar
           lines.push(String(chunk).replace(TRAILING_NEWLINE_RE, ""));
           return true;
         };
+        // @orb-waive no-loose-id-cast(collect): baselined when the gate widened; burn-down item 906.
         const out = vi.spyOn(process.stdout, "write").mockImplementation(collect as never);
+        // @orb-waive no-loose-id-cast(collect): baselined when the gate widened; burn-down item 906.
         const err = vi.spyOn(process.stderr, "write").mockImplementation(collect as never);
         try {
           const result = await runCodemod("preview-integrity-fixture", codemod, {

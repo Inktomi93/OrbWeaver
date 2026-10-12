@@ -4,6 +4,7 @@
 //                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
 //   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
 //   • messages.ts       — the D26 message/variant wire (`MessageView`, tool/var records)
+//   • member-projection.ts — the pure §3.6 member projection of a `MessageView` (hidden-span and reasoning strip)
 //   • producers.ts      — the member-gated kind-polymorphic CHAT IDENTITY producer (D137) + its two projections
 //   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
@@ -161,6 +162,7 @@ export type { ChatLibraryLens } from "./library.ts";
 export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
+export { memberToolCalls, projectViewForMember, stripHiddenForMember, stripReasoningFromView } from "./member-projection.ts";
 export type { MessagesPage, MessageWindow } from "./message-pages.ts";
 export { messagesPageSchema, messageWindowSchema } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it

@@ -29,6 +29,7 @@ import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { activeSectionNow, openModal, revealContextPanel, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
+// @orb-waive contract-structural-copy(NewChatIntent): baselined when the gate widened; burn-down item 904.
 /** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
  *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
 export interface NewChatIntent {

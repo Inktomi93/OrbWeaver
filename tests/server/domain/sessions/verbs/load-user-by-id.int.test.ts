@@ -4,6 +4,7 @@
 // read gates nothing, so the frozen-host bridge keeps a disabled host's real role authoritative for the D17
 // owner-gates while the auth seam's REQUEST arm has the fact it needs to refuse the caller (D135 amendment).
 // A row that resolved but hid `enabled` would force the seam into a second query or a second spelling.
+// @subject packages/server/src/domain/sessions/verbs/load-user-by-id.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

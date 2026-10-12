@@ -4,6 +4,7 @@
 // asserted here is the CLAIM the grouping makes about the data: which pairs collapse, which must not, and
 // that a collapsed pair never also appears as its own row.
 
+// @orb-waive-file platform-spellings(cliques): baselined when the gate widened; burn-down item 906.
 import { groupIdenticalArt } from "#client/features/discovery/lib/corpus-duplicate-groups.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

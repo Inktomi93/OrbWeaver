@@ -3,6 +3,7 @@
 // ≤64-entries-per-book cap counts only NET-NEW titles, and every written title is ruleId-namespaced
 // (`auto/<ruleId>:<key>`) — the idempotency handle a re-upsert relies on.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";

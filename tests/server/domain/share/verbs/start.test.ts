@@ -1,5 +1,6 @@
 // share.start — the owner gate, then the preconditions in order, each refusing with its code before the relay is touched,
 // then the seating a public link needs, then the relay.
+// @subject packages/server/src/domain/share/verbs/start.ts
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";

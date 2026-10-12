@@ -15,6 +15,7 @@ export interface BootSecretProvenance {
   readonly keyfile: string | null;
 }
 
+// @orb-waive no-inline-wire-interface(BootDisclaimerInput): baselined when the gate widened; burn-down item 904.
 /** The facts the block states. The warning lists are the posture modules' own, so the block restates no rule. */
 export interface BootDisclaimerInput {
   readonly authMode: AuthMode;

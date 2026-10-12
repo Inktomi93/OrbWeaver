@@ -12,6 +12,7 @@
 // SATURATED backdrop makes "did the row's card dissolve into what is behind it?" a one-channel question
 // instead of a contrast estimate — a photo would prove the same thing less legibly.
 
+// @orb-waive-file testid-typed-only-stories("fade-row"): baselined when the gate widened; burn-down item 906.
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement } from "react";
 

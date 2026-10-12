@@ -1,3 +1,6 @@
+// verb: sessions.validate — resolves a live token to its principal fields; a revoked or expired token resolves to null.
+// @subject packages/server/src/domain/sessions/verbs/validate.ts
+
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";

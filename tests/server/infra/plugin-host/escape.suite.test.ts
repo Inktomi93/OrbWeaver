@@ -17,6 +17,7 @@
 // carries the shared `@orb-waive test-determinism(process.hrtime)` marker (#831), since the subject here IS elapsed
 // real time.
 
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
@@ -37,7 +38,9 @@ import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX } from "#server/infra/plugin-host/budge
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const CHAT_A = "chat_aaaa000000000000000000000" as ChatId;
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const CHAT_B = "chat_bbbb000000000000000000000" as ChatId;
 const LONG = 30_000;
 /** §6's poll ceiling — inside `LONG` so a wedged pump reports its own assertion, not a bare test timeout. */
@@ -188,17 +191,20 @@ describe("escape — prototype pollution does not cross the membrane", () => {
   test("a guest __proto__ payload dumped host-side lands as an OWN key and never touches host Object.prototype", async () => {
     const ctx = await realmContext();
     try {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const before = (Object.prototype as Record<string, unknown>)["__polluted__"];
       const result = ctx.evalCode('JSON.parse(\'{"__proto__":{"__polluted__":true},"real":1}\')');
       if (isFail(result)) {
         result.error.dispose();
         throw new Error("guest failed to build the payload");
       }
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const dumped = ctx.dump(result.value) as Record<string, unknown>;
       result.value.dispose();
       // The payload crosses as INERT DATA: `__proto__` is a plain own key (JSON.parse never walks the prototype),
       // so nothing is assigned to the host's Object.prototype — a fresh host object stays clean.
       expect(Object.keys(dumped).sort()).toEqual(["__proto__", "real"]);
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       expect((Object.prototype as Record<string, unknown>)["__polluted__"]).toBe(before);
       expect(Object.hasOwn({}, "__polluted__")).toBe(false);
     } finally {
@@ -277,6 +283,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
     if (!outcome.ok) {
       return;
     }
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const op = (captured.ops?.[0] ?? {}) as Record<string, unknown>;
     expect(op["op"]).toBe("set");
     expect(op["key"]).toBe("k");
@@ -408,6 +415,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
     process.on("unhandledRejection", onUnhandled);
     try {
       await fn();
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((resolve) => setTimeout(resolve, 0));
     } finally {
       process.off("unhandledRejection", onUnhandled);
@@ -418,6 +426,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
   test("the 33rd concurrent host call is rejected (≤32 in-flight cap) and the 32 pending drain cleanly at dispose", { timeout: LONG }, async () => {
     const host = makeHost();
     let release!: (v: Record<string, string>) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<Record<string, string>>((r) => {
       release = r;
     });
@@ -503,6 +512,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
         // late release lands) before settling — so the burst is fired at the worst possible moment for the count.
         listMessages: async () => {
           releaseStragglers();
+          // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
           await new Promise((r) => setTimeout(r, 50));
           return [];
         },
@@ -810,6 +820,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     const host = makeHost();
     const wrote: string[] = [];
     let release!: (value: string | null) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<string | null>((resolve) => {
       release = resolve;
     });
@@ -857,6 +868,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     const host = makeHost();
     const wrote: string[] = [];
     let release!: (value: string | null) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<string | null>((resolve) => {
       release = resolve;
     });
@@ -942,6 +954,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     expect(readsAtRefusal).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
     expect(readsAtRefusal - readsAtReturn).toBeLessThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
     // The chain is dead, not slowed: no further host call lands after the refusal.
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(reads).toBe(readsAtRefusal);
     host.dispose(outcome.instance);

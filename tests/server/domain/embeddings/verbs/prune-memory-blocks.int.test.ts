@@ -10,6 +10,7 @@
 // the scope bucket is respected (a sibling bucket's blocks are never collateral), survivors are untouched,
 // an ordinary no-shrink pass deletes NOTHING (the build calls this every pass), and the digest's
 // `chat_digest_speakers` join rows go with it.
+// @subject packages/server/src/domain/embeddings/verbs/prune-memory-blocks.ts
 
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";

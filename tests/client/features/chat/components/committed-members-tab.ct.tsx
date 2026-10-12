@@ -134,8 +134,11 @@ async function headerGeometry(component: Locator): Promise<{
 }> {
   return await component.locator(CHARACTER_SECTION).evaluate((section: HTMLElement) => {
     const bounds = section.getBoundingClientRect();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const header = section.querySelector('[data-slot="members-section-header"]') as HTMLElement;
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const doors = section.querySelector('[data-slot="members-section-doors"]') as HTMLElement;
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     const kicker = header.querySelector("span") as HTMLElement;
     // LINE COUNT FROM VERTICAL CENTRES, not tops: every flex line here is `align="center"`, so items
     // SHARING a line share a centre while their tops differ by their own heights (the kicker's line box is
@@ -230,10 +233,14 @@ async function headerCliffs(component: Locator): Promise<{
 }> {
   return await component.locator(CHARACTER_SECTION).evaluate(
     (section: HTMLElement, probe: { step: number; arm: number; ceiling: number; widths: readonly number[] }) => {
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const host = section.closest("div[style]") as HTMLElement;
       const restore = host.style.width;
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const header = section.querySelector('[data-slot="members-section-header"]') as HTMLElement;
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const doors = section.querySelector('[data-slot="members-section-doors"]') as HTMLElement;
+      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const kicker = header.querySelector("span") as HTMLElement;
       const linesAt = (width: number): number => {
         host.style.width = `${width}px`;

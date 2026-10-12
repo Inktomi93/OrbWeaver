@@ -33,6 +33,7 @@ export interface ArchivedCard {
   readonly characterId: CharacterId | null;
 }
 
+// @orb-waive contract-structural-copy(ArchivedCardSource): baselined when the gate widened; burn-down item 904.
 /** The transcript row fields the projection reads: the body + its birth time, plus the ATTRIBUTION the
  *  render policy resolves from (`chat.listMessages` carries all six). */
 interface ArchivedCardSource {

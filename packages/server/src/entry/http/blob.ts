@@ -52,6 +52,7 @@ function isInlineServable(mime: string): boolean {
 export interface BlobAssetsPort {
   readonly getMetadata: (params: { readonly principal: Principal; readonly hash: string }) => Promise<AssetMetadata | undefined>;
   readonly resolveVariant: (params: {
+    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
     readonly principal: Principal;
     readonly hash: string;
     readonly width: number;

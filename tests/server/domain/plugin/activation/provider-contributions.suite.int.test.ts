@@ -3,6 +3,7 @@
 // only by the owners of its enabled installs (D147); each owner's claim binds the id to that owner's own
 // definition (D265), so one user can neither block nor shadow another's; restart reloads durable rows.
 
+// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
@@ -242,10 +243,12 @@ test("uninstall waits for an in-flight enable and removes its guest and provider
   const db = await freshDb();
   const connection = await makeConnectionHarness(db);
   let publishReached!: () => void;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const reached = new Promise<void>((resolve) => {
     publishReached = resolve;
   });
   let releasePublish!: () => void;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const hold = new Promise<void>((resolve) => {
     releasePublish = resolve;
   });

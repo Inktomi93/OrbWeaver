@@ -1,6 +1,7 @@
 // backends/local-light/model-cache — the REAL transformers.js loader, offline (`allowRemoteModels: false`) over a
 // throwaway file cache: failed loads are recorded per model id for the availability verdict.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

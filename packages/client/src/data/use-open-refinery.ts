@@ -76,6 +76,7 @@ function resumableSessionIdOf(roster: readonly SessionSummaryView[], characterId
   return newest === null ? null : castId<RefinerySessionId>(newest.id);
 }
 
+// @orb-waive no-inline-wire-interface(UseOpenRefineryResult): baselined when the gate widened; burn-down item 904.
 export interface UseOpenRefineryResult {
   /** Resume this card's newest open session, or mint one, then land in it with the Refinery section
    *  active. Resolves to the session that was opened. */

@@ -22,6 +22,7 @@
 // absence assertion (`not.toContain(<the hidden truth>)`) passed on a stream that delivered nothing. Values
 // that feed an assertion are read through `requireSatisfied`, which refuses every other verdict by name.
 
+// @orb-waive-file no-test-fabrication(ChatFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatBusEventLite } from "./sse-types.ts";
 

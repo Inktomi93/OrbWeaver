@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-11
+status: doing
+updated: 2026-10-12
 priority: P2
 area: tooling
+lane: wt/agent-aba34bde668518e5a
 ---
 
 # Snap stages are isolated per run, never shared by sha between sibling sessions

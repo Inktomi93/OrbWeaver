@@ -31,6 +31,7 @@ function blockSlot(chatId: DiscoverSegment["chatId"], blockIdx: number): string 
   return `${chatId}|${blockIdx}`;
 }
 
+// @orb-waive contract-structural-copy(CharacterGroup): baselined when the gate widened; burn-down item 904.
 interface CharacterGroup {
   readonly characterId: CharacterId;
   readonly score: number;

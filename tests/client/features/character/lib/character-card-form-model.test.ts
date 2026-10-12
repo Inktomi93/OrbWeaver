@@ -4,6 +4,7 @@
 // (Spine-Testing.md §7). Deep-imports the pure lib module (NOT the feature barrel — a barrel drags browser
 // TSX into the dom-less typecheck:graph program; the character-list-view.test precedent).
 
+// @orb-waive-file no-test-fabrication(CardDetail): baselined when the gate widened to value casts; burn-down item 906.
 import {
   characterCardFormFromDetail,
   characterUpdateDiff,

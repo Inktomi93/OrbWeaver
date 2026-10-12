@@ -1,8 +1,10 @@
 /// <reference path="../../../../packages/plugin-sdk/shared.d.ts" />
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // Every way a plugin can fail reaches the server log once, naming the plugin, the kind of failure and the cause.
 // Each case drives a scratch plugin through the real broker and compose and counts ALL warn/error lines the
 // failure produced, so a second line from anywhere up the stack fails the case.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -78,6 +78,7 @@ export function changedCardFields(before: CharacterCard, after: CharacterCard): 
 }
 
 export function flagEdits(input: UpdateCharacterInput): {
+  // @orb-waive contract-structural-copy(starred): baselined when the gate widened; burn-down item 904.
   starred?: boolean;
   archived?: boolean;
   forbidExternalMedia?: boolean | null;

@@ -4,6 +4,7 @@
 //   • enterSends OFF → Enter is a newline; ⌘/Ctrl+Enter sends; Shift+Enter is a newline.
 // A CJK/IME candidate-confirm Enter (isComposing) never sends.
 
+// @orb-waive no-inline-wire-interface(EnterKeyInput): baselined when the gate widened; burn-down item 904.
 /** The keyboard-event fields the decision reads — a structural subset, so a test needs no real DOM event. */
 export interface EnterKeyInput {
   readonly key: string;

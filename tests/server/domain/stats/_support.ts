@@ -28,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
@@ -50,13 +51,14 @@ export async function seedUser(db: Db, id = "user_owner", role: "owner" | "user"
 
 export async function seedCharacter(db: Db, ownerId: UserId, opts: { id?: string; name?: string } = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(opts.id ?? "character_a");
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(id),
-    ownerId,
-    name: opts.name ?? "Aria",
-    contentHash: "hash",
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(id),
+      ownerId,
+      name: opts.name ?? "Aria",
+    }),
+  );
   return id;
 }
 

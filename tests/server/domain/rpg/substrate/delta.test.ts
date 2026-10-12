@@ -6,6 +6,11 @@
 // monolith edit — the P1 seam). The swipe-consistency + hand-edit-source classes ride the gather int test (a
 // flush→read ROUND-TRIP, not a pure peek) — they live in chat-ops/gather.int.test.ts.
 
+// @orb-waive-file no-loose-id-cast("q1"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast("q_missing_key"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast("usr_1"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(null): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(status): baselined when the gate widened; burn-down item 906.
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { DeltaContext } from "#server/domain/rpg/contract/delta.ts";
@@ -253,6 +258,7 @@ test("SCENE OPENS names a PARTICIPANT actor by her display name — never her ra
     location: "The Ford",
     actorState: [
       {
+        // @orb-waive no-loose-id-cast("char_kael"): baselined when the gate widened; burn-down item 906.
         actorRef: { kind: "character", characterId: "char_kael" as never },
         volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
       },
@@ -414,6 +420,7 @@ test("ambient — a long rest fires all three time arms together (date + day + t
 test("participant names — a character-kind actor names via the participant map, not the generic label (fold-in #5)", () => {
   const hp = def({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", max: 20 });
   const kael = (value: number): RpgSnapshotState["actorState"][number] => ({
+    // @orb-waive no-loose-id-cast("char_kael"): baselined when the gate widened; burn-down item 906.
     actorRef: { kind: "character", characterId: "char_kael" as never },
     volatile: { trackerValues: { hp: reading(value) }, conditions: [], inventory: [], wallet: [], status: "" },
   });

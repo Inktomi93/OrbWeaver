@@ -11,6 +11,7 @@ import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 
+// @orb-waive contract-structural-copy(CardFieldsRow): baselined when the gate widened; burn-down item 904.
 /** One card's searchable text fields for the BM25 index. The row shape is inferred by the substrate's
  *  `CardDoc` (structural) — kept file-local + un-exported (`no-inline-types`; the verb passes the loader). */
 interface CardFieldsRow {

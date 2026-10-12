@@ -3,6 +3,8 @@
 // precedent) — the section bodies are mounted by the config host, not exported standalone; the Backup group
 // mounts as its two CONTRIBUTED sections through the host's own resolver.
 
+// @orb-waive-file testid-typed-only-stories("import-outcome"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("tracker-tally"): baselined when the gate widened; burn-down item 906.
 import { useOrbSocket } from "@orb/client/data";
 import { backupExportSection, backupImportSection } from "@orb/client/features/workloads";
 import { createContributorRegistry } from "@orb/client/lib";

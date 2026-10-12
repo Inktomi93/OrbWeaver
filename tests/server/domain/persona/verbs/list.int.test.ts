@@ -1,6 +1,7 @@
 // verb: list — owner-scoped, newest-first. Load-bearing: another user's personas NEVER appear (the
 // ownership predicate is in the WHERE), and ordering is by createdAt desc (the clock advances between
 // creates to break the tie a frozen clock would otherwise produce).
+// @subject packages/server/src/domain/persona/verbs/list.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

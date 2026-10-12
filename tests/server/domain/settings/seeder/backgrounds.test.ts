@@ -18,6 +18,7 @@
 // (`readSeedBackground` → `assets.store({kind:"background"})`) is the composition root's, pinned at
 // `tests/server/entry/compose/assets-character.int.test.ts`.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, UserId } from "@orb/kit/ids";

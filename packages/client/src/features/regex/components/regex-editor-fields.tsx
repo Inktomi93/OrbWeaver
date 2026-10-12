@@ -36,6 +36,7 @@ import { RegexTestPanel } from "./regex-test-panel.tsx";
 // Lazy — CodeMirror is heavy and only this editor needs it.
 const CodeEditor = lazy(() => import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })));
 
+// @orb-waive no-vanity-alias(PLACEMENT_ITEMS): baselined when the gate widened; burn-down item 906.
 /** The placement multi-toggle items. The labels are the SHARED map (side-eye F-23): this editor used to
  *  offer the raw enum member (`USER_INPUT`) while the Transforms readout printed prose for the same stage,
  *  so one pipeline had two vocabularies and neither surface could be read against the other. */

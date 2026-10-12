@@ -10,6 +10,7 @@
 //   • the running instance can never enforce a superseded grant (a narrowing restarts the resident);
 //   • the ANTI-TOCTOU echo: `net.fetch` is the one capability whose reach the owner does not type, so a
 //     manifest that moved under a rendered consent screen must not arm a host nobody confirmed.
+// @subject packages/server/src/domain/plugin/verbs/set-grant.ts
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import type { Handle, PluginId } from "@orb/kit/ids";

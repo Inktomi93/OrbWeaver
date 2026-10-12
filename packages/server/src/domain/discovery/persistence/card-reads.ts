@@ -96,6 +96,7 @@ export async function readCardDistillTargets(db: Db, filter: DistillTargetNarrow
  *  is a verdict ABOUT are built in one place — a caller re-checking the raw columns would drift from the
  *  labels actually sent to the summarizer. */
 function composeCardText(card: {
+  // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
   readonly name: string;
   readonly description: string | null;
   readonly personality: string | null;
@@ -115,6 +116,7 @@ function composeCardText(card: {
   add("Description", card.description);
   add("Personality", card.personality);
   add("Scenario", card.scenario);
+  // @orb-waive json-column-read-parsed(greetings): the unparsed characters.greetings read reaches composeCardText through a hand-typed parameter off the $type cast; burn-down item 905.
   add("Greeting", card.greetings[0]?.text ?? null);
   add("Example dialogue", card.exampleMessages);
   return { text: parts.join("\n\n"), contentParts };

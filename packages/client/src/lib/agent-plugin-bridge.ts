@@ -13,6 +13,7 @@
 
 import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 
+// @orb-waive contract-structural-copy(OrbPluginListEntry): baselined when the gate widened; burn-down item 904.
 /** One installed plugin as `__orb.pluginLog()` lists it — the `plugin.list` row's identity + lifecycle columns. */
 export interface OrbPluginListEntry {
   readonly id: PluginId;

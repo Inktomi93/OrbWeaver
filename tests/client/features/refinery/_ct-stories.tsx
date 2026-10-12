@@ -19,6 +19,13 @@
 // the honest form of the `CharacterCardTileStory` note, not a departure from it: that story takes plain
 // strings because its ids come from a fixture's display data, not from a mint.
 
+// @orb-waive-file testid-typed-only-stories("applied"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("lane-run-frame"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("roster"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("run-controls-frame"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("runs"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("session"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("teaching-frame"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "@orb/client/data";
 import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";
@@ -175,7 +182,9 @@ export interface RefineryContentStoryProps {
  */
 export function RefineryContentStory({ sessionId, viewBackRunId }: RefineryContentStoryProps): ReactElement {
   useState((): null => {
-    selectRefinerySession(sessionId);
+    // `swap: false` writes the store NOW. The default select goes through the view-transition door, which
+    // applies it on a later frame, so the surface first painted the landing arm and read the roster and library.
+    selectRefinerySession(sessionId, { swap: false });
     setRefineryViewedRun(null);
     return null;
   });
@@ -326,7 +335,7 @@ export function RefineryRosterStory({ mobile = false, selectedSessionId }: Refin
     if (selectedSessionId === undefined) {
       refinerySectionSelection.clear();
     } else {
-      selectRefinerySession(selectedSessionId);
+      selectRefinerySession(selectedSessionId, { swap: false });
     }
     return null;
   });
@@ -421,7 +430,7 @@ export function RunsTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryPr
  *  effect), for the same reason `RefineryContentStory` seeds one there. */
 export function RefineryDoorStory({ sessionId, characterId }: SetupTabBodyStoryProps): ReactElement {
   useState((): null => {
-    selectRefinerySession(sessionId);
+    selectRefinerySession(sessionId, { swap: false });
     setRefineryViewedRun(null);
     return null;
   });

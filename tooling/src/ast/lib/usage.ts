@@ -43,6 +43,8 @@ export const USAGE = [
   "  pnpm ast rot server                orphans+testonly+chains+typeonly-alive+swallowed over ONE package, ONE load",
   "  pnpm ast flow chat/engine          packages+tooling graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         packages+tooling modules that can transitively reach X (depcruise)",
+  "  pnpm ast antipatterns --scope tests/client   every antipattern gate in one structure pass; hits by class,",
+  "                                     waived or not (classes: enforcement-antipatterns.md); exit 1 = unwaived",
   "",
   "ARGV IS STRICT (#452 — a silent false clean is the one failure this tool exists to prevent): every",
   "  verb's SUBJECT is positional and comes FIRST; there is no --name/--component flag. A flag where a",

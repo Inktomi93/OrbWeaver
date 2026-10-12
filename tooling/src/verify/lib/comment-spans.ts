@@ -3,17 +3,12 @@
 // (tooling/src/verify/gates/GATE-AUTHORING.md §1) — comments are trivia a value scan must skip. Both helpers return text of the
 // SAME LENGTH with comment characters replaced by spaces and newlines preserved, so a caller's
 // `split("\n")` line numbers and column offsets stay exact.
+
+import { blankSpan } from "@orb/kit/strings";
 import type { SourceFile } from "ts-morph";
 import { Project, ScriptKind, SyntaxKind, ts } from "ts-morph";
 
-const SPACE = " ";
 const CSS_COMMENT_CLOSE = "*/";
-
-/** Replace `[start,end)` with spaces, keeping every newline (line count + offsets are invariant). */
-function blankRange(text: string, start: number, end: number): string {
-  const span = text.slice(start, end).replace(/[^\n]/gu, SPACE);
-  return text.slice(0, start) + span + text.slice(end);
-}
 
 /** Every comment span in a parsed TS/TSX file, blanked. Comments are TRIVIA: they attach as leading
  *  ranges of some TOKEN, so the walk behind this (`forEachCommentRange`) scans the token gaps and not just
@@ -137,7 +132,7 @@ function blankTsCommentsUncached(sf: SourceFile): string {
   // Descending so an earlier blank can never move a later span's offsets (lengths are preserved anyway;
   // the order makes that independent of the invariant).
   for (const span of spans.sort((a, b) => b.pos - a.pos)) {
-    text = blankRange(text, span.pos, span.end);
+    text = blankSpan(text, span.pos, span.end);
   }
   return text;
 }
@@ -257,7 +252,7 @@ function commentEndFrom(text: string, i: number, lineComments: boolean): number 
 export function blankCssComments(text: string): string {
   let out = text;
   for (const span of [...commentSpansInText(text, { lineComments: false })].sort((a, b) => b.pos - a.pos)) {
-    out = blankRange(out, span.pos, span.end);
+    out = blankSpan(out, span.pos, span.end);
   }
   return out;
 }

@@ -4,6 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
+// @orb-waive-file no-loose-id-cast(overrides.metadata ?? null): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView, TurnInitiator } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";
@@ -70,9 +71,11 @@ import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "#server/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 export const FROZEN_AT = FROZEN_AT_MS;
 
 /** A CLAIM chokepoint that does nothing (R0). Every chat these suites seed is born CLAIMED (the `seedChat`
@@ -120,15 +123,16 @@ export async function seedCharacter(
   // minted TypeID for the rare test that also puts the id through a contract-schema belt (e.g. an rpg volatile
   // `actorRef.characterId` re-validated at snapshot-write — a fabricated id would be dropped there).
   const id = overrides.id ?? castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(key),
-    ownerId,
-    name: key,
-    contentHash: `hash_${key}`,
-    avatarAssetId: overrides.avatarAssetId ?? null,
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(key),
+      ownerId,
+      name: key,
+      avatarAssetId: overrides.avatarAssetId ?? null,
+      createdAt: FROZEN_AT,
+    }),
+  );
   return id;
 }
 
@@ -554,11 +558,13 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // verbs push on every write path now; a test that asserts stats overrides with a recorder).
     applyStatsDelta: () => undefined,
     applyCharacterStatsDelta: (batch, opDb, delta) => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyCharacterStatsDelta(batch as BatchStmt[], opDb, delta);
     },
     resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(db),
     resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
     settleRetainedChatRebase: (batch, opDb, scope) => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
     },
     bumpStatsCanonVersion: () => undefined,
@@ -580,6 +586,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // transition still lands; a test that asserts events overrides with a recorder that does the same.
     emitNotification: async (_event, coStatements) => {
       if (coStatements !== undefined && coStatements.length > 0) {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         await db.batch(batchMany(coStatements as BatchStmt[]));
       }
     },

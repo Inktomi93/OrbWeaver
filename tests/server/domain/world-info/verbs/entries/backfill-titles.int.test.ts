@@ -2,6 +2,7 @@
 // comma-joined keys as its title; an entry with no keys is LEFT blank (no synthetic default); the count is
 // returned. Blank titles are seeded directly (createEntry requires a non-empty title — blanks are the
 // import-path case the verb defends).
+// @subject packages/server/src/domain/world-info/verbs/entries/backfill-titles.ts
 
 import { worldEntries } from "@orb/db";
 import type { Handle, WorldEntryId } from "@orb/kit/ids";

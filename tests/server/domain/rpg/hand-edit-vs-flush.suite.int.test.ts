@@ -69,6 +69,7 @@ function untilRoundStarted(calls: readonly unknown[], want: number): Promise<voi
     if (attemptsLeft === 0) {
       return Promise.reject(new Error(`the state round never started (wanted ${want} calls) — the edit would not have been mid-flight`));
     }
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     return new Promise((resolve) => setTimeout(resolve, 5)).then(() => poll(attemptsLeft - 1));
   };
   return poll(400);
@@ -82,6 +83,7 @@ test("A (single speaker): a hand edit mid-flight survives the flush — AND the 
 
   // HOLD the round in flight — the real 0.8-2.9s window, made deterministic.
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -119,6 +121,7 @@ test("B (back-to-back assistant turns): a hand edit mid-flight of the SECOND tur
   // Speaker 2's turn — its round held in flight.
   const second = await seedMessage(db, chatId, 2, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -150,6 +153,7 @@ test("SAME field, both writers: the HUMAN's value stands (manual-edit-wins, to t
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -201,6 +205,7 @@ test("pre-first-turn: an edit landing MID-FLIGHT of the very FIRST turn keeps bo
   const first = await seedMessage(db, chatId, 3, { role: "assistant" });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -268,6 +273,7 @@ test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own 
   h.fakes.toolRoundDelta = ROUND_DELTA;
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -306,6 +312,7 @@ test("CE1 (PRODUCTION patch shape): a round that re-authors PRESENCE does not re
   };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -338,6 +345,7 @@ test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor
   };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -389,6 +397,7 @@ test("TWO staged writes on ONE flat plane: the fold duplicates nothing (beats an
   });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -420,6 +429,7 @@ test("CE1: a mid-flight deleteQuest is NOT undone by the fold either (the same c
   h.fakes.toolRoundDelta = ROUND_DELTA;
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -471,6 +481,7 @@ test("CE2: the user sends their NEXT message mid-flight, then steers — the tur
   const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });
@@ -513,6 +524,7 @@ test("the fold's REFUSAL arm fires onFlushDropped (a rejected merge is never sil
   h.fakes.toolRoundDelta = { statePatch: { location: null }, journal: [] };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
   let releaseRound = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseRound = resolve;
   });

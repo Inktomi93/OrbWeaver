@@ -10,6 +10,7 @@
 //               send, never silently posted.
 // `registered: false` mounts the same tree with an EMPTY registry — the zero-registrant baseline.
 
+// @orb-waive-file testid-typed-only-stories("ct-slash-fired"): baselined when the gate widened; burn-down item 906.
 import type { ContributorRegistry, SlashCommandContribution, SlashCommandMountProps } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { SlashCommandRegistryProvider } from "@orb/client/state";

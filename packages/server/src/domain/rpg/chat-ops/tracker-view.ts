@@ -93,6 +93,7 @@ function trackerEntries(defs: readonly RpgTrackerDef[], values: RpgActorVolatile
  *  default), its identity half (cast only), whether it stands in the scene, its volatile state (from the
  *  resolved snapshot's `actorState`, keyed by `actorRefKey`, or null), and the trackers it carries. */
 function actorView(args: {
+  // @orb-waive contract-structural-copy(actorRef): baselined when the gate widened; burn-down item 904.
   actorRef: RpgActorRef;
   name: string;
   avatar?: string | undefined;

@@ -1,3 +1,5 @@
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] }): baselined when the gate widened; burn-down item 906.
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";

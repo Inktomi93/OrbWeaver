@@ -37,6 +37,9 @@
 // The safeFetch path is untouched by all of it: its unconditional private-range denial never consults the
 // allowlist (the `ownerConfiguredEndpoint` class is the one named opt-out, compose-bound, not caller-suppliable).
 
+// @orb-waive-file no-test-fabrication({ refused?: number } | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ refused?: number; hostPorts?: number } | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ refused?: number; hosts?: number } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { LookupFunction, Socket } from "node:net";

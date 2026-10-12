@@ -7,6 +7,7 @@ import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalCon
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants.ts";
 
+// @orb-waive no-vanity-alias(POPUP_SIDE_OFFSET): baselined when the gate widened; burn-down item 906.
 // Breathing room between the input and the popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 

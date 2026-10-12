@@ -28,9 +28,8 @@
 // central reviewed-grant rows (see AUTHORITY below). That is the whole discipline: scope the gate with the
 // evidence, never ship an exemption that lies about what it is exempting.
 //
-// DECLARED BLIND SPOTS: a shape re-spelled under a DIFFERENT name (only a mutual-assignability probe finds
-// that — `pnpm ast respell <domain>`, the push-tier candidate lens, deliberately NOT a gate: assignability
-// alone cannot tell a re-spell from two shapes that merely agree today); a re-spell of a shape owned by
+// DECLARED BLIND SPOTS: a shape re-spelled under a DIFFERENT name (the sibling `contract-structural-copy`
+// judges that by field names and types, by owner ruling: a shape that agrees today is the same drift risk); a re-spell of a shape owned by
 // `kit` (no per-domain name space to key on); and a `contracts` shape re-spelled in a domain dir whose name
 // differs from the contracts dir name (the domain map has no such pair today).
 //
@@ -53,11 +52,10 @@
 // importing family test driven through `runPolicyPass`, never in a proof row — so it lives in
 // `tests/tooling/verify/gates/contract-shape-wave-1.suite.test.ts`.
 //
-// SINGLETON REASON (§2, §7.4): with the health sibling retired this policy has no partner, and none is
-// meaningful — the only other production consumer of a contract-shape-vs-table match would be a second
-// verdict over the same predicate, which is what the retired split was. The shared reader stays at
-// `lib/contract-derives-not-respells.ts` (#2091, owner decision #2096) because a gate owns no private
-// reader either; the family field names this module's own id.
+// FAMILY: this policy and `contract-structural-copy` (the different-name structural copy this header's blind
+// spot names, an ordinary policy over a wider population with a type graph). Both read the domain contract
+// home through `lib/contract-derives-not-respells.ts#DOMAIN_CONTRACT_RE`, the shared reader that stays in
+// `lib/` (#2091, owner decision #2096) because a gate owns no private reader.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `contract-derives-not-respells` descriptor at (pruned from public history), the parent of the

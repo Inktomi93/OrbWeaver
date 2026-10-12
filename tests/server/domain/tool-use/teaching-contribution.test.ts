@@ -11,6 +11,7 @@
 // "at attach time an unknown name is OUR wiring bug" posture — so a contribution that returned a stale name
 // would turn "I switched my plugin off" into a failed turn. The row below proves the union stays resolvable.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";

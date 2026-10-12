@@ -112,6 +112,7 @@ export function toHostConsoleForm(config: RpgConfigView): HostConsoleFormValues 
  *  extraction mode + deception knobs are top-level/`patch`-level per the wire schema. */
 export interface HostConsoleScalarPatch {
   readonly patch: {
+    // @orb-waive contract-structural-copy(steeringNote): baselined when the gate widened; burn-down item 904.
     readonly steeringNote: string;
     readonly deception: boolean;
     readonly omniscience: boolean;

@@ -5,7 +5,9 @@
 // INSTALLING principal (PL-C — the installer's role in THIS chat, not the turn caller's membership); and
 // unregister leaves no ghost tool. #677 adds the PER-INSTALLER partition: the same namespaced name is held once
 // per installing user, so the collision is scoped to one shelf and a deactivation touches only that shelf.
+// @subject packages/server/src/domain/tool-use/verbs/register-plugin-tool.ts
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_WIRE_NAME_MAX } from "@orb/contracts/plugin";

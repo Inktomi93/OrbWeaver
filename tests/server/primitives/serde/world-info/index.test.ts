@@ -7,6 +7,8 @@
 // `reject-file` is this family's DECLARED rowPolicy (O-8 opt-in): one bad entry fails the whole book,
 // because a lorebook that restores LOOKING complete while silently missing an entry is the worse outcome.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { PortableParse } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { WorldBookId } from "@orb/kit/ids";

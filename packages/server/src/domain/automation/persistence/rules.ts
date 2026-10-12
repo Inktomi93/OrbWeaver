@@ -24,6 +24,7 @@ import type { RuleView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 
+// @orb-waive contract-structural-copy(RuleUpdate): baselined when the gate widened; burn-down item 904.
 /** The editable columns `updateRule` replaces (a PUT — the id/chat/owner are immutable). Resets the error
  *  ledger (a fresh authoring pass clears the auto-disable countdown — 04 §2). */
 interface RuleUpdate {

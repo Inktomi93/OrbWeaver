@@ -3,6 +3,7 @@
 // the REAL tag verb (`attachCardTagByName`) over the same db — mirroring the composition root's
 // `attachCardTag: tag.attachCardTagByName` 1:1 binding — and asserts the rows actually land in
 // `tags`/`character_tags`, so a break in tag's resolve-or-create-and-attach is visible from character's tree.
+// @subject packages/server/src/domain/character/verbs/bulk-add-card-tag.ts
 
 import { characterTags, tags } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";

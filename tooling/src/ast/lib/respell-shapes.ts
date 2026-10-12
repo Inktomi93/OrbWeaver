@@ -2,6 +2,8 @@
 
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
+import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { coLocatedSemanticNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
@@ -27,21 +29,16 @@ export interface ShapeEntry {
   readonly fields: readonly FieldPair[];
 }
 
-/** The compiler checker's mutual-assignability primitive. It is a TS INTERNAL, so it is resolved once and
- *  its ABSENCE is a tool error (exit 2), never a silent zero — a lens that quietly stops comparing is worse
- *  than no lens. (Present on TS 5.x/TS7's checker object; re-verify on a TypeScript bump.) */
-export interface AssignabilityChecker {
-  isTypeAssignableTo: (source: unknown, target: unknown) => boolean;
-}
-
+/** The checker's assignability primitive, resolved once. Its ABSENCE is a tool error (exit 2), never a silent
+ *  zero — a lens that quietly stops comparing is worse than no lens. */
 export function assignabilityChecker(project: Pick<Project, "getTypeChecker">): AssignabilityChecker {
-  const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
-  if (typeof compiler.isTypeAssignableTo !== "function") {
+  const checker = readAssignabilityChecker(project.getTypeChecker());
+  if (checker === undefined) {
     exitToolError(
       "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; tooling/src/ast/lib/respell-shapes.ts.",
     );
   }
-  return { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) };
+  return checker;
 }
 
 /** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not

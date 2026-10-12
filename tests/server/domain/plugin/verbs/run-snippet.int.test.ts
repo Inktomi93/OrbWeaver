@@ -7,6 +7,7 @@
 // run lives in port.test.ts + the composed-real transport int; this is the domain-tree behavioral mirror
 // (test-presence + contract-verb-presence).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle } from "@orb/kit/ids";

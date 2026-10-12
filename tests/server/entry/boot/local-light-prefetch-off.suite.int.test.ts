@@ -66,6 +66,7 @@ async function pollUntilOk(url: string): Promise<Response> {
     } catch {
       // the listener is still binding — retry below
     }
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise<void>((resolve) => {
       setTimeout(resolve, POLL_DELAY_MS);
     });
@@ -98,6 +99,7 @@ test(
       const res = await pollUntilOk(`${base}/api/trpc/health`);
       expect(await res.json()).toMatchObject({ result: { data: { ok: true } } });
       expect(preloads).toEqual([]);
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise<void>((resolve) => {
         setTimeout(resolve, POLL_DELAY_MS);
       });

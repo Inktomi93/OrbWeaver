@@ -23,6 +23,14 @@
 // `tests/client/routes/app-root.ct.tsx`; a defect in title composition must be pinned THERE. Do not restate
 // that file's pins here — a duplicate over a fake registry proves the fake, not the product.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(KeyframeEffect | null): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(number[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(typeof globalThis & { __commandListenerProbe: { active: Set<EventListenerOrEventListenerObject>; adds: number; removes: number } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(typeof globalThis & { __ctPanelTasks: { tick: number; mode: boolean; body: boolean }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ state?: { panelOverrides?: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -32,6 +40,7 @@ import { contrastRatio, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/to
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { MODAL_SLOT_IDS } from "#client/state/modal-slot-ids.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/floor/appearance/appearance-presets.json" with { type: "json" };
@@ -1695,6 +1704,9 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByText("Your generation presets live here", { exact: false })).toBeVisible();
 });
 
+/** A bound on the touch drags that reach the You sheet's last row, so a stuck scroll fails instead of looping. */
+const MAX_SHEET_DRAGS = 4;
+
 test.describe("You sheet with the first-run plugin notice", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 640 } });
 
@@ -1726,12 +1738,36 @@ test.describe("You sheet with the first-run plugin notice", () => {
     await expect(last).not.toBeInViewport();
     const from = { x: 24, y: 560 };
     const to = { x: 24, y: 180 };
-    await touchDrag(page, from, to, 8);
-    await touchDrag(page, from, to, 8);
+    const lastTop = async (): Promise<number> => (await last.boundingBox())?.y ?? Number.NaN;
+    // Drag until the last row is on screen; the sheet's length follows its contents, so the count is not
+    // the claim. Every drag must move the rows, which is what a touch-scroll defect would stop.
+    for (let drag = 0; drag < MAX_SHEET_DRAGS && (await last.evaluate((el) => el.getBoundingClientRect().bottom > innerHeight)); drag++) {
+      const before = await lastTop();
+      await touchDrag(page, from, to, 8);
+      await expect.poll(lastTop).toBeLessThan(before);
+    }
     await expect(last).toBeInViewport({ ratio: 1 });
     await last.click();
     await expect(popup).toHaveCount(0);
   });
+});
+
+test("mobile: Report a bug leaves the phone topbar for the You sheet, where it discloses its form inline", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "persona.list": () => [] });
+  const shell = await mount(<AppShellStory />);
+  const you = shell.getByRole("button", { name: "You", exact: true });
+  await expect(you).toBeVisible();
+  await expect(page.locator(".shell-topbar").getByRole("button", { name: "Report a bug" })).toHaveCount(0);
+
+  await you.click();
+  const sheet = page.locator('[data-slot="drawer-popup"]');
+  const disclosure = sheet.getByRole("button", { name: "Report a bug", exact: true });
+  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  await disclosure.click();
+  // The form sits inside the sheet itself, not in a popover layered over it.
+  await expect(sheet.getByRole("textbox", { name: "What happened?" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Prepare report" })).toBeVisible();
 });
 
 test("mobile: the You sheet's Settings row switches to the config SECTION and closes the sheet", async ({ mount, page }) => {
@@ -2020,9 +2056,9 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
 
   const crossover = await renderedPrimacyCrossover(page);
   await page.setViewportSize({ width: crossover.constrained, height: 900 });
-  const jumpLabel = page.locator(".shell-topbar-jump-label");
-  await expect(jumpLabel).toBeVisible();
-  await expect.poll(() => jumpLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expectIconOnlyCommandChip(page);
+  const jump = page.getByRole("button", { name: COMMAND_CHIP_NAME });
+  await expect.poll(() => jump.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.setViewportSize({ width: crossover.equality, height: 900 });
   const topbarTitle = page.locator(".shell-topbar-title:visible");
   await expect(topbarTitle).toHaveText("Presets");
@@ -2152,6 +2188,59 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
   });
 }
 
+/** Topbar buttons carry no text (owner ruling): the ⌘K chip is an icon button whose accessible name and tooltip
+ *  carry "Jump" and the platform's shortcut, spelled by the production `commandShortcutLabel`. */
+async function expectIconOnlyCommandChip(page: Page): Promise<void> {
+  const chip = page.locator(".shell-topbar-trail").getByRole("button", { name: COMMAND_CHIP_NAME });
+  await expect(chip).toBeVisible();
+  await expect(chip).toHaveText("");
+  await expect(chip.locator("svg")).toHaveCount(1);
+  const shortcut = commandShortcutLabel(await page.evaluate(() => navigator.userAgent));
+  await expect(chip).toHaveAccessibleDescription(`Jump to… ${shortcut}`);
+}
+
+/** The title group ends before the members chip, and the room name keeps its floor. */
+async function expectTitleGroupKeepsItsBound(page: Page): Promise<void> {
+  const subtitle = page.locator(".shell-topbar-subtitle");
+  await expect
+    .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
+    .toBe(true);
+  const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
+  const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
+  if (groupBox === null || membersBox === null) {
+    throw new Error("expected the title group and the members chip to be laid out");
+  }
+  expect(groupBox.x + groupBox.width).toBeLessThanOrEqual(membersBox.x + 1);
+}
+
+/** A third-party plugin command with no placement: the only thing that puts the top-bar launcher on the row. */
+const UNPLACED_PLUGIN_COMMAND = {
+  pluginId: mintTypeId(ID_PREFIX.plugin),
+  slug: "third-party",
+  pluginName: "Third party",
+  name: "inspect",
+  describe: "Inspect the room",
+  args: [],
+  group: null,
+  placements: [],
+} satisfies TrpcWireOutput<"plugin.listCommands">[number];
+
+test("0851: at 1280 with BOTH panes docked and a third-party launcher on the row, the title still keeps its bound", async ({ mount, page }) => {
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM, "plugin.listCommands": [UNPLACED_PLUGIN_COMMAND] });
+  await seatNotificationBell(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
+  const readout = await settledTopbarIdentity(page, shell, "docked", false);
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, bell: true });
+  // The premise: every real trail widget a chat room can carry is on the row.
+  const trail = page.locator(".shell-topbar-trail");
+  for (const name of ["Plugin commands", "Notifications", "Report a bug"]) {
+    await expect(trail.getByRole("button", { name, exact: true })).toBeVisible();
+  }
+  await expectIconOnlyCommandChip(page);
+  await expectTitleGroupKeepsItsBound(page);
+});
+
 test("0851: at 1280 with BOTH panes docked the topbar keeps the participants title and both chips — chips shrink to glyphs, nothing is hidden", async ({
   mount,
   page,
@@ -2180,9 +2269,9 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
   await expect
     .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
     .toBe(true);
-  // The date went first; the ⌘K chip keeps its word, so it still reads as a control; the chips never paint over text.
+  // The date went first; the chips never paint over text.
   await expect(page.locator(".shell-topbar-date")).toBeHidden();
-  await expect(page.locator(".shell-topbar-jump-label")).toBeVisible();
+  await expectIconOnlyCommandChip(page);
   const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
   const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
   if (groupBox === null || membersBox === null) {
@@ -3109,6 +3198,7 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
     // two-totals note — that exclusion is precisely what hid this defect).
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
+        // @orb-waive no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
         bag.__shiftTotal += (entry as PerformanceEntry & { value: number }).value;
       }
     }).observe({ type: "layout-shift" });
@@ -4571,6 +4661,7 @@ test("#262 reduced motion: the section swap records no meaningful layout shift",
     bag.__settleShift = 0;
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
+        // @orb-waive no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
         bag.__settleShift += (entry as PerformanceEntry & { value: number }).value;
       }
     }).observe({ type: "layout-shift" });
@@ -5427,6 +5518,7 @@ async function samplePixel(page: Page, x: number, y: number): Promise<Rgb> {
 async function listPanelEdgeRatio(page: Page, panel: Locator): Promise<number> {
   const box = await panel.boundingBox();
   expect(box, "the list panel probe must be laid out before its edge can be sampled").not.toBeNull();
+  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const midY = Math.floor(y + height / 2);
   const [edge, interior] = await Promise.all([samplePixel(page, Math.floor(x + width) - 1, midY), samplePixel(page, Math.floor(x + width) - 8, midY)]);
@@ -6052,48 +6144,37 @@ test("#188 CONTROL: a device with NO hint is not stamped ON by the pending read 
     .not.toBe("true");
 });
 
-// ── #188 N-8 — WCAG 2.5.3 Label in Name, read the way axe reads it ───────────────────────────────────
-// The prior ruling on this chip (§13.10, in app-shell.tsx) put the WORD "jump" in the name so the one
-// word on the button was speakable. axe's `label-content-name-mismatch` still failed it on the live
-// landing (Lighthouse, 2026-08-18): 2.5.3 wants the WHOLE visible label inside the name, and this
-// button's visible label is the chip plus the word. The pin reads the rendered text rather than
-// restating it, so a copy change on either side cannot drift them apart silently.
-test("#188 the ⌘K chip's accessible name CONTAINS its visible label verbatim (WCAG 2.5.3)", async ({ mount, page }) => {
+// ── #188 N-8 — the ⌘K button's name is its only label ──────────────────────────────────────────────────
+// Topbar buttons carry no text (owner ruling), so WCAG 2.5.3 Label in Name holds by construction: there is no
+// visible label to contain. What must hold instead is that the name and the tooltip carry the word and the
+// platform's shortcut, read the way axe reads a label (`textContent`, which must stay empty).
+test("#188 the ⌘K button paints no text and its name carries Jump and the shortcut", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   await mount(<AppShellStory />);
-  const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
-  // `textContent`, NOT `innerText` (side-eye rail-home P3-3, 2026-08-22). This pin used to read `innerText`
-  // and passed while the live surface FAILED the same audit: `innerText` is layout-aware and inserts a line
-  // break between two flex items, so it normalised to "⌘K jump" whichever way the DOM was built. axe reads
-  // the visible label by CONCATENATING the node's text, i.e. `textContent` — which was the literal string
-  // "⌘Kjump", not a substring of the name. The pin now reads it the way the audit does, so the separating
-  // text node between the <kbd> chip and the word is load-bearing and its removal is RED here.
-  const readConcatenatedAtAssertion = async (): Promise<typeof concatenated> =>
-    (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
-  const concatenated = (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
-  await expect.poll(async () => await readConcatenatedAtAssertion()).toMatch(/^(?:⌘K|Ctrl\+K) jump$/u);
-  await expect(chip).toHaveAccessibleName(new RegExp(`^${RegExp.escape(concatenated)}`, "u"));
+  const chip = page.locator("header.shell-topbar").getByRole("button", { name: COMMAND_CHIP_NAME });
+  await expect.poll(() => chip.evaluate((el) => (el.textContent ?? "").trim())).toBe("");
+  await expectIconOnlyCommandChip(page);
 });
 
 // The key hint names the key the person has: Ctrl+K off Apple platforms, ⌘K on them. The accelerator takes
 // either modifier, so the hint is the only thing that moves.
-test("the palette chip prints Ctrl+K off Apple platforms", async ({ mount, page }) => {
+test("the palette button names Ctrl+K off Apple platforms", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   await mount(<AppShellStory />);
-  const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
-  await expect(chip.locator("kbd")).toHaveText("Ctrl+K");
-  await expect(chip).toHaveAccessibleName("Ctrl+K jump — the command menu");
+  const chip = page.locator("header.shell-topbar").getByRole("button", { name: COMMAND_CHIP_NAME });
+  await expect(chip).toHaveAccessibleName("Jump — the command menu (Ctrl+K)");
+  await expect(chip).toHaveAccessibleDescription("Jump to… Ctrl+K");
 });
 
 test.describe("on a Mac", () => {
   test.use({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36" });
 
-  test("the palette chip prints ⌘K", async ({ mount, page }) => {
+  test("the palette button names ⌘K", async ({ mount, page }) => {
     await page.setViewportSize(WIDE);
     await mount(<AppShellStory />);
-    const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
-    await expect(chip.locator("kbd")).toHaveText("⌘K");
-    await expect(chip).toHaveAccessibleName("⌘K jump — the command menu");
+    const chip = page.locator("header.shell-topbar").getByRole("button", { name: COMMAND_CHIP_NAME });
+    await expect(chip).toHaveAccessibleName("Jump — the command menu (⌘K)");
+    await expect(chip).toHaveAccessibleDescription("Jump to… ⌘K");
   });
 });
 
@@ -7251,6 +7332,7 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
   const panel = light.getByTestId("panel-probe");
   const box = await panel.boundingBox();
   expect(box, "the pane must be laid out before its fill can be sampled").not.toBeNull();
+  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await panel.evaluate((el) => {
@@ -7334,6 +7416,7 @@ function tokenInk(probe: Locator, varName: string): Promise<Rgb> {
 async function landedMutedContrast(page: Page, probe: Locator): Promise<{ readonly ratio: number; readonly landed: Rgb; readonly ink: Rgb }> {
   const box = await probe.boundingBox();
   expect(box, "the probe must be laid out before its pixels can be sampled").not.toBeNull();
+  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await tokenInk(probe, "--color-muted-foreground");

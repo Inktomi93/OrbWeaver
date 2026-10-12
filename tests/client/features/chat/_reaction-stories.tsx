@@ -15,6 +15,9 @@
 // `_ct-stories` precedent: `MessageRow`, `MessageActionsRow`), which resolves through the same alias to the
 // same module instance — proven by these CTs, whose subjects all read `useTRPC` and render.
 
+// @orb-waive-file testid-typed-only-stories("actions-host"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("picker-host"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("reactions-host"): baselined when the gate widened; burn-down item 906.
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { chatMessageReactionsSurface } from "@orb/client/features/chat";
 import type { ChatSurfaceContribution } from "@orb/client/lib";

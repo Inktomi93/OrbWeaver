@@ -393,6 +393,7 @@ export function unlistedModelSentence(listOwner: string): string {
   return `This model id wasn't in ${listOwner}'s list. It'll be sent as-is; if the server doesn't have it, turns will fail.`;
 }
 
+// @orb-waive no-inline-wire-interface(ModelPickerView): baselined when the gate widened; burn-down item 904.
 /** What the picker renders for a source. `notice: null` is the searchable list (`models: null` while it
  *  loads); a notice is the typed arm, which offers a text field only when `typingOffered`. */
 export interface ModelPickerView {

@@ -22,6 +22,7 @@
 /// <reference path="../../../packages/plugin-sdk/shared.d.ts" />
 /// <reference path="../../../packages/plugin-sdk/frame.d.ts" />
 
+// @orb-waive-file no-vanity-alias(ChatHandle): baselined when the gate widened; burn-down item 906.
 import type {
   PluginSurfaceAnchor as ContractAnchor,
   PluginBoundGridTile as ContractBoundGridTile,

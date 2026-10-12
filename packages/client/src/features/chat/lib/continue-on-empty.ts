@@ -16,6 +16,7 @@ export function isContinueEligible(tailRole: MessageRole | null): boolean {
   return tailRole === "assistant";
 }
 
+// @orb-waive no-inline-wire-interface(EmptySendInput): baselined when the gate widened; burn-down item 904.
 export interface EmptySendInput {
   readonly continueOnSend: boolean;
   /** W-E — the `UserSettings.chat.generateOnEmptySend` pref; the generate arm is off when false. */

@@ -19,6 +19,7 @@ import { characters, chatParticipants, chats, personas, presets, rpgGames, setti
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
 
+// @orb-waive no-inline-wire-interface(AppSettingRow): baselined when the gate widened; burn-down item 904.
 /** One `settings` KV row (the app-override blob and its siblings — e.g. the OpenRouter catalog snapshot). */
 export interface AppSettingRow {
   key: string;
@@ -26,6 +27,7 @@ export interface AppSettingRow {
   updatedAt: number;
 }
 
+// @orb-waive no-inline-wire-interface(UserSettingsRow): baselined when the gate widened; burn-down item 904.
 /** One `user_settings` row — the per-user blob plus the STORED schema version that beats the in-blob probe
  *  (`[[versioned-config-lift-drops-overrides]]`: the column is the authority, not the blob). */
 export interface UserSettingsRow {
@@ -35,6 +37,7 @@ export interface UserSettingsRow {
   updatedAt: number;
 }
 
+// @orb-waive no-inline-wire-interface(RpgGameRow): baselined when the gate widened; burn-down item 904.
 /** The `rpg_games` row for one chat — mode/status/seat plus the whole config blob (statProfile + lite dials,
  *  including `features.immersiveHtml` and `cardKeepLastX`, which decide the card path). */
 export interface RpgGameRow {
@@ -66,6 +69,7 @@ export interface RenderPolicyVerdict {
   cardTier: "tierA" | "tierB" | null;
 }
 
+// @orb-waive no-inline-wire-interface(CharacterDetailRow): baselined when the gate widened; burn-down item 904.
 /** The whole character row, minus nothing that matters for debugging. Prose fields ride in full: this is a
  *  token-gated host-only surface, and a truncated `systemPrompt` is exactly the field somebody needs whole. */
 export interface CharacterDetailRow {
@@ -80,6 +84,7 @@ export interface CharacterDetailRow {
   themeOverride: unknown;
   backgroundOverride: unknown;
   card: {
+    // @orb-waive contract-structural-copy(description): baselined when the gate widened; burn-down item 904.
     description: string | null;
     personality: string | null;
     scenario: string | null;
@@ -124,6 +129,7 @@ export async function userSettingsRows(db: Db, userId?: UserId): Promise<UserSet
   return rows.map((r) => ({ userId: r.userId, schemaVersion: r.schemaVersion, config: r.config, updatedAt: r.updatedAt }));
 }
 
+// @orb-waive no-inline-wire-interface(PresetRow): baselined when the gate widened; burn-down item 904.
 /** One `presets` row. The `config` blob is the whole `PromptConfig` — every section, its order and depth, plus
  *  the gen settings. `maxOutputTokens` lives in here, and reading it from the ROW is the only way to settle a
  *  question the wire capture answers ambiguously (the request shows the value SENT, not which preset sent it).
@@ -141,6 +147,7 @@ export interface PresetRow {
   updatedAt: number;
 }
 
+// @orb-waive no-inline-wire-interface(PersonaRow): baselined when the gate widened; burn-down item 904.
 /** One `personas` row — the identity a seat plays. Paired with the seat's `activePersonaId` this is what
  *  settles a misattribution report: the seat points at an id, and this is what that id actually IS. */
 export interface PersonaRow {
@@ -196,6 +203,7 @@ export async function personaRows(db: Db, ownerId?: UserId): Promise<PersonaRow[
   }));
 }
 
+// @orb-waive no-inline-wire-interface(ChatConfigRow): baselined when the gate widened; burn-down item 904.
 /** The ROOM config for one chat — the `chats` row's configuration planes plus the seat roster. The four JSON
  *  blobs are the ones that decide prompt content and are otherwise invisible: `runtimeVariables` is the plane
  *  `RUNTIME-VARS-DEAD` is about (stored, threaded to the macro env, consumed by nothing), and
@@ -225,6 +233,7 @@ export interface ChatConfigRow {
   updatedAt: number;
 }
 
+// @orb-waive no-inline-wire-interface(ChatParticipantRow): baselined when the gate widened; burn-down item 904.
 /** One seat. `activePersonaId` is the column `INVITE-JOIN-NULL-PERSONA` is about — a NULL here on a joined
  *  member is the defect itself, so it is reported raw rather than floored to a display default. */
 export interface ChatParticipantRow {

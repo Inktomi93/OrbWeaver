@@ -12,6 +12,7 @@
 //
 // It drives the REAL dispatch with the REAL arm executors over a real db: the only fake is the injected
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
+// @subject packages/server/src/domain/automation/verbs/confirm-suggestion.ts
 
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";
@@ -769,6 +770,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
   test("the confirm's arm starts only after the bus event's arm finishes -- no interleave", async () => {
     const order: string[] = [];
     let releaseBus = (): void => undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const busHeld = new Promise<void>((done) => {
       releaseBus = done;
     });
@@ -843,6 +845,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     // 2. Park a bus event inside the bookkeeping arm.
     hold = busHeld;
     const bus = fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // 3. The host says yes WHILE that arm is parked.
@@ -850,6 +853,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
       principal: principal(fixture.host),
       suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
     });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     releaseBus();
     await Promise.all([bus, confirm]);

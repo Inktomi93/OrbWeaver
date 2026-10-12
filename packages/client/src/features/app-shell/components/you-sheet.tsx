@@ -41,9 +41,6 @@ function SheetChromeEntry({ entry, active, mobile }: { readonly entry: ChromeEnt
   if (behavior.kind === "widget") {
     return behavior.body("sheet");
   }
-  if (entry.icon === undefined) {
-    return null;
-  }
   if (behavior.kind === "section") {
     if (mobile !== "sheet") {
       return null;
@@ -51,7 +48,7 @@ function SheetChromeEntry({ entry, active, mobile }: { readonly entry: ChromeEnt
     return (
       <ListRow
         clickable={true}
-        leading={<Icon icon={entry.icon} size="sm" />}
+        leading={<Icon icon={behavior.icon} size="sm" />}
         onClick={(): void => {
           setActiveSection(behavior.sectionId);
           closeModal();
@@ -61,7 +58,7 @@ function SheetChromeEntry({ entry, active, mobile }: { readonly entry: ChromeEnt
       />
     );
   }
-  return <ListRow clickable={true} leading={<Icon icon={entry.icon} size="sm" />} onClick={(): void => openModal(behavior.modalId)} title={entry.label} />;
+  return <ListRow clickable={true} leading={<Icon icon={behavior.icon} size="sm" />} onClick={(): void => openModal(behavior.modalId)} title={entry.label} />;
 }
 
 /** The You bottom-sheet body: the `rail.end` footer chrome (the theme modal, the Settings section, the
@@ -75,7 +72,10 @@ export function YouSheet(): ReactElement {
   // here for the duration. ONE derivation shared with the bar (`mobileBarCuration`, #state) — the door and
   // its contents may not disagree about who is a tab, or a section becomes reachable from neither.
   const curation = mobileBarCuration(entries, activeSection);
-  const overflowSections = entries.filter((e) => e.zone === "rail.nav" && curation.get(e.id) === "sheet");
+  // Only a SECTION routes, so the "More" rows are the overflow nav entries whose behavior is a section.
+  const overflowSections = entries.flatMap(({ id, label, zone, behavior }) =>
+    behavior.kind === "section" && zone === "rail.nav" && curation.get(id) === "sheet" ? [{ id, label, behavior }] : [],
+  );
   // …and the TOPBAR entries a phone's row cannot afford (the notifications inbox, the ⌘K palette). They
   // declare the same `mobile: "sheet"` curation the overflow sections do. The filter is SHARED
   // (`sheetOverflowChrome`, #state) because the mobile bar's You tab badges these same entries' `useBadge`
@@ -120,19 +120,17 @@ export function YouSheet(): ReactElement {
           <Heading id={MORE_HEADING_ID} level={3} voice="kicker">
             More
           </Heading>
-          {overflowSections.map((entry) => (
+          {overflowSections.map(({ id, label, behavior }) => (
             <ListRow
-              key={entry.id}
+              key={id}
               clickable={true}
-              leading={entry.icon === undefined ? undefined : <Icon icon={entry.icon} size="sm" />}
+              leading={<Icon icon={behavior.icon} size="sm" />}
               onClick={(): void => {
-                if (entry.behavior.kind === "section") {
-                  setActiveSection(entry.behavior.sectionId);
-                  closeModal();
-                }
+                setActiveSection(behavior.sectionId);
+                closeModal();
               }}
-              selected={entry.behavior.kind === "section" && entry.behavior.sectionId === activeSection}
-              title={entry.label}
+              selected={behavior.sectionId === activeSection}
+              title={label}
             />
           ))}
         </Stack>

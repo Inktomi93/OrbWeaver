@@ -39,5 +39,6 @@ export async function restoreCardLorebook(file: File): Promise<RestoreCardLorebo
   if (!response.ok && response.status !== BAD_REQUEST) {
     await throwHttpError("restoreCardLorebook", response);
   }
+  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
   return (await response.json()) as RestoreCardLorebookResult;
 }

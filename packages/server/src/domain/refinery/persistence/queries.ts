@@ -207,6 +207,7 @@ export function sessionViewOf(row: RefinerySessionRow): RefinerySessionView {
     characterId: row.characterId,
     name: row.name,
     status: row.status,
+    // @orb-waive json-column-read-parsed(originalCard): baselined when the gate widened; burn-down item 905.
     originalCard: row.originalCard,
     selection: selectionParser.parse(row.selection),
     stageConfig: stageConfigParser.parse(row.stageConfig),

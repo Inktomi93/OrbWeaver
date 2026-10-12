@@ -220,3 +220,18 @@ export function decodeXmlText(raw: string): string {
     return isXmlChar(codePoint) ? String.fromCodePoint(codePoint) : match;
   });
 }
+
+// ── length-preserving blanks ─────────────────────────────────────────────────────────────────────────
+// Masking text so a scanner skips it while every offset and line still names the authored position. One
+// space per UTF-16 unit: a `u`-flag match is a whole code point, and an astral one (an emoji) is two units.
+const BLANK = " ";
+
+/** `text` with every character but a newline replaced by spaces, keeping its UTF-16 length. */
+export function blankText(text: string): string {
+  return text.replace(/[^\n]/gu, (char) => BLANK.repeat(char.length));
+}
+
+/** `text` with `[start, end)` blanked by {@link blankText}. */
+export function blankSpan(text: string, start: number, end: number): string {
+  return text.slice(0, start) + blankText(text.slice(start, end)) + text.slice(end);
+}

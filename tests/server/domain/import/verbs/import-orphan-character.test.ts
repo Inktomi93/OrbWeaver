@@ -2,6 +2,7 @@
 // 2026-08-15). Pins the EVIDENCE RULE (majority non-sentinel header name, else the humanized dir name;
 // description stays EMPTY — never invented prose), the synthetic dir-keyed importHash idempotency, and the
 // free-handle probe. Synthetic directories exercise sentinel headers and an explicit non-echo name.
+// @subject packages/server/src/domain/import/verbs/import-orphan-character.ts
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";

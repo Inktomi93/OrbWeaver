@@ -11,6 +11,7 @@
 // non-member gets a leak-free NOT_FOUND terminal FRAME"). What was missing was a test of the wrapper ITSELF,
 // independent of whichever procedure happens to use it; that is what this is.
 
+// @orb-waive-file no-test-fabrication([string, Record<string, unknown>]): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { withSubscriptionErrors } from "@orb/server/transport/trpc";
 import { describe } from "vitest";

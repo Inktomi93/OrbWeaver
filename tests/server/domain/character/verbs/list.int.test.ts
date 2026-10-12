@@ -1,9 +1,11 @@
-import type { CharacterLibraryLens } from "@orb/contracts/character";
 // verb: list — owner-scoped, newest-first, cursor-paged. Load-bearing INVARIANT 3: synthetic group
 // buckets NEVER appear in a user-facing list (they'd leak the hidden memory identities). Also
 // owner-scoped (no foreign rows). Paging mirrors `domain/notifications`'s `{items, nextCursor}` contract
 // test shape (first page + nextCursor, a second page, empty, a bounded limit) plus the compound-cursor
 // tiebreak the `domain/assets` precedent exists for (a frozen clock stamps ties on `createdAt`).
+// @subject packages/server/src/domain/character/verbs/list.ts
+
+import type { CharacterLibraryLens } from "@orb/contracts/character";
 
 import { AUTHORED_CARD_CREATOR, CHARACTER_PROVENANCES } from "@orb/contracts/character";
 import { characterTags, tags } from "@orb/db";

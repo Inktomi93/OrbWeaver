@@ -379,6 +379,7 @@ function AskAnswer({
   readonly hasQuestion: boolean;
   readonly error: unknown | null;
   readonly data: {
+    // @orb-waive contract-structural-copy(answer): baselined when the gate widened; burn-down item 904.
     readonly answer: string;
     readonly grounded: boolean;
     readonly degraded: boolean;

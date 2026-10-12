@@ -2,6 +2,8 @@
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { RenameBindingKind } from "../../floor/code-facts/rename-bindings.ts";
+import { renameBindingOf } from "../../floor/code-facts/rename-bindings.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
@@ -110,50 +112,30 @@ export function cmdCycles(project: SourceCorpus, pkg: string, flags: Flags): voi
   emit(hits, flags, `cycles ${pkg} (alias-resolved cyclic components)`);
 }
 
+function renameHit(node: Node): Hit | undefined {
+  const rename = renameBindingOf(node);
+  if (rename === undefined) {
+    return;
+  }
+  const h = hitOf(rename.node, rename.kind);
+  const exported = Node.isVariableDeclaration(node) && node.isExported() ? "exported " : "local ";
+  const text: Record<RenameBindingKind, string> = {
+    "rename-import": `${rename.original} as ${rename.alias}`,
+    "rename-export": `${rename.original} as ${rename.alias}`,
+    "type-rename": `type ${rename.alias} = ${rename.original}`,
+    "const-rename": `${exported}const ${rename.alias} = ${rename.original}`,
+  };
+  h.text = text[rename.kind];
+  return h;
+}
+
 function renameSpecifierHits(sf: SourceFile): Hit[] {
-  const out: Hit[] = [];
-  for (const d of sf.getImportDeclarations()) {
-    for (const spec of d.getNamedImports()) {
-      const alias = spec.getAliasNode();
-      if (alias !== undefined) {
-        const h = hitOf(spec, "rename-import");
-        h.text = `${spec.getName()} as ${alias.getText()}`;
-        out.push(h);
-      }
-    }
-  }
-  for (const d of sf.getExportDeclarations()) {
-    for (const spec of d.getNamedExports()) {
-      const alias = spec.getAliasNode();
-      if (alias !== undefined) {
-        const h = hitOf(spec, "rename-export");
-        h.text = `${spec.getName()} as ${alias.getText()}`;
-        out.push(h);
-      }
-    }
-  }
-  return out;
+  const specifiers = [...sf.getImportDeclarations().flatMap((d) => d.getNamedImports()), ...sf.getExportDeclarations().flatMap((d) => d.getNamedExports())];
+  return specifiers.flatMap((spec) => renameHit(spec) ?? []);
 }
 
 function rebindHits(sf: SourceFile): Hit[] {
-  const out: Hit[] = [];
-  for (const t of sf.getTypeAliases()) {
-    const tn = t.getTypeNode();
-    if (tn !== undefined && Node.isTypeReference(tn) && tn.getTypeArguments().length === 0) {
-      const h = hitOf(t, "type-rename");
-      h.text = `type ${t.getName()} = ${tn.getText()}`;
-      out.push(h);
-    }
-  }
-  for (const v of sf.getVariableDeclarations()) {
-    const init = v.getInitializer();
-    if (init !== undefined && Node.isIdentifier(init)) {
-      const h = hitOf(v, "const-rename");
-      h.text = `${v.isExported() ? "exported " : "local "}const ${v.getName()} = ${init.getText()}`;
-      out.push(h);
-    }
-  }
-  return out;
+  return [...sf.getTypeAliases(), ...sf.getVariableDeclarations()].flatMap((node) => renameHit(node) ?? []);
 }
 
 /** Rename-alias laundering: `import/export { X as Y }`, exported `const Y = X`, and bare `type Y = X`

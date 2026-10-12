@@ -3,7 +3,7 @@
 // and leaves the pair attached claims a provenance for bytes that no longer exist (the 2026-08-07
 // editMessage finding); half a pair is unreplayable.
 //
-// FAMILY `freeze-provenance` — the shared readers are `lib/drizzle-write-target.ts`
+// FAMILY `freeze-provenance` — the shared readers are `floor/code-facts/drizzle-write-chain.ts`
 // (`readDrizzleWriteTable`: which table does this write chain name) and `lib/authored-key-set.ts`
 // (`readAuthoredKeySet`: which column names can this payload author, on any branch). Both were ADDED for
 // this conversion, because `lib/` had value readers and no key-set reader: `readStaticAuthoredValue`
@@ -70,7 +70,7 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readAuthoredKeySet } from "../lib/authored-key-set.ts";
-import { CONTENT, FREEZES, guardedTableVerdict, RAW, WRITE_POPULATION, writeChainVerdict } from "../lib/freeze-provenance.ts";
+import { CONTENT, DRIZZLE_DB_FIXTURE, FREEZES, guardedTableVerdict, RAW, WRITE_POPULATION, writeChainVerdict } from "../lib/freeze-provenance.ts";
 
 type WriteKind = "update" | "insert";
 
@@ -229,6 +229,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function editContent(db: D, id: string, content: string) {\n" +
@@ -241,6 +242,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function half(db: D, id: string, content: string, rawContent: string) {\n" +
@@ -253,6 +255,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function seed(db: D, content: string, rawContent: string) {\n" +
@@ -265,6 +268,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function opaque(db: D, id: string, params: { extra: object }) {\n" +
@@ -277,6 +281,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function hoisted(db: D, id: string) {\n" +
@@ -290,6 +295,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function upsert(db: D, id: string, content: string) {\n" +
@@ -302,6 +308,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants as mv } from "@orb/db";\n' +
           "export function aliased(db: D, id: string, content: string) {\n" +
@@ -314,6 +321,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "const T = messageVariants;\n" +
@@ -327,6 +335,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "function builder(db: D) {\n  return db.update(messageVariants);\n}\n" +
@@ -340,6 +349,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "const TABLES = { v: messageVariants };\n" +
@@ -353,6 +363,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { variants } from "./barrel.ts";\nexport function renamed(db: D, id: string, content: string) {\n  return db.update(variants).set({ content });\n}\n',
         "packages/server/src/domain/chat/persistence/barrel.ts": 'export { messageVariants as variants } from "@orb/db";\n',
@@ -363,6 +374,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { updater } from "./b.ts";\nexport function foreign(db: D, content: string) {\n  return updater(db).set({ content });\n}\n',
         "packages/server/src/domain/chat/persistence/b.ts":
@@ -376,6 +388,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "const CLEARED_FREEZE_PROVENANCE = { rawContent: null, macroFreezes: null } as const;\n" +
@@ -388,6 +401,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "function economics(v: V) {\n  return { content: v.content, reasoning: v.reasoning };\n}\n" +
@@ -400,6 +414,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\nimport { CLEARED } from "./cols.ts";\n' +
           "export function crossModule(db: D, id: string, content: string) {\n" +
@@ -412,6 +427,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function editReasoning(db: D, id: string, reasoning: string | null) {\n" +
@@ -423,6 +439,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function importVariant(db: D, v: V) {\n" +
@@ -434,6 +451,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "tests/server/domain/chat/verbs/x.int.test.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export async function seedBrokenRow(db: D, id: string) {\n" +
@@ -448,6 +466,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messages } from "@orb/db";\n' +
           "export function editSlot(db: D, id: string, content: string) {\n" +
@@ -459,6 +478,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "some-other-package";\n' +
           "export function foreignTable(db: D, id: string, content: string) {\n" +
@@ -470,6 +490,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "../../../../../../tooling/src/probe/tables.ts";\n' +
           "export function foreignHome(db: D, id: string, content: string) {\n" +
@@ -482,6 +503,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function columnAsTable(db: D, id: string, content: string) {\n" +
@@ -493,6 +515,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function scrubProvenance(db: D, id: string) {\n" +
@@ -504,6 +527,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "const CLEARED = { rawContent: null, macroFreezes: null } as const;\n" +
@@ -516,6 +540,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function other(db: D, id: string) {\n" +
@@ -527,6 +552,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function counter(m: Map<string, number>, content: string) {\n" +
@@ -538,6 +564,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           "// Nothing here writes messageVariants — that lives in canon-write.ts, with its freeze provenance.\n" +
           "const TABLES = { v: someOtherTable };\n" +
@@ -550,6 +577,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/server/src/domain/chat/persistence/x.ts":
           'import { messageVariants } from "@orb/db";\n' +
           "export function editContent(db: D, id: string, content: string) {\n" +

@@ -1,6 +1,7 @@
 // `pnpm dev` driven for real: the launcher runs in a scratch cwd (its own `.env`, db and data dir) on two
 // free ports, boots the real server and vite, and must stop both on a SIGTERM aimed at the launcher alone.
 // The launcher leads its own process group so a failed run is reaped by group, never by name.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

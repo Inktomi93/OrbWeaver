@@ -16,12 +16,14 @@ import type { ResponseCacheSettings } from "@orb/contracts/preset";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
+// @orb-waive no-inline-wire-interface(EffectiveKnobRow): baselined when the gate widened; burn-down item 904.
 /** One resolved knob as the read returns it: the value the wire would carry + which rung produced it. */
 export interface EffectiveKnobRow {
   readonly value: number | string;
   readonly provenance: string;
 }
 
+// @orb-waive no-inline-wire-interface(EffectiveProfileRow): baselined when the gate widened; burn-down item 904.
 /** The effective profile the deck reads (`preset.resolveEffective`). `knobs` is keyed by the server's
  *  `EffectiveKnob` names — the same spelling as the capability's sampling keys, which is why a knob spec
  *  can look itself up by its own capability key. */

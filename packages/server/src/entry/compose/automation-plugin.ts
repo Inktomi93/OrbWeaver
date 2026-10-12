@@ -188,6 +188,7 @@ export interface AutomationPluginComposeDeps {
   }>;
 }
 
+// @orb-waive no-inline-wire-interface(AutomationPluginComposeResult): baselined when the gate widened; burn-down item 904.
 /** The automation+plugin compose product. */
 export interface AutomationPluginComposeResult {
   readonly automation: AutomationService;

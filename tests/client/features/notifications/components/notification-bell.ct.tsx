@@ -9,6 +9,7 @@
 //
 // The bell button is addressed by ROLE + accessible name (its aria-label carries the unread count) —
 // deliberate: the name IS the a11y contract (see the component header for why no testid rides it).
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { PluginId } from "@orb/kit/ids";
@@ -19,6 +20,7 @@ import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socke
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 // The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
 // (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
@@ -785,6 +787,8 @@ test("a phone's disabled-plugin notice closes the real You drawer and reveals th
     "plugin.list": [installedPlugin(AFFINITY_PLUGIN, "Affinity Tracker")],
     "plugin.listSurfaces": [],
     "plugin.getLog": [],
+    // The installed card's chat-visibility toggle reads the viewer's profile (`use-plugin-chat-visibility.ts`).
+    "settings.getUserSettings": userSettingsView(),
     "sessions.me": { userId: "user_ct_reader", handle: "reader", globalRole: "user" },
   });
   await routeInboxStream(page, []);
