@@ -17,7 +17,7 @@ A raw dialog in a feature re-implements focus, sizing and dismissal per site; a 
 
 ## Done when
 
-The three composites exist in @orb/ui with CTs; every listed site uses one; the deferred entries are gone from the RESTRICTIONS table; a side-eye pass covers each surface.
+The three composites exist in packages/client/src/components beside ConfirmDialog and FormDialog, built over the @orb/ui dialog door, each with a CT; every listed site uses one; the deferred entries are gone from the RESTRICTIONS table; a side-eye pass covers each surface.
 
 ## Evidence
 
