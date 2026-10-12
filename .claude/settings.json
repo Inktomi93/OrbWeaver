@@ -28,7 +28,9 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/codegraph-project.mjs"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/codegraph-project.mjs"
+            ],
             "timeout": 5
           }
         ]
@@ -41,7 +43,9 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.mjs"]
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.mjs"
+            ]
           }
         ]
       }
@@ -82,25 +86,36 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "1"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs",
+              "1"
+            ],
             "timeout": 10
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "2"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs",
+              "2"
+            ],
             "timeout": 10
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "3"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs",
+              "3"
+            ],
             "timeout": 10
           },
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/playwright-revision-shim.mjs"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/playwright-revision-shim.mjs"
+            ],
             "timeout": 30
           }
         ]
@@ -153,6 +168,7 @@
       "Bash(date *)",
       "Bash(ps *)",
       "Bash(ast-grep *)",
+      "Bash(codegraph *)",
       "Bash(pnpm ast *)",
       "Bash(npx ast-grep *)",
       "Bash(git status *)",

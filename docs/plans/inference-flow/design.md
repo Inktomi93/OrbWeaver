@@ -24,9 +24,9 @@ Settle how inference flows through the server: which domain owns each table the 
 8. **Knowledge-Cluster states its own exceptions.** The vector-table set is named once, in one count with one definition; the hand-off restamp and the clear, space-state and image-analysis deletes are named exceptions or move into the persistence home.
 9. **The owner-agnostic connection lookup is stated.** Tier-3b says the runtime's connection port reads by id and the runtime checks the owner, with the test that pins it.
 
-### Not yet decided
+### Left alone
 
-- The executor's `runAgentTurn` has no server caller. Owner ruling: wire it to the agent role, or delete it.
+- The executor's `runAgentTurn` has no server caller; by owner ruling it stays as it is.
 
 ## Rejected
 
