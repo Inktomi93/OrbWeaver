@@ -9,9 +9,7 @@
 //
 // Components only — playwright-ct rewrites this module's named imports into generated component consts, so
 // a mixed import (component + constant) fails to parse in the consuming CT.
-// @orb-waive-file testid-typed-only-stories("accepted-chart-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("contextual-chart-panel"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("midlight-chart-panel"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { BarList } from "@orb/ui/bar-list";
 import type { OrbChartOption, OrbEChartsInstance } from "@orb/ui/chart";
 import { Chart } from "@orb/ui/chart";
@@ -122,7 +120,7 @@ function MidlightFiveCategoryChart(): ReactElement {
     <div
       {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
       data-echarts-option={optionJson}
-      data-testid="midlight-chart-panel"
+      data-testid={storyTestId("midlightChartPanel")}
       style={{ backgroundColor: "var(--color-card)" }}
     >
       <Chart
@@ -162,7 +160,12 @@ export function CustomAcceptedChartCasesStory(): ReactElement {
   const [name, background] = active;
   return (
     <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value}>
-      <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }} data-case={name} data-testid="accepted-chart-panel" style={{ backgroundColor: "var(--color-card)" }}>
+      <div
+        {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
+        data-case={name}
+        data-testid={storyTestId("acceptedChartPanel")}
+        style={{ backgroundColor: "var(--color-card)" }}
+      >
         <button onClick={(): void => setCaseIndex((current): number => (current + 1) % ACCEPTED_CHART_CASES.length)} type="button">
           Next accepted theme
         </button>
@@ -189,7 +192,12 @@ export function RejectedContextualChartCasesStory(): ReactElement {
   return (
     <div style={{ color: hostColor }}>
       <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value}>
-        <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }} data-case={name} data-testid="contextual-chart-panel" style={{ backgroundColor: "var(--color-card)" }}>
+        <div
+          {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
+          data-case={name}
+          data-testid={storyTestId("contextualChartPanel")}
+          style={{ backgroundColor: "var(--color-card)" }}
+        >
           <button onClick={(): void => setCaseIndex((current): number => (current + 1) % REJECTED_CONTEXTUAL_CHART_CASES.length)} type="button">
             Next rejected theme
           </button>

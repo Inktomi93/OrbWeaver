@@ -6,12 +6,11 @@
 // Every arm below plants a REAL filesystem object and reads a REAL verdict; there is no in-memory stand-in
 // for a symlink, which is exactly why the door exists at this layer rather than in a pure reader.
 
-// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { runGit } from "@orb/tooling/floor/git/git";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { vi } from "vitest";
 import type { AuthoredPathIdentity } from "../../../../tooling/src/verify/contract/resource-path.ts";
 import { loadAuthoredPaths } from "../../../../tooling/src/verify/ops/resource-path.ts";
 
@@ -21,8 +20,8 @@ function plantFile(root: string, path: string, text = "x\n"): void {
   writeFileSync(absolute, text);
 }
 
-function identify(root: string, selectors: readonly string[]): readonly AuthoredPathIdentity[] {
-  const load = loadAuthoredPaths(root, selectors);
+function identify(root: string, selectors: readonly string[], git: typeof runGit = runGit): readonly AuthoredPathIdentity[] {
+  const load = loadAuthoredPaths(root, selectors, git);
   if (load.status !== "ready") {
     throw new Error(`authored-path load refused: ${load.reason}`);
   }
@@ -146,18 +145,18 @@ test("ignored-output metadata does not acquit a missing path behind an external 
   expect(identify(root, [selector])).toEqual([{ selector, form: "repo-relative", status: "absent", path: selector }]);
 });
 
-test("a resource load shares prefix answers and the next load sees ignore edits", async ({ scratch }) => {
+test("a resource load shares prefix answers and the next load sees ignore edits", ({ scratch }) => {
   execFixtureGit(scratch, ["init", "-q"]);
   plantFile(scratch, ".gitignore", "dist/\n");
   plantFile(scratch, "packages/showcase-plugins/package.json", "{}\n");
   const selectors = ["packages/showcase-plugins/dist/a.js", "packages/showcase-plugins/dist/b.js"];
-  const spy = vi.spyOn(await import("../../../../tooling/src/floor/git/git.ts"), "runGit");
-  try {
-    expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === true)).toBe(true);
-    expect(spy).toHaveBeenCalledTimes(2);
-    plantFile(scratch, ".gitignore", "out/\n");
-    expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === undefined)).toBe(true);
-  } finally {
-    spy.mockRestore();
-  }
+  let queries = 0;
+  const countedGit: typeof runGit = (root, args, options) => {
+    queries += 1;
+    return runGit(root, args, options);
+  };
+  expect(identify(scratch, selectors, countedGit).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === true)).toBe(true);
+  expect(queries).toBe(2);
+  plantFile(scratch, ".gitignore", "out/\n");
+  expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === undefined)).toBe(true);
 });

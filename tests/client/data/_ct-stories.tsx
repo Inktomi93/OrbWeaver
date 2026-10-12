@@ -4,43 +4,6 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
-// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("burst-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cache-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("carried-cast"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-remount-frame"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-revoke-session"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ct-wake-tab"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("durable-local-user"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("frame-src"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("freshness"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("gated-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ghost-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("held-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("husk-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("inline-error"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("invalidation-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("macro-lead"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("macro-names"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("online-status"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("open-refinery-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("overlap-tag-list"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("owned-count"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("refinery-cache-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rendered-body"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("reserve-probe"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("seed-preset"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("seeded-room"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("session-bind-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("session-recovery-modal"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sibling-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("start-chat-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("surface-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tag-list"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("upload-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("viewer-handle"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("wire-payload"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import type { CardFrameRequest, PluginDisplayRow, PluginFrameRequest } from "@orb/client/data";
 import {
@@ -89,6 +52,8 @@ import type { CharacterId, ChatId, MessageId, PersonaId, PluginId } from "@orb/k
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -172,7 +137,7 @@ export function ReservedBoundaryStory(): ReactElement {
       >
         probe
       </button>
-      <output data-testid="reserve-probe">{probe}</output>
+      <output data-testid={storyTestId("reserveProbe")}>{probe}</output>
       {mounted ? (
         <QueryBoundary fallback={<SkeletonRows count={3} />} reserveKey={CT_RESERVE_KEY}>
           <EchoReader />
@@ -215,8 +180,8 @@ function BatchedHoldProbe(): ReactElement {
   const sibling = useQuery(trpc.tag.listTags.queryOptions());
   return (
     <div>
-      <output data-testid="held-state">{held.isPending ? "pending" : (held.data?.message ?? "none")}</output>
-      <output data-testid="sibling-state">{sibling.isPending ? "pending" : `tags=${sibling.data?.length ?? 0}`}</output>
+      <output data-testid={storyTestId("heldState")}>{held.isPending ? "pending" : (held.data?.message ?? "none")}</output>
+      <output data-testid={storyTestId("siblingState")}>{sibling.isPending ? "pending" : `tags=${sibling.data?.length ?? 0}`}</output>
     </div>
   );
 }
@@ -233,7 +198,7 @@ export function BatchedHoldStory(): ReactElement {
 // network emulation and assert the hook tracks the browser online/offline events end-to-end.
 export function OnlineStatusProbeStory(): ReactElement {
   const online = useOnlineStatus();
-  return <output data-testid="online-status">{online ? "online" : "offline"}</output>;
+  return <output data-testid={storyTestId("onlineStatus")}>{online ? "online" : "offline"}</output>;
 }
 
 // Defers mounting the suspending reader behind a click, so the offline CT can cut the network AFTER
@@ -276,15 +241,15 @@ function GatedReader({ chatId }: { readonly chatId: ChatId | null }): ReactEleme
   const query = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   if (chatId === null) {
     // The discriminant: no id → skipToken → the real key is never built, nothing ever fetches.
-    return <p data-testid="gated-state">disabled</p>;
+    return <p data-testid={storyTestId("gatedState")}>disabled</p>;
   }
   if (query.isPending) {
-    return <p data-testid="gated-state">loading…</p>;
+    return <p data-testid={storyTestId("gatedState")}>loading…</p>;
   }
   if (query.isError) {
-    return <p data-testid="gated-state">error</p>;
+    return <p data-testid={storyTestId("gatedState")}>error</p>;
   }
-  return <output data-testid="gated-state">{query.data.title ?? "untitled"}</output>;
+  return <output data-testid={storyTestId("gatedState")}>{query.data.title ?? "untitled"}</output>;
 }
 
 export function GatedQueryStory({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
@@ -306,7 +271,7 @@ function InvalidationReader({ chatId }: { readonly chatId: ChatId }): ReactEleme
   const query = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   return (
     <div>
-      <p data-testid="invalidation-state">{query.data.title ?? "untitled"}</p>
+      <p data-testid={storyTestId("invalidationState")}>{query.data.title ?? "untitled"}</p>
       <button
         type="button"
         onClick={(): void => {
@@ -345,8 +310,8 @@ function UploadAssetProbe(): ReactElement {
   const [state, setState] = useState("idle");
   return (
     <div>
-      <p data-testid="owned-count">{`rows=${owned.data.length}`}</p>
-      <p data-testid="upload-state">{state}</p>
+      <p data-testid={storyTestId("ownedCount")}>{`rows=${owned.data.length}`}</p>
+      <p data-testid={storyTestId("uploadState")}>{state}</p>
       <button
         type="button"
         onClick={(): void => {
@@ -396,7 +361,9 @@ function NotificationsList(): ReactElement {
           <li key={item.id}>{item.type}</li>
         ))}
       </ul>
-      <p data-testid="surface-state">{`pending=${surface.isPending} hasNext=${surface.hasNextPage} fetchingNext=${surface.isFetchingNextPage}`}</p>
+      <p
+        data-testid={storyTestId("surfaceState")}
+      >{`pending=${surface.isPending} hasNext=${surface.hasNextPage} fetchingNext=${surface.isFetchingNextPage}`}</p>
       <button type="button" onClick={surface.listProps.onEndApproach}>
         approach-end
       </button>
@@ -450,7 +417,7 @@ function TagCreateOptimisticInner(): ReactElement {
 
   return (
     <div>
-      <ul data-testid="tag-list">
+      <ul data-testid={storyTestId("tagList")}>
         {tags.map((tag) => (
           <li key={tag.id}>{tag.name}</li>
         ))}
@@ -547,7 +514,7 @@ function TagCreateOverlapInner({ sameValue }: { readonly sameValue: boolean }): 
 
   return (
     <div>
-      <ul data-testid="overlap-tag-list">
+      <ul data-testid={storyTestId("overlapTagList")}>
         {tags.map((tag) => (
           <li key={tag.id}>{tag.name}</li>
         ))}
@@ -614,7 +581,7 @@ function TagCreateColdCacheInner(): ReactElement {
       >
         read-cache
       </button>
-      <p data-testid="cache-state">{cacheState}</p>
+      <p data-testid={storyTestId("cacheState")}>{cacheState}</p>
     </div>
   );
 }
@@ -648,8 +615,8 @@ function InlineFailureInner(): ReactElement {
   });
   return (
     <div>
-      <p data-testid="notified">{notified.join(" | ")}</p>
-      <p data-testid="inline-error">{inline.error === null ? "" : "inline failure"}</p>
+      <p data-testid={storyTestId("notified")}>{notified.join(" | ")}</p>
+      <p data-testid={storyTestId("inlineError")}>{inline.error === null ? "" : "inline failure"}</p>
       <button type="button" onClick={(): void => inline.mutate({ input: { name: "inline" } })}>
         save inline
       </button>
@@ -680,7 +647,7 @@ function TagCreateVariablesInner(): ReactElement {
 
   return (
     <div>
-      {mutation.pendingVariables !== undefined && <p data-testid="ghost-row">creating: {mutation.pendingVariables.input.name}</p>}
+      {mutation.pendingVariables !== undefined && <p data-testid={storyTestId("ghostRow")}>creating: {mutation.pendingVariables.input.name}</p>}
       {mutation.error !== null && (
         <div role="alert">
           <span>{mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}</span>
@@ -723,7 +690,7 @@ function StartChatBurstProbe({ chatId }: { readonly chatId: ChatId }): ReactElem
   const edited: ChatBusEvent = { type: "messageEdited", chatId, messageId: castId("msg_ctburst00000002") };
   return (
     <div>
-      <p data-testid="burst-state">{`${chat.data.title ?? "untitled"} · ${list.data.items.length}`}</p>
+      <p data-testid={storyTestId("burstState")}>{`${chat.data.title ?? "untitled"} · ${list.data.items.length}`}</p>
       <button type="button" onClick={(): void => invalidateUser({ type: "chatsChanged", chatId })}>
         chatsChanged
       </button>
@@ -796,7 +763,7 @@ function SectionEchoInner(): ReactElement {
 
   return (
     <div>
-      <p data-testid="seed-preset">{data.config.seeds.defaultPresetId ?? "unset"}</p>
+      <p data-testid={storyTestId("seedPreset")}>{data.config.seeds.defaultPresetId ?? "unset"}</p>
       <button type="button" onClick={(): void => mutation.mutate({ section: "seeds", patch: { defaultPresetId: "preset_after" } })}>
         save
       </button>
@@ -843,8 +810,8 @@ function SectionRefusalInner(): ReactElement {
 
   return (
     <div>
-      <p data-testid="seed-preset">{data.config.seeds.defaultPresetId ?? "unset"}</p>
-      <p data-testid="notified">{notified}</p>
+      <p data-testid={storyTestId("seedPreset")}>{data.config.seeds.defaultPresetId ?? "unset"}</p>
+      <p data-testid={storyTestId("notified")}>{notified}</p>
       <button type="button" onClick={(): void => mutation.mutate({ chatId: "chat_ct_refusal", patch: { actorState: "invalid-image" } })}>
         save
       </button>
@@ -885,12 +852,12 @@ function DisplayTierBody({ chatId }: { readonly chatId: ChatId | null }): ReactE
   });
   return (
     <div>
-      <p data-testid="rendered-body">{rendered}</p>
+      <p data-testid={storyTestId("renderedBody")}>{rendered}</p>
       {/* The composer + the edit textarea hold the RAW canon — the display leg must never reach them. */}
       <textarea aria-label="Message composer" defaultValue={DISPLAY_STORY_RAW} />
       <textarea aria-label="Edit message" defaultValue={DISPLAY_STORY_RAW} />
       {/* Stands in for the wire payload a send would carry: the un-transformed body. */}
-      <output data-testid="wire-payload">{DISPLAY_STORY_RAW}</output>
+      <output data-testid={storyTestId("wirePayload")}>{DISPLAY_STORY_RAW}</output>
     </div>
   );
 }
@@ -933,8 +900,8 @@ function PromptMacroSuggestionsProbe(): ReactElement {
       {/* The ORDER matters as much as the membership: `withUserMacros` leads with the user plane, because the
           bare-`{{` popover only shows eight rows and a user macro behind the builtin lead is invisible on the
           very surfaces that exist to call it. */}
-      <output data-testid="macro-names">{suggestions.map((entry) => entry.name).join(" ")}</output>
-      <output data-testid="macro-lead">{suggestions[0]?.name ?? ""}</output>
+      <output data-testid={storyTestId("macroNames")}>{suggestions.map((entry) => entry.name).join(" ")}</output>
+      <output data-testid={storyTestId("macroLead")}>{suggestions[0]?.name ?? ""}</output>
     </div>
   );
 }
@@ -961,7 +928,7 @@ export function CarriedAppearanceCastStory({ chatId }: { readonly chatId: ChatId
 function CarriedAppearanceCastReader({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
   const cast = useCarriedAppearance(chatId);
   const readout = cast === undefined ? "pending" : `humans=${cast.humanCount} cards=${cast.characters.map((member) => member.displayName).join("+")}`;
-  return <output data-testid="carried-cast">{readout}</output>;
+  return <output data-testid={storyTestId("carriedCast")}>{readout}</output>;
 }
 
 /** `useSessionRecovery` — the ONE mount that arms the session machinery.
@@ -982,7 +949,7 @@ function SessionRecoveryProbe(): ReactElement {
     const timer = setInterval(read, 50);
     return (): void => clearInterval(timer);
   }, []);
-  return <output data-testid="durable-local-user">{bound ?? "unbound"}</output>;
+  return <output data-testid={storyTestId("durableLocalUser")}>{bound ?? "unbound"}</output>;
 }
 
 export function SessionRecoveryStory(): ReactElement {
@@ -1018,7 +985,7 @@ function SessionRecoveryBindFailureProbe(): ReactElement {
   const recovery = useSessionRecovery();
   return (
     <AppRootSessionBoundary recovery={recovery}>
-      <output data-testid="session-bind-state">{recovery.status}</output>
+      <output data-testid={storyTestId("sessionBindState")}>{recovery.status}</output>
     </AppRootSessionBoundary>
   );
 }
@@ -1044,10 +1011,10 @@ function SessionRecoveryReauthProbe(): ReactElement {
   useQuery(trpc.sessions.me.queryOptions());
   return (
     <div>
-      <output data-testid="session-recovery-modal">{modal ?? "none"}</output>
+      <output data-testid={storyTestId("sessionRecoveryModal")}>{modal ?? "none"}</output>
       <button
         type="button"
-        data-testid="ct-revoke-session"
+        data-testid={storyTestId("ctRevokeSession")}
         onClick={(): void => {
           void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() =>
             queryClient.invalidateQueries(trpc.sessions.me.queryFilter()),
@@ -1089,11 +1056,11 @@ function SessionSwapProbe(): ReactElement {
   }, []);
   return (
     <div>
-      <output data-testid="viewer-handle">{me?.handle ?? "pending"}</output>
-      <output data-testid="freshness">{freshness}</output>
+      <output data-testid={storyTestId("viewerHandle")}>{me?.handle ?? "pending"}</output>
+      <output data-testid={storyTestId("freshness")}>{freshness}</output>
       <button
         type="button"
-        data-testid="ct-wake-tab"
+        data-testid={storyTestId("ctWakeTab")}
         onClick={(): void => {
           __resetSessionFreshness(timeLib.now() - 600_000);
           document.dispatchEvent(new Event("visibilitychange"));
@@ -1126,9 +1093,9 @@ function StartChatProbe({ characterIds }: { readonly characterIds: readonly Char
   const activeSection = useActiveSection();
   return (
     <div>
-      <output data-testid="start-chat-state">{`chat=${activeChatId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
+      <output data-testid={storyTestId("startChatState")}>{`chat=${activeChatId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
       {activeChatId === null ? null : (
-        <QueryBoundary fallback={<output data-testid="seeded-room">cold</output>}>
+        <QueryBoundary fallback={<output data-testid={storyTestId("seededRoom")}>cold</output>}>
           <SeededRoomReader chatId={activeChatId} />
         </QueryBoundary>
       )}
@@ -1146,7 +1113,7 @@ function SeededRoomReader({ chatId }: { readonly chatId: ChatId }): ReactElement
     queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
   });
   const transcript = messagesPage.messages.map((message) => message.content).join(" | ") || "empty";
-  return <output data-testid="seeded-room">{`${chatDetail.title ?? "untitled"} — ${transcript}`}</output>;
+  return <output data-testid={storyTestId("seededRoom")}>{`${chatDetail.title ?? "untitled"} — ${transcript}`}</output>;
 }
 
 export function StartChatStory({ characterIds = [] }: { readonly characterIds?: readonly CharacterId[] } = {}): ReactElement {
@@ -1172,8 +1139,8 @@ function OpenRefineryProbe({ characterId }: { readonly characterId: CharacterId 
   const activeSection = useActiveSection();
   return (
     <div>
-      <output data-testid="open-refinery-state">{`session=${sessionId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
-      <output data-testid="refinery-cache-state">{cacheState}</output>
+      <output data-testid={storyTestId("openRefineryState")}>{`session=${sessionId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
+      <output data-testid={storyTestId("refineryCacheState")}>{cacheState}</output>
       <button
         type="button"
         onClick={(): void => {
@@ -1235,7 +1202,7 @@ function HuskReaperProbe(): ReactElement {
   });
   return (
     <div>
-      <output data-testid="husk-state">{`chat=${activeChatId ?? "none"} notified=${notified}`}</output>
+      <output data-testid={storyTestId("huskState")}>{`chat=${activeChatId ?? "none"} notified=${notified}`}</output>
       <button type="button" onClick={(): void => enterCreatedChat(HUSK_CHAT_ID)}>
         enter created
       </button>
@@ -1313,12 +1280,12 @@ const MEMO_PLUGIN_REQUEST: PluginFrameRequest = {
 
 function CardFrameSrcReader(): ReactElement {
   const src = useCardFrameSrc(MEMO_CARD_REQUEST);
-  return <output data-testid="frame-src">{src ?? "floor"}</output>;
+  return <output data-testid={storyTestId("frameSrc")}>{src ?? "floor"}</output>;
 }
 
 function PluginFrameSrcReader(): ReactElement {
   const src = usePluginFrameSrc(MEMO_PLUGIN_REQUEST);
-  return <output data-testid="frame-src">{src ?? "nothing"}</output>;
+  return <output data-testid={storyTestId("frameSrc")}>{src ?? "nothing"}</output>;
 }
 
 /** A remount button plus one reader, so a CT can ask the same body twice from a fresh hook instance. */
@@ -1326,7 +1293,7 @@ function FrameMemoProbe({ reader }: { readonly reader: "card" | "plugin" }): Rea
   const [attempt, setAttempt] = useState(0);
   return (
     <div>
-      <button data-testid="ct-remount-frame" onClick={(): void => setAttempt((n) => n + 1)} type="button">
+      <button data-testid={storyTestId("ctRemountFrame")} onClick={(): void => setAttempt((n) => n + 1)} type="button">
         remount
       </button>
       {reader === "card" ? <CardFrameSrcReader key={attempt} /> : <PluginFrameSrcReader key={attempt} />}

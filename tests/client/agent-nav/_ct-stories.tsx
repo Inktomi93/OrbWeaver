@@ -11,13 +11,12 @@
 // actions the arm dispatches are the production ones, so the write really happens — nothing in this story
 // reads the store back, which is exactly the "wrote it, nothing landed" state the refusal describes.
 
-// @orb-waive-file testid-typed-only-stories("config-target-verdict"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("panel-request-reason"): baselined when the gate widened; burn-down item 906.
 import { buildAgentNav } from "@orb/client/agent-nav";
 import { useTRPC } from "@orb/client/data";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -72,7 +71,7 @@ function PanelRequestRefusalStory(): ReactElement {
       >
         dock the list panel
       </button>
-      <output data-testid="panel-request-reason">{reason}</output>
+      <output data-testid={storyTestId("panelRequestReason")}>{reason}</output>
     </div>
   );
 }
@@ -127,7 +126,7 @@ function ConfigTargetRefusalStory(): ReactElement {
       <button onClick={(): void => fire("sizing", "bogus-setting")} type="button">
         open an unknown setting
       </button>
-      <output data-testid="config-target-verdict">{verdict}</output>
+      <output data-testid={storyTestId("configTargetVerdict")}>{verdict}</output>
     </div>
   );
 }

@@ -7,13 +7,15 @@ import type { AutomationRuleId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService } from "@orb/server/domain/automation";
+import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { describe, vi } from "vitest";
+import { describe } from "vitest";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedUser } from "../_support.ts";
 
 const REORDER_NOW = FIXED_NOW_MS + 1000;
-const rulePersistence = await import("#server/domain/automation/persistence/rules.ts");
+/** The reorder's one SQL-time write (the position CASE rewrite), the only statement the race tests park. */
+const REORDER_WRITE = /^update "automation_rules" set .*\bcase\b/isu;
 
 test("global totality refuses duplicate, partial, foreign, nonexistent and empty orders without writes or events", async () => {
   const fx = await ruleFixture();
@@ -46,7 +48,8 @@ test("global totality refuses duplicate, partial, foreign, nonexistent and empty
 });
 
 test("global exact-set reorder rejects delete-C/create-D after admission and never touches another owner's rows", async () => {
-  const fx = await ruleFixture();
+  const held = await freshHeldDb();
+  const fx = await ruleFixture({}, held.db);
   const other = await seedUser(fx.db, "other-global-order");
   const body = { chatId: null, trigger: { bus: "domain" as const, type: "character.updated" as const }, actions: [{ ...SET_VAR, scope: "global" as const }] };
   const rules = await Promise.all(["a", "b", "c"].map((name) => fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(fx.host), name })));
@@ -55,16 +58,7 @@ test("global exact-set reorder rejects delete-C/create-D after admission and nev
   if (c === undefined) {
     throw new Error("expected third rule");
   }
-  const readComplete = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  const read = rulePersistence.listRuleIdsForScope;
-  // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
-  const gate = vi.spyOn(rulePersistence, "listRuleIdsForScope").mockImplementationOnce(async (db, scope) => {
-    const ids = await read(db, scope);
-    readComplete.resolve();
-    await release.promise;
-    return ids;
-  });
+  const write = held.hold(REORDER_WRITE);
   let operation: Promise<string> | undefined;
   try {
     const svc = createAutomationService({ ...fx.ctx, now: () => REORDER_NOW });
@@ -72,11 +66,12 @@ test("global exact-set reorder rejects delete-C/create-D after admission and nev
       () => "resolved",
       (error) => (error instanceof DomainOperationError ? error.code : String(error)),
     );
-    await readComplete.promise;
+    await write.reached;
+    write.disarm();
     await fx.svc.deleteRule({ principal: principal(fx.host), ruleId: c.id });
     await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(fx.host), name: "d" });
     const before = await fx.db.select().from(automationRules);
-    release.resolve();
+    write.release();
     expect(await operation).toBe("automation_reorder_changed");
     expect(await fx.db.select().from(automationRules)).toEqual(before);
     expect(before.find((row) => row.id === foreign.id)?.position).toBe(0);
@@ -85,15 +80,15 @@ test("global exact-set reorder rejects delete-C/create-D after admission and nev
       code: "automation_reorder_foreign",
     });
   } finally {
-    release.resolve();
+    write.release();
     await operation;
-    gate.mockRestore();
   }
 });
 
 for (const mutation of ["addition", "deletion", "replacement"] as const) {
   test(`SQL-time reorder refuses concurrent ${mutation} after its real admission read without touching current rows`, async () => {
-    const fx = await ruleFixture();
+    const held = await freshHeldDb();
+    const fx = await ruleFixture({}, held.db);
     const rules = await Promise.all(
       ["a", "b", "c"].map((name) =>
         fx.svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(fx.host), chatId: fx.chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] }),
@@ -104,16 +99,7 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
     if (c === undefined) {
       throw new Error("expected third rule fixture");
     }
-    const readComplete = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const readIds = rulePersistence.listRuleIdsForChat;
-    // @orb-waive test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
-    const gate = vi.spyOn(rulePersistence, "listRuleIdsForChat").mockImplementationOnce(async (db, chatId) => {
-      const ids = await readIds(db, chatId);
-      readComplete.resolve();
-      await release.promise;
-      return ids;
-    });
+    const write = held.hold(REORDER_WRITE);
     let settled: Promise<string> | undefined;
     try {
       const svc = createAutomationService({ ...fx.ctx, now: () => REORDER_NOW });
@@ -121,7 +107,8 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
         () => "resolved",
         (error) => (error instanceof DomainOperationError ? error.code : String(error)),
       );
-      await readComplete.promise;
+      await write.reached;
+      write.disarm();
       if (mutation !== "addition") {
         await fx.svc.deleteRule({ principal: principal(fx.host), ruleId: c.id });
       }
@@ -137,16 +124,15 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
       }
       const before = await fx.db.select().from(automationRules).where(eq(automationRules.chatId, fx.chatId));
       const notificationCount = fx.events.length;
-      release.resolve();
+      write.release();
       const outcome = await settled;
       const after = await fx.db.select().from(automationRules).where(eq(automationRules.chatId, fx.chatId));
       expect.soft(after).toEqual(before);
       expect.soft(fx.events).toHaveLength(notificationCount);
       expect(outcome).toBe("automation_reorder_changed");
     } finally {
-      release.resolve();
+      write.release();
       await settled;
-      gate.mockRestore();
     }
   });
 }

@@ -1,10 +1,10 @@
-// @orb-waive-file testid-typed-only-stories("ct-app-crashed"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { insightsCorpusMode } from "@orb/client/features/stats";
 import { labelsCorpusMode } from "@orb/client/features/tag";
 import type { CorpusMode, ListSearchPolicy } from "@orb/client/lib";
 import { CORPUS_MODES } from "@orb/client/lib";
 import { setActiveSection, setCorpusMode, useSectionRegistry } from "@orb/client/state";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 // Route CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The `/` route
 // (AppRoot) is the app's central navigation seam; it comes in via a relative path into the package
 // (a route has no front-door subpath) and is wrapped in the real data layer (<CtDataProviders> — Query
@@ -34,7 +34,7 @@ export function ProductionRouterStory(): ReactElement {
   return (
     <StrictMode>
       <CtDataProviders>
-        <AppErrorBoundary renderFallback={(): ReactElement => <p data-testid="ct-app-crashed">Something went wrong</p>}>
+        <AppErrorBoundary renderFallback={(): ReactElement => <p data-testid={storyTestId("ctAppCrashed")}>Something went wrong</p>}>
           <RouterProvider router={router} />
         </AppErrorBoundary>
       </CtDataProviders>

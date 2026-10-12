@@ -6,26 +6,12 @@
 // Zustand-draft closure. The observation convention throughout: a SEPARATE sibling reads the same draft
 // slot through the REACTIVE `useDraft` hook and serializes it into a testid `<output>` — reactive so an
 // edit re-renders the observed DOM, sibling so a buggy self-re-render loop can't spin.
-// @orb-waive-file testid-typed-only-stories("array-live"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("array-spy"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("autosave-status-retries"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("completion-calls"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("completion-draft"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("completion-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("promote-story-is-dirty"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("read-only-draft"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("read-only-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("saved-flush-draft"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("saved-mirror-draft"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("saved-restore-draft"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("saved-restore-is-default"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("seamless-draft"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("seamless-state"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("status-state"): baselined when the gate widened; burn-down item 906.
+
 import { hashServerBaseline } from "@orb/client/forms";
 import type { AutosaveSession, AutosaveStatusProps } from "@orb/client/forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms/editor";
 import { createEntityDraftStore } from "@orb/client/state";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { z } from "zod";
@@ -41,7 +27,7 @@ export function AutosaveStatusStory(): ReactElement {
   return (
     <div>
       <AutosaveStatus state={state} onRetry={(): void => setRetries((n) => n + 1)} />
-      <output data-testid="autosave-status-retries">{retries}</output>
+      <output data-testid={storyTestId("autosaveStatusRetries")}>{retries}</output>
       <button type="button" onClick={(): void => setState("saving")}>
         set saving
       </button>
@@ -82,7 +68,7 @@ export function SavedEntityPromoteStory(): ReactElement {
   return (
     <div>
       <form.Subscribe selector={(s): boolean => s.isDirty}>
-        {(isDirty): ReactElement => <output data-testid="promote-story-is-dirty">{String(isDirty)}</output>}
+        {(isDirty): ReactElement => <output data-testid={storyTestId("promoteStoryIsDirty")}>{String(isDirty)}</output>}
       </form.Subscribe>
       <button type="button" onClick={(): void => promote("avatarAssetId", "asset_promoted")}>
         promote avatarAssetId
@@ -131,7 +117,7 @@ function SavedRestoreFormPane({ serverValues }: { readonly serverValues: SavedDr
       <form.AppField name="text">{(field): ReactElement => <field.TextField label="Saved text" />}</form.AppField>
       {/* The save-bar pill lights on `!isDefaultValue`; a restored draft MUST flip this to false. */}
       <form.Subscribe selector={(s): boolean => s.isDefaultValue}>
-        {(isDefaultValue): ReactElement => <output data-testid="saved-restore-is-default">{String(isDefaultValue)}</output>}
+        {(isDefaultValue): ReactElement => <output data-testid={storyTestId("savedRestoreIsDefault")}>{String(isDefaultValue)}</output>}
       </form.Subscribe>
     </div>
   );
@@ -140,7 +126,7 @@ function SavedRestoreFormPane({ serverValues }: { readonly serverValues: SavedDr
 /** SIBLING observer — reactive read of the same draft slot (the autosave-story convention). */
 function SavedRestoreDraftObserver(): ReactElement {
   const draft = savedRestoreStore.useDraft(SAVED_DRAFT_ENTITY_ID);
-  return <output data-testid="saved-restore-draft">{JSON.stringify(draft)}</output>;
+  return <output data-testid={storyTestId("savedRestoreDraft")}>{JSON.stringify(draft)}</output>;
 }
 
 /**
@@ -195,7 +181,7 @@ function SavedMirrorFormPane(): ReactElement {
 /** SIBLING observer — reactive read of the mirror slot (empty-key default `{}`). */
 function SavedMirrorDraftObserver(): ReactElement {
   const draft = savedMirrorStore.useDraft(SAVED_DRAFT_ENTITY_ID);
-  return <output data-testid="saved-mirror-draft">{JSON.stringify(draft)}</output>;
+  return <output data-testid={storyTestId("savedMirrorDraft")}>{JSON.stringify(draft)}</output>;
 }
 
 export function SavedDraftMirrorStory(): ReactElement {
@@ -238,7 +224,7 @@ function SavedFlushFormPane(): ReactElement {
 /** SIBLING observer — reactive read of the same slot (empty-key default `{}`, the story convention). */
 function SavedFlushDraftObserver(): ReactElement {
   const draft = savedFlushStore.useDraft(SAVED_FLUSH_ENTITY_ID);
-  return <output data-testid="saved-flush-draft">{JSON.stringify(draft)}</output>;
+  return <output data-testid={storyTestId("savedFlushDraft")}>{JSON.stringify(draft)}</output>;
 }
 
 export function SavedDraftUnmountFlushStory(): ReactElement {
@@ -512,7 +498,7 @@ export function BoundarySeamlessRefusalStory(): ReactElement {
         {(session): ReactElement => (
           <div>
             <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Seamless text" />}</session.form.AppField>
-            <output data-testid="seamless-state">{session.saveState}</output>
+            <output data-testid={storyTestId("seamlessState")}>{session.saveState}</output>
           </div>
         )}
       </SeamlessBoundary>
@@ -524,7 +510,7 @@ export function BoundarySeamlessRefusalStory(): ReactElement {
 /** SIBLING observer — reactive read of the crash draft the refusal must NOT clear (story convention). */
 function SeamlessDraftObserver(): ReactElement {
   const draft = seamlessDraftStore.useDraft(SEAMLESS_ENTITY_ID);
-  return <output data-testid="seamless-draft">{draft.text ?? ""}</output>;
+  return <output data-testid={storyTestId("seamlessDraft")}>{draft.text ?? ""}</output>;
 }
 
 // ---- CT-12: the DECLARED read-only arm never reports "Saved" over an edit ---------------------------
@@ -549,7 +535,7 @@ export function BoundaryReadOnlyStory(): ReactElement {
         {(session): ReactElement => (
           <div>
             <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Read-only text" />}</session.form.AppField>
-            <output data-testid="read-only-state">{session.saveState}</output>
+            <output data-testid={storyTestId("readOnlyState")}>{session.saveState}</output>
           </div>
         )}
       </ReadOnlyBoundary>
@@ -561,7 +547,7 @@ export function BoundaryReadOnlyStory(): ReactElement {
 /** SIBLING observer — a read-only mount must mirror NOTHING (it could never save what it mirrored). */
 function ReadOnlyDraftObserver(): ReactElement {
   const draft = readOnlyDraftStore.useDraft(READ_ONLY_ENTITY_ID);
-  return <output data-testid="read-only-draft">{draft.text ?? ""}</output>;
+  return <output data-testid={storyTestId("readOnlyDraft")}>{draft.text ?? ""}</output>;
 }
 
 // A parameterized spy observer (the switch observer above is hard-bound to switchSpy). Distinct testids
@@ -609,7 +595,7 @@ export function BoundaryArrayOpsStory(): ReactElement {
           sessionRef.current = session;
           return (
             <session.form.AppField name="items" mode="array">
-              {(field): ReactElement => <output data-testid="array-live">{JSON.stringify(field.state.value)}</output>}
+              {(field): ReactElement => <output data-testid={storyTestId("arrayLive")}>{JSON.stringify(field.state.value)}</output>}
             </session.form.AppField>
           );
         },
@@ -628,7 +614,7 @@ export function BoundaryArrayOpsStory(): ReactElement {
 
 function ArraySpyObserver(): ReactElement {
   const state = arraySpy.useDraft("state");
-  return <output data-testid="array-spy">{state.value ?? ""}</output>;
+  return <output data-testid={storyTestId("arraySpy")}>{state.value ?? ""}</output>;
 }
 
 // ---- CT-5 status: fail → error+Retry → success → saved -------------------------------------------
@@ -651,7 +637,7 @@ export function BoundaryStatusStory(): ReactElement {
           <div>
             <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Status text" />}</session.form.AppField>
             <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
-            <output data-testid="status-state">{session.saveState}</output>
+            <output data-testid={storyTestId("statusState")}>{session.saveState}</output>
             <button
               type="button"
               onClick={(): void => {
@@ -692,7 +678,7 @@ export function BoundaryCompletionOwnershipStory(): ReactElement {
             <button type="button" onClick={(): void => void session.form.handleSubmit()}>
               submit now
             </button>
-            <output data-testid="completion-state">{session.saveState}</output>
+            <output data-testid={storyTestId("completionState")}>{session.saveState}</output>
           </div>
         )}
       </CompletionBoundary>
@@ -702,8 +688,8 @@ export function BoundaryCompletionOwnershipStory(): ReactElement {
       <button type="button" onClick={(): void => pending.current[1]?.()}>
         resolve second
       </button>
-      <output data-testid="completion-calls">{calls}</output>
-      <output data-testid="completion-draft">{draft.text ?? ""}</output>
+      <output data-testid={storyTestId("completionCalls")}>{calls}</output>
+      <output data-testid={storyTestId("completionDraft")}>{draft.text ?? ""}</output>
     </div>
   );
 }

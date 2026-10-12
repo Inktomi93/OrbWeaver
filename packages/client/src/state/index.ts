@@ -27,7 +27,6 @@ export {
 } from "./active-chat-store.ts";
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export { clearAnalyticsSelection, selectAnalyticsCharacterFromList, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
-export type { SeedThemeName } from "./appearance-boot-hint.ts";
 export {
   __resetAppearanceBootHint,
   DATA_THEME_ATTR,
@@ -35,6 +34,7 @@ export {
   REDUCED_MOTION_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
+  type SeedThemeName,
   useAppearanceBootHint,
 } from "./appearance-boot-hint.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
@@ -62,6 +62,7 @@ export {
   useTagFilter,
 } from "./character-library-store.ts";
 export {
+  __readSelectedCharacterIdForTest,
   characterSectionSelection,
   clearCharacterFacet,
   clearCharacterSelection,
@@ -71,8 +72,7 @@ export {
   useSelectedCharacterId,
 } from "./character-selection-store.ts";
 export { __resetChatContextSections, setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
-export type { ActiveChatHandle, ChatHandle } from "./chat-handle.ts";
-export { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
+export { type ActiveChatHandle, type ChatHandle, committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";
 export {
   clearChatListCharacterFilter,
@@ -129,9 +129,10 @@ export type {
 } from "./config-group-registry.ts";
 export { configAnchorId, configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
-export type { ConfigVisibleSetting } from "./config-nav-store.ts";
 export {
+  __readConfigTargetForTest,
   __resetConfigNav,
+  type ConfigVisibleSetting,
   clearActiveConfigGroup,
   getActiveConfigGroup,
   openConfigTo,
@@ -181,7 +182,7 @@ export {
   useCorpusCompareB,
   useCorpusCompareBName,
 } from "./corpus-compare-store.ts";
-export { healCorpusModeFrom, useCorpusMode } from "./corpus-mode-store.ts";
+export { getCorpusMode, healCorpusModeFrom, useCorpusMode } from "./corpus-mode-store.ts";
 export {
   readCorpusResultScroll,
   setCorpusResultScroll,
@@ -200,12 +201,9 @@ export {
   useSelectedCorpusCharacterId,
   useSelectedCorpusDestination,
 } from "./corpus-selection-store.ts";
-export type { DrillSelectionStore, PrimaryDrillStore } from "./create-drill-selection-store.ts";
-export { createDrillSelectionStore } from "./create-drill-selection-store.ts";
-export type { EntityDraftStore } from "./create-entity-draft-store.ts";
-export { createEntityDraftStore } from "./create-entity-draft-store.ts";
-export type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
-export { createGatedStore, STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
+export { createDrillSelectionStore, type DrillSelectionStore, type PrimaryDrillStore } from "./create-drill-selection-store.ts";
+export { createEntityDraftStore, type EntityDraftStore } from "./create-entity-draft-store.ts";
+export { createGatedStore, type GatedSet, type GatedStoreHook, STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 export type { KindedSelection } from "./create-kinded-selection-store.ts";
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
@@ -413,14 +411,16 @@ export {
   useBlockedSaveSections,
   useErroredSaveSections,
 } from "./settings-save-status-store.ts";
-export type { PublishedContextTab } from "./shell-store.ts";
 export {
+  __readOpenModalForTest,
+  activeSectionNow,
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
   getContextTab,
   hideContextPanel,
   openModal,
+  type PublishedContextTab,
   publishContextTabs,
   revealContextPanel,
   revealContextPanelBesideContent,

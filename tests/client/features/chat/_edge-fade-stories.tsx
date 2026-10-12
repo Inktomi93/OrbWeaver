@@ -12,7 +12,7 @@
 // SATURATED backdrop makes "did the row's card dissolve into what is behind it?" a one-channel question
 // instead of a contrast estimate — a photo would prove the same thing less legibly.
 
-// @orb-waive-file testid-typed-only-stories("fade-row"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement } from "react";
 
@@ -46,7 +46,7 @@ export function MessageListEdgeFadeStory({ artBackdrop }: MessageListEdgeFadeSto
         getItemKey={(item): string => item.id}
         items={ROWS}
         renderItem={(item): ReactElement => (
-          <div data-testid="fade-row" style={{ background: card, color: "#141414", height: ROW_HEIGHT, padding: 8 }}>
+          <div data-testid={storyTestId("fadeRow")} style={{ background: card, color: "#141414", height: ROW_HEIGHT, padding: 8 }}>
             {item.text}
           </div>
         )}
