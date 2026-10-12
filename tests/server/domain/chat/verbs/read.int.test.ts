@@ -5,13 +5,6 @@
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
 // @orb-waive-file no-test-fabrication(ChatNotFoundError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(Snapshot): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ roll: 9 }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ static: 42 }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(await): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(expected): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(hers): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(shown): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
@@ -56,6 +49,7 @@ import { parseIanaTimeZone } from "@orb/kit/time";
 import { safeTokenWindow } from "@orb/kit/tokens";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -75,11 +69,9 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
-
 import {
   addVariant,
   batchParticipantViews,
-  FROZEN_AT,
   makeChatContext,
   makeLoadParticipantViews,
   seedCharacter,
@@ -634,7 +626,7 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     expect(items[0]?.lastMessageAt).toBe(9000);
     // The list is non-increasing in the DISPLAYED clock — sort key === display key, over the whole page.
     const shown = items.map((c) => c.lastMessageAt ?? c.updatedAt);
-    expect(shown).toStrictEqual([...shown].sort((a, b) => b - a));
+    expect(shown).toStrictEqual(shown.toSorted((a, b) => b - a));
   });
 
   test("a new message re-sorts the room to the top on the NEXT read — no chat-row write required", async () => {
@@ -760,7 +752,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
   test("the keyset walks the WHOLE list exactly once — no skipped or repeated row across a tied `updatedAt`", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
-    const seeded = await seedSameStampRooms(me, 7, FROZEN_AT);
+    const seeded = await seedSameStampRooms(me, 7, FROZEN_AT_MS);
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const walked: ChatId[] = [];
@@ -777,8 +769,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     // EXACTLY once each: a tie-blind keyset returns the same page forever or jumps a whole tied run.
     expect(walked.length).toBe(seeded.length);
     expect(new Set(walked).size).toBe(seeded.length);
-    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
-    expect([...walked].sort()).toEqual([...seeded].sort());
+    expect(walked.toSorted((a, b) => a.localeCompare(b))).toEqual(seeded.toSorted((a, b) => a.localeCompare(b)));
   });
 
   test("`beforeRecencyAt` is exclusive and keeps every tied row below the boundary reachable exactly once", async () => {
@@ -811,8 +802,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     expect(walked).toHaveLength(expected.length);
     expect(new Set(walked).size).toBe(expected.length);
-    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
-    expect([...walked].sort()).toEqual([...expected].sort());
+    expect(walked.toSorted((a, b) => a.localeCompare(b))).toEqual(expected.toSorted((a, b) => a.localeCompare(b)));
     expect(walked).not.toContain(atBoundary[0]);
     expect(walked).not.toContain(above[0]);
     expect(walked).not.toContain(displayedAbove);
@@ -820,7 +810,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
   test("`nextCursor` is null on a SHORT page — a full final page hands back one more, and it returns nothing", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
-    await seedSameStampRooms(me, 4, FROZEN_AT);
+    await seedSameStampRooms(me, 4, FROZEN_AT_MS);
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const short = await listChats({ principal: principal(me), limit: 10 });
@@ -841,7 +831,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     // read from an unclamped one, and this arm was exactly that false green until a planted control caught it
     // (removing the clamp left it passing). Every row costs `buildSummaries` a participant resolve, which is
     // the whole reason the ceiling exists — so the seed is the smallest one that can fail.
-    await seedSameStampRooms(me, CHAT_LIST_PAGE_CEILING + 1, FROZEN_AT);
+    await seedSameStampRooms(me, CHAT_LIST_PAGE_CEILING + 1, FROZEN_AT_MS);
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const page = await listChats({ principal: principal(me), limit: 10_000 });
@@ -858,7 +848,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
   test("`totalCount` is the SCOPE's census, not the page's length — and it moves with the filters", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const other = await seedUser(db, castId<Handle>("other"));
-    await seedSameStampRooms(me, 5, FROZEN_AT);
+    await seedSameStampRooms(me, 5, FROZEN_AT_MS);
     const theirs = await seedChat(db, "notmine");
     await seedParticipant(db, { chatId: theirs, key: "notmine_h", userId: other, role: "host" });
     const archived = await seedChat(db, "arch", { archived: true });
@@ -925,7 +915,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const hers = await listChats({ principal: principal(me), characterId: her, limit: 50 });
 
-    expect([...hers.items.map((c) => c.id)].sort()).toEqual([sheLeft, withHer].sort());
+    expect(hers.items.map((c) => c.id).toSorted()).toEqual([sheLeft, withHer].sort());
     expect(hers.totalCount).toBe(2);
     expect(hers.items.map((c) => c.id)).not.toContain(withHim);
   });
@@ -997,7 +987,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const found = async (q: string): Promise<readonly ChatId[]> =>
-      [...(await listChats({ principal: principal(me), search: q, limit: 50 })).items.map((c) => c.id)].sort();
+      (await listChats({ principal: principal(me), search: q, limit: 50 })).items.map((c) => c.id).toSorted();
 
     // Case-insensitive across all three arms — the user types what they remember, not what was stored.
     expect(await found("ashen")).toEqual([byBody, byTitle].sort());
@@ -1850,14 +1840,14 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
       tokenHash: "hash_jhrj",
       maxUses: null,
       expiresAt: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const rejoined = await redeemInviteAtomic(db, {
       tokenHash: "hash_jhrj",
       userId: joiner,
       participantId: castId("chat_participant_unused"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(rejoined?.participant.joinSeq).toBe(4);
     expect(rejoined?.participant.joinHistoryVisibility).toBe("from-join"); // untouched by the re-join upsert
@@ -2630,7 +2620,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedParticipant(db, { chatId, key: "wi_pres_member", userId: member, role: "member", activePersonaId: memberPersona });
 
     const bookId = castId<WorldBookId>("world_book_wi_presence");
-    await db.insert(worldBooks).values({ id: bookId, ownerId: member, name: "offline persona lore", createdAt: FROZEN_AT });
+    await db.insert(worldBooks).values({ id: bookId, ownerId: member, name: "offline persona lore", createdAt: FROZEN_AT_MS });
     await db.insert(worldEntries).values({
       id: castId<WorldEntryId>("world_entry_wi_presence"),
       worldBookId: bookId,
@@ -2641,9 +2631,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       priority: 0,
       ignoreBudget: false,
       metadata: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
-    await db.insert(personaBooks).values({ personaId: memberPersona, worldBookId: bookId, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId: memberPersona, worldBookId: bookId, createdAt: FROZEN_AT_MS });
 
     const previewWith = async (online: boolean): Promise<string> => {
       const ctx = makeChatContext(db, { readPresence: (userId) => Promise.resolve({ userId, online: online || userId === host, lastSeenAt: null }) });
@@ -2942,12 +2932,27 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   describe("getVariantWire", () => {
     /** The hidden truth + the pre-floor canon a stored snapshot embeds — the two classes of byte a non-host
      *  must never recover through this read. */
-    const Snapshot = {
+    const Snapshot: NonNullable<typeof messageVariants.$inferInsert.promptSnapshot> = {
       static: "PRE-JOIN CANON: the vault code is 4417.",
       dynamic: 'He smiles. <lie character="Z" truth="he is the traitor"/> "Nothing," he says.',
       afterHistory: [{ position: "in_chat", depth: 0, role: "system", content: "steer" }],
       sendHistory: true,
-      trace: {},
+      trace: {
+        staticSections: [],
+        dynamicSections: [],
+        worldInfoIncluded: 0,
+        worldInfoDropped: [],
+        worldInfoActivated: [],
+        matchedKeys: [],
+        compactSummaryIncluded: false,
+        memoryIncluded: false,
+        memoryRecall: null,
+        databankIncluded: false,
+        guidedInstructionIncluded: false,
+        staticCacheBusters: [],
+        chatInjectionsIncluded: 0,
+        afterHistorySections: [],
+      },
     };
 
     /** Seed one room with a snapshot-bearing assistant variant; returns the room + that variant's id. */
@@ -2956,7 +2961,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs." });
       // The engine writes a full `AssembledPrompt` here; the read PROJECTS it through `sentPromptSchema`, so
       // only the projected fields are under test (`trace` is dropped by design — asserted below).
-      const blob = Snapshot as never; // An AssembledPrompt stand-in; the read projects it.
+      const blob = Snapshot;
       await db
         .update(messageVariants)
         .set({ promptSnapshot: blob, params: { temperature: 0.7 } })
@@ -3070,6 +3075,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const chatId = await seedRoom("wire_bad_freeze", host);
       const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "x" });
       // @orb-waive no-test-fabrication(never): deliberate invalid-input probe of the parse seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ roll: 9 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       const garbage = { roll: 9 } as never;
       await db
         .update(messageVariants)
@@ -3089,6 +3095,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       // A garbage blob is exactly what the read seam exists to bound: `$type<>` is a compile-time claim, and
       // the bytes at rest are untyped JSON that a prior schema version (or a hand edit) can have written.
       // @orb-waive no-test-fabrication(never): deliberate invalid-input probe of the parse seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ static: 42 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       const garbage = { static: 42 } as never;
       await db
         .update(messageVariants)
@@ -3913,7 +3920,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
   /** Seed a character-scope world-info book (owned by `owner`) + one enabled entry, linked to `characterId`. */
   async function seedCardLore(owner: UserId, key: string, content: string): Promise<void> {
     const bookId = castId<WorldBookId>(`world_book_${key}`);
-    await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+    await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT_MS });
     await db.insert(worldEntries).values({
       id: castId<WorldEntryId>(`world_entry_${key}`),
       worldBookId: bookId,
@@ -3924,9 +3931,9 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
       priority: 0,
       ignoreBudget: false,
       metadata: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
-    await db.insert(characterBooks).values({ characterId: cardChar, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT });
+    await db.insert(characterBooks).values({ characterId: cardChar, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT_MS });
   }
 
   test("a card field's time macros read the viewer's zone on the injected clock, and UTC with no viewer zone", async () => {

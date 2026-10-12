@@ -20,9 +20,6 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { PersonaContext } from "#server/domain/persona/context.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 interface AuditCall {
   readonly entry: Parameters<PersonaContext["audit"]>[0];
   readonly at: number;
@@ -58,7 +55,7 @@ export interface PersonaHarness {
 
 /** Build the PersonaContext over a real db with deterministic + recording fakes. */
 export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): PersonaHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const userEvents: UserEventCall[] = [];
@@ -134,7 +131,7 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
     mime: "image/png",
     size: 1,
     hash: overrides.hash ?? "hash_a",
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -159,7 +156,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
       name: overrides.name ?? "Char",
       description: overrides.description ?? null,
       avatarAssetId: overrides.avatarAssetId ?? null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   return id;

@@ -8,6 +8,7 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedGenerationTargets, imageAnalyses, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -22,8 +23,6 @@ import {
 } from "#server/domain/embeddings/persistence/queries.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
-const NOW = 1_750_000_000_000;
-
 async function seedGeneration(db: Db, ownerId: UserId, model: string, task: EmbeddingTask = "embed"): Promise<EmbedGenerationId> {
   const id = castId<EmbedGenerationId>(`embed_generation_${task}_${model}`);
   await db
@@ -37,7 +36,7 @@ async function seedGeneration(db: Db, ownerId: UserId, model: string, task: Embe
       connectionRef: castId<UserConnectionId>(`fixture:${model}`),
       fingerprint: `fixture:${model}`,
       space: model,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     })
     .onConflictDoNothing();
   // The owner's current target: an upsert lands only while its generation is one.
@@ -65,7 +64,7 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     expect(await existingCharacterHash(db, characterId, generationId)).toBe("hash-1");
 
@@ -77,7 +76,7 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
@@ -99,7 +98,7 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     const id = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0]?.id;
     await writeHubScoreRows(db, "character_embeddings", [{ id: id ?? "", model: EMBED_MODEL, hubScore: 0.55 }]);
@@ -112,7 +111,7 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     expect(row?.hubScore).toBeCloseTo(0.55);
@@ -135,7 +134,7 @@ describe("existingImageHash / upsertImageEmbedding", () => {
       model: IMAGE_EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     };
     await upsertImageEmbedding(db, { ...common, id: castId<ImageEmbeddingId>("image_embedding_raw"), lens: "image-raw", analysisRevision: null });
     const revision = await saveImageAnalysis(db, {
@@ -145,7 +144,7 @@ describe("existingImageHash / upsertImageEmbedding", () => {
       contentHash: "img-hash",
       caption: "a caption",
       captionMeta: { model: "captioner", futureFacet: "preserved" },
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     expect(revision).toBe(1);
     if (revision === undefined) {

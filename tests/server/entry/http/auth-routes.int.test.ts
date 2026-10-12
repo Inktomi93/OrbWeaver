@@ -5,6 +5,7 @@
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, userSettings, users } from "@orb/db";
@@ -37,7 +38,6 @@ const THIRTY_DAYS_MS = 2_592_000_000;
 // transport describe below pins both names.
 const COOKIE = "orb_session_insecure";
 const SECURE_COOKIE = "__Host-orb_session";
-const CSRF = "x-orb-csrf";
 /** What a trusted proxy in front of a TLS listener adds to every request. */
 const PROXY_HTTPS = { "x-forwarded-proto": "https" } as const;
 const PUBLIC_HTTP_EVENT = "session_minted_over_public_http";
@@ -106,7 +106,7 @@ async function postLogin(app: Hono, ip: string, body: Record<string, string>, ex
     LOGIN,
     {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1", ...extraHeaders },
+      headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1", ...extraHeaders },
       body: new URLSearchParams(body).toString(),
     },
     connEnv(ip),
@@ -353,7 +353,7 @@ describe("first-run owner-password setup (B4) — real app + freshDb", () => {
         method: "POST",
         // The same-origin client sends the CSRF header (data/auth-bootstrap.ts firstRunSetup); the behavioral
         // arms model that. The CSRF-gate arm below inlines a request omitting it (the cross-origin shape).
-        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1" },
+        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
         body: new URLSearchParams({ password }).toString(),
       },
       connEnv(ip),
@@ -448,7 +448,7 @@ describe("first-run owner-password setup — a relayed loopback request cannot c
       firstRunPath,
       {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1", ...relay },
+        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1", ...relay },
         body: new URLSearchParams({ password: "hunter2password" }).toString(),
       },
       connEnv(ip),
@@ -507,7 +507,7 @@ describe("logout — CSRF gate (real app)", () => {
         },
       }),
     });
-    const res = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }, connEnv("10.0.0.10"));
+    const res = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: `${COOKIE}=tok-123`, [CSRF_HEADER]: "1" } }, connEnv("10.0.0.10"));
     expect(res.status).toBe(200); // A6 — 200 `{endSessionUrl}` (null in local mode), no longer 204
     expect(revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie") ?? "").toContain("Max-Age=0");
@@ -564,8 +564,12 @@ describe("Rule C — the minted cookie follows the request's transport", () => {
       }),
     });
     const both = `${COOKIE}=tok-http; ${SECURE_COOKIE}=tok-https`;
-    const overHttp = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: both, [CSRF]: "1" } }, connEnv("192.168.1.56"));
-    const overHttps = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: both, [CSRF]: "1", ...PROXY_HTTPS } }, connEnv("172.18.0.6"));
+    const overHttp = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: both, [CSRF_HEADER]: "1" } }, connEnv("192.168.1.56"));
+    const overHttps = await app.request(
+      "/api/auth/logout",
+      { method: "POST", headers: { cookie: both, [CSRF_HEADER]: "1", ...PROXY_HTTPS } },
+      connEnv("172.18.0.6"),
+    );
     expect(revoked).toEqual(["tok-http", "tok-https"]);
     for (const res of [overHttp, overHttps]) {
       expect(res.headers.getSetCookie().map((c) => c.split("=")[0])).toEqual([SECURE_COOKIE, COOKIE]);
@@ -713,7 +717,7 @@ describe("local signup route (D259)", () => {
     return { app, db, spies };
   }
 
-  async function postSignup(app: Hono, ip: string, body: unknown, headers: Record<string, string> = { [CSRF]: "1" }): Promise<Response> {
+  async function postSignup(app: Hono, ip: string, body: unknown, headers: Record<string, string> = { [CSRF_HEADER]: "1" }): Promise<Response> {
     return await app.request(Signup, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) }, connEnv(ip));
   }
 
@@ -741,7 +745,7 @@ describe("local signup route (D259)", () => {
 
   test("a request that already carries a live session → 409 and no invite work", async () => {
     const { app, spies } = await signupApp({ signup: { sessionIsLive: (): Promise<boolean> => Promise.resolve(true) } });
-    const res = await postSignup(app, "10.9.0.4", creds, { [CSRF]: "1", cookie: `${COOKIE}=tok-live` });
+    const res = await postSignup(app, "10.9.0.4", creds, { [CSRF_HEADER]: "1", cookie: `${COOKIE}=tok-live` });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "already_signed_in" });
     expect(spies.admitted).toBe(0);
@@ -893,7 +897,7 @@ describe("local signup route (D259)", () => {
   // D260 — the local sign-up form's invite preview: the signup route's steps up to its pre-check, answering no more.
   const Preview = "/api/auth/signup/preview";
 
-  async function postPreview(app: Hono, ip: string, body: unknown, headers: Record<string, string> = { [CSRF]: "1" }): Promise<Response> {
+  async function postPreview(app: Hono, ip: string, body: unknown, headers: Record<string, string> = { [CSRF_HEADER]: "1" }): Promise<Response> {
     return await app.request(Preview, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) }, connEnv(ip));
   }
 
@@ -951,7 +955,7 @@ describe("local signup route (D259)", () => {
     expect((await postPreview(app, "10.9.3.4", { token: Good }, {})).status).toBe(403);
     expect((await postPreview(app, "10.9.3.5", { token: Good, handle: "friend" })).status).toBe(400);
     const live = await signupApp({ signup: { sessionIsLive: (): Promise<boolean> => Promise.resolve(true) } });
-    const signedIn = await postPreview(live.app, "10.9.3.6", { token: Good }, { [CSRF]: "1", cookie: `${COOKIE}=tok-live` });
+    const signedIn = await postPreview(live.app, "10.9.3.6", { token: Good }, { [CSRF_HEADER]: "1", cookie: `${COOKIE}=tok-live` });
     expect(signedIn.status).toBe(409);
     expect(await signedIn.json()).toEqual({ error: "already_signed_in" });
     const closed = await signupApp({ signup: { multiHumanCapable: (): boolean => false } });

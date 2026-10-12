@@ -6,6 +6,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { fakeRelaySeams } from "@orb/testkit/node/fake-relay.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { requestWithHost } from "@orb/testkit/node/host-request.ts";
@@ -81,7 +82,7 @@ async function statusFor(host: string): Promise<number> {
 async function shareMutation(verb: "start" | "stop"): Promise<Response> {
   return await fetch(`${base}/api/trpc/share.${verb}`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-orb-csrf": "1", cookie: ownerCookie },
+    headers: { "content-type": "application/json", [CSRF_HEADER]: "1", cookie: ownerCookie },
     body: "{}",
   });
 }
@@ -103,7 +104,7 @@ test("SHARE_RELAY at boot with an unclaimed owner starts no relay and names the 
 test("the loopback first-run claim starts the waiting relay in-process; its host is admitted once it reports its URL", async () => {
   const claim = await fetch(`${base}/api/auth/first-run`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
+    headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ password: OWNER_PASSWORD }).toString(),
   });
   expect(claim.status).toBe(OK);

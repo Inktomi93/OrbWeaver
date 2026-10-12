@@ -11,9 +11,6 @@ import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.t
 import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-// @orb-waive no-vanity-alias(WHOLE_TIERS): baselined when the gate widened; burn-down item 906.
-const WHOLE_TIERS = RUNNABLE_VERIFY_TIERS;
-
 test("only positively identified GitHub-hosted full execution omits mutation measurement", async () => {
   const full = stagesForTier("full");
   const mutation = full.find(({ name }) => name === "quality:mutation-gate");
@@ -244,7 +241,7 @@ test("mutation:arid is a discoverable manual report-input tool, never an automat
   expect(row?.manualReason).toContain("existing Stryker JSON report path");
   expect(row?.classify(2), "an unreadable report is a tool error").toBe(2);
   expect(row?.classify(3), "missing report arguments are misuse").toBe(3);
-  for (const tier of WHOLE_TIERS) {
+  for (const tier of RUNNABLE_VERIFY_TIERS) {
     expect(stagesForTier(tier).some((candidate) => candidate.name === "quality:mutation-arid")).toBe(false);
   }
 });

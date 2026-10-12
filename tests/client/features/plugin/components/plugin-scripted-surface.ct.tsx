@@ -21,7 +21,6 @@
 // precisely the shapes a linter would refuse to let us write.
 
 // @orb-waive-file no-test-fabrication({ readonly detaching: number }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(CLIENT_ALLOWED_GLOBALS): baselined when the gate widened; burn-down item 906.
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -622,7 +621,7 @@ test("THE F3 PIN — the client guest global object is an EXACT allow-list (a ne
   const actual = inner.split(",");
 
   // THE CLOSED-SET ASSERTION — an added or removed guest global fails HERE.
-  expect(actual).toEqual([...CLIENT_ALLOWED_GLOBALS].sort());
+  expect(actual).toEqual(CLIENT_ALLOWED_GLOBALS.toSorted());
   // POSITIVE CONTROL that the probe enumerated a live guest (a broken install would render an empty/bare list):
   // `orb` is the one installed entry and the enumeration is non-trivial.
   expect(actual).toContain("orb");

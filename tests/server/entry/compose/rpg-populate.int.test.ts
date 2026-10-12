@@ -1,4 +1,5 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — populate-from-character (the real round and its slotted prose) and the host handoff of a gmPresetId.
 
@@ -12,7 +13,7 @@ import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/tes
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { buildCannedRpgWithText, buildRpg, CANNED_POPULATE, emptySpy, hostPrincipal, seedHostGameChat } from "./_rpg-support.ts";
 
 test("POPULATE (real round): the card's identity + gear land, and the live-play planes it volunteered do NOT", async ({ app, db }) => {
@@ -70,7 +71,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   const spy = emptySpy();
   const rpgCompose = buildRpg({
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
@@ -225,8 +226,8 @@ test("PROSE-1 POPULATE: a GM-preset override reaches every one of the round's SE
         "rpg.populate.targetLine": { text: "Fill only {{targetRef}}.", baseVersion: 1 },
       },
     },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
 
   const spy = emptySpy();
@@ -268,7 +269,7 @@ test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one th
     const presetId = castId<PresetId>(id);
     await db
       .insert(presets)
-      .values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+      .values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
     return presetId;
   };
   /** A game room whose GM knob points at `presetOwner`'s preset, with the nominee seated + nominated. */

@@ -18,6 +18,7 @@
 
 import { expect, test } from "@playwright/test";
 import { waitForAppReady } from "./support/chat-room.ts";
+import { WAIT_INSTANT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc.ts";
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
@@ -75,7 +76,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     await waitForAppReady(page);
 
     const shell = page.locator(SHELL_GRID);
-    await expect(shell).toBeVisible({ timeout: 15_000 });
+    await expect(shell).toBeVisible({ timeout: WAIT_SURFACE_MS });
     // Baseline: no seed theme applied, no background image.
     await expect(page.locator(`${SHELL_GRID}[data-has-bg-image]`)).toHaveCount(0);
 
@@ -96,13 +97,13 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // The active theme applies globally — `use-appearance-root-effects.ts` stamps `data-theme` on the
     // DOCUMENT ELEMENT (server truth flows through the getUserSettings query invalidation the mutation
     // drives). Asserted on `html` only: see APPLIED_THEME.
-    await expect(page.locator(APPLIED_THEME)).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator(APPLIED_THEME)).toHaveCount(1, { timeout: WAIT_UI_MS });
 
     // ── 2. Change the BACKGROUND through the real appearance settings — the R-BG thumbnail grid (#866
     //       S4): one gridcell per plate, named by its label; the KIND derives from the tapped tile. ──
     const backgroundGrid = page.getByRole("grid", { name: "Background image" });
     await backgroundGrid.scrollIntoViewIfNeeded();
-    await expect(backgroundGrid).toBeVisible({ timeout: 10_000 });
+    await expect(backgroundGrid).toBeVisible({ timeout: WAIT_UI_MS });
     await backgroundGrid.getByRole("gridcell", { name: SEEDED_BG_OPTION }).click();
 
     // The appearance autosave debounces (500ms) then commits; the shell repaints when the settingsChanged
@@ -111,16 +112,16 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // and absorbs the debounce+save+bus-refetch latency deterministically (no fixed sleep, no race on a bare
     // 10s DOM wait). The hash is asserted NON-EMPTY rather than byte-pinned: it is the plate's content hash,
     // which `tests/default-content/index.test.ts` owns — pinning it twice would be a second home for it.
-    await expect.poll(async () => (await getAppearanceTheme()).config.appearance.backgroundAssetHash.length > 0, { timeout: 15_000 }).toBe(true);
+    await expect.poll(async () => (await getAppearanceTheme()).config.appearance.backgroundAssetHash.length > 0, { timeout: WAIT_SURFACE_MS }).toBe(true);
 
     // The shell root gains `data-has-bg-image` once that server truth flows back through the query — the
     // render-truth claim (server state → DOM), asserted against the DOM, not just the request firing.
-    await expect(page.locator(`${SHELL_GRID}[data-has-bg-image]`)).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator(`${SHELL_GRID}[data-has-bg-image]`)).toHaveCount(1, { timeout: WAIT_UI_MS });
 
     // The background is painted by the fixed root layer — assert it actually renders (computed style),
     // not just the attribute. `ThemeBackgroundLayer` paints the resolved url as a real element.
     const bgLayer = page.locator('[data-slot="theme-background-layer"]');
-    await expect(bgLayer).toBeVisible({ timeout: 10_000 });
+    await expect(bgLayer).toBeVisible({ timeout: WAIT_UI_MS });
     const bgImage = await bgLayer.evaluate((el: Element) => getComputedStyle(el).backgroundImage);
     expect(bgImage).not.toBe("none");
     expect(bgImage).toContain("url(");
@@ -134,7 +135,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // NEXT settings-save POST — it must NOT arrive within a full breaker/debounce window (the oscillation
     // would keep POSTing). `waitForRequest` REJECTS on timeout; a reject is the pass (no self-triggered tail).
     const tailSave = await page
-      .waitForRequest((req) => req.method() === "POST" && req.url().includes(SETTINGS_SAVE), { timeout: 3000 })
+      .waitForRequest((req) => req.method() === "POST" && req.url().includes(SETTINGS_SAVE), { timeout: WAIT_INSTANT_MS })
       .then(() => "self-triggered-save-fired")
       .catch(() => "no-tail-save");
     expect(tailSave).toBe("no-tail-save"); // no oscillation POST after settle
@@ -159,8 +160,8 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // assertion the whole spec exists for, so it reads the APPLIED carrier (`html`) and not a card's swatch:
     // after a reload the settings pane is not even mounted, so the old bare `[data-theme]` lookup here was
     // load-bearing AND vacuous at different moments of the same run.
-    await expect(page.locator(APPLIED_THEME)).toHaveCount(1, { timeout: 15_000 });
-    await expect(page.locator(`${SHELL_GRID}[data-has-bg-image]`)).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator(APPLIED_THEME)).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
+    await expect(page.locator(`${SHELL_GRID}[data-has-bg-image]`)).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
     const bgAfterReload = await page.locator('[data-slot="theme-background-layer"]').evaluate((el: Element) => getComputedStyle(el).backgroundImage);
     expect(bgAfterReload).toContain("url(");
 
@@ -170,7 +171,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     await page.getByRole("button", { name: "Appearance" }).click();
     // The appearance autosave status shows the owner-ruled honest "Saved" readout when clean; a tripped
     // breaker would instead surface a Retry button. Assert the healthy status is present and no Retry.
-    await expect(page.getByText("Saved", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true }).first()).toBeVisible({ timeout: WAIT_UI_MS });
     await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
   });
 });

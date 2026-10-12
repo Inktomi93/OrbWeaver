@@ -20,6 +20,7 @@ import {
   SESSION_COOKIE_NAME_INSECURE,
   SESSION_COOKIE_NAME_SECURE,
 } from "@orb/server/infra/auth";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
@@ -27,7 +28,6 @@ import { Configuration } from "openid-client";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
 
-const NOW = 1_750_000_000_000;
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const PUBLIC_CALLBACK = "https://app.example/api/auth/oidc/callback";
 const LOOPBACK_CALLBACK = "http://localhost:8788/api/auth/oidc/callback";
@@ -74,7 +74,7 @@ interface Flow {
 
 async function flow(): Promise<Flow> {
   const db = await freshDb();
-  const now = (): number => NOW;
+  const now = (): number => FROZEN_AT_MS;
   const sessions = createSessionsService({ db, now, sessionSecret: PEPPER, seedUserConnections: () => Promise.resolve() });
   const ownerClaim = createOwnerClaimCode();
   const claims = { current: claimsFor("owner") };

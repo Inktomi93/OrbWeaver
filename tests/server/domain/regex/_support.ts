@@ -23,9 +23,6 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { RegexContext } from "#server/domain/regex/context.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 interface AuditCall {
   readonly entry: Parameters<RegexContext["audit"]>[0];
   readonly at: number;
@@ -69,7 +66,7 @@ interface RoomFanCall {
 }
 
 export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const userEvents: UserEventCall[] = [];
@@ -150,8 +147,8 @@ export async function seedScript(db: Db, over: SeedScriptOverrides): Promise<Reg
     name: over.name ?? "seed",
     enabled: over.enabled ?? true,
     behavior: over.behavior ?? behavior(),
-    createdAt: over.createdAt ?? FROZEN_AT,
-    updatedAt: over.updatedAt ?? over.createdAt ?? FROZEN_AT,
+    createdAt: over.createdAt ?? FROZEN_AT_MS,
+    updatedAt: over.updatedAt ?? over.createdAt ?? FROZEN_AT_MS,
   });
   return id;
 }
@@ -167,7 +164,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, key = "c"): Promise
       name: "Char",
       description: null,
       avatarAssetId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   return id;
@@ -175,14 +172,14 @@ export async function seedCharacter(db: Db, ownerId: UserId, key = "c"): Promise
 
 export async function seedPreset(db: Db, ownerId: UserId | null, key = "p"): Promise<PresetId> {
   const id = castId<PresetId>(`preset_${key}`);
-  await db.insert(presets).values({ id, ownerId, name: `Preset ${key}`, kind: "roleplay", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT });
+  await db.insert(presets).values({ id, ownerId, name: `Preset ${key}`, kind: "roleplay", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT_MS });
   return id;
 }
 
 /** D18 — no owner column; chat-scope tests gate via the injected fake guards, so no roster rows are needed. */
 export async function seedChat(db: Db, key = "c"): Promise<ChatId> {
   const id = castId<ChatId>(`chat_${key}`);
-  await db.insert(chats).values({ id, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return id;
 }
 

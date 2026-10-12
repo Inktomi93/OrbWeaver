@@ -4,8 +4,8 @@
 // gates bite; the error ceiling auto-disables; and a chat with zero enabled rules does NOTHING (the pre-check
 // — the byte-identity no-op's server half).
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication({ messageId: MessageId }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-loose-id-cast([{ not: "an arm" }]): baselined when the gate widened; burn-down item 906.
 import type { AutomationActionInput, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
@@ -45,11 +45,7 @@ interface Fixture {
 }
 
 function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
-  let resolve!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
+  const { promise, resolve } = Promise.withResolvers<void>();
   return { promise, resolve };
 }
 
@@ -1064,8 +1060,7 @@ describe("#1423 same-chat events are serialized at the front door", () => {
     // BOTH events are raised before either dispatch can finish -- the exact shape two rapid bus events have.
     const first = f.svc.handleEvent(chatOpened(f.chatId));
     const second = f.svc.handleEvent(chatOpened(f.chatId));
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     gate.resolve();
     await Promise.all([first, second]);
 
@@ -1152,9 +1147,8 @@ test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES S
   // A blob no arm schema can parse ⇒ the dispatch DISABLES the rule ⇒ the reconcile under test.
   await db
     .update(automationRules)
-    // @orb-waive no-test-fabrication(never): the A5 CORRUPT-BLOB state is by definition a value no schema admits — a typed factory Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // could not produce it, and it is exactly the invalid input the disable-on-corrupt path exists to answer.
-    .set({ actions: [{ not: "an arm" }] as never })
+    .set({ actions: [{ not: "an arm" }] })
     .where(eq(automationRules.id, rule.id));
 
   failing.fail = true;
@@ -1220,8 +1214,7 @@ describe("#1554 domain-bus dispatch is keyed by OWNER, not one shared lane", () 
     // two rapid domain-bus events have (a card import, a lore edit, seconds apart).
     const eventA1 = f.svc.handleEvent({ type: "character.updated", characterId: characterA1, contentChanged: true });
     const eventB = f.svc.handleEvent({ type: "character.updated", characterId: characterB, contentChanged: true });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     // THE OLD SINGLE LANE'S SIGNATURE: unserialized-by-owner would read the same as this already does not
     // regress (both being blind lanes never contended), so the proof is what happens NEXT — ownerB's short
     // arm settles WHILE ownerA's is still parked, which the pre-#1554 single "automation:domain" lane could
@@ -1231,15 +1224,13 @@ describe("#1554 domain-bus dispatch is keyed by OWNER, not one shared lane", () 
     // A SECOND ownerA event, raised while the first is still blocked -- it must queue behind ownerA's own
     // lane (never behind ownerB's, which has already drained) and must NOT start until the first exits.
     const eventA2 = f.svc.handleEvent({ type: "character.updated", characterId: characterA2, contentChanged: true });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     expect(order).toEqual(["ownerA:enter", "ownerB:enter", "ownerB:exit"]); // ownerA2 has NOT entered yet.
 
     gates.ownerA.resolve();
     await eventA1;
     // The SECOND ownerA job's "enter" lands on the lane's own tail, one microtask after the first settles.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     expect(order).toEqual(["ownerA:enter", "ownerB:enter", "ownerB:exit", "ownerA:exit", "ownerA:enter"]);
 
     gates.ownerA2.resolve();

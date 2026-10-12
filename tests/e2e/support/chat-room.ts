@@ -25,6 +25,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
+import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
@@ -111,7 +112,7 @@ export async function waitForAppReady(page: Page, timeout = 30_000): Promise<voi
  *  introspection handle) — the deterministic "subscribed" gate before mutating, so a `chatUpdated` event
  *  always has a subscriber (no race; the orb equivalent of neo's `chat-stream-state` == "open"). */
 export async function waitForStreamOpen(page: Page): Promise<void> {
-  await expect.poll(async (): Promise<number> => busLive(page), { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+  await expect.poll(async (): Promise<number> => busLive(page), { timeout: WAIT_SURFACE_MS }).toBeGreaterThanOrEqual(1);
 }
 
 /** The RAIL's "Characters" nav button, scoped to the Primary navigation. The scoping is load-bearing: the
@@ -150,8 +151,8 @@ export async function gotoChatsList(page: Page): Promise<void> {
   // one-shot rail click and lands the caller back on the home surface. So poll: (re-)click the rail and
   // confirm the list surface settled; a mid-boot reload just re-enters the loop. Warm navigation clicks once.
   await expect(async () => {
-    await chatsRail.click({ timeout: 5000 });
-    await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: 5000 });
+    await chatsRail.click({ timeout: WAIT_SHORT_MS });
+    await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   }).toPass({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
 }
 
@@ -159,7 +160,7 @@ export async function gotoChatsList(page: Page): Promise<void> {
  *  user's row has committed durably (the chat row exists in the DB from that point). */
 async function createChatViaSend(page: Page): Promise<void> {
   const charactersNav = charactersRailButton(page);
-  await expect(charactersNav).toBeVisible({ timeout: 30_000 });
+  await expect(charactersNav).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await charactersNav.click();
 
   // The first row's "Chat with <name>" CTA — the resume-or-new library→chat seam (the exemplar path). It is
@@ -169,7 +170,7 @@ async function createChatViaSend(page: Page): Promise<void> {
     .locator('[data-slot="list-row-root"]')
     .filter({ has: page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }) })
     .first();
-  await expect(chatRow).toBeVisible({ timeout: 30_000 });
+  await expect(chatRow).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await chatRow.hover();
   await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
 
@@ -180,7 +181,7 @@ async function createChatViaSend(page: Page): Promise<void> {
 
   // The user's row committing == the draft was promoted to a real chat row (chat.startChat resolved).
   const userRow = page.locator('[data-slot="message-row"][data-role="user"]');
-  await expect(userRow.first()).toContainText(BOOTSTRAP_MESSAGE, { timeout: 60_000 });
+  await expect(userRow.first()).toContainText(BOOTSTRAP_MESSAGE, { timeout: WAIT_STREAM_MS });
 }
 
 /** Ensure a committed chat exists and OPEN it, landing on the room. Reuses the first existing chat if the
@@ -200,7 +201,7 @@ export async function openOrCreateChat(page: Page): Promise<void> {
     return;
   }
   await rows.first().click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 // The typeAndSend retry ledger — a module counter incremented once per EXTRA typing attempt (0 = the text
@@ -242,7 +243,7 @@ export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, messa
         await composer.pressSequentially(message, { delay: 15 });
         return composer.inputValue();
       },
-      { timeout: 30_000, intervals: [250] },
+      { timeout: WAIT_SETTLE_MS, intervals: [250] },
     )
     .toBe(message);
   await composer.press("Enter");
@@ -257,7 +258,7 @@ export async function openNewestChat(page: Page): Promise<void> {
   const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
   await expect(rows.first()).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await rows.first().click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** Open the active chat's ⋯ options menu — since D111's relocation (owner ruling 2026-08-09) it is the
@@ -266,7 +267,7 @@ export async function openNewestChat(page: Page): Promise<void> {
  *  posture that survived the move as well as it served the old topbar mount. */
 export async function openChatOptions(page: Page): Promise<void> {
   const options = page.getByRole("button", { name: "Chat options" });
-  await expect(options).toBeVisible({ timeout: 15_000 });
+  await expect(options).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await options.focus();
   await options.press("Enter");
 }
@@ -276,7 +277,7 @@ export async function openChatOptions(page: Page): Promise<void> {
  *  a plain composer-bar button, so a pointer click lands it (nothing overlays the composer row). */
 export async function openUtilityMenu(page: Page): Promise<void> {
   const trigger = page.getByRole("button", { name: "Message tools" });
-  await expect(trigger).toBeVisible({ timeout: 15_000 });
+  await expect(trigger).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await trigger.click();
 }
 
@@ -298,7 +299,7 @@ export async function renameOpenChat(page: Page, title: string): Promise<void> {
  *  `chat.updateTitle` round-trip. Used by the list-only (SHAPE A) multi-tab proof. */
 export async function renameFirstChatViaRowKebab(page: Page, title: string): Promise<void> {
   const kebab = page.getByRole("button", { name: "Chat actions" }).first();
-  await expect(kebab).toBeVisible({ timeout: 15_000 });
+  await expect(kebab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await kebab.focus();
   await kebab.press("Enter");
   await page.getByRole("menuitem", { name: "Rename" }).click();
@@ -328,7 +329,7 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
   const row = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: title }).first();
   await expect(row).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await row.click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** Expand the CONTEXT (detail) panel if it is collapsed — the ONE toggle is the topbar
@@ -342,7 +343,7 @@ export async function openDetailPanel(page: Page): Promise<void> {
   // strip), plus the "Game state" toolbar under it on a game chat. The "Chat" tablist is what means "the panel
   // is open" for a plain chat and a game chat alike.
   const strip = page.getByRole("tablist", { name: "Chat" });
-  await expect(strip.first()).toBeVisible({ timeout: 15_000 });
+  await expect(strip.first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** Select one CONTEXT tab by its visible label (Members / This chat / Status / …). Assumes the detail
@@ -360,7 +361,7 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
     .getByRole("tablist", { name: "Chat" })
     .getByRole("tab", { name: label, exact: true })
     .or(page.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: label, exact: true }));
-  await expect(tab).toBeVisible({ timeout: 15_000 });
+  await expect(tab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await tab.click();
 }
 
@@ -378,11 +379,11 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
 export async function openGroupBehaviorSection(page: Page): Promise<void> {
   await openContextTab(page, "This chat");
   await openContextSections(page, HOST_BAND, "Group behavior");
-  await expect(page.getByRole("heading", { name: "Group behavior" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Group behavior" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
   // The section body suspends on `chat.getGroupConfig` behind a skeleton, so the HEADING lands before any
   // control exists. Gate on the reply-mode toggle — the first control of the resolved form — or a caller
   // acting immediately races the skeleton.
-  await expect(page.getByRole("button", { name: "Per-speaker", exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Per-speaker", exact: true })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** The character bar's chip locator (chat-character-bar.tsx) — one chip per PRESENT character, and the whole bar is
@@ -416,7 +417,7 @@ export async function characterChipNames(page: Page): Promise<readonly string[]>
  *  action home for Mute / Talkativeness… / Make X speak next / Remove X from chat. */
 export async function openMemberRowMenu(page: Page, displayName: string): Promise<void> {
   const kebab = page.getByRole("button", { name: rowActionsName(displayName), exact: true });
-  await expect(kebab).toBeVisible({ timeout: 15_000 });
+  await expect(kebab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await kebab.click();
 }
 
@@ -439,9 +440,9 @@ export async function reopenFirstChat(page: Page): Promise<void> {
   await gotoChatsList(page);
   const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
   const first = rows.first();
-  await expect(first).toBeVisible({ timeout: 15_000 });
+  await expect(first).toBeVisible({ timeout: WAIT_SURFACE_MS });
   if ((await first.getAttribute("aria-current")) !== "true") {
     await first.click();
   }
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }

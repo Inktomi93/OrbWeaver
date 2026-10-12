@@ -5,11 +5,12 @@
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { readOwnedCardFacets, readOwnedDistillates } from "#server/domain/discovery/persistence/summary-reads.ts";
-import { FROZEN_AT, seedAsset, seedCharacter, seedUser } from "../_support.ts";
+import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 async function seedSummary(
   db: Db,
@@ -23,7 +24,7 @@ async function seedSummary(
     tags: facets.tags ?? [],
     elevatorPitch: facets.elevatorPitch ?? null,
     model: "test-summarize-model",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 

@@ -265,7 +265,6 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
   }
 });
 
-// @orb-waive no-vanity-alias(DISPATCHER_MODULES): baselined when the gate widened; burn-down item 906.
 // ═══ THE ENVELOPE IS COMPLETE OVER THE EMITTERS, NOT ONLY OVER THE CONSTANTS (#2155, forge recommendation #4;
 // REWRITTEN AT THE INTEGRATION REVIEW, and the rewrite is the lesson) ═══
 //
@@ -304,7 +303,6 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
 // not owner refusals — the conformance runner never reaches an owner — so putting them in the envelope would
 // refuse `mustRefuse` rows for text the runtime cannot show a policy author. They are DECLARED and held
 // two-sided instead, which is the same completeness with an honest vocabulary.
-const DISPATCHER_MODULES = POLICY_REFUSAL_EMITTERS;
 // THE CENSUS SCOPE IS WIDER THAN THE EMITTER ROSTER (#2497). A module can RAISE refusals while COMPOSING
 // none — `policy-pass-context-receipts.ts` is exactly that, five caller/programmer invariants carried out of
 // `policy-pass-context.ts` by the b748ea7eb9 split. It fails the emitter predicate, so scoping the invariant
@@ -691,14 +689,14 @@ test(
       .getSourceFiles()
       .filter((sourceFile) => refusalSites(sourceFile).some((argument) => fragmentsOf(argument).slots.some((slot) => slot.startsWith(TABLE))))
       .map((sourceFile) => sourceFile.getFilePath().slice(`${repoRoot}/`.length));
-    expect(sorted(derived)).toEqual(sorted(DISPATCHER_MODULES));
+    expect(sorted(derived)).toEqual(sorted(POLICY_REFUSAL_EMITTERS));
 
     // AND THE NEGATIVE THE ROSTER ASSERTS RATHER THAN ASSUMES: the envelope module READS the table (it is built
     // from it) and raises nothing, so "references the table" is not the predicate and it is not an emitter.
     const envelope = project.getSourceFileOrThrow(`${repoRoot}/tooling/src/verify/lib/policy-refusal-envelope.ts`);
     expect(envelope.getFullText()).toContain(TABLE);
     expect(refusalSites(envelope)).toEqual([]);
-    expect(DISPATCHER_MODULES).not.toContain("tooling/src/verify/lib/policy-refusal-envelope.ts");
+    expect(POLICY_REFUSAL_EMITTERS).not.toContain("tooling/src/verify/lib/policy-refusal-envelope.ts");
 
     // THE INVARIANT-ONLY LIST'S OTHER SIDE: each member must RAISE at least one refusal (or it does not belong
     // in the census at all) and COMPOSE none (or it is an emitter and belongs in the roster above).
@@ -709,7 +707,7 @@ test(
         refusalSites(sourceFile).filter((argument) => isComposed(argument)),
         path,
       ).toEqual([]);
-      expect(DISPATCHER_MODULES, path).not.toContain(path);
+      expect(POLICY_REFUSAL_EMITTERS, path).not.toContain(path);
     }
   },
   TREE_WALK_BUDGET,

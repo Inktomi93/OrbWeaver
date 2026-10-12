@@ -108,9 +108,7 @@ const INTENT_PILL_PAIRS = [
   ["color.highlight", "color.highlight-foreground"],
 ] as const;
 
-// @orb-waive no-vanity-alias(D): baselined when the gate widened; burn-down item 906.
 // ── The clamp.ts derivation, measured from its emitted product. ─────────────────────────────────────
-const D = THEME_DERIVATION;
 /** The ramp deltas for a base — CALLED, not mirrored (#682), because a second copy of the polarity
  *  selection would be the implementation pasted into its own test. */
 const rampOf = (base: Oklch): RampDeltas => rampDeltas(base);
@@ -586,7 +584,7 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
     // Muted foreground over the derived input fill (contrast tone at inputAlpha) composited over the
     // lightest (popover) and base surfaces — the worst realistic backdrops — PLUS the opaque derived
     // `muted` surface it labels directly (badges/skeleton text). All clear the normal-text floor.
-    const inputFill: Oklch = { l: derivedForegroundLightness(base), c: 0, h: base.h, alpha: D.inputAlpha };
+    const inputFill: Oklch = { l: derivedForegroundLightness(base), c: 0, h: base.h, alpha: THEME_DERIVATION.inputAlpha };
     const muted = emittedForegroundRgb(vars, "--color-muted-foreground", base);
     for (const [name, surface] of [
       ["popover", surfaces.popover],
@@ -666,13 +664,13 @@ const WORST_ART: ReadonlyArray<readonly [name: string, rgb: Rgb]> = [
  *  formula, and a second search loop here would be a copy of the impl rather than an independent
  *  cross-check. What keeps it honest is that the two properties below measure the SHIPPED literals. */
 function derivedPlate(base: Oklch): Oklch {
-  return { ...rampSurface(base, D.readingPlate.deltaL), alpha: readingPlateAlpha(base) };
+  return { ...rampSurface(base, THEME_DERIVATION.readingPlate.deltaL), alpha: readingPlateAlpha(base) };
 }
 
 test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the reading-plate literal IS derive(background) to the digit", (_name, palette) => {
   const plate = parseOklch(palette.vars[TOKENS[READING_PLATE_PATH].cssVar] ?? TOKENS[READING_PLATE_PATH].value);
   const base = parseOklch(palette.vars[TOKENS["color.background"].cssVar] ?? TOKENS["color.background"].value);
-  expect(plate.l, "plate L = base L + readingPlate.deltaL").toBeCloseTo(clamp01(base.l + D.readingPlate.deltaL), 3);
+  expect(plate.l, "plate L = base L + readingPlate.deltaL").toBeCloseTo(clamp01(base.l + THEME_DERIVATION.readingPlate.deltaL), 3);
   expect(plate.c, "plate chroma = base chroma").toBeCloseTo(base.c, 4);
   expect(plate.h, "plate hue = base hue").toBeCloseTo(base.h, 4);
   expect(plate.alpha, "plate alpha = readingPlateAlpha(background)").toBeCloseTo(readingPlateAlpha(base), 4);

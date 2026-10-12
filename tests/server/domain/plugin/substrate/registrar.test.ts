@@ -3,7 +3,7 @@
 // BEFORE it crosses into an untrusted guest) and the transform §6 host-gate (a plugin transform attaches ONLY to
 // a chat the installer HOSTS — the process-global registry is chat-blind, so the apply self-guards).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { TriggerFact } from "@orb/contracts/automation";
 import type { PromptTransformEnv } from "@orb/contracts/chat";
 import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contracts/plugin";
@@ -123,7 +123,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
       const result = await registry.apply("assembled_dynamic", CHAT, "hi", {});
       // The host read outlives the deadline, so the draft stands and the guest is never entered.
       expect(result).toEqual({ aborted: false, text: "hi" });
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await sleep(100);
       expect(invoked).toEqual([]);
       const lines = [...warnSpy.mock.calls, ...errorSpy.mock.calls].map(([fields]) => fields);
       expect(lines).toEqual([expect.objectContaining({ pluginSlug: "mood", kind: "prompt-deadline" })]);

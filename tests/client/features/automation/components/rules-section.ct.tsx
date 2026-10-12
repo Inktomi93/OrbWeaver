@@ -15,8 +15,8 @@
 // @orb-waive-file no-test-fabrication(PerformanceEntry & {): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(ShiftLedger | undefined): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(keyof typeof SETTLED_CEILING_PX): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -1327,9 +1327,7 @@ interface ShiftLedger {
  *  right: a poll on the page clock is this same sleep wearing a condition). Doubles as the
  *  PerformanceObserver's delivery barrier. */
 async function letInputWindowLapse(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, INPUT_WINDOW_LAPSE_MS);
-  });
+  await sleep(INPUT_WINDOW_LAPSE_MS);
 }
 
 /** Start recording. `buffered: true` so anything already emitted this document replays into the store. */

@@ -5,6 +5,7 @@
 // the real owner-scoped verbs; the create/edit dialogs submit the real wire inputs, with the owner-only bulk
 // affordances gated exactly as the server re-gates them.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
@@ -56,8 +57,8 @@ function scheduleRow(overrides: Partial<ScheduleRow> = {}): ScheduleRow {
     nextRunAt: 1_750_000_100_000,
     lastRunAt: null,
     enabled: true,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }

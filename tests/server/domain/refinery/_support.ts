@@ -57,9 +57,6 @@ export interface RefineryHarness {
   readonly advance: (ms: number) => void;
 }
 
-// @orb-waive no-vanity-alias(TEST_SUMMARIZER_MODEL): baselined when the gate widened; burn-down item 906.
-export const TEST_SUMMARIZER_MODEL = FAKE_SUMMARIZE_MODEL;
-
 /** The owner's default-preset params the harness answers with (the top rung of the side-gen posture ladder). */
 export interface RefineryHarnessOptions {
   readonly presetParams?: { readonly temperature?: number; readonly topP?: number; readonly maxOutputTokens?: number } | undefined;
@@ -82,7 +79,7 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
       }
       return { text, usage: { tokensIn: 11, tokensOut: 7, costUsd: null } };
     });
-    return Promise.resolve({ items, model: TEST_SUMMARIZER_MODEL });
+    return Promise.resolve({ items, model: FAKE_SUMMARIZE_MODEL });
   };
   // ONE scripted bundle: `summarize` and `structured` share the tape (the forge/stage/score verbs name
   // `structured`; the prose passes name `summarize`), and `resolved(task)` answers the fixed summarizer model.

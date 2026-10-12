@@ -6,6 +6,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, vi } from "vitest";
@@ -69,7 +70,7 @@ async function bootRefuses(named: string): Promise<void> {
 async function ownerLoginStatus(port: number): Promise<number> {
   const res = await fetch(`http://localhost:${String(port)}/api/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
+    headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ handle: "owner", password: OWNER_PASSWORD }).toString(),
   });
   return res.status;

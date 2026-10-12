@@ -5,6 +5,7 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -22,7 +23,6 @@ import { seedUser } from "../_support.ts";
 
 const box = createSecretBox(Buffer.alloc(32, 7));
 const OPENROUTER = castId<ProviderId>("openrouter");
-const FROZEN_AT = 1_750_000_000_000;
 let counter = 0;
 function nextId(): UserCredentialId {
   counter += 1;
@@ -41,7 +41,7 @@ describe("persistence/queries", () => {
       label: "default",
       sealed: box.encrypt("sk-secret", aadFor(owner, OPENROUTER)),
       metadata: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     const row = await fetchOwnedCredential(db, owner, id);
     expect(row).toBeDefined();
@@ -67,7 +67,7 @@ describe("persistence/queries", () => {
       label: "default",
       sealed: box.encrypt("k", aadFor(alice, OPENROUTER)),
       metadata: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(await fetchOwnedCredential(db, bob, id)).toBeUndefined();
     expect(await fetchOwnedCredential(db, alice, id)).toBeDefined();
@@ -85,13 +85,13 @@ describe("persistence/queries", () => {
       label: "default",
       sealed: box.encrypt("k", aadFor(owner, OPENROUTER)),
       metadata: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
-    expect(await setRevokedById(db, { ownerId: owner, credentialId: id, revokedAt: FROZEN_AT, reason: "auth_failed" })).toEqual([{ id }]);
+    expect(await setRevokedById(db, { ownerId: owner, credentialId: id, revokedAt: FROZEN_AT_MS, reason: "auth_failed" })).toEqual([{ id }]);
     // The pair is written and cleared TOGETHER (#1373) — a live row carrying a stale reason would tell the
     // Connections pane a working key had been rejected.
-    expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: FROZEN_AT, revokedReason: "auth_failed" });
-    await clearRevokedOwned(db, owner, id, FROZEN_AT);
+    expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: FROZEN_AT_MS, revokedReason: "auth_failed" });
+    await clearRevokedOwned(db, owner, id, FROZEN_AT_MS);
     expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: null, revokedReason: null });
   });
 
@@ -110,10 +110,10 @@ describe("persistence/queries", () => {
       label: "default",
       sealed: box.encrypt("k", aadFor(bob, OPENROUTER)),
       metadata: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
 
-    expect(await setRevokedById(db, { ownerId: alice, credentialId: id, revokedAt: FROZEN_AT, reason: "auth_failed" })).toEqual([]);
+    expect(await setRevokedById(db, { ownerId: alice, credentialId: id, revokedAt: FROZEN_AT_MS, reason: "auth_failed" })).toEqual([]);
     expect(await fetchOwnedCredential(db, bob, id)).toMatchObject({ revokedAt: null, revokedReason: null });
   });
 
@@ -129,7 +129,7 @@ describe("persistence/queries", () => {
       label: "default",
       sealed: box.encrypt("k", aadFor(alice, OPENROUTER)),
       metadata: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     await deleteOwnedCredential(db, bob, id);
     expect(await fetchOwnedCredential(db, alice, id)).toBeDefined();

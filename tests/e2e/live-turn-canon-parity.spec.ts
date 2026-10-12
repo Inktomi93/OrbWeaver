@@ -31,6 +31,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
@@ -82,7 +83,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     // the ghost resolves, so we RACE it against the resolve and only record it — the appear→body→resolve chain
     // is the deterministic streaming-lifecycle proof, not the transient attribute.
     const ghost = page.locator('[data-slot="ghost-message-row"]');
-    await expect(ghost).toBeVisible({ timeout: 30_000 });
+    await expect(ghost).toBeVisible({ timeout: WAIT_SETTLE_MS });
     // The identity-family locator helper (#10) — `.last()` here is a DELIBERATE "newest assistant row" choice.
     const rows = assistantRows(page);
 
@@ -94,19 +95,19 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     await Promise.race([
       page
         .locator('[data-slot="ghost-stream-body"]')
-        .waitFor({ state: "attached", timeout: 120_000 })
+        .waitFor({ state: "attached", timeout: WAIT_LIVE_TURN_MS })
         .then(() => {
           sawGhostBody = true;
         })
         .catch(() => {
           /* ghost resolved before its body frame was observable — the durable resolve below is the guarantee */
         }),
-      rows.last().waitFor({ state: "visible", timeout: 120_000 }),
+      rows.last().waitFor({ state: "visible", timeout: WAIT_LIVE_TURN_MS }),
     ]);
 
     // The ghost RESOLVES: a durable assistant row lands with non-empty content, and the ghost is gone.
-    await expect(rows.last()).toContainText(NON_WS, { timeout: 120_000 });
-    await expect(ghost).toHaveCount(0, { timeout: 30_000 });
+    await expect(rows.last()).toContainText(NON_WS, { timeout: WAIT_LIVE_TURN_MS });
+    await expect(ghost).toHaveCount(0, { timeout: WAIT_SETTLE_MS });
     // Legibility: surface whether the ghost's streaming body was observable this run (not asserted — see above).
     test.info().annotations.push({ type: "ghost-stream-body-observed", description: String(sawGhostBody) });
 
@@ -117,7 +118,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
 
     // Poll until the DOM has rendered exactly `canon.length` rows (the list mounts rows async after the turn
     // settles) — then the ordered compare below is race-free.
-    await expect.poll(async () => page.locator('[data-slot="message-row"]').count(), { timeout: 15_000 }).toBe(canon.length);
+    await expect.poll(async () => page.locator('[data-slot="message-row"]').count(), { timeout: WAIT_SURFACE_MS }).toBe(canon.length);
     const dom = await domTranscript(page);
 
     // Same number of rows, and roles match pairwise in order.
@@ -137,7 +138,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     // ── (c) BUS EVENT ORDER ──
     // The invalidating canon-event ring for this turn, in order: user commit → assistant commit → turnCompleted.
     // (turnStarted/delta are pure-transient — not in this ring; see header FINDING.)
-    await expect.poll(async () => busEventTypes(page), { timeout: 15_000 }).toContain("turnCompleted");
+    await expect.poll(async () => busEventTypes(page), { timeout: WAIT_SURFACE_MS }).toContain("turnCompleted");
     const events = await busEventTypes(page);
     const commitIdxs = events.flatMap((t, i) => (t === "messageCommitted" ? [i] : []));
     const completeIdx = events.lastIndexOf("turnCompleted");
@@ -147,7 +148,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
 
     // ── (d) ENGINE HONESTY ──
     // The local gen engine logged ≥1 message-POST during the turn (real local traffic, not a hosted call).
-    await expect.poll(async () => genPostCount(), { timeout: 15_000 }).toBeGreaterThan(beforePosts);
+    await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
     // The freshly-generated assistant canon row is stamped with the LOCAL leaf model alias — NOT a hosted id.
     const generated = canon.filter((c) => c.role === "assistant" && c.model !== null);
     const newest = generated.at(-1);

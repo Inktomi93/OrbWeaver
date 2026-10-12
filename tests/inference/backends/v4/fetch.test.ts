@@ -8,9 +8,9 @@
 // on the SAME capture entry as the request that produced them — off unless asked, scrubbed on the same terms
 // as the request body, and emitted even when the SDK abandons the stream without cancelling it.
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ choices: { delta: Record<string, unknown> }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ProviderId, Wire } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -223,9 +223,7 @@ function replyCapture(sink: WireCaptureSink, reply: boolean): WrapFetchArgs["cap
  *  caller has the Response. Poll rather than guess a tick count. */
 async function settled(entries: readonly unknown[]): Promise<void> {
   for (let attempt = 0; attempt < 200 && entries.length === 0; attempt += 1) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, 0);
-    });
+    await sleep(0);
   }
 }
 

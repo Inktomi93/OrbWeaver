@@ -5,7 +5,6 @@
 // resolves (`resolveGroupBucketCharacterId`) equals the key RECALL reads (`findSyntheticGroupCharacter`), and
 // that the fabricated handle FK-throws (the original silent killer).
 
-// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chatDigests, embedGenerations, userConnections } from "@orb/db";
 import type { CharacterId, EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
@@ -112,6 +111,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     // `chat_digests.scopedCharacterId → characters.id` FK — this is the throw the engine silently swallowed.
     await expect(
       // @orb-waive no-test-fabrication(never): this IS the invalid-input probe — a fabricated non-row id whose FK MUST reject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       db.insert(chatDigests).values({
         id: castId("chat_digest_bad"),
         chatId,

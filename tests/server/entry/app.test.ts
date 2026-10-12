@@ -4,9 +4,9 @@
 // tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
 
 // @orb-waive-file no-test-fabrication({ readonly error: { readonly data: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import { createTrpcClient } from "@orb/client/data";
 import type { Principal } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
@@ -20,6 +20,7 @@ import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
 import { versionIdentity } from "@orb/server/foundation/version";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
@@ -35,8 +36,6 @@ function mapped(err: Error): NonNullable<ReturnType<typeof classifyDomainError>>
   }
   return result;
 }
-
-const FROZEN_NOW = 1_750_000_000_000;
 
 // The registry must carry the CHAT descriptor: `POST /api/import/chat` is a thin arm over it and resolves it
 // at REGISTRATION, refusing to mount without one (a composition bug has to be loud, not a dead route). This
@@ -114,11 +113,11 @@ function testServices(extra: Record<string, unknown> = {}): AppDeps["services"] 
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
  *  typed stubs (the routes that would touch them are covered by their own slice tests). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
-  // @orb-waive no-test-fabrication(never): the unhit-port stub the header above describes — routes that reach it throw loudly. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const stub = {} as never;
+  // @orb-waive no-test-fabrication(unknown): the unhit-port stub the header above describes — routes that reach it throw loudly. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const stub = <T>(): T => ({}) as unknown as T;
   const services = testServices();
   return {
-    now: (): number => FROZEN_NOW,
+    now: (): number => FROZEN_AT_MS,
     // @orb-waive no-test-fabrication(unknown): `db` is never touched on this app-assembly slice — routes are covered by slice tests. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     db: {} as unknown as Db,
     oidcProviderName: "your identity provider",
@@ -133,16 +132,16 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     },
     // The multiplexed-socket cells (SSE-1). Real, frozen-clock instance: the /api/_debug/stream/sockets
     // route reads it, and route tests want the honest "zero live sockets" answer, not a stub's opinion.
-    sockets: createSocketRegistry((): number => FROZEN_NOW),
-    assets: stub,
-    cas: stub,
-    character: stub,
-    exportService: stub,
+    sockets: createSocketRegistry((): number => FROZEN_AT_MS),
+    assets: stub(),
+    cas: stub(),
+    character: stub(),
+    exportService: stub(),
     portability: [inertChatPortability],
-    settleImportMemory: stub,
-    importWorldInfo: stub,
-    importCardScripts: stub,
-    sessions: stub,
+    settleImportMemory: stub(),
+    importWorldInfo: stub(),
+    importCardScripts: stub(),
+    sessions: stub(),
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
     inContainer: false,
@@ -229,7 +228,7 @@ describe("createApp", () => {
     const request = (count: number): Request =>
       new Request(`http://localhost/api/trpc/${Array.from({ length: count }, () => path).join(",")}?batch=1`, {
         method,
-        ...(method === "POST" ? { headers: { "content-type": "application/json", "x-orb-csrf": "1" }, body: "{}" } : {}),
+        ...(method === "POST" ? { headers: { "content-type": "application/json", [CSRF_HEADER]: "1" }, body: "{}" } : {}),
       });
     const admitted = await hit(app, request(TRPC_BATCH_MAX_ITEMS));
     expect(admitted.status).toBe(OK);
@@ -269,7 +268,7 @@ describe("createApp", () => {
       app,
       new Request("http://localhost/api/trpc/search.suggest?batch=1", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-orb-csrf": "1" },
+        headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
         body: JSON.stringify({ 0: { query, limit: 1 } }),
       }),
     );
@@ -286,7 +285,7 @@ describe("createApp", () => {
     ["POST", "/api/"],
   ])("%s %s misses every route → a JSON 404, never a bare text or HTML page", async (method, path) => {
     const app = createApp(deps({}));
-    const res = await hit(app, new Request(`http://localhost${path}`, { method, headers: { accept: "text/html", "x-orb-csrf": "1" } }));
+    const res = await hit(app, new Request(`http://localhost${path}`, { method, headers: { accept: "text/html", [CSRF_HEADER]: "1" } }));
     expect(res.status).toBe(NOT_FOUND);
     expect(res.headers.get("content-type")).toContain("application/json");
     expect(await res.json()).toEqual({ error: "Not found" });
@@ -428,8 +427,8 @@ describe("createApp", () => {
         label: "default",
         revokedAt: null,
         revokedReason: null,
-        createdAt: FROZEN_NOW,
-        updatedAt: FROZEN_NOW,
+        createdAt: FROZEN_AT_MS,
+        updatedAt: FROZEN_AT_MS,
         ciphertext: sealed,
       };
       const app = createApp(
@@ -842,7 +841,7 @@ describe("createApp: the tRPC mount refuses a non-JSON mutation (CSRF content-ty
       app,
       new Request(`${PRUNE_URL}?batch=1`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-orb-csrf": "1" },
+        headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
         body: JSON.stringify({ 0: null }),
       }),
     );
@@ -1064,7 +1063,7 @@ describe("createApp: a subscription opens over a JSON POST (easy-sharing leg T)"
       app,
       new Request(connectUrl, {
         method: "POST",
-        headers: { "content-type": "application/json", accept: "text/event-stream", "x-orb-csrf": "1" },
+        headers: { "content-type": "application/json", accept: "text/event-stream", [CSRF_HEADER]: "1" },
         body: JSON.stringify({ socketId: castId<SocketId>("socket_leg_t_post") }),
       }),
     );

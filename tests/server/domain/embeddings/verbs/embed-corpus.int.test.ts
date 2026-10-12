@@ -15,6 +15,7 @@ import type { CharacterEmbeddingId, CharacterId, EmbedGenerationId, Handle, User
 import { castId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -23,7 +24,6 @@ import type { StoreHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
 const STALE_MODEL = "old-embed-model-v0";
-const NOW = 1_750_000_000_000;
 
 const signal = (): AbortSignal => new AbortController().signal;
 
@@ -105,7 +105,7 @@ async function seedDetachedGeneration(db: Db, ownerId: UserId, model: string): P
       connectionRef: castId<UserConnectionId>(`fixture:${model}`),
       fingerprint: `fixture:${model}`,
       space: model,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     })
     .onConflictDoNothing();
   return id;
@@ -283,7 +283,7 @@ describe("embedCorpus — retained generation rebuild", () => {
       model: STALE_MODEL,
       generationId: staleGenerationId,
       dim: EMBED_DIM,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     });
     const h = makeStoreHarness(db, {
       characterIds: [characterId],
@@ -323,7 +323,7 @@ describe("embedCorpus — retained generation rebuild", () => {
         model: STALE_MODEL,
         generationId,
         dim: EMBED_DIM,
-        createdAt: NOW,
+        createdAt: FROZEN_AT_MS,
       });
     }
     const h = makeStoreHarness(db, {

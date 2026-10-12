@@ -19,12 +19,12 @@ const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
 // CARD-CONTENT ceiling (greetings/systemPrompt/…). The FACE fields (name/description/starred/
 // avatarAssetId) spread `cardFaceFields` (D137(E)) — their limits live in `#card-face`, not here.
-const TEXT_MAX = 100_000;
-const CREATOR_MAX = 200;
-const CARD_VERSION_MAX = 200;
-const NICKNAME_MAX = 200;
+export const TEXT_MAX = 100_000;
+export const CREATOR_MAX = 200;
+export const CARD_VERSION_MAX = 200;
+export const NICKNAME_MAX = 200;
 const SOURCE_MAX = 100;
-const GREETINGS_MAX = 100;
+export const GREETINGS_MAX = 100;
 const REGEX_SCRIPTS_MAX = 500;
 
 // ── Card spec markers (Character-Card V2 / V3) ──────────────────────────────────────────────────────────

@@ -2,7 +2,6 @@
 
 // CDP network events are normalized once at the typed handler boundary; retained records and HAR never
 // reinterpret raw protocol objects with Reflect.
-// @orb-waive-file no-loose-id-cast(value): baselined when the gate widened; burn-down item 906.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CDPSession, Page } from "@playwright/test";
@@ -30,7 +29,7 @@ class FakeCdp {
 
   emit(event: string, value: unknown): void {
     for (const listener of this.#listeners.get(event) ?? []) {
-      listener(value as never);
+      Reflect.apply(listener, undefined, [value]);
     }
   }
 }

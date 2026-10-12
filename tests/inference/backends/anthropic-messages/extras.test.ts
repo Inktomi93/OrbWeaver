@@ -2,14 +2,14 @@
 // key wholesale; six are real modelled options and three more are deliberately refused. What is pinned here
 // is the BELT, not the plumbing: an allowlist whose refusals are silent is the open-bag it replaced.
 
+import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-loose-id-cast(extras): baselined when the gate widened; burn-down item 906.
 import { anthropicExtras, anthropicUserIdDigest } from "#inference/backends/anthropic-messages/extras.ts";
 import type { ResolvedWarning } from "#inference/contract/resolve.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 
-function connectionWith(extras: Record<string, unknown> | null): Parameters<typeof anthropicExtras>[0] {
+function connectionWith(extras: Readonly<Record<string, JsonValue>> | null): Parameters<typeof anthropicExtras>[0] {
   return {
     ...fakeResolved({
       task: "chat",
@@ -19,7 +19,7 @@ function connectionWith(extras: Record<string, unknown> | null): Parameters<type
       baseUrl: "https://api.anthropic.com",
       secret: fakeApiKeySecret("sk-ant-not-a-real-key"),
     }),
-    extras: extras as never,
+    extras,
   };
 }
 

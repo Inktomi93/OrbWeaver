@@ -57,6 +57,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -447,7 +448,6 @@ const RAMP_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
  *  is decided BY ID: the run a session was merely opened on must not be mistaken for the one that landed. */
 const RAMP_OPENED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
 const RAMP_LANDED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
-const RAMP_FROZEN_AT = 1_750_000_000_000;
 
 /** One settled fixed SCORE run on the wire shape `listRuns` returns — the pane's whole input. */
 function scoreRun(id: PayloadLaneRun["id"], overallScore: number): PayloadLaneRun {
@@ -461,7 +461,7 @@ function scoreRun(id: PayloadLaneRun["id"], overallScore: number): PayloadLaneRu
     durationMs: 23_600,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: RAMP_FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
     stage: "score",
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: { fieldScores: [], overallScore, priorityImprovements: [], summary: "A solid card." },

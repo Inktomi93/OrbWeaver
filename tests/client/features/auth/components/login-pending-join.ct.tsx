@@ -4,6 +4,7 @@
 // header, signs in only when the server says so, shows the approval state when it does not, and never offers Join
 // once the pending join is gone.
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -49,7 +50,7 @@ async function stubPending(page: Page, confirm: { readonly status: number; reado
   await page.route("**/api/auth/oidc/pending/preview", (route) => route.fulfill({ status: 200, json: preview }));
   await page.route("**/api/auth/oidc/pending/confirm", async (route) => {
     captured.bodies.push(route.request().postDataJSON());
-    captured.csrf.push(route.request().headers()["x-orb-csrf"]);
+    captured.csrf.push(route.request().headers()[CSRF_HEADER]);
     await route.fulfill(confirm);
   });
   return captured;

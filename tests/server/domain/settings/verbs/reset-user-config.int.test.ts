@@ -16,11 +16,12 @@
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { userSettings } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { FROZEN_AT, makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** Put a user's row into the state the #471 guard refuses on: a schemaVersion COLUMN above anything this
  *  build has a lift for, so no walk can reach the current shape (`version-from-future`). The blob itself is
@@ -96,7 +97,7 @@ describe("resetUserConfig", () => {
     const u = await seedUser(db, { id: "user_fresh" });
     const view = await h.svc.resetUserConfig({ principal: principal(u, "user") });
     expect(view.configUnreadable).toBe(null);
-    expect(view.updatedAt).toBe(FROZEN_AT);
+    expect(view.updatedAt).toBe(FROZEN_AT_MS);
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(1);
   });
 

@@ -11,8 +11,6 @@ import {
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 
-// @orb-waive no-vanity-alias(ranges): baselined when the gate widened; burn-down item 906.
-const ranges = DEFAULT_TRUSTED_RANGES;
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);
 const ABORT_RE = /abort/i;
 const PUBLIC_ADDR = "93.184.216.34";
@@ -29,19 +27,19 @@ afterEach(() => {
 
 describe("shouldBlockEgress", () => {
   test("blocks a private resolved address for a non-allowlisted host", () => {
-    expect(shouldBlockEgress("127.0.0.1", "evil.example", allow(), ranges)).toBe(true);
+    expect(shouldBlockEgress("127.0.0.1", "evil.example", allow(), DEFAULT_TRUSTED_RANGES)).toBe(true);
   });
 
   test("allows a private address when its host is allowlisted", () => {
-    expect(shouldBlockEgress("10.0.0.5", "authentik.lan", allow("authentik.lan"), ranges)).toBe(false);
+    expect(shouldBlockEgress("10.0.0.5", "authentik.lan", allow("authentik.lan"), DEFAULT_TRUSTED_RANGES)).toBe(false);
   });
 
   test("the allowlist host match is case-insensitive", () => {
-    expect(shouldBlockEgress("10.0.0.5", "Authentik.LAN", allow("authentik.lan"), ranges)).toBe(false);
+    expect(shouldBlockEgress("10.0.0.5", "Authentik.LAN", allow("authentik.lan"), DEFAULT_TRUSTED_RANGES)).toBe(false);
   });
 
   test("never blocks a public resolved address", () => {
-    expect(shouldBlockEgress("8.8.8.8", "openrouter.ai", allow(), ranges)).toBe(false);
+    expect(shouldBlockEgress("8.8.8.8", "openrouter.ai", allow(), DEFAULT_TRUSTED_RANGES)).toBe(false);
   });
 
   test("honors an operator-declared extra private range (TRUSTED_PRIVATE_RANGES shape)", () => {

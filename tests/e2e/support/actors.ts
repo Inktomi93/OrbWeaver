@@ -21,7 +21,7 @@
 // Procedure results are typed by the router through `trpc.ts`'s `TrpcOutput`, so no wire shape is declared here.
 
 import type { AuthMe } from "@orb/contracts/identity";
-import { authMeSchema } from "@orb/contracts/identity";
+import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
@@ -33,10 +33,8 @@ import { createTrpcClient } from "./trpc.ts";
 // fragile env coupling (the test-runner process has no `E2E_BASE_URL`; only the webServer does). The vite
 // front door proxies `/api/*` (login, tRPC) + `/join` to that project's Hono backend.
 
-// The wire-fixed names (declared here, not imported — the import-free-of-package-trees rule). CSRF_HEADER's
-// one home is @orb/contracts/identity; the session cookie names are infra/auth's `sessionCookieFor`. The
-// harness reaches each stack over plain http with no proxy, so a login mints the http transport's cookie.
-const CSRF_HEADER = "x-orb-csrf";
+// The session cookie name is infra/auth's `sessionCookieFor`. The harness reaches each stack over plain http with no proxy,
+// so a login mints the http transport's cookie.
 export const SESSION_COOKIE = "orb_session_insecure";
 
 /** One authenticated principal's wire client — `query`/`mutation` over the tRPC batch shape, carrying this

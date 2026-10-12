@@ -30,10 +30,9 @@
 // @orb-waive-file no-test-fabrication(typeof globalThis & { __commandListenerProbe: { active: Set<EventListenerOrEventListenerObject>; adds: number; removes: number } }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(typeof globalThis & { __ctPanelTasks: { tick: number; mode: boolean; body: boolean }[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ state?: { panelOverrides?: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 
 import type { BlurSurface } from "@orb/contracts/settings";
-import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { appearanceSettingsSchema, BLUR_SURFACES, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
@@ -41,6 +40,7 @@ import { COMMAND_CHIP_NAME } from "@orb/testkit/browser/command-chip-name.ts";
 import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
 import { SIGNED_IN_OWNER_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { touchDrag } from "@orb/testkit/browser/weave-drive.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
@@ -1726,7 +1726,7 @@ test.describe("You sheet with the first-run plugin notice", () => {
             readAt: null,
             dismissedAt: null,
             actionable: true,
-            createdAt: 1_750_000_000_000,
+            createdAt: FROZEN_AT_MS,
           },
         ],
         nextCursor: null,
@@ -4695,6 +4695,7 @@ test("#262 reduced motion: the section swap records no meaningful layout shift",
   // fully broken shell, because the total starts at 0 — the pass must not be a race the assertion can win.
   await page.evaluate(
     async () =>
+      // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 100)));
       }),
@@ -5356,7 +5357,6 @@ async function emulateReducedTransparency(page: Page, value: "reduce" | "no-pref
   ]);
 }
 
-const ALL_BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
 /** Every probe the glass block paints when all four surfaces are enabled above the shell breakpoint. */
 const GLASS_PROBES = ["panel-probe", "composer-probe", "dialog-probe", "alert-dialog-probe", "bubble-probe"] as const;
 
@@ -5371,7 +5371,7 @@ function glassSubjectOf(shell: Locator, probe: (typeof GLASS_PROBES)[number]): L
 test("reduced-transparency turns every glass surface SOLID (alpha 1) and drops backdrop-filter", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateReducedTransparency(page, "reduce");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   await Promise.all(
     GLASS_PROBES.map(async (probe) => {
       // THE BUG: `revert` resolved each of these to rgba(0,0,0,0) — a stated preference for LESS
@@ -5385,7 +5385,7 @@ test("reduced-transparency turns every glass surface SOLID (alpha 1) and drops b
 test("the same fixture under no-preference still gets the glass — reduce is a preference, not a kill", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateReducedTransparency(page, "no-preference");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   const glass = glassCarrier(shell.getByTestId("panel-probe"));
   await expect.poll(() => bgAlpha(glass), { intervals: [20, 50, 100] }).toBeLessThan(1);
   await expect.poll(() => backdropFilterOf(glass), { intervals: [20, 50, 100] }).toContain("blur(");
@@ -5394,7 +5394,7 @@ test("the same fixture under no-preference still gets the glass — reduce is a 
 test("reduced-transparency leaves the phone's own fills standing (the reduce arm is width-unscoped)", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   await emulateReducedTransparency(page, "reduce");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   // Below the shell breakpoint no glass is emitted at all (#135), so there is nothing for this arm to
   // answer — and the old `revert` still fired, stripping `.shell-panel`'s --color-sidebar. A phone with
   // the preference set rendered a see-through side panel.
@@ -5568,7 +5568,7 @@ test("#138 receipt: an emulated high-contrast user reports `more`; the shipped `
 test("contrast: more thickens ONLY the side each surface authors — the other three stay at 0px", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateContrast(page, "more");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   // THE P1 DEFECT, from both directions. Tailwind preflight (`border: 0 solid`) leaves border-STYLE solid
   // everywhere, so a `border-width` shorthand here paints all four sides in `currentColor` — the panel's
   // near-white TEXT colour. The zero assertions are the load-bearing half: the 2px alone was green while a
@@ -5594,7 +5594,7 @@ test("contrast: more thickens ONLY the side each surface authors — the other t
 test("contrast: more raises the glass fill to 92% — each surface keeping its OWN tint", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateContrast(page, "more");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   const panel = glassCarrier(shell.getByTestId("panel-probe"));
   // The opacity half, through the glass's fill knob: chrome 70% → 92%, dense (bubbles) 88% → 92%. The old
   // hand-written arm bumped no bubble fill at all, and covered neither `.shell-main` nor the breakpoint.
@@ -5623,7 +5623,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`contrast: more makes the list panel's seam actually VISIBLE (≥3:1 by framebuffer, ${theme})`, async ({ mount, page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await emulateContrast(page, "more");
-    const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
+    const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
     const panel = shell.getByTestId("panel-probe");
     await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
     await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
@@ -5632,7 +5632,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`under contrast: no-preference that same seam is the hairline it always was (${theme})`, async ({ mount, page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await emulateContrast(page, "no-preference");
-    const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
+    const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
     const panel = shell.getByTestId("panel-probe");
     // The control that keeps the pin above honest: the raise is the PREFERENCE's doing, not the theme's.
     // A hairline below the non-text floor is the deliberate resting state — this block is what closes it.
@@ -5663,7 +5663,7 @@ test("the contrast edge does NOT depend on the glass toggle — blur off, the se
 test("below the shell breakpoint the contrast edge is NOT emitted — that layout authors a different seam", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   await emulateContrast(page, "more");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   // The edge half carries shell.css's mobile complement (`width > 48rem`, the #135 literal) because below
   // it the panels are full-bleed overlays whose seam is `border-block-start`, not the inline edge — a
   // desktop rule there paints an edge no layout has. (The fill half needs no such scoping: it is a token
@@ -5674,7 +5674,7 @@ test("below the shell breakpoint the contrast edge is NOT emitted — that layou
 test("the same fixture under contrast: no-preference keeps the plain glass — the arm is a preference, not a baseline", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateContrast(page, "no-preference");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   const panel = shell.getByTestId("panel-probe");
   await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("1px");
   // The token defaults (--blur-fill-chrome 70% / --blur-fill-dense 88%), i.e. strictly more translucent
@@ -5691,7 +5691,7 @@ test("BOTH preferences set: reduced-transparency wins the alpha (fully solid, no
     ["prefers-contrast", "more"],
     ["prefers-reduced-transparency", "reduce"],
   ]);
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} />);
   await Promise.all(
     GLASS_PROBES.map(async (probe) => {
       // The rule the two arms are ordered by, and the reason the contrast fill lives behind
@@ -5818,7 +5818,7 @@ test("grain: texture=none paints nothing on either card (the suppression is not 
 test("the contrast fill is per-surface in the LIGHT theme too — the modal tracks --color-popover, not a baked colour", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateContrast(page, "more");
-  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme="light" />);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} dataTheme="light" />);
   // Same assertion as the dark arm, resolved against the light palette: proof the fix is the fill KNOB
   // (a percentage) and not a colour this block re-spells — the failure mode the deleted --color-sidebar
   // mix was an instance of. A portaled modal's light arm mixes over the reading plate with or without a
@@ -7579,7 +7579,7 @@ test("the composer and the three bubbles do not move on the DARK arm (D144(d))",
   const plainBubbles: string[] = [];
   let composerPlain = "";
   for (const role of roles) {
-    const plain = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} messageRole={role} />);
+    const plain = await mount(<ShellCascadeFixture blurSurfaces={BLUR_SURFACES} messageRole={role} />);
     composerPlain = await bgColorOf(plain.getByTestId("composer-probe"));
     plainBubbles.push(await bgColorOf(plain.getByTestId("bubble-probe")));
     await plain.unmount();

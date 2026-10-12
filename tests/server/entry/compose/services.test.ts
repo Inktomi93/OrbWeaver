@@ -5,7 +5,6 @@
 
 // @orb-waive-file no-test-fabrication({ spanName?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
-// @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
 import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
@@ -55,7 +54,7 @@ import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { createDomainEventBus, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { SocketListener } from "@orb/server/transport/trpc";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -73,7 +72,7 @@ import { subscribeNotifications } from "#server/transport/trpc/notifications-bus
 import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
 import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
-import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { seedTurns } from "../../domain/chat/memory/_support.ts";
 import { makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
 
@@ -1216,7 +1215,7 @@ describe("automation generate_image forwards diffusion params through the compos
 // Search reads one generation only once cards, memory and documents all complete it. These run the real sweeps
 // over the real graph (local-light encoder, no summarize connection) and prove memory completes, so search answers.
 describe("search when the memory scope can build no digests (0215)", () => {
-  const RunAt = 1_750_000_000_000;
+  const RunAt = FROZEN_AT_MS;
 
   async function searchAnswers(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<number> {
     const answer = await result.services.search.search({
@@ -1286,7 +1285,7 @@ describe("search when the memory scope can build no digests (0215)", () => {
       principal: principal(owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
-    const aria = await seedChatCharacter(db, owner, "aria");
+    const aria = await seedCharacter(db, owner, "aria");
     const room = await seedChat(db, "room_no_summarizer");
     await seedParticipant(db, { chatId: room, key: "h", userId: owner, role: "host" });
     await seedParticipant(db, { chatId: room, key: "c", characterId: aria });

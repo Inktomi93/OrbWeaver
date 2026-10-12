@@ -31,6 +31,7 @@
 // in the first place — after teardown the `.catch` schedules nothing — so the only unpinned residue is a
 // timer that was already ticking at the moment of unmount.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
@@ -54,9 +55,9 @@ const SUCCEEDED_ROW = {
   dependsOn: null,
   error: null,
   progress: null,
-  scheduledAt: 1_750_000_000_000,
-  createdAt: 1_750_000_000_000,
-  updatedAt: 1_750_000_000_000,
+  scheduledAt: FROZEN_AT_MS,
+  createdAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
   params: { token: "bundle-ct.zip" },
   result: { imported: 3, skipped: 0, failed: 0, notes: [], memoryScope: null },
   poison: false,

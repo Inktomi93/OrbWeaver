@@ -10,20 +10,19 @@
 // because the plate asset it points at lives in the caller's own CAS partition and because a cross-user
 // background reference is a GC root nobody asked for.
 
-// @orb-waive-file no-loose-id-cast({ kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" }): baselined when the gate widened; burn-down item 906.
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { migrateSeededCardBackgrounds } from "#server/domain/character/persistence/migrate-seeded-backgrounds.ts";
 import { seedRawCharacter, seedUser } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const SHIPPED_SLUG = "niko-bg";
 const DELETED_SLUG = "blue-fjord";
 const PLATE: ThemeBackground = canonicalBackgroundSource({
@@ -58,6 +57,7 @@ async function setLegacyCardBackground(db: Db, characterId: CharacterId, slug: s
       // @orb-waive no-test-fabrication(never): raw pre-retirement legacy shape — `ThemeBackground` no
       // longer types kind:"seeded" at all, so this fixture can only reach the column as `never`; ends if
       // the retired shape is ever re-admitted to the type.
+      // @orb-waive no-loose-id-cast({ kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       backgroundOverride: { kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" } as never,
     })
     .where(eq(characters.id, characterId));
@@ -85,7 +85,7 @@ test("class 1 — a still-shipped slug becomes the owner's own plate asset (and 
   const subject = await card(db, owner, castId<Handle>("keepcard"));
   await setLegacyCardBackground(db, subject, SHIPPED_SLUG);
 
-  expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(1);
+  expect(await migrateSeededCardBackgrounds(db, owner, resolver, FROZEN_AT_MS)).toBe(1);
 
   const after = await readBackground(db, subject);
   expect(after?.["kind"]).toBe("asset");
@@ -103,7 +103,7 @@ test("class 2 — a deleted placeholder slug clears to `none` with no smuggled a
   const subject = await card(db, owner, castId<Handle>("dropcard"));
   await setLegacyCardBackground(db, subject, DELETED_SLUG);
 
-  expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(1);
+  expect(await migrateSeededCardBackgrounds(db, owner, resolver, FROZEN_AT_MS)).toBe(1);
 
   const after = await readBackground(db, subject);
   expect(after?.["kind"]).toBe("none");
@@ -116,14 +116,14 @@ test("class 3 — a card that never carried `seeded` is untouched, and a SECOND 
   const owner = await seedUser(db, { handle: castId<Handle>("ownpick") });
   const subject = await card(db, owner, castId<Handle>("ownpickcard"), PLATE);
 
-  expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(0);
+  expect(await migrateSeededCardBackgrounds(db, owner, resolver, FROZEN_AT_MS)).toBe(0);
   expect((await readBackground(db, subject))?.["assetId"]).toBe(PLATE.assetId);
 
   const legacy = await card(db, owner, castId<Handle>("legacycard"));
   await setLegacyCardBackground(db, legacy, SHIPPED_SLUG);
-  expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(1);
+  expect(await migrateSeededCardBackgrounds(db, owner, resolver, FROZEN_AT_MS)).toBe(1);
   // Idempotent by its own predicate — the rewritten row no longer matches, so no marker column can disagree.
-  expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT + 1)).toBe(0);
+  expect(await migrateSeededCardBackgrounds(db, owner, resolver, FROZEN_AT_MS + 1)).toBe(0);
 });
 
 test("the sweep is OWNER-SCOPED — another user's legacy card is not rewritten under this owner's plates", async () => {
@@ -135,7 +135,7 @@ test("the sweep is OWNER-SCOPED — another user's legacy card is not rewritten 
   await setLegacyCardBackground(db, myCard, SHIPPED_SLUG);
   await setLegacyCardBackground(db, theirCard, SHIPPED_SLUG);
 
-  expect(await migrateSeededCardBackgrounds(db, mine, resolver, AT)).toBe(1);
+  expect(await migrateSeededCardBackgrounds(db, mine, resolver, FROZEN_AT_MS)).toBe(1);
 
   expect((await readBackground(db, myCard))?.["kind"]).toBe("asset");
   // Untouched: their card's plate is THEIR asset to mint, on their own next seed pass. Pointing it at mine
@@ -154,7 +154,7 @@ test("a `seeded` value with a BLANK slug clears rather than asking the resolver"
     return resolver(slug);
   };
 
-  expect(await migrateSeededCardBackgrounds(db, owner, counting, AT)).toBe(1);
+  expect(await migrateSeededCardBackgrounds(db, owner, counting, FROZEN_AT_MS)).toBe(1);
   expect(asked, "an empty slug names no plate — there is nothing to resolve").toBe(0);
   expect((await readBackground(db, subject))?.["kind"]).toBe("none");
 });

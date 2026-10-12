@@ -7,6 +7,7 @@
 // @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -424,8 +425,6 @@ describe("local login — registration", () => {
 // force-logout attack: a top-level POST with the session cookie (SameSite=Lax rides it) but NO custom
 // header must NOT revoke.
 describe("logout — CSRF gate", () => {
-  const csrf = "x-orb-csrf";
-
   test("WITHOUT the CSRF header → 403, does NOT revoke (blocks cross-site force-logout)", async () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = {
@@ -454,7 +453,7 @@ describe("logout — CSRF gate", () => {
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
@@ -476,7 +475,7 @@ describe("logout — CSRF gate", () => {
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1" } }));
     const cookies = res.headers.getSetCookie();
     expect(cookies).toHaveLength(2);
     expect(cookies.map((c) => c.split("=")[0])).toEqual([SESSION_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_INSECURE]);
@@ -500,7 +499,7 @@ describe("logout — CSRF gate", () => {
       discreetLogin: (): boolean => false,
     };
 
-    await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
+    await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1" } }));
 
     expect(rec.evictedSessions).toEqual([REVOKED_SESSION_ID]);
     // Never the user-wide sweep: that arm belongs to admin revoke / disable, where killing every device is
@@ -520,7 +519,7 @@ describe("logout — CSRF gate", () => {
       discreetLogin: (): boolean => false,
     };
 
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1" } }));
 
     expect(res.status).toBe(200); // still clears the cookie — logout is idempotent for the caller
     expect(rec.evictedSessions).toEqual([]);
@@ -553,7 +552,7 @@ describe("logout — CSRF gate", () => {
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [csrf]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [CSRF_HEADER]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBeNull();
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
@@ -576,7 +575,7 @@ describe("logout — CSRF gate", () => {
       discreetLogin: (): boolean => false,
       oidc,
     };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1" } }));
     expect(res.status).toBe(200);
     // No forwarded-host on this ctx ⇒ the origin is unresolvable ⇒ no post_logout param, just the bare endpoint.
     // @orb-waive no-test-fabrication({ endSessionUrl: string | null }): baselined when the gate widened to value casts; burn-down item 906.
@@ -610,7 +609,7 @@ describe("logout — CSRF gate", () => {
   const allowlistedOrigin = { "x-forwarded-proto": "https", "x-forwarded-host": "app.example" };
 
   async function logoutEndSessionUrl(deps: AuthRoutesDeps, origin: Record<string, string> = {}): Promise<string | null> {
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1", ...origin } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1", ...origin } }));
     expect(res.status).toBe(200);
     // @orb-waive no-test-fabrication({ endSessionUrl: string | null }): baselined when the gate widened to value casts; burn-down item 906.
     return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
@@ -620,7 +619,7 @@ describe("logout — CSRF gate", () => {
     const rec = recordingSessions();
     rec.revokedIdToken = ID_TOKEN;
     const deps = endSessionDeps(rec, "https://idp.example/application/o/orb/end-session/");
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1", ...allowlistedOrigin } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [CSRF_HEADER]: "1", ...allowlistedOrigin } }));
     // The body now carries the id_token inside the end-session URL, so it must never be cached anywhere.
     expect(res.headers.get("cache-control")).toBe("no-store");
   });

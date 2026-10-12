@@ -6,6 +6,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { requestWithHost } from "@orb/testkit/node/host-request.ts";
 import { afterAll, beforeAll, vi } from "vitest";
@@ -71,7 +72,7 @@ async function localFirstRun(extra: Record<string, string> = {}): Promise<boolea
 async function formPost(path: string, fields: Record<string, string>, extra: Record<string, string> = {}): Promise<number> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1", ...extra },
+    headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1", ...extra },
     body: new URLSearchParams(fields).toString(),
   });
   return res.status;
@@ -88,7 +89,7 @@ test("a page on a name rebound to loopback is refused the first-run flag and the
   const claim = await requestWithHost(loopbackBase, "/api/auth/first-run", {
     host,
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
+    headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ password: OWNER_PASSWORD }).toString(),
   });
   expect(claim.status).toBe(MISDIRECTED);

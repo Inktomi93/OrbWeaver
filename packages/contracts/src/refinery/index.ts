@@ -50,8 +50,8 @@ export * from "./schema-plan.ts";
 // close a cycle).
 // The card TEXT_MAX twin (contracts/character) — an applied rewrite flows into `character.update`,
 // whose text fields cap at 100 000; an uncapped payload would make the apply verb partial. Pinned
-// behaviorally in the contract test (the character constant is unexported and unimportable from here).
-const REWRITE_TEXT_MAX = 100_000;
+// in the contract test against the character contract's exported `TEXT_MAX`.
+export const REWRITE_TEXT_MAX = 100_000;
 
 // ── The MODEL-AUTHORED payload ceilings (security pass 2026-08-08 —
 // 2026-08-08 gap 1) ──────────────────────────────
@@ -72,7 +72,7 @@ const REWRITE_TEXT_MAX = 100_000;
  *  tokens is piddly, I have cards that are like 4k". Measured by `@orb/kit/tokens`, the ONE production
  *  estimator (never a re-implementation) — which makes this cap the same currency as every prompt budget
  *  in the tree. */
-const CRITIQUE_TOKEN_MAX = 4000;
+export const CRITIQUE_TOKEN_MAX = 4000;
 
 /** The most characters ONE token can buy under the production estimator. `estimateTokens` (QuadChars,
  *  `@orb/kit/tokens`) charges a printable-ASCII run 1 token per 4 chars and EVERY other codepoint a whole
@@ -94,7 +94,7 @@ const QUADCHARS_MAX_CHARS_PER_TOKEN = 4;
  *  It is deliberately NOT the whole belt: non-ASCII prose costs a token PER CODEPOINT, so 5 000 CJK
  *  characters is 5 000 tokens at only 5 000 chars — over the product cap and nowhere near this backstop.
  *  That gap is precisely why the token refinement exists. */
-const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * QUADCHARS_MAX_CHARS_PER_TOKEN;
+export const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * QUADCHARS_MAX_CHARS_PER_TOKEN;
 
 /** One free-prose critique string, DUAL-BOUND: a native char backstop (projected to the wire, grammar-
  *  enforced on vLLM) plus the token product cap (parse-only — see the header's sanctioned-refinement note).
@@ -113,30 +113,28 @@ const critiqueProseSchema = z
  *  (contracts/prose-slot), and deliberately still CHARS. It is a typed input field, not model-authored
  *  critique output: a human types it into a bounded control, so the char cap is the one the editor can show
  *  and the token ruling above does not reach it. */
-const HOST_PROSE_MAX_CHARS = 4000;
+export const HOST_PROSE_MAX_CHARS = 4000;
 /** One bullet in a list payload (`issues[]`, `preserved[]`, …) — a bullet, not an essay. */
-const NOTE_MAX = 500;
+export const NOTE_MAX = 500;
 /** Items in one bullet list. */
-const LIST_MAX = 50;
+export const LIST_MAX = 50;
 /** Entries in a per-field payload array (`fieldScores`, rewrite `fields`) = one per ADDRESSABLE target:
- *  the 8 non-greeting refinable fields + the card's own 100-greeting ceiling. Pinned behaviorally against
- *  `REFINABLE_FIELDS.length` and `characterCardSchema` in the contract test (the card constant is
- *  unexported and unimportable from here — the REWRITE_TEXT_MAX precedent). */
-const ENTRIES_MAX = 108;
+ *  the 8 non-greeting refinable fields + the card's own 100-greeting ceiling. Pinned in the contract test
+ *  against `REFINABLE_FIELDS.length` and the character contract's exported `GREETINGS_MAX`. */
+export const ENTRIES_MAX = 108;
 /** The card's greetings CEILING (`characterCardSchema`'s own `GREETINGS_MAX`) — the twin the append belt
  *  caps against: a rewrite may grow a card's greetings, never past what the card contract accepts, so the
  *  apply verb refuses the entry rather than letting `character.update` throw on a payload we constructed.
- *  Pinned behaviorally against `characterCardSchema` in the contract test (the character constant is
- *  unexported and unimportable from here — the `REWRITE_TEXT_MAX` precedent). */
+ *  Pinned in the contract test against the character contract's exported `GREETINGS_MAX`. */
 export const GREETING_SLOTS_MAX = 100;
 /** The last greeting slot the CARD can hold — an index above it addresses a greeting that cannot exist,
  *  so a rewrite carrying one is unapplicable by construction. DERIVED, so the pair can never drift. */
-const GREETING_INDEX_MAX = GREETING_SLOTS_MAX - 1;
+export const GREETING_INDEX_MAX = GREETING_SLOTS_MAX - 1;
 // @orb-waive no-vanity-alias(GREETING_INDEXES_MAX): baselined when the gate widened; burn-down item 906.
 /** Greeting slots one selection may name (every slot the card can hold). */
 const GREETING_INDEXES_MAX = GREETING_SLOTS_MAX;
 /** Host-authored session label (the card `NAME_MAX` twin — a roster row's label, not prose). */
-const SESSION_NAME_MAX = 200;
+export const SESSION_NAME_MAX = 200;
 
 // ── WORST-CASE PAYLOAD BUDGET (recomputed 2026-08-08 for the chars→tokens cap; measured, not estimated) ──
 // Every string and array at its ceiling, serialized:

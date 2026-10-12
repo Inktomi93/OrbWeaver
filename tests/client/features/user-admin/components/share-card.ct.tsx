@@ -9,6 +9,7 @@
 // @orb-waive-file no-test-fabrication({ state?: { handle?: { id?: string } } } | null): baselined when the gate widened to value casts; burn-down item 906.
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
 import type { IpCertificateRefusalNotice } from "@orb/server/domain/share";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeChatListPage, makeChatSummaryView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
@@ -650,13 +651,12 @@ const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443,
 /** A home-network address: the server refuses it for a public certificate. */
 const HOME_ADDRESS = "192.168.1.20";
 const HOUR_MS = 3_600_000;
-const ISSUED_AT = 1_750_000_000_000;
 const ACTIVE: IpCertificateStatus = {
   state: "active",
   setting: SETTING,
   url: "https://81.2.69.160",
-  notAfter: ISSUED_AT + 160 * HOUR_MS,
-  renewAt: ISSUED_AT + 80 * HOUR_MS,
+  notAfter: FROZEN_AT_MS + 160 * HOUR_MS,
+  renewAt: FROZEN_AT_MS + 80 * HOUR_MS,
   renewalFailure: null,
 };
 const FAILED: IpCertificateStatus = {

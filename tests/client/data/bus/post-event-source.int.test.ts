@@ -6,6 +6,7 @@ import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { createTrpcClient, PostEventSource } from "@orb/client/data";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
@@ -180,7 +181,7 @@ for (const { mode, ...expected } of CASES) {
             headers: {
               "content-type": "application/json",
               accept: "text/event-stream",
-              "x-orb-csrf": "1",
+              [CSRF_HEADER]: "1",
               ...(mode === "resume-rejected" ? { "last-event-id": "0" } : {}),
             },
             body: Buffer.concat(chunks).toString("utf8"),

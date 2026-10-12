@@ -17,13 +17,13 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { themes } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";
 import { SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
 import { toThemeView } from "#server/domain/settings/substrate/theme-views.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 type ThemeRow = typeof themes.$inferSelect;
 
 function row(overrides: Partial<ThemeRow> = {}): ThemeRow {
@@ -33,8 +33,8 @@ function row(overrides: Partial<ThemeRow> = {}): ThemeRow {
     name: "Mine",
     override: { accent: "oklch(0.7 0.14 250)" } satisfies ThemeOverride,
     css: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }

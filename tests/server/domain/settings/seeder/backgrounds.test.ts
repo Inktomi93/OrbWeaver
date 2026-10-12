@@ -18,7 +18,6 @@
 // (`readSeedBackground` → `assets.store({kind:"background"})`) is the composition root's, pinned at
 // `tests/server/entry/compose/assets-character.int.test.ts`.
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, UserId } from "@orb/kit/ids";
@@ -31,7 +30,7 @@ import type {
   SeededSlugResolver,
 } from "@orb/server/domain/settings";
 import { createDefaultBackgroundSeeder } from "@orb/server/domain/settings";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const PLATES: readonly SeedBackgroundPlateRef[] = [
@@ -40,7 +39,7 @@ const PLATES: readonly SeedBackgroundPlateRef[] = [
   { slug: "morgatha-bg", label: "The Ashen Spire" },
 ];
 
-const ACTOR: Principal = makePrincipal(castId<UserId>("user_plates"));
+const ACTOR: Principal = principal(castId<UserId>("user_plates"));
 
 /** The recorder's MUTABLE half — read live after the pass, so it is one object the deps close over rather
  *  than a snapshot (a spread would freeze the counters at build time and every assertion would read zero). */

@@ -14,6 +14,7 @@ import type { Handle, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { freshDb } from "@orb/testkit/node/db.ts";
+import { FAKE_SUMMARIZE_MODEL } from "@orb/testkit/node/factories/role-clients.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import {
@@ -25,7 +26,6 @@ import {
   scoreReply,
   seedOwnedCharacter,
   seedUser,
-  TEST_SUMMARIZER_MODEL,
   validScoreSchema,
 } from "../_support.ts";
 
@@ -207,7 +207,7 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
 
   // The run view + row: typed payload, provenance config, usage from the scripted item, shape-clean.
   expect(run.stage).toBe("score");
-  expect(run.model).toBe(TEST_SUMMARIZER_MODEL);
+  expect(run.model).toBe(FAKE_SUMMARIZE_MODEL);
   expect(run.promptTokens).toBe(11);
   expect(run.outputTokens).toBe(7);
   expect(run.strippedKeys).toEqual([]);

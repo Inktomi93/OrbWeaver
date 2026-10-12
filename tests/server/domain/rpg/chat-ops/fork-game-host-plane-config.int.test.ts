@@ -5,8 +5,9 @@ import type { RpgGameConfig } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support.ts";
+import { emptyState, expect, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support.ts";
 import { findGameByChat, insertGame, insertSnapshot, listSnapshots, seedForkTarget } from "./_fork-game-support.ts";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -82,8 +83,8 @@ async function seedHostPlaneConfigGame(db: Db, key: string): Promise<{ chatId: C
       userMacros: [SECRET_MACRO],
       features: { ...base.features, relationshipHints: RELATIONSHIP_HINTS, journalTypeHints: JOURNAL_TYPE_HINTS },
     },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
   return { chatId, gameId, messageId, variantId };
@@ -191,8 +192,8 @@ async function seedBeatWindowGame(
     gmUserId: gm,
     gmPresetId: null,
     config: { ...base, features: { ...base.features, recentBeatsKeepLast: keepLast } },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
   await insertSnapshot(db, {
@@ -205,7 +206,7 @@ async function seedBeatWindowGame(
     // late-joining, D16-clamped member never read, and the window never showed them either.
     recentEvents: ["beat-1", "beat-2", "beat-3", "beat-4", "beat-5"],
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return { chatId, gameId, messageId, variantId };
 }

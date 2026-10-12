@@ -20,9 +20,6 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { WorldInfoContext } from "#server/domain/world-info/context.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 interface AuditCall {
   readonly entry: Parameters<WorldInfoContext["audit"]>[0];
   readonly at: number;
@@ -59,7 +56,7 @@ interface HarnessOverrides {
 }
 
 export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfoHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][] = [];
@@ -134,7 +131,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
       name: overrides.name ?? "Char",
       description: null,
       avatarAssetId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   return id;
@@ -143,7 +140,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
 /** D18 — no owner column; chat-scope tests gate via the injected fake guards, so no roster rows are needed. */
 export async function seedChat(db: Db, key = "c"): Promise<ChatId> {
   const id = castId<ChatId>(`chat_${key}`);
-  await db.insert(chats).values({ id, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return id;
 }
 
@@ -162,8 +159,8 @@ export async function seedPersona(db: Db, overrides: SeedPersonaOverrides): Prom
     description: "d",
     avatarAssetId: null,
     metadata: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }

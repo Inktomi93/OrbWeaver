@@ -6,11 +6,12 @@ import { chatHandoffResumptions } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { clearHandoffResumption, insertHandoffResumptionStatement, loadHandoffResumption } from "#server/domain/chat/persistence/handoff-resume.ts";
-import { FROZEN_AT, seedChat, seedUser } from "../_support.ts";
+import { seedChat, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -32,7 +33,7 @@ describe("handoff resumption persistence", () => {
           chatId,
           acceptedByUserId,
           actorRekeys: [{ sourceCharacterId, characterId }],
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
         }),
       ]),
     );
@@ -57,7 +58,7 @@ describe("handoff resumption persistence", () => {
       chatId,
       acceptedByUserId,
       actorRekeys: [{ sourceCharacterId: "", characterId: "character_copy" }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     await expect(loadHandoffResumption(db, chatId)).rejects.toThrow();

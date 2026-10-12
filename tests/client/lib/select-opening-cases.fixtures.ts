@@ -1,4 +1,3 @@
-// @orb-waive-file no-inline-types(SelectOpeningTestCase): baselined when the gate widened; burn-down item 906.
 export const SELECT_OPENING_TEST_CASES = [
   "native",
   "cancel",

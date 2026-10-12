@@ -8,6 +8,7 @@
 
 // @orb-waive-file no-test-fabrication(HTMLElement | null): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
@@ -118,7 +119,7 @@ for (const style of ["Flat", "Hush"] as const) {
 }
 
 for (const light of [false, true]) {
-  for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
+  for (const style of THEME_CHAT_STYLES) {
     test("schematic " + style + " " + (light ? "light" : "dark") + " preserves role anatomy", async ({ mount, page }, testInfo) => {
       await stub(page);
       await mount(

@@ -12,6 +12,7 @@ import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Context, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
 import { createCaller, createSocketRegistry } from "@orb/server/transport/trpc";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 
 /** A minimal Principal carrying the given role; `via` defaults to header (no CSRF surface). */
 export function principal(role: UserRole, overrides: Partial<Principal> = {}): Principal {
@@ -112,8 +113,6 @@ export interface InviteResults {
   readonly redeemed: RedeemInviteResult;
 }
 
-const INVITE_FIXTURE_AT = 1_750_000_000_000;
-
 /** Fresh minted ids per call; `joiner` is the member the join results seat. */
 export function inviteResults(joiner: UserId): InviteResults {
   const chatId = mintTypeId(ID_PREFIX.chat);
@@ -123,10 +122,10 @@ export function inviteResults(joiner: UserId): InviteResults {
     status: "pending",
     maxUses: 1,
     remainingUses: 1,
-    expiresAt: INVITE_FIXTURE_AT + 1,
+    expiresAt: FROZEN_AT_MS + 1,
     invitedUserId: null,
     allowSignup: false,
-    createdAt: INVITE_FIXTURE_AT,
+    createdAt: FROZEN_AT_MS,
   };
   const joinerRow: RedeemInviteResult["participant"] = {
     id: mintTypeId(ID_PREFIX.chatParticipant),
@@ -138,7 +137,7 @@ export function inviteResults(joiner: UserId): InviteResults {
     activePersonaId: mintTypeId(ID_PREFIX.persona),
     talkativeness: 0.5,
     disabled: false,
-    joinedAt: INVITE_FIXTURE_AT,
+    joinedAt: FROZEN_AT_MS,
     joinSeq: 12,
     leftSeq: null,
     joinHistoryVisibility: "from-join",
@@ -186,8 +185,8 @@ export function inviteResults(joiner: UserId): InviteResults {
         opening: null,
         compactSummary: null,
         compactedAtSeq: null,
-        createdAt: INVITE_FIXTURE_AT,
-        updatedAt: INVITE_FIXTURE_AT,
+        createdAt: FROZEN_AT_MS,
+        updatedAt: FROZEN_AT_MS,
         identities: [{ kind: "character", id: mintTypeId(ID_PREFIX.character), name: "Aria", avatarHash: null }],
       },
       participant: joinerRow,

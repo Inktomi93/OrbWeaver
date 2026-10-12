@@ -4,6 +4,7 @@
 // 401), a refusal surfaces the SERVER's generic message (never an enumerating one we invent), and logout
 // carries the CSRF header (a cookie mutation without it is a 403 — the belt every logout regression hits).
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 // @orb-waive-file no-test-fabrication(URLSearchParams): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -88,7 +89,7 @@ test("logout carries the CSRF header (the cookie-mutation belt) and throws on re
     return Promise.resolve(new Response("", { status: 200 }));
   });
   await logout();
-  expect(headers).toMatchObject({ "x-orb-csrf": "1" });
+  expect(headers).toMatchObject({ [CSRF_HEADER]: "1" });
 
   vi.stubGlobal("fetch", () => Promise.resolve(new Response("", { status: 403 })));
   await expect(logout()).rejects.toThrow("logout failed (HTTP 403)");
@@ -110,7 +111,7 @@ test("signOut revokes with CSRF, broadcasts, then hard-navigates to the IdP end-
     throw new Error("logout request was not captured");
   }
   expect(request.url).toBe("/api/auth/logout");
-  expect(request.init).toMatchObject({ method: "POST", credentials: "same-origin", headers: { "x-orb-csrf": "1" } });
+  expect(request.init).toMatchObject({ method: "POST", credentials: "same-origin", headers: { [CSRF_HEADER]: "1" } });
   expect(FakeBroadcastChannel.posted).toEqual([{ kind: "signed-out" }]);
   expect(assigned).toEqual(["/oidc/end-session"]);
   expect(signOutOrder).toEqual(["logout", "broadcast", "navigate"]);
@@ -149,7 +150,7 @@ test("confirmPendingJoin posts the persona-only JSON body with CSRF and reads si
   await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: true, signedIn: false, chatId: JOINED_CHAT });
   expect(seen?.url).toBe("/api/auth/oidc/pending/confirm");
   expect(seen?.init?.method).toBe("POST");
-  expect(seen?.init?.headers).toMatchObject({ "x-orb-csrf": "1", "content-type": "application/json" });
+  expect(seen?.init?.headers).toMatchObject({ [CSRF_HEADER]: "1", "content-type": "application/json" });
   expect(JSON.parse(String(seen?.init?.body))).toEqual(JOINER);
 });
 

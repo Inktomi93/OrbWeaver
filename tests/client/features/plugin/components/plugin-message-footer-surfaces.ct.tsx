@@ -13,6 +13,7 @@
 // its FALLBACKS — an empty badge, a blank caption — under every single message until the plugin published.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
@@ -79,7 +80,7 @@ const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.getChat" | "chat.previ
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   }),

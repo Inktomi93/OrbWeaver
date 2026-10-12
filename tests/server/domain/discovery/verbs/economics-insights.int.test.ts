@@ -8,10 +8,11 @@ import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedCharacterParticipant, seedChat, seedMessage, seedUser } from "../_support.ts";
+import { makeDiscoveryHarness, seedCharacter, seedCharacterParticipant, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
@@ -22,7 +23,7 @@ async function seedGenre(db: Db, characterId: CharacterId, genre: string): Promi
     characterId,
     genre,
     model: "test-summarize-model",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 
@@ -44,9 +45,9 @@ describe("forgottenGems", () => {
     // QuietBig: real investment, 60 days untouched. QuietSmall: quieter still, but barely played — age
     // alone must not beat real investment.
     const turns = [
-      ...Array.from({ length: 20 }, (_, i) => ({ id: `m_live_${i.toString()}`, seq: 100 + i, createdAt: FROZEN_AT, characterId: live })),
-      ...Array.from({ length: 6 }, (_, i) => ({ id: `m_big_${i.toString()}`, seq: 200 + i, createdAt: FROZEN_AT - 60 * day, characterId: quietBig })),
-      ...Array.from({ length: 2 }, (_, i) => ({ id: `m_small_${i.toString()}`, seq: 300 + i, createdAt: FROZEN_AT - 90 * day, characterId: quietSmall })),
+      ...Array.from({ length: 20 }, (_, i) => ({ id: `m_live_${i.toString()}`, seq: 100 + i, createdAt: FROZEN_AT_MS, characterId: live })),
+      ...Array.from({ length: 6 }, (_, i) => ({ id: `m_big_${i.toString()}`, seq: 200 + i, createdAt: FROZEN_AT_MS - 60 * day, characterId: quietBig })),
+      ...Array.from({ length: 2 }, (_, i) => ({ id: `m_small_${i.toString()}`, seq: 300 + i, createdAt: FROZEN_AT_MS - 90 * day, characterId: quietSmall })),
     ];
     await Promise.all(turns.map((turn) => seedMessage(db, { ...turn, chatId: chat, variant: {} })));
 

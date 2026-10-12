@@ -24,6 +24,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { activePersonaIdFor, createTurnPersonaResolver } from "@orb/server/entry/compose";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -33,7 +34,7 @@ import type { GroupOutput, TurnRequest } from "#server/domain/chat/contract/resu
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
 import type { ChatScenario } from "./_scenario.ts";
 import { scenario } from "./_scenario.ts";
-import { FROZEN_AT, seedCharacter, seedParticipant, seedUser } from "./_support.ts";
+import { seedCharacter, seedParticipant, seedUser } from "./_support.ts";
 
 const BINDING_VALUES = ["base", "fix"] as const;
 type Binding = (typeof BINDING_VALUES)[number];
@@ -202,7 +203,7 @@ async function insertPersona(db: Db, ownerId: UserId, name: string, metadata: Pe
   personaSeq += 1;
   await db
     .insert(personas)
-    .values({ id, ownerId, name, description: `desc-of-${name}#${String(personaSeq)}`, metadata, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    .values({ id, ownerId, name, description: `desc-of-${name}#${String(personaSeq)}`, metadata, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return id;
 }
 
@@ -210,7 +211,7 @@ async function insertPersona(db: Db, ownerId: UserId, name: string, metadata: Pe
 /** Attach an always-on persona book whose entry probes what `{{user}}` renders as inside `name`'s own lore. */
 async function attachLore(room: Room, ownerId: UserId, personaId: PersonaId, name: string): Promise<void> {
   const worldBookId = mintTypeId(ID_PREFIX.worldBook);
-  await room.scn.db.insert(worldBooks).values({ id: worldBookId, ownerId, name: `${name} lore`, createdAt: FROZEN_AT });
+  await room.scn.db.insert(worldBooks).values({ id: worldBookId, ownerId, name: `${name} lore`, createdAt: FROZEN_AT_MS });
   await room.scn.db.insert(worldEntries).values({
     id: mintTypeId(ID_PREFIX.worldEntry),
     worldBookId,
@@ -221,9 +222,9 @@ async function attachLore(room: Room, ownerId: UserId, personaId: PersonaId, nam
     priority: 0,
     ignoreBudget: false,
     metadata: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
-  await room.scn.db.insert(personaBooks).values({ personaId, worldBookId, createdAt: FROZEN_AT });
+  await room.scn.db.insert(personaBooks).values({ personaId, worldBookId, createdAt: FROZEN_AT_MS });
 }
 
 async function seatCara(room: Room): Promise<UserId> {

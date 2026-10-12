@@ -5,6 +5,7 @@
 
 import { ROOM_PICTURES_NOTE } from "@orb/client/lib";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -260,7 +261,7 @@ const COMPOSER_CONTRIBUTION_ROUTES = {
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   },

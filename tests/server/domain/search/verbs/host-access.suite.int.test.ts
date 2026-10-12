@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(seedUser): baselined when the gate widened; burn-down item 906.
 import { chatDigests, chatParticipants, chatSegments, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -11,10 +10,10 @@ import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatParticipan
 describe("room-derived search authority", () => {
   test("retained eligible rows require current host authority through every retrieval scope", async () => {
     const db = await freshDb();
-    const host = (await seedUserRow(db)).id;
-    const member = (await seedUserRow(db)).id;
-    const departed = (await seedUserRow(db)).id;
-    const foreign = (await seedUserRow(db)).id;
+    const host = (await seedUser(db)).id;
+    const member = (await seedUser(db)).id;
+    const departed = (await seedUser(db)).id;
+    const foreign = (await seedUser(db)).id;
     const chatId = await seedChat(db, mintTypeId(ID_PREFIX.chat));
     await seedChatParticipant(db, chatId, host);
     await seedChatParticipant(db, chatId, member, "member");
@@ -82,7 +81,7 @@ describe("room-derived search authority", () => {
   });
   test("Scenes shares its result limit between character groups and standalone passages", async () => {
     const db = await freshDb();
-    const ownerId = (await seedUserRow(db)).id;
+    const ownerId = (await seedUser(db)).id;
     const character = await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId });
     const chatId = await seedChat(db, mintTypeId(ID_PREFIX.chat));
     await seedChatDigest(db, { id: mintTypeId(ID_PREFIX.chatDigest), chatId, scopedCharacterId: character, blockIdx: 1, embedding: vec(0, 1) });
@@ -94,8 +93,8 @@ describe("room-derived search authority", () => {
   });
   test("host scope precedes same-content collapse within one retained generation", async () => {
     const db = await freshDb();
-    const ownerId = (await seedUserRow(db)).id;
-    const other = (await seedUserRow(db)).id;
+    const ownerId = (await seedUser(db)).id;
+    const other = (await seedUser(db)).id;
     const character = await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId });
     const mine = await seedChat(db, mintTypeId(ID_PREFIX.chat));
     const theirs = await seedChat(db, mintTypeId(ID_PREFIX.chat));
@@ -123,7 +122,7 @@ describe("room-derived search authority", () => {
   });
   test("standalone indexed segments survive an empty or unrelated digest pool", async () => {
     const db = await freshDb();
-    const ownerId = (await seedUserRow(db)).id;
+    const ownerId = (await seedUser(db)).id;
     const chatId = await seedChat(db, mintTypeId(ID_PREFIX.chat));
     await seedChatParticipant(db, chatId, ownerId);
     await seedChatSegment(db, { id: mintTypeId(ID_PREFIX.chatSegment), chatId, blockIdx: 0, text: "STANDALONE", embedding: vec(1) });

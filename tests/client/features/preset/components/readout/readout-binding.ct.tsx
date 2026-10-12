@@ -12,7 +12,7 @@
 // the user has not supplied — the §7 honesty pin's exact prohibition); (b) the binding is a READ — dismissing
 // and re-binding fires no mutation at all.
 
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
@@ -91,7 +91,7 @@ const ASSEMBLY: TrpcWireOutput<"chat.previewAssembly"> = {
   budget: {
     ceilingTokens: 8192,
     ceilingEstimated: false,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     limit: { kind: "window", tokens: 8192 },
     totalTokens: 2266,
     sources: [

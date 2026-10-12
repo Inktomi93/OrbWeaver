@@ -3,6 +3,7 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -54,8 +55,8 @@ test("toggle and same-name re-grant refresh an already-rendered display transfor
     builtAgainst: null,
     description: "Typesets your display",
     lastError: null,
-    installedAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    installedAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   } satisfies TrpcWireOutput<"plugin.setGrant">;
   const recorder = await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),

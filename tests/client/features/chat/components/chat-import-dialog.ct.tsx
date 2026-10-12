@@ -14,6 +14,8 @@
 
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import type { ImportWindow } from "@orb/contracts/chat";
+import { CSRF_HEADER } from "@orb/contracts/identity";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -29,7 +31,7 @@ const TRANSCRIPT = '{"user_name":"Alex","character_name":"Aria"}\n{"name":"Aria"
 const MEMORY_OFF_ROUTES: TrpcRoutes<"settings.getUserSettings"> = { "settings.getUserSettings": userSettingsView() };
 
 /** Two drops' spans, in drop order (the server's clock; the second import ran later). */
-const FIRST_SPAN: ImportWindow = { from: 1_750_000_000_000, to: 1_750_000_001_000 };
+const FIRST_SPAN: ImportWindow = { from: FROZEN_AT_MS, to: 1_750_000_001_000 };
 const SECOND_SPAN: ImportWindow = { from: 1_750_000_050_000, to: 1_750_000_051_000 };
 
 /** Memory on, a running Utility model, and a run that costs something, so every yes passes through the confirm. */
@@ -53,7 +55,7 @@ async function routeImport(page: Page, body: unknown): Promise<{ readonly seen: 
     const request = route.request();
     seen = {
       method: request.method(),
-      csrf: await request.headerValue("x-orb-csrf"),
+      csrf: await request.headerValue(CSRF_HEADER),
       contentType: await request.headerValue("content-type"),
     };
     await route.fulfill({ status: 200, headers: { "content-type": "application/json" }, body: JSON.stringify(bodyOf()) });

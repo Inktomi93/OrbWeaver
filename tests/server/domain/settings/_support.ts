@@ -16,12 +16,10 @@ import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
 import { createSettingsService } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-
-export const FROZEN_AT = 1_750_000_000_000;
 
 interface AuditCall {
   readonly entry: AuditEntry;
@@ -56,8 +54,8 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
     role: overrides.role ?? "user",
     enabled: true,
     passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -88,7 +86,7 @@ export function makeHarness(
     readonly versionIdentity?: VersionIdentity;
   } = {},
 ): SettingsHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const audits: AuditCall[] = [];
   const onEmbedModelChanged: Mock<() => void> = vi.fn<() => void>();
   let themeCounter = 0;

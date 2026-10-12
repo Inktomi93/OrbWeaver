@@ -7,10 +7,8 @@
 //   • `dryRun` writes nothing AND forecasts the real link/mismatch split (the params contract's promise).
 // @subject packages/server/src/domain/assets/verbs/backfill-avatars.ts
 
-// @orb-waive-file no-loose-id-cast(avatar): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(characterId): baselined when the gate widened; burn-down item 906.
 import { assets, characters } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
@@ -21,11 +19,8 @@ import { describe, onTestFinished, vi } from "vitest";
 import type { BackfillCard } from "#server/domain/assets/contract/maintenance.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";
 
-async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: CharacterId): Promise<string | null | undefined> {
-  const rows = await db
-    .select({ avatarAssetId: characters.avatarAssetId })
-    .from(characters)
-    .where(eq(characters.id, characterId as never));
+async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: CharacterId): Promise<AssetId | null | undefined> {
+  const rows = await db.select({ avatarAssetId: characters.avatarAssetId }).from(characters).where(eq(characters.id, characterId));
   return rows[0]?.avatarAssetId;
 }
 
@@ -97,11 +92,10 @@ describe("backfillAvatars", () => {
     expect(result).toEqual({ scanned: 1, linked: 1, mismatched: 0, dryRun: false });
     // The avatar now points at a stored card asset, and that asset row exists.
     const avatar = await avatarOf(db, character);
-    expect(avatar).not.toBeNull();
-    const assetRows = await db
-      .select()
-      .from(assets)
-      .where(eq(assets.id, avatar as never));
+    if (avatar === null || avatar === undefined) {
+      throw new Error("the backfill left the character without an avatar asset");
+    }
+    const assetRows = await db.select().from(assets).where(eq(assets.id, avatar));
     expect(assetRows).toHaveLength(1);
   });
 

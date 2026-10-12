@@ -17,6 +17,7 @@ import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { ShareService } from "@orb/server/domain/share";
 import { createShareService } from "@orb/server/domain/share";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 
 export const LOCAL_SETUP_URL = "http://localhost:8788";
 /** The app listener's port the harness reports. */
@@ -25,7 +26,6 @@ export const APP_PORT = 8788;
 export const LIVE_SOCKETS = 3;
 // The owner's own tabs, which the box-wide count includes and the card must not.
 const OWNER_SOCKETS = 2;
-const AT = 1_750_000_000_000;
 
 export function caller(role: UserRole): Principal {
   const userId = castId<UserId>(`user_${role}`);
@@ -132,7 +132,7 @@ export function shareHarness(options: {
       audits.push(entry);
       return Promise.resolve();
     },
-    now: () => AT,
+    now: () => FROZEN_AT_MS,
   });
   return {
     share,

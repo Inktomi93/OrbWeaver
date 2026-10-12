@@ -9,6 +9,7 @@
 // The narrow-mount stories come from `_ct-stories.tsx` because a FUNCTION prop (the `valueFormatter`) does
 // not survive the CT mount boundary on a NESTED component — see that module's header.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { lastInkColumn, readCanvasBandInk, solidColumns } from "@orb/testkit/browser/canvas-ink.ts";
 import { BarList } from "@orb/ui/bar-list";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -61,8 +62,7 @@ test("the bar-end value label is drawn INSIDE the canvas, not clipped by a fixed
   const canvas = component.locator("canvas");
   await expect(canvas).toBeVisible();
   await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0, { intervals: [50, 100, CANVAS_SETTLE_MS] }).toBeGreaterThan(0);
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, CANVAS_SETTLE_MS));
+  await sleep(CANVAS_SETTLE_MS);
 
   const band = await readCanvasBandInk(canvas, 0.2, 0.33);
   // The value label is the RIGHTMOST ink in a bar row. If it ends before the canvas does, it is whole.
@@ -73,8 +73,7 @@ test("a long category name is truncated to a budget instead of eating the plot (
   const component = await mount(<ClippedValueLabelStory />);
   const canvas = component.locator("canvas");
   await expect(canvas).toBeVisible();
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, CANVAS_SETTLE_MS));
+  await sleep(CANVAS_SETTLE_MS);
 
   const band = await readCanvasBandInk(canvas, 0.2, 0.33);
   // (a) the name is ELLIPSIZED inside its own budget, so nothing is cut off at the canvas's left edge…

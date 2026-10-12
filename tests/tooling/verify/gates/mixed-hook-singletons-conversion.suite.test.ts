@@ -12,12 +12,11 @@
 // IT RUNS ON A REAL TMPDIR, not on a virtual in-memory root, because `tooling-instrument-proof` resolves
 // its members against the filesystem. Under a synthetic root every registry row would read DEAD and the
 // run would report a catch explosion that is an artifact of the harness.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { gate as toolingInstrumentProof } from "../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
+import { gate } from "../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 
 function plant(root: string, files: Readonly<Record<string, string>>): Project {
@@ -47,8 +46,8 @@ test("§4.5 — a complete tooling-instrument-proof run files its demand receipt
   const project = plant(scratch, files);
   const parser = new Project({ useInMemoryFileSystem: true });
   const result = runPolicyPass({
-    knownPolicies: [toolingInstrumentProof],
-    policies: [toolingInstrumentProof],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project,
     reviewedGrants: [],

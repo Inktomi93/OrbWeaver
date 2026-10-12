@@ -1,5 +1,3 @@
-// @orb-waive-file no-inline-types(StoryKey): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-inline-types(ThemeArm): baselined when the gate widened; burn-down item 906.
 // The ONE story-key vocabulary for the variant-arm matrix (design record: variant-arm-matrix.def.ts).
 // Three modules speak it — def (population), stories (renderers), suite (dispatch) — and the compiler
 // pins them: def keys are typed StoryKey, and the stories module's renderer table `satisfies

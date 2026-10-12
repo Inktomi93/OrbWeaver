@@ -10,10 +10,10 @@
 // integration arm cannot isolate: what is EXCLUDED (this process and its ancestors — a nested `test:ct`
 // inside `pnpm test` inherits the marker and must never sweep its own parents), what escalates (TERM, a
 // grace, then KILL), and which foreign runs are fair game (only those whose OWNER PID is gone).
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
@@ -257,7 +257,7 @@ test("a TIMED-OUT stage child leaves NO detached grandchild alive", { timeout: b
   try {
     expect(result.transcript).toContain("[proc] TIMED OUT");
     expect(planted, "the probe's detached grandchild never recorded its pid — the fixture, not the sweep, is broken").not.toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, budget(SETTLE_BASE_MS)));
+    await sleep(budget(SETTLE_BASE_MS));
     // THE DEFECT ASSERTION, first: a process that left the group must be gone anyway. Against the
     // pre-#1848 proc.ts this is the line that fails, naming the surviving pid.
     expect(pidIsAlive(planted), `pid ${String(planted)} survived a timed-out stage — an orphaned browser is exactly this`).toBe(false);

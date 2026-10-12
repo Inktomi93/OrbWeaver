@@ -1,7 +1,7 @@
 // resolveRowMacros — the §6 parity fixture (Chat-Macro-Resolution.md): one shared atom, both server
 // ASSEMBLE and client DISPLAY call it, so pinning it here pins BOTH consumers at once.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
@@ -141,7 +141,7 @@ test("resolveRowMacros: a stored row with {{time}} + {{roll}} renders byte-ident
   const render1 = resolveRowMacros(stored, stamps, ctx());
   // A seconds-resolution clock could advance and the PRNG differs regardless — a live registry would
   // have produced different bytes here.
-  await new Promise((r) => setTimeout(r, 1100));
+  await sleep(1100);
   const render2 = resolveRowMacros(stored, stamps, ctx());
   expect(render1).toBe(render2);
   // Volatile macros pass through as their literal source span (not re-derived, not stripped).
