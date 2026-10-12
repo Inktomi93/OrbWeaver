@@ -32,14 +32,17 @@ export type WireCapture = z.infer<typeof wireCaptureSchema>;
 export const wireCapturesResponseSchema = z.strictObject({
   enabled: z.boolean(),
   count: z.number().int(),
-  captures: z.array(wireCaptureSchema),
+  captures: z.array(wireCaptureSchema).readonly(),
 });
+export type WireCapturesResponse = z.infer<typeof wireCapturesResponseSchema>;
 
 /** The `GET /api/_debug/rpg/traces` response: the recorder ring, oldest first. */
-export const rpgTracesResponseSchema = z.strictObject({ count: z.number().int(), events: z.array(rpgTraceRecordSchema) });
+export const rpgTracesResponseSchema = z.strictObject({ count: z.number().int(), events: z.array(rpgTraceRecordSchema).readonly() });
+export type RpgTracesResponse = z.infer<typeof rpgTracesResponseSchema>;
 
 /** The `GET /api/_debug/errors` response: the error ring, whose lines are opaque to the harness (it asserts emptiness). */
-export const debugErrorsResponseSchema = z.strictObject({ errors: z.array(z.unknown()) });
+export const debugErrorsResponseSchema = z.strictObject({ errors: z.array(z.unknown()).readonly() });
+export type DebugErrorsResponse = z.infer<typeof debugErrorsResponseSchema>;
 
 const inspectedParticipantSchema = z.strictObject({
   id: z.string(),

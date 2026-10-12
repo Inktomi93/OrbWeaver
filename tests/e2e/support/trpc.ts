@@ -16,9 +16,8 @@
 
 import process from "node:process";
 import type { ContextFitPreview } from "@orb/contracts/chat";
-import type { ChatInspection, WireCapture } from "@orb/contracts/debug";
+import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture, WireCapturesResponse } from "@orb/contracts/debug";
 import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
-import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type {
@@ -240,7 +239,7 @@ export function removeCharacter(characterId: CharacterId): Promise<unknown> {
 /** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures — presents the
  *  operator token, see `debugHeaders`). Newest-first. The capture seam must be ENABLED (WIRE_CAPTURE=on) for
  *  this to be non-empty. */
-export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promise<readonly WireCapture[]> {
+export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promise<WireCapturesResponse["captures"]> {
   const query = new URLSearchParams({ chatId, ...(backend !== undefined ? { backend } : {}) });
   const res = await fetch(`${BASE_URL}/api/_debug/wire/captures?${query.toString()}`, { headers: debugHeaders() });
   if (!res.ok) {
@@ -734,7 +733,7 @@ export async function inspectChatDb(chatId: ChatId): Promise<ChatInspection> {
 
 /** The debug error ring (`/api/_debug/errors`) — a non-empty list under a "successful" action is the
  *  invisible-bug class this repo exists to kill (observability-harness-verify-landings). */
-export async function fetchDebugErrors(): Promise<readonly unknown[]> {
+export async function fetchDebugErrors(): Promise<DebugErrorsResponse["errors"]> {
   const res = await fetch(`${BASE_URL}/api/_debug/errors`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e debug/errors read failed (${res.status})`);
@@ -745,7 +744,7 @@ export async function fetchDebugErrors(): Promise<readonly unknown[]> {
 /** Read a chat's rpg trace ring. REQUIRES `RPG_TRACE=on` in the stack's env (the harness sets it per mode in
  *  support/modes.ts); without it the route is not even registered and this throws rather than reporting a
  *  clean empty ring — "the recorder is off" must never read as "the flush never happened". */
-export async function fetchRpgTraces(chatId: ChatId): Promise<readonly RpgTraceRecord[]> {
+export async function fetchRpgTraces(chatId: ChatId): Promise<RpgTracesResponse["events"]> {
   const res = await fetch(`${BASE_URL}/api/_debug/rpg/traces?chatId=${chatId}`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e rpg/traces read failed (${res.status}) — is RPG_TRACE=on for this stack? An unwired recorder has no route.`);
