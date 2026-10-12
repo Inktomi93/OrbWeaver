@@ -16,6 +16,7 @@
 
 import { expect, test } from "@playwright/test";
 import { SINGLE_USER } from "./support/modes.ts";
+import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 // The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
@@ -68,7 +69,7 @@ test("the SPA shell mounts and single-user boots with no login form", {
   await page.goto("/");
   // The shell's one `main` landmark appears once the router + shell mount (single-user resolves the owner
   // with no redirect — a login form would mean the boot went sideways).
-  await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("main")).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByTestId("login-page")).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: LOGIN_FIELD })).toHaveCount(0);
 });
@@ -81,7 +82,7 @@ test("the SPA shell mounts and single-user boots with no login form", {
 // depends on it, and a silent 404 here reads as "the app is broken" to whoever hits it next.
 test("a section deep link boots the app and lands on the one app URL", { tag: "@smoke" }, async ({ page }) => {
   await page.goto("/chats");
-  await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("main")).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByText(NOT_FOUND_COPY)).toHaveCount(0);
   await expect(page.getByRole("main", { name: "Chats content", exact: true })).toBeVisible();
   // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
@@ -92,7 +93,7 @@ test("a path that is NOT a section still renders the not-found surface", { tag: 
   await page.goto("/definitely-not-a-section");
   // The alias resolves the segment against the SECTION vocabulary and throws notFound on a miss — a typo
   // must never be silently absorbed into the app (that is how a dead link looks like a working one).
-  await expect(page.getByText(NOT_FOUND_COPY)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(NOT_FOUND_COPY)).toBeVisible({ timeout: WAIT_SETTLE_MS });
   // …AND IT DECLARES ITSELF (#1081). `data-app-failure` is the app telling an instrument that this is not
   // one of its surfaces: design-audit reads it and refuses (`tooling/src/ui-audit/lib/evidence.ts`
   // `failureSurfaceGap`), because before the declare existed `design-audit /__no-such-route__` printed a
@@ -112,7 +113,7 @@ test("the home page renders the home surface (tRPC query works)", {
   // all answered). A transport/auth failure would render an ErrorState instead of the surface — assert none.
   // (The chats-LIST surface — `getByRole("list", { name: "Chats list" })` — moved to the Chats SECTION in this
   // rework; it no longer lives on `/`, which is exactly the stale coupling this test used to carry.)
-  await expect(page.locator(APP_READY)).toBeAttached({ timeout: 30_000 });
-  await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(APP_READY)).toBeAttached({ timeout: WAIT_SETTLE_MS });
+  await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: WAIT_UI_MS });
   await expect(page.getByText("Couldn't load your chats")).toHaveCount(0);
 });

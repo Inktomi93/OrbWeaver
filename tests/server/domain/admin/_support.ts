@@ -29,7 +29,7 @@ import { createSessionsService, isReservedSignupHandle } from "@orb/server/domai
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { and, asc, eq, isNull } from "drizzle-orm";
@@ -59,9 +59,9 @@ export async function seedLiveSession(db: Db, userId: UserId, id = `sess_${userI
     id: sessionId,
     userId,
     tokenHash: `hash_${id}`,
-    createdAt: FROZEN_AT,
-    lastSeenAt: FROZEN_AT,
-    expiresAt: FROZEN_AT + HOUR_MS,
+    createdAt: FROZEN_AT_MS,
+    lastSeenAt: FROZEN_AT_MS,
+    expiresAt: FROZEN_AT_MS + HOUR_MS,
     userAgent: null,
     oidcIdToken: null,
   });
@@ -143,7 +143,6 @@ export interface AdminHarness {
   readonly setEmbedOwned: (owned: boolean) => void;
 }
 
-const FROZEN_AT = 1_750_000_000_000;
 const HARNESS_PEPPER = "test-session-secret-at-least-32-chars-long";
 const HOUR_MS = 3_600_000;
 
@@ -165,8 +164,8 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
     role: overrides.role ?? "user",
     enabled: overrides.enabled ?? true,
     passwordHash: overrides.passwordHash ?? null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -187,7 +186,7 @@ export async function seedAdminCaller(db: Db): Promise<{ svc: AdminService; admi
 }
 
 export function makeHarness(db: Db): AdminHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const revokedAll: UserId[] = [];

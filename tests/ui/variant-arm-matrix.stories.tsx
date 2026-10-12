@@ -10,7 +10,7 @@
 // and the wrapper paints the real token background via the `bg-background` utility so backdrop resolution
 // lands on the same base pixel the app paints.
 //
-// RENDERER KEYS: the table `satisfies Record<StoryKey, …>` (variant-arm-matrix.keys.ts), so renderers ↔
+// RENDERER KEYS: the table `satisfies Record<StoryKey, …>` (variant-arm-matrix.fixtures.ts), so renderers ↔
 // story defs cannot drift — a missing or extra key is a compile error. Each renderer is typed with the
 // COMPONENT'S own props; the dispatch narrows the runtime arm record once (`as never`), which is honest
 // because every value in it was derived from that component's own tv config (plan module).
@@ -54,7 +54,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ToggleProps } from "@orb/ui/toggle";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
-import type { StoryKey, ThemeArm } from "./variant-arm-matrix.keys.ts";
+import type { StoryKey, ThemeArm } from "./variant-arm-matrix.fixtures.ts";
 
 type BadgeProps = Parameters<typeof Badge>[0];
 

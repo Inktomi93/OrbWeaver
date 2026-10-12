@@ -13,6 +13,7 @@ import process from "node:process";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, vi } from "vitest";
 
@@ -72,8 +73,6 @@ const BYTES = new TextEncoder().encode("cas failure plant");
 const HASH = "a".repeat(64);
 let root: string;
 
-const NOW = 1_750_000_000_000;
-
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "orb-cas-failure-"));
   faults.directoryOpen = null;
@@ -88,7 +87,7 @@ afterEach(async () => {
 
 test("directory fsync I/O failure rejects a put instead of claiming a crash-durable write", async () => {
   faults.directoryOpen = "EIO";
-  await expect(createCas(root).putBytes(OWNER, BYTES, NOW)).rejects.toThrow("planted directory fsync failure");
+  await expect(createCas(root).putBytes(OWNER, BYTES, FROZEN_AT_MS)).rejects.toThrow("planted directory fsync failure");
 });
 
 // #2410: the errnos that mean "no directory fsync on this filesystem" are a capability statement, not a
@@ -98,7 +97,7 @@ test("ENOTSUP from the directory OPEN degrades the durability guarantee and stil
   try {
     faults.directoryOpen = "ENOTSUP";
     const cas = createCas(root);
-    const first = await cas.putBytes(OWNER, BYTES, NOW);
+    const first = await cas.putBytes(OWNER, BYTES, FROZEN_AT_MS);
     expect(first.created).toBe(true);
     // Read it back through the CAS's own door: a degraded dir-entry fsync must not cost us the blob.
     expect(new TextDecoder().decode(await cas.read(OWNER, first.hash))).toBe("cas failure plant");
@@ -106,7 +105,7 @@ test("ENOTSUP from the directory OPEN degrades the durability guarantee and stil
     // A SECOND write on the same unsupporting filesystem must not repeat the sentence — on a box where
     // every put hits this, a per-write log is a flood. Different bytes, so it is a real second write and
     // not the dedup short-circuit (which never reaches fsyncDir at all).
-    await expect(cas.putBytes(OWNER, new TextEncoder().encode("second plant"), NOW)).resolves.toMatchObject({ created: true });
+    await expect(cas.putBytes(OWNER, new TextEncoder().encode("second plant"), FROZEN_AT_MS)).resolves.toMatchObject({ created: true });
     expect(warnSpy).toHaveBeenCalledTimes(1);
     const [payload, message] = warnSpy.mock.calls[0] ?? [];
     expect(payload).toMatchObject({ code: "ENOTSUP", platform: process.platform });
@@ -118,7 +117,7 @@ test("ENOTSUP from the directory OPEN degrades the durability guarantee and stil
 
 test("ENOTSUP from the directory SYNC (the handle opened fine) degrades the same way", async () => {
   faults.directorySync = "ENOTSUP";
-  await expect(createCas(root).putBytes(OWNER, BYTES, NOW)).resolves.toMatchObject({ created: true });
+  await expect(createCas(root).putBytes(OWNER, BYTES, FROZEN_AT_MS)).resolves.toMatchObject({ created: true });
 });
 
 // The half of the old win32-only fence that SURVIVES the ruling: off Windows these two are a genuine
@@ -126,7 +125,7 @@ test("ENOTSUP from the directory SYNC (the handle opened fine) degrades the same
 test.each(["EISDIR", "EPERM"])("%s still rejects a put on a non-win32 platform", async (code) => {
   expect(process.platform).not.toBe("win32");
   faults.directoryOpen = code;
-  await expect(createCas(root).putBytes(OWNER, BYTES, NOW)).rejects.toThrow("planted directory fsync failure");
+  await expect(createCas(root).putBytes(OWNER, BYTES, FROZEN_AT_MS)).rejects.toThrow("planted directory fsync failure");
 });
 
 test("non-ENOENT stat failure rejects existence and mtime instead of masquerading as absence", async () => {

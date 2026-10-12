@@ -8,11 +8,10 @@
 // what say it cannot.
 // @subject packages/server/src/domain/tool-use/verbs/list-drivable-tool-names.ts
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
@@ -21,8 +20,8 @@ import { defOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const ALICE = makePrincipal(castId("user_alice"), { handle: castId("alice") });
-const BOB = makePrincipal(castId("user_bob"), { handle: castId("bob") });
+const ALICE = principal(castId("user_alice"), { handle: castId("alice") });
+const BOB = principal(castId("user_bob"), { handle: castId("bob") });
 
 const allowAll: Can = (() => undefined) as Can;
 

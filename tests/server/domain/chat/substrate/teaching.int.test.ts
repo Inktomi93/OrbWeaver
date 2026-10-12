@@ -15,6 +15,7 @@ import type { Db } from "@orb/db";
 import { chatInjections } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -23,7 +24,7 @@ import type { ForeignInputs } from "#server/domain/chat/contract/foreign.ts";
 import { gatherAssembleContext } from "#server/domain/chat/substrate/assemble-gather.ts";
 import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 /** The CYOA teach's ONE home — the same bytes the rpg reminder composes and a chat-level offer-choices
  *  contribution would emit. The double-teach case is only real because these are the same string. */
@@ -68,7 +69,7 @@ async function seedInjectionRow(chatId: ChatId, id: string, content: string): Pr
     depth: 0,
     role: "system",
     content,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 }
 

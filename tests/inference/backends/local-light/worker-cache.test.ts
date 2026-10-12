@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
 import { LOCAL_LIGHT_SEED_ROWS, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
@@ -62,8 +63,7 @@ async function longestTickGap(work: () => Promise<unknown>): Promise<number> {
   try {
     await work();
     // One more tick lands after `work`, so a block right at its end is still measured.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, TICK_MS * 2));
+    await sleep(TICK_MS * 2);
   } finally {
     clearInterval(timer);
   }
@@ -72,8 +72,7 @@ async function longestTickGap(work: () => Promise<unknown>): Promise<number> {
 
 test("the tick gap detector sees a block on this thread", async () => {
   const gap = await longestTickGap(async () => {
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, TICK_MS * 2));
+    await sleep(TICK_MS * 2);
     waitSync(HOLD_MS);
   });
   expect(gap).toBeGreaterThan(HOLD_MS - TICK_MS);
@@ -176,8 +175,7 @@ test("close waits out a native call in progress; the call answers, then the work
   const cache = stubCache(errors);
   const inFlight = cache.embedTexts(MODEL, [`${BLOCK_PREFIX}${String(HOLD_MS)}`]);
   // Let the call reach the worker before the close does.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, TICK_MS * 5));
+  await sleep(TICK_MS * 5);
   // @orb-waive test-determinism(performance.now): the SUBJECT is real elapsed time on this thread while another thread holds a model call; a frozen clock cannot see a blocked event loop.
   const started = performance.now();
   await cache.close();
@@ -195,8 +193,7 @@ test("a native call that outlasts the close wait: close returns at the bound wit
     log: { debug: noop, info: noop, warn: (_fields, message) => warnings.push(message), error: noop },
   });
   const inFlight = cache.embedTexts(MODEL, [`${BLOCK_PREFIX}${String(HOLD_MS)}`]).catch((err: unknown) => err);
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, TICK_MS * 5));
+  await sleep(TICK_MS * 5);
   // @orb-waive test-determinism(performance.now): the SUBJECT is real elapsed time on this thread while another thread holds a model call; a frozen clock cannot see a blocked event loop.
   const started = performance.now();
   await cache.close();

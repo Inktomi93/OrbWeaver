@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import { MODE_RESOLVERS, SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { makeAuthConfig as cfg, headers } from "../_support.ts";
+import { headers, makeAuthConfig } from "../_support.ts";
 
 // Post-D40 (Route A) infra does NOT read or validate the session cookie — the seam validates it via
 // `sessions.validate` BEFORE calling `resolve` (entry/auth/seam.ts). So at the infra layer the cookie modes
@@ -48,10 +47,10 @@ describe("sessionCookieFor — the cookie is keyed by the request's transport", 
 
 describe("resolveCookieSession (via the cookie mode) — inert at infra post-D40", () => {
   test("no cookie present → null", async () => {
-    expect(await resolveCookie(headers(), cfg(), {})).toBeNull();
+    expect(await resolveCookie(headers(), makeAuthConfig(), {})).toBeNull();
   });
 
   test("our cookie present → STILL null (infra never reads the cookie; the seam owns it)", async () => {
-    expect(await resolveCookie(headers({ cookie: `${SESSION_COOKIE_NAME_SECURE}=tok-abc` }), cfg(), {})).toBeNull();
+    expect(await resolveCookie(headers({ cookie: `${SESSION_COOKIE_NAME_SECURE}=tok-abc` }), makeAuthConfig(), {})).toBeNull();
   });
 });

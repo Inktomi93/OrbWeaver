@@ -19,6 +19,7 @@
 
 import { expect, test } from "@playwright/test";
 import { openOrCreateChat, reopenFirstChat, takeTypeAndSendRetries, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
+import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 const INSTANT_MESSAGE = "Typing instantly on fast room entry should keep every character.";
 
@@ -58,5 +59,5 @@ test("typing instantly after room open keeps every keystroke — no composer rem
   // The send committed the user's row (chat.startChat/send) — assert the committed row, NOT any streamed
   // reply (no model wait). Resume-or-new may yield multiple user rows; assert the LAST (the one we sent).
   const userRow = page.locator('[data-slot="message-row"][data-role="user"]').last();
-  await expect(userRow).toContainText("Typing instantly", { timeout: 30_000 });
+  await expect(userRow).toContainText("Typing instantly", { timeout: WAIT_SETTLE_MS });
 });

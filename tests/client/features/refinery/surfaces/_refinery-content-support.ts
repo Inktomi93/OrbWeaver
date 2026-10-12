@@ -15,8 +15,6 @@ export const SCORE_RUN_SUPERSEDED = mintTypeId(ID_PREFIX.refineryRun);
 const SCORE_RUN_LATEST = mintTypeId(ID_PREFIX.refineryRun);
 export const REWRITE_RUN = mintTypeId(ID_PREFIX.refineryRun);
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-export const FROZEN_AT = FROZEN_AT_MS;
 // PROSE-LENGTH on both sides (over `accept-review`'s 200-char inline-diff threshold) so the description
 // block renders the side-by-side PAIR and the after pane carries the whole rewrite verbatim — an
 // assertable string. Personality stays short on purpose: that block takes the FORK-C inline word diff,
@@ -57,8 +55,8 @@ export function sessionView(sessionId: RefinerySessionId = SESSION_ID): TrpcWire
     rewriteDecisions: {},
     guidance: null,
     iterationCount: 1,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 
@@ -74,7 +72,7 @@ function scoreRun(row: { id: string; iteration: number; overallScore: number; su
     durationMs: 23_600,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: FROZEN_AT + iteration,
+    createdAt: FROZEN_AT_MS + iteration,
     stage: "score",
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: { fieldScores: [], overallScore, priorityImprovements: [], summary },
@@ -92,7 +90,7 @@ export function rewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
     durationMs: 18_000,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: FROZEN_AT + 2,
+    createdAt: FROZEN_AT_MS + 2,
     stage: "rewrite",
     payloadConfig: { kind: "fixed", mode: "balanced" },
     payload: {
@@ -130,5 +128,5 @@ export function ledger(): TrpcWireOutput<"refinery.listRuns"> {
 
 /** Freeze the page clock so the masthead's elapsed-since credit line is a fixed string. */
 export async function freeze(page: Page): Promise<void> {
-  await page.clock.setFixedTime(new Date(FROZEN_AT));
+  await page.clock.setFixedTime(new Date(FROZEN_AT_MS));
 }

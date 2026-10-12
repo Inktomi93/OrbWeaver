@@ -12,6 +12,7 @@
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { presets, tags, themes } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -300,7 +301,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
 
     // Control: the SAME fallback caller WITH the header passes the guard and reaches dispatch (202) — proving
     // the 403 above is the CSRF gate, not an unrelated rejection, and that legit tooling still works.
-    const withHeader = new Request("http://t/api/import/bundle", { method: "POST", body: new Uint8Array([1, 2, 3]), headers: { "x-orb-csrf": "1" } });
+    const withHeader = new Request("http://t/api/import/bundle", { method: "POST", body: new Uint8Array([1, 2, 3]), headers: { [CSRF_HEADER]: "1" } });
     const passed = await handler(makeCtx(fallbackOwner, { raw: withHeader }));
     expect(passed.status).toBe(202);
     expect(started).toEqual([OWNER_ID]);

@@ -5,11 +5,12 @@
 import { themeClusters } from "@orb/db";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { readThemes } from "#server/domain/discovery/themes/retrieve.ts";
-import { FROZEN_AT, seedUser } from "../_support.ts";
+import { seedUser } from "../_support.ts";
 
 async function seedCluster(db: Awaited<ReturnType<typeof freshDb>>, args: { id: string; ownerId: UserId; level: string; clusterIdx: number }): Promise<void> {
   await db.insert(themeClusters).values({
@@ -20,7 +21,7 @@ async function seedCluster(db: Awaited<ReturnType<typeof freshDb>>, args: { id: 
     name: `Cluster ${args.id}`,
     size: 1,
     model: "test-embed-model-1024",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 

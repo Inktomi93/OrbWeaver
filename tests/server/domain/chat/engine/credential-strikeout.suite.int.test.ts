@@ -18,8 +18,8 @@
 // the generation actually authenticated with (never a re-resolve, which is how a rotate loses a good key); and
 // the strike is a PASSENGER — it can never alter, mask or delay the failure the caller is about to see.
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -29,6 +29,7 @@ import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeApiKeySecret } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -44,7 +45,6 @@ import type { SearchContext } from "#server/domain/search/context.ts";
 import { createDigests } from "#server/domain/search/verbs/digests.ts";
 import { makeStoreHarness } from "../../embeddings/_support.ts";
 import {
-  FROZEN_AT,
   fakeRecallResult,
   makeChatContext,
   seedCharacter,
@@ -350,7 +350,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     const searchCtx = {
       db,
       roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients()),
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       resolveActiveDocumentIds: () => Promise.resolve([]),
       resolveEmbeddingConnection: encoder.ctx.resolveEmbeddingConnection,
     } as unknown as SearchContext;
@@ -463,7 +463,7 @@ describe("the compaction arms strike too — they burn the same credential on th
 
     await engine.runTurn(prepOf(chatId, { connection: AGENT_SDK_BYO, intent: MANAGED }));
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(strikes).toEqual([]);
   });
 });

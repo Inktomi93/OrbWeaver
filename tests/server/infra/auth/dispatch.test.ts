@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { makeAuthConfig as cfg, headers } from "./_support.ts";
+import { headers, makeAuthConfig } from "./_support.ts";
 
 // The dispatch seam: the `MODE_RESOLVERS` Record (one entry per AUTH_MODE — invariant #4) + the
 // peer-gated owner-fallback predicate (#298 f2 — the raw TCP peer, not the `Host` header). Each resolver
@@ -14,25 +13,25 @@ describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   });
 
   test("single-user resolves to null (delegates to the unconditional owner fallback)", async () => {
-    expect(await MODE_RESOLVERS["single-user"](headers(), cfg(), {})).toBeNull();
+    expect(await MODE_RESOLVERS["single-user"](headers(), makeAuthConfig(), {})).toBeNull();
   });
 
   test("cookie modes resolve to null at infra (the seam owns the cookie read — D40)", async () => {
-    expect(await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), cfg(), {})).toBeNull();
-    expect(await MODE_RESOLVERS.oidc(headers(), cfg(), {})).toBeNull();
+    expect(await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), makeAuthConfig(), {})).toBeNull();
+    expect(await MODE_RESOLVERS.oidc(headers(), makeAuthConfig(), {})).toBeNull();
   });
 
   test("forward-header returns a pre-row identity from a trusted PEER (in the declared range)", async () => {
     const res = await MODE_RESOLVERS["forward-header"](
       headers({ "x-authentik-username": "alice" }),
-      cfg({ mode: "forward-header", forwardTrustedProxies: ["10.0.0.0/8"] }),
+      makeAuthConfig({ mode: "forward-header", forwardTrustedProxies: ["10.0.0.0/8"] }),
       { peerIp: "10.1.2.3" },
     );
     expect(res).toEqual({ externalId: null, handle: "alice", groups: [], email: null });
   });
 
   test("forward-header unsigned path is FAIL-CLOSED when FORWARD_AUTH_TRUSTED_PROXIES is unset (B1)", async () => {
-    const res = await MODE_RESOLVERS["forward-header"](headers({ "x-authentik-username": "alice" }), cfg({ mode: "forward-header" }), {});
+    const res = await MODE_RESOLVERS["forward-header"](headers({ "x-authentik-username": "alice" }), makeAuthConfig({ mode: "forward-header" }), {});
     expect(res).toBeNull();
   });
 });

@@ -10,6 +10,7 @@
 // existing install keeps ten picker rows forever, which is the failure this converge exists to prevent.
 
 import { themes, userSettings } from "@orb/db";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -17,12 +18,12 @@ import { describe } from "vitest";
 import { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_MOCHA_ID } from "#server/domain/settings/constants.ts";
 import { readableTheme } from "#server/domain/settings/persistence/theme-queries.ts";
 import { ensureSeedThemes, SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
-import { FROZEN_AT, makeHarness, principal, seedUser } from "./_support.ts";
+import { makeHarness, principal, seedUser } from "./_support.ts";
 
 describe("ensureSeedThemes", () => {
   test("first boot inserts every registered seed palette at its fixed sentinel id, owner-less", async () => {
     const db = await freshDb();
-    await ensureSeedThemes(db, () => FROZEN_AT);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
     const a = await seedUser(db, { id: "user_a" });
     const rows = await Promise.all(SEED_THEMES.map((t) => readableTheme(db, a, t.id)));
     expect(rows).toHaveLength(SEED_THEMES.length);
@@ -36,8 +37,8 @@ describe("ensureSeedThemes", () => {
   test("is idempotent — a double-run leaves exactly the registry, no duplicates", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    await ensureSeedThemes(db, () => FROZEN_AT);
-    await ensureSeedThemes(db, () => FROZEN_AT + 999);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS + 999);
     const a = await seedUser(db, { id: "user_a" });
     const seeds = (await h.svc.listThemes({ principal: principal(a, "user") })).filter((v) => v.isSeed);
     expect(seeds).toHaveLength(SEED_THEMES.length);
@@ -45,14 +46,14 @@ describe("ensureSeedThemes", () => {
 
   test("a hand-mutated seed row is RESTORED (overwritten) on the next boot", async () => {
     const db = await freshDb();
-    await ensureSeedThemes(db, () => FROZEN_AT);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
     // Simulate an out-of-band DB edit (bypassing the domain — a seed's NULL owner makes it un-mutable
     // through the verb API, so this is the only way a seed row could ever drift).
     await db
       .update(themes)
       .set({ name: "Corrupted", override: { accent: "oklch(0 0 0)" } })
       .where(eq(themes.id, THEME_HEARTH_ID));
-    await ensureSeedThemes(db, () => FROZEN_AT + 1);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS + 1);
     const a = await seedUser(db, { id: "user_a" });
     const row = await readableTheme(db, a, THEME_HEARTH_ID);
     expect(row?.name).toBe(THEME_HEARTH_NAME);
@@ -61,7 +62,7 @@ describe("ensureSeedThemes", () => {
 
   test("the shipped set is the D62 three — a retired palette is not seeded", async () => {
     const db = await freshDb();
-    await ensureSeedThemes(db, () => FROZEN_AT);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
     const a = await seedUser(db, { id: "user_a" });
     expect(SEED_THEMES.map((t) => t.name)).toEqual([THEME_HEARTH_NAME, "Mocha", "Light"]);
     const rows = await Promise.all(RETIRED_SEED_THEME_IDS.map((id) => readableTheme(db, a, id)));
@@ -83,12 +84,12 @@ describe("ensureSeedThemes", () => {
         name: `Retired ${i}`,
         override: { accent: "oklch(0.7 0.14 250)" },
         css: null,
-        createdAt: FROZEN_AT,
-        updatedAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
+        updatedAt: FROZEN_AT_MS,
       })),
     );
 
-    await ensureSeedThemes(db, () => FROZEN_AT + 1);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS + 1);
 
     const rows = await Promise.all(RETIRED_SEED_THEME_IDS.map((id) => readableTheme(db, a, id)));
     expect(rows, "every retired palette is gone").toEqual(RETIRED_SEED_THEME_IDS.map(() => undefined));
@@ -106,13 +107,13 @@ describe("ensureSeedThemes", () => {
       name: "Charlotte",
       override: { accent: "oklch(0.74 0.1 248)" },
       css: null,
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     });
     // Duplicate-to-customize: THEIR row, holding the same palette.
     const mine = await h.svc.duplicateTheme({ principal: principal(a, "user"), id: RETIRED_SEED_THEME_IDS[0] ?? THEME_LIGHT_ID });
 
-    await ensureSeedThemes(db, () => FROZEN_AT + 1);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS + 1);
 
     const view = await h.svc.getTheme({ principal: principal(a, "user"), id: mine.id });
     expect(view.name).toBe("Charlotte copy");
@@ -134,13 +135,13 @@ describe("ensureSeedThemes", () => {
       name: "Charlotte",
       override: {},
       css: null,
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     });
     await h.svc.updateUserSettingsSection({ principal: principal(doomed, "user"), input: { section: "theme", patch: { selectedThemeId: retiredId } } });
     await h.svc.updateUserSettingsSection({ principal: principal(keeper, "user"), input: { section: "theme", patch: { selectedThemeId: THEME_MOCHA_ID } } });
 
-    await ensureSeedThemes(db, () => FROZEN_AT + 1);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS + 1);
 
     const healed = await h.svc.getUserSettings({ principal: principal(doomed, "user") });
     expect(healed.config.theme.selectedThemeId).toBeNull();
@@ -148,7 +149,7 @@ describe("ensureSeedThemes", () => {
     expect(untouched.config.theme.selectedThemeId).toBe(THEME_MOCHA_ID);
     // ONLY-IF-SET: the keeper's row was not rewritten at all (its updatedAt is still its own write's).
     const rows = await db.select().from(userSettings).where(eq(userSettings.userId, keeper));
-    expect(rows[0]?.updatedAt).toBe(FROZEN_AT);
+    expect(rows[0]?.updatedAt).toBe(FROZEN_AT_MS);
   });
 
   test("re-seeding never touches a user-owned theme", async () => {
@@ -159,7 +160,7 @@ describe("ensureSeedThemes", () => {
       principal: principal(a, "user"),
       input: { name: "Mine", override: {} },
     });
-    await ensureSeedThemes(db, () => FROZEN_AT);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
     const view = await h.svc.getTheme({ principal: principal(a, "user"), id: mine.id });
     expect(view.name).toBe("Mine");
   });

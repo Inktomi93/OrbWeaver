@@ -17,7 +17,6 @@
 // SUCCEED. A refusal test that would also pass with the belt deleted proves nothing; the paired success is
 // what makes each `expect(...).rejects` a statement about the belt rather than about the fixture.
 
-// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: greetings.map): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -62,8 +61,8 @@ const REWRITTEN_ALT = "And its rewritten alternate.";
 
 /** The card the verb re-reads to resolve an index. */
 function cardWith(greetings: readonly string[]): CharacterCard {
-  // @orb-waive no-test-fabrication(never): this path reads exactly one field (`greetings`) — a full CharacterCard literal would be twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  return { name: "Aria", greetings: greetings.map((text) => ({ text })) } as never;
+  // @orb-waive no-test-fabrication(unknown): this path reads exactly one field (`greetings`) — a full CharacterCard literal would be twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  return { name: "Aria", greetings: greetings.map((text) => ({ text })) } as unknown as CharacterCard;
 }
 
 /** The edit bundle under a recorder emit + a card resolver. `noClaim` — the claim chokepoint is R0's and has

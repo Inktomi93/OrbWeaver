@@ -3,11 +3,10 @@
 // the caller can refuse an ambiguity.
 // @subject packages/server/src/domain/character/verbs/find-by-name.ts
 
-// @orb-waive-file no-vanity-alias(FROZEN_AT_MS): baselined when the gate widened; burn-down item 906.
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
-import { FROZEN_AT_MS as FROZEN_AT } from "@orb/testkit/iso/clock.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -29,8 +28,8 @@ describe("findByName", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const newer = await seedRawCharacter(db, { id: "character_newer", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT + 1 });
-    const older = await seedRawCharacter(db, { id: "character_older", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT });
+    const newer = await seedRawCharacter(db, { id: "character_newer", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT_MS + 1 });
+    const older = await seedRawCharacter(db, { id: "character_older", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT_MS });
     await seedRawCharacter(db, { id: "character_foreign", ownerId: other, name: "Elias Thorn" });
     await seedRawCharacter(db, { id: "character_group", ownerId: owner, name: "Elias Thorn", synthetic: true });
 

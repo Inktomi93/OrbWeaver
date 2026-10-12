@@ -2,6 +2,7 @@
 // with full motion (view transitions live). The landing must reach the invite sign-up form, never the crash
 // fallback, and the raw token must leave the address bar without adding a history entry.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -42,10 +43,7 @@ test("a slow auth read on a signed-out /join landing reaches the invite form, no
   const meReads: string[] = [];
   await stubAuthMe(page, async (request) => {
     meReads.push(request.url());
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, SLOW_ME_MS);
-    });
+    await sleep(SLOW_ME_MS);
     return SIGNED_OUT_ME;
   });
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));
@@ -81,8 +79,7 @@ test("overlapping navigations during a slow guard settle on the latest login loc
   let reads = 0;
   await stubAuthMe(page, async () => {
     reads += 1;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise<void>((resolve) => setTimeout(resolve, SLOW_ME_MS));
+    await sleep(SLOW_ME_MS);
     return SIGNED_OUT_ME;
   });
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));

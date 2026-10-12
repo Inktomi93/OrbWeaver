@@ -3,7 +3,6 @@
 // The request ring's planted controls use tiny limits so each fence is crossed deliberately. The fake
 // page is only an EventEmitter because this test owns the ring's event/accounting contract; the sibling
 // browser integration proves the same attachment against Playwright.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { EventEmitter } from "node:events";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Page, Request, Response } from "@playwright/test";
@@ -62,12 +61,7 @@ function issue(page: EventEmitter & Page, url: string, body: string, contentType
 }
 
 function deferred<T>(): { readonly promise: Promise<T>; readonly resolve: (value: T) => void; readonly reject: (reason: Error) => void } {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: Error) => void;
-  const promise = new Promise<T>((accept, refuse) => {
-    resolve = accept;
-    reject = refuse;
-  });
+  const { promise, resolve, reject } = Promise.withResolvers<T>();
   return { promise, resolve, reject };
 }
 

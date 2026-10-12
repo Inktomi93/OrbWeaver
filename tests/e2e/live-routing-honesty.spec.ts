@@ -23,6 +23,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { getChatBindingRow, listCanon, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
@@ -61,17 +62,17 @@ test("the chat Model role is what's stored AND what the turn actually rides (loc
 
   // Wait for the ghost to RESOLVE into a durable reply (the greeting also matches a plain assistant-row
   // wait, so gate on the ghost being GONE — that means the generated row committed).
-  await expect(page.locator('[data-slot="ghost-message-row"]')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-slot="ghost-message-row"]')).toHaveCount(0, { timeout: 120_000 });
+  await expect(page.locator('[data-slot="ghost-message-row"]')).toBeVisible({ timeout: WAIT_SETTLE_MS });
+  await expect(page.locator('[data-slot="ghost-message-row"]')).toHaveCount(0, { timeout: WAIT_LIVE_TURN_MS });
 
   // The local gen engine logged a message-POST for this turn (real local traffic).
-  await expect.poll(async () => genPostCount(), { timeout: 15_000 }).toBeGreaterThan(beforePosts);
+  await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
 
   // The new assistant canon row is stamped with the LOCAL model leaf — the "was actually used" proof. Poll
   // canon: the durable commit can lag the ghost-gone frame by a tick.
   await expect
     .poll(async () => (await listCanon(chatId)).filter((c) => c.role === "assistant" && c.model !== null).at(-1)?.model ?? null, {
-      timeout: 15_000,
+      timeout: WAIT_SURFACE_MS,
     })
     .toBe(LOCAL_MODEL_LEAF);
 });

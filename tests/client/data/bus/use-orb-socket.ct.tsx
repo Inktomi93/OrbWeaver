@@ -12,7 +12,7 @@
 // The rest pins the multiplex claim itself: N rooms cost ONE connect, and a frame for a room nobody joined
 // is dropped (the registry's own rule, and what the real server would never send anyway).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -99,9 +99,7 @@ async function attachesHeldEmpty(socket: { readonly attachedChannels: () => read
     for (const channel of socket.attachedChannels()) {
       seen.add(channel);
     }
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, ABSENCE_HOLD_MS / ABSENCE_SAMPLES);
-    });
+    await sleep(ABSENCE_HOLD_MS / ABSENCE_SAMPLES);
   }
   return [...seen];
 }

@@ -9,7 +9,6 @@
 // `@orb/contracts/discovery` (D34 one-home) and this test pins `duplicate_chat_pairs.relation.enumValues`
 // to that imported tuple. `relation` lives ONLY on the chat table (characters have no fork lineage, D28).
 
-// @orb-waive-file no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
 import { RELATIONS } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import {
@@ -204,6 +203,7 @@ test("duplicate_chat_pairs.relation CHECK rejects a non-member value", async () 
       chatIdB: b,
       cslsScore: 0.5,
       similarity: 0.5,
+      // @orb-waive no-loose-id-cast("nope"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       relation: "nope" as never,
       model: MODEL,
     });

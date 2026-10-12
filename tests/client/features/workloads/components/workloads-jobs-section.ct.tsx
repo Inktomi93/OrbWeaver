@@ -18,6 +18,7 @@ import { WORKLOAD_KIND_LABELS } from "@orb/client/features/workloads";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { OrbSocketRecorder } from "@orb/testkit/node/route-orb-socket.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -78,9 +79,9 @@ function workloadRowBase(id = "workload_ct_1"): WorkloadRowBase {
     dependsOn: null,
     error: null,
     progress: null,
-    scheduledAt: 1_750_000_000_000,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    scheduledAt: FROZEN_AT_MS,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 

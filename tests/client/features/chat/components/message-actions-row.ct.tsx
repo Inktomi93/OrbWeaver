@@ -23,8 +23,6 @@ const REST_INERT_RE = /\bpointer-events-none\b/u;
 const HOVER_REVEAL_RE = /group-hover:opacity-100/u;
 const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
 const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
-// @orb-waive no-vanity-alias(MENU_TRIGGER): baselined when the gate widened; burn-down item 906.
-const MENU_TRIGGER = MESSAGE_ACTIONS_MENU_NAME;
 const UNDO_CONTINUE = "Undo last continuation";
 const REVERT_CONTINUE = "Re-apply continuation";
 const NEEDS_CONTINUATION_REASON = "Continue this reply first — there's no added text to undo yet";
@@ -45,7 +43,7 @@ async function revealActions(component: Locator): Promise<void> {
 /** Reveal the cluster, then open the ⋯ menu (Hide/Copy/Delete live inside it now). */
 async function openActionsMenu(component: Locator): Promise<void> {
   await revealActions(component);
-  await component.getByRole("button", { name: MENU_TRIGGER }).click();
+  await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
 }
 
 /** Menu items portal to the page body — resolve them off the page, never the component root. */

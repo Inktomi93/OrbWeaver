@@ -8,11 +8,11 @@ import type { CharacterId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "@orb/server/domain/discovery";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshCountedDb, freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
-  FROZEN_AT,
   makeDiscoveryHarness,
   seedAsset,
   seedCharacter,
@@ -41,7 +41,7 @@ async function seedCluster(db: Db, args: { id: string; ownerId: UserId; level?: 
     name: args.name ?? "Adventure",
     size: 1,
     model: "test-embed-model-1024",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -111,7 +111,7 @@ describe("themeDetail", () => {
       digestId: castId("digest_1"),
       themeClusterId: cluster,
       msgMidAt: JAN_2024,
-      computedAt: FROZEN_AT,
+      computedAt: FROZEN_AT_MS,
     });
 
     const detail = await svcFor(db).themeDetail(owner, 3, "scene");
@@ -173,7 +173,7 @@ describe("characterDossier", () => {
       tags: ["dragons", "curse"],
       elevatorPitch: "A cursed knight.",
       model: "test-embed-model-1024",
-      computedAt: FROZEN_AT,
+      computedAt: FROZEN_AT_MS,
     });
     // A paired card-text + avatar vector in the SAME model space → the in-RAM portrait cosine.
     await seedCharacterEmbedding(db, { characterId: hero, embedding: vec(1) });
@@ -213,7 +213,7 @@ describe("characterDossier", () => {
       tags: [],
       elevatorPitch: null,
       model: "test-embed-model-1024",
-      computedAt: FROZEN_AT,
+      computedAt: FROZEN_AT_MS,
     });
 
     const dossier = await dossierSvc(db).characterDossier(owner, bare);
@@ -247,7 +247,7 @@ describe("characterDossier", () => {
           tags: [],
           elevatorPitch: null,
           model: "test-embed-model-1024",
-          computedAt: FROZEN_AT,
+          computedAt: FROZEN_AT_MS,
         });
       }
     }

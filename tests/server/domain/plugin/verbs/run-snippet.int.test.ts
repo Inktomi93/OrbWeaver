@@ -7,7 +7,6 @@
 // run lives in port.test.ts + the composed-real transport int; this is the domain-tree behavioral mirror
 // (test-presence + contract-verb-presence).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle } from "@orb/kit/ids";
@@ -81,10 +80,7 @@ describe("runSnippet — the per-user concurrency ceiling (P2-F)", () => {
    *  ceiling is about (a request bucket counts calls; this counts held contexts). */
   function gatedPort(): { port: PluginHostPort; release: () => void; started: () => number } {
     let started = 0;
-    let open!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      open = resolve;
-    });
+    const { promise: gate, resolve: open } = Promise.withResolvers<void>();
     const notUsed = (): Promise<never> => Promise.reject(new Error("not exercised by the runSnippet verb"));
     return {
       port: {

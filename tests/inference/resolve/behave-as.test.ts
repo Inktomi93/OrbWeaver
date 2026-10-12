@@ -10,9 +10,9 @@ import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { detectServer } from "#inference/catalog/detect.ts";
+import type { LocalServerArm } from "../_support.ts";
 import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../backends/openai-compat/_ollama-native-recordings.ts";
-import type { LocalServerArm } from "../catalog/_local-servers-fetch.ts";
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
 
 const BASE_URL = "http://127.0.0.1:1/v1";

@@ -1,4 +1,3 @@
-// @orb-waive-file platform-spellings(expectedRows): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
@@ -37,7 +36,7 @@ test("ships stage-safe behavioral tapes for every historical Appearance row", ()
   const checkpoints = specs.flatMap((spec) => spec.checkpoints);
   const expectedRows = appearanceMatrixContract().historicalRows.map((row) => row.id);
 
-  expect(checkpoints.map((checkpoint) => checkpoint.name).sort()).toEqual([...expectedRows].sort());
+  expect(checkpoints.map((checkpoint) => checkpoint.name).sort()).toEqual(expectedRows.toSorted());
   expect(new Set(checkpoints.map((checkpoint) => checkpoint.name)).size).toBe(checkpoints.length);
   for (const spec of specs) {
     for (const checkpoint of spec.checkpoints) {

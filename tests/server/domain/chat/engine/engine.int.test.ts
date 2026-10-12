@@ -4,10 +4,10 @@
 // RETURNS the aborted outcome — an abort is an outcome, not an exception), and the pre-start belt refusals
 // (locked — the budget/consent belts were retired by @orb/inference §14 F11/F13).
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication({ connection: { capability: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ terminalToolCalls: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ turnId?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(stmts): baselined when the gate widened; burn-down item 906.
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -35,6 +35,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { applyStatsDelta, reconcileStats } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -58,7 +59,6 @@ import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadStreamReplay, loadTurnOrigin } from "#server/domain/chat/persistence/queries.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import {
-  FROZEN_AT,
   fakeRecallResult,
   makeChatContext,
   seedCharacter,
@@ -327,20 +327,12 @@ describe("createTurnEngine — happy path", () => {
 
   test("owns the delta drain: terminal success cannot overtake a held delta emit", async () => {
     const chatId = await seedChat(db, "delta-order");
-    let releaseDelta: (() => void) | undefined;
-    let markDeltaStarted: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const deltaStarted = new Promise<void>((resolve) => {
-      markDeltaStarted = resolve;
-    });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const heldDelta = new Promise<void>((resolve) => {
-      releaseDelta = resolve;
-    });
+    const { promise: deltaStarted, resolve: markDeltaStarted } = Promise.withResolvers<void>();
+    const { promise: heldDelta, resolve: releaseDelta } = Promise.withResolvers<void>();
     const h = harness(db, {
       emit: (event): Promise<void> => {
         if (event.type === "delta") {
-          markDeltaStarted?.();
+          markDeltaStarted();
           return heldDelta;
         }
         return Promise.resolve();
@@ -357,7 +349,7 @@ describe("createTurnEngine — happy path", () => {
     expect(types(h.events)).not.toContain("messageCommitted");
     expect(types(h.events)).not.toContain("turnCompleted");
 
-    releaseDelta?.();
+    releaseDelta();
     await turn;
     expect(types(h.events).indexOf("delta")).toBeLessThan(types(h.events).indexOf("turnCompleted"));
   });
@@ -1061,34 +1053,22 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
   test("a generation failure emits turnAborted(error) THEN rethrows; lock released", async () => {
     const chatId = await seedChat(db, "a");
-    let releaseDelta: (() => void) | undefined;
-    let markDeltaStarted: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const deltaStarted = new Promise<void>((resolve) => {
-      markDeltaStarted = resolve;
-    });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const heldDelta = new Promise<void>((resolve) => {
-      releaseDelta = resolve;
-    });
-    let markProviderFailed: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const providerFailed = new Promise<void>((resolve) => {
-      markProviderFailed = resolve;
-    });
+    const { promise: deltaStarted, resolve: markDeltaStarted } = Promise.withResolvers<void>();
+    const { promise: heldDelta, resolve: releaseDelta } = Promise.withResolvers<void>();
+    const { promise: providerFailed, resolve: markProviderFailed } = Promise.withResolvers<void>();
     // A partial stream then a mid-flight failure (the realistic error path).
     const throwing: ChatContext["runChatTurn"] = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
         await Promise.resolve();
         yield { kind: "text", text: "partial" };
-        markProviderFailed?.();
+        markProviderFailed();
         throw new Error("model exploded");
       })();
     const h = harness(db, {
       runChatTurn: throwing,
       emit: (event): Promise<void> => {
         if (event.type === "delta") {
-          markDeltaStarted?.();
+          markDeltaStarted();
           return heldDelta;
         }
         return Promise.resolve();
@@ -1111,7 +1091,7 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
     expect(settled).toBe(false);
     expect(types(h.events)).not.toContain("turnAborted");
 
-    releaseDelta?.();
+    releaseDelta();
     await expect(turn).rejects.toThrow("model exploded");
 
     const aborted = h.events.find((e) => e.type === "turnAborted");
@@ -1136,8 +1116,8 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",
-      now: FROZEN_AT,
-      expiresAt: FROZEN_AT + 60_000,
+      now: FROZEN_AT_MS,
+      expiresAt: FROZEN_AT_MS + 60_000,
     });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId))).rejects.toBeInstanceOf(ChatOperationError);
@@ -1157,7 +1137,7 @@ describe("createTurnEngine — an ACCEPTED turn's pre-start refusals CLOSE the s
   // `locked` and MISSING-persist-target arms below — every accepted-then-refused turn owes one turnAborted.
   test("a held lock → locked + exactly turnAborted(error)", async () => {
     const chatId = await seedChat(db, "a");
-    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
+    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT_MS, expiresAt: FROZEN_AT_MS + 60_000 });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true }))).rejects.toMatchObject({ code: "locked" });
     expect(types(h.events)).toEqual(["turnAborted"]);
@@ -1181,7 +1161,7 @@ describe("createTurnEngine — an ACCEPTED turn's pre-start refusals CLOSE the s
 
   test("an AUTOMATION-initiated accepted turn's refusal carries its cascade depth (the retry-loop guard)", async () => {
     const chatId = await seedChat(db, "a");
-    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
+    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT_MS, expiresAt: FROZEN_AT_MS + 60_000 });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true, automationDepth: 2 }))).rejects.toMatchObject({ code: "locked" });
     expect(h.events[0]).toMatchObject({ type: "turnAborted", automationDepth: 2 });
@@ -1388,8 +1368,8 @@ describe("createTurnEngine — generate (LOCK-FREE; active-turns)", () => {
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",
-      now: FROZEN_AT,
-      expiresAt: FROZEN_AT + 60_000,
+      now: FROZEN_AT_MS,
+      expiresAt: FROZEN_AT_MS + 60_000,
     });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId, { kind: "send" }))).rejects.toMatchObject({
@@ -1417,14 +1397,14 @@ describe("createTurnEngine — F3: new-slot seq-collision retry (lock-free gener
     const racedDb = new Proxy(db, {
       get(target, prop, receiver) {
         if (prop === "batch") {
-          return async (stmts: unknown) => {
+          return async (stmts: Parameters<Db["batch"]>[0]) => {
             if (!tripped) {
               tripped = true;
               const claimed = (await loadMaxMessageSeq(db, chatId)) + 1;
               await seedMessage(db, chatId, claimed, { content: "racer" });
               throw new Error("SQLITE_CONSTRAINT: UNIQUE constraint failed: messages.chat_id, seq");
             }
-            return (target as Db).batch(stmts as never);
+            return (target as Db).batch(stmts);
           };
         }
         const value = Reflect.get(target, prop, receiver);
@@ -1581,11 +1561,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
   test("the rpg turn-abort staging clear opens its OWN request trace", async () => {
     initTracing();
     const chatId = await seedChat(db, "rpg-abort-trace");
-    let clearDone: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const cleared = new Promise<void>((resolve) => {
-      clearDone = resolve;
-    });
+    const { promise: cleared, resolve: clearDone } = Promise.withResolvers<void>();
     // The abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent in
     // tests/server/domain/chat/verbs/turn.int.test.ts).
     // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
@@ -1621,11 +1597,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
     await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     await seedParticipant(db, { chatId, key: "aria", characterId: char });
-    let buildDone: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const built = new Promise<void>((resolve) => {
-      buildDone = resolve;
-    });
+    const { promise: built, resolve: buildDone } = Promise.withResolvers<void>();
     const h = harness(db, {
       generateSegments: async () => {
         await Promise.resolve();
@@ -1692,11 +1664,7 @@ describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never 
 
   test("…PLANTED CONTROL: a RESOLVING rpg turn-abort clear logs nothing", async () => {
     const chatId = await seedChat(db, "rpg-abort-hook-quiet");
-    let clearDone: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const cleared = new Promise<void>((resolve) => {
-      clearDone = resolve;
-    });
+    const { promise: cleared, resolve: clearDone } = Promise.withResolvers<void>();
     // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnAborted: async () => {
@@ -1729,16 +1697,8 @@ const HEARTBEAT_TTL = 90;
 /** A provider whose stream blocks at `final` until `release()` is called — holds the turn open so a heartbeat
  *  (and a concurrent lock steal) can land mid-generation. */
 function gatedProvider(): { runChatTurn: ChatContext["runChatTurn"]; started: Promise<void>; release: () => void } {
-  let markStarted!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const started = new Promise<void>((r) => {
-    markStarted = r;
-  });
-  let unblock!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const gate = new Promise<void>((r) => {
-    unblock = r;
-  });
+  const { promise: started, resolve: markStarted } = Promise.withResolvers<void>();
+  const { promise: gate, resolve: unblock } = Promise.withResolvers<void>();
   const runChatTurn: ChatContext["runChatTurn"] = () =>
     (async function* (): AsyncGenerator<TurnStreamChunk> {
       markStarted();
@@ -1759,7 +1719,7 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     const chatId = await seedChat(db, "hb");
     const provider = gatedProvider();
     // Advancing clock: each `now()` read is later, so a refresh writes a strictly larger `expiresAt`.
-    let clock = FROZEN_AT;
+    let clock = FROZEN_AT_MS;
     const now = (): number => {
       clock += 1000;
       return clock;
@@ -1793,8 +1753,8 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     const stolen = await tryAcquireLock(db, {
       chatId,
       holder: "replica-2",
-      now: FROZEN_AT + HEARTBEAT_TTL + 10,
-      expiresAt: FROZEN_AT + HEARTBEAT_TTL + 10 + HEARTBEAT_TTL,
+      now: FROZEN_AT_MS + HEARTBEAT_TTL + 10,
+      expiresAt: FROZEN_AT_MS + HEARTBEAT_TTL + 10 + HEARTBEAT_TTL,
     });
     expect(stolen).toBe(true);
 
@@ -1805,7 +1765,7 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     // The dead turn committed no assistant row — the thief is the sole canon writer.
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
     // The holder-scoped release is a no-op after the steal: replica-2's lock survives untouched.
-    expect(await tryAcquireLock(db, { chatId, holder: "replica-3", now: FROZEN_AT, expiresAt: FROZEN_AT + HEARTBEAT_TTL })).toBe(false);
+    expect(await tryAcquireLock(db, { chatId, holder: "replica-3", now: FROZEN_AT_MS, expiresAt: FROZEN_AT_MS + HEARTBEAT_TTL })).toBe(false);
   });
 
   test("stops the heartbeat on every exit path — no timer leaks past success OR throw", async () => {
@@ -2112,7 +2072,7 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     await seedConnection(db, await seedUser(db, castId<Handle>("host")));
     const resolved = resolveChat({ temperature: 0.9 }, NoSamplingCapability);
     const knobDropped = createRunChatTurnBridge({
-      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT) }),
+      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT_MS) }),
     });
     const h = harness(db, { runChatTurn: knobDropped });
 
@@ -2216,8 +2176,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
 
     await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet }));
     // The flush is fire-and-forget on a detached root — let the task queue drain.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
 
     // The calls handed to rpg are PASS 1's. The recovery pass rode tool-less, so its own channel is null;
     // returning that would silently drop the beat's state, which is the bug this feature exists to fix.
@@ -2244,8 +2203,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
     const h = harness(db, { rpg });
 
     await h.engine.runTurn(prepOf(chatId, { connection: floor, intent: { maxContextTokens: 16_384 } }));
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
 
     expect(seen[0]).toMatchObject({ generation: { context: { window: 16_384 } } });
   });
@@ -2504,7 +2462,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
           providerId: request.connection.providerId,
           resumed: calls > 1,
           savedTotals: calls === 1 ? NO_SAVED_TOTALS : { costUsd: 0.25, webSearchRequests: 0 },
-          now: () => FROZEN_AT,
+          now: () => FROZEN_AT_MS,
           appliedEffort: null,
           secrets: resolvedScrubSet(request.connection),
           onObservedResult: (result) => observeChatResult(request, result),
@@ -2520,7 +2478,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
   const first = await h.engine.runTurn(prepOf(chatId, { connection, speakerCharacterId: characterId }));
   expect(first.aborted).toBe(false);
   const firstMessage = first.messages[0];
@@ -2547,7 +2505,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
   expect(await db.select().from(chatGenerationObservations)).toEqual([]);
   const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0];
   expect(live).toMatchObject({ assistantTurns: 1, costUsd: 0.125, costSamples: 1, notionalCostSamples: 1, tokensIn: 15, tokensOut: 20 });
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
     assistantTurns: 1,
     costUsd: 0.125,
@@ -2573,7 +2531,7 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
           providerId: request.connection.providerId,
           resumed: false,
           savedTotals: NO_SAVED_TOTALS,
-          now: () => FROZEN_AT,
+          now: () => FROZEN_AT_MS,
           appliedEffort: null,
           secrets: resolvedScrubSet(request.connection),
           onObservedResult: (result) => observeChatResult(request, result),
@@ -2608,7 +2566,7 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
       terminalReason: "api_error",
     },
   ]);
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
     assistantTurns: 0,
     costUsd: 0.25,
@@ -2651,7 +2609,7 @@ test.for([
           providerId: request.connection.providerId,
           resumed: false,
           savedTotals: NO_SAVED_TOTALS,
-          now: () => FROZEN_AT,
+          now: () => FROZEN_AT_MS,
           appliedEffort: null,
           secrets: resolvedScrubSet(request.connection),
           onObservedResult: (result) => observeChatResult(request, result),

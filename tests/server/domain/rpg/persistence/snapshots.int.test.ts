@@ -5,12 +5,11 @@
 // exercised in isolation, in fall-through order, and with the two arms INTERLEAVED (the case that did not
 // exist before D124 and is the whole risk surface of the reshape).
 
-// @orb-waive-file no-loose-id-cast("not-an-array"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(`message_${opts.chatId}_${opts.seq}`): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(opts.chatId): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
-import type { ChatId, MessageVariantId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -26,7 +25,7 @@ import {
   writeHandSnapshot,
   writeStagedSnapshot,
 } from "#server/domain/rpg/persistence/snapshots.ts";
-import { addVariant, emptyState, expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support.ts";
+import { addVariant, emptyState, expect, handTarget, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support.ts";
 
 const CORRUPT_TABLE_RE = /rpg_snapshots/;
 const POOLS_MAX_RE = /pools|max/i;
@@ -38,7 +37,7 @@ beforeEach(async () => {
 
 /** Insert a committed snapshot keyed to a variant, carrying a marker location. */
 async function seedSnapshot(opts: {
-  gameId: string;
+  gameId: RpgGameId;
   chatId: ChatId;
   seq: number;
   variantId: MessageVariantId;
@@ -48,13 +47,12 @@ async function seedSnapshot(opts: {
 }): Promise<void> {
   await insertSnapshot(db, {
     id: snapshotId(opts.key),
-    // @orb-waive no-loose-id-cast(opts.gameId): baselined when the gate widened; burn-down item 906.
-    gameId: opts.gameId as never,
-    messageId: `message_${opts.chatId}_${opts.seq}` as never,
+    gameId: opts.gameId,
+    messageId: castId<MessageId>(`message_${opts.chatId}_${opts.seq}`),
     variantId: opts.variantId,
     location: opts.location,
     committed: opts.committed ?? 1,
-    createdAt: FROZEN_AT + opts.seq,
+    createdAt: FROZEN_AT_MS + opts.seq,
   });
 }
 
@@ -334,6 +332,7 @@ describe("parse-on-read corruption belt", () => {
     // Poison the quests column past the schema (a string where an array of quest objects belongs).
     await db
       .update(rpgSnapshots)
+      // @orb-waive no-loose-id-cast("not-an-array"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ quests: "not-an-array" as never })
       .where(eq(rpgSnapshots.variantId, variantId));
 
@@ -396,13 +395,12 @@ describe("write-boundary structural backstop (stickler F1)", () => {
 // order stamp. These tests pin the order the ladder now decides, in both walks.
 
 /** Write a hand row carrying a marker location; `now` drives the createdAt tie-break inside one as-of slot. */
-async function seedHandRow(opts: { gameId: string; chatId: ChatId; key: string; location: string; now?: number }): Promise<void> {
+async function seedHandRow(opts: { gameId: RpgGameId; chatId: ChatId; key: string; location: string; now?: number }): Promise<void> {
   await writeHandSnapshot(
     db,
     { ...emptyState(), location: opts.location },
     null,
-    // @orb-waive no-loose-id-cast(opts.gameId): baselined when the gate widened; burn-down item 906.
-    handTarget({ gameId: opts.gameId as never, chatId: opts.chatId as never, key: opts.key, now: opts.now ?? FROZEN_AT }),
+    handTarget({ gameId: opts.gameId, chatId: opts.chatId, key: opts.key, now: opts.now ?? FROZEN_AT_MS }),
   );
 }
 
@@ -458,7 +456,7 @@ describe("the hand arm — a snapshot with no message", () => {
     // The flagship demo's authored setup: N consecutive hand writes on a committed head. Pre-D124 this was
     // N blank "Group" bubbles in the transcript and N `"mes":""` rows in every export.
     for (let i = 0; i < 8; i++) {
-      await seedHandRow({ gameId, chatId, key: `burst_${i}`, location: `hand-${i}`, now: FROZEN_AT + i });
+      await seedHandRow({ gameId, chatId, key: `burst_${i}`, location: `hand-${i}`, now: FROZEN_AT_MS + i });
     }
 
     // THE EXPORT PROOF, stated at its source: `export-chat.ts::loadParsedMessages` is exactly this query
@@ -507,8 +505,8 @@ describe("the hand arm — a snapshot with no message", () => {
     const gameId = await seedGame(db, chatId);
     const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
     await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
-    await seedHandRow({ gameId, chatId, key: "h1", location: "hand-1", now: FROZEN_AT + 1 });
-    await seedHandRow({ gameId, chatId, key: "h2", location: "hand-2", now: FROZEN_AT + 2 });
+    await seedHandRow({ gameId, chatId, key: "h1", location: "hand-1", now: FROZEN_AT_MS + 1 });
+    await seedHandRow({ gameId, chatId, key: "h2", location: "hand-2", now: FROZEN_AT_MS + 2 });
 
     // cur = the newest hand row; prev = the one immediately before it (NOT the turn row two rungs back).
     const pair = await resolveTurnSnapshotPair(db, { id: gameId, chatId });
@@ -556,7 +554,7 @@ describe("the two-arm CHECK", () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
-    await expect(insertSnapshot(db, { id: snapshotId("bad"), gameId, messageId: beat.messageId, variantId: null, createdAt: FROZEN_AT })).rejects.toThrow();
+    await expect(insertSnapshot(db, { id: snapshotId("bad"), gameId, messageId: beat.messageId, variantId: null, createdAt: FROZEN_AT_MS })).rejects.toThrow();
   });
 
   test("a TURN row carrying an as-of stamp is refused (a turn row IS its own position)", async () => {
@@ -570,7 +568,7 @@ describe("the two-arm CHECK", () => {
         messageId: beat.messageId,
         variantId: beat.variantId,
         asOfMessageId: beat.messageId,
-        createdAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
       }),
     ).rejects.toThrow();
   });
@@ -586,7 +584,7 @@ describe("the two-arm CHECK", () => {
 
     // The turn arm's UNIQUE is untouched: a second snapshot on the SAME variant is still refused.
     await expect(
-      insertSnapshot(db, { id: snapshotId("dup"), gameId, messageId: beat.messageId, variantId: beat.variantId, createdAt: FROZEN_AT }),
+      insertSnapshot(db, { id: snapshotId("dup"), gameId, messageId: beat.messageId, variantId: beat.variantId, createdAt: FROZEN_AT_MS }),
     ).rejects.toThrow();
   });
 });
@@ -614,7 +612,7 @@ describe("the cross-chat lineage invariant", () => {
     const slotB = await seedMessage(db, chatB, 1, { role: "assistant" });
 
     // Room A's game anchored to room B's turn. Every FK resolves, so the write SUCCEEDS.
-    await insertSnapshot(db, { id: snapshotId("cross"), gameId: gameA, messageId: slotB.messageId, variantId: slotB.variantId, createdAt: FROZEN_AT });
+    await insertSnapshot(db, { id: snapshotId("cross"), gameId: gameA, messageId: slotB.messageId, variantId: slotB.variantId, createdAt: FROZEN_AT_MS });
     const stored = (
       await db
         .select()

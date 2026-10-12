@@ -1,4 +1,5 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — per-call enums over the live scene and cast, usage logging, the empty and phantom extraction signals, host resolution and the unresolvable-connection degrade.
 
@@ -13,7 +14,7 @@ import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import {
   buildCannedRpg,
   buildCannedRpgWithText,
@@ -68,7 +69,7 @@ test("F4: presentRemove enum names an existing scene NPC + party.targetRef reach
     gameId,
     messageId: baseMsg,
     variantId: baseVar,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, baseVar);
@@ -114,7 +115,7 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
         },
       })),
     },
-    { id: castId("rpg_snapshot_r5a"), gameId, messageId: baseMsg, variantId: baseVar, now: FROZEN_AT },
+    { id: castId("rpg_snapshot_r5a"), gameId, messageId: baseMsg, variantId: baseVar, now: FROZEN_AT_MS },
   );
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, baseVar);
@@ -269,7 +270,7 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
 function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unknown): ReturnType<typeof buildRpg> {
   return buildRpg({
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),

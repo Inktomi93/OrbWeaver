@@ -13,7 +13,6 @@
 // real persisted DELTAS (the token-carrying member), not just that the wiring is shaped right.
 
 // @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
@@ -567,17 +566,14 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
     const user = await seedUser(db, castId<Handle>("never_auth_user"));
     const chatId = mintTypeId(ID_PREFIX.chat);
     const read = createRead(makeChatContext(db), readDeps());
-    let markInitialChecked: (() => void) | undefined;
-    const initialChecked = new Promise<void>((resolve) => {
-      markInitialChecked = resolve;
-    });
+    const { promise: initialChecked, resolve: markInitialChecked } = Promise.withResolvers<void>();
     const observed = {
       ...read,
       chatEventBounds: async (...args: Parameters<typeof read.chatEventBounds>): ReturnType<typeof read.chatEventBounds> => {
         try {
           return await read.chatEventBounds(...args);
         } finally {
-          markInitialChecked?.();
+          markInitialChecked();
         }
       },
     };

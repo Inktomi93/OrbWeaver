@@ -5,10 +5,11 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, ensureSystemDefaultPreset, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { FROZEN_AT, makeHarness, seedPreset, seedUser } from "../_support.ts";
+import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const PRESET_INSERT = /insert into "presets"/iu;
 
@@ -60,7 +61,7 @@ describe("update (copy-on-write of the system default)", () => {
     const h = makeHarness(db);
     const svc = createPresetService(h.ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const forked = await svc.update({
       userId: owner,
@@ -98,7 +99,7 @@ describe("update (copy-on-write of the system default)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
     const base = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
     expect(base.kind, "the base this forks from is what used to leak into the fork").toBe("system");
 
@@ -116,7 +117,7 @@ describe("update (copy-on-write of the system default)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const forked = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Copy" });
     expect(forked.config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
@@ -126,7 +127,7 @@ describe("update (copy-on-write of the system default)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
     const base = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
 
     const forked = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
@@ -138,7 +139,7 @@ describe("update (copy-on-write of the system default)", () => {
     const h = makeHarness(db);
     const svc = createPresetService(h.ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab A" });
     const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab B" });
@@ -165,7 +166,7 @@ describe("update (copy-on-write of the system default)", () => {
     const h = makeHarness(db);
     const svc = createPresetService(h.ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
     const inserts = hold(PRESET_INSERT, 2);
 
     const updates = [
@@ -185,7 +186,7 @@ describe("update (copy-on-write of the system default)", () => {
     const svc = createPresetService(makeHarness(db).ctx);
     const a = await seedUser(db, "a");
     const b = await seedUser(db, "b");
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const aFork = await svc.update({ userId: a, id: SYSTEM_DEFAULT_PRESET_ID });
     const bFork = await svc.update({ userId: b, id: SYSTEM_DEFAULT_PRESET_ID });
@@ -197,7 +198,7 @@ describe("update (copy-on-write of the system default)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
     // The residual the verb documents: two requests that both read "no fork yet" can still mint two rows.
     const older = await seedPreset(db, { id: castId<PresetId>("preset_race_a"), ownerId: owner, name: "Race A", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
     await seedPreset(db, { id: castId<PresetId>("preset_race_b"), ownerId: owner, name: "Race B", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
@@ -218,7 +219,7 @@ describe("update (the fork intent)", () => {
     const h = makeHarness(db);
     const svc = createPresetService(h.ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab A" });
     const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Default fork 2" } });
@@ -246,7 +247,7 @@ describe("update (the fork intent)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const existing = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
     const edited = { ...DEFAULT_PROMPT_CONFIG, params: { quality: "deep" as const } };
@@ -260,7 +261,7 @@ describe("update (the fork intent)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
     const taken = await seedPreset(db, { id: castId<PresetId>("preset_taken"), ownerId: owner, name: "Default fork 2" });
 
     const minted = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Default fork 2" } });
@@ -275,7 +276,7 @@ describe("update (the fork intent)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const [a, b] = await Promise.all([
       svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Race" } }),
@@ -290,7 +291,7 @@ describe("update (the fork intent)", () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS);
 
     const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "converge" } });
     const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "converge" }, name: "Same row" });

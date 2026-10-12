@@ -13,10 +13,10 @@
 // THE FOUR ABNORMAL ARMS ARE THE POINT. Before #410 all four left the PREVIOUS run's complete-looking
 // artifact on disk, which every reader the doctrine sends there ("read the report, never re-run") would
 // consume as this run's clean verdict.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { plantedPolicySource } from "@orb/testkit/node/planted-gate-corpus.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
@@ -72,9 +72,7 @@ async function waitUntil(check: () => boolean, description: string): Promise<voi
     if (check()) {
       return;
     }
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, POLL_DELAY_MS);
-    });
+    await sleep(POLL_DELAY_MS);
   }
   throw new Error(`timed out waiting for ${description}`);
 }

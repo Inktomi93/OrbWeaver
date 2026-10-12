@@ -2,6 +2,7 @@
 // Exact transcript identity and content are covered by scripted-chat.spec.ts.
 import { expect, test } from "@playwright/test";
 import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
+import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 const STAR_MENU_ITEM = /^(Star|Unstar)$/u;
 
@@ -10,7 +11,7 @@ const STAR_MENU_ITEM = /^(Star|Unstar)$/u;
  *  Enter), which bypasses pointer interception entirely. */
 async function openRowKebab(page: import("@playwright/test").Page): Promise<void> {
   const kebab = page.getByRole("button", { name: "Chat actions" }).first();
-  await expect(kebab).toBeVisible({ timeout: 10_000 });
+  await expect(kebab).toBeVisible({ timeout: WAIT_UI_MS });
   await kebab.focus();
   await kebab.press("Enter");
 }
@@ -20,14 +21,14 @@ test.describe("chat persistence", () => {
     await openOrCreateChat(page);
     const newTitle = `e2e-rename-${Date.now()}`;
     await renameOpenChat(page, newTitle);
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 
     await page.reload();
     await waitForAppReady(page);
     // The unique title survives in the refetched list (cache was gone) — unambiguous persistence proof.
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_UI_MS });
     await reopenFirstChat(page);
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   });
 
   test("star → reload → star state persists", async ({ page }) => {
@@ -47,7 +48,7 @@ test.describe("chat persistence", () => {
     await openRowKebab(page);
     const expectedLabel = wasStarred ? "Star" : "Unstar";
     await expect(page.getByRole("menuitem", { name: expectedLabel })).toBeVisible({
-      timeout: 5000,
+      timeout: WAIT_SHORT_MS,
     });
 
     // Restore original state so reruns don't drift (register the response wait BEFORE the click).

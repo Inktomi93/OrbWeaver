@@ -12,14 +12,13 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { clearVectorTable } from "#server/domain/embeddings/persistence/clear.ts";
 import { upsertCharacterEmbedding } from "#server/domain/embeddings/persistence/queries.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, seedCharacter, seedUser } from "../_support.ts";
-
-const NOW = 1_750_000_000_000;
 
 async function seedGeneration(db: Db, ownerId: UserId, model: string, task: EmbeddingTask = "embed"): Promise<EmbedGenerationId> {
   const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${model}`);
@@ -34,7 +33,7 @@ async function seedGeneration(db: Db, ownerId: UserId, model: string, task: Embe
       connectionRef: castId<UserConnectionId>(`fixture:${model}`),
       fingerprint: `fixture:${model}`,
       space: model,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     })
     .onConflictDoNothing();
   // The owner's current target: an upsert lands only while its generation is one.
@@ -59,7 +58,7 @@ describe("clearVectorTable", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
 

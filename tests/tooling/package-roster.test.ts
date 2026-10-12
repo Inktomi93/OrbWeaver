@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(config): baselined when the gate widened; burn-down item 906.
 import { basename } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { config as knipConfig } from "../../knip.ts";
+import { config } from "../../knip.ts";
 import { WORKSPACE_PACKAGES } from "../../tooling/src/ast/lib/root.ts";
 import { PACKAGE_RESOURCE_PATHS } from "../../tooling/src/verify/contract/resource-config.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../tooling/src/verify/lib/policy-repo-inventory.ts";
@@ -21,7 +20,7 @@ test("world intent, package metadata and Knip match the native packages/* worksp
     .toSorted();
   expect(resourcePackages).toEqual(nativePackages);
 
-  const workspaces = (knipConfig as { readonly workspaces?: Readonly<Record<string, unknown>> }).workspaces ?? {};
+  const workspaces = (config as { readonly workspaces?: Readonly<Record<string, unknown>> }).workspaces ?? {};
   const knipPackages = Object.keys(workspaces)
     .filter((workspace) => workspace.startsWith("packages/"))
     .map((workspace) => workspace.slice("packages/".length))

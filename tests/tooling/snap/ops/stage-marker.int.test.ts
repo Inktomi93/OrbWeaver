@@ -22,6 +22,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
@@ -203,8 +204,7 @@ test("a holder whose stage was replaced on its band stops, and never stamps the 
       holders: [],
     });
     writeRow(home, replacement);
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await sleep(150);
     expect(readBands(home)[0]?.holders).toEqual([]);
     expect(readBands(home)[0]?.lastUsedAt).toBe(AGED_ISO);
   } finally {
@@ -238,8 +238,7 @@ test("a later heartbeat that cannot take the table lock is skipped without waiti
     // Beats keep firing against the held lock; a waiting beat would block this timer for its whole budget.
     // @orb-waive test-determinism(Date.now): the subject is elapsed real time — a beat that waits blocks the event loop.
     const started = Date.now();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await sleep(200);
     // @orb-waive test-determinism(Date.now): the same elapsed-time measurement's end.
     expect(Date.now() - started).toBeLessThan(2000);
     expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid })]);
@@ -393,12 +392,10 @@ withBandsLock(${JSON.stringify(home)}, () => console.log("CLAIMED"));
   const child = spawnNiced("node", [childPath], { timeoutMs: CASE_BUDGET_MS });
   try {
     for (let poll = 0; poll < 200 && !existsSync(attempted); poll += 1) {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((done) => setTimeout(done, 25));
+      await sleep(25);
     }
     expect(existsSync(attempted)).toBe(true);
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((done) => setTimeout(done, CLAIM_HOLD_MS));
+    await sleep(CLAIM_HOLD_MS);
     expect(existsSync(lockDir), "the new lock must survive its ownerless creation window").toBe(true);
   } finally {
     releaseLockDir(lockDir);

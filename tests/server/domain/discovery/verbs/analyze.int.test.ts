@@ -11,11 +11,12 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { SummarizeRecorder } from "../_support.ts";
-import { FROZEN_AT, makeDiscoveryHarness, makeSummarizeRecorder, seedCharacter, seedHostedChat, seedMessage, seedUser } from "../_support.ts";
+import { makeDiscoveryHarness, makeSummarizeRecorder, seedCharacter, seedHostedChat, seedMessage, seedUser } from "../_support.ts";
 
 async function seedCard(
   db: Db,
@@ -41,7 +42,7 @@ async function seedCard(
     tags: args.tags ?? [],
     elevatorPitch: args.pitch ?? null,
     model: "test-summarize-model",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -229,7 +230,7 @@ describe("askCard", () => {
       id: "m1",
       chatId: chat,
       seq: 1,
-      createdAt: FROZEN_AT - 1000,
+      createdAt: FROZEN_AT_MS - 1000,
       characterId: hero,
       variant: { content: "Hero drew the moonblade." },
     });
@@ -237,7 +238,7 @@ describe("askCard", () => {
       id: "m2",
       chatId: chat,
       seq: 2,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
       characterId: hero,
       variant: { content: "Hero swore an oath to the queen." },
     });
@@ -281,7 +282,7 @@ describe("askCard", () => {
     const owner = await seedUser(db, "user_a");
     const hero = await seedCard(db, { id: "character_hero", ownerId: owner, name: "Hero", genre: "fantasy" });
     const chat = await seedHostedChat(db, "chat_1", owner);
-    await seedMessage(db, { id: "m1", chatId: chat, seq: 1, createdAt: FROZEN_AT, characterId: hero, variant: { content: "Hero drew the moonblade." } });
+    await seedMessage(db, { id: "m1", chatId: chat, seq: 1, createdAt: FROZEN_AT_MS, characterId: hero, variant: { content: "Hero drew the moonblade." } });
     // The model never returns the json_schema shape (first turn + retry) — the verb degrades to raw + ungrounded.
     const summarize = makeSummarizeRecorder(["I think they use a sword, probably."]);
 

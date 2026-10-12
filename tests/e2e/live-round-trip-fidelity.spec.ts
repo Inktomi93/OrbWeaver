@@ -20,6 +20,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
+import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   fetchWireCaptures,
   getActivePreset,
@@ -80,7 +81,7 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     expect(msgs.every((m) => !AUTHOR_PREFIX_RE.test(m.content))).toBe(true);
     // DB — the assistant row is stamped with the local model.
     await expect
-      .poll(async () => (await listCanon(chatId)).filter((c) => c.role === "assistant" && c.model !== null).at(-1)?.model ?? null, { timeout: 15_000 })
+      .poll(async () => (await listCanon(chatId)).filter((c) => c.role === "assistant" && c.model !== null).at(-1)?.model ?? null, { timeout: WAIT_SURFACE_MS })
       .toBe(LOCAL_MODEL_LEAF);
   } finally {
     if (preset !== undefined && originalConfig !== undefined) {

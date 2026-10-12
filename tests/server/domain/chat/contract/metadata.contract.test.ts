@@ -6,10 +6,9 @@
 // compile-time shape pins for representative param/result/view types.
 
 // @orb-waive-file no-test-fabrication(UserId): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-loose-id-cast("alex"): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "#server/domain/chat/contract/metadata.ts";
@@ -179,7 +178,7 @@ describe("representative contract shapes", () => {
       principal: {
         userId: "u_1" as UserId,
         role: "user",
-        handle: "alex" as never,
+        handle: castId<Handle>("alex"),
         externalId: null,
         via: "cookie",
       },

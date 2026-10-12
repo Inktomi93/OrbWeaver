@@ -116,12 +116,6 @@ function rowOf(report: StructureReport, name: string): FinalPolicyRow {
   return row;
 }
 
-// @orb-waive no-vanity-alias(finalRow): baselined when the gate widened; burn-down item 906.
-/** `rowOf` already returns the artifact's ONE row shape (#2176 Phase F collapsed the roster to policies), so
- *  this is a readability alias rather than a narrowing. It is kept because the arms below say `finalRow` to
- *  mean "read this row in the policy vocabulary", which is the distinction the file is about. */
-const finalRow = rowOf;
-
 /** The dispatcher's aggregate, which every planted tree here has (a null block means no policy loaded at all). */
 function policyOf(report: StructureReport): StructurePolicyReport {
   if (report.policy === null) {
@@ -160,7 +154,7 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   expect(report.gates.map((g) => `${g.contract}:${g.name}`)).toEqual([`final:${ORDINARY}`, `final:${REVIEWED}`]);
 
   // the rows: authority/severity/owner/population counts/receipts/POLICY_PHASES timing, severity-stamped findings
-  const ordinary = finalRow(report, ORDINARY);
+  const ordinary = rowOf(report, ORDINARY);
   expect(ordinary).toMatchObject({
     authority: "ordinary",
     severity: "error",
@@ -178,7 +172,7 @@ test("one invocation runs the whole roster into one artifact, each row in the co
     { file: UI_MENU, line: 1, column: 32, token: "asChild", severity: "error", message: expect.stringContaining("Radix's composition idiom") },
   ]);
   expect(Object.keys(ordinary.timing.phaseMs).toSorted()).toEqual([...POLICY_PHASES].toSorted());
-  const reviewed = finalRow(report, REVIEWED);
+  const reviewed = rowOf(report, REVIEWED);
   expect(reviewed).toMatchObject({ authority: "reviewed-grant", severity: "error", ok: false, withheld: false, granted: 0 });
   expect(reviewed.violations.map((v) => v.file)).toEqual([STRAY_READ]);
   // No granted subject is planted: every exact central identity must raise its stale alarm.
@@ -261,12 +255,12 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
   );
   await expect(res).toExitWith(1);
   const report = readArtifact(root);
-  const ordinary = finalRow(report, ORDINARY);
+  const ordinary = rowOf(report, ORDINARY);
   expect(ordinary.violations).toEqual([]);
   expect(ordinary.waived).toBe(1);
   expect(ordinary.ok).toBe(true);
   // the reviewed-grant finding survives its foreign marker
-  expect(finalRow(report, REVIEWED).violations).toHaveLength(1);
+  expect(rowOf(report, REVIEWED).violations).toHaveLength(1);
   const alarms = policyOf(report).authority.alarms;
   expect(alarms).toEqual(
     expect.arrayContaining([
@@ -289,7 +283,7 @@ test("a reviewed grant reaches only a final reviewed-grant policy: the real row'
   );
   await expect(res).toExitWith(1);
   const report = readArtifact(root);
-  const reviewed = finalRow(report, REVIEWED);
+  const reviewed = rowOf(report, REVIEWED);
   expect(reviewed.violations).toEqual([]);
   expect(reviewed.granted).toBe(1);
   expect(policyOf(report).authority.reviewedGrantConsumption.find(({ id }) => id === "no-raw-matchmedia:coarse-pointer-now")?.count).toBe(1);
@@ -376,7 +370,7 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   );
   await expect(res).toExitWith(2);
   const report = readArtifact(root);
-  const failed = finalRow(report, HARD_RESOURCE);
+  const failed = rowOf(report, HARD_RESOURCE);
   expect(failed.owner).toMatchObject({ status: "incomplete", population: "incomplete" });
   expect(failed.withheld).toBe(true);
   expect(failed.ok).toBe(false);
@@ -385,7 +379,7 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   expect(policyOf(report).authority.withheldPolicyIds).toEqual([HARD_RESOURCE]);
   expect(policyOf(report).authority.toolErrors.map((e) => e.kind)).toEqual(["owner-incomplete"]);
   // the sibling reconciled: its waiver was consumed, its row is ok, and it is NOT withheld
-  const ordinary = finalRow(report, ORDINARY);
+  const ordinary = rowOf(report, ORDINARY);
   expect(ordinary).toMatchObject({ ok: true, waived: 1, withheld: false });
   expect(res.stdout).toContain(`⚠ ${HARD_RESOURCE}`);
   expect(res.stdout).toContain("WITHHELD by authority");

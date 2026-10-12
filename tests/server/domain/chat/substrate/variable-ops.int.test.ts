@@ -10,12 +10,13 @@ import { chats, messages, messageVariants } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshCountedDb, freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach } from "vitest";
 import { applyStandaloneVariableOps } from "#server/domain/chat/substrate/variable-ops.ts";
-import { FROZEN_AT, makeChatContext, seedChat } from "../_support.ts";
+import { makeChatContext, seedChat } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -38,8 +39,8 @@ async function readChat(chatId: ChatId): Promise<{ runtime: Record<string, strin
 async function seedMessageWithDelta(chatId: ChatId, seq: number, delta: readonly VarOp[]): Promise<void> {
   const messageId = castId<MessageId>(`message_${chatId}_${seq}`);
   const variantId = castId<MessageVariantId>(`variant_${chatId}_${seq}`);
-  await db.insert(messages).values({ id: messageId, chatId, seq, role: "assistant", createdAt: FROZEN_AT });
-  await db.insert(messageVariants).values({ id: variantId, messageId, idx: 0, content: "x", variableDelta: [...delta], createdAt: FROZEN_AT });
+  await db.insert(messages).values({ id: messageId, chatId, seq, role: "assistant", createdAt: FROZEN_AT_MS });
+  await db.insert(messageVariants).values({ id: variantId, messageId, idx: 0, content: "x", variableDelta: [...delta], createdAt: FROZEN_AT_MS });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
 }
 

@@ -16,11 +16,12 @@ import { assets, characterSummaries, characters } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
+import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 
 // Insert a distilled summary row directly (the browse read is decoupled from the distill compute; a direct
 // seed keeps the filter/sort assertions independent of a scripted summarize run).
@@ -44,7 +45,7 @@ async function seedSummary(
     elevatorPitch: overrides.elevatorPitch ?? null,
     overview: null,
     model: "test-summarize-model",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 
@@ -57,7 +58,7 @@ async function seedAvatarAsset(db: Db, id: string, ownerId: UserId, hash: string
     mime: "image/png",
     size: 1,
     hash,
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return assetId;
 }
@@ -93,7 +94,7 @@ describe("browseCharacters", () => {
       tags: [],
       elevatorPitch: null,
       avatarHash: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     expect((await svc.browseCharacters(owner, { q: "ALPHA" })).items.map((row) => row.characterId)).toEqual([plain]);
     expect((await svc.browseCharacters(owner, { genre: "fantasy" })).items.map((row) => row.characterId)).toEqual([distilled]);
@@ -111,7 +112,7 @@ describe("browseCharacters", () => {
     const avatar = await seedAvatarAsset(db, "asset_av", owner, "cas_avatar_hash");
     await db
       .update(characters)
-      .set({ createdAt: FROZEN_AT + 1000, avatarAssetId: avatar })
+      .set({ createdAt: FROZEN_AT_MS + 1000, avatarAssetId: avatar })
       .where(eq(characters.id, newer));
 
     await seedSummary(db, {

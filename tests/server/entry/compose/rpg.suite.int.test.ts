@@ -12,6 +12,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { reconcileStats } from "@orb/server/domain/stats";
 import type { ServicesResult } from "@orb/server/entry/compose";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -19,7 +20,7 @@ import { eq } from "drizzle-orm";
 import { ZodError, z } from "zod";
 import { observeChatResult } from "#inference/backends/http/generation-observation.ts";
 import { buildRpg } from "#server/entry/compose/rpg.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 function principalOf(userId: UserId): Principal {
   return { userId, role: "user", handle: castId("host"), externalId: null, via: "header" };
@@ -50,7 +51,7 @@ function failingRound(args: {
 }): ReturnType<typeof buildRpg> {
   return buildRpg({
     db: args.db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     rpgChatOps: args.app.chatRpgOps,
     resolveViewerVisibility: createResolveViewerVisibility({ db: args.db }),
     connection: { resolve: () => Promise.resolve({ resolved: connectionFor(args.api, args.hostId), warnings: [] }) },
@@ -157,7 +158,7 @@ test("resync completed usage reaches the actual chat-owned sink without inventin
     },
   });
   await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
-  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
   await expect(rpg.service.resyncFromStory({ principal: principalOf(hostId), chatId })).resolves.toEqual({ ok: true, rebuilt: false });
   expect(calls).toBe(1);
   const facts = await db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId));
@@ -176,7 +177,7 @@ test("resync completed usage reaches the actual chat-owned sink without inventin
   });
   const live = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, hostId));
   expect(live[0]).toMatchObject({ ownerId: hostId, costUsd: 0.125, costSamples: 1, notionalCostSamples: 0, tokensIn: 12, tokensOut: 17, assistantTurns: 1 });
-  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, hostId)))[0]).toMatchObject({
     ownerId: hostId,
     costUsd: 0.125,
@@ -219,7 +220,7 @@ test.for([
     model: "sdk-model",
     provider: "claude-sub",
     wire: "agent-sdk",
-    observedAt: FROZEN_AT,
+    observedAt: FROZEN_AT_MS,
     contextWindow: null,
     maxOutputTokens: null,
     modelCalls: 2,
@@ -277,9 +278,9 @@ test.for([
   });
   await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
   await rpg.service.updateConfig({ principal: principalOf(hostId), chatId, extractionMode: "cheap" });
-  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
   if (multiOwner) {
-    await reconcileStats(db, { ownerId: incomingId, now: () => FROZEN_AT });
+    await reconcileStats(db, { ownerId: incomingId, now: () => FROZEN_AT_MS });
   }
   const completion = rpg.chatOps.onTurnCompleted(chatId, messageId, variantId, mintTypeId(ID_PREFIX.chatTurn), {
     kind: "send",
@@ -321,7 +322,7 @@ test.for([
   expect(voiceId).not.toBeNull();
   const expected = { ownerId: economicOwnerId, costUsd: 0.375, costSamples: 2, notionalCostSamples: 1, tokensIn: 22, tokensOut: 37, assistantTurns: 1 };
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, economicOwnerId)))[0]).toMatchObject(expected);
-  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, economicOwnerId)))[0]).toMatchObject(expected);
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, incomingId)))[0]?.costUsd ?? 0).toBe(incomingHasCanon ? 0.375 : 0);
   expect(
@@ -338,7 +339,7 @@ test.for([
     tokensOut: 37,
     assistantTurns: 1,
   });
-  await reconcileStats(db, { ownerId: incomingId, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: incomingId, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, incomingId)))[0]?.costUsd).toBe(incomingHasCanon ? 0.375 : 0);
   expect(
     (

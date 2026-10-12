@@ -38,9 +38,6 @@ import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts
 import type { BulkImportLorebook, HasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 interface AuditCall {
   readonly entry: Parameters<CharacterContext["audit"]>[0];
   readonly at: number;
@@ -84,7 +81,7 @@ export interface CharacterHarness {
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
 export function makeHarness(db: Db, overrides: { readonly materializeBackground?: MaterializeBackgroundOp } = {}): CharacterHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const events: DomainEvent[] = [];
@@ -213,7 +210,7 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
     mime: "image/png",
     size: 1,
     hash: overrides.hash ?? "hash_a",
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -263,7 +260,7 @@ export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverri
       importHash: overrides.importHash ?? null,
       creator: overrides.creator ?? null,
       avatarAssetId: overrides.avatarAssetId ?? null,
-      createdAt: overrides.createdAt ?? FROZEN_AT,
+      createdAt: overrides.createdAt ?? FROZEN_AT_MS,
       // A caller that pins a hash (a stale-basis case) still wins; otherwise the factory derives it.
       ...(overrides.contentHash !== undefined ? { contentHash: overrides.contentHash } : {}),
       ...(overrides.tokenSize !== undefined ? { tokenSize: overrides.tokenSize } : {}),

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { z } from "zod";
@@ -19,8 +20,7 @@ test("cold module loading completes on the original document", { timeout: PROBE_
       await route.fulfill({ contentType: "text/html", body: `<html data-app-ready="degraded"><script type="module" src="/cold.js"></script></html>` });
     });
     await page.route("http://contributor.test/cold.js", async (route) => {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await sleep(200);
       completedModules++;
       await route.fulfill({ contentType: "text/javascript", body: `document.documentElement.setAttribute("data-app-ready", "");` });
     });
@@ -67,13 +67,11 @@ test("a degraded document settles after dynamic modules without waiting for a li
     });
     await page.route("http://contributor.test/events", () => undefined);
     await page.route("http://contributor.test/route.js", async (route) => {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await sleep(200);
       await route.fulfill({ contentType: "text/javascript", body: 'import "./nested.js";' });
     });
     await page.route("http://contributor.test/nested.js", async (route) => {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await sleep(200);
       moduleFinished = true;
       await route.fulfill({ contentType: "text/javascript", body: 'document.documentElement.setAttribute("data-app-ready", ""); export const loaded = true;' });
     });

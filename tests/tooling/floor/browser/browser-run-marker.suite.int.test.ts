@@ -16,6 +16,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { leakChromiumArgs } from "@orb/testkit/node/chromium-processes.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -122,8 +123,7 @@ async function spawnLeakChromium(name: string, marker: string | null): Promise<n
     throw new Error("leak chromium did not report a pid");
   }
   // Let execve settle so /proc/<pid>/cmdline reflects the launched argv before it is read.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, scaledBudget(300)));
+  await sleep(scaledBudget(300));
   return pid;
 }
 
@@ -232,8 +232,7 @@ async function spawnLeasedChromium(name: string, marker: string, lease: string):
     throw new Error("leased leak chromium did not report a pid");
   }
   // Let execve settle so /proc/<pid>/cmdline reflects the launched argv before it is read.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, scaledBudget(300)));
+  await sleep(scaledBudget(300));
   return pid;
 }
 

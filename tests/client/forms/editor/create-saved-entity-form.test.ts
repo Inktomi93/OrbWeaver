@@ -5,7 +5,6 @@
 // Headless FormApi (form-core re-export) — no DOM, no React.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-loose-id-cast(form): baselined when the gate widened; burn-down item 906.
 import { FormApi } from "@tanstack/react-form";
 import { describe } from "vitest";
 
@@ -14,12 +13,25 @@ interface Values {
   avatarAssetId: string | null;
 }
 
-function headlessForm(): FormApi<Values, never, never, never, never, never, never, never, never, never, never, never> {
-  const form = new FormApi({
-    defaultValues: { name: "", avatarAssetId: null } satisfies Values,
-  });
+type HeadlessForm = FormApi<Values, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined>;
+
+function headlessForm(): HeadlessForm {
+  const form: HeadlessForm = new FormApi<
+    Values,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined
+  >({ defaultValues: { name: "", avatarAssetId: null } });
   form.mount();
-  return form as never;
+  return form;
 }
 
 describe("setFieldValue dontUpdateMeta (the promote() contract)", () => {

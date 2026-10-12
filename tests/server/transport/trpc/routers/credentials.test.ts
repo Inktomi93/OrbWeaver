@@ -12,6 +12,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CredentialsService } from "@orb/server/domain/credentials";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context } from "@orb/server/transport/trpc";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -26,8 +27,8 @@ const VIEW: CredentialView = {
   label: "default",
   revokedAt: null,
   revokedReason: null,
-  createdAt: 1_750_000_000_000,
-  updatedAt: 1_750_000_000_000,
+  createdAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
 };
 
 function ctxWith(credentials: Partial<CredentialsService>): Context {

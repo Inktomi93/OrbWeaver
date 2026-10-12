@@ -7,7 +7,6 @@
 // per installing user, so the collision is scoped to one shelf and a deactivation touches only that shelf.
 // @subject packages/server/src/domain/tool-use/verbs/register-plugin-tool.ts
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_WIRE_NAME_MAX } from "@orb/contracts/plugin";
@@ -16,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
 import { can as realCan } from "@orb/server/domain/admin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
@@ -27,8 +26,8 @@ import { defOf, execOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const INSTALLER = makePrincipal(castId("user_installer"), { handle: castId("installer") });
-const STRANGER = makePrincipal(castId("user_stranger"), { handle: castId("stranger") });
+const INSTALLER = principal(castId("user_installer"), { handle: castId("installer") });
+const STRANGER = principal(castId("user_stranger"), { handle: castId("stranger") });
 
 const allowAll: Can = (() => undefined) as Can;
 

@@ -4,11 +4,11 @@
 // Every way a plugin can fail reaches the server log once, naming the plugin, the kind of failure and the cause.
 // Each case drives a scratch plugin through the real broker and compose and counts ALL warn/error lines the
 // failure produced, so a second line from anywhere up the stack fails the case.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { PluginCapability } from "@orb/contracts/plugin";
@@ -60,7 +60,7 @@ async function scratchPlugin(slug: string, capabilities: readonly PluginCapabili
 }
 
 const SETTLE_MS = 600;
-const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+const settle = (): Promise<void> => sleep(SETTLE_MS);
 
 const commandThrowing = (message: string): string =>
   `const host = orb.host(1);\nhost.ui.registerCommand({ name: "boom", describe: "x", onRun: () => { throw new Error(${JSON.stringify(message)}); } });\n`;

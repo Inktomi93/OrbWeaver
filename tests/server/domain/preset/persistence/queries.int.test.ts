@@ -7,6 +7,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -23,7 +24,7 @@ import {
   selectSystemDefault,
   updatePresetRow,
 } from "#server/domain/preset/persistence/queries.ts";
-import { FROZEN_AT, seedPreset, seedUser } from "../_support.ts";
+import { seedPreset, seedUser } from "../_support.ts";
 
 const OLDER_VERSION = DEFAULT_PROMPT_CONFIG.schemaVersion - 1;
 
@@ -113,9 +114,9 @@ describe("updatePresetRow (owned-only)", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const id = await seedPreset(db, { id: castId<PresetId>("preset_u"), ownerId: owner });
-    const row = await updatePresetRow(db, id, owner, { name: "Renamed", updatedAt: FROZEN_AT + 1 });
+    const row = await updatePresetRow(db, id, owner, { name: "Renamed", updatedAt: FROZEN_AT_MS + 1 });
     expect(row?.name).toBe("Renamed");
-    expect(row?.updatedAt).toBe(FROZEN_AT + 1);
+    expect(row?.updatedAt).toBe(FROZEN_AT_MS + 1);
   });
 
   test("matches nothing for another owner's row (no cross-owner write)", async () => {
@@ -123,7 +124,7 @@ describe("updatePresetRow (owned-only)", () => {
     const a = await seedUser(db, "a");
     const b = await seedUser(db, "b");
     const bsPreset = await seedPreset(db, { id: castId<PresetId>("preset_b"), ownerId: b });
-    expect(await updatePresetRow(db, bsPreset, a, { name: "Hijack", updatedAt: FROZEN_AT })).toBeUndefined();
+    expect(await updatePresetRow(db, bsPreset, a, { name: "Hijack", updatedAt: FROZEN_AT_MS })).toBeUndefined();
   });
 
   test("never matches the null-owner system default", async () => {
@@ -133,7 +134,7 @@ describe("updatePresetRow (owned-only)", () => {
     expect(
       await updatePresetRow(db, SYSTEM_DEFAULT_PRESET_ID, owner, {
         name: "X",
-        updatedAt: FROZEN_AT,
+        updatedAt: FROZEN_AT_MS,
       }),
     ).toBeUndefined();
   });
@@ -164,21 +165,21 @@ describe("updatePresetRow — refuses a config write over an unreadable stored b
       updatePresetRow(db, id, owner, {
         config: DEFAULT_PROMPT_CONFIG,
         schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
-        updatedAt: FROZEN_AT + 1,
+        updatedAt: FROZEN_AT_MS + 1,
       }),
     ).rejects.toMatchObject({ code: "stored_config_unreadable" });
 
     const after = await readablePreset(db, owner, id);
     expect(after?.schemaVersion).toBe(stored.schemaVersion);
     expect(after?.config).toEqual(stored.config);
-    expect(after?.updatedAt).toBe(FROZEN_AT);
+    expect(after?.updatedAt).toBe(FROZEN_AT_MS);
   });
 
   test("a name-only patch still lands — an unreadable blob costs the CONFIG write, not the whole row", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const id = await seedPreset(db, { id: castId<PresetId>("preset_rename"), ownerId: owner, ...fromTheFuture });
-    const row = await updatePresetRow(db, id, owner, { name: "Renamed", updatedAt: FROZEN_AT + 1 });
+    const row = await updatePresetRow(db, id, owner, { name: "Renamed", updatedAt: FROZEN_AT_MS + 1 });
     expect(row?.name).toBe("Renamed");
     expect(row?.schemaVersion).toBe(fromTheFuture.schemaVersion);
   });
@@ -188,7 +189,7 @@ describe("updatePresetRow — refuses a config write over an unreadable stored b
     const owner = await seedUser(db);
     const id = await seedPreset(db, { id: castId<PresetId>("preset_intact"), ownerId: owner });
     const next = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.42 } };
-    const row = await updatePresetRow(db, id, owner, { config: next, schemaVersion: next.schemaVersion, updatedAt: FROZEN_AT + 1 });
+    const row = await updatePresetRow(db, id, owner, { config: next, schemaVersion: next.schemaVersion, updatedAt: FROZEN_AT_MS + 1 });
     expect(row?.config).toEqual(next);
   });
 
@@ -199,7 +200,7 @@ describe("updatePresetRow — refuses a config write over an unreadable stored b
       await updatePresetRow(db, castId<PresetId>("preset_missing"), owner, {
         config: DEFAULT_PROMPT_CONFIG,
         schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
-        updatedAt: FROZEN_AT,
+        updatedAt: FROZEN_AT_MS,
       }),
     ).toBeUndefined();
   });
@@ -218,10 +219,10 @@ describe("replacePresetConfig — the UNGUARDED half of the split (#1026)", () =
     const row = await replacePresetConfig(db, id, owner, {
       config: DEFAULT_PROMPT_CONFIG,
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
-      updatedAt: FROZEN_AT + 1,
+      updatedAt: FROZEN_AT_MS + 1,
     });
     expect(row?.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
-    expect(row?.updatedAt).toBe(FROZEN_AT + 1);
+    expect(row?.updatedAt).toBe(FROZEN_AT_MS + 1);
   });
 
   test("keeps the owner scoping — another owner's row is never replaced", async () => {
@@ -233,7 +234,7 @@ describe("replacePresetConfig — the UNGUARDED half of the split (#1026)", () =
       await replacePresetConfig(db, bsPreset, a, {
         config: DEFAULT_PROMPT_CONFIG,
         schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
-        updatedAt: FROZEN_AT,
+        updatedAt: FROZEN_AT_MS,
       }),
     ).toBeUndefined();
   });
@@ -272,10 +273,10 @@ describe("system-default seed/reseed queries", () => {
       name: "Default",
       schemaVersion: OLDER_VERSION,
     });
-    await reseedSystemDefault(db, DEFAULT_PROMPT_CONFIG, DEFAULT_PROMPT_CONFIG.schemaVersion, FROZEN_AT + 5);
+    await reseedSystemDefault(db, DEFAULT_PROMPT_CONFIG, DEFAULT_PROMPT_CONFIG.schemaVersion, FROZEN_AT_MS + 5);
     const row = await selectSystemDefault(db);
     expect(row?.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
-    expect(row?.updatedAt).toBe(FROZEN_AT + 5);
+    expect(row?.updatedAt).toBe(FROZEN_AT_MS + 5);
   });
 
   test("insertPreset writes a row readable back", async () => {
@@ -290,8 +291,8 @@ describe("system-default seed/reseed queries", () => {
       config: DEFAULT_PROMPT_CONFIG,
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
       forkedFrom: null,
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     });
     expect((await readablePreset(db, owner, id))?.name).toBe("Fresh");
   });
@@ -309,8 +310,8 @@ describe("insertConvergedPresetForkIfAbsent (the guarded admission)", () => {
     config: DEFAULT_PROMPT_CONFIG,
     schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
     forkedFrom,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
 
   test("admits the FIRST fork of a pair and refuses the second (undefined), leaving one row", async () => {

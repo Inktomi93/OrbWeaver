@@ -5,10 +5,10 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
-// @orb-waive-file no-loose-id-cast(overrides.metadata): baselined when the gate widened; burn-down item 906.
 import { chats, personas } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -25,13 +25,28 @@ import {
 } from "#server/domain/persona/persistence/queries.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+interface PersonaSeed {
+  id?: string;
+  avatarAssetId?: AssetId | null;
+}
+type PersonaDb = Awaited<ReturnType<typeof freshDb>>;
 
-async function seedPersonaRow(
-  db: Awaited<ReturnType<typeof freshDb>>,
+/** A persona row whose metadata is a valid column value. */
+function seedPersonaRow(
+  db: PersonaDb,
   ownerId: UserId,
-  overrides: { id?: string; metadata?: unknown; avatarAssetId?: AssetId | null } = {},
+  overrides: PersonaSeed & { metadata?: typeof personas.$inferInsert.metadata } = {},
 ): Promise<PersonaId> {
+  return insertPersonaRow(db, ownerId, overrides, overrides.metadata);
+}
+
+/** A persona row whose metadata is a corrupt blob written past drizzle's unchecked $type column. */
+function seedForgedPersonaRow(db: PersonaDb, ownerId: UserId, overrides: PersonaSeed & { metadata: unknown }): Promise<PersonaId> {
+  // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+  return insertPersonaRow(db, ownerId, overrides, overrides.metadata as never);
+}
+
+async function insertPersonaRow(db: PersonaDb, ownerId: UserId, overrides: PersonaSeed, metadata: typeof personas.$inferInsert.metadata): Promise<PersonaId> {
   const id = castId<PersonaId>(overrides.id ?? "persona_x");
   await db.insert(personas).values({
     id,
@@ -39,9 +54,9 @@ async function seedPersonaRow(
     name: "P",
     description: "d",
     avatarAssetId: overrides.avatarAssetId ?? null,
-    metadata: overrides.metadata as never,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    metadata,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -71,7 +86,7 @@ describe("metadata read seam (detailOf)", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // Write a deliberately invalid metadata blob past drizzle's unchecked $type column.
-    const id = await seedPersonaRow(db, owner, { metadata: "not-an-object" });
+    const id = await seedForgedPersonaRow(db, owner, { metadata: "not-an-object" });
     const row = await loadOwnedPersonaWithAvatar(db, owner, id);
     if (row === undefined) {
       throw new Error("expected the seeded row to load");
@@ -93,11 +108,11 @@ describe("metadata read seam (detailOf)", () => {
   test("degrades malformed and wrong-prefix sourceCharacterId on both persona read paths", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const malformed = await seedPersonaRow(db, owner, {
+    const malformed = await seedForgedPersonaRow(db, owner, {
       id: "persona_bad_source",
       metadata: { sourceCharacterId: "character_not-a-typeid" },
     });
-    const wrongPrefix = await seedPersonaRow(db, owner, {
+    const wrongPrefix = await seedForgedPersonaRow(db, owner, {
       id: "persona_wrong_source",
       metadata: { sourceCharacterId: mintTypeId(ID_PREFIX.chat) },
     });

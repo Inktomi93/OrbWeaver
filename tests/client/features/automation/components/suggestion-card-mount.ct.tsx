@@ -12,16 +12,16 @@
 // routeOrbSocket so it runs FIRST (LIFO). Every assertion barriers on a SETTLED rendered state — the card
 // visible, the panel's own visibility — never on a state that exists only mid-flight.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { AutomationRuleId, AutomationSuggestionId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
-import type { TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -66,7 +66,7 @@ async function routeRoom(
     readonly activity?: TrpcResponder<"automation.listChatActivity">;
     readonly releaseFrames?: Promise<void>;
   },
-): Promise<{ readonly count: (p: string) => number }> {
+): Promise<TrpcRecorder> {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...STREAM_MUTATION_ROUTES,
@@ -76,7 +76,7 @@ async function routeRoom(
       ceilingTokens: 32_768,
       ceilingEstimated: false,
       limit: null,
-      reserveOutputTokens: 2048,
+      reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       droppedCount: 0,
       compactSummary: null,
     }),
@@ -98,7 +98,7 @@ async function routeRoom(
   await page.route("**/api/trpc/**", async (route) => {
     if ((route.request().headers()["accept"] ?? "").includes("text/event-stream")) {
       for (let i = 0; i < MAX_ATTACH_POLLS && !socket.attachedChannels().some((key) => key.startsWith("automation:")); i += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        await sleep(25);
       }
       await options?.releaseFrames;
     }

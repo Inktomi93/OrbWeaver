@@ -10,10 +10,10 @@
 // @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ keys: string[]; assetId: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import type {
   InvocationChat,
@@ -354,7 +354,7 @@ describe("attachMembrane — the in-flight slot is charged to the IMPL, not to t
       readString(ctx, started.error ?? started.value);
       expect(inFlight.count).toBe(1);
 
-      await new Promise((resolve) => setTimeout(resolve, HOST_FN_DEADLINE_MS + 400));
+      await sleep(HOST_FN_DEADLINE_MS + 400);
 
       // The GUEST promise has settled (rejected at the bound) and deregistered from `pending` — that is the
       // race's business. The SLOT is still held, because the host work is still running.

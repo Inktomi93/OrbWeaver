@@ -35,6 +35,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -47,7 +48,7 @@ import { getToolRecurseLimit } from "#server/domain/chat/contract/metadata.ts";
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -562,20 +563,12 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const assetId = await seedAsset(db, host, "siblingreplay");
     const chatId = await seedChat(db, "stale-sibling", { metadata: { background: bg({ kind: "asset", assetId, assetHash: "hash", mime: "image/png" }) } });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    let reachedResolve: (() => void) | undefined;
-    let releaseResolve: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const reached = new Promise<void>((resolve) => {
-      reachedResolve = resolve;
-    });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const release = new Promise<void>((resolve) => {
-      releaseResolve = resolve;
-    });
+    const { promise: reached, resolve: reachedResolve } = Promise.withResolvers<void>();
+    const { promise: release, resolve: releaseResolve } = Promise.withResolvers<void>();
     const staleParticipants = createParticipants(makeChatContext(db), {
       emit,
       claimChat: async () => {
-        reachedResolve?.();
+        reachedResolve();
         await release;
       },
     });
@@ -584,7 +577,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const clearingParticipants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     await clearingParticipants.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "none" }) });
     expect(await deleteAssetRowIfUnreferenced(db, host, assetId)).toBe(true);
-    releaseResolve?.();
+    releaseResolve();
 
     await expect(writing).rejects.toMatchObject({ code: "background_unavailable" });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -863,7 +856,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
 
     await participants.addCharacterToChat({ principal: principal(host), chatId, characterId });
     const afterJoin = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
-    expect(afterJoin).toMatchObject({ chats: 1, firstChatAt: FROZEN_AT });
+    expect(afterJoin).toMatchObject({ chats: 1, firstChatAt: FROZEN_AT_MS });
 
     await participants.removeCharacterFromChat({ principal: principal(host), chatId, characterId });
     await participants.addCharacterToChat({ principal: principal(host), chatId, characterId });
@@ -1303,7 +1296,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     let eventNumber = 0;
     const bus = createChatBus({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       newEventId: () => {
         eventNumber += 1;
         return castId<ChatEventId>(`chat_event_handoff_${eventNumber}`);
@@ -1353,15 +1346,11 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       chatId,
       acceptedByUserId: member,
       actorRekeys: [{ sourceCharacterId, characterId }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     let arrivals = 0;
-    let release!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const bothLoaded = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: bothLoaded, resolve: release } = Promise.withResolvers<void>();
     // @orb-waive no-test-fabrication(unknown): minimal RPG handoff fixture — only handoffRekeyActors is reached by this retry barrier. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffRekeyActors: async (): Promise<void> => {
@@ -1375,7 +1364,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     let eventNumber = 0;
     const bus = createChatBus({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       newEventId: () => {
         eventNumber += 1;
         return castId<ChatEventId>(`chat_event_claim_first_${eventNumber}`);

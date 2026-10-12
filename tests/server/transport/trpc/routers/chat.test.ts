@@ -10,6 +10,7 @@
 // @orb-waive-file no-test-fabrication(ChatBusEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartChatResult } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -872,7 +873,7 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
     budget: {
       ceilingTokens: 8192,
       ceilingEstimated: false,
-      reserveOutputTokens: 2048,
+      reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       limit: { kind: "window", tokens: 8192 },
       totalTokens: 5,
       sources: [

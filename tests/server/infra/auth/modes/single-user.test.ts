@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { makeAuthConfig as cfg, headers } from "../_support.ts";
+import { headers, makeAuthConfig } from "../_support.ts";
 
 // `single-user` mode resolver — ALWAYS null: it never gates, never reads a cookie/header, and delegates
 // entirely to the UNCONDITIONAL owner fallback in `resolve`. The load-bearing invariant is that it does
@@ -13,14 +12,14 @@ const resolveSingleUser = MODE_RESOLVERS["single-user"];
 
 describe("resolveSingleUser", () => {
   test("empty headers + empty deps → null", async () => {
-    expect(await resolveSingleUser(headers(), cfg(), {})).toBeNull();
+    expect(await resolveSingleUser(headers(), makeAuthConfig(), {})).toBeNull();
   });
 
   test("a session cookie is IGNORED → still null (never short-circuits)", async () => {
-    expect(await resolveSingleUser(headers({ cookie: "__Host-orb_session=t" }), cfg(), {})).toBeNull();
+    expect(await resolveSingleUser(headers({ cookie: "__Host-orb_session=t" }), makeAuthConfig(), {})).toBeNull();
   });
 
   test("an SSO-style forward header is IGNORED → still null", async () => {
-    expect(await resolveSingleUser(headers({ "x-authentik-username": "alice" }), cfg(), {})).toBeNull();
+    expect(await resolveSingleUser(headers({ "x-authentik-username": "alice" }), makeAuthConfig(), {})).toBeNull();
   });
 });

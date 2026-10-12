@@ -10,6 +10,7 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(string[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { SpeakerRef } from "@orb/contracts/chat";
+import { TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
@@ -27,7 +28,7 @@ const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: ci
 function candidate(k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCandidate {
   return {
     ref: charRef(k),
-    talkativeness: over.talkativeness ?? 0.5,
+    talkativeness: over.talkativeness ?? TALKATIVENESS_DEFAULT,
     disabled: over.disabled ?? false,
     leftSeq: over.leftSeq ?? null,
   };

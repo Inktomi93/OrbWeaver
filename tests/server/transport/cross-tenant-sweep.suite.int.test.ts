@@ -18,7 +18,6 @@
 // security-executor), NOT something the docs/test lane fixes.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
-// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import "@orb/testkit/node/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
@@ -2805,8 +2804,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       name: MARK.theme,
       // The ThemeOverride read seam parses leniently (per-field `.catch` → defaults) and the ownership
       // probe never inspects the palette, only the owner.
-      // @orb-waive no-test-fabrication(never): minimal override blob (see the note above) — the read seam degrades it to defaults. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      override: {} as never,
+      override: {},
       createdAt: 1,
       updatedAt: 1,
     });

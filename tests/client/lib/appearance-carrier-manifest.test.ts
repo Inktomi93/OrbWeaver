@@ -15,8 +15,8 @@ import {
   appearanceMatrixContract,
   THEME_CARRIER_OBSERVABLES,
 } from "#client/lib/appearance-carrier-manifest.ts";
-import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
-import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
+import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.fixtures.ts";
+import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.fixtures.ts";
 
 describe("Appearance carrier manifest", () => {
   // 41 → 40 and background 9 → 8 on 2026-09-18: `backgroundSeededId` left `AppearanceSettings` with the

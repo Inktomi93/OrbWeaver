@@ -23,6 +23,7 @@ import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -30,7 +31,6 @@ import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
 import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import type { ChatScenario, ChatScenarioOptions } from "../_scenario.ts";
 import { scenario } from "../_scenario.ts";
-import { FROZEN_AT } from "../_support.ts";
 
 /** The `type` sequence of a captured event slice. */
 const types = (events: readonly ChatBusEvent[]): string[] => events.map((e) => e.type);
@@ -62,8 +62,8 @@ async function holdLock(chat: ChatScenario): Promise<void> {
   const acquired = await tryAcquireLock(chat.db, {
     chatId: chat.chatId,
     holder: "other-replica",
-    now: FROZEN_AT,
-    expiresAt: FROZEN_AT + 60_000,
+    now: FROZEN_AT_MS,
+    expiresAt: FROZEN_AT_MS + 60_000,
   });
   expect(acquired).toBe(true);
 }
