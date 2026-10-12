@@ -8,6 +8,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { MINI_DRIZZLE_ORM_FILES } from "@orb/testkit/node/mini-drizzle-orm.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CompilerOptions } from "ts-morph";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
@@ -45,20 +46,6 @@ interface VerbRunOptions {
   readonly argv?: readonly string[];
   readonly corpus?: string;
 }
-
-// A write verb is drizzle's only when drizzle-orm declares it, so the fixtures' client lives in a drizzle-orm module.
-const MINI_DRIZZLE_ORM = `
-export declare class Builder {
-  values(v: unknown): Builder;
-  set(v: unknown): Builder;
-}
-export declare class Db {
-  insert(t: unknown): Builder;
-  update(t: unknown): Builder;
-  select(shape?: unknown): { from(t: unknown): unknown[] };
-}
-`;
-const DRIZZLE_ORM_FILE = { "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM };
 
 function projectOf(files: Readonly<Record<string, string>>, compilerOptions: CompilerOptions = {}): Project {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { baseUrl: ROOT, ...compilerOptions } });
@@ -473,7 +460,7 @@ export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
 import type { Db } from "drizzle-orm";
 export declare const db: Db;`,
-      ...DRIZZLE_ORM_FILE,
+      ...MINI_DRIZZLE_ORM_FILES,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });
@@ -508,7 +495,7 @@ export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
 import type { Db } from "drizzle-orm";
 export declare const db: Db;`,
-      ...DRIZZLE_ORM_FILE,
+      ...MINI_DRIZZLE_ORM_FILES,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", { live: text("live"), ghost: text("ghost") });`,
@@ -629,7 +616,7 @@ export declare function sqliteTable<T>(name: string, cols: T): T;
 export declare function text(name: string): string;
 import type { Db } from "drizzle-orm";
 export declare const db: Db;`,
-      ...DRIZZLE_ORM_FILE,
+      ...MINI_DRIZZLE_ORM_FILES,
       "packages/db/src/schema/a.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const events = sqliteTable("a_events", { aValue: text("a_value") });`,
