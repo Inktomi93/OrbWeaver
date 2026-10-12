@@ -19,8 +19,8 @@
 // @orb-waive-file testid-typed-only-stories("rpg-notified"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
-import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
-import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput, NotifyNotice } from "@orb/client/lib";
+import { rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
+import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat, useRequestedConnectionEditor, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
@@ -43,7 +43,7 @@ import { RpgVeiledSection } from "#client/features/rpg/components/rpg-veiled-sec
 import { useUpdateConfig } from "#client/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "#client/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
+import { makeChatContextContributors, makeChatContextRegions } from "../../../support/browser/ct-door.ts";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
 
 /** Five live conditions — the measured shape, and enough to WRAP at 430, which is where the vertical floor
@@ -147,16 +147,8 @@ export function PackIconPickerStory({ width = 430 }: { readonly width?: number }
 function RpgTakeoverHarness({ width, height }: { readonly width: number; readonly height: number }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const contributors = isolationRegistry<ContextTabDef<ChatContextState>>(
-    "chat-context",
-    "keeps the rpg game tabs apart from the other chat context tabs so the takeover rails hold only the rpg set",
-    makeRpgContextTabs({ trpc, queryClient }),
-  );
-  const regions = isolationRegistry<ContextRegionDef<ChatContextState>>(
-    "chat-context-regions",
-    "keeps the rpg HUD claim as the only region claimant so the takeover band is the subject",
-    [makeRpgHudRegion({ trpc, queryClient })],
-  );
+  const contributors = makeChatContextContributors({ trpc, queryClient });
+  const regions = makeChatContextRegions({ trpc, queryClient });
   return (
     <CtChatContributorSectionRegistry contextContributors={contributors} contextRegions={regions}>
       <RpgTakeoverInner width={width} height={height} />

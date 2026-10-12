@@ -2002,7 +2002,7 @@ export function ChatRecentsMobileStory(): ReactElement {
           onNewChat={(): void => undefined}
           tiles={isolationRegistry<HomeTileContribution>(
             "home-tiles",
-            "keeps the recents tile alone at a phone-width pane, the narrowest real mount home has",
+            "keeps the recents tile alone, without the masthead and shelf tiles, so the hero's credit line and action row alone decide the phone pane's height",
             [chatRecentsTile],
           )}
         />
@@ -2025,7 +2025,7 @@ export function ChatRecentsHeroArtStory(): ReactElement {
           onNewChat={(): void => undefined}
           tiles={isolationRegistry<HomeTileContribution>(
             "home-tiles",
-            "keeps the recents tile alone at a desktop-width pane so its art bleed is what is measured",
+            "keeps the recents tile alone, without the other hearth tiles, so the hero art band that only a wide pane draws is what is measured",
             [chatRecentsTile],
           )}
         />

@@ -70,16 +70,9 @@ import {
   CtDataProviders,
   CtRealSectionRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
+import { characterDetailContributors } from "../../../support/browser/ct-door.ts";
 import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-
-// The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
-// the door's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
-const NO_DETAIL_CONTRIBUTORS = isolationRegistry<CharacterDetailContribution>(
-  "character-detail",
-  "stands in for the door's empty character-detail registry, which the compose module keeps private, so the editor renders without a review-section wrapper",
-  [],
-);
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
 
@@ -187,7 +180,7 @@ export function CharacterEditorSurfaceStory({ width = 720 }: CharacterEditorSurf
   return (
     <CtDataProviders>
       <div style={{ height: 640, width }}>
-        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
       </div>
     </CtDataProviders>
   );
@@ -202,7 +195,7 @@ export function CharacterEditorSuggestToastStory(): ReactElement {
     <CtAppDataProviders>
       <CtToastSurface>
         <div style={{ height: 640, width: 720 }}>
-          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
         </div>
       </CtToastSurface>
     </CtAppDataProviders>
@@ -771,7 +764,7 @@ function SuggestWarmLabelsPanels(): ReactElement {
         {labels ? (
           <LabelsLibrarySurface />
         ) : (
-          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={characterDetailContributors} />
         )}
       </QueryBoundary>
     </>

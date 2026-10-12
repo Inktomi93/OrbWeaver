@@ -15,12 +15,18 @@ test("ct config mirror parity keeps missing, extra, duplicate, wrong-anchor and 
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
-test("the production loader dispatches ct-config-mirror-parity", async ({ repoRoot }) => {
+test("the production loader dispatches ct-config-mirror-parity", { timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS) }, async ({ repoRoot }) => {
   const corpus = await loadGateCorpus(repoRoot);
   expect(corpus.gates.some((policy) => policy.id === gate.id)).toBe(true);
 });
 
-test("the checked-in production and CT config compositions have equal multisets", { timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS) }, ({ repoRoot }) => {
+// The pass types every client test and support module (the type judgement resolves each registry call), so it runs
+// several times longer than the door-only pass it started as.
+const WHOLE_TREE_PASS_FACTOR = 4;
+
+test("the checked-in production and CT config compositions have equal multisets", {
+  timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS * WHOLE_TREE_PASS_FACTOR),
+}, ({ repoRoot }) => {
   const result = runPolicyPass({
     knownPolicies: [gate],
     policies: [gate],

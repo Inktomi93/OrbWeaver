@@ -3,14 +3,22 @@
 // corpus context tabs, chrome widgets and config groups; a CT export that IS the production declaration passes, a hand
 // list must match row for row. A story module mints a door registry only through `isolationRegistry` with a reason.
 // A singleton: the mirrors are one CT composition contract and share no meaningful reader with another policy.
-import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, SourceFile, VariableDeclaration } from "ts-morph";
+import type {
+  CallExpression,
+  Node as MorphNode,
+  ObjectLiteralExpression,
+  PropertyAssignment,
+  SourceFile,
+  Symbol as TsSymbol,
+  Type,
+  VariableDeclaration,
+} from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
-import { referencesModuleExport } from "../lib/symbol-reference.ts";
 
 const COMPOSE = "packages/client/src/compose";
 const DOOR_SECTIONS = `${COMPOSE}/config-sections.ts`;
@@ -22,27 +30,27 @@ const CT_GROUPS = "tests/support/browser/ct-config-groups.ts";
 const CT_PROVIDERS = "tests/support/browser/ct-data-providers.tsx";
 const CT_ISOLATION = "tests/support/browser/ct-isolation.ts";
 const CHROME_REGISTRY = "realChromeRegistry";
-/** The story modules: the underscore-prefixed modules and the `*.fixtures.tsx` modules under `tests/client`. */
-const STORY_ROOT = "tests/client/";
-const STORY_MODULES = [`${STORY_ROOT}**/_*.tsx`, `${STORY_ROOT}**/*.fixtures.tsx`] as const;
-/** Production files that mint registries: the door lists a story must not re-mint. */
-const DOOR_REGISTRY_FILES: ReadonlySet<string> = new Set([DOOR_SECTIONS, DOOR_TILES, DOOR_CONTRIBUTORS, DOOR_GROUPS]);
+/** Every module a CT or story reaches is judged for hand-minted door registries: the whole client test tree and
+ *  the test support tree, except unit tests (which never mount a registry in a browser). */
+const JUDGED_TREES = ["tests/client/**", "tests/support/**"] as const;
+const UNIT_TEST_NAMES = ["*.test.ts", "*.test.tsx", "*.test-d.ts"] as const;
+/** The factory and the exception are recognised by DECLARATION, never by import spelling or local name. */
 const MINT = "createContributorRegistry";
+const MINT_FILE = /(?:^|\/)lib\/registry\.ts$/u;
 const ISOLATE = "isolationRegistry";
+const ISOLATE_FILE = /(?:^|\/)ct-isolation\.ts$/u;
 /** Fewer words than this cannot name what a story isolates. */
 const MIN_ISOLATES_WORDS = 3;
-const CLIENT_LIB_MODULE = /^(?:@orb\/client\/lib|#client\/lib(?:\/index\.ts|\/registry\.ts)?|#lib)$/u;
-const ISOLATION_MODULE = /(?:^|\/)ct-isolation\.ts$/u;
 
 const MESSAGE =
   "the browser-CT door has drifted from the production door: every registry the CT mounts must be the production " +
   "declaration or list the same rows in the same order (config sections by (anchor, nav.id, contribution id), config " +
   "groups by (group key, canonical export), every other list by its member expression). " +
   `The mirrors are ${CT_DOOR} and ${CT_GROUPS}; the harness ${CT_PROVIDERS} must consume them, never re-list a door registry. ` +
-  `A story module takes a door registry from ${CT_DOOR}, or declares a deliberate subset with isolationRegistry(name, isolates, members) from ${CT_ISOLATION}.`;
+  `A registry of a door contribution type in a CT or story module is judged by its type, whatever its name: take it from ${CT_DOOR}, or declare a deliberate subset with isolationRegistry(name, isolates, members) from ${CT_ISOLATION}.`;
 const FIX =
   `re-export the production declaration from ${CT_DOOR} instead of listing it; a derived section address is \`anchor\` plus \`nav.id\`, never the contribution id. ` +
-  "In a story, replace a hand-minted door registry with the door export or isolationRegistry whose `isolates` text names what the story keeps apart.";
+  "In a CT or story module, replace a hand-minted registry of a door contribution type with the door export or isolationRegistry whose `isolates` text names what the story keeps apart.";
 
 type RowReader = (declaration: VariableDeclaration) => readonly string[];
 
@@ -184,8 +192,11 @@ const GROUP_CT = "const groupA = {};\nconst REAL_CONFIG_GROUPS = { a: groupA };\
 const GROUP_DOOR_TWO = 'const groupA = {};\nconst groupB = {};\nconst configGroups = createRegistry("config-groups", IDS, { a: groupA, b: groupB });\n';
 const SECTION_A = 'const navA = { id: "nav-a" };\nconst sectionA = { id: "section-a", anchor: "admin", nav: navA };\n';
 const SECTION_B = 'const navB = { id: "nav-b" };\nconst sectionB = { id: "section-b", anchor: "admin", nav: navB };\n';
-const SECTIONS_CALL = (members: string): string => `export const configSections = createContributorRegistry("config-sections", [${members}]);\n`;
-const TILES_DOOR = 'export const homeTiles = createContributorRegistry("home-tiles", [tileA, tileB]);\n';
+const DOOR_IMPORTS =
+  'import { createContributorRegistry } from "../lib/registry.ts";\nimport type { SectionContribution, TileContribution } from "../lib/contribution-types.ts";\n';
+const SECTIONS_CALL = (members: string): string =>
+  `${DOOR_IMPORTS}export const configSections = createContributorRegistry<SectionContribution>("config-sections", [${members}]);\n`;
+const TILES_DOOR = `${DOOR_IMPORTS}export const homeTiles = createContributorRegistry<TileContribution>("home-tiles", [tileA, tileB]);\n`;
 
 const CONTRIBUTOR_NAMES = [
   "chatSettingsSections",
@@ -209,12 +220,15 @@ const CONTRIBUTOR_REGISTRIES: Readonly<Record<Exclude<ContributorName, "chromeWi
 };
 
 function contributorsDoor(members: Partial<Record<ContributorName, string>> = {}): string {
-  return CONTRIBUTOR_NAMES.map((name) => {
-    const list = members[name] ?? "memberA, memberB";
-    return name === "chromeWidgets"
-      ? `export const chromeWidgets = [${list}];\n`
-      : `export const ${name} = createContributorRegistry("${CONTRIBUTOR_REGISTRIES[name]}", [${list}]);\n`;
-  }).join("");
+  return (
+    DOOR_IMPORTS +
+    CONTRIBUTOR_NAMES.map((name) => {
+      const list = members[name] ?? "memberA, memberB";
+      return name === "chromeWidgets"
+        ? `export const chromeWidgets = [${list}];\n`
+        : `export const ${name} = createContributorRegistry<SectionContribution>("${CONTRIBUTOR_REGISTRIES[name]}", [${list}]);\n`;
+    }).join("")
+  );
 }
 
 /** `ct-door.ts` re-exporting every production declaration, except the named ones, which it re-lists by hand. */
@@ -235,8 +249,25 @@ const PROVIDERS_CLEAN =
   'import { chromeWidgets } from "./ct-door.ts";\n' +
   'const realChromeRegistry = createContributorRegistry("chrome", assembleChrome({ sections, modals, widgets: chromeWidgets }));\n';
 
+const LIB_REGISTRY = "packages/client/src/lib/registry.ts";
+const LIB_TYPES = "packages/client/src/lib/contribution-types.ts";
+/** The factory, three contribution types (two are door types) and the exception, declared where the real ones are. */
+const VIRTUAL_LIB: Readonly<Record<string, string>> = {
+  [LIB_REGISTRY]:
+    "export interface ContributorRegistry<Def extends { readonly id: string }> {\n  readonly name: string;\n  readonly list: () => readonly Def[];\n}\n" +
+    "export function createContributorRegistry<Def extends { readonly id: string }>(name: string, contributions: readonly Def[]): ContributorRegistry<Def> {\n  return { name, list: () => contributions };\n}\n",
+  [LIB_TYPES]:
+    "export interface TileContribution {\n  readonly id: string;\n  readonly title: string;\n}\n" +
+    "export interface SectionContribution {\n  readonly id: string;\n  readonly anchor: string;\n}\n" +
+    "export interface PlainEntry {\n  readonly id: string;\n  readonly note: number;\n}\n",
+  [CT_ISOLATION]:
+    'import type { ContributorRegistry } from "../../../packages/client/src/lib/registry.ts";\nimport { createContributorRegistry } from "../../../packages/client/src/lib/registry.ts";\n' +
+    "export function isolationRegistry<Def extends { readonly id: string }>(name: string, _isolates: string, contributions: readonly Def[]): ContributorRegistry<Def> {\n  return createContributorRegistry<Def>(name, contributions);\n}\n",
+};
+
 function proofFiles(overrides: Partial<Readonly<Record<string, string>>> = {}): Readonly<Record<string, string>> {
   return {
+    ...VIRTUAL_LIB,
     [DOOR_SECTIONS]: `${SECTION_A}${SECTION_B}${SECTIONS_CALL("sectionA, sectionB")}`,
     [DOOR_TILES]: TILES_DOOR,
     [DOOR_CONTRIBUTORS]: contributorsDoor(),
@@ -249,13 +280,17 @@ function proofFiles(overrides: Partial<Readonly<Record<string, string>>> = {}): 
 }
 
 const STORY_PATH = "tests/client/features/probe/_ct-stories.tsx";
-const MINT_IMPORT = 'import { createContributorRegistry } from "@orb/client/lib";\n';
-const ISOLATION_IMPORT = 'import { isolationRegistry } from "../../../../support/browser/ct-isolation.ts";\n';
+const FROM_PROBE = "../../../../";
+const importsFor = (prefix: string): string =>
+  `import { createContributorRegistry } from "${prefix}packages/client/src/lib/registry.ts";\n` +
+  `import type { PlainEntry, SectionContribution, TileContribution } from "${prefix}packages/client/src/lib/contribution-types.ts";\n`;
+const MINT_IMPORT = importsFor(FROM_PROBE);
+const ISOLATION_IMPORT = `import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";\nimport type { PlainEntry, SectionContribution, TileContribution } from "${FROM_PROBE}packages/client/src/lib/contribution-types.ts";\n`;
 const ISOLATES = "keeps the probe tile apart from the production launcher grid";
 
-/** The clean proof tree plus one story-side module. */
-function storyFiles(source: string, path: string = STORY_PATH): Readonly<Record<string, string>> {
-  return proofFiles({ [path]: source });
+/** The clean proof tree plus one module of the judged trees. */
+function storyFiles(source: string, path: string = STORY_PATH, more: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> {
+  return proofFiles({ ...more, [path]: source });
 }
 
 type Required = (path: string) => SourceFile;
@@ -297,22 +332,77 @@ function checkGroups(required: Required, report: Report): void {
 interface HarnessFacts {
   readonly registryCalls: CallExpression[];
   chromeWidgets: PropertyAssignment | undefined;
-  /** Registry mints in the production door files: the names a story may not re-mint. */
+  /** Registry mints in the production door files: their element types are the door contribution types. */
   readonly doorMints: CallExpression[];
-  /** Registry mints in story modules. */
+  /** Registry mints anywhere else in the judged trees. */
   readonly storyMints: CallExpression[];
-  /** `isolationRegistry` calls in story modules: the named isolation exceptions. */
+  /** `isolationRegistry` calls in the judged trees: the named isolation exceptions. */
   readonly isolations: CallExpression[];
 }
 
-function isRegistryMint(call: CallExpression): boolean {
+/** `(name, members)` and `(name, isolates, members)`. */
+const MINT_ARITY = 2;
+const REGISTRY_ARITIES: ReadonlySet<number> = new Set([MINT_ARITY, MINT_ARITY + 1]);
+
+/** A members argument is a list: never an object, a function or a literal. */
+const NON_LIST_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.ObjectLiteralExpression,
+  SyntaxKind.ArrowFunction,
+  SyntaxKind.FunctionExpression,
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.TemplateExpression,
+  SyntaxKind.NumericLiteral,
+  SyntaxKind.TrueKeyword,
+  SyntaxKind.FalseKeyword,
+  SyntaxKind.NullKeyword,
+  SyntaxKind.RegularExpressionLiteral,
+]);
+
+/** The factory takes `(name, members)` and the exception `(name, isolates, members)`: only a two- or three-argument
+ *  call through a name or a member read whose last argument could be a list can be one, so the checker resolves
+ *  those and no other call. */
+function couldBeRegistryCall(call: CallExpression): boolean {
   const callee = call.getExpression();
-  return callee.getText() === MINT || referencesModuleExport(callee, MINT, (specifier) => CLIENT_LIB_MODULE.test(specifier));
+  const args = call.getArguments();
+  const last = args.at(-1);
+  return (
+    REGISTRY_ARITIES.has(args.length) &&
+    last !== undefined &&
+    !NON_LIST_KINDS.has(last.getKind()) &&
+    (Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee))
+  );
 }
 
-function isIsolationCall(call: CallExpression): boolean {
-  const callee = call.getExpression();
-  return callee.getText() === ISOLATE || referencesModuleExport(callee, ISOLATE, (specifier) => ISOLATION_MODULE.test(specifier));
+/** The callee resolved to its project declaration through imports, re-exports, namespaces and immutable aliases. */
+function callsDeclared(call: CallExpression, name: string, file: RegExp): boolean {
+  const origin = resolveModuleMemberOrigin(call.getExpression());
+  if (origin.kind !== "resolved" || origin.value.canonical.kind !== "project") {
+    return false;
+  }
+  const declaration = origin.value.canonical.declaration;
+  return Node.isFunctionDeclaration(declaration) && declaration.getName() === name && file.test(declaration.getSourceFile().getFilePath());
+}
+
+/** The `Def` of the `ContributorRegistry<Def>` a call returns. */
+function contributionType(call: CallExpression): Type | undefined {
+  const def = call.getType().getTypeArguments()[0];
+  return def === undefined || def.isAny() ? undefined : def;
+}
+
+/** The type's own symbol: an alias when it has one, else the interface or class. */
+function ownSymbol(type: Type): TsSymbol | undefined {
+  return type.getAliasSymbol() ?? type.getSymbol();
+}
+
+function typeLabel(type: Type): string {
+  return type.getAliasSymbol()?.getName() ?? type.getSymbol()?.getName() ?? type.getText();
+}
+
+/** A contribution type is a door type when it is a door's own declaration or a structural subtype of one. */
+function isDoorType(type: Type, doorTypes: readonly Type[]): boolean {
+  const symbol = ownSymbol(type);
+  return doorTypes.some((door) => (symbol !== undefined && symbol === ownSymbol(door)) || type.isAssignableTo(door));
 }
 
 function literalArgument(call: CallExpression, index: number): string | undefined {
@@ -322,18 +412,21 @@ function literalArgument(call: CallExpression, index: number): string | undefine
 
 /** Sorts one call into the facts the policy judges, by the file it sits in. */
 function gatherCall(facts: HarnessFacts, path: string, call: CallExpression): void {
-  if (DOOR_REGISTRY_FILES.has(path)) {
-    if (isRegistryMint(call)) {
+  if (!couldBeRegistryCall(call)) {
+    return;
+  }
+  if (path.startsWith(`${COMPOSE}/`)) {
+    if (callsDeclared(call, MINT, MINT_FILE)) {
       facts.doorMints.push(call);
     }
   } else if (path === CT_PROVIDERS) {
     if (call.getExpression().getText() === MINT) {
       facts.registryCalls.push(call);
     }
-  } else if (path.startsWith(STORY_ROOT)) {
-    if (isRegistryMint(call)) {
+  } else if (path !== CT_ISOLATION && path !== CT_DOOR && (path.startsWith("tests/client/") || path.startsWith("tests/support/"))) {
+    if (callsDeclared(call, MINT, MINT_FILE)) {
       facts.storyMints.push(call);
-    } else if (isIsolationCall(call)) {
+    } else if (callsDeclared(call, ISOLATE, ISOLATE_FILE)) {
       facts.isolations.push(call);
     }
   }
@@ -348,32 +441,30 @@ function isChromeWidgets(node: MorphNode): node is PropertyAssignment {
   );
 }
 
-/** Stories take a door registry from the door or declare an isolation subset; they never mint one unnamed. */
+/** A registry of a door contribution type is the door export or a named isolation subset, whatever its name. */
 function checkStories(facts: HarnessFacts, report: Report): void {
-  const doorNames = new Set(facts.doorMints.flatMap((call) => literalArgument(call, 0) ?? []));
-  if (doorNames.size === 0) {
-    throw new Error("the production door files mint no literal-named registry, so no story mint can be judged");
+  const doorTypes = facts.doorMints.flatMap((call) => contributionType(call) ?? []);
+  if (doorTypes.length === 0) {
+    throw new Error("the production door files mint no registry the checker can type, so no story mint can be judged");
   }
   for (const call of facts.storyMints) {
-    const name = literalArgument(call, 0);
-    if (name === undefined) {
-      report(call, "a story mints a registry whose name is not an authored string, so it cannot be told from a door registry.");
-    } else if (doorNames.has(name)) {
+    const def = contributionType(call);
+    if (def !== undefined && isDoorType(def, doorTypes)) {
       report(
         call,
-        `a story mints the "${name}" door registry by hand; take it from ${CT_DOOR} or declare the subset with ${ISOLATE}(name, isolates, members).`,
+        `a registry of the door contribution type "${typeLabel(def)}" is minted by hand (${literalArgument(call, 0) ?? "unnamed"}); take it from ${CT_DOOR} or declare the subset with ${ISOLATE}(name, isolates, members).`,
       );
     }
   }
   for (const call of facts.isolations) {
-    const name = literalArgument(call, 0);
+    const def = contributionType(call);
     const isolates = literalArgument(call, 1);
-    if (name === undefined || !doorNames.has(name)) {
-      report(call, `${ISOLATE} names a registry that is not a door registry; mint it with ${MINT}.`);
+    if (def === undefined || !isDoorType(def, doorTypes)) {
+      report(call, `${ISOLATE} wraps a registry that is not of a door contribution type; mint it with ${MINT}.`);
     } else if (isolates === undefined || isolates.trim().split(/\s+/u).length < MIN_ISOLATES_WORDS) {
       report(
         call,
-        `${ISOLATE} for "${name}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATES_WORDS}+ words what the story keeps apart from the production roster.`,
+        `${ISOLATE} for "${typeLabel(def)}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATES_WORDS}+ words what the story keeps apart from the production roster.`,
       );
     }
   }
@@ -400,10 +491,7 @@ export const gate = defineGate({
   family: "ct-config-mirror-parity",
   authority: "hard",
   severity: "error",
-  population: {
-    in: ["@client", "@tests"],
-    under: [DOOR_SECTIONS, DOOR_TILES, DOOR_CONTRIBUTORS, DOOR_GROUPS, CT_DOOR, CT_GROUPS, CT_PROVIDERS, ...STORY_MODULES],
-  },
+  population: { in: ["@client", "@tests"], under: [`${COMPOSE}/**`, ...JUDGED_TREES], notNamed: UNIT_TEST_NAMES },
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -559,54 +647,98 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: storyFiles(`${MINT_IMPORT}export const tiles = createContributorRegistry("home-tiles", [tileA]);\n`),
-      expect: { count: 1, messageIncludes: 'a story mints the "home-tiles" door registry by hand' },
+      files: storyFiles(`${MINT_IMPORT}export const tiles = createContributorRegistry<TileContribution>("home-tiles", []);\n`),
+      expect: { count: 1, messageIncludes: 'door contribution type "TileContribution" is minted by hand' },
       why: "a story that re-lists a production door registry mounts a roster the product does not ship; it takes the door export or names an isolation subset",
     },
     {
       mode: "types",
-      files: storyFiles('import { createContributorRegistry as mint } from "@orb/client/lib";\nexport const renderers = mint("tool-renderers", []);\n'),
-      expect: { count: 1, messageIncludes: 'a story mints the "tool-renderers" door registry by hand' },
-      why: "an aliased import binds the same factory: renaming the mint must not hide it",
+      files: storyFiles(`${MINT_IMPORT}export const slot = createContributorRegistry<SectionContribution>("host-truth", []);\n`),
+      expect: { count: 1, messageIncludes: 'door contribution type "SectionContribution" is minted by hand' },
+      why: "a registry is a door registry by its contribution type: a fresh name string fills the same slot the door's registry fills",
     },
     {
       mode: "types",
-      files: storyFiles('import * as lib from "@orb/client/lib";\nexport const commands = lib.createContributorRegistry("slash-commands", []);\n'),
-      expect: { count: 1, messageIncludes: 'a story mints the "slash-commands" door registry by hand' },
-      why: "a namespace member call reaches the same factory without an import specifier to subscribe to",
+      files: storyFiles(`${MINT_IMPORT}export const slot = createContributorRegistry("anything", [{ id: "t", title: "T" }]);\n`),
+      expect: { count: 1, messageIncludes: 'door contribution type "' },
+      why: "an inferred element type that fits a door contribution type is a door registry without ever naming the type",
     },
     {
       mode: "types",
       files: storyFiles(
-        `${MINT_IMPORT}export const sections = createContributorRegistry("config-sections", []);\n`,
-        "tests/client/components/probe.fixtures.tsx",
+        `import { createContributorRegistry as mint } from "${FROM_PROBE}packages/client/src/lib/registry.ts";\nimport type { TileContribution } from "${FROM_PROBE}packages/client/src/lib/contribution-types.ts";\nexport const slot = mint<TileContribution>("x", []);\n`,
       ),
-      expect: { count: 1, messageIncludes: 'a story mints the "config-sections" door registry by hand' },
-      why: "a fixtures module mounts stories exactly as an underscore-prefixed story module does",
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "an aliased import binds the same factory: renaming the mint must not hide it",
     },
     {
       mode: "types",
-      files: storyFiles(`${MINT_IMPORT}const NAME = "home-tiles";\nexport const tiles = createContributorRegistry(NAME, [tileA]);\n`),
-      expect: { count: 1, messageIncludes: "name is not an authored string" },
-      why: "a computed registry name cannot be told from a door registry, so it is refused rather than passed",
+      files: storyFiles(`${MINT_IMPORT}const mint = createContributorRegistry;\nexport const slot = mint<TileContribution>("x", []);\n`),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "a local alias of the factory resolves to the same declaration",
     },
     {
       mode: "types",
-      files: storyFiles(`${ISOLATION_IMPORT}export const tiles = isolationRegistry("home-tiles", "tile", [tileA]);\n`),
+      files: storyFiles(
+        `import * as lib from "${FROM_PROBE}packages/client/src/lib/registry.ts";\nimport type { TileContribution } from "${FROM_PROBE}packages/client/src/lib/contribution-types.ts";\nexport const slot = lib.createContributorRegistry<TileContribution>("x", []);\n`,
+      ),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "a namespace member call reaches the same factory without an import specifier to subscribe to",
+    },
+    {
+      mode: "types",
+      files: storyFiles('import { slot } from "./registries.ts";\nexport const t = slot;\n', STORY_PATH, {
+        "tests/client/features/probe/registries.ts": `${MINT_IMPORT}export const slot = createContributorRegistry<TileContribution>("x", []);\n`,
+      }),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "a mint in a `.ts` helper a story imports is reached by the story",
+    },
+    {
+      mode: "types",
+      files: storyFiles('import { slot } from "../../../support/browser/probe-registries.ts";\nexport const t = slot;\n', STORY_PATH, {
+        "tests/support/browser/probe-registries.ts": `${importsFor("../../../")}export const slot = createContributorRegistry<TileContribution>("x", []);\n`,
+      }),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "a mint in a browser support helper is reached by every story that imports it",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${MINT_IMPORT}export const slot = createContributorRegistry<TileContribution>("x", []);\n`, "tests/client/features/probe/stories.tsx"),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "a story module is any module under the client tests, not only the underscore-prefixed or fixtures names",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${MINT_IMPORT}export const slot = createContributorRegistry<TileContribution>("x", []);\n`, "tests/client/features/probe/_support.ts"),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "an underscore-prefixed `.ts` support module is reached by stories like any other",
+    },
+    {
+      mode: "types",
+      files: storyFiles(
+        `${MINT_IMPORT}export const slot = createContributorRegistry<TileContribution>("x", []);\n`,
+        "tests/client/features/probe/probe.ct.tsx",
+      ),
+      expect: { count: 1, messageIncludes: "is minted by hand" },
+      why: "a CT spec mounts what it mints, so it takes the door export or names an isolation subset as a story does",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${ISOLATION_IMPORT}export const tiles = isolationRegistry<TileContribution>("home-tiles", "tile", []);\n`),
       expect: { count: 1, messageIncludes: "has no `isolates` text" },
       why: "an isolation exception without a reason that names what is isolated is an unexplained hand list",
     },
     {
       mode: "types",
-      files: storyFiles(`${ISOLATION_IMPORT}const WHY = "${ISOLATES}";\nexport const tiles = isolationRegistry("home-tiles", WHY, [tileA]);\n`),
+      files: storyFiles(`${ISOLATION_IMPORT}const WHY = "${ISOLATES}";\nexport const tiles = isolationRegistry<TileContribution>("home-tiles", WHY, []);\n`),
       expect: { count: 1, messageIncludes: "has no `isolates` text" },
       why: "the reason is read from the authored call, so a constant the reader cannot see is refused",
     },
     {
       mode: "types",
-      files: storyFiles(`${ISOLATION_IMPORT}export const own = isolationRegistry("story-only-registry", "${ISOLATES}", []);\n`),
-      expect: { count: 1, messageIncludes: "names a registry that is not a door registry" },
-      why: "an isolation exception exists only for a door registry; any other registry is minted plainly",
+      files: storyFiles(`${ISOLATION_IMPORT}export const own = isolationRegistry<PlainEntry>("story-only", "${ISOLATES}", []);\n`),
+      expect: { count: 1, messageIncludes: "not of a door contribution type" },
+      why: "an isolation exception exists only for a registry of a door contribution type; any other registry is minted plainly",
     },
   ],
   mustPass: [
@@ -624,25 +756,28 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: storyFiles(`${ISOLATION_IMPORT}export const tiles = isolationRegistry("home-tiles", "${ISOLATES}", [tileA]);\n`),
+      files: storyFiles(`${ISOLATION_IMPORT}export const tiles = isolationRegistry<TileContribution>("home-tiles", "${ISOLATES}", []);\n`),
       why: "a named isolation subset with a reason that says what it isolates is the sanctioned exception",
     },
     {
       mode: "types",
       files: storyFiles(
-        `import { isolationRegistry as isolate } from "../../../../support/browser/ct-isolation.ts";\nexport const tiles = isolate("home-tiles", "${ISOLATES}", [tileA]);\n`,
+        `import { isolationRegistry as isolate } from "../../../support/browser/ct-isolation.ts";\nimport type { TileContribution } from "${FROM_PROBE}packages/client/src/lib/contribution-types.ts";\nexport const tiles = isolate<TileContribution>("home-tiles", "${ISOLATES}", []);\n`,
       ),
       why: "an aliased isolation import is the same named exception",
     },
     {
       mode: "types",
-      files: storyFiles(`${MINT_IMPORT}export const own = createContributorRegistry("story-only-registry", [memberA]);\n`),
-      why: "a registry the production door does not mint is the story's own, whatever list it holds",
+      files: storyFiles(`${MINT_IMPORT}export const own = createContributorRegistry<PlainEntry>("story-only", []);\n`),
+      why: "a registry whose contribution type no door registry takes is the story's own",
     },
     {
       mode: "types",
-      files: storyFiles(`${MINT_IMPORT}export const tiles = createContributorRegistry("home-tiles", [tileA]);\n`, "tests/client/features/probe/probe.ct.tsx"),
-      why: "a spec file is not a story module: the duplicate-id throw is asserted on the factory itself",
+      files: storyFiles(
+        `${MINT_IMPORT}export const tiles = createContributorRegistry<TileContribution>("home-tiles", []);\n`,
+        "tests/client/features/probe/registry.test.ts",
+      ),
+      why: "a unit test is not mounted by a CT or story, so the factory's own duplicate-id throw can be asserted on a hand-made roster",
     },
     {
       mode: "types",

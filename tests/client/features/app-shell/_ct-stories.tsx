@@ -60,7 +60,7 @@ import { useTRPC } from "@orb/client/data";
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import { chatContextTabs } from "@orb/client/features/chat";
 import type { ChatSurfaceContribution, ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
-import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
+import { defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, ModalDefinition, SectionDefinition, SectionId } from "@orb/client/state";
 import {
   assembleChrome,
@@ -1451,12 +1451,16 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
 }
 
 // Minted at MODULE scope (like every production section) so `useResolved` has a stable identity.
-const CLAIMING_REGIONS = createContributorRegistry<ContextRegionDef<void>>("ct-regions-claiming", [
-  defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid="fake-band">Fake waystone</p> }),
-]);
-const IDLE_REGIONS = createContributorRegistry<ContextRegionDef<void>>("ct-regions-idle", [
-  defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid="fake-band">Fake waystone</p> }),
-]);
+const CLAIMING_REGIONS = isolationRegistry<ContextRegionDef<void>>(
+  "ct-regions-claiming",
+  "replaces the shipped region claimants with one fake that always claims, so the head-band replacement is the subject",
+  [defineContextRegion<void>({ id: "fake.hud", claims: () => true, band: () => <p data-testid="fake-band">Fake waystone</p> })],
+);
+const IDLE_REGIONS = isolationRegistry<ContextRegionDef<void>>(
+  "ct-regions-idle",
+  "replaces the shipped region claimants with one fake that never claims, so the section keeping its own band is the subject",
+  [defineContextRegion<void>({ id: "fake.hud", claims: () => false, band: () => <p data-testid="fake-band">Fake waystone</p> })],
+);
 const CLAIMED_SECTION = regionSection(CLAIMING_REGIONS);
 const UNCLAIMED_SECTION = regionSection(IDLE_REGIONS);
 

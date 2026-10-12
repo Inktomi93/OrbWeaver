@@ -20,7 +20,7 @@ import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode
 // context (useSectionRegistry) so the context+provider primitives carry a behavioral test.
 
 import type { ContributorRegistry } from "@orb/client/lib";
-import { CORPUS_MODES, createContributorRegistry } from "@orb/client/lib";
+import { CORPUS_MODES } from "@orb/client/lib";
 import type { ChromeEntry, ConfigSectionContribution, SectionDefinition } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
@@ -250,6 +250,7 @@ import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 import { chromeWidgets, stampAppearanceBootHint } from "../../support/browser/ct-door.ts";
+import { isolationRegistry } from "../../support/browser/ct-isolation.ts";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through
@@ -1269,17 +1270,21 @@ export function SettingsSectionRegistryProbe({ isAdmin }: { readonly isAdmin: bo
   );
 }
 
-const probeSections: ContributorRegistry<ConfigSectionContribution> = createContributorRegistry<ConfigSectionContribution>("probe-settings-sections", [
-  { id: "probe-chat", anchor: "chat-behavior", nav: { id: "probe-chat", label: "Probe chat" }, body: (): ReactElement => <output>chat body</output> },
-  {
-    id: "probe-admin",
-    anchor: "chat-behavior",
-    nav: { id: "probe-admin", label: "Probe admin" },
-    when: (viewer): boolean => viewer.isAdmin,
-    body: (): ReactElement => <output>admin body</output>,
-  },
-  { id: "probe-other", anchor: "appearance", nav: { id: "probe-other", label: "Probe other" }, body: (): ReactElement => <output>other body</output> },
-]);
+const probeSections: ContributorRegistry<ConfigSectionContribution> = isolationRegistry<ConfigSectionContribution>(
+  "probe-settings-sections",
+  "replaces the shipped settings sections with three probes so reading a registry through its hooks and viewer gate is the subject",
+  [
+    { id: "probe-chat", anchor: "chat-behavior", nav: { id: "probe-chat", label: "Probe chat" }, body: (): ReactElement => <output>chat body</output> },
+    {
+      id: "probe-admin",
+      anchor: "chat-behavior",
+      nav: { id: "probe-admin", label: "Probe admin" },
+      when: (viewer): boolean => viewer.isAdmin,
+      body: (): ReactElement => <output>admin body</output>,
+    },
+    { id: "probe-other", anchor: "appearance", nav: { id: "probe-other", label: "Probe other" }, body: (): ReactElement => <output>other body</output> },
+  ],
+);
 
 function SettingsSectionRegistryReader({ isAdmin }: { readonly isAdmin: boolean }): ReactElement {
   const registry = useConfigSectionRegistry();

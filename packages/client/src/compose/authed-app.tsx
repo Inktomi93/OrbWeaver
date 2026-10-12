@@ -19,7 +19,7 @@
 import type { ReactElement } from "react";
 import { youModal } from "#features/app-shell";
 import { reauthModal } from "#features/auth";
-import { automationActivityTab, automationGroup } from "#features/automation";
+import { automationGroup } from "#features/automation";
 import { makeCharactersSection } from "#features/character";
 import { ChatsWithCharacterPane, commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { appearanceGroup, bindConfigPaletteGroups, chatBehaviorGroup, makeConfigSection } from "#features/config";
@@ -34,13 +34,11 @@ import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
 import { rosterGroup, savedRostersModal } from "#features/roster-preset";
-import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
 import { insightsCorpusMode } from "#features/stats";
 import { labelsCorpusMode } from "#features/tag";
 import { aboutGroup, adminGroup } from "#features/user-admin";
 import { backupGroup, workloadsGroup } from "#features/workloads";
 import { worldInfoGroup } from "#features/world-info";
-import type { CharacterDetailContribution, ChatContextState, ContextRegionDef, ContextTabDef, MessageToolsRenderer } from "#lib";
 import { createContributorRegistry, createRegistry } from "#lib";
 import {
   assembleChrome,
@@ -57,6 +55,7 @@ import {
 } from "#state";
 import { AppRoot } from "../routes/app-root.tsx";
 import { queryClient, trpcProxy } from "./app-singletons.ts";
+import { characterDetailContributors, makeChatContextContributors, makeChatContextRegions, messageToolsRenderers } from "./chat-context.ts";
 // The config-SECTION assembly, in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
 // assembly, still door-owned — it moved for `component-size`, like `home-tiles.ts`. See that file's header.
 import { configSections } from "./config-sections.ts";
@@ -72,39 +71,6 @@ import {
 // The home-tile registry, assembled in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
 // assembly, still door-owned — it moved for `component-size`, not for architecture. See that file's header.
 import { homeTiles } from "./home-tiles.ts";
-
-// The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs — the
-// FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
-// ({trpc, queryClient}) — the door injects the cross-domain read channel (§12) and assembles the result into
-// the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
-// `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.
-// (B2's host-only "Rules" TAB used to ride here too. It was RETIRED at #616 — the owner ruled the surface
-// belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` in `contributors.ts`.)
-const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
-  ...makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
-  // B11 — the room ACTIVITY tab (host-only), automation's second CONTEXT-strip graft: a ready def (no injected
-  // read channel — its body reads through `useTRPC`), sibling of Members/"This chat"/Preview. automation owns
-  // it because `client-features-no-cross` forbids chat from importing the fire-outcome copy it renders.
-  automationActivityTab,
-]);
-
-// The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
-// engaged game chat — same door, same injected read channel, same one-directional flow as the tabs above.
-// Every other chat (and every other section) has no claimant and renders the generic panel.
-const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [
-  makeRpgHudRegion({ trpc: trpcProxy, queryClient }),
-]);
-
-// The WHOLE-MESSAGE tool-renderer seam (§6c): the per-message override that renders ALL of a message's tool
-// records together so a contributor can AGGREGATE across them (the per-tool registry above cannot see across
-// records). Delivered via a context provider; the FIRST renderer to claim a message owns its whole tool block,
-// else chat falls back to the per-record path. Empty ⇒ byte-identical.
-const messageToolsRenderers = createContributorRegistry<MessageToolsRenderer>("message-tools-renderer", []);
-
-// The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
-// path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
-// review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
-const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
 // The ONE config-group assembly: total over CONFIG_GROUP_IDS by
 // tsc — a missing group is a compile error, and `config-group-completeness` carries the walls tsc cannot
@@ -138,8 +104,8 @@ bindConfigPaletteGroups(configGroups);
 const sections = createRegistry("sections", SECTION_IDS, {
   home: makeHomeSection(homeTiles),
   chats: makeChatsSection({
-    contextTabs: chatContextContributors,
-    contextRegions: chatContextRegions,
+    contextTabs: makeChatContextContributors({ trpc: trpcProxy, queryClient }),
+    contextRegions: makeChatContextRegions({ trpc: trpcProxy, queryClient }),
     surfaces: chatSurfaceContributors,
     toolRenderers,
     settingsSections: chatSettingsSections,

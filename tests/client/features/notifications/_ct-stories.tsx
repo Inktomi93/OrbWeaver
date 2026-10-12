@@ -12,14 +12,12 @@
 // @orb-waive-file testid-typed-only-stories("ct-shell-destination"): baselined when the gate widened; burn-down item 906.
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
-import { pluginsInstalledSection } from "@orb/client/features/plugin";
-import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
-import { ChromeRegistryProvider, closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
+import { closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
+import { configSections } from "../../../support/browser/ct-door.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */
@@ -127,17 +125,6 @@ export function NotificationBellDestinationStory(): ReactElement {
   );
 }
 
-const notificationChrome = isolationRegistry<ChromeEntry>(
-  "chrome",
-  "keeps the notifications entry as the only chrome widget so the You drawer holds just the inbox",
-  [notificationsChrome],
-);
-const installedPlugins = isolationRegistry<ConfigSectionContribution>(
-  "config-sections",
-  "keeps the installed-plugins section apart from the install and distribute sections that share its anchor",
-  [pluginsInstalledSection],
-);
-
 function PhonePluginNoticeBody(): ReactElement {
   const modal = useOpenModal();
   const section = useActiveSection();
@@ -147,7 +134,7 @@ function PhonePluginNoticeBody(): ReactElement {
       <Button data-modal-trigger="you" onClick={(): void => openModal("you")}>
         You
       </Button>
-      {section === "config" && group === "plugins" ? <CtConfigGroupBody anchor="plugins" sections={installedPlugins} /> : null}
+      {section === "config" && group === "plugins" ? <CtConfigGroupBody anchor="plugins" sections={configSections} /> : null}
       <ShellDestinationProbe />
       <ModalHost openModal={modal} onClose={closeModal} />
     </>
@@ -160,9 +147,7 @@ export function NotificationPhonePluginDestinationStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <CtRealSectionRegistry>
-          <ChromeRegistryProvider value={notificationChrome}>
-            <PhonePluginNoticeBody />
-          </ChromeRegistryProvider>
+          <PhonePluginNoticeBody />
         </CtRealSectionRegistry>
       </SocketHost>
     </CtDataProviders>
