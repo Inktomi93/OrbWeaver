@@ -22,16 +22,12 @@ describe("ruleEditorFailure", () => {
     expect(failure?.retryable).toBe(false);
   });
 
-  test.each([
-    "bad_action",
-    "global_arm_scope",
-    "global_predicate_scope",
-    "preset_knob",
-    "preset_scope",
-    "unattached_book",
-  ] as const)("%s carries the server's sentence, because it names what was refused", (code) => {
-    expect(ruleEditorFailure(refusal(ruleRefusalReason(code)))?.message).toContain(SERVER_SENTENCE);
-  });
+  test.each(["bad_action", "global_arm_scope", "global_predicate_scope", "preset_knob", "preset_scope", "unattached_book"] as const)(
+    "%s carries the server's sentence, because it names what was refused",
+    (code) => {
+      expect(ruleEditorFailure(refusal(ruleRefusalReason(code)))?.message).toContain(SERVER_SENTENCE);
+    },
+  );
 
   test("a failure with no refusal code is unstructured: it keeps its own message and its retry path", () => {
     expect(ruleEditorFailure(refusal("something_else"))).toEqual({ message: SERVER_SENTENCE, retryable: true });

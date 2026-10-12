@@ -205,13 +205,14 @@ test("every sentinel has a minified fixture — the planted sheet covers the who
   expect(Object.keys(MINIFIED).sort()).toEqual(APP_STYLESHEET_SENTINELS.map((sentinel) => sentinel.source).sort());
 });
 
-test.for(
-  APP_STYLESHEET_SENTINELS.map((sentinel) => [sentinel.label, sentinel.source] as const),
-)("a stylesheet that lost `%s` is a violation that names it and its source", async ([label, source], { plantedTree }) => {
-  const verdict = measureAppStylesheet(await plantedTree(appDist(source)));
-  expect(verdict.unmeasurable).toBeNull();
-  expect(verdict.missing.map((sentinel) => [sentinel.label, sentinel.source])).toEqual([[label, source]]);
-});
+test.for(APP_STYLESHEET_SENTINELS.map((sentinel) => [sentinel.label, sentinel.source] as const))(
+  "a stylesheet that lost `%s` is a violation that names it and its source",
+  async ([label, source], { plantedTree }) => {
+    const verdict = measureAppStylesheet(await plantedTree(appDist(source)));
+    expect(verdict.unmeasurable).toBeNull();
+    expect(verdict.missing.map((sentinel) => [sentinel.label, sentinel.source])).toEqual([[label, source]]);
+  },
+);
 
 test("an html that links NO stylesheet — the #1752 shape — misses every sentinel", async ({ plantedTree }) => {
   const dist = appDist();

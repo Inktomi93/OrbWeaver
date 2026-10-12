@@ -391,130 +391,130 @@ async function wipeRollups(database: Db): Promise<void> {
 }
 
 describe("stats drift gate — live deltas vs a canon rebuild agree column-for-column (D60 agent row)", () => {
-  test.for([
-    false,
-    true,
-  ])("partial multi-leg economics retain each original model and bucket with SDK-notional=%s while transcript timing is counted once", async (sdkNotional) => {
-    const now = T0 + 2 * DAY;
-    const common = {
-      provider: providerIdSchema.parse("google"),
-      wire: "google-generative-ai",
-      contextWindow: null,
-      maxOutputTokens: null,
-      modelCalls: 1,
-      durationApiMs: 100,
-      ttftMs: null,
-      finishReason: "stop",
-      stopReason: "STOP",
-      terminalReason: null,
-      generationId: null,
-    };
-    const legs = [
-      generationUsageLegSchema.parse({
-        ...common,
-        ...makeGenerationUsage(0.125, { tokensIn: 10, tokensOut: 20, reasoningTokens: 5 }),
-        ...(sdkNotional ? { provider: "claude-sub", wire: "agent-sdk", costProvenance: "estimated" } : {}),
-        model: modelIdSchema.parse("first-model"),
-        observedAt: T0,
-      }),
-      generationUsageLegSchema.parse({
-        ...common,
-        ...makeGenerationUsage(0, { tokensIn: 20, tokensOut: 30 }),
-        model: modelIdSchema.parse("second-model"),
-        observedAt: T0 + DAY,
-      }),
-      generationUsageLegSchema.parse({
-        ...common,
-        ...makeGenerationUsage(null, { tokensIn: 30, tokensOut: null }),
-        model: modelIdSchema.parse("second-model"),
-        observedAt: T0 + DAY,
-      }),
-    ];
-    const metadata = { usageLegs: legs };
-    const row = {
-      characterId,
-      role: "assistant",
-      createdAt: now,
-      content: "paid recovery",
-      tokensIn: 60,
-      tokensOut: null,
-      tokenProvenance: "measured" as const,
-      costUsd: null,
-      cacheReadTokens: null,
-      cacheWriteTokens: null,
-      contextWindow: null,
-      genStartedAt: now,
-      genFinishedAt: now + 100,
-      model: "second-model",
-      provider: "google",
-      reasoning: null,
-      metadata,
-      selectedIdx: 0,
-      variantCount: 1,
-    };
-    const statements: BatchStmt[] = insertCanonMessageStatements(db, {
-      messageId: mintTypeId(ID_PREFIX.message),
-      variantId: mintTypeId(ID_PREFIX.messageVariant),
-      chatId,
-      seq: 6,
-      role: "assistant",
-      characterId,
-      now,
-      variant: {
-        content: row.content,
-        tokensIn: row.tokensIn,
+  test.for([false, true])(
+    "partial multi-leg economics retain each original model and bucket with SDK-notional=%s while transcript timing is counted once",
+    async (sdkNotional) => {
+      const now = T0 + 2 * DAY;
+      const common = {
+        provider: providerIdSchema.parse("google"),
+        wire: "google-generative-ai",
+        contextWindow: null,
+        maxOutputTokens: null,
+        modelCalls: 1,
+        durationApiMs: 100,
+        ttftMs: null,
+        finishReason: "stop",
+        stopReason: "STOP",
+        terminalReason: null,
+        generationId: null,
+      };
+      const legs = [
+        generationUsageLegSchema.parse({
+          ...common,
+          ...makeGenerationUsage(0.125, { tokensIn: 10, tokensOut: 20, reasoningTokens: 5 }),
+          ...(sdkNotional ? { provider: "claude-sub", wire: "agent-sdk", costProvenance: "estimated" } : {}),
+          model: modelIdSchema.parse("first-model"),
+          observedAt: T0,
+        }),
+        generationUsageLegSchema.parse({
+          ...common,
+          ...makeGenerationUsage(0, { tokensIn: 20, tokensOut: 30 }),
+          model: modelIdSchema.parse("second-model"),
+          observedAt: T0 + DAY,
+        }),
+        generationUsageLegSchema.parse({
+          ...common,
+          ...makeGenerationUsage(null, { tokensIn: 30, tokensOut: null }),
+          model: modelIdSchema.parse("second-model"),
+          observedAt: T0 + DAY,
+        }),
+      ];
+      const metadata = { usageLegs: legs };
+      const row = {
+        characterId,
+        role: "assistant",
+        createdAt: now,
+        content: "paid recovery",
+        tokensIn: 60,
         tokensOut: null,
+        tokenProvenance: "measured" as const,
         costUsd: null,
-        tokenProvenance: "measured",
-        model: modelIdSchema.parse(row.model),
-        provider: providerIdSchema.parse(row.provider),
-        genStartedAt: row.genStartedAt,
-        genFinishedAt: row.genFinishedAt,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        contextWindow: null,
+        genStartedAt: now,
+        genFinishedAt: now + 100,
+        model: "second-model",
+        provider: "google",
+        reasoning: null,
         metadata,
-      },
-    });
-    for (const delta of [...liveDeltas(), ...canonMessageDelta({ ownerId, row, sign: 1, now })]) {
-      applyStatsDelta(statements, db, delta);
-    }
-    await db.batch(batchMany(statements));
-    const live = await snapshotRollups(db, ownerId);
-    await reconcileStats(db, { ownerId, now: () => now + 100 });
-    expect(await snapshotRollups(db, ownerId)).toEqual(live);
-    expect(live.owner).toMatchObject({
-      assistantTurns: 4,
-      tokensIn: 79,
-      tokensOut: 88,
-      costUsd: 0.625,
-      costSamples: 3,
-      notionalCostSamples: Number(sdkNotional),
-      genSamples: 3,
-    });
-    expect(live.chars[0]).toMatchObject({ assistantTurns: 3, costUsd: 0.625, costSamples: 3, notionalCostSamples: Number(sdkNotional) });
-    expect(live.models.find((model) => model["model"] === "first-model")).toMatchObject({
-      generations: 0,
-      genSamples: 0,
-      tokensIn: 10,
-      tokensOut: 20,
-      costUsd: 0.125,
-      costSamples: 1,
-      notionalCostSamples: Number(sdkNotional),
-    });
-    expect(live.models.find((model) => model["model"] === "second-model")).toMatchObject({
-      generations: 1,
-      genSamples: 1,
-      tokensIn: 50,
-      tokensOut: 30,
-      costUsd: 0,
-      costSamples: 1,
-      notionalCostSamples: 0,
-    });
-    expect(live.days.map((day) => [day["bucketStart"], day["tokensIn"], day["tokensOut"], day["costUsd"], day["costSamples"]])).toEqual([
-      [statsBucketStart(T0), 27, 54, 0.625, 2],
-      [statsBucketStart(T0 + DAY), 50, 30, 0, 1],
-      [statsBucketStart(now), 0, 0, 0, 0],
-    ]);
-    expect(live.days.map((day) => day["notionalCostSamples"])).toEqual([Number(sdkNotional), 0, 0]);
-  });
+        selectedIdx: 0,
+        variantCount: 1,
+      };
+      const statements: BatchStmt[] = insertCanonMessageStatements(db, {
+        messageId: mintTypeId(ID_PREFIX.message),
+        variantId: mintTypeId(ID_PREFIX.messageVariant),
+        chatId,
+        seq: 6,
+        role: "assistant",
+        characterId,
+        now,
+        variant: {
+          content: row.content,
+          tokensIn: row.tokensIn,
+          tokensOut: null,
+          costUsd: null,
+          tokenProvenance: "measured",
+          model: modelIdSchema.parse(row.model),
+          provider: providerIdSchema.parse(row.provider),
+          genStartedAt: row.genStartedAt,
+          genFinishedAt: row.genFinishedAt,
+          metadata,
+        },
+      });
+      for (const delta of [...liveDeltas(), ...canonMessageDelta({ ownerId, row, sign: 1, now })]) {
+        applyStatsDelta(statements, db, delta);
+      }
+      await db.batch(batchMany(statements));
+      const live = await snapshotRollups(db, ownerId);
+      await reconcileStats(db, { ownerId, now: () => now + 100 });
+      expect(await snapshotRollups(db, ownerId)).toEqual(live);
+      expect(live.owner).toMatchObject({
+        assistantTurns: 4,
+        tokensIn: 79,
+        tokensOut: 88,
+        costUsd: 0.625,
+        costSamples: 3,
+        notionalCostSamples: Number(sdkNotional),
+        genSamples: 3,
+      });
+      expect(live.chars[0]).toMatchObject({ assistantTurns: 3, costUsd: 0.625, costSamples: 3, notionalCostSamples: Number(sdkNotional) });
+      expect(live.models.find((model) => model["model"] === "first-model")).toMatchObject({
+        generations: 0,
+        genSamples: 0,
+        tokensIn: 10,
+        tokensOut: 20,
+        costUsd: 0.125,
+        costSamples: 1,
+        notionalCostSamples: Number(sdkNotional),
+      });
+      expect(live.models.find((model) => model["model"] === "second-model")).toMatchObject({
+        generations: 1,
+        genSamples: 1,
+        tokensIn: 50,
+        tokensOut: 30,
+        costUsd: 0,
+        costSamples: 1,
+        notionalCostSamples: 0,
+      });
+      expect(live.days.map((day) => [day["bucketStart"], day["tokensIn"], day["tokensOut"], day["costUsd"], day["costSamples"]])).toEqual([
+        [statsBucketStart(T0), 27, 54, 0.625, 2],
+        [statsBucketStart(T0 + DAY), 50, 30, 0, 1],
+        [statsBucketStart(now), 0, 0, 0, 0],
+      ]);
+      expect(live.days.map((day) => day["notionalCostSamples"])).toEqual([Number(sdkNotional), 0, 0]);
+    },
+  );
   test("the four rollups are byte-identical whether rebuilt from canon or applied live", async () => {
     // Writer A — reconcile the four rollups from canon.
     const clock = createFrozenClock(T0 + 5000);

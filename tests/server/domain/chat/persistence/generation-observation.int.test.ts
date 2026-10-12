@@ -50,220 +50,223 @@ import { makeChatContext, noClaim } from "../_support.ts";
 
 const OBSERVED_AT = 1_700_000_000_000;
 
-test.for([
-  "cohort-replacement",
-  "voice-owner",
-  "target-edit",
-  "database-failure",
-] as const)("postcommit transfer refuses %s atomically without losing completed facts or changing a surviving money home", async (race, { ids }) => {
-  const held = await freshHeldDb();
-  const db = held.db;
-  const owner = await seedUser(db);
-  const other = await seedUser(db);
-  const funder = await seedUser(db);
-  const room = await seedChat(db);
-  const voice = await seedCharacter(db, { ownerId: owner.id });
-  await db.insert(chatParticipants).values({
-    id: castId(ids.next(ID_PREFIX.chatParticipant)),
-    chatId: room.id,
-    kind: "character",
-    characterId: voice.id,
-    role: "member",
-    joinedAt: OBSERVED_AT,
-    joinSeq: 0,
-  });
-  if (race === "voice-owner") {
-    for (const ownerId of [owner.id, other.id]) {
-      const card = await seedCharacter(db, { ownerId });
-      await db.insert(chatParticipants).values({
-        id: castId(ids.next(ID_PREFIX.chatParticipant)),
-        chatId: room.id,
-        kind: "character",
-        characterId: card.id,
-        role: "member",
-        joinedAt: OBSERVED_AT,
-        joinSeq: 1,
-      });
+test.for(["cohort-replacement", "voice-owner", "target-edit", "database-failure"] as const)(
+  "postcommit transfer refuses %s atomically without losing completed facts or changing a surviving money home",
+  async (race, { ids }) => {
+    const held = await freshHeldDb();
+    const db = held.db;
+    const owner = await seedUser(db);
+    const other = await seedUser(db);
+    const funder = await seedUser(db);
+    const room = await seedChat(db);
+    const voice = await seedCharacter(db, { ownerId: owner.id });
+    await db.insert(chatParticipants).values({
+      id: castId(ids.next(ID_PREFIX.chatParticipant)),
+      chatId: room.id,
+      kind: "character",
+      characterId: voice.id,
+      role: "member",
+      joinedAt: OBSERVED_AT,
+      joinSeq: 0,
+    });
+    if (race === "voice-owner") {
+      for (const ownerId of [owner.id, other.id]) {
+        const card = await seedCharacter(db, { ownerId });
+        await db.insert(chatParticipants).values({
+          id: castId(ids.next(ID_PREFIX.chatParticipant)),
+          chatId: room.id,
+          kind: "character",
+          characterId: card.id,
+          role: "member",
+          joinedAt: OBSERVED_AT,
+          joinSeq: 1,
+        });
+      }
     }
-  }
-  const source = await seedMessage(db, { chatId: room.id, characterId: voice.id, content: "Retained reply." });
-  const base = paidLegOf(OBSERVED_AT, 0.25);
-  await db
-    .update(messageVariants)
-    .set({
-      ...makeGenerationUsage(0.25, { tokensIn: base.tokensIn, tokensOut: base.tokensOut }),
-      tokenProvenance: "measured",
-      model: base.model,
-      provider: base.provider,
-      metadata: { usageLegs: [base] },
-    })
-    .where(eq(messageVariants.id, source.variantId));
-  const ctx = makeChatContext(db, {
-    now: () => OBSERVED_AT,
-    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
-    applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta),
-    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
-    bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
-  });
-  const parent: GenerationObservationParent = {
-    chatId: room.id,
-    turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)),
-    sourceMessageId: source.id,
-    sourceVariantId: source.variantId,
-  };
-  const session = createGenerationObservationSession({ db, now: ctx.now, applyStatsDelta }, parent, ctx);
-  const connection = makeResolved({ task: "chat", ownerId: funder.id, providerId: "google" });
-  await db
-    .insert(userConnections)
-    .values({ id: connection.connectionId, ownerId: funder.id, providerId: connection.providerId, model: connection.model, label: "Chat" });
-  const result: ChatResult = {
-    reply: "",
-    reasoning: "",
-    reasoningRedacted: false,
-    stopReason: "STOP",
-    terminalReason: null,
-    finishReason: "stop",
-    ttftMs: null,
-    durationApiMs: 1,
-    apiErrorStatus: null,
-    numTurns: 1,
-    appliedEffort: null,
-    usage: { ...makeGenerationUsage(0.125, { tokensIn: 12, tokensOut: 17 }), model: connection.model, contextWindow: null, maxOutputTokens: null },
-    events: [],
-    rateLimit: null,
-  };
-  await reconcileStats(db, { now: ctx.now });
-  const gate = held.hold(/insert into "chats"/i);
-  const completing = session.onObservedResult(result, connection).catch((error: unknown) => error);
-  let before: (typeof ownerStats.$inferSelect)[] = [];
-  try {
-    await gate.reached;
-    if (race === "cohort-replacement" || race === "voice-owner") {
-      await db.update(characters).set({ ownerId: other.id }).where(eq(characters.id, voice.id));
-    }
-    if (race === "target-edit") {
-      await db.update(messageVariants).set({ content: "Changed retained reply." }).where(eq(messageVariants.id, source.variantId));
-    }
-    if (race === "database-failure") {
-      await db.run(sql`CREATE TRIGGER fixture_attach_failure BEFORE UPDATE ON message_variants BEGIN SELECT RAISE(ABORT, 'fixture attach write failed'); END`);
-    }
-    await reconcileStats(db, { now: ctx.now });
-    before = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
-  } finally {
-    gate.release();
-  }
-  const failure = await completing;
-  assert(failure instanceof GenerationObservationPersistenceError);
-  expect(failure.cause instanceof ChatOperationError).toBe(race !== "database-failure");
-  expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
-  expect((await db.select().from(messageVariants).where(eq(messageVariants.id, source.variantId)))[0]?.metadata?.usageLegs).toEqual([base]);
-  expect(await db.select().from(chatGenerationObservations)).toMatchObject([
-    { chatId: room.id, sourceMessageId: source.id, sourceVariantId: source.variantId, funderUserId: funder.id, costUsd: 0.125, tokensIn: 12, tokensOut: 17 },
-  ]);
-  await reconcileStats(db, { now: ctx.now });
-  expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
-});
-
-test.for(["append", "normalization"] as const)("an actual replayed Smart call's durable %s failure keeps its cause and cannot repurchase", async (phase, {
-  db,
-  ids,
-}) => {
-  const owner = await seedUser(db);
-  const room = await seedChat(db, { withHost: true });
-  const connection = makeResolved({
-    task: "structured",
-    ownerId: owner.id,
-    providerId: "openrouter",
-    credential: makeApiKeySecret(),
-    generation: { output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"], structured: true } },
-    transport: { headers: { "X-OpenRouter-Cache": "true" } },
-  });
-  await db
-    .insert(userConnections)
-    .values({ id: connection.connectionId, ownerId: owner.id, providerId: connection.providerId, model: connection.model, label: "Utility" });
-  const cause = new Error(`fixture durable ${phase} failed`);
-  const session = createGenerationObservationSession(
-    {
-      db,
-      now: () => {
-        if (phase === "normalization") {
-          throw cause;
-        }
-        return OBSERVED_AT;
-      },
-      applyStatsDelta: () => {
-        throw cause;
-      },
-    },
-    {
+    const source = await seedMessage(db, { chatId: room.id, characterId: voice.id, content: "Retained reply." });
+    const base = paidLegOf(OBSERVED_AT, 0.25);
+    await db
+      .update(messageVariants)
+      .set({
+        ...makeGenerationUsage(0.25, { tokensIn: base.tokensIn, tokensOut: base.tokensOut }),
+        tokenProvenance: "measured",
+        model: base.model,
+        provider: base.provider,
+        metadata: { usageLegs: [base] },
+      })
+      .where(eq(messageVariants.id, source.variantId));
+    const ctx = makeChatContext(db, {
+      now: () => OBSERVED_AT,
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
+      applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch as BatchStmt[], opDb, delta),
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
+      bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
+    });
+    const parent: GenerationObservationParent = {
       chatId: room.id,
       turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)),
-      sourceMessageId: null,
-      sourceVariantId: null,
-    },
-  );
-  let calls = 0;
-  const requests: RecordedRequest[] = [];
-  const replay = openAiTextStream('{"responders":["Aria"]}').map((frame) => {
-    const { usage: _usage, ...data } = frame.data;
-    return { ...frame, data };
-  });
-  const providerFetch = scriptedSseFetch([replay], requests, { "x-openrouter-cache-status": "HIT", "x-openrouter-cache-source-id": "gen-original" });
-  const refs = ["Aria", "Bran"].map((name) => ({ name, ref: { kind: "character" as const, characterId: castId<CharacterId>(ids.next(ID_PREFIX.character)) } }));
-  const attempt = smartArbitrate({
-    arbiter: () =>
-      Promise.resolve({
-        contextTokens: 16_384,
-        structured: (inputs, opts) =>
-          runSideGen(
-            {
-              connection,
-              inputs,
-              responseFormat: opts.responseFormat,
-              onObservedResult: session.onObservedResult,
-            },
-            {
-              concurrency: 1,
-              now: () => OBSERVED_AT,
-              normalize: () => Promise.reject(new Error("unexpected image normalization")),
-              log: { info: () => undefined, warn: () => undefined, debug: () => undefined, error: () => undefined },
-              runChatTurn: async (request) => {
-                calls += 1;
-                if (request.api !== "chat-completions") {
-                  throw new Error("The replay failure control must use the compatible SDK.");
-                }
-                return await runOpenAiCompatChatTurn(
-                  { ...request, api: "chat-completions" },
-                  {
-                    now: () => OBSERVED_AT,
-                    tokens: memoryTokenLexicon(),
-                    log: { info: () => undefined, warn: () => undefined, debug: () => undefined, error: () => undefined },
-                    transport: { fetch: providerFetch, app: { name: "test", url: "http://localhost:0" } },
-                  },
-                );
+      sourceMessageId: source.id,
+      sourceVariantId: source.variantId,
+    };
+    const session = createGenerationObservationSession({ db, now: ctx.now, applyStatsDelta }, parent, ctx);
+    const connection = makeResolved({ task: "chat", ownerId: funder.id, providerId: "google" });
+    await db
+      .insert(userConnections)
+      .values({ id: connection.connectionId, ownerId: funder.id, providerId: connection.providerId, model: connection.model, label: "Chat" });
+    const result: ChatResult = {
+      reply: "",
+      reasoning: "",
+      reasoningRedacted: false,
+      stopReason: "STOP",
+      terminalReason: null,
+      finishReason: "stop",
+      ttftMs: null,
+      durationApiMs: 1,
+      apiErrorStatus: null,
+      numTurns: 1,
+      appliedEffort: null,
+      usage: { ...makeGenerationUsage(0.125, { tokensIn: 12, tokensOut: 17 }), model: connection.model, contextWindow: null, maxOutputTokens: null },
+      events: [],
+      rateLimit: null,
+    };
+    await reconcileStats(db, { now: ctx.now });
+    const gate = held.hold(/insert into "chats"/i);
+    const completing = session.onObservedResult(result, connection).catch((error: unknown) => error);
+    let before: (typeof ownerStats.$inferSelect)[] = [];
+    try {
+      await gate.reached;
+      if (race === "cohort-replacement" || race === "voice-owner") {
+        await db.update(characters).set({ ownerId: other.id }).where(eq(characters.id, voice.id));
+      }
+      if (race === "target-edit") {
+        await db.update(messageVariants).set({ content: "Changed retained reply." }).where(eq(messageVariants.id, source.variantId));
+      }
+      if (race === "database-failure") {
+        await db.run(
+          sql`CREATE TRIGGER fixture_attach_failure BEFORE UPDATE ON message_variants BEGIN SELECT RAISE(ABORT, 'fixture attach write failed'); END`,
+        );
+      }
+      await reconcileStats(db, { now: ctx.now });
+      before = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
+    } finally {
+      gate.release();
+    }
+    const failure = await completing;
+    assert(failure instanceof GenerationObservationPersistenceError);
+    expect(failure.cause instanceof ChatOperationError).toBe(race !== "database-failure");
+    expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
+    expect((await db.select().from(messageVariants).where(eq(messageVariants.id, source.variantId)))[0]?.metadata?.usageLegs).toEqual([base]);
+    expect(await db.select().from(chatGenerationObservations)).toMatchObject([
+      { chatId: room.id, sourceMessageId: source.id, sourceVariantId: source.variantId, funderUserId: funder.id, costUsd: 0.125, tokensIn: 12, tokensOut: 17 },
+    ]);
+    await reconcileStats(db, { now: ctx.now });
+    expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
+  },
+);
+
+test.for(["append", "normalization"] as const)(
+  "an actual replayed Smart call's durable %s failure keeps its cause and cannot repurchase",
+  async (phase, { db, ids }) => {
+    const owner = await seedUser(db);
+    const room = await seedChat(db, { withHost: true });
+    const connection = makeResolved({
+      task: "structured",
+      ownerId: owner.id,
+      providerId: "openrouter",
+      credential: makeApiKeySecret(),
+      generation: { output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"], structured: true } },
+      transport: { headers: { "X-OpenRouter-Cache": "true" } },
+    });
+    await db
+      .insert(userConnections)
+      .values({ id: connection.connectionId, ownerId: owner.id, providerId: connection.providerId, model: connection.model, label: "Utility" });
+    const cause = new Error(`fixture durable ${phase} failed`);
+    const session = createGenerationObservationSession(
+      {
+        db,
+        now: () => {
+          if (phase === "normalization") {
+            throw cause;
+          }
+          return OBSERVED_AT;
+        },
+        applyStatsDelta: () => {
+          throw cause;
+        },
+      },
+      {
+        chatId: room.id,
+        turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)),
+        sourceMessageId: null,
+        sourceVariantId: null,
+      },
+    );
+    let calls = 0;
+    const requests: RecordedRequest[] = [];
+    const replay = openAiTextStream('{"responders":["Aria"]}').map((frame) => {
+      const { usage: _usage, ...data } = frame.data;
+      return { ...frame, data };
+    });
+    const providerFetch = scriptedSseFetch([replay], requests, { "x-openrouter-cache-status": "HIT", "x-openrouter-cache-source-id": "gen-original" });
+    const refs = ["Aria", "Bran"].map((name) => ({
+      name,
+      ref: { kind: "character" as const, characterId: castId<CharacterId>(ids.next(ID_PREFIX.character)) },
+    }));
+    const attempt = smartArbitrate({
+      arbiter: () =>
+        Promise.resolve({
+          contextTokens: 16_384,
+          structured: (inputs, opts) =>
+            runSideGen(
+              {
+                connection,
+                inputs,
+                responseFormat: opts.responseFormat,
+                onObservedResult: session.onObservedResult,
               },
-            },
-          ),
-      }),
-    candidates: refs.map(({ ref }) => ({ ref, talkativeness: 0.5, disabled: false, leftSeq: null })),
-    speakerCandidates: refs,
-    characterLines: new Map<CharacterId, string>(),
-    transcript: [{ speakerName: "Player", text: "What happens next?", characterId: null }],
-    humanNames: ["Player"],
-    room: {},
-    lastSpeaker: null,
-    rng: () => 0.5,
-    prose: {},
-    sampling: {},
-  });
-  const failure = await attempt.catch((error: unknown) => error);
-  assert(failure instanceof GenerationObservationPersistenceError);
-  expect(failure.cause).toBe(cause);
-  expect(calls).toBe(1);
-  expect(requests).toHaveLength(1);
-  expect(requests[0]?.headers?.["x-openrouter-cache"]).toBe("true");
-  expect(await db.select().from(chatGenerationObservations)).toEqual([]);
-});
+              {
+                concurrency: 1,
+                now: () => OBSERVED_AT,
+                normalize: () => Promise.reject(new Error("unexpected image normalization")),
+                log: { info: () => undefined, warn: () => undefined, debug: () => undefined, error: () => undefined },
+                runChatTurn: async (request) => {
+                  calls += 1;
+                  if (request.api !== "chat-completions") {
+                    throw new Error("The replay failure control must use the compatible SDK.");
+                  }
+                  return await runOpenAiCompatChatTurn(
+                    { ...request, api: "chat-completions" },
+                    {
+                      now: () => OBSERVED_AT,
+                      tokens: memoryTokenLexicon(),
+                      log: { info: () => undefined, warn: () => undefined, debug: () => undefined, error: () => undefined },
+                      transport: { fetch: providerFetch, app: { name: "test", url: "http://localhost:0" } },
+                    },
+                  );
+                },
+              },
+            ),
+        }),
+      candidates: refs.map(({ ref }) => ({ ref, talkativeness: 0.5, disabled: false, leftSeq: null })),
+      speakerCandidates: refs,
+      characterLines: new Map<CharacterId, string>(),
+      transcript: [{ speakerName: "Player", text: "What happens next?", characterId: null }],
+      humanNames: ["Player"],
+      room: {},
+      lastSpeaker: null,
+      rng: () => 0.5,
+      prose: {},
+      sampling: {},
+    });
+    const failure = await attempt.catch((error: unknown) => error);
+    assert(failure instanceof GenerationObservationPersistenceError);
+    expect(failure.cause).toBe(cause);
+    expect(calls).toBe(1);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.headers?.["x-openrouter-cache"]).toBe("true");
+    expect(await db.select().from(chatGenerationObservations)).toEqual([]);
+  },
+);
 
 function paidLegOf(at: number, cost: number): GenerationUsageLeg {
   return generationUsageLegSchema.parse({

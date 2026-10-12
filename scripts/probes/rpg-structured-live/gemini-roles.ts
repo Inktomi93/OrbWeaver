@@ -27,6 +27,8 @@ const RESULTS = readEnvKey("GEMINI_ROLE_RESULTS") || path.join(DIR, "gemini-role
 const KEY = readEnvKey("GEMINI_PROBE_KEY");
 assert(KEY.length > 0, "GEMINI_PROBE_KEY is not set");
 const RUN_SUFFIX_LENGTH = 8;
+/** Numeric order with absent counts first, so two token lists compare as sets. */
+const byTokens = (left: number | null, right: number | null): number => (left ?? -1) - (right ?? -1);
 const SECRET_BOX_KEY_BYTES = 32;
 const HTTP_OK = 200;
 const NORM_TOLERANCE = 0.000_01;
@@ -272,7 +274,7 @@ try {
       (call.config?.requests ?? [call.config]).every((request) => request?.outputDimensionality === WIDTH && request.taskType === undefined),
     ),
   );
-  deepStrictEqual(canon.map((call) => call.promptTokens).sort(), physicalCalls.map((call) => call.usage?.promptTokenCount ?? null).sort());
+  deepStrictEqual(canon.map((call) => call.promptTokens).sort(byTokens), physicalCalls.map((call) => call.usage?.promptTokenCount ?? null).sort(byTokens));
   assert(canon.every((call) => call.totalTokens === null && call.servedModel === null && call.costUsd === null && call.outcome === "completed"));
   row({
     kind: "embedding",
@@ -335,7 +337,7 @@ async function proveImageEmbedding(connectionId: UserConnectionId, bytes: Uint8A
       ),
     ),
   );
-  deepStrictEqual(imageCanon.map((call) => call.promptTokens).sort(), imageCalls.map((call) => call.usage?.promptTokenCount ?? null).sort());
+  deepStrictEqual(imageCanon.map((call) => call.promptTokens).sort(byTokens), imageCalls.map((call) => call.usage?.promptTokenCount ?? null).sort(byTokens));
   strictEqual(embedded.usage.promptTokens, imageCalls[0]?.usage?.promptTokenCount ?? null);
   strictEqual(embedded.usage.totalTokens, null);
   assert(imageCanon.every((call) => call.totalTokens === null && call.servedModel === null && call.costUsd === null && call.outcome === "completed"));

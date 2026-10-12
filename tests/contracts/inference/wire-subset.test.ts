@@ -299,7 +299,7 @@ test("the CLOSED-OBJECT pin is per-mode: on where the wire requires it, and byte
   const armOf = (mode: WireSchemaMode): Record<string, unknown> | undefined => {
     const scrubbed = scrubWireSchema(constrained, mode).schema;
     // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
-    return ((scrubbed["properties"] as Record<string, Record<string, unknown>>)["t"]?.["oneOf"] as Record<string, unknown>[])[0];
+    return ((scrubbed["properties"] as Record<string, Record<string, unknown>>)["t"]?.["oneOf"] as Record<string, unknown>[])?.[0];
   };
   expect(armOf("guided-decoding")?.["additionalProperties"]).toBe(false); // xgrammar compiles the closure
   expect(armOf("strict-compatible")?.["additionalProperties"]).toBe(false); // OpenAI strict demands it

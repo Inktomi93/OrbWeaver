@@ -176,49 +176,43 @@ test("native inherited matrices qualify only with their complete canonical runti
   expect(hasQualifiedMainPush(scratch, SHA, unconfigured)).toBe(false);
 });
 
-test.for([
-  "missing-mode",
-  "stale-mode",
-  "mixed-mode",
-  "stale-static",
-  "skipped-static",
-  "partial-rerun",
-  "changed-sha",
-  "changed-run",
-] as const)("native inherited authority still refuses %s provenance", async (scenario, { scratch, fakeBin }) => {
-  await fakeBin("gh", API_FIXTURE);
-  const jobs = [goodJob(), ...goodProductJobs(SHA, true)].map((job) => {
-    if (job.name === "ci-ok") {
-      const modes = {
-        "missing-mode": [],
-        "stale-mode": [{ name: "Orbweaver qualification previous (inherited)", status: "completed", conclusion: "success" }],
-        "mixed-mode": [...job.steps, { name: `${GENERATION} (runtime)`, status: "completed", conclusion: "success" }],
-      };
-      if (scenario === "missing-mode" || scenario === "stale-mode" || scenario === "mixed-mode") {
-        return { ...job, steps: modes[scenario] };
+test.for(["missing-mode", "stale-mode", "mixed-mode", "stale-static", "skipped-static", "partial-rerun", "changed-sha", "changed-run"] as const)(
+  "native inherited authority still refuses %s provenance",
+  async (scenario, { scratch, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    const jobs = [goodJob(), ...goodProductJobs(SHA, true)].map((job) => {
+      if (job.name === "ci-ok") {
+        const modes = {
+          "missing-mode": [],
+          "stale-mode": [{ name: "Orbweaver qualification previous (inherited)", status: "completed", conclusion: "success" }],
+          "mixed-mode": [...job.steps, { name: `${GENERATION} (runtime)`, status: "completed", conclusion: "success" }],
+        };
+        if (scenario === "missing-mode" || scenario === "stale-mode" || scenario === "mixed-mode") {
+          return { ...job, steps: modes[scenario] };
+        }
       }
-    }
-    if (job.name === "static" && scenario === "stale-static") {
-      return { ...job, steps: [{ name: "Orbweaver qualification previous", status: "completed", conclusion: "success" }] };
-    }
-    return job.name === "static" && scenario === "skipped-static" ? { ...job, conclusion: "skipped" } : job;
-  });
-  const current = {
-    ...goodRun(),
-    ...(scenario === "partial-rerun" ? { ["run_attempt"]: 3 } : {}),
-    ...(scenario === "changed-sha" ? { ["head_sha"]: "b".repeat(40) } : {}),
-    ...(scenario === "changed-run" ? { id: 2 } : {}),
-  };
-  writeFileSync(
-    join(scratch, "ci-api.json"),
-    JSON.stringify({
-      ...metadata(),
-      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs },
-      [`${API_ROOT}/runs/1`]: current,
-    }),
-  );
-  expect(hasQualifiedMainPush(scratch, SHA, GROUPED_CONFIG)).toBe(false);
-});
+      if (job.name === "static" && scenario === "stale-static") {
+        return { ...job, steps: [{ name: "Orbweaver qualification previous", status: "completed", conclusion: "success" }] };
+      }
+      return job.name === "static" && scenario === "skipped-static" ? { ...job, conclusion: "skipped" } : job;
+    });
+    const current = {
+      ...goodRun(),
+      ...(scenario === "partial-rerun" ? { ["run_attempt"]: 3 } : {}),
+      ...(scenario === "changed-sha" ? { ["head_sha"]: "b".repeat(40) } : {}),
+      ...(scenario === "changed-run" ? { id: 2 } : {}),
+    };
+    writeFileSync(
+      join(scratch, "ci-api.json"),
+      JSON.stringify({
+        ...metadata(),
+        [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs },
+        [`${API_ROOT}/runs/1`]: current,
+      }),
+    );
+    expect(hasQualifiedMainPush(scratch, SHA, GROUPED_CONFIG)).toBe(false);
+  },
+);
 
 for (const group of RUNTIME_JOB_GROUPS.filter(({ jobs }) => jobs.length > 1)) {
   test.for([
@@ -278,35 +272,31 @@ for (const group of RUNTIME_JOB_GROUPS.filter(({ jobs }) => jobs.length > 1)) {
   });
 }
 
-test.for([
-  "missing-member",
-  "duplicate-member",
-  "foreign-member",
-  "empty-group",
-  "duplicate-name",
-  "renamed-singleton",
-] as const)("runtime qualification refuses an invalid configured partition: %s", async (scenario, { scratch, fakeBin }) => {
-  await fakeBin("gh", API_FIXTURE);
-  writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
-  const groups = RUNTIME_JOB_GROUPS.map((group) => ({ name: group.name, jobs: [...group.jobs] }));
-  const runtimeJobGroups = groups.map((group) => {
-    if (scenario === "renamed-singleton") {
-      return group.jobs.length === 1 ? { ...group, name: "unconfigured-singleton" } : group;
-    }
-    if (!group.name.startsWith("node")) {
-      return group;
-    }
-    const patches = {
-      "missing-member": { jobs: group.jobs.slice(0, 2) },
-      "duplicate-member": { jobs: ["node (1/3)", "node (1/3)", "node (3/3)"] },
-      "foreign-member": { jobs: ["node (1/3)", "node (2/3)", "unconfigured"] },
-      "empty-group": { jobs: [] },
-      "duplicate-name": { name: "e2e-smoke" },
-    };
-    return { ...group, ...patches[scenario] };
-  });
-  expect(hasQualifiedMainPush(scratch, SHA, { ...GROUPED_CONFIG, runtimeJobGroups })).toBe(false);
-});
+test.for(["missing-member", "duplicate-member", "foreign-member", "empty-group", "duplicate-name", "renamed-singleton"] as const)(
+  "runtime qualification refuses an invalid configured partition: %s",
+  async (scenario, { scratch, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
+    const groups = RUNTIME_JOB_GROUPS.map((group) => ({ name: group.name, jobs: [...group.jobs] }));
+    const runtimeJobGroups = groups.map((group) => {
+      if (scenario === "renamed-singleton") {
+        return group.jobs.length === 1 ? { ...group, name: "unconfigured-singleton" } : group;
+      }
+      if (!group.name.startsWith("node")) {
+        return group;
+      }
+      const patches = {
+        "missing-member": { jobs: group.jobs.slice(0, 2) },
+        "duplicate-member": { jobs: ["node (1/3)", "node (1/3)", "node (3/3)"] },
+        "foreign-member": { jobs: ["node (1/3)", "node (2/3)", "unconfigured"] },
+        "empty-group": { jobs: [] },
+        "duplicate-name": { name: "e2e-smoke" },
+      };
+      return { ...group, ...patches[scenario] };
+    });
+    expect(hasQualifiedMainPush(scratch, SHA, { ...GROUPED_CONFIG, runtimeJobGroups })).toBe(false);
+  },
+);
 
 test("product authority requires every current-attempt job and distinguishes legitimate inherited skips", { timeout: scaledBudget(30_000) }, async ({
   scratch,
@@ -352,7 +342,7 @@ test("product authority requires every current-attempt job and distinguishes leg
     if (job.name === "ci-ok") {
       return { ...job, steps: [{ name: `${GENERATION} (inherited)`, status: "completed", conclusion: "success" }] };
     }
-    return RUNTIME_JOB_NAMES.some((name) => name === job.name) ? { ...job, conclusion: "skipped" } : job;
+    return RUNTIME_JOB_NAMES.includes(job.name) ? { ...job, conclusion: "skipped" } : job;
   });
   expect(check(inherited)).toBe(true);
   expect(check(inherited.map((job) => (job.name === "e2e-smoke" ? { ...job, conclusion: "failure" } : job)))).toBe(false);

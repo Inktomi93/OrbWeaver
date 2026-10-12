@@ -2577,74 +2577,74 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
   });
 });
 
-test.for([
-  "cohort",
-  "voice",
-] as const)("a fresh paid engine commit refuses a stale retained %s without transferring or redirecting its completed facts", async (race) => {
-  const a = await seedUser(db, castId<Handle>("retained_a"));
-  const b = await seedUser(db, castId<Handle>("retained_b"));
-  const c = await seedUser(db, castId<Handle>("retained_c"));
-  const chatId = await seedChat(db, `fresh_scope_${race}`);
-  const oldVoice = await seedCharacter(db, a, "retained_old");
-  const voice = await seedCharacter(db, b, "retained_voice");
-  await seedParticipant(db, { chatId, key: "retained_host", userId: b, role: "host" });
-  await seedParticipant(db, { chatId, key: "retained_old", characterId: oldVoice, leftSeq: 0 });
-  await seedParticipant(db, { chatId, key: "retained_voice", characterId: voice });
-  if (race === "voice") {
-    const bOther = await seedCharacter(db, b, "retained_b_other");
-    const cOther = await seedCharacter(db, c, "retained_c_other");
-    await seedParticipant(db, { chatId, key: "retained_b_other", characterId: bOther });
-    await seedParticipant(db, { chatId, key: "retained_c_other", characterId: cOther });
-  }
-  await seedConnection(db, b);
-  const connection = { ...testConnection("claude-sub", "agent-sdk"), ownerId: b };
-  let calls = 0;
-  const bridge = createRunChatTurnBridge({
-    runChatTurn: (request): Promise<ChatResult> => {
-      calls += 1;
-      return consumeTurnStream(
-        accountingSdkFrames("A completed reply.", 0.125),
-        {
-          model: request.connection.model,
-          providerId: request.connection.providerId,
-          resumed: false,
-          savedTotals: NO_SAVED_TOTALS,
-          now: () => FROZEN_AT_MS,
-          appliedEffort: null,
-          secrets: resolvedScrubSet(request.connection),
-          onObservedResult: (result) => observeChatResult(request, result),
-        },
-        createAgentSdkLog({ info: () => undefined, debug: () => undefined, warn: () => undefined, error: () => undefined }, "claude-sub"),
-      );
-    },
-  });
-  const h = harness(db, {
-    runChatTurn: bridge,
-    applyStatsDelta: (batch, opDb, delta): void => {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
-      applyStatsDelta(batch as BatchStmt[], opDb, delta);
-    },
-  });
-  const resolve = h.ctx.resolveRetainedChatAccountingScope;
-  let changed = false;
-  let before: (typeof ownerStats.$inferSelect)[] = [];
-  vi.spyOn(h.ctx, "resolveRetainedChatAccountingScope").mockImplementation(async (roomId, characterId) => {
-    const scope = await resolve(roomId, characterId);
-    if (!changed) {
-      changed = true;
-      before = await db.select().from(ownerStats);
-      await db
-        .update(characters)
-        .set({ ownerId: c })
-        .where(eq(characters.id, race === "cohort" ? oldVoice : voice));
+test.for(["cohort", "voice"] as const)(
+  "a fresh paid engine commit refuses a stale retained %s without transferring or redirecting its completed facts",
+  async (race) => {
+    const a = await seedUser(db, castId<Handle>("retained_a"));
+    const b = await seedUser(db, castId<Handle>("retained_b"));
+    const c = await seedUser(db, castId<Handle>("retained_c"));
+    const chatId = await seedChat(db, `fresh_scope_${race}`);
+    const oldVoice = await seedCharacter(db, a, "retained_old");
+    const voice = await seedCharacter(db, b, "retained_voice");
+    await seedParticipant(db, { chatId, key: "retained_host", userId: b, role: "host" });
+    await seedParticipant(db, { chatId, key: "retained_old", characterId: oldVoice, leftSeq: 0 });
+    await seedParticipant(db, { chatId, key: "retained_voice", characterId: voice });
+    if (race === "voice") {
+      const bOther = await seedCharacter(db, b, "retained_b_other");
+      const cOther = await seedCharacter(db, c, "retained_c_other");
+      await seedParticipant(db, { chatId, key: "retained_b_other", characterId: bOther });
+      await seedParticipant(db, { chatId, key: "retained_c_other", characterId: cOther });
     }
-    return scope;
-  });
-  const outcome = await h.engine.runTurn(prepOf(chatId, { connection, runAsUserId: b, funderUserId: b, triggeredBy: b, speakerCharacterId: voice }));
-  expect(outcome).toMatchObject({ aborted: true, abortReason: "stale", messages: [] });
-  expect(changed).toBe(true);
-  expect(calls).toBe(1);
-  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
-  expect(await db.select().from(ownerStats)).toEqual(before);
-  expect(await db.select().from(chatGenerationObservations)).toMatchObject([{ funderUserId: b, costUsd: 0.125, tokensIn: 15, tokensOut: 20 }]);
-});
+    await seedConnection(db, b);
+    const connection = { ...testConnection("claude-sub", "agent-sdk"), ownerId: b };
+    let calls = 0;
+    const bridge = createRunChatTurnBridge({
+      runChatTurn: (request): Promise<ChatResult> => {
+        calls += 1;
+        return consumeTurnStream(
+          accountingSdkFrames("A completed reply.", 0.125),
+          {
+            model: request.connection.model,
+            providerId: request.connection.providerId,
+            resumed: false,
+            savedTotals: NO_SAVED_TOTALS,
+            now: () => FROZEN_AT_MS,
+            appliedEffort: null,
+            secrets: resolvedScrubSet(request.connection),
+            onObservedResult: (result) => observeChatResult(request, result),
+          },
+          createAgentSdkLog({ info: () => undefined, debug: () => undefined, warn: () => undefined, error: () => undefined }, "claude-sub"),
+        );
+      },
+    });
+    const h = harness(db, {
+      runChatTurn: bridge,
+      applyStatsDelta: (batch, opDb, delta): void => {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
+        applyStatsDelta(batch as BatchStmt[], opDb, delta);
+      },
+    });
+    const resolve = h.ctx.resolveRetainedChatAccountingScope;
+    let changed = false;
+    let before: (typeof ownerStats.$inferSelect)[] = [];
+    vi.spyOn(h.ctx, "resolveRetainedChatAccountingScope").mockImplementation(async (roomId, characterId) => {
+      const scope = await resolve(roomId, characterId);
+      if (!changed) {
+        changed = true;
+        before = await db.select().from(ownerStats);
+        await db
+          .update(characters)
+          .set({ ownerId: c })
+          .where(eq(characters.id, race === "cohort" ? oldVoice : voice));
+      }
+      return scope;
+    });
+    const outcome = await h.engine.runTurn(prepOf(chatId, { connection, runAsUserId: b, funderUserId: b, triggeredBy: b, speakerCharacterId: voice }));
+    expect(outcome).toMatchObject({ aborted: true, abortReason: "stale", messages: [] });
+    expect(changed).toBe(true);
+    expect(calls).toBe(1);
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
+    expect(await db.select().from(ownerStats)).toEqual(before);
+    expect(await db.select().from(chatGenerationObservations)).toMatchObject([{ funderUserId: b, costUsd: 0.125, tokensIn: 15, tokensOut: 20 }]);
+  },
+);

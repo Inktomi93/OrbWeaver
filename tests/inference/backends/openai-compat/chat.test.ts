@@ -287,105 +287,106 @@ test.for([
   expect(turn.usage.costUsd).toBeCloseTo((input - read - write + read * 0.1 + write * 1.25 + 8) / 1_000_000, 12);
 });
 
-test.for(
-  [true, false].flatMap((modern) => [undefined, null, -1, "invalid"].map((write) => ({ modern, write }))),
-)("native OpenAI missing/invalid write $write respects modern applicability $modern and preserves sibling counts", async ({ modern, write }) => {
-  const connection = fakeResolved({
-    task: "chat",
-    providerId: "openai",
-    model: modern ? "gpt-6-sol" : "gpt-4.1",
-    capability: generationCapability({
-      turns: {
-        assistantPrefill: false,
-        midConversationSystem: false,
-        historySystemRows: false,
-        roleHandlingFloor: "strict",
-        explicitPromptCache: modern,
-        ...(modern ? { promptCacheFormat: "openai-breakpoint" } : {}),
+test.for([true, false].flatMap((modern) => [undefined, null, -1, "invalid"].map((write) => ({ modern, write }))))(
+  "native OpenAI missing/invalid write $write respects modern applicability $modern and preserves sibling counts",
+  async ({ modern, write }) => {
+    const connection = fakeResolved({
+      task: "chat",
+      providerId: "openai",
+      model: modern ? "gpt-6-sol" : "gpt-4.1",
+      capability: generationCapability({
+        turns: {
+          assistantPrefill: false,
+          midConversationSystem: false,
+          historySystemRows: false,
+          roleHandlingFloor: "strict",
+          explicitPromptCache: modern,
+          ...(modern ? { promptCacheFormat: "openai-breakpoint" } : {}),
+        },
+      }),
+      declaredFeatures: { pricing: { inputPerMTok: 1, outputPerMTok: 2, cacheReadPerMTok: 0.1, cacheWritePerMTok: 1.25 } },
+      secret: fakeApiKeySecret("fake-native-key"),
+    });
+    const stream = openAiTextStream("ORBIT").map((frame) => ({
+      ...frame,
+      data: {
+        ...frame.data,
+        ...(frame.data["usage"] === undefined
+          ? {}
+          : {
+              usage: {
+                prompt_tokens: 100,
+                completion_tokens: 4,
+                total_tokens: 104,
+                prompt_tokens_details: { cached_tokens: 20, ...(write === undefined ? {} : { cache_write_tokens: write }) },
+              },
+            }),
       },
-    }),
-    declaredFeatures: { pricing: { inputPerMTok: 1, outputPerMTok: 2, cacheReadPerMTok: 0.1, cacheWritePerMTok: 1.25 } },
-    secret: fakeApiKeySecret("fake-native-key"),
-  });
-  const stream = openAiTextStream("ORBIT").map((frame) => ({
-    ...frame,
-    data: {
-      ...frame.data,
-      ...(frame.data["usage"] === undefined
-        ? {}
-        : {
-            usage: {
-              prompt_tokens: 100,
-              completion_tokens: 4,
-              total_tokens: 104,
-              prompt_tokens_details: { cached_tokens: 20, ...(write === undefined ? {} : { cache_write_tokens: write }) },
-            },
-          }),
-    },
-  }));
-  const turn = await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined, params: {} }), turnDeps(scriptedSseFetch([stream], [])));
-  expect(turn.usage).toMatchObject({
-    tokensIn: 100,
-    tokensOut: 4,
-    cacheReadTokens: 20,
-    cacheWriteTokens: modern ? null : 0,
-    reasoningTokens: modern ? null : 0,
-    costProvenance: modern ? "unrecorded" : "estimated",
-  });
-  expect(turn.usage.costUsd === null).toBe(modern);
-  expect(turn.usage.costUsd ?? 0).toBeCloseTo(modern ? 0 : 0.000_09, 12);
-});
+    }));
+    const turn = await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined, params: {} }), turnDeps(scriptedSseFetch([stream], [])));
+    expect(turn.usage).toMatchObject({
+      tokensIn: 100,
+      tokensOut: 4,
+      cacheReadTokens: 20,
+      cacheWriteTokens: modern ? null : 0,
+      reasoningTokens: modern ? null : 0,
+      costProvenance: modern ? "unrecorded" : "estimated",
+    });
+    expect(turn.usage.costUsd === null).toBe(modern);
+    expect(turn.usage.costUsd ?? 0).toBeCloseTo(modern ? 0 : 0.000_09, 12);
+  },
+);
 
-test.for([
-  true,
-  false,
-])("OpenRouter Gemini overlapping raw read/write counts retain measured price authority %s and decline an incompatible estimate", async (priced) => {
-  const connection = fakeResolved({
-    task: "chat",
-    providerId: "openrouter",
-    model: "google/gemini-3.8-flash",
-    capability: generationCapability(),
-    declaredFeatures: { pricing: { inputPerMTok: 0.75, outputPerMTok: 3.75, cacheReadPerMTok: 0.075, cacheWritePerMTok: 0.9375 } },
-    secret: fakeApiKeySecret("fake-or-key"),
-  });
-  const stream = openAiTextStream("ORBIT").map((frame) => ({
-    ...frame,
-    data: {
-      ...frame.data,
-      ...(frame.data["usage"] === undefined
-        ? {}
-        : {
-            usage: {
-              prompt_tokens: 24_344,
-              completion_tokens: 1,
-              total_tokens: 24_345,
-              prompt_tokens_details: { cached_tokens: 24_327, cache_write_tokens: 24_327 },
-              ...(priced
-                ? {
-                    cost: 0.002_854_65,
-                    is_byok: false,
-                    cost_details: {
-                      upstream_inference_cost: 0.002_854_65,
-                      upstream_inference_prompt_cost: 0.002_850_9,
-                      upstream_inference_completions_cost: 0.000_003_75,
-                    },
-                  }
-                : {}),
-            },
-          }),
-    },
-  }));
-  const turn = await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined, params: {} }), turnDeps(scriptedSseFetch([stream], [])));
-  expect(turn.usage).toMatchObject({
-    tokensIn: 24_344,
-    tokensOut: 1,
-    cacheReadTokens: 24_327,
-    cacheWriteTokens: 24_327,
-    costUsd: priced ? 0.002_854_65 : null,
-    costProvenance: priced ? "measured" : "unrecorded",
-  });
-  expect(turn.usage.costDetails).toEqual(priced ? { totalUsd: 0.002_854_65, promptUsd: 0.002_850_9, completionUsd: 0.000_003_75 } : null);
-});
+test.for([true, false])(
+  "OpenRouter Gemini overlapping raw read/write counts retain measured price authority %s and decline an incompatible estimate",
+  async (priced) => {
+    const connection = fakeResolved({
+      task: "chat",
+      providerId: "openrouter",
+      model: "google/gemini-3.8-flash",
+      capability: generationCapability(),
+      declaredFeatures: { pricing: { inputPerMTok: 0.75, outputPerMTok: 3.75, cacheReadPerMTok: 0.075, cacheWritePerMTok: 0.9375 } },
+      secret: fakeApiKeySecret("fake-or-key"),
+    });
+    const stream = openAiTextStream("ORBIT").map((frame) => ({
+      ...frame,
+      data: {
+        ...frame.data,
+        ...(frame.data["usage"] === undefined
+          ? {}
+          : {
+              usage: {
+                prompt_tokens: 24_344,
+                completion_tokens: 1,
+                total_tokens: 24_345,
+                prompt_tokens_details: { cached_tokens: 24_327, cache_write_tokens: 24_327 },
+                ...(priced
+                  ? {
+                      cost: 0.002_854_65,
+                      is_byok: false,
+                      cost_details: {
+                        upstream_inference_cost: 0.002_854_65,
+                        upstream_inference_prompt_cost: 0.002_850_9,
+                        upstream_inference_completions_cost: 0.000_003_75,
+                      },
+                    }
+                  : {}),
+              },
+            }),
+      },
+    }));
+    const turn = await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined, params: {} }), turnDeps(scriptedSseFetch([stream], [])));
+    expect(turn.usage).toMatchObject({
+      tokensIn: 24_344,
+      tokensOut: 1,
+      cacheReadTokens: 24_327,
+      cacheWriteTokens: 24_327,
+      costUsd: priced ? 0.002_854_65 : null,
+      costProvenance: priced ? "measured" : "unrecorded",
+    });
+    expect(turn.usage.costDetails).toEqual(priced ? { totalUsd: 0.002_854_65, promptUsd: 0.002_850_9, completionUsd: 0.000_003_75 } : null);
+  },
+);
 
 test.for([
   { cost: -1, upstream: 0.125, byok: false, known: null },

@@ -121,18 +121,12 @@ describe("ALLOWED_HOSTS — a malformed entry is a parse refusal naming it", () 
 // An entry the range match cannot read blocks nothing, so a range the operator meant to fence stays reachable
 // through the SSRF guard with no hint why. The parse refuses it instead, naming the entry.
 describe("TRUSTED_PRIVATE_RANGES — an unreadable entry is a parse refusal naming it", () => {
-  test.each([
-    "10.0.0.0/33",
-    "192.168.1.0/",
-    "fd00::/129",
-    "10.0.0.0/8/9",
-    "10.0.0.0/eight",
-    "fe80::1%eth0",
-    "010.0.0.0/8",
-    "lan-subnet",
-  ])("TRUSTED_PRIVATE_RANGES containing %j refuses boot, naming it", async (entry) => {
-    await expect(reimportEnvWith({ TRUSTED_PRIVATE_RANGES: `10.0.0.0/8, ${entry}` })).rejects.toThrow(entry);
-  });
+  test.each(["10.0.0.0/33", "192.168.1.0/", "fd00::/129", "10.0.0.0/8/9", "10.0.0.0/eight", "fe80::1%eth0", "010.0.0.0/8", "lan-subnet"])(
+    "TRUSTED_PRIVATE_RANGES containing %j refuses boot, naming it",
+    async (entry) => {
+      await expect(reimportEnvWith({ TRUSTED_PRIVATE_RANGES: `10.0.0.0/8, ${entry}` })).rejects.toThrow(entry);
+    },
+  );
 
   test("readable ranges, a bare address and empty list items boot", async () => {
     const mod = await reimportEnvWith({ TRUSTED_PRIVATE_RANGES: " 10.0.0.0/8, fd00::/8 ,192.168.7.5,, " });

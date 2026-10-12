@@ -234,7 +234,7 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect(line).toBeDefined();
   // @orb-waive no-test-fabrication({ phantomTargets?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
-  expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
+  expect((line?.[0] as { phantomTargets?: string[] })?.phantomTargets).toContain("Zzyzx the Unknown");
   // R5: the ghost arg was DROPPED, so nothing was tracked — the panel never gains a hallucinated actor. The
   // empty-outcome line fires ALONGSIDE the ghost line (independent branches: the cause must not hide behind
   // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).

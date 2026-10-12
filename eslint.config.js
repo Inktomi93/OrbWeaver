@@ -323,6 +323,10 @@ const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfi
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];
+// Biome's partial type inference misread drizzle builders (thenable), `useRef().current` and TanStack status flags,
+// so `await-thenable`, `no-unnecessary-condition` and this rule run on real types here. Default-comparator sorts of
+// test sets are order normalisers, so the sort rule covers source and scripts, not `tests/**`.
+const SORT_COMPARE = ["error", { ignoreStringArrays: true }];
 const ASYNC_SAFETY_RULES = {
   // The headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
   // could not fail their own test. Nothing else in the stack can see a dropped Promise.
@@ -582,67 +586,67 @@ const RESTRICTIONS = [
     deferred: [
       {
         path: "packages/client/src/features/chat/components/variant-wire-viewer.tsx",
-        item: "llint2-dialog-content-viewer",
+        item: 986,
         why: "read-only host wire inspector with one Close",
       },
       {
         path: "packages/client/src/features/chat/components/member-card-viewer.tsx",
-        item: "llint2-dialog-content-viewer",
+        item: 986,
         why: "read-only level-clamped member-card viewer with one Close",
       },
       {
         path: "packages/client/src/features/rpg/components/rpg-scene-cards.tsx",
-        item: "llint2-dialog-content-viewer",
+        item: 986,
         why: "archived ImmersiveCard opens as a read-only lightbox viewer",
       },
       {
         path: "packages/client/src/features/chat/components/gallery-lightbox.tsx",
-        item: "llint2-dialog-content-viewer",
+        item: 986,
         why: "gallery lightbox owns its root and its destructive confirm",
       },
       {
         path: "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx",
-        item: "llint2-dialog-picker",
+        item: 986,
         why: "character-gallery picker owns its root and selection surface",
       },
       {
         path: "packages/client/src/features/chat/components/gallery-add-picker.tsx",
-        item: "llint2-dialog-picker",
+        item: 986,
         why: "gallery add-picker owns its root and selection surface",
       },
       {
         path: "packages/client/src/features/chat/components/reaction-picker.tsx",
-        item: "llint2-dialog-picker",
+        item: 986,
         why: "one-press emoji grid whose coarse trigger has no anchor box",
       },
       {
         path: "packages/client/src/features/databank/components/databank-character-attachments.tsx",
-        item: "llint2-dialog-picker",
+        item: 986,
         why: "keyset-paged CharacterPicker attaches on selection and has no submit",
       },
       {
         path: "packages/client/src/features/persona/components/persona-from-character-dialog.tsx",
-        item: "llint2-dialog-picker",
+        item: 986,
         why: "selecting a CharacterPicker row performs creation and dismisses, with no submit",
       },
       {
         path: "packages/client/src/features/persona/components/persona-connected-characters.tsx",
-        item: "llint2-dialog-picker",
+        item: 986,
         why: "keyset-paged CharacterPicker connects on selection and has no submit",
       },
       {
         path: "packages/client/src/features/chat/anchors/join-invite-dialog.tsx",
-        item: "llint2-dialog-flow",
+        item: 986,
         why: "/join preview-to-confirm landing owns loading, invalid and ready states rather than a form",
       },
       {
         path: "packages/client/src/features/app-shell/components/modal-host.tsx",
-        item: "llint2-dialog-flow",
+        item: 986,
         why: "the shell's generic modal seam renders arbitrary registry-owned bodies and drawer presentation",
       },
       {
         path: "packages/client/src/features/preset/components/variable-editor-dialog.tsx",
-        item: "llint2-dialog-flow",
+        item: 986,
         why: "seven-field form needing a pinned title above an internally-scrolled dynamic body; FormDialog lacks that layout",
       },
     ],
@@ -934,6 +938,7 @@ export default tseslint.config(
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/require-array-sort-compare": SORT_COMPARE,
     },
   },
   {
@@ -979,7 +984,7 @@ export default tseslint.config(
       parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: ASYNC_SAFETY_RULES,
+    rules: { ...ASYNC_SAFETY_RULES, "@typescript-eslint/require-array-sort-compare": SORT_COMPARE },
   },
   {
     // THE NESTED `scripts/` TREES (#2290) — the COVERAGE half of the block above, landed 2026-09-13.
@@ -1022,7 +1027,7 @@ export default tseslint.config(
       parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: ASYNC_SAFETY_RULES,
+    rules: { ...ASYNC_SAFETY_RULES, "@typescript-eslint/require-array-sort-compare": SORT_COMPARE },
   },
   {
     // ASYNC-SAFETY + dispatch + deprecation over the tooling + test surface — see the SAFETY_SURFACE
@@ -1056,7 +1061,7 @@ export default tseslint.config(
     // nothing to await is a mis-signaled sync function, and a caller may skip awaiting it.
     files: [TOOLING_SRC],
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { "@typescript-eslint/require-await": "error" },
+    rules: { "@typescript-eslint/require-await": "error", "@typescript-eslint/require-array-sort-compare": SORT_COMPARE },
   },
   {
     // The TSDoc doc-comment gate over the tooling surface and every test tree (#472, the first family of the

@@ -90,63 +90,60 @@ test.for([
   { model: "", prompt: 2, total: 2, knownPrompt: 2, knownModel: null },
   { model: "served-model", prompt: -1, total: 2, knownPrompt: null, knownModel: "served-model" },
   { model: "served-model", prompt: 2.5, total: 3, knownPrompt: null, knownModel: "served-model" },
-])("SDK-accepted optional embedding metadata keeps valid siblings for model $model / prompt $prompt", async ({
-  model,
-  prompt,
-  total,
-  knownPrompt,
-  knownModel,
-}) => {
-  const capability = synthesizeCapability("embedding", "other", {
-    curated: curatedRows({ providerId: providerIdSchema.parse("openrouter"), model: "openai/text-embedding-3-small" }),
-  }).capability;
-  const connection = fakeResolved({
-    task: "embed",
-    providerId: "openrouter",
-    model: "openai/text-embedding-3-small",
-    capability,
-    secret: fakeApiKeySecret("fixture-key"),
-  });
-  const receipts: EmbeddingBatchObservation[] = [];
-  const deps = fakeDeps();
-  const result = await runOpenAiCompatEmbed(
-    {
-      connection,
-      input: "lighthouse keeper",
-      dimensions: 2,
-      embeddingAccounting: {
-        recordBatch: (receipt) => {
-          receipts.push(receipt);
-          return Promise.resolve();
+])(
+  "SDK-accepted optional embedding metadata keeps valid siblings for model $model / prompt $prompt",
+  async ({ model, prompt, total, knownPrompt, knownModel }) => {
+    const capability = synthesizeCapability("embedding", "other", {
+      curated: curatedRows({ providerId: providerIdSchema.parse("openrouter"), model: "openai/text-embedding-3-small" }),
+    }).capability;
+    const connection = fakeResolved({
+      task: "embed",
+      providerId: "openrouter",
+      model: "openai/text-embedding-3-small",
+      capability,
+      secret: fakeApiKeySecret("fixture-key"),
+    });
+    const receipts: EmbeddingBatchObservation[] = [];
+    const deps = fakeDeps();
+    const result = await runOpenAiCompatEmbed(
+      {
+        connection,
+        input: "lighthouse keeper",
+        dimensions: 2,
+        embeddingAccounting: {
+          recordBatch: (receipt) => {
+            receipts.push(receipt);
+            return Promise.resolve();
+          },
+          finish: () => Promise.resolve(),
         },
-        finish: () => Promise.resolve(),
       },
-    },
-    {
-      log: deps.log,
-      transport: {
-        app: deps.app,
-        fetch: () =>
-          Promise.resolve(
-            Response.json({
-              object: "list",
-              model,
-              data: [{ object: "embedding", index: 0, embedding: [1, 0] }],
-              usage: { ["prompt_tokens"]: prompt, ["total_tokens"]: total, cost: 0.125 },
-            }),
-          ),
+      {
+        log: deps.log,
+        transport: {
+          app: deps.app,
+          fetch: () =>
+            Promise.resolve(
+              Response.json({
+                object: "list",
+                model,
+                data: [{ object: "embedding", index: 0, embedding: [1, 0] }],
+                usage: { ["prompt_tokens"]: prompt, ["total_tokens"]: total, cost: 0.125 },
+              }),
+            ),
+        },
       },
-    },
-  );
-  expect(result.usage).toEqual({ promptTokens: knownPrompt, totalTokens: total });
-  expect(receipts).toHaveLength(1);
-  expect(receipts[0]).toMatchObject({
-    servedModel: knownModel,
-    usage: { promptTokens: knownPrompt, totalTokens: total },
-    cost: { costUsd: 0.125, costProvenance: "measured" },
-  });
-  expect(Array.from(result.vectors[0] ?? [])).toEqual([1, 0]);
-});
+    );
+    expect(result.usage).toEqual({ promptTokens: knownPrompt, totalTokens: total });
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0]).toMatchObject({
+      servedModel: knownModel,
+      usage: { promptTokens: knownPrompt, totalTokens: total },
+      cost: { costUsd: 0.125, costProvenance: "measured" },
+    });
+    expect(Array.from(result.vectors[0] ?? [])).toEqual([1, 0]);
+  },
+);
 
 test.for([undefined, "MISS"])("absent raw embedding usage with cache status %s remains unknown, never SDK-manufactured or inferred zero", async (status) => {
   const capability = synthesizeCapability("embedding", "other", {

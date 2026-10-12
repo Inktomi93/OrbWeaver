@@ -1,13 +1,10 @@
-// The seed-palette + derived-output WCAG-AA enforcement gate (#16, part 3). Two failure classes this
-// locks out of `pnpm test` (so neither needs a side-eye round to catch):
-//   1. a STATIC seed token (tokens.json → theme.css) whose body-text pairing drops below AA 4.5:1;
-//   2. a DERIVATION retune (kit theme-derivation THEME_DERIVATION) that pushes a derived foreground below AA on a
-//      realistic light OR dark base.
-// It converts every pairing with the kit's `oklchToSrgb`, pinned to published OKLab vectors by the first
-// test below, and measures with the shared WCAG engine. Translucent tokens (the --color-input field fill, 0.12α)
-// are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
-// (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
-// generated TOKENS map and the derivation constants from @orb/kit/theme-derivation, so both are drift-free single sources.
+// The seed-palette + derived-output WCAG-AA enforcement gate (#16, part 3). It locks two failure classes out of
+// `pnpm test`: a STATIC seed token (tokens.json → theme.css) whose body-text pairing drops below AA 4.5:1, and a
+// DERIVATION retune (kit THEME_DERIVATION) that pushes a derived foreground below AA on a realistic light OR dark base.
+// Pairings convert through the kit's `oklchToSrgb` (pinned to published OKLab vectors by the first test) and measure with
+// the shared WCAG engine. Translucent tokens (the --color-input field fill, 0.12α) are ALPHA-COMPOSITED over their
+// backdrop first — a naive contrast on an alpha value lies. Static values come from the generated TOKENS map and the
+// derivation constants from @orb/kit/theme-derivation, so both are drift-free single sources.
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import {
@@ -179,25 +176,26 @@ test("static PRIMARY solid surface clears the AA normal-text floor", () => {
   expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
-test.each(
-  PALETTES.map((p) => [p.name, p] as const),
-)("intent tokens clear WCAG AA-NORMAL 4.5:1 (correct light-dark arm) on the %s palette — text on bg/card/popover + pill", (_name, palette) => {
-  // role 1 — `text-*` (validation label / status text) on every chrome surface the intent can sit on
-  // (background/card/popover). highlight is excluded — it is a text-mark BACKGROUND, never text.
-  for (const intent of INTENT_TEXT_TOKENS) {
-    const fg = resolveTokenRgb(intent, palette);
-    for (const surface of INTENT_TEXT_SURFACES) {
-      const ratio = wcagContrastRatio(fg, resolveTokenRgb(surface, palette));
-      expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+test.each(PALETTES.map((p) => [p.name, p] as const))(
+  "intent tokens clear WCAG AA-NORMAL 4.5:1 (correct light-dark arm) on the %s palette — text on bg/card/popover + pill",
+  (_name, palette) => {
+    // role 1 — `text-*` (validation label / status text) on every chrome surface the intent can sit on
+    // (background/card/popover). highlight is excluded — it is a text-mark BACKGROUND, never text.
+    for (const intent of INTENT_TEXT_TOKENS) {
+      const fg = resolveTokenRgb(intent, palette);
+      for (const surface of INTENT_TEXT_SURFACES) {
+        const ratio = wcagContrastRatio(fg, resolveTokenRgb(surface, palette));
+        expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
     }
-  }
-  // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/info/highlight).
-  // Subsumes the former Hearth-only destructive special-case across ALL palettes.
-  for (const [bg, foreground] of INTENT_PILL_PAIRS) {
-    const ratio = wcagContrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
-    expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-  }
-});
+    // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/info/highlight).
+    // Subsumes the former Hearth-only destructive special-case across ALL palettes.
+    for (const [bg, foreground] of INTENT_PILL_PAIRS) {
+      const ratio = wcagContrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
+      expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
+  },
+);
 
 // ── #1110: THE QUIET SELECTION PAIR — bounded from BOTH sides, in every seed ────────────────────────
 // `--color-selection-quiet` is the opaque ground a bulk-default selection control paints when it is ON
@@ -211,39 +209,42 @@ test.each(
 //     can sit on — including the `bg-accent` an interactive row paints on hover, which is its worst.
 // A one-sided pin would pass on a fill tuned all the way to the accent's loudness, or all the way down
 // into the surface it sits on. Both directions are live here.
-test.each(
-  PALETTES.map((palette) => [palette.name, palette] as const),
-)("#1110 %s: the quiet selection pair is legible AND quieter than the accent", (_name, palette) => {
-  const fill = resolveTokenRgb("color.selection-quiet", palette);
-  const mark = resolveTokenRgb("color.selection-quiet-foreground", palette);
+test.each(PALETTES.map((palette) => [palette.name, palette] as const))(
+  "#1110 %s: the quiet selection pair is legible AND quieter than the accent",
+  (_name, palette) => {
+    const fill = resolveTokenRgb("color.selection-quiet", palette);
+    const mark = resolveTokenRgb("color.selection-quiet-foreground", palette);
 
-  // FLOOR 1 — the mark on its own fill, at AA-NORMAL.
-  expect(wcagContrastRatio(mark, fill), `color.selection-quiet-foreground on color.selection-quiet @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-
-  // FLOOR 2 — the fill against every ground a selection control rests on, at 1.4.11's 3:1. `accent` is
-  // the interactive ground (hover/selected on ListRow + Card) and is the binding one.
-  const grounds: ReadonlyArray<keyof typeof TOKENS> = [
-    "color.background",
-    "color.card",
-    "color.popover",
-    "color.surface-raised",
-    "color.sidebar",
-    "color.muted",
-    "color.secondary",
-    "color.accent",
-  ];
-  for (const ground of grounds) {
-    expect(wcagContrastRatio(fill, resolveTokenRgb(ground, palette)), `color.selection-quiet on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
-      AA_NON_TEXT_RATIO,
+    // FLOOR 1 — the mark on its own fill, at AA-NORMAL.
+    expect(wcagContrastRatio(mark, fill), `color.selection-quiet-foreground on color.selection-quiet @ ${palette.name}`).toBeGreaterThanOrEqual(
+      AA_NORMAL_RATIO,
     );
-  }
 
-  // CEILING — quieter than the accent checked fill on the surface both are judged against.
-  const card = resolveTokenRgb("color.card", palette);
-  const accent = wcagContrastRatio(resolveTokenRgb("color.primary", palette), card);
-  expect(accent, `color.primary on color.card @ ${palette.name} must be a real painted fill, or the ceiling is vacuous`).toBeGreaterThan(AA_NON_TEXT_RATIO);
-  expect(wcagContrastRatio(fill, card), `color.selection-quiet must undercut color.primary on color.card @ ${palette.name}`).toBeLessThan(accent);
-});
+    // FLOOR 2 — the fill against every ground a selection control rests on, at 1.4.11's 3:1. `accent` is
+    // the interactive ground (hover/selected on ListRow + Card) and is the binding one.
+    const grounds: ReadonlyArray<keyof typeof TOKENS> = [
+      "color.background",
+      "color.card",
+      "color.popover",
+      "color.surface-raised",
+      "color.sidebar",
+      "color.muted",
+      "color.secondary",
+      "color.accent",
+    ];
+    for (const ground of grounds) {
+      expect(wcagContrastRatio(fill, resolveTokenRgb(ground, palette)), `color.selection-quiet on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
+        AA_NON_TEXT_RATIO,
+      );
+    }
+
+    // CEILING — quieter than the accent checked fill on the surface both are judged against.
+    const card = resolveTokenRgb("color.card", palette);
+    const accent = wcagContrastRatio(resolveTokenRgb("color.primary", palette), card);
+    expect(accent, `color.primary on color.card @ ${palette.name} must be a real painted fill, or the ceiling is vacuous`).toBeGreaterThan(AA_NON_TEXT_RATIO);
+    expect(wcagContrastRatio(fill, card), `color.selection-quiet must undercut color.primary on color.card @ ${palette.name}`).toBeLessThan(accent);
+  },
+);
 
 // ── D159 / #1641 / #1361-1: THE FORM-CONTROL BORDER — bounded from BOTH sides, in every seed ────────
 // `--color-input-border` is the OPAQUE edge that identifies an input, select trigger, textarea, combobox,
@@ -279,42 +280,45 @@ const CONTROL_GROUNDS: ReadonlyArray<keyof typeof TOKENS> = [
   "color.accent",
 ];
 
-test.each(
-  PALETTES.map((palette) => [palette.name, palette] as const),
-)("D159 %s: the form-control border clears 1.4.11 on every ground AND stays under the focus ring", (_name, palette) => {
-  const edge = resolveTokenRgb("color.input-border", palette);
-  const fill = resolveTokenOklch("color.input", palette);
+test.each(PALETTES.map((palette) => [palette.name, palette] as const))(
+  "D159 %s: the form-control border clears 1.4.11 on every ground AND stays under the focus ring",
+  (_name, palette) => {
+    const edge = resolveTokenRgb("color.input-border", palette);
+    const fill = resolveTokenOklch("color.input", palette);
 
-  // FLOOR — 3:1 against each panel and against the field fill composited over that panel.
-  for (const ground of CONTROL_GROUNDS) {
-    const panel = resolveTokenRgb(ground, palette);
-    expect(worstContrast(edge, panel), `color.input-border on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
-    expect(worstContrast(edge, compositeOver(fill, panel)), `color.input-border on the bg-input fill over ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
-      AA_NON_TEXT_RATIO,
-    );
-  }
+    // FLOOR — 3:1 against each panel and against the field fill composited over that panel.
+    for (const ground of CONTROL_GROUNDS) {
+      const panel = resolveTokenRgb(ground, palette);
+      expect(worstContrast(edge, panel), `color.input-border on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+      expect(
+        worstContrast(edge, compositeOver(fill, panel)),
+        `color.input-border on the bg-input fill over ${ground} @ ${palette.name}`,
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+    }
 
-  // CEILING — quieter than the focus ring on the surface both are judged against.
-  const card = resolveTokenRgb("color.card", palette);
-  const ring = worstContrast(resolveTokenRgb("color.ring", palette), card);
-  expect(ring, `color.ring on color.card @ ${palette.name} must be a real painted ring, or the ceiling is vacuous`).toBeGreaterThan(AA_NON_TEXT_RATIO);
-  expect(worstContrast(edge, card), `color.input-border must stay under color.ring on color.card @ ${palette.name}`).toBeLessThan(ring);
-});
+    // CEILING — quieter than the focus ring on the surface both are judged against.
+    const card = resolveTokenRgb("color.card", palette);
+    const ring = worstContrast(resolveTokenRgb("color.ring", palette), card);
+    expect(ring, `color.ring on color.card @ ${palette.name} must be a real painted ring, or the ceiling is vacuous`).toBeGreaterThan(AA_NON_TEXT_RATIO);
+    expect(worstContrast(edge, card), `color.input-border must stay under color.ring on color.card @ ${palette.name}`).toBeLessThan(ring);
+  },
+);
 
-test.each(
-  PALETTES.map((palette) => [palette.name, palette] as const),
-)("D159 %s: --color-border is NOT the form-control edge — the split is why the token exists", (_name, palette) => {
-  // The control arm of the OLD spelling, kept as the receipt that decided D159: raising the shared
-  // divider to 3:1 was rejected, so it must still be measurably below the floor here. If a later change
-  // ever brings `--color-border` to 3:1 on its own, this row is the one that says so out loud rather
-  // than leaving two tokens quietly doing one job.
-  const divider = resolveTokenOklch("color.border", palette);
-  const card = resolveTokenRgb("color.card", palette);
-  expect(
-    worstContrast(compositeOver(divider, card), card),
-    `color.border on color.card @ ${palette.name} — a decorative hairline, deliberately under 1.4.11 (D159)`,
-  ).toBeLessThan(AA_NON_TEXT_RATIO);
-});
+test.each(PALETTES.map((palette) => [palette.name, palette] as const))(
+  "D159 %s: --color-border is NOT the form-control edge — the split is why the token exists",
+  (_name, palette) => {
+    // The control arm of the OLD spelling, kept as the receipt that decided D159: raising the shared
+    // divider to 3:1 was rejected, so it must still be measurably below the floor here. If a later change
+    // ever brings `--color-border` to 3:1 on its own, this row is the one that says so out loud rather
+    // than leaving two tokens quietly doing one job.
+    const divider = resolveTokenOklch("color.border", palette);
+    const card = resolveTokenRgb("color.card", palette);
+    expect(
+      worstContrast(compositeOver(divider, card), card),
+      `color.border on color.card @ ${palette.name} — a decorative hairline, deliberately under 1.4.11 (D159)`,
+    ).toBeLessThan(AA_NON_TEXT_RATIO);
+  },
+);
 
 // ── #697: THE TRACK RAMP FILL — a non-text UI component (WCAG 1.4.11), floored at 3:1 on the LIGHT panel ──
 // The 6-step categorical ramp (--color-track-N) fills pool/meter/clock gauges (TrackBar/SegmentBar/RingGauge/
@@ -331,23 +335,26 @@ const quantizeRgb = (c: Rgb): Rgb => ({ r: Math.round(c.r), g: Math.round(c.g), 
 /** The worse of the float and 8-bit-quantized contrast — the pixel a reader actually sees is the rounded one. */
 const worstContrast = (a: Rgb, b: Rgb): number => Math.min(wcagContrastRatio(a, b), wcagContrastRatio(quantizeRgb(a), quantizeRgb(b)));
 
-test.each(
-  PALETTES.filter((p) => p.colorScheme === "light").map((p) => [p.name, p] as const),
-)("#697 track-ramp gauge FILLS clear WCAG 1.4.11 3:1 on the %s panel (worse of float+8bit)", (_name, palette) => {
-  const inputTok = parseOklch(palette.vars[TOKENS["color.input"].cssVar] ?? TOKENS["color.input"].value);
-  for (const fillPath of TRACK_FILL_PATHS) {
-    const fill = resolveTokenRgb(fillPath, palette);
-    // Direct panel backings the ring gauge / coin disc ride.
-    for (const panel of TRACK_PANELS) {
-      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} fill on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+test.each(PALETTES.filter((p) => p.colorScheme === "light").map((p) => [p.name, p] as const))(
+  "#697 track-ramp gauge FILLS clear WCAG 1.4.11 3:1 on the %s panel (worse of float+8bit)",
+  (_name, palette) => {
+    const inputTok = parseOklch(palette.vars[TOKENS["color.input"].cssVar] ?? TOKENS["color.input"].value);
+    for (const fillPath of TRACK_FILL_PATHS) {
+      const fill = resolveTokenRgb(fillPath, palette);
+      // Direct panel backings the ring gauge / coin disc ride.
+      for (const panel of TRACK_PANELS) {
+        expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} fill on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(
+          AA_NON_TEXT_RATIO,
+        );
+      }
+      // The TrackBar / SegmentBar rail is `bg-input`: composite it over the panel and measure the fill in it.
+      for (const panel of ["color.card", "color.sidebar"] as const) {
+        const rail = compositeOver(inputTok, resolveTokenRgb(panel, palette));
+        expect(worstContrast(fill, rail), `${fillPath} fill on the bg-input rail over ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+      }
     }
-    // The TrackBar / SegmentBar rail is `bg-input`: composite it over the panel and measure the fill in it.
-    for (const panel of ["color.card", "color.sidebar"] as const) {
-      const rail = compositeOver(inputTok, resolveTokenRgb(panel, palette));
-      expect(worstContrast(fill, rail), `${fillPath} fill on the bg-input rail over ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
-    }
-  }
-});
+  },
+);
 
 test("#697 the track-ramp DARK arm is unchanged — still ≥3:1 on the dark panel (the mechanism survived)", () => {
   const hearth = PALETTES.find((p) => p.name === "hearth");
@@ -510,11 +517,12 @@ test("#939 chart-ramp contrast matrix has a planted failing color (non-vacuity c
   expect(failures, "a chart color planted at the card tone must be caught").toContain("color.card");
 });
 
-test.each(
-  CHART_FILL_PATHS.map((path, index) => [path, CHART_DARK_ARMS[index]] as const),
-)("#939 %s keeps its sacred dark arm byte-identical", (path, darkArm) => {
-  expect(resolveArm(TOKENS[path].value, "dark")).toBe(darkArm);
-});
+test.each(CHART_FILL_PATHS.map((path, index) => [path, CHART_DARK_ARMS[index]] as const))(
+  "#939 %s keeps its sacred dark arm byte-identical",
+  (path, darkArm) => {
+    expect(resolveArm(TOKENS[path].value, "dark")).toBe(darkArm);
+  },
+);
 
 test.each(["light", "dark"] as const)("#939 chart colors stay mutually distinguishable in the %s arm", (scheme) => {
   const colors = CHART_FILL_PATHS.map((path) => parseOklch(resolveArm(TOKENS[path].value, scheme)));
@@ -756,21 +764,22 @@ const GUARANTEED_ART = {
   dark: ["black art"],
 } as const satisfies Record<"light" | "dark", readonly string[]>;
 
-test.each(
-  PALETTES.map((p) => [p.name, p] as const),
-)("#217 %s: the four prose inks clear AA over the plate composited over worst-case art (the guaranteed arts)", (_name, palette) => {
-  const plate = parseOklch(palette.vars[TOKENS[READING_PLATE_PATH].cssVar] ?? TOKENS[READING_PLATE_PATH].value);
-  for (const [artName, art] of WORST_ART) {
-    if (!GUARANTEED_ART[palette.colorScheme].includes(artName)) {
-      continue;
+test.each(PALETTES.map((p) => [p.name, p] as const))(
+  "#217 %s: the four prose inks clear AA over the plate composited over worst-case art (the guaranteed arts)",
+  (_name, palette) => {
+    const plate = parseOklch(palette.vars[TOKENS[READING_PLATE_PATH].cssVar] ?? TOKENS[READING_PLATE_PATH].value);
+    for (const [artName, art] of WORST_ART) {
+      if (!GUARANTEED_ART[palette.colorScheme].includes(artName)) {
+        continue;
+      }
+      const composited = compositeOver(plate, art);
+      for (const ink of PROSE_INK_PATHS) {
+        const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), composited);
+        expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
     }
-    const composited = compositeOver(plate, art);
-    for (const ink of PROSE_INK_PATHS) {
-      const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), composited);
-      expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-    }
-  }
-});
+  },
+);
 
 // ── #487: THE WALLPAPER SCRIM'S DERIVED FLOOR — the layer that closes the #217 dark-arm hole ─────────
 // `theme-background-layer.tsx` calls its scrim "mandatory … non-negotiable for text legibility" while
@@ -803,17 +812,18 @@ function readingBackdropOverArt(palette: Palette, art: Rgb, dim: number): Rgb {
   return compositeOver(plate, compositeOver({ ...scrim, alpha: scrim.alpha * dim }, art));
 }
 
-test.each(
-  PALETTES.map((p) => [p.name, p] as const),
-)("#487 %s: at BACKGROUND_DIM_MIN the body inks clear AA over the plate over the SCRIMMED worst-case art", (_name, palette) => {
-  for (const [artName, art] of WORST_ART) {
-    const composited = readingBackdropOverArt(palette, art, BACKGROUND_DIM_MIN);
-    for (const ink of FLOORED_INK_PATHS) {
-      const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), composited);
-      expect(ratio, `${ink} over plate over scrim(${BACKGROUND_DIM_MIN}) over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+test.each(PALETTES.map((p) => [p.name, p] as const))(
+  "#487 %s: at BACKGROUND_DIM_MIN the body inks clear AA over the plate over the SCRIMMED worst-case art",
+  (_name, palette) => {
+    for (const [artName, art] of WORST_ART) {
+      const composited = readingBackdropOverArt(palette, art, BACKGROUND_DIM_MIN);
+      for (const ink of FLOORED_INK_PATHS) {
+        const ratio = wcagContrastRatio(resolveTokenRgb(ink, palette), composited);
+        expect(ratio, `${ink} over plate over scrim(${BACKGROUND_DIM_MIN}) over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
     }
-  }
-});
+  },
+);
 
 test("#487 the floor is a FLOOR: at dim 0 the same property FAILS on a dark palette (the non-vacuity control)", () => {
   // Without this the test above passes for a floor of 0 as happily as for 0.45 and proves nothing. The dark

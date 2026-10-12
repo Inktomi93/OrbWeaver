@@ -57,16 +57,12 @@ describe("isHostAllowed", () => {
     expect(isHostAllowed(host, NONE)).toBe(true);
   });
 
-  test.each([
-    REBOUND,
-    "localhost.attacker.example",
-    "evil-localhost",
-    "127.0.0.1.attacker.example",
-    "0x7f000001",
-    "machine.tailnet.ts.net",
-  ])("%s is refused with nothing configured", (host) => {
-    expect(isHostAllowed(host, NONE)).toBe(false);
-  });
+  test.each([REBOUND, "localhost.attacker.example", "evil-localhost", "127.0.0.1.attacker.example", "0x7f000001", "machine.tailnet.ts.net"])(
+    "%s is refused with nothing configured",
+    (host) => {
+      expect(isHostAllowed(host, NONE)).toBe(false);
+    },
+  );
 
   test("an exact entry admits that name only", () => {
     expect(isHostAllowed("nas.local", ["nas.local"])).toBe(true);

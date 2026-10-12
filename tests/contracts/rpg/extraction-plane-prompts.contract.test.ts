@@ -78,7 +78,7 @@ test("weather.type reaches the WIRE schema as an enum (the grammar binds it); we
   // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const scene = (projected["properties"] as Record<string, Record<string, unknown>>)["scene"];
   // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-  const weather = (scene?.["properties"] as Record<string, Record<string, unknown>>)["weather"];
+  const weather = (scene?.["properties"] as Record<string, Record<string, unknown>>)?.["weather"];
   // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const weatherProps = weather?.["properties"] as Record<string, Record<string, unknown>>;
   expect(weatherProps["type"]?.["enum"]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"]);

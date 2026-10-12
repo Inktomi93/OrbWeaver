@@ -3051,27 +3051,28 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
   });
 
   const ReturnWithdrawals = ["membership", "history-floor"] as const;
-  test.for(
-    RESTORE_METHODS.flatMap((method) => ReturnWithdrawals.map((change) => ({ method, change }))),
-  )("post-success $method / $change withholds the response but retains the valid commit and events", async ({ method, change }, { ids }) => {
-    const f: RestoreFixture = await restoreFixture(
-      method,
-      ids,
-      {
-        rpg: privateRpg(),
-        afterEmit: async () => {
-          const patch = change === "membership" ? { leftSeq: 2 } : { role: "member" as const, joinSeq: 2, joinHistoryVisibility: "from-join" as const };
-          await db
-            .update(chatParticipants)
-            .set(patch)
-            .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+  test.for(RESTORE_METHODS.flatMap((method) => ReturnWithdrawals.map((change) => ({ method, change }))))(
+    "post-success $method / $change withholds the response but retains the valid commit and events",
+    async ({ method, change }, { ids }) => {
+      const f: RestoreFixture = await restoreFixture(
+        method,
+        ids,
+        {
+          rpg: privateRpg(),
+          afterEmit: async () => {
+            const patch = change === "membership" ? { leftSeq: 2 } : { role: "member" as const, joinSeq: 2, joinHistoryVisibility: "from-join" as const };
+            await db
+              .update(chatParticipants)
+              .set(patch)
+              .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+          },
         },
-      },
-      { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning },
-    );
-    await expect(f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
-    await committedRestoration(f, method);
-  });
+        { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning },
+      );
+      await expect(f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+      await committedRestoration(f, method);
+    },
+  );
 
   test.for(RESTORE_METHODS)("post-success %s host projection remains unstripped despite a host's stored history-floor option", async (method, { ids }) => {
     const f = await restoreFixture(method, ids, { rpg: privateRpg() }, { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning });
@@ -3087,102 +3088,104 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
     await committedRestoration(f, method);
   });
 
-  test.for(RESTORE_METHODS)("post-success %s current member projection admits its inclusive history floor and strips only private channels", async (method, {
-    ids,
-  }) => {
-    const f = await restoreFixture(method, ids, { rpg: privateRpg() }, { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning });
-    const member = await seedUser(db, castId<Handle>("restore-member"));
-    await seedParticipant(db, { chatId: f.chatId, key: "restore-member", userId: member, role: "member", joinSeq: 1 });
-    await db
-      .update(chatParticipants)
-      .set({ joinHistoryVisibility: "from-join" })
-      .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, member)));
-    const view = await f.h.turn[method]({ principal: principal(member), chatId: f.chatId, messageId: f.messageId });
-    expect(view.seq).toBe(1);
-    expect(view.content).toBe(method === "undoContinue" ? "Before.After." : "Before.After.A.");
-    expect(view.reasoning).toBeNull();
-    expect(view.toolCalls[0]).toMatchObject({ toolCallId: f.base.toolCallId, arguments: "{}", result: "Moon", textOffset: 13, exchangeTextEnd: 13 });
-    expect(JSON.stringify(view)).not.toMatch(/host-secret|reason-private|tool-private|tool-reason-private|tool-signature-private|<lie/u);
-    await committedRestoration(f, method);
-  });
+  test.for(RESTORE_METHODS)(
+    "post-success %s current member projection admits its inclusive history floor and strips only private channels",
+    async (method, { ids }) => {
+      const f = await restoreFixture(method, ids, { rpg: privateRpg() }, { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning });
+      const member = await seedUser(db, castId<Handle>("restore-member"));
+      await seedParticipant(db, { chatId: f.chatId, key: "restore-member", userId: member, role: "member", joinSeq: 1 });
+      await db
+        .update(chatParticipants)
+        .set({ joinHistoryVisibility: "from-join" })
+        .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, member)));
+      const view = await f.h.turn[method]({ principal: principal(member), chatId: f.chatId, messageId: f.messageId });
+      expect(view.seq).toBe(1);
+      expect(view.content).toBe(method === "undoContinue" ? "Before.After." : "Before.After.A.");
+      expect(view.reasoning).toBeNull();
+      expect(view.toolCalls[0]).toMatchObject({ toolCallId: f.base.toolCallId, arguments: "{}", result: "Moon", textOffset: 13, exchangeTextEnd: 13 });
+      expect(JSON.stringify(view)).not.toMatch(/host-secret|reason-private|tool-private|tool-reason-private|tool-signature-private|<lie/u);
+      await committedRestoration(f, method);
+    },
+  );
 
-  test.for(
-    RESTORE_METHODS.flatMap((method) => RESTORE_RACES.map((race) => ({ method, race }))),
-  )("restore refuses stale $method / $race before canon, versions or events", async ({ method, race }, { ids }) => {
-    const held = await freshHeldDb();
-    db = held.db;
-    const f = await restoreFixture(method, ids);
-    const gate = held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
-    const pending = f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
-    const refusal = expect(pending).rejects.toBeInstanceOf(race === "membership" ? ChatNotFoundError : ChatOperationError);
-    await gate.reached;
-    const mutations: Record<RestoreRace, () => Promise<void>> = {
-      continuation: async () => {
-        await commitNextContinuation(f);
-      },
-      selection: async () => {
-        const alternate = castId<MessageVariantId>(ids.next(ID_PREFIX.messageVariant));
-        await db.insert(messageVariants).values({ id: alternate, messageId: f.messageId, idx: 1, content: "Other swipe.", createdAt: FROZEN_AT_MS });
-        await db.update(messages).set({ selectedVariantId: alternate }).where(eq(messages.id, f.messageId));
-      },
-      membership: async () => {
-        await db
-          .update(chatParticipants)
-          .set({ leftSeq: 2 })
-          .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
-      },
-      role: async () => {
-        await db
-          .update(chatParticipants)
-          .set({ role: "member" })
-          .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
-      },
-      preContent: async () => {
-        await db.update(messageVariants).set({ preContinueContent: "Other base." }).where(eq(messageVariants.id, f.variantId));
-      },
-      preReasoning: async () => {
-        await db.update(messageVariants).set({ preContinueReasoning: "Other base reasoning." }).where(eq(messageVariants.id, f.variantId));
-      },
-      lastContent: async () => {
-        await db.update(messageVariants).set({ lastContinuationContent: "Other addition." }).where(eq(messageVariants.id, f.variantId));
-      },
-      lastReasoning: async () => {
-        await db.update(messageVariants).set({ lastContinuationReasoning: "Other addition reasoning." }).where(eq(messageVariants.id, f.variantId));
-      },
-      metadata: async () => {
-        await db
-          .update(messageVariants)
-          .set({ metadata: { ...f.metadataA, systemTokens: 999 } })
-          .where(eq(messageVariants.id, f.variantId));
-      },
-      tools: async () => {
-        await db
-          .update(messageVariants)
-          .set({ toolCalls: [{ ...f.base, hidden: false }] })
-          .where(eq(messageVariants.id, f.variantId));
-      },
-      content: async () => {
-        await db.update(messageVariants).set({ content: "New authored body." }).where(eq(messageVariants.id, f.variantId));
-      },
-      reasoning: async () => {
-        await db.update(messageVariants).set({ reasoning: "New authored reasoning." }).where(eq(messageVariants.id, f.variantId));
-      },
-    };
-    let beforeVariants: (typeof messageVariants.$inferSelect)[] = [];
-    let beforeVersions: (typeof statsCanonVersions.$inferSelect)[] = [];
-    try {
-      await mutations[race]();
-      beforeVariants = await db.select().from(messageVariants).orderBy(messageVariants.idx);
-      beforeVersions = await db.select().from(statsCanonVersions);
-    } finally {
-      gate.release();
-    }
-    await refusal;
-    expect(await db.select().from(messageVariants).orderBy(messageVariants.idx)).toEqual(beforeVariants);
-    expect(await db.select().from(statsCanonVersions)).toEqual(beforeVersions);
-    expect(f.h.events).toEqual([]);
-    expect(f.h.changedChats).toEqual([]);
-  });
+  test.for(RESTORE_METHODS.flatMap((method) => RESTORE_RACES.map((race) => ({ method, race }))))(
+    "restore refuses stale $method / $race before canon, versions or events",
+    async ({ method, race }, { ids }) => {
+      const held = await freshHeldDb();
+      db = held.db;
+      const f = await restoreFixture(method, ids);
+      const gate = held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
+      const pending = f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+      const refusal = expect(pending).rejects.toBeInstanceOf(race === "membership" ? ChatNotFoundError : ChatOperationError);
+      await gate.reached;
+      const mutations: Record<RestoreRace, () => Promise<void>> = {
+        continuation: async () => {
+          await commitNextContinuation(f);
+        },
+        selection: async () => {
+          const alternate = castId<MessageVariantId>(ids.next(ID_PREFIX.messageVariant));
+          await db.insert(messageVariants).values({ id: alternate, messageId: f.messageId, idx: 1, content: "Other swipe.", createdAt: FROZEN_AT_MS });
+          await db.update(messages).set({ selectedVariantId: alternate }).where(eq(messages.id, f.messageId));
+        },
+        membership: async () => {
+          await db
+            .update(chatParticipants)
+            .set({ leftSeq: 2 })
+            .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+        },
+        role: async () => {
+          await db
+            .update(chatParticipants)
+            .set({ role: "member" })
+            .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+        },
+        preContent: async () => {
+          await db.update(messageVariants).set({ preContinueContent: "Other base." }).where(eq(messageVariants.id, f.variantId));
+        },
+        preReasoning: async () => {
+          await db.update(messageVariants).set({ preContinueReasoning: "Other base reasoning." }).where(eq(messageVariants.id, f.variantId));
+        },
+        lastContent: async () => {
+          await db.update(messageVariants).set({ lastContinuationContent: "Other addition." }).where(eq(messageVariants.id, f.variantId));
+        },
+        lastReasoning: async () => {
+          await db.update(messageVariants).set({ lastContinuationReasoning: "Other addition reasoning." }).where(eq(messageVariants.id, f.variantId));
+        },
+        metadata: async () => {
+          await db
+            .update(messageVariants)
+            .set({ metadata: { ...f.metadataA, systemTokens: 999 } })
+            .where(eq(messageVariants.id, f.variantId));
+        },
+        tools: async () => {
+          await db
+            .update(messageVariants)
+            .set({ toolCalls: [{ ...f.base, hidden: false }] })
+            .where(eq(messageVariants.id, f.variantId));
+        },
+        content: async () => {
+          await db.update(messageVariants).set({ content: "New authored body." }).where(eq(messageVariants.id, f.variantId));
+        },
+        reasoning: async () => {
+          await db.update(messageVariants).set({ reasoning: "New authored reasoning." }).where(eq(messageVariants.id, f.variantId));
+        },
+      };
+      let beforeVariants: (typeof messageVariants.$inferSelect)[] = [];
+      let beforeVersions: (typeof statsCanonVersions.$inferSelect)[] = [];
+      try {
+        await mutations[race]();
+        beforeVariants = await db.select().from(messageVariants).orderBy(messageVariants.idx);
+        beforeVersions = await db.select().from(statsCanonVersions);
+      } finally {
+        gate.release();
+      }
+      await refusal;
+      expect(await db.select().from(messageVariants).orderBy(messageVariants.idx)).toEqual(beforeVariants);
+      expect(await db.select().from(statsCanonVersions)).toEqual(beforeVersions);
+      expect(f.h.events).toEqual([]);
+      expect(f.h.changedChats).toEqual([]);
+    },
+  );
 
   test.for(RESTORE_METHODS)("restore-first %s leaves a coherent private snapshot; the next generation may then replace it", async (method, { ids }) => {
     const f = await restoreFixture(method, ids);

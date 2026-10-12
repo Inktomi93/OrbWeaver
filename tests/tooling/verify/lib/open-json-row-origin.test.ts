@@ -71,13 +71,13 @@ test("an awaited augmented Promise checks the same canonical return-annotation o
   expect(rowOwnerMatches({ augment: true, awaited: true })).toBe(true);
 });
 
-test.each([
-  "interface Promise<T> { readonly value: T }",
-  "class Promise<T> { declare readonly value: T }",
-])("a foreign same-named Promise refuses: %s", (foreign) => {
-  const { call } = rowCall({ foreign });
-  expect(() => schemaRowOriginIdentity(call)).toThrow("cannot prove schema-row origin of mixed read");
-});
+test.each(["interface Promise<T> { readonly value: T }", "class Promise<T> { declare readonly value: T }"])(
+  "a foreign same-named Promise refuses: %s",
+  (foreign) => {
+    const { call } = rowCall({ foreign });
+    expect(() => schemaRowOriginIdentity(call)).toThrow("cannot prove schema-row origin of mixed read");
+  },
+);
 
 test("an untrusted ambient Promise without a library anchor refuses", () => {
   const { call } = rowCall({ noLib: true });

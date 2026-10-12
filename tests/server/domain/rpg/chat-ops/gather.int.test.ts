@@ -450,7 +450,10 @@ test("the gather stages the `rpg` CEL tree so {{expr::rpg.…}} reads scene/cast
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID });
   // The `rpg` binding is a data-only CelValue tree — its documented read-set (scene.location, cast[].relationship,
   // quests[].status) carries the tracker view, so an `{{expr}}` predicate on the turn evaluates against real state.
-  const rpg = (out?.celBindings as { rpg: { scene: { location: string }; cast: { relationship: string }[]; quests: { status: string }[] } }).rpg;
+  const rpg = (out?.celBindings as { rpg: { scene: { location: string }; cast: { relationship: string }[]; quests: { status: string }[] } })?.rpg;
+  if (rpg === undefined) {
+    throw new Error("the gathered turn context carried no rpg binding");
+  }
   expect(rpg.scene.location).toBe("Village of Dunmoor");
   expect(rpg.cast[0]?.relationship).toBe("enemy");
   expect(rpg.quests[0]?.status).toBe("active");

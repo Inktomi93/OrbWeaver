@@ -216,8 +216,8 @@ export function assertOwnerPlans(input: PolicyPassInput): void {
   if (!(plans instanceof Map)) {
     throw new Error("runPolicyPass owner plans must be a Map");
   }
-  const expected = input.policies.map(({ id }) => id).toSorted();
-  const actual = [...plans.keys()].toSorted();
+  const expected = input.policies.map(({ id }) => id).toSorted((left, right) => left.localeCompare(right));
+  const actual = [...plans.keys()].toSorted((left, right) => left.localeCompare(right));
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error("runPolicyPass owner plans must cover exactly the selected policies");
   }

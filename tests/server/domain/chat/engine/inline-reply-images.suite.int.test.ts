@@ -395,121 +395,121 @@ test.each([true, false])("commit and replay preserve imageBeforeTool=%s at equal
   expect(parts.find((part) => part.type === "tool-call")).toMatchObject({ thoughtSignature: "private-tool", toolCallId: "same" });
 });
 
-test.each([
-  true,
-  false,
-])("native one-completion imageBeforeTool=%s keeps original file/call/text order through converter, commit and replay", async (imageBeforeTool) => {
-  const chatId = await seedRoom(db, `native-tie-${String(imageBeforeTool)}`);
-  const sink: TurnRequest[] = [];
-  let depth = 0;
-  type StreamPart = Parameters<typeof drainStream>[0] extends ReadableStream<infer Part> ? Part : never;
-  const tool: StreamPart = {
-    type: "tool-call",
-    toolCallId: "same",
-    toolName: "draw",
-    input: "{}",
-    providerMetadata: { google: { thoughtSignature: "private-tool" } },
-  };
-  const image: StreamPart = {
-    type: "file",
-    mediaType: "image/png",
-    data: { type: "data", data: PNG.base64 ?? "" },
-    providerMetadata: { google: { thoughtSignature: "private-image" } },
-  };
-  const nativeParts: readonly StreamPart[] = [
-    { type: "text-delta", id: "before", delta: "Before.", providerMetadata: { google: { thoughtSignature: "private-before" } } },
-    ...(imageBeforeTool ? [image, tool] : [tool, image]),
-    { type: "text-delta", id: "after", delta: "After.", providerMetadata: { google: { thoughtSignature: "private-after" } } },
-    {
-      type: "finish",
-      finishReason: { unified: "tool-calls", raw: "tool_calls" },
-      usage: {
-        inputTokens: { total: 1, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
-        outputTokens: { total: 1, text: undefined, reasoning: undefined },
+test.each([true, false])(
+  "native one-completion imageBeforeTool=%s keeps original file/call/text order through converter, commit and replay",
+  async (imageBeforeTool) => {
+    const chatId = await seedRoom(db, `native-tie-${String(imageBeforeTool)}`);
+    const sink: TurnRequest[] = [];
+    let depth = 0;
+    type StreamPart = Parameters<typeof drainStream>[0] extends ReadableStream<infer Part> ? Part : never;
+    const tool: StreamPart = {
+      type: "tool-call",
+      toolCallId: "same",
+      toolName: "draw",
+      input: "{}",
+      providerMetadata: { google: { thoughtSignature: "private-tool" } },
+    };
+    const image: StreamPart = {
+      type: "file",
+      mediaType: "image/png",
+      data: { type: "data", data: PNG.base64 ?? "" },
+      providerMetadata: { google: { thoughtSignature: "private-image" } },
+    };
+    const nativeParts: readonly StreamPart[] = [
+      { type: "text-delta", id: "before", delta: "Before.", providerMetadata: { google: { thoughtSignature: "private-before" } } },
+      ...(imageBeforeTool ? [image, tool] : [tool, image]),
+      { type: "text-delta", id: "after", delta: "After.", providerMetadata: { google: { thoughtSignature: "private-after" } } },
+      {
+        type: "finish",
+        finishReason: { unified: "tool-calls", raw: "tool_calls" },
+        usage: {
+          inputTokens: { total: 1, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
+          outputTokens: { total: 1, text: undefined, reasoning: undefined },
+        },
       },
-    },
-  ];
-  const h = harness(db, {
-    tools: {
-      resolveTools: () => ({}),
-      toToolDefinitions: () => [{ name: "draw", description: "Draw", parameters: { type: "object" }, inputShape: {} }],
-      prepareExecution: () =>
-        Promise.resolve((calls) =>
-          Promise.resolve(
-            calls.map((call) => ({ toolCallId: call.toolCallId, name: call.name, arguments: call.arguments, result: "Moon", isError: false, durationMs: 1 })),
+    ];
+    const h = harness(db, {
+      tools: {
+        resolveTools: () => ({}),
+        toToolDefinitions: () => [{ name: "draw", description: "Draw", parameters: { type: "object" }, inputShape: {} }],
+        prepareExecution: () =>
+          Promise.resolve((calls) =>
+            Promise.resolve(
+              calls.map((call) => ({ toolCallId: call.toolCallId, name: call.name, arguments: call.arguments, result: "Moon", isError: false, durationMs: 1 })),
+            ),
           ),
-        ),
-    },
-    runChatTurn: (request) => {
-      sink.push(request);
-      return (async function* (): AsyncGenerator<TurnStreamChunk> {
-        const current = depth++;
-        if (current === 0) {
-          const drained = await drainStream(
-            new ReadableStream<StreamPart>({
-              start(controller): void {
-                for (const part of nativeParts) {
-                  controller.enqueue(part);
-                }
-                controller.close();
+      },
+      runChatTurn: (request) => {
+        sink.push(request);
+        return (async function* (): AsyncGenerator<TurnStreamChunk> {
+          const current = depth++;
+          if (current === 0) {
+            const drained = await drainStream(
+              new ReadableStream<StreamPart>({
+                start(controller): void {
+                  for (const part of nativeParts) {
+                    controller.enqueue(part);
+                  }
+                  controller.close();
+                },
+              }),
+              { label: "native tie" },
+            );
+            yield {
+              kind: "final",
+              economics: {
+                content: drained.reply,
+                replyImages: drained.images,
+                toolCalls: drained.toolCalls,
+                textSignatures: drained.textSignatures,
+                finishReason: "tool",
               },
-            }),
-            { label: "native tie" },
-          );
-          yield {
-            kind: "final",
-            economics: {
-              content: drained.reply,
-              replyImages: drained.images,
-              toolCalls: drained.toolCalls,
-              textSignatures: drained.textSignatures,
-              finishReason: "tool",
-            },
-          };
-        } else {
-          yield { kind: "final", economics: { content: current === 1 ? "Done." : "Explain.", finishReason: "stop" } };
-        }
-      })();
-    },
-  });
-  const original = prepOf(chatId);
-  const prep = {
-    ...original,
-    attachedToolNames: ["draw"],
-    connection: {
-      ...original.connection,
-      capability: makeCapability(
-        makeGenerationCapability({
-          input: ["text", "image"],
-          tools: { parallel: true },
-          output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text", "image"] },
-        }),
-      ),
-    },
-  };
-  await h.engine.runTurn(prep);
-  const canon = await loadCanonHistory(db, chatId);
-  expect(canon[0]?.content).toBe(`Before.\n\n![Before.](asset:${h.stored[0]})\n\nAfter.Done.`);
-  expect(JSON.stringify(canon)).not.toContain("private-");
-  const inTurn = sink[1]?.history.find((frame) => frame.content.some((part) => part.type === "tool-call"));
-  expect(inTurn?.content.map((part) => part.type)).toEqual(imageBeforeTool ? ["text", "image", "tool-call", "text"] : ["text", "tool-call", "image", "text"]);
-  await h.engine.runTurn(prep);
-  const history = sink.at(-1)?.history ?? [];
-  const prior = history.find((frame) => frame.content.some((part) => part.type === "tool-call"));
-  const nonblank = prior?.content.filter((part) => part.type !== "text" || part.text.trim().length > 0) ?? [];
-  expect(nonblank.map((part) => part.type)).toEqual(imageBeforeTool ? ["text", "image", "tool-call", "text"] : ["text", "tool-call", "image", "text"]);
-  expect(nonblank.filter((part) => part.type === "text").map((part) => [part.text, part.thoughtSignature])).toEqual([
-    ["Before.", "private-before"],
-    ["After.", "private-after"],
-  ]);
-  const plan = buildWirePlan({ systemPrompt: { static: "", dynamic: "" }, history, includeAssistantMedia: true });
-  const wireParts = plan.prompt
-    .filter((frame) => frame.role === "assistant")
-    .flatMap((frame) => frame.content)
-    .filter((part) => part.type !== "text" || part.text.trim().length > 0);
-  expect(wireParts.map((part) => part.type)).toEqual(
-    imageBeforeTool ? ["text", "file", "tool-call", "text", "text"] : ["text", "tool-call", "file", "text", "text"],
-  );
-  expect(wireParts.find((part) => part.type === "file")?.providerOptions).toMatchObject({ google: { thoughtSignature: "private-image" } });
-  expect(wireParts.find((part) => part.type === "tool-call")?.providerOptions).toMatchObject({ google: { thoughtSignature: "private-tool" } });
-});
+            };
+          } else {
+            yield { kind: "final", economics: { content: current === 1 ? "Done." : "Explain.", finishReason: "stop" } };
+          }
+        })();
+      },
+    });
+    const original = prepOf(chatId);
+    const prep = {
+      ...original,
+      attachedToolNames: ["draw"],
+      connection: {
+        ...original.connection,
+        capability: makeCapability(
+          makeGenerationCapability({
+            input: ["text", "image"],
+            tools: { parallel: true },
+            output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text", "image"] },
+          }),
+        ),
+      },
+    };
+    await h.engine.runTurn(prep);
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon[0]?.content).toBe(`Before.\n\n![Before.](asset:${h.stored[0]})\n\nAfter.Done.`);
+    expect(JSON.stringify(canon)).not.toContain("private-");
+    const inTurn = sink[1]?.history.find((frame) => frame.content.some((part) => part.type === "tool-call"));
+    expect(inTurn?.content.map((part) => part.type)).toEqual(imageBeforeTool ? ["text", "image", "tool-call", "text"] : ["text", "tool-call", "image", "text"]);
+    await h.engine.runTurn(prep);
+    const history = sink.at(-1)?.history ?? [];
+    const prior = history.find((frame) => frame.content.some((part) => part.type === "tool-call"));
+    const nonblank = prior?.content.filter((part) => part.type !== "text" || part.text.trim().length > 0) ?? [];
+    expect(nonblank.map((part) => part.type)).toEqual(imageBeforeTool ? ["text", "image", "tool-call", "text"] : ["text", "tool-call", "image", "text"]);
+    expect(nonblank.filter((part) => part.type === "text").map((part) => [part.text, part.thoughtSignature])).toEqual([
+      ["Before.", "private-before"],
+      ["After.", "private-after"],
+    ]);
+    const plan = buildWirePlan({ systemPrompt: { static: "", dynamic: "" }, history, includeAssistantMedia: true });
+    const wireParts = plan.prompt
+      .filter((frame) => frame.role === "assistant")
+      .flatMap((frame) => frame.content)
+      .filter((part) => part.type !== "text" || part.text.trim().length > 0);
+    expect(wireParts.map((part) => part.type)).toEqual(
+      imageBeforeTool ? ["text", "file", "tool-call", "text", "text"] : ["text", "tool-call", "file", "text", "text"],
+    );
+    expect(wireParts.find((part) => part.type === "file")?.providerOptions).toMatchObject({ google: { thoughtSignature: "private-image" } });
+    expect(wireParts.find((part) => part.type === "tool-call")?.providerOptions).toMatchObject({ google: { thoughtSignature: "private-tool" } });
+  },
+);
