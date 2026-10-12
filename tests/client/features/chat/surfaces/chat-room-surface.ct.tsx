@@ -23,11 +23,14 @@ import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_FORK_NAME } from "#client/features/c
 import { testId } from "#client/lib/test-ids.ts";
 import { waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
+import { CHAT_AND_INBOX_READS_EMPTY } from "../../../../support/node/chat-and-inbox-reads-empty.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { PluginPhoneShellStory } from "../../plugin/_ct-stories.tsx";
 import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory, ChatsSectionRoomStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ID, chatListResponder, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview. Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -353,39 +356,67 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
 });
 
 // The flank's FLIP counter (shell.css `--flank-centre-flip-from`): a centred transcript row owes half the change
-// of its containing block that the reading cap did not eat. The room is mounted in the real shell, the cap is the
-// reader's own chat-width dial at its minimum (so it binds below the thread without the column), and the column is
-// toggled through its real edge control. Under reduced motion the toggle stamps the settle attribute for two
-// frames; a MutationObserver reads the computed translate in the same task as the stamp, because polling cannot
-// catch a two-frame window. The attribute is the product's; only the sampling is the test's.
+// of its containing block that the reading cap did not eat. The room is mounted in the real shell with the real
+// plugin `chat-flank` contribution; the cap is the reader's own chat-width dial at its minimum (so it binds below
+// the thread without the column), and the column is collapsed and re-opened through its real edge control, which
+// round-trips the user's `flankCollapsed` setting. Only the network edge is stubbed. Under reduced motion the
+// toggle stamps the settle attribute for two frames; a MutationObserver reads the computed translate in the same
+// task as the stamp, because polling cannot catch a two-frame window. The attribute is the product's; only the
+// sampling is the test's.
 test("the flank's centring counter is half the capped width change, signed by the toggle direction", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1920, height: 1000 });
   await page.emulateMedia({ reducedMotion: "reduce" });
+  const pluginId = mintTypeId(ID_PREFIX.plugin);
+  let profile: { readonly flankCollapsed: boolean } = { flankCollapsed: false };
+  const settingsView = (): ReturnType<typeof userSettingsView> => userSettingsView({ appearance: { chatWidthPct: 30 }, profile });
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     ...ROSTER_STUB,
-    // The shell's own reads, all empty: this test's subject is the room's geometry, not the rail, list or bell.
-    "chat.listChats": chatListResponder([]),
-    "chat.countChats": 0,
+    ...CHAT_AND_INBOX_READS_EMPTY,
+    // The shell's own reads, all empty: this test's subject is the room's geometry, not the rail or the library.
     "rosterPreset.count": 0,
     "character.list": { items: [], nextCursor: null, totalCount: 0 },
     "persona.list": [],
-    "notifications.list": { items: [], nextCursor: null },
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 },
-    // The reader's own chat-width dial at its minimum: the cap then falls below the thread without the column.
-    "settings.getUserSettings": () => ({
-      userId: castId<UserId>("user_ct"),
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatWidthPct: 30 } },
-      configUnreadable: null,
-      updatedAt: 0,
-    }),
+    // The user's settings, kept the way the server keeps them: a section write is what the next read answers.
+    "settings.getUserSettings": () => settingsView(),
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof settingsView> => {
+      profile = { ...profile, ...input.patch };
+      return settingsView();
+    },
+    "plugin.list": (): TrpcWireOutput<"plugin.list"> => [
+      {
+        id: pluginId,
+        slug: "flank-plugin",
+        name: "Flank Plugin",
+        version: "1.0.0",
+        status: "enabled",
+        origin: "upload",
+        sourceUrl: null,
+        sourceCommit: null,
+        updateSource: null,
+        declaredCapabilities: ["ui.surface"],
+        grantedCapabilities: ["ui.surface"],
+        netHosts: null,
+        reconsentPending: false,
+        widenedNetHosts: [],
+        builtAgainst: null,
+        description: "A fixture plugin.",
+        lastError: null,
+        installedAt: 0,
+        updatedAt: 0,
+      },
+    ],
+    "plugin.listSurfaces": (): TrpcWireOutput<"plugin.listSurfaces"> => [
+      { pluginId, id: "flank_panel", anchor: "chat-flank", title: "Panel", tier: "static", spec: { kind: "text", value: "flank panel body" } },
+    ],
+    "plugin.getSurfaceState": () => null,
     "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_flank"), role: "assistant", content: "A line in the room." })]),
   });
-  await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} shell={true} />);
+  await mount(<PluginPhoneShellStory />);
 
   const flankRow = page.locator('[data-slot="chat-room-flank-row"]');
   await expect(flankRow).toBeVisible();

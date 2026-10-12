@@ -8,9 +8,6 @@
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
-// B8/D269: the REAL rpg dice composer contribution + in-thread RESULT renderer, through the
-// same front door the providers use (a relative import gets a different React context instance).
-import { AppShell } from "@orb/client/features/app-shell";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -36,6 +33,8 @@ import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
 import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
+// B8/D269: the REAL rpg dice composer contribution + in-thread RESULT renderer, through the
+// same front door the providers use (a relative import gets a different React context instance).
 import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "@orb/client/features/rpg";
 import type {
   ChatContextState,
@@ -54,7 +53,7 @@ import type {
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, notify, publishFlankHost, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, notify, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import {
   CommandPaletteSourceRegistryProvider,
@@ -74,7 +73,6 @@ import {
   SlashCommandRegistryProvider,
   selectChat,
   selectChatFromList,
-  setActiveSection,
   setMobileViewport,
   setNarrowViewport,
   startEditingMessage,
@@ -2365,9 +2363,6 @@ export interface ChatSurfaceContributorStoryProps {
    *  seam is open to any feature and, since #679 U2, to third-party plugin surfaces whose text a plugin
    *  author writes. #776 pins that such a body cannot crush the reading column. */
   readonly greedy?: boolean;
-  /** Mount the room inside the real app shell (so `.shell-main` and the chat-width dial come from the product)
-   *  with a plugin host that owns the flank's collapsed flag. @defaultValue false */
-  readonly shell?: boolean;
 }
 
 const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
@@ -2379,19 +2374,10 @@ const CT_GREEDY_BODY =
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({
-  anchor,
-  visible,
-  silent = false,
-  greedy = false,
-  shell = false,
-}: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible, silent = false, greedy = false }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
-    if (shell) {
-      setActiveSection("chats");
-    }
-  }, [shell]);
+  }, []);
   const fakeContribution: ChatSurfaceContribution =
     anchor === "message-footer"
       ? {
@@ -2410,28 +2396,10 @@ export function ChatSurfaceContributorStory({
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry surfaceContributors={surfaceContributors}>
-        {shell ? (
-          <>
-            <PluginPanelsHostStandIn />
-            <AppShell />
-          </>
-        ) : (
-          <ChatContentHarness />
-        )}
+        <ChatContentHarness />
       </CtChatContributorSectionRegistry>
     </CtDataProviders>
   );
-}
-
-/** The plugin host's side of the flank contract (`publishFlankHost`): it announces plugin panels and owns the
- *  collapsed flag the room's edge control toggles, the way the plugin host does in production. */
-function PluginPanelsHostStandIn(): null {
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => {
-    publishFlankHost({ panels: true, collapsed, toggle: (): void => setCollapsed((was) => !was) });
-  }, [collapsed]);
-  useEffect(() => (): void => publishFlankHost(null), []);
-  return null;
 }
 
 /** The REAL `chats` section content open on {@link CHAT_ID} with the door's surface contributors: the production
