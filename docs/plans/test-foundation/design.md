@@ -20,7 +20,7 @@ The aim is three things at once. Honest: a test proves what production does, nev
 2. **The server test harness.** A test composition root in `@orb/testkit/node` builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes those seams at the composition root. Domain harnesses are deleted as their suites move onto the root. Runs in parallel with step 1.
 3. **Builders and corpus.** One builder per contract output and database row, built from contract defaults or by running production. One synthetic corpus from the seed tool, shared by e2e, CT, server tests and side-eye.
 4. **The client CT door.** CTs mount through the real client compose. A story isolates only through the named exception.
-5. **The legacy ledger.** One shrink-only list names every test file not yet rebuilt. Ledger files run in CI and nightly only, not in commit hooks or lane floors. Gates judge every file outside the ledger at full strictness. A file leaves the ledger when its cases, the regression cases first, are ported onto the new harness and verified; then it is deleted.
+5. **The legacy folder.** Every test not yet rebuilt moves to `tests/legacy/` at its same mirror path; the folder is the ledger. It runs in CI as its own project, never in commit hooks, lane floors or the strict gates, and reaches package internals through the root raw-reach map without grants. A domain's legacy folder is deleted when its rebuilt suite carries every case.
 6. **Rebuild.** The e2e smoke matrix on the corpus first, then server suites by domain on the composition root, then CTs on the door, then the rest.
 
 ### Why this order
@@ -32,7 +32,7 @@ The hard parts come first because they decide the shape of every rebuilt test. A
 - One builder per shape and the corpus (959), because every layer draws its data from them.
 - The CT door (960), because every CT mounts through it.
 - The engine readers (953 to 957), because the strict gates that judge rebuilt files read code through them.
-- The legacy ledger (961), because it is the switch that lets rebuilt files run strict while legacy files keep running in CI.
+- The legacy folder (961), because it lets rebuilt files run strict while legacy files keep running in CI, and it lets item 983 narrow the exports maps without breaking them.
 
 Dependencies that hold the order: 958 waits on 964; 966 waits on 954; 939's remaining splits wait on 961; a structural move such as a file split runs after the content lanes in the same files, never beside them.
 
@@ -40,7 +40,7 @@ Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, whic
 
 ### Rules
 
-- Not yet built: the engine, the composition root, the builders and corpus, and the ledger.
+- Not yet built: the engine, the composition root, the builders and corpus, and the legacy folder.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.
@@ -140,12 +140,12 @@ By owner ruling (item 899), tests live in the directory that mirrors their featu
 
 ## Rejected
 
-Moving the tests out of the repository: it drops the regression net for the whole rebuild. Per-gate time or memory caps: cost is a design defect fixed by the shared fact store, not a limit. Retrofitting fake-heavy server harnesses row by row: each row needs fixture repair and a fresh review.
+Moving the tests out of the repository: it drops the regression net for the whole rebuild; the in-repo legacy folder gives the same relief and keeps the net. Per-gate time or memory caps: cost is a design defect fixed by the shared fact store, not a limit. Retrofitting fake-heavy server harnesses row by row: each row needs fixture repair and a fresh review.
 
 ## Coupled sites
 
-The test-mirror plan: item 890 server harness rows move here, item 901 hosts the harness, items 887 and 898 feed the corpus and the smoke matrix, item 952 burns down against the ledger. Raw package reaches and over-cap test files leave with the legacy files the ledger retires; rebuilt tests enter packages through public entries by construction. `docs/law/Spine-Testing.md` sections 2 and 10, `docs/law/Core-0-Architecture-and-Structure.md` section 5, and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` section 4 for inner-loop membership.
+The test-mirror plan: item 890 server harness rows move here, item 901 hosts the harness, items 887 and 898 feed the corpus and the smoke matrix, item 952 burns down against the legacy folder. Raw package reaches and over-cap test files leave with the legacy files the ledger retires; rebuilt tests enter packages through public entries by construction. `docs/law/Spine-Testing.md` sections 2 and 10, `docs/law/Core-0-Architecture-and-Structure.md` section 5, and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` section 4 for inner-loop membership.
 
 ## Test plan
 
-Each engine move diffs `pnpm ast` output and gate findings before and after. Each ported suite shows the same case list and a production mutant that turns it red. The ledger gate refuses a new entry and a returning file.
+Each engine move diffs `pnpm ast` output and gate findings before and after. Each ported suite shows the same case list and a production mutant that turns it red. The legacy-folder gate refuses a new entry and a returning file.
