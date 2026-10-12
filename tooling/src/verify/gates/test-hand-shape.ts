@@ -237,6 +237,55 @@ function productionShapesOf(node: Node): readonly DeclaredShape[] {
   });
 }
 
+/** The tests-to-source prefix swap of `test-layout`: `tests/<pkg>/<dir>/<name>` mirrors `packages/<pkg>/src/<dir>/`. */
+const MIRROR_RE = /^tests\/([^/]+)\/(?:(.+)\/)?[^/]+$/u;
+
+/** The production files a hand shape could have been copied from, by declaration: the direct imports of its own file
+ *  and its mirrored subject (the source file the test name swaps to, else the files directly in the mirrored
+ *  directory), each followed through production imports and re-exports transitively. A test file is a root only
+ *  through its own direct imports, and no `tests/` file is ever traversed, so a testkit barrel pulls nothing in. */
+function reachableFrom(files: readonly SourceFile[], homeOf: (file: SourceFile) => string): (hand: HandShape) => ReadonlySet<SourceFile> {
+  const byHome = new Map(files.map((file) => [homeOf(file), file] as const));
+  const isProductionFile = (file: SourceFile): boolean => !(file.isDeclarationFile() || file.isInNodeModules() || homeOf(file).startsWith(TESTS));
+  const linksOf = (file: SourceFile): readonly SourceFile[] =>
+    [...file.getImportDeclarations(), ...file.getExportDeclarations()].flatMap((declaration) => {
+      const target = declaration.getModuleSpecifierSourceFile();
+      return target === undefined ? [] : [target];
+    });
+  const closureCache = new Map<SourceFile, ReadonlySet<SourceFile>>();
+  const closureOf = (root: SourceFile): ReadonlySet<SourceFile> => {
+    const cached = closureCache.get(root);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const seen = new Set<SourceFile>([root]);
+    for (const file of seen) {
+      for (const target of linksOf(file)) {
+        if (isProductionFile(target)) {
+          seen.add(target);
+        }
+      }
+    }
+    closureCache.set(root, seen);
+    return seen;
+  };
+  const subjectsOf = (home: string): readonly SourceFile[] => {
+    const mirror = MIRROR_RE.exec(home);
+    if (mirror === null || mirror[1] === undefined) {
+      return [];
+    }
+    const dir = `packages/${mirror[1]}/src/${mirror[2] === undefined ? "" : `${mirror[2]}/`}`;
+    const stem = home.slice(home.lastIndexOf("/") + 1).replace(/(\.[a-z-]+)*\.tsx?$/u, "");
+    const exact = [".ts", ".tsx"].map((extension) => byHome.get(`${dir}${stem}${extension}`)).filter((file) => file !== undefined);
+    return exact.length > 0 ? exact : files.filter((file) => homeOf(file).startsWith(dir) && !homeOf(file).slice(dir.length).includes("/"));
+  };
+  return (hand) => {
+    const file = hand.getSourceFile();
+    const roots = [...linksOf(file).filter(isProductionFile), ...subjectsOf(homeOf(file)).filter(isProductionFile)];
+    return new Set(roots.flatMap((root) => [...closureOf(root)]));
+  };
+}
+
 /** A hand shape is a second spelling of an exported production shape that is assignable to it and either is
  *  assignable back, has exactly its field names, or is overridden by it (the hand shape has an optional field). Judged by
  *  the two types' relation and field sets. A hand shape that fits several production shapes derives from the smallest
@@ -245,6 +294,7 @@ function declaredCopies(
   hands: readonly HandShape[],
   productions: readonly Node[],
   assignability: { readonly isTypeAssignableTo: (source: unknown, target: unknown) => boolean },
+  reachable: (hand: HandShape) => ReadonlySet<SourceFile>,
 ): readonly Binding[] {
   const postings = new Map<string, DeclaredShape[]>();
   for (const production of productions.flatMap(productionShapesOf)) {
@@ -259,9 +309,11 @@ function declaredCopies(
       return [];
     }
     const narrowest = [...hand.names].map((name) => postings.get(name) ?? []).reduce((least, list) => (list.length < least.length ? list : least));
+    const reach = reachable(handNode);
     const [smallest] = narrowest
       .filter(
         (production) =>
+          reach.has(production.node.getSourceFile()) &&
           [...hand.names].every((name) => production.names.has(name)) &&
           assignability.isTypeAssignableTo(production.type.compilerType, handType.compilerType) &&
           (hand.hasOptional ||
@@ -355,6 +407,7 @@ export const gate = defineGate({
           productionFiles.set(file, production);
           return production;
         };
+        const reachFor = reachableFrom(ctx.files, (file) => declarationHome(ctx, file));
         const reported = new Set<string>();
         const report = ({ handNode, hand, production, productionNode, label }: Binding, evidence: string): void => {
           const directions = `${String(assignability.isTypeAssignableTo(production.compilerType, hand.compilerType))}:${String(assignability.isTypeAssignableTo(hand.compilerType, production.compilerType))}`;
@@ -378,7 +431,7 @@ export const gate = defineGate({
         for (const binding of bindingsOf(sites, candidates, isProduction)) {
           report(binding, "which a value in the test tree is bound to");
         }
-        for (const binding of declaredCopies([...candidates.values()], productionShapes, assignability)) {
+        for (const binding of declaredCopies([...candidates.values()], productionShapes, assignability, reachFor)) {
           report(binding, "and nothing derives the hand shape from it");
         }
       },
@@ -437,7 +490,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x/contract/summary.ts":
           'export interface Summary {\n  readonly id: "a" | "b";\n  readonly title: string;\n  readonly starred: boolean;\n}\n',
         "tests/server/domain/x/_support.ts":
-          'export interface SummaryFixture {\n  readonly id: string;\n  readonly title: string;\n  readonly starred: boolean;\n}\nexport const fixture: SummaryFixture = { id: "a", title: "t", starred: false };\n',
+          'import "../../../../packages/server/src/domain/x/contract/summary.ts";\nexport interface SummaryFixture {\n  readonly id: string;\n  readonly title: string;\n  readonly starred: boolean;\n}\nexport const fixture: SummaryFixture = { id: "a", title: "t", starred: false };\n',
       },
       expect: { count: 1, token: "SummaryFixture", messageIncludes: "narrows" },
       why: "A LOOSENED COPY: the hand shape has the production shape's field names with wider types, so the production type is assignable to it and a retyped field still compiles. No value need bind it",
@@ -448,7 +501,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x/contract/view.ts":
           "export interface AccountView {\n  readonly id: string;\n  readonly handle: string;\n  readonly role: string;\n  readonly createdAt: number;\n  readonly disabled: boolean;\n}\n",
         "tests/server/domain/x/_support.ts":
-          'export interface SeedAccountOverrides {\n  readonly id: string;\n  readonly handle?: string;\n  readonly role?: string;\n}\nexport const overrides: SeedAccountOverrides = { id: "a", role: "owner" };\n',
+          'import "../../../../packages/server/src/domain/x/contract/view.ts";\nexport interface SeedAccountOverrides {\n  readonly id: string;\n  readonly handle?: string;\n  readonly role?: string;\n}\nexport const overrides: SeedAccountOverrides = { id: "a", role: "owner" };\n',
       },
       expect: { count: 1, token: "SeedAccountOverrides", messageIncludes: "narrows" },
       why: "AN OVERRIDE PROJECTION: the hand shape has optional fields and one production shape carries them all, so the overrides restate that shape's fields without `Partial<Pick<…>>`",
@@ -459,7 +512,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x/contract/params.ts":
           "export interface LookupParams {\n  readonly handle: string;\n  readonly scope: string;\n  readonly limit?: number;\n}\n",
         "tests/server/domain/x/_support.ts":
-          'export interface LookupCall {\n  readonly handle: string;\n  readonly scope: string;\n}\nexport const call: LookupCall = { handle: "h", scope: "s" };\n',
+          'import "../../../../packages/server/src/domain/x/contract/params.ts";\nexport interface LookupCall {\n  readonly handle: string;\n  readonly scope: string;\n}\nexport const call: LookupCall = { handle: "h", scope: "s" };\n',
       },
       expect: { count: 1, token: "LookupCall", messageIncludes: "copies" },
       why: "MUTUAL ASSIGNABILITY: the production shape differs only by an optional field, so each type is assignable to the other and the hand shape is the same type spelled twice",
@@ -470,7 +523,8 @@ export const gate = defineGate({
         "packages/server/src/domain/x/contract/a.ts":
           "export interface AView {\n  readonly id: string;\n  readonly name: string;\n  readonly extra: string;\n}\n",
         "packages/server/src/domain/x/contract/b.ts": "export interface BView {\n  readonly id: string;\n  readonly label: string;\n}\n",
-        "tests/server/domain/x/_support.ts": 'export interface IdOnly {\n  readonly id?: string;\n}\nexport const row: IdOnly = { id: "a" };\n',
+        "tests/server/domain/x/_support.ts":
+          'import "../../../../packages/server/src/domain/x/contract/a.ts";\nimport "../../../../packages/server/src/domain/x/contract/b.ts";\nexport interface IdOnly {\n  readonly id?: string;\n}\nexport const row: IdOnly = { id: "a" };\n',
       },
       expect: { count: 1, token: "IdOnly", messageIncludes: "`BView`" },
       why: "SEVERAL FITS DERIVE FROM THE SMALLEST: a hand shape that fits several production shapes is still a copy, reported against the production type with the fewest fields",
@@ -481,13 +535,23 @@ export const gate = defineGate({
         "packages/db/src/schema/users.ts":
           "export declare const users: {\n  readonly $inferSelect: {\n    readonly id: string;\n    readonly handle: string;\n    readonly role: string;\n    readonly passwordHash: string | null;\n  };\n};\n",
         "tests/server/domain/admin/_support.ts":
-          'export interface SeedUserOverrides {\n  readonly id?: string;\n  readonly handle?: string;\n  readonly passwordHash?: string | null;\n}\nexport const overrides: SeedUserOverrides = { id: "a" };\n',
+          'import "../../../../packages/db/src/schema/users.ts";\nexport interface SeedUserOverrides {\n  readonly id?: string;\n  readonly handle?: string;\n  readonly passwordHash?: string | null;\n}\nexport const overrides: SeedUserOverrides = { id: "a" };\n',
       },
       expect: { count: 1, token: "SeedUserOverrides", messageIncludes: "users.$inferSelect" },
       why: "A ROW TYPE IS A PRODUCTION SHAPE: the database package is the home of row types, so an override shape that restates a table's columns copies that table's `$inferSelect`",
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/contract/summary.ts":
+          'export interface Summary {\n  readonly id: "a" | "b";\n  readonly title: string;\n  readonly starred: boolean;\n}\n',
+        "tests/server/domain/x/_support.ts":
+          'export interface SummaryFixture {\n  readonly id: string;\n  readonly title: string;\n  readonly starred: boolean;\n}\nexport const fixture: SummaryFixture = { id: "a", title: "t", starred: false };\n',
+      },
+      why: "A COINCIDENTAL FIT IS NOT A COPY: the same shape as the loosened-copy control, but its test never reaches the production module (no import, not in the mirrored directory), so it cannot have been copied from it. The reachable twin flags",
+    },
     {
       mode: "types",
       files: {
