@@ -15,6 +15,8 @@
 // so module state, zustand stores, and localStorage all start clean. If a future lane ever reuses a
 // page across tests, the per-mount reset belongs HERE.
 
+// @orb-waive-file no-test-fabrication(Record<ModalSlotId, ModalDefinition>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<SectionId, SectionDefinition>): baselined when the gate widened to value casts; burn-down item 906.
 import { createAppQueryClient, createTrpcClient, TRPCProvider, useSettingsViewerView } from "@orb/client/data";
 import { contextToggleChrome, youModal } from "@orb/client/features/app-shell";
 import { reauthModal } from "@orb/client/features/auth";

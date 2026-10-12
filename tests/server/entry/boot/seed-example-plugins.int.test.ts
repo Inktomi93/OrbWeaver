@@ -15,6 +15,10 @@
 // path through the attached-book read and lore write without making CI depend on a public network or paid provider. The
 // bridge's attachment gate, per-plugin entry cap and `neutralizeMacros` remain pinned by its domain suite.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(readonly { id: string; assetId: AssetId }[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ commitment: string; dealt: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ dealt: number; countLabel: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { join } from "node:path";
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
@@ -273,6 +277,7 @@ async function installGrantEnable(args: {
   const { h, caller, slug, grant } = args;
   const bundle = await packShowcaseBundle(slug);
   expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
   expect(installed.grantedCapabilities).toEqual([]);
@@ -342,6 +347,7 @@ test("research familiar: the real bundle installs consent-first, and its message
   // standing consent ask. The row can do nothing at all until a human answers it.
   const bundle = await packShowcaseBundle("research-familiar");
   expect(bundle).not.toBeNull();
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
   expect(installed.grantedCapabilities).toEqual([]);
@@ -409,6 +415,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
 
   const bundle = await packShowcaseBundle("oracle-deck");
   expect(bundle).not.toBeNull();
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
   await h.service.setGrant({ caller, pluginId: installed.id, grant: [...grant], acknowledgedNetHosts: [] });
@@ -459,6 +466,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   // A tool call carries no chat scope of its own here (the deck never asks for one), exactly as a direct-drive
   // invocation would. The handler's STRING return is what the model reads, verbatim — a JSON DOCUMENT here,
   // because the same fields the model reads are the fields its card binds (`{ $state: "result.<field>" }`).
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const first = JSON.parse(await invoke(draw, JSON.stringify({ count: 2 }), null)) as {
     drawn: string;
     cards: string[];
@@ -529,7 +537,9 @@ test("oracle deck: two CONCURRENT draws claim DISJOINT cards — the shared sess
   const draw = requireHandler(captured.tools, 0, "tool");
 
   const [a, b] = await Promise.all([invoke(draw, JSON.stringify({ count: 2 }), null), invoke(draw, JSON.stringify({ count: 2 }), null)]);
+  // @orb-waive no-test-fabrication({ cards: string[]; dealt: number }): baselined when the gate widened to value casts; burn-down item 906.
   const first = JSON.parse(a) as { cards: string[]; dealt: number };
+  // @orb-waive no-test-fabrication({ cards: string[]; dealt: number }): baselined when the gate widened to value casts; burn-down item 906.
   const second = JSON.parse(b) as { cards: string[]; dealt: number };
 
   // No card is dealt twice — the property the commitment/reveal ceremony is worthless without.
@@ -688,6 +698,7 @@ function seederDeps(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, o
  *  forges different guest code too, so a test can tell which version's code is running. */
 async function bundleAtVersion(slug: string, version: string, rewriteMain?: (mainJs: string) => string): Promise<Uint8Array> {
   const packed = await packShowcaseBundle(slug);
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const entries = unzipSync(packed as Uint8Array);
   const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as Record<string, unknown>;
   manifest["version"] = version;
@@ -783,6 +794,7 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
   for (const slug of SHOWCASE_PLUGIN_SLUGS) {
     const bundle = await packShowcaseBundle(slug);
     expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
+    // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
     const row = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
     expect(row.slug).toBe(slug);
     ids.push(row.id);
@@ -1148,6 +1160,7 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   // The DISCLOSURE holds ONLY the tag textFields — a select inside it would be the buried-switcher failure
   // the always-visible pin above exists to prevent. Structured read, not a substring: the filters array is
   // the searchBar's own field.
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const atlasSpec = surfaces[0]?.["spec"] as {
     stages: readonly { body: { children: readonly { kind: string; filters?: readonly { kind: string }[] }[] } }[];
   };
@@ -1216,6 +1229,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const scripted = await packShowcaseBundle("affinity-tracker");
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: scripted as Uint8Array, grant: [] });
   const source = await h.service.getUiBundle({ caller, pluginId: installed.id });
   expect(source, "affinity-tracker ships a ui.js and it must survive the round trip").not.toBeNull();
@@ -1225,6 +1239,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
 
   // A Tier-S example answers `null` — an absence, not a failure.
   const staticOnly = await packShowcaseBundle("oracle-deck");
+  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const staticRow = await h.service.install({ caller, bundle: staticOnly as Uint8Array, grant: [] });
   expect(await h.service.getUiBundle({ caller, pluginId: staticRow.id })).toBeNull();
 });
@@ -1371,6 +1386,7 @@ test("#803 a DIVERGED install is left alone — the user has taken the plugin ov
   // The user replaces it with their own build, through the real upgrade verb — the row moves to a version
   // this system never wrote, which is the plugin domain's own divergence oracle
   // (`verbs/uninstall-for-all-users.ts`: a `version-diverged` row is one its owner has taken over).
+  // @orb-waive no-test-fabrication(PluginId): baselined when the gate widened to value casts; burn-down item 906.
   await h.service.upgrade({ caller, pluginId: seeded?.id as PluginId, bundle: await bundleAtVersion(UPGRADE_SLUG, "5.0.0") });
   expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)?.version).toBe("5.0.0");
 
@@ -1395,6 +1411,7 @@ test("#803 a DELETED seeded plugin stays deleted, even when a newer bundle ships
 
   await seedOnce(h, latch, caller);
   const seeded = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  // @orb-waive no-test-fabrication(PluginId): baselined when the gate widened to value casts; burn-down item 906.
   await h.service.uninstall({ caller, pluginId: seeded?.id as PluginId });
 
   const shipped = "9.9.9";
@@ -1460,6 +1477,7 @@ test("an enabled older install upgrades to the release-built bundle and the new 
   const installed = await h.service.install({ caller, bundle: await bundleAtVersion("oracle-deck", "0.0.1", olderGuest), grant: [] });
   await h.service.setGrant({ caller, pluginId: installed.id, grant, acknowledgedNetHosts: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const before = JSON.parse(await requireInvoke(captured)(requireHandler(captured.tools, 0, "tool"), JSON.stringify({ count: 2 }), null)) as {
     dealt: number;
     countLabel: string;

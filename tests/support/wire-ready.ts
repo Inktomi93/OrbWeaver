@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(WireReady): baselined when the gate widened to value casts; burn-down item 906.
+
 // The ONE sanctioned TEST-SIDE mint of the `WireReady` brand (`@orb/kit/json-schema`). Production has a
 // single producer — `projectJsonSchema` — and the brand is a phantom `unique symbol` no other module can
 // name, so `ResponseFormat.schema` provably accepts only a projected schema (LANE #61). A test that hands a

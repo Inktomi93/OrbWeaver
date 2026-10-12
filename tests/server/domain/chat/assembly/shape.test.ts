@@ -1566,7 +1566,9 @@ describe("shape — system rows by level × turn × injection", () => {
   const roleLetter = { assistant: "A", user: "U", system: "S" } as const;
 
   for (const level of ROLE_HANDLING) {
+    // @orb-waive no-test-fabrication(TurnName[]): baselined when the gate widened to value casts; burn-down item 906.
     for (const turn of Object.keys(turns) as TurnName[]) {
+      // @orb-waive no-test-fabrication(InjectionName[]): baselined when the gate widened to value casts; burn-down item 906.
       for (const injection of Object.keys(injections) as InjectionName[]) {
         test(`${level} · ${turn} · ${injection}`, () => {
           const out = shape(
@@ -1593,7 +1595,9 @@ describe("shape — system rows by level × turn × injection", () => {
   }
 
   test("a slotted turn never delivers a system row right after an assistant row", () => {
+    // @orb-waive no-test-fabrication(TurnName[]): baselined when the gate widened to value casts; burn-down item 906.
     for (const turn of Object.keys(turns) as TurnName[]) {
+      // @orb-waive no-test-fabrication(InjectionName[]): baselined when the gate widened to value casts; burn-down item 906.
       for (const injection of Object.keys(injections) as InjectionName[]) {
         const [roles] = expected.slotted[turn][injection];
         expect(roles, `${turn} · ${injection}`).not.toMatch(/AS/);

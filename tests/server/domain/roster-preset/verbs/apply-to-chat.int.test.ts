@@ -5,6 +5,7 @@
 // blob is stored, and a mid-apply-vanished character is SKIPPED, never an abort. The composed-real
 // proof of the SAME behavior over the real chat verbs is tests/server/entry/compose/roster-preset.int.test.ts.
 
+// @orb-waive-file no-test-fabrication(RulePresetId): baselined when the gate widened to value casts; burn-down item 906.
 import type { RulePresetId } from "@orb/contracts/automation";
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import { characters, rosterPresetRules } from "@orb/db";

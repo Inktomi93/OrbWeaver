@@ -7,6 +7,7 @@
 //   · a fetch refusal (EgressBlockedError in prod) collapses to a leak-free ScrapeFailedError, NOT retry-looped
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; this asserts only the pass-through.
 
+// @orb-waive-file no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

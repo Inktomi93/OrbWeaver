@@ -1,3 +1,4 @@
+import { blankText } from "@orb/kit/strings";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
@@ -150,7 +151,7 @@ export function shorthandCandidates(ref: string): readonly string[] {
 }
 
 function maskStrikethrough(line: string): string {
-  return line.replace(STRIKETHROUGH_RE, (matched) => " ".repeat(matched.length));
+  return line.replace(STRIKETHROUGH_RE, blankText);
 }
 
 function hasHeadRider(lines: readonly string[]): boolean {

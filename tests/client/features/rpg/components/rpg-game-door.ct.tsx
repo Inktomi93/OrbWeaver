@@ -29,7 +29,9 @@ test("the door offers ONE start action (no profile pick), admits one create per 
   await expect(page.getByRole("button", { name: "D20 adventure" })).toHaveCount(0);
   const start = page.getByRole("button", { name: "Turn on game mode" });
   await start.evaluate((element) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
   });
   await held.requested;
@@ -52,7 +54,9 @@ test("a same-task repeat admits one re-engage write, and rejection releases retr
 
   const engage = page.getByRole("button", { name: "Turn game mode back on" });
   await engage.evaluate((element) => {
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
+    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
   });
   await held.requested;

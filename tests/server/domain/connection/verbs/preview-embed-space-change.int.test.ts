@@ -2,6 +2,7 @@
 // when the change moves the caller to a new embedding generation, count what that rebuild covers, and write
 // nothing.
 
+// @orb-waive-file no-test-fabrication({ readonly input?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId } from "@orb/contracts/inference";
 import { characterEmbeddings, characters, embedGenerations, userCredentials } from "@orb/db";
 import { DomainNoCredentialError } from "@orb/kit/errors";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+
 // @instrument-proof: #1837's SECOND defect — a stage that never served a settled app stayed UP. Two lanes on
 // 2026-09-06 killed its ~7-process group by hand (the stack leader, the node watchers) after it sat
 // on a band for 16 minutes; nothing reaped it before the 60 min keeper TTL, and every reuse in between would
@@ -74,9 +76,11 @@ async function plantStage(scratch: string): Promise<{ readonly dir: string; read
   child.unref();
   const pid = child.pid;
   expect(pid, "the planted stage child must have a pid").toBeTypeOf("number");
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   expect(await until(() => !pidAlive(pid as number) || existsSync(script)), "the planted stage child started").toBe(true);
   // Give it a beat to actually bind: `stopStage`'s band check reads the LISTENING socket, not the pid.
   await sleep(500);
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   return { dir, port, pid: pid as number };
 }
 

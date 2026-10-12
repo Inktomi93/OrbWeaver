@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(RegExpExecArray): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+
 // The CSS-structure gate (UI-Gates §11.4(e), WS0) — never built until now. Two invariants that no
 // TypeScript gate can see (they live in raw CSS text, outside the ts-morph AST the other gates walk):
 //   1. globals.css's three "one edit silently breaks it" footguns (D43 §11.4e) stay intact: the

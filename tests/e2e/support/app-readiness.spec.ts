@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(AggregateError): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(WarmupDiagnostics): baselined when the gate widened to value casts; burn-down item 906.
+
 import { readdir, readFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";

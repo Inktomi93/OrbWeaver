@@ -101,6 +101,7 @@ function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, c
   return async (event, coStatements) => {
     notes.push(event);
     if (coStatements !== undefined && coStatements.length > 0) {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       await db.batch(batchMany(coStatements as BatchStmt[]));
     }
   };
@@ -154,6 +155,7 @@ function copyContext(
   return makeChatContext(db, {
     getCard: ownedCard(),
     applyStatsDelta: (batch, opDb, delta): void => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
     emitNotification: recordingEmit(notes),

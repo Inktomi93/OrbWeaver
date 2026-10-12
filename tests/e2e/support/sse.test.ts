@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
+
 // tests/e2e/support/sse — the chat-room SSE collector's VERDICT, proven against a scripted loopback server
 // (#1505). Node-lane (vitest) for the same reason target-guard.test.ts is: the arms that matter must be
 // provable without booting a stack or a model.

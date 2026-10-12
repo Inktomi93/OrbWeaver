@@ -4,6 +4,7 @@
 // after the dial would have already made the request it was there to prevent). Both reads answer one shape: a
 // failed or empty dial is the typed-id FALLBACK — `{ listed: false, reason }`, with no model list — never a throw.
 
+// @orb-waive-file no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

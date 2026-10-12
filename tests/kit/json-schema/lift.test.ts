@@ -262,12 +262,14 @@ test("x-orb-ui is ACCEPTED-AND-IGNORED on every node kind — hinted ≡ strippe
       return node;
     }
     return Object.fromEntries(
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       Object.entries(node as Record<string, unknown>)
         .filter(([k]) => k !== "x-orb-ui")
         .map(([k, v]) => [k, stripOrbUi(v)]),
     );
   };
   const liftedHinted = liftJsonSchema(hinted);
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const liftedStripped = liftJsonSchema(stripOrbUi(hinted) as Record<string, unknown>);
   // Behavior-identical zod: same projection (so a hint can never reach any wire) …
   expect(projectJsonSchema(liftedHinted)).toEqual(projectJsonSchema(liftedStripped));

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(NodeJS.ErrnoException): baselined when the gate widened to value casts; burn-down item 906.
+
 // The tooling composed test (docs/law/Core-Tooling-Law.md §5.1) — EXTENDS the house `test`
 // (./fixtures.ts), so tooling tests keep clock/ids/db/app/callers and gain the tool seams. Import
 // `test`/`expect` from HERE in tests/tooling/** (gate: test-fixture-imports §4.8 — this module is also

@@ -47,6 +47,7 @@
 // carried as resource proofs, while the real-Git suite preserves the staged-only, working-only, duplicate,
 // ignored-path, blindness, and real-tree controls.
 import { extname } from "node:path";
+import { blankSpan } from "@orb/kit/strings";
 import type { SourceFile } from "ts-morph";
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -237,7 +238,7 @@ function judgeText(text: string, lineComments: boolean): readonly Blanket[] {
     if (directive !== null) {
       sites.unshift({ line: lineAt(text, span.pos), token: directive.token, rule: directive.rule, block: !span.text.startsWith("//") });
     }
-    blanked = blanked.slice(0, span.pos) + span.text.replace(/[^\n]/gu, " ") + blanked.slice(span.end);
+    blanked = blankSpan(blanked, span.pos, span.end);
   }
   const codeLines = blanked.split(/\r?\n/u).flatMap((l, i) => (l.trim() === "" ? [] : [i + 1]));
   const first = codeLines[0];

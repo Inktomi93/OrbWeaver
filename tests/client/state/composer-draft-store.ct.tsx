@@ -11,6 +11,7 @@
 // store (a click on the probe), reload the page, and re-mount: that proves BOTH halves (the write landed in
 // storage, and the rehydrate reads it back), where seeding localStorage by hand would only prove the second.
 
+// @orb-waive-file no-test-fabrication({ state?: { drafts?: Record<string, string> } }): baselined when the gate widened to value casts; burn-down item 906.
 import { COMPOSER_DRAFT_CAP } from "@orb/client/state";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ComposerDraftProbe } from "./_ct-stories.tsx";

@@ -240,6 +240,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | Tests live in the mirrored source directory, kind by suffix | `test-layout` |
 | **Verbs, routers, schemas and persistence are each reached by the test kind they owe** (presence by reach, not blanket coverage) | `test-reach` (§5 `spine/testing`) |
 | **No ambient clock/random/unseeded-id under `tests/`** (inject the frozen clock + seeded ids) | `test-determinism` (§3 `spine/testing`) |
+| **Tests run the product**: no copy of an exported production function, no hand shape in e2e or support, no unproven cast, no mock or spy of an internal module, no test file over the cap | `test-production-clone` · `test-hand-shape` · `no-test-fabrication` · `test-mock-doctrine` · `test-file-size` (§10 `spine/testing`) |
 | `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
 | **No exported `type`/`interface`/`z.object`/structural-cast outside `db` schema / `contracts` / a domain's `contract/` / `kit`** (incl. `context.ts` = explicit interface, not `ReturnType<>`) | `no-inline-types` (§7.4 spine) |
 | **Every string-union axis has ONE importable union — no inline re-spelling** | `no-inline-union-redecl` (§7.5 spine) |

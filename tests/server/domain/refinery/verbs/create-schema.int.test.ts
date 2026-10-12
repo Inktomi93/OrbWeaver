@@ -48,6 +48,7 @@ test("the belt refuses: out-of-subset, pattern, over-depth, malformed hint, miss
   // pattern — the refinery ReDoS refusal (kit would ACCEPT this; the positive control that the
   // tightening, not the lift, is what bites).
   await expect(
+    // @orb-waive no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
     create({ ...validScoreSchema(), properties: { ...(validScoreSchema()["properties"] as object), p: { type: "string", pattern: "a+" } } }),
   ).rejects.toThrow(PATTERN_REFUSAL);
   // over-depth (9 nested objects > the refinery cap of 8; kit's cap is 32 — again the tightening bites).
@@ -57,6 +58,7 @@ test("the belt refuses: out-of-subset, pattern, over-depth, malformed hint, miss
   }
   const deepWithCore = {
     ...deep,
+    // @orb-waive no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
     properties: { ...(deep["properties"] as object), overallScore: { type: "number", minimum: 1, maximum: 10 } },
     required: ["overallScore"],
   };
@@ -65,6 +67,7 @@ test("the belt refuses: out-of-subset, pattern, over-depth, malformed hint, miss
   await expect(
     create({
       ...validScoreSchema(),
+      // @orb-waive no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
       properties: { ...(validScoreSchema()["properties"] as object), h: { type: "string", "x-orb-ui": { role: "no-such-role" } } },
     }),
   ).rejects.toThrow(HINT_REFUSAL);

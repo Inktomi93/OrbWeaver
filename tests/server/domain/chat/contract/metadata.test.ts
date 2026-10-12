@@ -3,6 +3,7 @@
 // survive). Also pins the two load-bearing `.optional()` INHERIT contracts (offerChoices/reactionsEnabled)
 // against the boolean-default neighbour, and the toolRecurseLimit default-fill tail.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, getToolRecurseLimit, parseChatMetadata, TOOL_RECURSE_LIMIT_DEFAULT } from "#server/domain/chat/contract/metadata.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

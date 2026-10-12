@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ name: string }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { createPresetService } from "@orb/server/domain/preset";
 import { describe } from "vitest";

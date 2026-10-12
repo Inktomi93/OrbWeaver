@@ -16,6 +16,7 @@
 // int test is the authoritative harness") — never a false pass. Self-seeds a fresh chat (shared-DB isolation:
 // never listChats()[0]). Restores the mutated preset + the prior chat Model role in a finally.
 
+// @orb-waive-file no-test-fabrication(readonly WireMessage[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";

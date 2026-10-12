@@ -12,6 +12,7 @@
 // The tab is not on the feature's front door (the editor surface owns it), so it is imported by path — the
 // `_regex-tab-stories.tsx` precedent in this directory.
 
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";

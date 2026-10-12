@@ -3,6 +3,7 @@
 // code. OWNER_GROUP still claims. This composes the REAL login and callback routes, the REAL sessions service and OIDC
 // store and a REAL database; only the IdP exchange is a fake that hands the callback chosen verified claims.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

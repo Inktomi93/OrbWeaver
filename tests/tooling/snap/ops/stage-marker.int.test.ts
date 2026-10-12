@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(StageBandsFile): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE BAND TABLE's I/O and its concurrency (tooling/src/snap/ops/stage-marker.ts, design §3.6 / #1276) —
 // real files over a tmpdir and real child PROCESSES over the real mutex. Nothing here boots a stack: the
 // table is JSON, the lock is a directory, and the parts that need genuine parallelism get genuine
