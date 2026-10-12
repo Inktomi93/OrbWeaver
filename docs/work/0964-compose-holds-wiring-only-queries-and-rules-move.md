@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-12
 priority: P1
+lane: codex/compose-chat-964
 plan: test-foundation
 ---
 
@@ -21,6 +22,8 @@ Tier-5 law says entry owns no business logic. Rules hidden in compose closures a
 The gate holds with planted controls; no compose module runs a query or carries a rule; each moved rule is exported from its domain and called by compose; item 958 starts from the cleaned compose.
 
 ## Evidence
+
+Active implementation is split between `codex/compose-chat-964` for chat and identity-sensitive composition, and `wt/agent-a6794d7670332ac98` for search/discovery composition. Each lane moves rules to owning domains and reports shared budget changes for main. Other compose and entry groups remain open; neither partial leg closes this item.
 
 The gate is `compose-wiring-only` (`tooling/src/verify/gates/compose-wiring-only.ts`); its header defines a rule. `pnpm check:structure --check compose-wiring-only` reports one finding per handed-out function or helper, so the counts below are functions, not decisions.
 
