@@ -1,7 +1,6 @@
-// Keep the public feature entry from eagerly loading the editor through its re-export.
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { lazy, Suspense } from "react";
+import { SkeletonRows } from "#data";
 import type { PresetEditorSurfaceProps } from "../surfaces/preset-editor-surface.tsx";
 
 const PresetEditor = lazy(async () => {
@@ -12,7 +11,7 @@ const PresetEditor = lazy(async () => {
 /** Load the editor on selection, including consumers of the public feature entry. */
 export function PresetEditorSurface(props: PresetEditorSurfaceProps): ReactElement {
   return (
-    <Suspense fallback={<Text voice="gloss">Loading the preset…</Text>}>
+    <Suspense fallback={<SkeletonRows count={3} shape="line" />}>
       <PresetEditor {...props} />
     </Suspense>
   );

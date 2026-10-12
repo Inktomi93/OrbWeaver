@@ -113,7 +113,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
       <Row align="center" gap="block">
         <CharacterAvatar id={characterId} name={dossier.name} hash={avatarHash} size="lg" />
         <Stack gap="field">
-          <Text className="text-title leading-title font-semibold">{dossier.name}</Text>
+          <Text voice="promoted">{dossier.name}</Text>
           {/* THE FACET CHAIN IS DATA, NOT A SECTION NAME (side-eye corpus re-pass #2, P3-2). It rendered at
               `voice="kicker"` — 9.5px UPPERCASE with .09em tracking, the register reserved for a band label
               — so a distilled value the pass wrote in lower case ("fantasy · melancholic") arrived shouting.

@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock, AgentSeedTurn } from "#contract";
 import { AGENT_PROMPT_TAIL_JOINER, agentSdkSessionIdSchema } from "#contract";
@@ -224,14 +225,14 @@ function seedTurnText(turn: SeedTurn): string {
 }
 
 interface TranscriptRun {
-  readonly role: "user" | "assistant";
+  readonly role: Exclude<MessageRole, "system">;
   readonly text: string;
 }
 
 // Consecutive same-role rows fold into one run — robust to the SDK splitting one assistant reply across
 // several stored frames, and to a multi-row prompt tail stored as one joined user frame.
-function mergeRuns(rows: readonly { role: "user" | "assistant"; text: string }[]): TranscriptRun[] {
-  const runs: { role: "user" | "assistant"; parts: string[] }[] = [];
+function mergeRuns(rows: readonly { role: Exclude<MessageRole, "system">; text: string }[]): TranscriptRun[] {
+  const runs: { role: Exclude<MessageRole, "system">; parts: string[] }[] = [];
   for (const row of rows) {
     const last = runs.at(-1);
     if (last !== undefined && last.role === row.role) {
@@ -250,7 +251,7 @@ function mergeRuns(rows: readonly { role: "user" | "assistant"; text: string }[]
   }));
 }
 
-function entryRow(entry: SessionStoreEntry): { role: "user" | "assistant"; text: string } | null {
+function entryRow(entry: SessionStoreEntry): { role: Exclude<MessageRole, "system">; text: string } | null {
   const kind = (entry as { type?: unknown }).type;
   if (kind !== "user" && kind !== "assistant") {
     return null;
@@ -262,7 +263,7 @@ function entryRow(entry: SessionStoreEntry): { role: "user" | "assistant"; text:
 }
 
 function sessionRuns(entries: readonly SessionStoreEntry[]): TranscriptRun[] {
-  const rows: { role: "user" | "assistant"; text: string }[] = [];
+  const rows: { role: Exclude<MessageRole, "system">; text: string }[] = [];
   for (const entry of entries) {
     const row = entryRow(entry);
     if (row !== null) {

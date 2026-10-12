@@ -2,6 +2,7 @@
 // focusable and openable (`aria-disabled` is never set), so this body says plainly what is planned
 // instead of rendering a blank panel. It names no timing and no unlock: the map program is parked.
 
+import { Card } from "@orb/ui/card";
 import { Icon, MapIcon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -16,11 +17,13 @@ export function RpgMapTab(): ReactElement {
   return (
     <Stack gap="section" data-slot="rpg-map-tab">
       <Kicker>Map</Kicker>
-      <Stack gap="block" align="center" className="rounded-base border border-border border-dashed bg-card px-block py-section text-center">
-        <Icon icon={MapIcon} size="lg" className="text-muted-foreground" aria-hidden={true} />
-        <Text voice="label">{RPG_MAP_PLANNED}</Text>
-        <Text voice="gloss">A map of the places the story has named and where you are among them. It is not built yet.</Text>
-      </Stack>
+      <Card tone="neutral" outline="dashed">
+        <Stack gap="block" align="center" className="text-center">
+          <Icon icon={MapIcon} size="lg" className="text-muted-foreground" aria-hidden={true} />
+          <Text voice="label">{RPG_MAP_PLANNED}</Text>
+          <Text voice="gloss">A map of the places the story has named and where you are among them. It is not built yet.</Text>
+        </Stack>
+      </Card>
     </Stack>
   );
 }

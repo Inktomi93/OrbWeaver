@@ -84,11 +84,7 @@ function post(message: WorkerBrokerMessage): void {
 }
 
 function openLease(authorityId: string): AuthorityLease {
-  let lease = authorityLeases.get(authorityId);
-  if (lease === undefined) {
-    lease = { pendingCalls: 0, commandDone: false, tail: undefined };
-    authorityLeases.set(authorityId, lease);
-  }
+  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({ pendingCalls: 0, commandDone: false, tail: undefined }));
   return lease;
 }
 

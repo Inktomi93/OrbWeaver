@@ -13,6 +13,7 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -184,27 +185,29 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
   const copy = resolveFailureCopy(error);
   const message = resolveFailureMessage(error);
   return (
-    <Row align="start" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row" role="alert">
-      <Icon icon={AlertTriangle} size="sm" />
-      <Stack gap="tight">
-        <Text prose={true} voice="label">
-          {copy.headline}
-        </Text>
-        {message === null ? null : (
-          <Text prose={true} voice="gloss">
-            {message}
+    <Card tone="warning">
+      <Row align="start" className="text-warning" gap="field" role="alert">
+        <Icon icon={AlertTriangle} size="sm" />
+        <Stack gap="tight">
+          <Text prose={true} voice="label">
+            {copy.headline}
           </Text>
-        )}
-        <Text prose={true} voice="gloss">
-          {copy.guidance}
-        </Text>
-        {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
+          {message === null ? null : (
+            <Text prose={true} voice="gloss">
+              {message}
+            </Text>
+          )}
+          <Text prose={true} voice="gloss">
+            {copy.guidance}
+          </Text>
+          {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
             reads as the band's own primary action rather than as the recovery for the line above it. */}
-        <Button className="self-start" intent="secondary" onClick={onRetry} size="sm" type="button">
-          Retry
-        </Button>
-      </Stack>
-    </Row>
+          <Button className="self-start" intent="secondary" onClick={onRetry} size="sm" type="button">
+            Retry
+          </Button>
+        </Stack>
+      </Row>
+    </Card>
   );
 }
 

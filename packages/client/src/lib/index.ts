@@ -67,6 +67,7 @@ export {
   UTILITY_ROLE_DOOR,
   utilityReadsImages,
 } from "./connection-roles.ts";
+export { CONSOLE_STYLES } from "./console-styles.ts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,

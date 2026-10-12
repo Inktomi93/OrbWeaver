@@ -167,7 +167,7 @@ export function PluginCommandArgsBody(): ReactElement {
       {errors.length === 0 ? null : (
         <Stack gap="tight" role="alert">
           {errors.map((message) => (
-            <Text className="text-destructive" key={message} voice="label">
+            <Text tone="destructive" key={message} voice="label">
               {message}
             </Text>
           ))}

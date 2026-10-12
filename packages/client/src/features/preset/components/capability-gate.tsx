@@ -34,6 +34,7 @@
 // renders this gate only when the descriptor is absent, and an absent descriptor with no error is by
 // construction a read that has not landed.
 
+import { Card } from "@orb/ui/card";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -84,26 +85,28 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
   const message = resolveFailureMessage(error);
   return (
     <Section kicker="Sampling · reasoning · output">
-      <Row align="start" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
-        <Icon icon={AlertTriangle} size="sm" />
-        <Stack gap="tight">
-          <Text prose={true} voice="label">
-            {routing
-              ? "Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps."
-              : "Your model's capabilities couldn't be read, so these knobs can't be shown at their real caps."}
-          </Text>
-          {message === null ? null : (
-            <Text prose={true} voice="gloss">
-              {message}
+      <Card tone="warning">
+        <Row align="start" className="text-warning" gap="field">
+          <Icon icon={AlertTriangle} size="sm" />
+          <Stack gap="tight">
+            <Text prose={true} voice="label">
+              {routing
+                ? "Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps."
+                : "Your model's capabilities couldn't be read, so these knobs can't be shown at their real caps."}
             </Text>
-          )}
-          <Text prose={true} voice="gloss">
-            {routing
-              ? `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`
-              : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}
-          </Text>
-        </Stack>
-      </Row>
+            {message === null ? null : (
+              <Text prose={true} voice="gloss">
+                {message}
+              </Text>
+            )}
+            <Text prose={true} voice="gloss">
+              {routing
+                ? `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`
+                : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}
+            </Text>
+          </Stack>
+        </Row>
+      </Card>
     </Section>
   );
 }

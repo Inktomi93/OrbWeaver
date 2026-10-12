@@ -7,6 +7,7 @@
 
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { MS_PER_DAY } from "@orb/kit/time";
 import { z } from "zod";
 import type { AuthMode, ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
@@ -596,7 +597,6 @@ export const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<In
 
 /** The most accounts one signup invite may create (D259). */
 export const SIGNUP_MAX_USES = 10;
-const MS_PER_DAY = 86_400_000;
 /** The longest a signup invite may live, in whole days (D259). */
 export const SIGNUP_MAX_TTL_DAYS = 7;
 /** The longest a signup invite may live, measured on the server clock at mint (D259). */

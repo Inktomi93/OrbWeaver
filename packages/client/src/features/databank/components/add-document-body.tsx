@@ -378,7 +378,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
         {(source): ReactElement | null =>
           runnerFailed[source] ? (
-            <Text className="text-destructive" voice="gloss">
+            <Text tone="destructive" voice="gloss">
               {source === "youtube"
                 ? "Couldn't fetch that video. Check the address and the caption language, then try again."
                 : "Couldn't fetch that link. Check the address, then try again."}

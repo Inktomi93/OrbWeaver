@@ -19,6 +19,7 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { ChevronDown, ChevronRight, ExternalLink, Icon, Info } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
@@ -158,18 +159,20 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
   const isWorldInfo = section.marker === "world_info_before" || section.marker === "world_info_after";
   return (
     <Stack gap="field">
-      <Row align="start" className="rounded-base border border-border bg-muted/40" gap="row" padding="row">
-        <Icon icon={Info} size="sm" />
-        <Stack className="min-w-0" gap="tight">
-          <Text voice="label">{attribution.sentence}</Text>
-          {manage === undefined ? null : (
-            <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
-              {manage.label}
-              <Icon icon={ExternalLink} size="xs" />
-            </Button>
-          )}
-        </Stack>
-      </Row>
+      <Card tone="muted">
+        <Row align="start" gap="row">
+          <Icon icon={Info} size="sm" />
+          <Stack className="min-w-0" gap="tight">
+            <Text voice="label">{attribution.sentence}</Text>
+            {manage === undefined ? null : (
+              <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
+                {manage.label}
+                <Icon icon={ExternalLink} size="xs" />
+              </Button>
+            )}
+          </Stack>
+        </Row>
+      </Card>
       {isWorldInfo ? (
         // ONE LINE, not a 90px textarea (side-eye F-32): `wiFormat` is a one-line format string, and the
         // mock draws a single-line input. `rows={1}` + the Textarea's own `field-sizing: content` grows it

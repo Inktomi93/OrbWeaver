@@ -235,11 +235,7 @@ function accumulateClusters(group: readonly AvatarVector[], labels: Map<Characte
       continue;
     }
     const c = assignments[i] ?? 0;
-    let acc = clusters.get(c);
-    if (acc === undefined) {
-      acc = clusterAcc();
-      clusters.set(c, acc);
-    }
+    const acc = clusters.getOrInsertComputed(c, () => clusterAcc());
     // Never null on this side: a row is only here BECAUSE it has a current-avatar vector, so the hash the
     // cluster was computed from is the hash the member draws with.
     acc.members.push({ characterId: row.characterId, name: row.name, avatarHash: row.avatarHash });

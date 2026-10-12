@@ -165,9 +165,9 @@ function removeField(node: unknown, field: string): void {
   }
 }
 
-// A JSON deep clone of a projected schema node (pure JSON by construction — `z.toJSONSchema` output).
+// Clone the cached projection before applying per-turn constraints.
 function cloneNode(node: JsonSchemaNode): JsonSchemaNode {
-  return JSON.parse(JSON.stringify(node)) as JsonSchemaNode;
+  return structuredClone(node);
 }
 
 /**
@@ -282,9 +282,6 @@ function requireField(node: unknown, field: string): void {
  *   • `trackers[]`                ⟵ gameTrackerKeys (R6 — the game-subject write surface, pruned when empty)
  */
 export function constrainExtractionSchema<S extends Record<string, unknown>>(schema: S, refs: ExtractionRefs): S {
-  // Deep clone so the cached projected schema is never mutated (it also feeds other wires). A JSON round-trip
-  // is the right clone here: `z.toJSONSchema` output is pure JSON (no functions/dates/cycles), and it avoids
-  // `structuredClone` (not in the contracts package's isomorphic tsc lib — `@orb/contracts` is DOM/node-free).
   const clone = cloneNode(schema as JsonSchemaNode);
   constrainPartyPlane(clone, refs);
   constrainGameTrackerPlane(clone, refs);

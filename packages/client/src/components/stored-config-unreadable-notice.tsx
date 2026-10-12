@@ -36,7 +36,7 @@ export function StoredConfigUnreadableNotice({ copy, doors }: StoredConfigUnread
       {/* `voice="label"` and not `gloss`: this is the sentence that says why the screen below is not your
           data, which the aggregate save footer's own #1099 F25 finding already ruled must not be rendered
           at the bottom of the type ramp. */}
-      <Text className="text-destructive" voice="label">
+      <Text tone="destructive" voice="label">
         {copy.headline}
       </Text>
       <Text prose={true} voice="reading">

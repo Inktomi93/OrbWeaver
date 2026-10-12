@@ -8,6 +8,7 @@
 // the block half of that answer and moved here with it, out of `use-selected-theme`.
 
 import type { Theme, ThemeOverride } from "@orb/contracts/theme";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
@@ -21,7 +22,7 @@ const FULL_OVERRIDE: ThemeOverride = {
 
 function theme(over: Partial<Theme>): Theme {
   return {
-    id: "theme_x",
+    id: mintTypeId(ID_PREFIX.theme),
     name: "X",
     override: {},
     css: null,

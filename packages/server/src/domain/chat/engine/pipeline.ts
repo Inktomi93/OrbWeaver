@@ -889,7 +889,7 @@ function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
 // `runRecurseLoop` to execute; the Agent SDK mounts them as an MCP server, owns the loop, and calls `execute` per
 // invocation — which is why `offerRecords` accumulates the SAME ToolCallRecords the recurse loop would.
 //
-// THE AUTHORITY IS BOUND HERE, BEFORE THE REQUEST EXISTS (`ChatToolOps.prepareExecution`): the host Principal is
+// THE AUTHORITY IS BOUND HERE, BEFORE THE REQUEST EXISTS (`ChatToolSet.prepareExecution`): the host Principal is
 // resolved once and both loops run the bound executor. A failed lookup therefore rejects THIS await and fails the
 // turn before the model is called, identically on every wire — never inside an SDK-driven handler, where the
 // throw would reach the model as tool-result text and leave no record.
@@ -918,11 +918,11 @@ async function attachTools(
   // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
   // the host's copy of a plugin two people installed is the one that runs.
   const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
-  const execute = await args.tools.prepareExecution(set, args.toolExecFrame);
+  const execute = await set.prepareExecution(args.toolExecFrame);
   const offerRecords: ToolCallRecord[] = [];
   const offerSignatures: NonNullable<ContentSignatures["tools"]> = [];
   const offer: ChatToolOffer = {
-    definitions: args.tools.toToolDefinitions(set),
+    definitions: set.toToolDefinitions(),
     execute: (call) =>
       executeOfferedCall({
         execute,

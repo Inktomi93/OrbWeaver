@@ -27,6 +27,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
+import { MS_PER_SECOND } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 
@@ -59,7 +60,6 @@ const SHARD_B_END = 4;
 const OWNER_SEGMENT = /^[A-Za-z0-9_-]+$/;
 const TMP_DIRNAME = ".tmp";
 const TMP_SUFFIX_BYTES = 16;
-const MS_PER_SECOND = 1000;
 
 function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;

@@ -24,6 +24,7 @@ import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
@@ -128,11 +129,13 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         <Text size="label" tone="muted">
           Preview
         </Text>
-        <Stack gap="row" className="rounded-base bg-ai-bubble p-block">
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-            {preview}
-          </Markdown>
-        </Stack>
+        <Card tone="bubble">
+          <Stack gap="row">
+            <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
+              {preview}
+            </Markdown>
+          </Stack>
+        </Card>
         <Row gap="field" align="center" justify="end">
           <Button intent="ghost" size="sm" onClick={(): void => setPreview(null)}>
             <Icon icon={X} size="sm" />

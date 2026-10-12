@@ -246,7 +246,7 @@ export async function loadCharacterCardLore(db: Db, args: { readonly characterId
     .innerJoin(worldBooks, eq(worldBooks.id, characterBooks.worldBookId))
     .where(and(eq(characterBooks.characterId, args.characterId), eq(worldBooks.ownerId, args.ownerId), eq(worldEntries.enabled, true)));
   return rows
-    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
+    .toSorted((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
     .map((r) => r.content)
     .filter((c) => c.trim().length > 0);
 }

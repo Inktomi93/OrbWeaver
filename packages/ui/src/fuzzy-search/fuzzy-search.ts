@@ -52,11 +52,7 @@ interface IndexArgs<T> {
 
 function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSearch<T> {
   const { items, fieldsKey, storeFieldsKey, fields, storeFields } = args;
-  let byConfig = indexCache.get(items);
-  if (byConfig === undefined) {
-    byConfig = new Map();
-    indexCache.set(items, byConfig);
-  }
+  const byConfig = indexCache.getOrInsertComputed(items, () => new Map());
   const configKey = `${fieldsKey} ${storeFieldsKey}`;
   const hit = byConfig.get(configKey);
   if (hit !== undefined) {

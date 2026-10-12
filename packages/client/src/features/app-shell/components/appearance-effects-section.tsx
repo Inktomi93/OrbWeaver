@@ -17,11 +17,10 @@ import type { AppearanceSettings, BlurSurface } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
@@ -51,7 +50,7 @@ const EFFECTS_ENTITY_ID = "appearance-effects";
 export function AppearanceEffectsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your effect settings…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your effect settings" onRetry={retry} />}
     >
       <EffectsFormBody sectionId={sectionId} />

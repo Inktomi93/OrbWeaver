@@ -757,7 +757,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
   test("prepareExecution resolves the host before it returns an executor — a failed lookup rejects prepareExecution itself", async () => {
     const svc = registry();
     const failing = buildChatToolOps(svc, () => Promise.reject(new Error("principal lookup failed: DB down")));
-    await expect(failing.prepareExecution(failing.resolveTools(frame.runAsUserId, ["echo_tool"]), frame)).rejects.toThrow("principal lookup failed: DB down");
+    await expect(failing.resolveTools(frame.runAsUserId, ["echo_tool"]).prepareExecution(frame)).rejects.toThrow("principal lookup failed: DB down");
 
     const lookups: UserId[] = [];
     const principal = execOf().principal;
@@ -765,7 +765,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
       lookups.push(userId);
       return Promise.resolve(principal);
     });
-    const execute = await ops.prepareExecution(ops.resolveTools(frame.runAsUserId, ["echo_tool"]), frame);
+    const execute = await ops.resolveTools(frame.runAsUserId, ["echo_tool"]).prepareExecution(frame);
     expect(lookups).toEqual([frame.runAsUserId]);
     const call = { toolCallId: "call_1", name: "echo_tool", arguments: JSON.stringify({ text: "hi" }) };
     await execute([call]);

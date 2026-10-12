@@ -88,3 +88,10 @@ export function DialogFooter(props: DialogFooterProps): ReactElement {
   const { className, ...rest } = props;
   return <div className={slots.footer({ className })} data-slot="dialog-footer" {...rest} />;
 }
+
+export interface DialogHeaderProps extends ComponentProps<"header"> {}
+
+/** Keeps the modal heading separate from the scrolling body. */
+export function DialogHeader({ className, ...rest }: DialogHeaderProps): ReactElement {
+  return <header className={slots.header({ className })} data-slot="dialog-header" {...rest} />;
+}

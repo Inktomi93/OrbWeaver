@@ -46,6 +46,7 @@ import type {
 import { ANALYSIS_SCORE_MAX, CLOCK_MAX_VAR_KEY, CLOCK_VAR_KEY, NEEDLE_TENSION_VAR_KEY } from "@orb/contracts/automation";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
+import { MS_PER_HOUR } from "@orb/kit/time";
 
 /** A caller's PARTIAL knob overrides for a mint — an absent key takes its descriptor's default. Validated
  *  against the named preset's own descriptors by `substrate/presets`'s `resolveRulePresetKnobs` before any build. */
@@ -232,7 +233,6 @@ const IDLE_HOURS_MAX = 720;
 const HOUR_MIN = 0;
 const HOUR_MAX = 23;
 /** Hours → the epoch-ms the `now.epochMs` predicate compares in. */
-const MS_PER_HOUR = 3_600_000;
 /** `insert_world_info_entry`'s own `entryKey` cap (`automationActionSchema`). */
 const ENTRY_KEY_MAX = 256;
 /** A preset-authored lore note is a paragraph, not the 8 KiB `contentTemplate` ceiling. */

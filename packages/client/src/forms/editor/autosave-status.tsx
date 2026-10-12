@@ -33,7 +33,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     return (
       <Row gap="field" align="center" data-slot="autosave-status" role="alert">
         <Icon icon={AlertTriangle} size="sm" className="text-destructive" />
-        <Text voice="reading" className="text-destructive">
+        <Text tone="destructive" voice="reading">
           {retryable ? "Save failed —" : "Save failed"}
         </Text>
         {retryable ? (
@@ -51,7 +51,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // is a standing property of the row, true before the reader touched anything, and the surface's own
     // `StoredConfigUnreadableNotice` carries the REASON and the repair doors. This line is the STATE.
     return (
-      <Text aria-live="polite" className="text-destructive" data-slot="autosave-status" role="status" voice="gloss">
+      <Text tone="destructive" aria-live="polite" data-slot="autosave-status" role="status" voice="gloss">
         Can't save — this couldn't be read
       </Text>
     );
@@ -65,7 +65,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // retrying an invalid form does nothing; the fix is in the field.
     return (
       <Row align="center" data-slot="autosave-status" gap="field" role="status" aria-live="polite">
-        <Text className="text-destructive" voice="gloss">
+        <Text tone="destructive" voice="gloss">
           Not saved
         </Text>
         <Text voice="gloss">Review this form before saving.</Text>

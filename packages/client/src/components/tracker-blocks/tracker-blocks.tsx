@@ -19,6 +19,7 @@
 // token fill can only be painted at the kit tier — the client paint law); these blocks compose them.
 
 import { Badge } from "@orb/ui/badge";
+import { Card } from "@orb/ui/card";
 import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -53,52 +54,48 @@ export interface StatCellProps {
  *  3-up (wide) by the caller. */
 export function StatCell({ label, value, hint, onEditValue }: StatCellProps): ReactElement {
   return (
-    <Stack
-      gap="field"
-      align="center"
-      className="rounded-base border border-border bg-card px-block py-row"
-      data-slot="stat-cell"
-      {...(hint === undefined ? {} : { title: hint })}
-    >
-      {onEditValue === undefined ? (
-        <Text as="span" size="title" tone={value === null ? "muted" : "default"} className="tabular-nums">
-          {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
-          {value ?? "—"}
+    <Card tone="neutral" {...(hint === undefined ? {} : { title: hint })}>
+      <Stack gap="field" align="center" data-slot="stat-cell">
+        {onEditValue === undefined ? (
+          <Text as="span" size="title" tone={value === null ? "muted" : "default"} className="tabular-nums">
+            {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
+            {value ?? "—"}
+          </Text>
+        ) : (
+          <TrackerValue
+            ariaLabel={`${label} value`}
+            display={value === null ? "" : String(value)}
+            // The rest state's em-dash for an unset-but-editable cell — TrackerValue renders `placeholder` muted
+            // when the display is empty, which is the same "intentionally blank, not unfinished" arm every other
+            // editable value uses. An editor typing over it sees an EMPTY field, not a floor value to delete.
+            placeholder="—"
+            kind="numeric"
+            size="title"
+            onEdit={(next): void => {
+              const trimmed = next.trim();
+              if (trimmed === "") {
+                // Blank CLEARS the attribute — the `SheetLevel` grammar, and the only door that un-references
+                // an attribute key so the host can still shrink the profile's vocabulary.
+                onEditValue(null);
+                return;
+              }
+              const n = Number(trimmed);
+              if (Number.isInteger(n)) {
+                onEditValue(n);
+              }
+            }}
+            // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
+            // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its
+            // number (no fixed width — `w-avatar-md` inside the padded button ellipsized a 2-digit value).
+            className="w-avatar-md text-center text-title leading-title tabular-nums"
+            restClassName="text-center text-title leading-title tabular-nums"
+          />
+        )}
+        <Text as="span" size="micro" tone="muted" transform="caps" className="tracking-micro">
+          {label}
         </Text>
-      ) : (
-        <TrackerValue
-          ariaLabel={`${label} value`}
-          display={value === null ? "" : String(value)}
-          // The rest state's em-dash for an unset-but-editable cell — TrackerValue renders `placeholder` muted
-          // when the display is empty, which is the same "intentionally blank, not unfinished" arm every other
-          // editable value uses. An editor typing over it sees an EMPTY field, not a floor value to delete.
-          placeholder="—"
-          kind="numeric"
-          size="title"
-          onEdit={(next): void => {
-            const trimmed = next.trim();
-            if (trimmed === "") {
-              // Blank CLEARS the attribute — the `SheetLevel` grammar, and the only door that un-references
-              // an attribute key so the host can still shrink the profile's vocabulary.
-              onEditValue(null);
-              return;
-            }
-            const n = Number(trimmed);
-            if (Number.isInteger(n)) {
-              onEditValue(n);
-            }
-          }}
-          // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
-          // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its
-          // number (no fixed width — `w-avatar-md` inside the padded button ellipsized a 2-digit value).
-          className="w-avatar-md text-center text-title leading-title tabular-nums"
-          restClassName="text-center text-title leading-title tabular-nums"
-        />
-      )}
-      <Text as="span" size="micro" tone="muted" transform="caps" className="tracking-micro">
-        {label}
-      </Text>
-    </Stack>
+      </Stack>
+    </Card>
   );
 }
 

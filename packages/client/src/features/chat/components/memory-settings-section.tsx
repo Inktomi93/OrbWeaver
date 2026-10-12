@@ -21,7 +21,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingSwitchRow, UtilityModelDoor, useUtilityModel } from "#components";
-import { QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { MEMORY_COST_SENTENCE } from "#lib";
 import type { SaveLifecycleState } from "#state";
@@ -43,7 +43,7 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 export function MemorySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your memory settings…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your memory settings" onRetry={retry} />}
     >
       <MemorySettingsBody sectionId={sectionId} />

@@ -47,7 +47,9 @@ function DrilledCharacterIdentity({ characterId }: { readonly characterId: Chara
       <Avatar size="sm" fallbackDelay={0} hueSeed={characterId} {...(avatarHash === null ? {} : { src: blobUrl(avatarHash) })}>
         {initialsFor(title)}
       </Avatar>
-      <Text className="truncate text-title leading-title font-semibold">{title}</Text>
+      <Text voice="promoted" className="truncate">
+        {title}
+      </Text>
     </Row>
   );
 }

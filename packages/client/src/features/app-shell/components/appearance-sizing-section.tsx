@@ -18,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
@@ -50,7 +50,7 @@ const SIZING_ENTITY_ID = "appearance-sizing";
 export function AppearanceSizingSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your sizing settings…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your sizing settings" onRetry={retry} />}
     >
       <SizingFormBody sectionId={sectionId} />

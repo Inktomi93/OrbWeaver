@@ -11,6 +11,7 @@
 // the scrollable body (it cannot be scrolled away), carries an explicit "Plugin" kicker naming the CLASS of
 // thing this is, and has NO opt-out. The CT floor pins the band's presence on every page.
 
+import { Card } from "@orb/ui/card";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -103,25 +104,27 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
     );
   }
   return (
-    <Stack className="rounded-base border border-border bg-card/40 p-block" gap="block">
-      {/* The pinned attribution band — plugin glyph + name + the surface's own title. A person always knows
+    <Card tone="neutral">
+      <Stack gap="block">
+        {/* The pinned attribution band — plugin glyph + name + the surface's own title. A person always knows
           WHICH plugin drew this and that it is a plugin, not the app's own screen. */}
-      <Row align="center" gap="field">
-        <Icon icon={Blocks} size="sm" />
-        <Text voice="label">{pluginName}</Text>
-        {showTitle ? (
-          <>
-            <Text voice="gloss">·</Text>
-            <Text className="text-foreground" voice="gloss">
-              {title}
-            </Text>
-          </>
-        ) : null}
-        {action === undefined ? null : <Row className="ms-auto">{action}</Row>}
-      </Row>
-      <Stack aria-label={regionName} gap="block" role="group">
-        {children}
+        <Row align="center" gap="field">
+          <Icon icon={Blocks} size="sm" />
+          <Text voice="label">{pluginName}</Text>
+          {showTitle ? (
+            <>
+              <Text voice="gloss">·</Text>
+              <Text className="text-foreground" voice="gloss">
+                {title}
+              </Text>
+            </>
+          ) : null}
+          {action === undefined ? null : <Row className="ms-auto">{action}</Row>}
+        </Row>
+        <Stack aria-label={regionName} gap="block" role="group">
+          {children}
+        </Stack>
       </Stack>
-    </Stack>
+    </Card>
   );
 }

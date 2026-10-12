@@ -1,10 +1,11 @@
+import { MS_PER_SECOND } from "@orb/kit/time";
+
 // The per-turn generation-duration derivation for the `showGenerationTimer` metadata readout.
 // `MessageView` carries the raw gen-window bounds (`genStartedAt`/`genFinishedAt`, epoch-ms, written by
 // the turn engine's canon-write); the duration is `gf − gs` and is only meaningful when both bounds are
 // present AND ordered — the stats gen-time axis uses the same guard (`domain/chat/substrate/stats-delta`).
 // Kept pure + prop-driven so it unit-tests without a render.
 
-const MS_PER_SECOND = 1000;
 // @orb-waive no-vanity-alias(SUB_SECOND_MAX_MS): baselined when the gate widened; burn-down item 906.
 const SUB_SECOND_MAX_MS = MS_PER_SECOND;
 

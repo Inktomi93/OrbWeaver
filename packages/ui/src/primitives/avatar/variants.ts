@@ -4,7 +4,7 @@ import { tv } from "#lib";
 // IS a button composes inside `Button` and inherits its own hit area.
 export const avatarVariants = tv({
   slots: {
-    root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none",
+    root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none in-data-[has-bg-image]:border-(length:--border-width-hairline) in-data-[has-bg-image]:border-solid in-data-[has-bg-image]:border-primary/50",
     // Retained native images need a box for lazy loading, but must neither paint nor share the fallback's flex space.
     image: "size-full object-cover data-loading:absolute data-loading:invisible data-error:absolute data-error:invisible",
     // The fallback's FILL is not a variant (#103): it derives from the active theme's own `--color-primary`

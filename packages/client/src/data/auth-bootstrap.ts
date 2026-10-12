@@ -19,12 +19,13 @@ import {
   signedOutInvitePreviewSchema,
   signupResultSchema,
 } from "@orb/contracts/chat";
-import type { AuthMe } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { AuthLogoutResult, AuthMe } from "@orb/contracts/identity";
+import { authErrorResponseSchema, authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import type { z } from "zod";
 import { postSessionMessage, sessionDocument } from "#lib";
 import { clearJoinStash } from "./session-resume.ts";
 
@@ -39,18 +40,23 @@ class LoginFailedError extends Error {
   }
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { credentials: "same-origin" });
-  if (!res.ok) {
-    throw new Error(`${url}: HTTP ${res.status}`);
+/** Fetch the live cookie verdict and parse the HTTP contract before exposing it to readers. */
+export async function fetchAuthMe(): Promise<AuthMe> {
+  const response = await fetch("/api/auth/me", { credentials: "same-origin" });
+  if (!response.ok) {
+    throw new Error(`/api/auth/me: HTTP ${response.status}`);
   }
-  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
-  return (await res.json()) as T;
+  return authMeSchema.parse(await response.json());
 }
 
-/** Fetch THIS request's auth state. Never memoized — the guards want the live cookie verdict. */
-export function fetchAuthMe(): Promise<AuthMe> {
-  return getJson<AuthMe>("/api/auth/me");
+/** An unreadable optional body is absent; each caller supplies its visible fallback. */
+async function optionalAuthBody<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
+  try {
+    const parsed = schema.safeParse(await response.json());
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
 const authMeOptions = queryOptions({ queryKey: AUTH_ME_KEY, queryFn: fetchAuthMe });
@@ -78,9 +84,8 @@ export async function login(handle: Handle, password: string): Promise<void> {
     body,
   });
   if (!res.ok) {
-    // @orb-waive caught-failure-ownership(res.json): a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.
-    const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };
-    throw new LoginFailedError(parsed.error ?? `login failed (HTTP ${res.status})`);
+    const parsed = await optionalAuthBody(res, authErrorResponseSchema);
+    throw new LoginFailedError(parsed?.error ?? `login failed (HTTP ${res.status})`);
   }
 }
 
@@ -98,9 +103,8 @@ export async function firstRunSetup(password: string): Promise<void> {
     body: new URLSearchParams({ password }),
   });
   if (!res.ok) {
-    // @orb-waive caught-failure-ownership(res.json): a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.
-    const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };
-    throw new LoginFailedError(parsed.error ?? `first-run setup failed (HTTP ${res.status})`);
+    const parsed = await optionalAuthBody(res, authErrorResponseSchema);
+    throw new LoginFailedError(parsed?.error ?? `first-run setup failed (HTTP ${res.status})`);
   }
 }
 
@@ -126,9 +130,8 @@ export async function signUpWithInvite(
   if (res.ok) {
     return { ok: true, chatId: signupResultSchema.parse(await res.json()).chatId };
   }
-  // @orb-waive caught-failure-ownership(res.json): an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed.
-  const parsed = (await res.json().catch(() => ({}))) as { readonly error?: unknown };
-  return { ok: false, code: isSignupErrorCode(parsed.error) ? parsed.error : null };
+  const parsed = await optionalAuthBody(res, authErrorResponseSchema);
+  return { ok: false, code: isSignupErrorCode(parsed?.error) ? parsed?.error : null };
 }
 
 const NOT_FOUND = 404;
@@ -233,17 +236,13 @@ export async function confirmPendingJoin(
     const result = pendingJoinConfirmResultSchema.parse(await res.json());
     return { ok: true, signedIn: result.signedIn, chatId: result.chatId };
   }
-  // @orb-waive caught-failure-ownership(res.json): an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed.
-  const parsed = (await res.json().catch(() => ({}))) as { readonly error?: unknown };
-  return { ok: false, code: isPendingJoinErrorCode(parsed.error) ? parsed.error : null };
+  const parsed = await optionalAuthBody(res, authErrorResponseSchema);
+  return { ok: false, code: isPendingJoinErrorCode(parsed?.error) ? parsed?.error : null };
 }
 
 /** The logout response: the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
  *  with no end_session_endpoint). Module-local: `logout` below is the only spelling of the name, and
  *  callers consume the shape through that signature (#1847). */
-interface LogoutResult {
-  readonly endSessionUrl: string | null;
-}
 
 /** Sign out END-TO-END: revoke the session ({@link logout}), tell sibling TABS (they hold the same
  *  now-revoked cookie and would keep rendering warm cache until something happened to fail — the cross-tab
@@ -267,7 +266,7 @@ export async function signOut(): Promise<void> {
  *  A6 — returns the IdP `endSessionUrl` when the deployment is OIDC and the issuer exposes an end-session
  *  endpoint, so the caller can end the UPSTREAM SSO session too (else clicking Continue signs straight back
  *  in). Null ⇒ fall back to the local /login reset. */
-export async function logout(): Promise<LogoutResult> {
+export async function logout(): Promise<AuthLogoutResult> {
   const res = await fetch("/api/auth/logout", {
     method: "POST",
     credentials: "same-origin",
@@ -276,7 +275,6 @@ export async function logout(): Promise<LogoutResult> {
   if (!res.ok) {
     throw new Error(`logout failed (HTTP ${res.status})`);
   }
-  // @orb-waive caught-failure-ownership(res.json): `res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field.
-  const parsed = (await res.json().catch(() => ({}))) as { readonly endSessionUrl?: string | null };
-  return { endSessionUrl: parsed.endSessionUrl ?? null };
+  const parsed = await optionalAuthBody(res, authLogoutResultSchema);
+  return { endSessionUrl: parsed?.endSessionUrl ?? null };
 }

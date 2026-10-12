@@ -83,8 +83,6 @@ type HearthChat = Parameters<typeof chatSummaryRowView>[0];
  *  IT RESTS LOUDER NOW (rail sweep P2-11): at `opacity-30` the halo was invisible in a screenshot, so the
  *  focal was carried entirely by the banned stripe. `opacity-60` at rest, full on hover — the rationed glow
  *  doing the job the stripe was doing illegally. */
-const GLOW =
-  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:opacity-60 before:shadow-glow before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-[''] hover:before:opacity-100";
 
 export function HomeHearthRoom({
   chat,
@@ -125,7 +123,8 @@ export function HomeHearthRoom({
       as="button"
       // Back from this room leaves the glow at its hover strength: the same "this one" the pointer gives it.
       aria-current={marked ? "true" : undefined}
-      className={`group ${GLOW} data-returned:before:opacity-100`}
+      className="group"
+      glow="focal"
       data-home-hearth={chat.id}
       data-returned={marked ? "" : undefined}
       ref={bodyRef}

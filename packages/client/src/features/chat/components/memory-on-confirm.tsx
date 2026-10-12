@@ -6,7 +6,7 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingCheckboxRow, UtilityModelDoor, useUtilityModel } from "#components";
-import { useGatedQuery, useTRPC } from "#data";
+import { useDecisionQuery, useTRPC } from "#data";
 import { MEMORY_COST_SENTENCE } from "#lib";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "../lib/memory-settings-section-nav.ts";
 
@@ -41,7 +41,7 @@ export function MemoryOnConfirm({ open, onOpenChange, onConfirm }: MemoryOnConfi
   const utility = useUtilityModel();
   const [buildExisting, setBuildExisting] = useState(false);
   // Read only while the confirm is open, fresh each time: the count is for the decision being made now.
-  const estimate = useGatedQuery(open ? BACKFILL_ESTIMATE : null, (input) => ({ ...trpc.workloads.estimateModelCalls.queryOptions(input), staleTime: 0 }));
+  const estimate = useDecisionQuery(open ? BACKFILL_ESTIMATE : null, (input) => trpc.workloads.estimateModelCalls.queryOptions(input));
   const calls = estimate.data?.calls ?? 0;
   const notReady = utility.kind === "unset" || utility.kind === "blocked";
   let body: ReactElement | undefined;

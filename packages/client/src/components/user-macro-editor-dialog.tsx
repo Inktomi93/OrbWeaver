@@ -21,6 +21,7 @@ import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { DIALOG_SCROLL_CLASS, DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -282,24 +283,26 @@ function InputEditor({
   const base = `userMacros[${macroIndex}].inputs[${inputIndex}]` as const;
   const hasOptions = kind !== "boolean-toggle";
   return (
-    <Stack gap="field" padding="field" className="rounded-base border border-border bg-card">
-      <Row gap="field" align="end" justify="between">
-        <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
-        <Button intent="ghost" size="sm" onClick={onRemove}>
-          Remove
-        </Button>
-      </Row>
-      <Row gap="field" align="end">
-        <form.AppField name={`${base}.name`}>
-          {(field): ReactElement => <field.TextField label="Name" description="Bound as {{name}} in the template." />}
-        </form.AppField>
-        <form.AppField name={`${base}.label`}>
-          {(field): ReactElement => <field.TextField label="Question" description="What the user is asked." />}
-        </form.AppField>
-      </Row>
-      {hasOptions ? <InputOptionList form={form} base={base} macroIndex={macroIndex} inputIndex={inputIndex} /> : null}
-      <InputKindKnobs form={form} base={base} kind={kind} />
-    </Stack>
+    <Card tone="neutral">
+      <Stack gap="field">
+        <Row gap="field" align="end" justify="between">
+          <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
+          <Button intent="ghost" size="sm" onClick={onRemove}>
+            Remove
+          </Button>
+        </Row>
+        <Row gap="field" align="end">
+          <form.AppField name={`${base}.name`}>
+            {(field): ReactElement => <field.TextField label="Name" description="Bound as {{name}} in the template." />}
+          </form.AppField>
+          <form.AppField name={`${base}.label`}>
+            {(field): ReactElement => <field.TextField label="Question" description="What the user is asked." />}
+          </form.AppField>
+        </Row>
+        {hasOptions ? <InputOptionList form={form} base={base} macroIndex={macroIndex} inputIndex={inputIndex} /> : null}
+        <InputKindKnobs form={form} base={base} kind={kind} />
+      </Stack>
+    </Card>
   );
 }
 

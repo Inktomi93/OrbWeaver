@@ -241,7 +241,7 @@ function PipelineCaveats({
         // read as one warning rendered twice. The tester's line is about the SCRIPT ("the result ignores your
         // depth range"); this one is about the RUN — every stage below was applied to one loose string, which
         // has no position for a depth bound to bite on.
-        <Text className="text-warning" voice="gloss">
+        <Text tone="warning" voice="gloss">
           Nothing here has a position in a chat history, so this script’s depth range is not applied — the run treats the sample as any message.
         </Text>
       ) : null}

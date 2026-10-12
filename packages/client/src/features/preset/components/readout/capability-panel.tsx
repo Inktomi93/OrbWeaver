@@ -77,7 +77,7 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
           value={targetValue(target)}
         />
         {removed ? (
-          <Text className="text-warning" data-slot="capability-target-removed" voice="gloss">
+          <Text tone="warning" data-slot="capability-target-removed" voice="gloss">
             The connection you were looking at was removed, so this shows your Chat role.
           </Text>
         ) : null}

@@ -41,8 +41,8 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // tiers.css, so a feature cannot pick it. `data-elevated` is the attribute the unlayered elevated-radius
 // rule keys on — the variant's `rounded-card` utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, elevated, interactive, nested } = props;
-  const skin = cn(cardVariants({ elevated, interactive, nested }), className);
+  const { className, elevated, interactive, nested, tone, outline, glow } = props;
+  const skin = cn(cardVariants({ elevated, interactive, nested, tone, outline, glow }), className);
   // The attributes the unlayered elevated-/nested-radius rules key on: inside a Surface the tier rule
   // outranks any `rounded-*` utility the variant emits.
   //
@@ -56,7 +56,17 @@ export function Card(props: CardProps): ReactElement {
     "data-nested": nested === true ? "" : undefined,
   } as const;
   if (props.as === "button") {
-    const { as: _as, className: _className, elevated: _elevated, interactive: _interactive, nested: _nested, ...rest } = props;
+    const {
+      as: _as,
+      className: _className,
+      elevated: _elevated,
+      interactive: _interactive,
+      nested: _nested,
+      tone: _tone,
+      outline: _outline,
+      glow: _glow,
+      ...rest
+    } = props;
     // `type="button"` BEFORE the spread, so a caller that genuinely needs a submit card can still say so —
     // and never after it, which would silently neuter one.
     //
@@ -67,7 +77,17 @@ export function Card(props: CardProps): ReactElement {
     // so both the variant and the caller's own className still win the merge.
     return <button type="button" {...rest} className={cn("block text-start", skin)} {...marks} data-slot="card-root" />;
   }
-  const { as: _as, className: _className, elevated: _elevated, interactive: _interactive, nested: _nested, ...rest } = props;
+  const {
+    as: _as,
+    className: _className,
+    elevated: _elevated,
+    interactive: _interactive,
+    nested: _nested,
+    tone: _tone,
+    outline: _outline,
+    glow: _glow,
+    ...rest
+  } = props;
   const a11y =
     interactive === true
       ? {

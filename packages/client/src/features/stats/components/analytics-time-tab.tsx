@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import {
   activityHeatmapMatrix,
@@ -38,7 +38,7 @@ export function AnalyticsTimeTab(): ReactElement {
     // auto-height child is exactly what a scroller wants, and the scroller survives the read.
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsTimeTab")}>
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading activity…</Text>}
+        fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
         reserveKey="analytics.time"
       >

@@ -4,7 +4,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { timeLib } from "#lib";
 import { openChatMoment, resumeChat, selectCharacter, setActiveSection, useSelectedCorpusDestination } from "#state";
@@ -138,7 +138,7 @@ function MomentProvenance({ destination }: { readonly destination: Extract<Corpu
       </Text>
       {destination.rank === null ? null : <Text voice="gloss">Result rank: {destination.rank}</Text>}
       <QueryBoundary
-        fallback={<Text voice="gloss">Resolving the transcript anchor…</Text>}
+        fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the source resolution" onRetry={retry} />}
       >
         <MomentActions source={source} />

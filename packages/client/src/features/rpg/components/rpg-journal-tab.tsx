@@ -30,6 +30,7 @@ import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Icon, Pin } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -243,34 +244,36 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (
-            <Row key={mark.id} gap="block" align="center" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-mark-row">
-              <Icon icon={Pin} size="xs" className="text-muted-foreground" />
-              <Stack gap="field" className="min-w-0 flex-1">
-                <Text as="span" voice="label" className="truncate">
-                  {mark.label}
-                </Text>
-                <Text as="span" voice="gloss">
-                  {timeLib.formatDate(mark.createdAt)}
-                </Text>
-              </Stack>
-              {state.isHost ? (
-                <ConfirmDialog
-                  title={`Restore "${mark.label}"?`}
-                  description="The game state rolls forward from this mark as a new current snapshot. The chronicle keeps everything since."
-                  confirmLabel="Restore"
-                  confirmIntent="primary"
-                  confirmLoading={restoreCheckpoint.isPending}
-                  onConfirm={(): void => {
-                    restoreCheckpoint.mutate({ chatId: state.chatId, checkpointId: mark.id });
-                  }}
-                  trigger={
-                    <Button intent="ghost" size="sm">
-                      Restore
-                    </Button>
-                  }
-                />
-              ) : null}
-            </Row>
+            <Card tone="neutral" key={mark.id}>
+              <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
+                <Icon icon={Pin} size="xs" className="text-muted-foreground" />
+                <Stack gap="field" className="min-w-0 flex-1">
+                  <Text as="span" voice="label" className="truncate">
+                    {mark.label}
+                  </Text>
+                  <Text as="span" voice="gloss">
+                    {timeLib.formatDate(mark.createdAt)}
+                  </Text>
+                </Stack>
+                {state.isHost ? (
+                  <ConfirmDialog
+                    title={`Restore "${mark.label}"?`}
+                    description="The game state rolls forward from this mark as a new current snapshot. The chronicle keeps everything since."
+                    confirmLabel="Restore"
+                    confirmIntent="primary"
+                    confirmLoading={restoreCheckpoint.isPending}
+                    onConfirm={(): void => {
+                      restoreCheckpoint.mutate({ chatId: state.chatId, checkpointId: mark.id });
+                    }}
+                    trigger={
+                      <Button intent="ghost" size="sm">
+                        Restore
+                      </Button>
+                    }
+                  />
+                ) : null}
+              </Row>
+            </Card>
           ))}
         </Stack>
       )}

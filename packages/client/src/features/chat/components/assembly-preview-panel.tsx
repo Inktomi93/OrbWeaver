@@ -31,7 +31,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { limitOutgrownByReply, noRoomLine, roomExplainer } from "../lib/context-room.ts";
 import { AssemblyPreviewDiagnostics } from "./assembly-preview-diagnostics.tsx";
@@ -45,7 +45,7 @@ export interface AssemblyPreviewPanelProps {
 export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Assembling the preview…</Text>}
+      fallback={<SkeletonRows count={6} shape="datum" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the preview" onRetry={retry} />}
     >
       <PreviewBody chatId={chatId} />

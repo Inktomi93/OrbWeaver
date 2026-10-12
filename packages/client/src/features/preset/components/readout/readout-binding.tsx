@@ -7,6 +7,7 @@
 // not two homes.
 
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -33,25 +34,27 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
     );
   }
   return (
-    <Row align="center" className="rounded-base bg-info/10" gap="field" justify="between" padding="row">
-      <Row align="baseline" className="min-w-0" gap="field">
-        <Text voice="gloss">inspecting against:</Text>
-        <Text className="truncate" voice="label">
-          {binding.chatTitle}
-        </Text>
-      </Row>
-      {/* The ✕ is a LABELLED control, not a decoration: its whole job is reversing a binding the user never
+    <Card tone="info">
+      <Row align="center" gap="field" justify="between">
+        <Row align="baseline" className="min-w-0" gap="field">
+          <Text voice="gloss">inspecting against:</Text>
+          <Text className="truncate" voice="label">
+            {binding.chatTitle}
+          </Text>
+        </Row>
+        {/* The ✕ is a LABELLED control, not a decoration: its whole job is reversing a binding the user never
           asked for, so it says what it does (and why) to a reader who cannot see the glyph. */}
-      <Button
-        aria-label={`Dismiss the binding to ${binding.chatTitle}`}
-        intent="ghost"
-        onClick={binding.dismiss}
-        size="icon"
-        title="Dismiss — fall back to the chat-free token view"
-        type="button"
-      >
-        <Icon icon={X} size="xs" />
-      </Button>
-    </Row>
+        <Button
+          aria-label={`Dismiss the binding to ${binding.chatTitle}`}
+          intent="ghost"
+          onClick={binding.dismiss}
+          size="icon"
+          title="Dismiss — fall back to the chat-free token view"
+          type="button"
+        >
+          <Icon icon={X} size="xs" />
+        </Button>
+      </Row>
+    </Card>
   );
 }

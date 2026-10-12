@@ -28,7 +28,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection, useSectionListMode } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
@@ -81,7 +81,7 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
           slot ride the scroller, which is where #1200 put them. */}
       <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
         <QueryBoundary
-          fallback={<Text voice="gloss">Loading your insights…</Text>}
+          fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
           reserveKey="analytics.overview"
         >

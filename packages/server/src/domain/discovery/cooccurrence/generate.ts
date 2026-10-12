@@ -51,11 +51,7 @@ function bump(m: Map<string, number>, key: string): void {
 }
 
 function bumpNested(m: Map<string, Map<string, number>>, k1: string, k2: string): void {
-  let inner = m.get(k1);
-  if (inner === undefined) {
-    inner = new Map();
-    m.set(k1, inner);
-  }
+  const inner = m.getOrInsertComputed(k1, () => new Map());
   bump(inner, k2);
 }
 

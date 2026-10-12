@@ -8,7 +8,7 @@
 // settled for rewrite yet", while 1 · SCORE — the step to take — sat in a plain rail. CD3 is one focal
 // that POINTS WHERE THE USER SHOULD GO, so it has to move; `lib/workbench-lanes.ts` decides which lane
 // wears it (score until a score lands, this island thereafter — never analyze, which is a readout) and
-// `lib/focal-treatment.ts` is the treatment both lanes share.
+// `Section`'s focal variant is the treatment both lanes share.
 //
 // ── …AND UN-FOCAL IT IS NOT A CARD EITHER (side-eye 2026-08-19 P2) ───────────────────────────────────
 // The line above used to end "un-focal, this stays a `Card`: it holds the widest content on the canvas and
@@ -36,7 +36,6 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
-import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { reviewTargetLabel } from "../lib/review-entries.ts";
@@ -172,11 +171,11 @@ export function RewriteLane({
   return (
     <Section
       aria-label="Rewrite"
-      className={focal ? `gap-row rounded-(--radius-base) p-row ${FOCAL_GLOW}` : "gap-row"}
+      className="gap-row"
+      focal={focal}
       data-focal={focal ? "true" : undefined}
       data-lane="rewrite"
       data-testid={testId("refineryRewriteLane")}
-      {...(focal ? { style: FOCAL_STRIPE } : {})}
     >
       <Stack gap="row">
         <LaneBand kicker={provenance === null ? "2 · Rewrite" : `2 · Rewrite · ${provenance}`}>

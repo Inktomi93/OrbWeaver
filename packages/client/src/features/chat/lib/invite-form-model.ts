@@ -13,6 +13,7 @@ import { SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/co
 import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SelectItems } from "@orb/ui/select/items";
 
 /** Expiry presets — a picker, not a datetime field (the mint is an interrupt, not a scheduler).
@@ -21,7 +22,6 @@ import type { SelectItems } from "@orb/ui/select/items";
 const INVITE_EXPIRY_KEYS = ["never", "1h", "24h", "7d"] as const;
 type InviteExpiryKey = (typeof INVITE_EXPIRY_KEYS)[number];
 
-const MS_PER_HOUR = 3_600_000;
 const HOURS_PER_DAY = 24;
 const DAYS_PER_WEEK = 7;
 

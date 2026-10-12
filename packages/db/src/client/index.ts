@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient, LibsqlError } from "@libsql/client";
 import { isPlainObject } from "@orb/kit/guards";
+import { MS_PER_DAY } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { drizzle } from "drizzle-orm/libsql";
@@ -224,7 +225,6 @@ const KEEP_RECENT_BACKUPS = 5;
 // On top of the recent five, the newest backup of each of the last N distinct days — a coarse history that
 // survives a day of frequent migrating without unbounded growth. Ceiling is KEEP_RECENT + KEEP_DAILY files.
 const KEEP_DAILY_BACKUPS = 7;
-const MS_PER_DAY = 86_400_000;
 
 // One backup instant: the base copy and/or its sqlite sidecars. `hasBase` false ⇒ orphaned sidecars.
 interface BackupGroup {

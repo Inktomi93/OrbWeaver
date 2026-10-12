@@ -40,8 +40,6 @@
 
 import type { VariantWireView } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ScrollText } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
@@ -50,6 +48,7 @@ import { LogViewer } from "@orb/ui/log-viewer";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 
@@ -218,7 +217,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
 export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: VariantWireViewerProps): ReactElement {
   const trpc = useTRPC();
   const wire = useQuery({
-    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }, { staleTime: Number.POSITIVE_INFINITY }),
+    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }),
     // Gated: the key is built (and the server hit) ONLY while the dialog is open — never eager per row.
     enabled: open,
     // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner.
@@ -226,17 +225,9 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup size="lg" data-testid={testId("variantWireViewer")}>
-        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1`}>
-          <DialogTitle>What this reply sent</DialogTitle>
-          <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
-          <DialogFooter>
-            <DialogClose render={<Button intent="secondary">Close</Button>} />
-          </DialogFooter>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <ViewerDialog title="What this reply sent" popupProps={{ size: "lg", "data-testid": testId("variantWireViewer") }} open={open} onOpenChange={onOpenChange}>
+      <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
+    </ViewerDialog>
   );
 }
 

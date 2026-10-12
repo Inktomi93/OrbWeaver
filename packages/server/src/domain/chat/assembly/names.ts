@@ -38,16 +38,6 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-// @orb-waive no-vanity-alias(WireRole): baselined when the gate widened; burn-down item 906.
-/** The delivered wire-row role axis. `system` rows exist only as capability-kept INJECTIONS — at the tail
- *  (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`). They are the operator/system
- *  channel, not a speaker, so every names mode passes them through untouched (no prefix, no completion
- *  `name`). A CANON row is never one: the D129(B) narrator→`system` delivery that briefly rode the mid-array
- *  bit was OWNER-RULED OUT 2026-08-18 ("if you mean group chat narration mode then that is the wrong
- *  behavior") — a narrator row is assistant-voiced here and takes no label because of its KIND, which is a
- *  separate, still-live policy. */
-type WireRole = MessageRole;
-
 /** The two axes beyond mode/speakers, bundled so the signature stays inside the parameter budget. NOT
  *  exported — it is this function's call shape, not a domain type, so it stays out of the contract home. */
 interface NamesOptions {
@@ -62,7 +52,7 @@ interface NamesOptions {
 }
 
 interface NamedRow {
-  role: WireRole;
+  role: MessageRole;
   content: string;
   name?: string;
   messageId?: MessageId | undefined;
@@ -105,7 +95,7 @@ function assertNeverMessageKind(kind: never): never {
 
 // An unattributed canon reply (an agent seat's row) has no name of its own; borrowing the current speaker's
 // would relabel it on every call.
-function isUnattributedReply(m: { readonly role: WireRole; readonly authorName?: string | null; readonly messageId?: MessageId | undefined }): boolean {
+function isUnattributedReply(m: { readonly role: MessageRole; readonly authorName?: string | null; readonly messageId?: MessageId | undefined }): boolean {
   return m.role === "assistant" && m.messageId !== undefined && (m.authorName ?? null) === null;
 }
 
@@ -117,7 +107,7 @@ function effectiveMode(mode: NamesBehavior, room: { readonly multiCharacter: boo
 
 export function applyNamesBehavior(
   history: readonly {
-    role: WireRole;
+    role: MessageRole;
     content: string;
     authorName?: string | null;
     messageId?: MessageId | undefined;
@@ -180,7 +170,7 @@ export function applyNamesBehavior(
 // a synthetic tail row has no author to name), and — in a multi-character room — an assistant turn with its
 // character's name; otherwise untouched.
 function defaultModeRow(
-  m: { role: WireRole; content: string; authorName?: string | null; messageId?: MessageId | undefined },
+  m: { role: MessageRole; content: string; authorName?: string | null; messageId?: MessageId | undefined },
   author: string,
   speakers: { user: string; assistant: string },
   room: { readonly multiCharacter: boolean; readonly multiHuman: boolean },

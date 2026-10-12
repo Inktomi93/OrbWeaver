@@ -15,6 +15,7 @@
 // `sanitizeSpeakerLookalike` function) — SHAPE consumes stored canon as-is.
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 
 /** True when the canon history carries MORE THAN ONE distinct authoring character among its assistant
  *  rows — the gate that turns the per-character `Name:` prefix on. SOLO (a roster-of-one chat, or any
@@ -22,7 +23,7 @@ import type { CharacterId } from "@orb/kit/ids";
  *  delivered transcript is byte-identical to the pre-group path. Rows with no resolved `characterId`
  *  (legacy / deleted / the egocentric-folded user rows) don't count toward distinctness; if EVERY
  *  assistant row is unattributed this is false (a single fallback name applies). */
-export function hasMultipleCharacters(history: readonly { role: "user" | "assistant"; characterId?: CharacterId | null }[]): boolean {
+export function hasMultipleCharacters(history: readonly { role: Exclude<MessageRole, "system">; characterId?: CharacterId | null }[]): boolean {
   const seen = new Set<CharacterId>();
   for (const m of history) {
     if (m.role === "assistant" && m.characterId !== null && m.characterId !== undefined) {

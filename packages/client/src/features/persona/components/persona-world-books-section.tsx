@@ -9,11 +9,10 @@ import { BookOpen, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useAttachBookToPersona, useDetachBookFromPersona } from "../hooks/use-persona-lorebooks.ts";
 
 const NONE_VALUE = "none";
@@ -29,7 +28,7 @@ export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): 
     // whatever the library holds, which is precisely the case a remembered measurement predicts exactly.
     // The field sits mid-form, so the sentence-to-control delta shifts every control under it.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading world books…</Text>}
+      fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
       reserveKey="persona.editor.loreBook"
     >

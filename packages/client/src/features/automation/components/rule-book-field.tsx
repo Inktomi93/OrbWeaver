@@ -56,7 +56,7 @@ export function RuleBookField({
         }}
       />
       {error === null ? null : (
-        <Text id={`${id}-error`} role="alert" className="text-destructive">
+        <Text tone="destructive" id={`${id}-error`} role="alert">
           {error}
         </Text>
       )}

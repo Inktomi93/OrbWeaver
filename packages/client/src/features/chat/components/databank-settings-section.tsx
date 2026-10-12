@@ -13,11 +13,10 @@
 
 import { FieldLayout } from "@orb/ui/field";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
@@ -49,7 +48,7 @@ const useUpdateDatabank = createEntityMutation<UpdateDatabankVars, unknown>({
 export function DatabankSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your databank settings…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your databank settings" onRetry={retry} />}
     >
       <DatabankSettingsFormBody sectionId={sectionId} />

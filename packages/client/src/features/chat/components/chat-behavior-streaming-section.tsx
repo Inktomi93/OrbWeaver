@@ -12,11 +12,10 @@ import type { ChatSettings } from "@orb/contracts/settings";
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
@@ -50,7 +49,7 @@ const STREAMING_ENTITY_ID = "chat-streaming";
 export function ChatStreamingSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your streaming settings…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your streaming settings" onRetry={retry} />}
     >
       <StreamingFormBody sectionId={sectionId} />

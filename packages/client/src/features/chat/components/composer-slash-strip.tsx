@@ -71,7 +71,7 @@ export function ComposerSlashStrip({ matches, notice, unavailableFor, highlightI
       {/* A refusal names one thing that just failed — the `label` voice; destructive is the SKIN the
           notice needs on top of it (no voice carries a colour role, by design). */}
       {notice === null ? null : (
-        <Text voice="label" className="text-destructive" role="alert">
+        <Text tone="destructive" voice="label" role="alert">
           {notice}
         </Text>
       )}

@@ -393,7 +393,7 @@ function PickedLine({
         No model picked yet.
       </Text>
     ) : (
-      <Text className="text-destructive" data-slot="model-picker-picked" id={errorId} prose={true} role="alert" voice="gloss">
+      <Text tone="destructive" data-slot="model-picker-picked" id={errorId} prose={true} role="alert" voice="gloss">
         {error}
       </Text>
     );
@@ -409,7 +409,7 @@ function PickedLine({
     );
   }
   return (
-    <Text className="max-w-(--reading-measure-prose) text-warning" data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
+    <Text tone="warning" className="max-w-(--reading-measure-prose)" data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
       Picked: {value} — {unlistedModelSentence(listOwner)}
     </Text>
   );

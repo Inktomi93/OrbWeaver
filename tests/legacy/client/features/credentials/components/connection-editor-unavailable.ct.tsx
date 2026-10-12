@@ -4,6 +4,7 @@
 import { makeCachePolicy, makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { PluginProviderConnectionLifecycleStory } from "../_ct-stories.tsx";
@@ -132,6 +133,7 @@ async function stubLifecycle(page: Page, options: LifecycleStubOptions = {}): Pr
   });
 
   return await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "sessions.me": () => ({ userId: "user_ct_plugin_provider", handle: "plugin_provider", globalRole: "user" }),
     "plugin.list": () => (pluginStatus === "uninstalled" ? [] : [plugin()]),
     "plugin.getLog": () => [],

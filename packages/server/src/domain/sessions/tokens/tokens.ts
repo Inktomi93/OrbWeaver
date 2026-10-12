@@ -1,6 +1,7 @@
 import { createHmac, hkdfSync, randomBytes } from "node:crypto";
 import type { SessionToken } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 
@@ -31,7 +32,6 @@ const ID_TOKEN_KEY_SALT = "";
 
 // 30-day sliding window. The slide write is throttled so a request burst doesn't write every call; the
 // revoked/expired/enabled checks still run every request (logout/disable take effect next request, not TTL).
-const MS_PER_MINUTE = 60_000;
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
 const SESSION_TTL_DAYS = 30;

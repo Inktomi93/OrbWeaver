@@ -102,7 +102,7 @@ export function AboutUpdatesSection(): ReactElement {
           {update.data === undefined ? null : <UpdateVerdict check={update.data} />}
         </Row>
         {update.error === null ? null : (
-          <Text voice="label" className="text-destructive">
+          <Text tone="destructive" voice="label">
             Couldn't run the update check — try again in a moment.
           </Text>
         )}

@@ -21,13 +21,14 @@ import type { ProseFooterState, ProseOverride, ProseOverrides, ProseSlotId } fro
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -95,7 +96,7 @@ function slotSuggestions(id: ProseSlotId): readonly MacroSuggestion[] {
 export function ProseSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your prose overrides…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your prose overrides" onRetry={retry} />}
     >
       <ProseFormBody sectionId={sectionId} />
@@ -172,43 +173,45 @@ function ProseCard({ form, id, stored, onKeepMine }: ProseCardProps): ReactEleme
     form.setFieldValue(name, "");
   };
   return (
-    <Stack gap="field" padding="field" role="group" aria-label={slot.title} className="rounded-base border border-border bg-card">
-      <form.AppField name={name}>
-        {(field): ReactElement => (
-          // THE CAP, off the contract constant (never a re-spelled 4000). Without it this field authored a
-          // value whose only possible fate was to VANISH: `proseOverridesSchema` heals an over-cap override
-          // to absent, so the write "succeeded" and the shipped default rode in place of the host's words.
-          // The attribute blocks typing and truncates a paste; an already-stored over-cap value is left
-          // rendered in full, and `validateProseLengths` refuses its save through this field's own error.
-          <field.MacroField
-            label={slot.title}
-            description={slot.fires}
-            suggestions={slotSuggestions(id)}
-            placeholder={slot.text}
-            rows={3}
-            maxLength={PROSE_MAX_CHARS}
-            // …AND THE CEILING, the half the cap was missing (side-eye PROSE-LIMIT P1). `field-sizing:
-            // content` grows without bound, so the already-stored over-cap value this card exists to refuse
-            // rendered as a 2333px box in a 720px viewport — pushing this field's own counter, its error and
-            // the section's save status ~900px below the fold. The refusal was invisible on exactly the card
-            // it was about, and (P2) a 2255px card dragged its grid-row sibling to ~1850px of empty.
-            maxRows={CAPPED_FIELD_MAX_ROWS}
-          />
-        )}
-      </form.AppField>
-      <form.Subscribe selector={(state): string => state.values[name] ?? ""}>
-        {(value): ReactElement => (
-          <ProseCardFooter
-            length={value.length}
-            footer={proseFooterState(id, value, stored)}
-            onKeepMine={(): void => {
-              onKeepMine(id, value);
-            }}
-            onUseDefault={clear}
-          />
-        )}
-      </form.Subscribe>
-    </Stack>
+    <Card tone="neutral">
+      <Stack gap="field" role="group" aria-label={slot.title}>
+        <form.AppField name={name}>
+          {(field): ReactElement => (
+            // THE CAP, off the contract constant (never a re-spelled 4000). Without it this field authored a
+            // value whose only possible fate was to VANISH: `proseOverridesSchema` heals an over-cap override
+            // to absent, so the write "succeeded" and the shipped default rode in place of the host's words.
+            // The attribute blocks typing and truncates a paste; an already-stored over-cap value is left
+            // rendered in full, and `validateProseLengths` refuses its save through this field's own error.
+            <field.MacroField
+              label={slot.title}
+              description={slot.fires}
+              suggestions={slotSuggestions(id)}
+              placeholder={slot.text}
+              rows={3}
+              maxLength={PROSE_MAX_CHARS}
+              // …AND THE CEILING, the half the cap was missing (side-eye PROSE-LIMIT P1). `field-sizing:
+              // content` grows without bound, so the already-stored over-cap value this card exists to refuse
+              // rendered as a 2333px box in a 720px viewport — pushing this field's own counter, its error and
+              // the section's save status ~900px below the fold. The refusal was invisible on exactly the card
+              // it was about, and (P2) a 2255px card dragged its grid-row sibling to ~1850px of empty.
+              maxRows={CAPPED_FIELD_MAX_ROWS}
+            />
+          )}
+        </form.AppField>
+        <form.Subscribe selector={(state): string => state.values[name] ?? ""}>
+          {(value): ReactElement => (
+            <ProseCardFooter
+              length={value.length}
+              footer={proseFooterState(id, value, stored)}
+              onKeepMine={(): void => {
+                onKeepMine(id, value);
+              }}
+              onUseDefault={clear}
+            />
+          )}
+        </form.Subscribe>
+      </Stack>
+    </Card>
   );
 }
 

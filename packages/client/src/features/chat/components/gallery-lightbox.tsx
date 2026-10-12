@@ -6,12 +6,12 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, ViewerDialog } from "#components";
 
 /** The one image the lightbox shows. `name` is the grid cell's own name, so both say the same thing. */
 interface GalleryLightboxImage {
@@ -63,7 +63,7 @@ function useImageSize(hash: string | null): { readonly aspect: number; readonly 
 function useChromeHeight(content: HTMLDivElement | null, frame: RefObject<HTMLDivElement | null>): number {
   const [chrome, setChrome] = useState(FALLBACK_CHROME_PX);
   useLayoutEffect(() => {
-    const popup = content?.parentElement;
+    const popup = content?.closest('[data-slot="dialog-popup"]');
     if (popup === null || popup === undefined) {
       return;
     }
@@ -93,7 +93,18 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
   // The largest box of the image's aspect that fits the height left after the chrome, and never past the image's own size.
   const frameWidth = `min(${naturalWidth === null ? "100vw" : `${String(naturalWidth)}px`}, calc((100dvh - ${String(chrome)}px) * ${String(aspect)}))`;
   return (
-    <Dialog
+    <ViewerDialog
+      title={image === null ? "Image" : image.name}
+      popupProps={{ size: "xlFit", initialFocus: closeRef, finalFocus }}
+      headerActions={
+        <DialogClose
+          render={
+            <Button className="shrink-0" intent="ghost" ref={closeRef} size="sm">
+              Close
+            </Button>
+          }
+        />
+      }
       open={image !== null}
       onOpenChange={(next): void => {
         if (!next) {
@@ -102,51 +113,37 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       }}
       onOpenChangeComplete={onSettled}
     >
-      <DialogPopup size="xlFit" initialFocus={closeRef} finalFocus={finalFocus}>
-        {image === null ? null : (
-          <Stack gap="block" className="min-h-0" ref={setContent}>
-            {/* Close rides the title row, so the dialog spends one row above the frame instead of two and a short
-                phone viewport leaves the image more of its height. */}
-            <Row align="center" gap="row" justify="between">
-              <DialogTitle className="min-w-0">{image.name}</DialogTitle>
-              <DialogClose
-                render={
-                  <Button className="shrink-0" intent="ghost" ref={closeRef} size="sm">
-                    Close
-                  </Button>
-                }
-              />
-            </Row>
-            {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
+      {image === null ? null : (
+        <Stack gap="block" className="min-h-0" ref={setContent}>
+          {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
                 width otherwise, and never upscaled past the image. */}
-            <Stack align="center" className="relative">
-              <Stack ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth, maxWidth: "100%" }}>
-                <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="size-full" />
-              </Stack>
+          <Stack align="center" className="relative">
+            <Stack ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth, maxWidth: "100%" }}>
+              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="size-full" />
             </Stack>
-            {removal === undefined ? null : (
-              <Row justify="start" align="center" className="shrink-0">
-                <Button intent="destructive" onClick={(): void => setConfirmOpen(true)}>
-                  <Icon icon={Trash2} size="sm" />
-                  Remove from gallery
-                </Button>
-              </Row>
-            )}
-
-            {removal === undefined ? null : (
-              <ConfirmDialog
-                confirmLabel="Remove"
-                description={`This removes the image from ${removal.characterName}'s gallery. The image itself stays in your uploads.`}
-                forceRender={true}
-                onConfirm={removal.onRemove}
-                onOpenChange={setConfirmOpen}
-                open={confirmOpen}
-                title="Remove this image?"
-              />
-            )}
           </Stack>
-        )}
-      </DialogPopup>
-    </Dialog>
+          {removal === undefined ? null : (
+            <Row justify="start" align="center" className="shrink-0">
+              <Button intent="destructive" onClick={(): void => setConfirmOpen(true)}>
+                <Icon icon={Trash2} size="sm" />
+                Remove from gallery
+              </Button>
+            </Row>
+          )}
+
+          {removal === undefined ? null : (
+            <ConfirmDialog
+              confirmLabel="Remove"
+              description={`This removes the image from ${removal.characterName}'s gallery. The image itself stays in your uploads.`}
+              forceRender={true}
+              onConfirm={removal.onRemove}
+              onOpenChange={setConfirmOpen}
+              open={confirmOpen}
+              title="Remove this image?"
+            />
+          )}
+        </Stack>
+      )}
+    </ViewerDialog>
   );
 }

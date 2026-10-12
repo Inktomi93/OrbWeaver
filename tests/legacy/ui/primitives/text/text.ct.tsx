@@ -2,9 +2,35 @@
 // literal — gate ui-primitive-structure clause 5), and <Heading> renders a REAL semantic h1-h6 while
 // <Text> renders its body intrinsic (the a11y/semantic-element correctness the seal exists for).
 
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { Heading, Text } from "@orb/ui/text";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+
+test("explicit status tones beat voice colours while an omitted tone keeps the voice colour", async ({ mount, page }) => {
+  await mount(
+    <div>
+      <Text voice="label" tone="destructive">
+        Failed label
+      </Text>
+      <Text voice="gloss" tone="success">
+        Ready gloss
+      </Text>
+      <Heading level={2} voice="promoted" tone="warning">
+        Warning title
+      </Heading>
+      <Text voice="quiet">Quiet default</Text>
+      <Text voice="reading">Reading default</Text>
+    </div>,
+  );
+  await expect(page.getByText("Failed label", { exact: true })).toHaveCSS("color", resolvedTokenColor("color.destructive"));
+  await expect(page.getByText("Ready gloss", { exact: true })).toHaveCSS("color", resolvedTokenColor("color.success"));
+  await expect(page.getByRole("heading", { name: "Warning title", exact: true })).toHaveCSS("color", resolvedTokenColor("color.warning"));
+  await expect(page.getByText("Quiet default", { exact: true })).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
+  await expect(page.getByText("Quiet default", { exact: true })).toHaveAttribute("data-tone", "default");
+  await expect(page.getByText("Failed label", { exact: true })).toHaveAttribute("data-tone", "destructive");
+  await expect(page.getByText("Reading default", { exact: true })).toHaveCSS("color", resolvedTokenColor("color.prose-body"));
+});
 
 // Computed `font-size` resolves to px, while the DTCG size tokens are authored in rem. Derive the
 // expected px straight from the TOKENS value (root = 16px — the stack.ct gap-token precedent) so the

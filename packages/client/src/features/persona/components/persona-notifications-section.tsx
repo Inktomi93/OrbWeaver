@@ -5,11 +5,10 @@
 // beside it.
 
 import { Section } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
 
@@ -26,12 +25,9 @@ const useSetPersonaPrefs = createEntityMutation<PersonaPrefsPatchVars, unknown>(
 export function PersonaNotificationsSection(): ReactElement {
   return (
     <Section heading={PERSONA_NOTIFICATIONS_SUBCATEGORY.label} id={configAnchorId("personas", PERSONA_NOTIFICATIONS_SUBCATEGORY.id)}>
-      {/* RESERVED (#1098), fallback UNCHANGED. This settles into exactly ONE switch row, so a SkeletonRows
-          fill would claim a list that never arrives — the sentence is the honest wait. The key is still
-          worth it: a control row is roughly twice a text line, and every Personas section below this one
-          pays that delta on the config scroll. */}
+      {/* A pending control reserves one row; the measured boundary retains its settled height on reopen. */}
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading your persona settings…</Text>}
+        fallback={<SkeletonRows count={1} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your persona settings" onRetry={retry} />}
         reserveKey="config.personas.notifications"
       >

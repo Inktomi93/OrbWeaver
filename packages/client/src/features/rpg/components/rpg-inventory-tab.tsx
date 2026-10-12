@@ -38,6 +38,7 @@
 import type { RpgActorOp, RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Coins, Icon, LayoutGrid, List, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -256,22 +257,24 @@ function PurseLine({
     return null;
   }
   return (
-    <Row gap="field" align="center" className="flex-wrap rounded-base border border-border bg-card px-block py-row" data-slot="rpg-purse-line">
-      <Icon icon={Coins} size="sm" label="Party purse" />
-      {[...totals.entries()].map(([name, total]) => {
-        const own = carried.find((c) => c.name === name)?.amount ?? 0;
-        const carriedNote = actorName !== undefined && own > 0 && own !== total ? ` — ${own} on ${actorName}` : "";
-        return (
-          <Text key={name} as="span" voice="datum">
-            {total} {name}
-            {carriedNote === "" ? null : (
-              <Text as="span" voice="gloss">
-                {carriedNote}
-              </Text>
-            )}
-          </Text>
-        );
-      })}
-    </Row>
+    <Card tone="neutral">
+      <Row gap="field" align="center" className="flex-wrap" data-slot="rpg-purse-line">
+        <Icon icon={Coins} size="sm" label="Party purse" />
+        {[...totals.entries()].map(([name, total]) => {
+          const own = carried.find((c) => c.name === name)?.amount ?? 0;
+          const carriedNote = actorName !== undefined && own > 0 && own !== total ? ` — ${own} on ${actorName}` : "";
+          return (
+            <Text key={name} as="span" voice="datum">
+              {total} {name}
+              {carriedNote === "" ? null : (
+                <Text as="span" voice="gloss">
+                  {carriedNote}
+                </Text>
+              )}
+            </Text>
+          );
+        })}
+      </Row>
+    </Card>
   );
 }

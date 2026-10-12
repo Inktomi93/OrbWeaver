@@ -31,6 +31,11 @@ const PREFIX =
     rel.startsWith(p);
 
 const CT_SWEEP_TRIGGERS: readonly SweepTrigger[] = [
+  {
+    test: PREFIX("packages/client/src/components/"),
+    dirs: ["tests/client/components"],
+    why: "shared client composite change → rebuilt composite CTs",
+  },
   // ui skin/token/lib fragments surface in computed-style assertions EVERYWHERE (the light-dark()/31-assertion
   // incident class) — a token or shared-lib edit can flip a color/spacing assertion in any mounted component.
   {

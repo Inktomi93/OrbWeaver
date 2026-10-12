@@ -51,8 +51,9 @@ test("#1098: the notifications section RESERVES its measured box on a second col
   // The reservation is this DEVICE's own measurement, not a declared constant.
   const reserved = page.locator("[data-tile-reserved]");
   await expect(reserved).toHaveAttribute("data-tile-reserve-source", "measured");
-  // …and the sentence the section shows while waiting is INSIDE that held box, not in place of it.
-  await expect(reserved.getByText("Loading your persona settings…")).toBeVisible();
+  // The pending control skeleton stays inside the measured box.
+  await expect(reserved.locator("[aria-busy=true]")).toBeVisible();
+  await expect(reserved.locator('[data-slot="skeleton"]')).toHaveCount(1);
   const heldY = (await tail.boundingBox())?.y ?? Number.NaN;
   // ±1px: the store keeps sub-pixel heights and the reserved `blockSize` is rounded.
   expect(Math.abs(heldY - (settledY ?? Number.NaN)), "the pane jumped while the settings read was in flight").toBeLessThanOrEqual(1);

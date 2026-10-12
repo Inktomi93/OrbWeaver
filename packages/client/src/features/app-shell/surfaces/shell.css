@@ -192,8 +192,7 @@
 }
 
 /* Elevation=glow: layered float depth (hairline + inset highlight + contact shadow + ambient drop) via --shadow-overlay. */
-.shell-grid:where([data-elevation="glow"]) .shell-panel,
-.shell-grid:where([data-elevation="glow"]) [data-slot="card-root"] {
+.shell-grid:where([data-elevation="glow"]) .shell-panel {
   box-shadow: var(--shadow-overlay);
 }
 
@@ -1588,15 +1587,7 @@
   pointer-events: auto;
 }
 
-.shell-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-row);
-  padding-block-end: var(--spacing-field);
-  border-block-end: var(--border-width-control) solid var(--color-border);
-  margin-block-end: var(--spacing-block);
-}
+
 
 /* The one @media: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
 @media (max-width: 48rem) {

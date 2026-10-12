@@ -341,14 +341,15 @@ test.each([true, false])("commit and replay preserve imageBeforeTool=%s at equal
   ];
   const h = harness(db, {
     tools: {
-      resolveTools: () => ({}),
-      toToolDefinitions: () => [{ name: "draw", description: "Draw", parameters: { type: "object" }, inputShape: {} }],
-      prepareExecution: () =>
-        Promise.resolve((calls) =>
-          Promise.resolve(
-            calls.map((call) => ({ toolCallId: call.toolCallId, name: call.name, arguments: call.arguments, result: "Moon", isError: false, durationMs: 1 })),
+      resolveTools: () => ({
+        toToolDefinitions: () => [{ name: "draw", description: "Draw", parameters: { type: "object" }, inputShape: {} }],
+        prepareExecution: () =>
+          Promise.resolve((calls) =>
+            Promise.resolve(
+              calls.map((call) => ({ toolCallId: call.toolCallId, name: call.name, arguments: call.arguments, result: "Moon", isError: false, durationMs: 1 })),
+            ),
           ),
-        ),
+      }),
     },
     runChatTurn: (request) => {
       sink.push(request);
@@ -430,14 +431,22 @@ test.each([true, false])(
     ];
     const h = harness(db, {
       tools: {
-        resolveTools: () => ({}),
-        toToolDefinitions: () => [{ name: "draw", description: "Draw", parameters: { type: "object" }, inputShape: {} }],
-        prepareExecution: () =>
-          Promise.resolve((calls) =>
-            Promise.resolve(
-              calls.map((call) => ({ toolCallId: call.toolCallId, name: call.name, arguments: call.arguments, result: "Moon", isError: false, durationMs: 1 })),
+        resolveTools: () => ({
+          toToolDefinitions: () => [{ name: "draw", description: "Draw", parameters: { type: "object" }, inputShape: {} }],
+          prepareExecution: () =>
+            Promise.resolve((calls) =>
+              Promise.resolve(
+                calls.map((call) => ({
+                  toolCallId: call.toolCallId,
+                  name: call.name,
+                  arguments: call.arguments,
+                  result: "Moon",
+                  isError: false,
+                  durationMs: 1,
+                })),
+              ),
             ),
-          ),
+        }),
       },
       runChatTurn: (request) => {
         sink.push(request);

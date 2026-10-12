@@ -36,7 +36,7 @@ function toProviderDef(row: ProviderRow): ProviderDef {
 function valuesOf(args: {
   readonly row: ProviderDef;
   readonly hash: string;
-  readonly origin: "plugin" | "admin";
+  readonly origin: ProviderRow["originKind"];
   readonly admin: UserId | null;
   readonly now: number;
 }): ProviderRowInsert {

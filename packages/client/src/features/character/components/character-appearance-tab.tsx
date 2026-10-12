@@ -24,6 +24,7 @@ import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/co
 import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { FieldLayout } from "@orb/ui/field";
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -349,19 +350,23 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
 function ThemePreview({ override }: { readonly override: ReturnType<typeof overrideFromCharacterThemeForm> }): ReactElement {
   return (
     <ThemeScope tokens={override ?? {}}>
-      <Stack gap="row" className="rounded-base border border-border bg-background p-block">
-        <Text voice="label" className="text-speaker">
-          Aria
-        </Text>
-        <Stack gap="field" className="rounded-base bg-ai-bubble p-block">
-          <Text as="span" className="text-dialogue">
-            “Welcome to the archive,” she said.
-          </Text>{" "}
-          <Text as="span" className="text-narration">
-            The lamplight flickered against the shelves.
+      <Card tone="background">
+        <Stack gap="row">
+          <Text voice="label" className="text-speaker">
+            Aria
           </Text>
+          <Card tone="bubble">
+            <Stack gap="field">
+              <Text as="span" className="text-dialogue">
+                “Welcome to the archive,” she said.
+              </Text>{" "}
+              <Text as="span" className="text-narration">
+                The lamplight flickered against the shelves.
+              </Text>
+            </Stack>
+          </Card>
         </Stack>
-      </Stack>
+      </Card>
     </ThemeScope>
   );
 }

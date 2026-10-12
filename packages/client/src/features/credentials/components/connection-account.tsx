@@ -43,7 +43,7 @@ function AccountCreditsBlock({ connectionId, trpc }: { readonly connectionId: Us
       {credits.isPending ? <Text voice="gloss">Reading the balance…</Text> : null}
       {credits.isError ? (
         <>
-          <Text className="text-warning" voice="gloss">
+          <Text tone="warning" voice="gloss">
             Couldn't read the balance — {errorMessage(credits.error)}
           </Text>
           <Row gap="field">

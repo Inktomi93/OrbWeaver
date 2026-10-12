@@ -89,7 +89,7 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
       />
 
       {overCap ? (
-        <Text className="text-destructive" role="alert">
+        <Text tone="destructive" role="alert">
           That's longer than a snippet can be. Ship code this size as an installed plugin instead.
         </Text>
       ) : null}
@@ -117,7 +117,7 @@ function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactEle
   if (result.error !== undefined && result.errorKind === "parse") {
     return (
       <Stack aria-label="Snippet output" gap="block" role="status">
-        <Text className="text-destructive" voice="gloss">
+        <Text tone="destructive" voice="gloss">
           {`Didn't run — syntax error${result.errorLine === undefined ? "" : ` at line ${result.errorLine}`}: ${result.error}`}
         </Text>
       </Stack>
@@ -128,7 +128,7 @@ function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactEle
     <Stack aria-label="Snippet output" gap="block" role="status">
       {result.logLines.length === 0 ? <Text voice="gloss">It ran and logged nothing.</Text> : <LogViewer className="max-h-48" lines={[...result.logLines]} />}
       {result.error === undefined ? null : (
-        <Text className="text-destructive" voice="gloss">
+        <Text tone="destructive" voice="gloss">
           {result.error}
         </Text>
       )}

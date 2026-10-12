@@ -77,7 +77,7 @@ export function PluginInstallGitArm({
         </Button>
       </Row>
       {error === null ? null : (
-        <Text className="text-destructive" role="alert">
+        <Text tone="destructive" role="alert">
           {error}
         </Text>
       )}

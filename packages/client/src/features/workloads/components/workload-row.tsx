@@ -219,7 +219,7 @@ function WorkloadFailureDetail({ workload }: { readonly workload: WorkloadItem }
   const friendlyError = friendlyWorkloadError(rawError);
   return (
     <Stack gap="field">
-      <Text voice="gloss" className="text-destructive">
+      <Text tone="destructive" voice="gloss">
         {friendlyError ?? rawError}
       </Text>
       {friendlyError === null ? null : (

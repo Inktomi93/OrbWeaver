@@ -22,8 +22,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
-import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Card } from "@orb/ui/card";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Drama, EyeOff, Icon, Lock, ScrollText, SlidersHorizontal, Sparkles, Tag } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -32,7 +31,7 @@ import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { EditableTagChip } from "#components";
+import { EditableTagChip, ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, viewerTimeZone } from "#lib";
 
@@ -64,22 +63,33 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup size="lg" data-testid={testId("memberCardViewer")}>
-        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1`}>
-          <MemberCardBody
-            onManage={(): void => onOpenChange(false)}
-            isError={card.isError}
-            error={card.error}
-            data={card.data}
-            onRetry={(): void => void card.refetch().catch(globalThis.reportError)}
-          />
-          <DialogFooter>
-            <DialogClose render={<Button intent="ghost">Close</Button>} />
-          </DialogFooter>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <ViewerDialog
+      title={card.isError && isNotFound(card.error) ? "Card unavailable" : (card.data?.name ?? "Character card")}
+      open={open}
+      onOpenChange={onOpenChange}
+      popupProps={{ size: "lg", "data-testid": testId("memberCardViewer") }}
+      titleProps={{ className: "truncate" }}
+      headerLeading={
+        card.data === undefined ? null : (
+          <Avatar
+            size="lg"
+            fallbackDelay={0}
+            hueSeed={card.data.characterId}
+            {...(card.data.avatarHash === null ? {} : { src: blobUrl(card.data.avatarHash) })}
+          >
+            {initialsFor(card.data.name)}
+          </Avatar>
+        )
+      }
+    >
+      <MemberCardBody
+        onManage={(): void => onOpenChange(false)}
+        isError={card.isError}
+        error={card.error}
+        data={card.data}
+        onRetry={(): void => void card.refetch().catch(globalThis.reportError)}
+      />
+    </ViewerDialog>
   );
 }
 
@@ -101,30 +111,17 @@ function MemberCardBody({
     // @orb-waive empty-state-has-action(EmptyState): the D22 NOT_FOUND gone-arm ("This card isn't available" — the character left the chat, or access was revoked): there is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at.
     if (isNotFound(error)) {
       return (
-        <>
-          <DialogTitle>Card unavailable</DialogTitle>
-          <EmptyState
-            icon={<Icon icon={EyeOff} size="lg" />}
-            title="This card isn't available"
-            description="This character has left the chat, or you no longer have access to it."
-          />
-        </>
+        <EmptyState
+          icon={<Icon icon={EyeOff} size="lg" />}
+          title="This card isn't available"
+          description="This character has left the chat, or you no longer have access to it."
+        />
       );
     }
-    return (
-      <>
-        <DialogTitle>Character card</DialogTitle>
-        <QueryErrorState label="this character card" onRetry={onRetry} />
-      </>
-    );
+    return <QueryErrorState label="this character card" onRetry={onRetry} />;
   }
   if (data === undefined) {
-    return (
-      <>
-        <DialogTitle>Character card</DialogTitle>
-        <SkeletonRows count={5} shape="line" />
-      </>
-    );
+    return <SkeletonRows count={5} shape="line" />;
   }
   return <MemberCard card={data} onManage={onManage} />;
 }
@@ -149,15 +146,8 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
 function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonly onManage: () => void }): ReactElement {
   return (
     <Stack gap="block" className="relative min-h-0 overflow-y-auto overscroll-contain">
-      {/* The name renders exactly ONCE (side-eye P2): the visible name text IS the `DialogTitle` — a real
-          `<h2>` that carries the accessible dialog name — sitting beside the avatar in the hero Row. No
-          duplicate span beneath the title. */}
       <Row gap="row" align="center">
-        <Avatar size="lg" fallbackDelay={0} hueSeed={card.characterId} {...(card.avatarHash === null ? {} : { src: blobUrl(card.avatarHash) })}>
-          {initialsFor(card.name)}
-        </Avatar>
         <Stack gap="field" className="min-w-0">
-          <DialogTitle className="truncate">{card.name}</DialogTitle>
           <Row gap="field" align="center">
             <Badge size="sm" intent="neutral" tone="soft">
               <Icon icon={Lock} size="xs" />
@@ -357,8 +347,8 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
 
 function Bubble({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Stack gap="row" className="rounded-base bg-ai-bubble p-block">
-      {children}
-    </Stack>
+    <Card tone="bubble">
+      <Stack gap="row">{children}</Stack>
+    </Card>
   );
 }

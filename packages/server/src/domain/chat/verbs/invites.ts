@@ -14,9 +14,9 @@ import { randomBytes } from "node:crypto";
 import type { CreateInviteInput, DurableChatBusEvent, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { MS_PER_HOUR } from "@orb/kit/time";
 import type { ChatContext } from "../context.ts";
 import type { AssembleInvitePreviewOp, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -94,7 +94,6 @@ const TOKEN_BYTES = 32;
  *  link. A safe default is only safe if the deliberate arm it displaces is still reachable from the surface
  *  that offers it. */
 const DEFAULT_MAX_USES = 1;
-const MS_PER_HOUR = 3_600_000;
 const DEFAULT_TTL_HOURS = 48;
 const DEFAULT_TTL_MS = DEFAULT_TTL_HOURS * MS_PER_HOUR;
 

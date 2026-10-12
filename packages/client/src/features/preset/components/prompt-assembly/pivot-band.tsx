@@ -10,6 +10,7 @@
 // selects · chevron drills) so its delivery cluster stays reachable.
 
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { AlertTriangle, ChevronRight, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -27,12 +28,14 @@ export interface PivotBandProps {
 export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): ReactElement {
   if (duplicate) {
     return (
-      <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="row" padding="row">
-        <Icon icon={AlertTriangle} size="sm" />
-        <Text className="flex-1" voice="label">
-          Duplicate chat history — only the first one splits the conversation. Remove this one.
-        </Text>
-      </Row>
+      <Card tone="warning">
+        <Row align="center" className="text-warning" gap="row">
+          <Icon icon={AlertTriangle} size="sm" />
+          <Text className="flex-1" voice="label">
+            Duplicate chat history — only the first one splits the conversation. Remove this one.
+          </Text>
+        </Row>
+      </Card>
     );
   }
 
@@ -40,29 +43,31 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
   // read as two controls bracketing the row. The mock draws hairline micro-caps INSIDE the band — a zone
   // legend is a label for the space above/below the horizon, which is exactly the `kicker` voice's job.
   return (
-    <Stack className="rounded-base border border-input border-dashed bg-muted/40 p-row" gap="tight">
-      <Text className="text-info" voice="kicker">
-        setup · before the conversation
-      </Text>
-      <Row align="center" gap="row">
-        <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
-        {/* `min-w-0` on BOTH the button and its gloss: at ~530px the name collided with the chevron
+    <Card tone="muted" outline="dashed">
+      <Stack gap="tight">
+        <Text className="text-info" voice="kicker">
+          setup · before the conversation
+        </Text>
+        <Row align="center" gap="row">
+          <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
+          {/* `min-w-0` on BOTH the button and its gloss: at ~530px the name collided with the chevron
             because nothing in the row could shrink (F-18). The NAME keeps its width, the gloss truncates. */}
-        <Button className="min-w-0 flex-1 justify-start text-left" intent="ghost" onClick={onSelect} size="sm" type="button">
-          <Text as="span" className="shrink-0" voice="label">
-            Chat history
-          </Text>
-          <Text as="span" className="min-w-0 truncate" voice="gloss">
-            your conversation splices in here — always on, always placed
-          </Text>
-        </Button>
-        <Button aria-label="Edit Chat history" className="shrink-0" intent="ghost" onClick={onDrill} size="icon" type="button">
-          <Icon icon={ChevronRight} size="sm" />
-        </Button>
-      </Row>
-      <Text className="text-warning" voice="kicker">
-        post · after your last message
-      </Text>
-    </Stack>
+          <Button className="min-w-0 flex-1 justify-start text-left" intent="ghost" onClick={onSelect} size="sm" type="button">
+            <Text as="span" className="shrink-0" voice="label">
+              Chat history
+            </Text>
+            <Text as="span" className="min-w-0 truncate" voice="gloss">
+              your conversation splices in here — always on, always placed
+            </Text>
+          </Button>
+          <Button aria-label="Edit Chat history" className="shrink-0" intent="ghost" onClick={onDrill} size="icon" type="button">
+            <Icon icon={ChevronRight} size="sm" />
+          </Button>
+        </Row>
+        <Text tone="warning" voice="kicker">
+          post · after your last message
+        </Text>
+      </Stack>
+    </Card>
   );
 }

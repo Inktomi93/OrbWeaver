@@ -151,7 +151,7 @@ function PluginDistributeBody(): ReactElement {
         />
 
         {state.step === "rejected" ? (
-          <Text className="text-destructive" role="alert">
+          <Text tone="destructive" role="alert">
             {state.message}
           </Text>
         ) : null}

@@ -92,7 +92,7 @@ export function ConfigSaveFooter(): ReactElement | null {
     // Polite: it is a standing property of the stored row, true before the reader touched anything.
     return (
       <Row aria-live="polite" align="center" data-slot="config-save-footer" gap="field" role="status">
-        <Text className="text-destructive" voice="label">
+        <Text tone="destructive" voice="label">
           Not saved
         </Text>
         <Text voice="label">— your settings couldn't be read.</Text>
@@ -120,7 +120,7 @@ export function ConfigSaveFooter(): ReactElement | null {
     const count = blockedIds.length === 1 ? "a section needs a fix" : `${blockedIds.length} sections need a fix`;
     return (
       <LocateRow role="status" sectionId={firstBlocked} {...locate}>
-        <Text className="text-destructive" voice="label">
+        <Text tone="destructive" voice="label">
           Not saved
         </Text>
         <Text voice="label">{`— ${count}${canJumpToSection(firstBlocked) ? "" : "."}`}</Text>

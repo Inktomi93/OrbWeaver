@@ -60,6 +60,7 @@ const BASE_EXPECT_TIMEOUT_MS = 5000;
 const BASE_ACTION_TIMEOUT_MS = 15_000;
 const CT_ESBUILD_TARGET = "es2024";
 const CLIENT_PACKAGE_ROOT = path.resolve(import.meta.dirname, "packages/client");
+// Strict mirrors and explicit legacy runs share this matcher; the launcher filters legacy selection.
 const CT_TEST_MATCH = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component").map(({ suffix }) => `**/*${suffix}`);
 // SPELLED WHOLE, DELIBERATELY (#2183). `playwright-css-topology` proves that the source-extension transform
 // targets CLIENT GLOBALS by finding that exact repo-relative path in this file's text — it has no compiler

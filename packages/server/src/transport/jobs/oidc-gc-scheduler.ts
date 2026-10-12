@@ -16,11 +16,10 @@
 // DETERMINISM: `now` + `scheduleInterval` are injected (no ambient `Date.now`/`setInterval`). The testable core
 // `runOidcGc` takes one sweep and returns; the loop fires it at boot + on the injected timer.
 
+import { MS_PER_HOUR } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
 
 const LOG_COMPONENT = "oidc-gc-scheduler";
-
-const MS_PER_HOUR = 3_600_000;
 
 // @orb-waive no-vanity-alias(OIDC_GC_INTERVAL_MS): baselined when the gate widened; burn-down item 906.
 /** Sweep cadence. PKCE transactions are short-lived (10-min TTL); an hourly reap is generous — an abandoned row

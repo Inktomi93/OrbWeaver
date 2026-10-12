@@ -126,15 +126,6 @@ const freshOwner = (): OwnerAccum => ({
   lastActivityAt: 0,
 });
 
-function get<K, V>(map: Map<K, V>, key: K, mk: () => V): V {
-  let v = map.get(key);
-  if (v === undefined) {
-    v = mk();
-    map.set(key, v);
-  }
-  return v;
-}
-
 function foldTokenSamples(acc: TokenSampleAccum, r: Pick<GenRow, "ti" | "tout" | "tokenProvenance">): void {
   if (r.tokenProvenance === "unrecorded") {
     return;
@@ -223,7 +214,7 @@ function foldVariantLegs(
     });
     foldSpend(delta, a);
     if (cid !== null) {
-      const character = get(a.charMap, cid, freshChar);
+      const character = a.charMap.getOrInsertComputed(cid, freshChar);
       character.tokensIn += delta.tokensIn ?? 0;
       character.tokensOut += delta.tokensOut ?? 0;
       character.tokensInMeasuredSamples += delta.tokensInMeasuredSamples ?? 0;
@@ -289,8 +280,8 @@ function foldRoleCounts(owner: OwnerAccum, bucket: BucketAccum, r: CanonMessage)
 }
 
 /** Per-character grain (assistant only; system/user carry no characterId). */
-function foldMessageChar(charMap: Map<string, CharAccum>, r: CanonMessage): void {
-  const c = get(charMap, r.cid as string, freshChar);
+function foldMessageChar(charMap: Map<string, CharAccum>, r: CanonMessage, cid: string): void {
+  const c = charMap.getOrInsertComputed(cid, freshChar);
   c.assistantTurns++;
   c.assistantWords += wordCount(r.content);
   c.contentChars += r.content?.length ?? 0;
@@ -320,7 +311,7 @@ function foldMessageChar(charMap: Map<string, CharAccum>, r: CanonMessage): void
 /** Fold one message (its SELECTED variant — the kept take) across owner/char/bucket/model accumulators. */
 function foldMessage(r: CanonMessage, a: Accums): void {
   const notionalSamples = legacyNotionalCostSamples(r.cost, parseVariantMetadata(r.metadata === null ? null : JSON.parse(r.metadata)));
-  const bucket = get(a.bucketMap, statsBucketStart(r.createdAt), freshBucket);
+  const bucket = a.bucketMap.getOrInsertComputed(statsBucketStart(r.createdAt), freshBucket);
   if (r.createdAt - r.chatCreatedAt > MIGRATION_GAP_MS) {
     bucket.approx = true;
   }
@@ -337,12 +328,12 @@ function foldMessage(r: CanonMessage, a: Accums): void {
     a.owner.reasoningGenerations++;
   }
   if (r.role === "assistant" && r.cid !== null) {
-    foldMessageChar(a.charMap, r);
-    get(a.charMap, r.cid, freshChar).notionalCostSamples += notionalSamples;
+    foldMessageChar(a.charMap, r, r.cid);
+    a.charMap.getOrInsertComputed(r.cid, freshChar).notionalCostSamples += notionalSamples;
   }
   const identity = r.role === "assistant" ? modelIdentity(r.model, r.provider) : null;
   if (identity !== null) {
-    const entry = get(a.modelMap, modelMapKey(identity.model, identity.provider), () => ({
+    const entry = a.modelMap.getOrInsertComputed(modelMapKey(identity.model, identity.provider), () => ({
       ...identity,
       acc: freshModel(),
     }));
@@ -356,8 +347,8 @@ function foldMessage(r: CanonMessage, a: Accums): void {
 }
 
 /** Per-character swipe fold (assistant re-rolls). */
-function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow): void {
-  const c = get(charMap, r.cid as string, freshChar);
+function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow, cid: string): void {
+  const c = charMap.getOrInsertComputed(cid, freshChar);
   c.swipes++;
   c.swipeWords += wordCount(r.content);
   c.contentChars += r.content?.length ?? 0;
@@ -378,7 +369,7 @@ function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow): void {
 /** Fold one swipe (a NON-selected variant) across owner/char/bucket/model. Swipes credit the RE-ROLL
  *  counters; the timeline bucket gets swipe COUNT + gen-time but NOT swipe tokens (esoteric #1). */
 function foldSwipe(r: SwipeRow, a: Accums): void {
-  const bucket = get(a.bucketMap, statsBucketStart(r.msgCreatedAt), freshBucket);
+  const bucket = a.bucketMap.getOrInsertComputed(statsBucketStart(r.msgCreatedAt), freshBucket);
   const gen = genDurationMs(r);
   a.owner.swipes++;
   a.owner.swipeWords += wordCount(r.content);
@@ -397,11 +388,11 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
     a.owner.reasoningGenerations++;
   }
   if (r.cid !== null) {
-    foldSwipeChar(a.charMap, r);
+    foldSwipeChar(a.charMap, r, r.cid);
   }
   const identity = modelIdentity(r.model, r.provider);
   if (identity !== null) {
-    const entry = get(a.modelMap, modelMapKey(identity.model, identity.provider), () => ({
+    const entry = a.modelMap.getOrInsertComputed(modelMapKey(identity.model, identity.provider), () => ({
       ...identity,
       acc: freshModel(),
     }));
@@ -481,8 +472,9 @@ export function foldSpend(d: StatsDelta, a: Accums): void {
   const identity = modelIdentity(d.model, d.provider);
   const grains: SpendGrains = {
     owner: a.owner,
-    bucket: get(a.bucketMap, d.bucketStart, freshBucket),
-    model: identity === null ? null : get(a.modelMap, modelMapKey(identity.model, identity.provider), () => ({ ...identity, acc: freshModel() })).acc,
+    bucket: a.bucketMap.getOrInsertComputed(d.bucketStart, freshBucket),
+    model:
+      identity === null ? null : a.modelMap.getOrInsertComputed(modelMapKey(identity.model, identity.provider), () => ({ ...identity, acc: freshModel() })).acc,
   };
   for (const field of SPEND_DELTA_FIELDS) {
     const v = d[field];
@@ -513,7 +505,7 @@ export function ownerExtrema(owner: OwnerAccum, meta: ChatMeta): void {
  *  a room it has since LEFT with its seat row dropped by an old write. Sorted so the emitted row order (and
  *  therefore the minted-id order) is a pure function of the canon. */
 function censusPopulation(charMap: Map<string, CharAccum>, meta: ChatMeta): string[] {
-  return [...new Set([...charMap.keys(), ...meta.chatByChar.keys()])].sort();
+  return [...new Set(charMap.keys()).union(meta.chatByChar)].toSorted();
 }
 
 /** Census rows include silent seats and retained authorship; activity ordering is canon-derived. */
@@ -598,7 +590,7 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
 
 /** A chat creation without messages still produces a timeline bucket. */
 export function buildBucketRows(ownerId: UserId, bucketMap: Map<number, BucketAccum>, meta: ChatMeta, now: number): (typeof dailyStats.$inferInsert)[] {
-  const bucketKeys = new Set([...bucketMap.keys(), ...meta.chatsCreatedByBucket.keys()]);
+  const bucketKeys = new Set(bucketMap.keys()).union(meta.chatsCreatedByBucket);
   return [...bucketKeys].map((bucketStart) => {
     const d = bucketMap.get(bucketStart) ?? freshBucket();
     return {

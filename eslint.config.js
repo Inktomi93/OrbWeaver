@@ -147,7 +147,7 @@ const COMPONENT_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(
 const componentTestGlobs = (root) => COMPONENT_TEST_SUFFIXES.map((suffix) => `${root}/**/*${suffix}`);
 // Every product test sits in the legacy folder until its domain is rebuilt; a rebuilt mirror home (`tests/<pkg>`) joins
 // this list when its first file lands, because a selector with no member is a dead rule block.
-const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`];
+const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`, ...(pkg === "client" ? ["tests/client/components"] : [])];
 const homeGlobs = (pkg, glob) => testHomes(pkg).map((home) => `${home}/${glob}`);
 const UI_CT = testHomes("ui").flatMap((home) => componentTestGlobs(home));
 const UI_FIXTURES = homeGlobs("ui", "**/*.fixtures.tsx");

@@ -2,14 +2,15 @@
 // keyset-paged grid with "Load more", a lightbox whose remove sits behind a confirm, and the add-picker. The
 // "This chat" scope filters inside the caller's own gallery, never wider. Focus never leaves the dialog.
 
+import { PickerDialog } from "#components";
 import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
 import type { CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ImagePlus, Images } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import type { MediaGridHandle, MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Toggle } from "@orb/ui/toggle";
@@ -181,110 +182,97 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        {/* Top-anchored: the scope filter changes the body's height, and a centred popup would move the
-            heading and the filter out from under the pointer. */}
-        {/* The first tabbable changes as loading settles; initial focus targets the popup that stays mounted. */}
-        <DialogPopup anchor="top" initialFocus={popupRef} ref={popupRef} size="lg">
-          {/* The container the grid's height reads: a phone-width dialog keeps the grid short enough that the
-              zone above it and "Load more" below it stay on screen. */}
-          <Stack gap="block" className="@container">
-            <Row justify="between" align="center" gap="row">
-              {/* Focusable by script only: a removal that empties the gallery puts focus here. */}
-              <DialogTitle className="min-w-0" ref={headingRef} tabIndex={-1}>
-                {galleryLabel}
-              </DialogTitle>
-              <Row align="center" className="shrink-0" gap="row">
-                {galleryEmpty && scope === "everywhere" ? null : (
-                  <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
-                    <Icon icon={ImagePlus} size="sm" />
-                    Add images
-                  </Button>
-                )}
-                <DialogClose
-                  render={
-                    <Button intent="ghost" size="sm">
-                      Close
-                    </Button>
-                  }
-                />
-              </Row>
-            </Row>
-
-            {scopes === null && galleryEmpty ? null : (
-              <Row className="flex-wrap" gap="row">
-                {scopes === null ? null : (
-                  <ToggleGroup
-                    aria-label="Show images from"
-                    onValueChange={(picked): void => {
-                      // A one-of-N strip has no release: clicking the active segment yields an empty array.
-                      const next = picked[0];
-                      if (isGalleryScope(next)) {
-                        setScope(next);
-                      }
-                    }}
-                    semantics="radio"
-                    value={[scope]}
-                  >
-                    {scopes.map((option) => (
-                      <Toggle
-                        checked={option === scope}
-                        key={option}
-                        ref={option === "everywhere" ? everywhereRef : undefined}
-                        semantics="radio"
-                        value={option}
-                      >
-                        {GALLERY_SCOPE_LABELS[option]}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                )}
-                {galleryEmpty ? null : (
-                  <ToggleGroup
-                    aria-label="Order"
-                    onValueChange={(picked): void => {
-                      const next = picked[0];
-                      if (isGallerySort(next)) {
-                        setSort(next);
-                      }
-                    }}
-                    semantics="radio"
-                    value={[sort]}
-                  >
-                    {GALLERY_SORTS.map((option) => (
-                      <Toggle checked={option === sort} key={option} semantics="radio" value={option}>
-                        {GALLERY_SORT_LABELS[option]}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                )}
-              </Row>
+      <PickerDialog
+        title={galleryLabel}
+        open={open}
+        onOpenChange={onOpenChange}
+        popupProps={{ anchor: "top", initialFocus: popupRef, ref: popupRef, size: "lg" }}
+        titleProps={{ className: "min-w-0", ref: headingRef, tabIndex: -1 }}
+        bodyProps={{ className: "@container" }}
+        headerActions={
+          <Row align="center" className="shrink-0" gap="row">
+            {galleryEmpty && scope === "everywhere" ? null : (
+              <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
+                <Icon icon={ImagePlus} size="sm" />
+                Add images
+              </Button>
             )}
+            <DialogClose
+              render={
+                <Button intent="ghost" size="sm">
+                  Close
+                </Button>
+              }
+            />
+          </Row>
+        }
+      >
+        {scopes === null && galleryEmpty ? null : (
+          <Row className="flex-wrap" gap="row">
+            {scopes === null ? null : (
+              <ToggleGroup
+                aria-label="Show images from"
+                onValueChange={(picked): void => {
+                  // A one-of-N strip has no release: clicking the active segment yields an empty array.
+                  const next = picked[0];
+                  if (isGalleryScope(next)) {
+                    setScope(next);
+                  }
+                }}
+                semantics="radio"
+                value={[scope]}
+              >
+                {scopes.map((option) => (
+                  <Toggle checked={option === scope} key={option} ref={option === "everywhere" ? everywhereRef : undefined} semantics="radio" value={option}>
+                    {GALLERY_SCOPE_LABELS[option]}
+                  </Toggle>
+                ))}
+              </ToggleGroup>
+            )}
+            {galleryEmpty ? null : (
+              <ToggleGroup
+                aria-label="Order"
+                onValueChange={(picked): void => {
+                  const next = picked[0];
+                  if (isGallerySort(next)) {
+                    setSort(next);
+                  }
+                }}
+                semantics="radio"
+                value={[sort]}
+              >
+                {GALLERY_SORTS.map((option) => (
+                  <Toggle checked={option === sort} key={option} semantics="radio" value={option}>
+                    {GALLERY_SORT_LABELS[option]}
+                  </Toggle>
+                ))}
+              </ToggleGroup>
+            )}
+          </Row>
+        )}
 
-            {/* Above the grid: at a phone's height a full grid would push the zone below the fold. */}
-            <GalleryUploadZone characterId={characterId} characterName={characterName} inputRef={uploadInputRef} />
-            <GalleryGridBody
-              isPending={gallery.isPending}
-              isError={gallery.error !== null && items.length === 0}
-              onRetry={gallery.refetch}
-              scope={scope}
-              onShowEverywhere={showEverywhere}
-              gridItems={gridItems}
-              galleryLabel={galleryLabel}
-              characterName={characterName}
-              onActivate={openLightbox}
-              onAddClick={(): void => setPickerOpen(true)}
-              gridRef={gridRef}
-            />
-            <GalleryLoadMore
-              hasNextPage={gallery.hasNextPage}
-              isFetchingNextPage={gallery.isFetchingNextPage}
-              failed={gallery.error !== null && items.length > 0}
-              onLoadMore={focus.loadMore}
-            />
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+        {/* Above the grid: at a phone's height a full grid would push the zone below the fold. */}
+        <GalleryUploadZone characterId={characterId} characterName={characterName} inputRef={uploadInputRef} />
+        <GalleryGridBody
+          isPending={gallery.isPending}
+          isError={gallery.error !== null && items.length === 0}
+          onRetry={gallery.refetch}
+          scope={scope}
+          onShowEverywhere={showEverywhere}
+          gridItems={gridItems}
+          galleryLabel={galleryLabel}
+          characterName={characterName}
+          onActivate={openLightbox}
+          onAddClick={(): void => setPickerOpen(true)}
+          gridRef={gridRef}
+        />
+        <GalleryLoadMore
+          hasNextPage={gallery.hasNextPage}
+          isFetchingNextPage={gallery.isFetchingNextPage}
+          failed={gallery.error !== null && items.length > 0}
+          onLoadMore={focus.loadMore}
+        />
+      </PickerDialog>
 
       <GalleryLightbox
         image={lightboxItem === undefined ? null : { hash: lightboxItem.hash, name: galleryImageName(lightboxIndex + 1, lightboxItem.createdAt) }}

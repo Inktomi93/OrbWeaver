@@ -3,12 +3,12 @@
 // `import.meta.env.DEV` dynamic door in main.tsx; production readiness lives in app-ready-signal.ts (#995).
 
 import type { QueryClient } from "@tanstack/react-query";
+import { readAutomationFires } from "#data";
 import type { AppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import { readAppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
-import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";

@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { openConfigTo, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
@@ -57,7 +57,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     // the scroller, the chain is unbroken, and the scroller survives the read.
     <Stack className="relative min-h-0 overflow-y-auto overscroll-contain">
       <QueryBoundary
-        fallback={<Text voice="quiet">Loading…</Text>}
+        fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
         reserveKey="character.facetInspector"
       >

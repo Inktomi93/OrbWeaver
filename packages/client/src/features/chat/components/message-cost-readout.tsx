@@ -44,7 +44,7 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
   // fetch. The two null re-checks are what narrows the pair for `tsc`; `settleable` is the decision.
   const gateKey = revealed && settleable && generationId !== null && connectionId !== null ? { generationId, connectionId } : undefined;
   const query = useGatedQuery(gateKey, (key: { readonly generationId: string; readonly connectionId: UserConnectionId }) =>
-    trpc.connection.generationCost.queryOptions(key, { staleTime: Number.POSITIVE_INFINITY }),
+    trpc.connection.generationCost.queryOptions(key),
   );
 
   if (!settleable) {

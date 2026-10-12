@@ -123,7 +123,7 @@ function RegexScopePanel({
           of attaching changes that. Said here as well as on the row and in the editor, because this is the
           pane a reader opens to ask the question. */}
       {script.placement.length === 0 ? (
-        <Text className="text-destructive" voice="label">
+        <Text tone="destructive" voice="label">
           This script has no “Runs on” stream selected, so it will not run in any of these scopes. Pick one in the editor.
         </Text>
       ) : null}

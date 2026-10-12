@@ -45,7 +45,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
@@ -127,7 +127,7 @@ export function CharacterLibraryWelcome(): ReactElement {
     // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
     <Container className="relative h-full overflow-y-auto overscroll-contain">
       <QueryBoundary
-        fallback={<Text voice="quiet">Loading your characters…</Text>}
+        fallback={<SkeletonRows count={3} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
         reserveKey="character.libraryWelcome"
       >

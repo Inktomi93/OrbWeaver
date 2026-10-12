@@ -19,7 +19,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
@@ -57,7 +57,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
           slot ride the scroller, which is where #1200 put them. */}
       <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
         <QueryBoundary
-          fallback={<Text voice="gloss">Loading character stats…</Text>}
+          fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
           reserveKey="analytics.character"
         >
@@ -119,7 +119,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       )}
 
       <Stack gap="field">
-        <Text className="text-title leading-title font-semibold">{stats.name}</Text>
+        <Text voice="promoted">{stats.name}</Text>
         <Text voice="gloss" role="note">
           This character · Aggregate only
         </Text>

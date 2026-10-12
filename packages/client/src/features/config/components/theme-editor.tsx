@@ -20,6 +20,7 @@ import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import type { CodeEditorDiagnostic, CodeEditorProps } from "@orb/ui/code-editor";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -220,25 +221,27 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
   return (
     <Stack gap="block">
       <ThemeScope tokens={themeOverrideFromForm(values)}>
-        <Stack gap="row" className="rounded-base border border-border bg-background p-block">
-          <Text voice="label" className="text-speaker">
-            Aria
-          </Text>
-          <Stack gap="field" className={messageBubbleClass("assistant")}>
-            <Text as="span" className="text-dialogue">
-              “Welcome to the archive,” she said.
-            </Text>{" "}
-            <Text as="span" className="text-narration">
-              The lamplight flickered against the shelves.
+        <Card tone="background">
+          <Stack gap="row">
+            <Text voice="label" className="text-speaker">
+              Aria
             </Text>
-            <Text as="span" className="text-prose-body">
-              Everything here has a story.
-            </Text>
+            <Stack gap="field" className={messageBubbleClass("assistant")}>
+              <Text as="span" className="text-dialogue">
+                “Welcome to the archive,” she said.
+              </Text>{" "}
+              <Text as="span" className="text-narration">
+                The lamplight flickered against the shelves.
+              </Text>
+              <Text as="span" className="text-prose-body">
+                Everything here has a story.
+              </Text>
+            </Stack>
+            <Stack gap="field" className={`self-end ${messageBubbleClass("user")}`}>
+              <Text as="span">Show me the oldest one.</Text>
+            </Stack>
           </Stack>
-          <Stack gap="field" className={`self-end ${messageBubbleClass("user")}`}>
-            <Text as="span">Show me the oldest one.</Text>
-          </Stack>
-        </Stack>
+        </Card>
       </ThemeScope>
       <ContrastReport values={values} />
     </Stack>

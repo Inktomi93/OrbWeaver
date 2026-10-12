@@ -155,7 +155,7 @@ function PickerBody({
         />
       ))}
       {failure === null ? null : (
-        <Text className="text-destructive" role="alert" voice="label">
+        <Text tone="destructive" role="alert" voice="label">
           {failure}
         </Text>
       )}

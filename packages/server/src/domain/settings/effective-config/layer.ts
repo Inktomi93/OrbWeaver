@@ -5,6 +5,7 @@
 import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { DEFAULT_DISCREET_LOGIN, DEFAULT_LOCAL_MULTI_USER, DEFAULT_MAX_IMAGE_BYTES, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
+import { MS_PER_DAY } from "@orb/kit/time";
 import { env } from "#foundation/env";
 
 // Born-in-DB floors (no env var; only an admin override moves them).
@@ -16,9 +17,6 @@ const TRUST_HTML_FLOOR = false;
 // the WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1). Each viewer can also
 // turn card scripts off for their own browser (`UserSettings.chat.runCardScripts`).
 const ALLOW_INTERACTIVE_CARDS_FLOOR = true;
-const MS_PER_HOUR = 3_600_000;
-const HOURS_PER_DAY = 24;
-const MS_PER_DAY = MS_PER_HOUR * HOURS_PER_DAY;
 // The per-transform prompt-transform deadline (item 2) — was the PROMPT_TRANSFORM_DEADLINE_MS const.
 const PROMPT_TRANSFORM_DEADLINE_MS_FLOOR = 250;
 // @orb-waive no-vanity-alias(CATALOG_REFRESH_INTERVAL_MS_FLOOR): baselined when the gate widened; burn-down item 906.

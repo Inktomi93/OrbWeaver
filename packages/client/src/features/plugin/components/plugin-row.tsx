@@ -199,7 +199,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               {plugin.lastError === null ? null : (
                 // The raw error is developer text; the card says it plainly and keeps the detail one press away.
                 <Row align="center" className="flex-wrap" gap="field">
-                  <Text className="max-w-(--reading-measure-prose) text-destructive" prose={true} voice="gloss">
+                  <Text tone="destructive" className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
                     {PLUGIN_ERROR_SENTENCE}
                   </Text>
                   <CopyButton text={plugin.lastError} what={PLUGIN_ERROR_COPY_SUBJECT} />
@@ -264,7 +264,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
         ) : null}
 
         {uploadError === null ? null : (
-          <Text className="text-destructive" prose={true} role="alert">
+          <Text tone="destructive" prose={true} role="alert">
             {uploadError}
           </Text>
         )}

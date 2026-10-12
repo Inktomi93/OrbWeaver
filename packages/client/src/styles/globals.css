@@ -1051,14 +1051,6 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
   --fade-bottom-stop: var(--spacing-section);
 }
 
-/* Hairline avatar border: keeps an avatar from dissolving into a blurred/photo background.
- * Auto-on when a background image is active — data-driven, never a separate toggle. */
-.shell-grid[data-has-bg-image] [data-slot="avatar-root"] {
-  border-width: var(--border-width-hairline);
-  border-style: solid;
-  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
-}
-
 /* Echo's track is the shared content track plus its art width (#212/#213). The skin's box/column cap is
  * component-owned inline geometry in message-row-variants; this selector is the track mechanism only. */
 .orb-echo-track {

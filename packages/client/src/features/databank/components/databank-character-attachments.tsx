@@ -3,14 +3,13 @@
 
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker } from "#components";
+import { CharacterPicker, PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCharacter, setActiveSection } from "#state";
@@ -83,28 +82,23 @@ export function CharacterAttachments({
       ) : null}
       {attach.error === null ? null : <MutationRetry copy={`Couldn't attach ${pickedName ?? "that character"}.`} onRetry={attach.retry} />}
       {detach.error === null ? null : <MutationRetry copy="Couldn't detach that character." onRetry={detach.retry} />}
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>Attach to a character</DialogTitle>
-            <Text voice="gloss">Choose from your character library. This document will feed chats that include that character.</Text>
-            <CharacterPicker
-              autoFocusSearch={true}
-              emptyText="No unattached characters match."
-              excludeIds={characters.map((character) => character.id)}
-              label="Attach document to a character"
-              onEscape={(): void => setPickerOpen(false)}
-              onSelect={(characterId, name): void => {
-                setPickedName(name);
-                setPickerOpen(false);
-                attach.mutate({ characterId, documentId });
-              }}
-              placeholder="Search your characters…"
-              reserveKey="databank.attachCharacterPicker"
-            />
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <PickerDialog title="Attach to a character" open={pickerOpen} onOpenChange={setPickerOpen}>
+        <Text voice="gloss">Choose from your character library. This document will feed chats that include that character.</Text>
+        <CharacterPicker
+          autoFocusSearch={true}
+          emptyText="No unattached characters match."
+          excludeIds={characters.map((character) => character.id)}
+          label="Attach document to a character"
+          onEscape={(): void => setPickerOpen(false)}
+          onSelect={(characterId, name): void => {
+            setPickedName(name);
+            setPickerOpen(false);
+            attach.mutate({ characterId, documentId });
+          }}
+          placeholder="Search your characters…"
+          reserveKey="databank.attachCharacterPicker"
+        />
+      </PickerDialog>
     </Stack>
   );
 }

@@ -4,7 +4,7 @@ import { tv } from "#lib";
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
 // (docs/law/integer-line-boxes.md: leadings are fixed integer line boxes, never unitless ratios).
 export const textVariants = tv({
-  base: "font-sans",
+  base: "font-sans text-foreground",
   variants: {
     size: {
       display: "text-display leading-display",
@@ -22,14 +22,6 @@ export const textVariants = tv({
       semibold: "font-semibold",
       bold: "font-bold",
     },
-    tone: {
-      default: "text-foreground",
-      muted: "text-muted-foreground",
-      accent: "text-primary",
-      destructive: "text-destructive",
-      success: "text-success",
-      warning: "text-warning",
-    },
     transform: {
       none: "",
       caps: "uppercase",
@@ -40,11 +32,7 @@ export const textVariants = tv({
     // THIS TUPLE IS THE TRUTH, not any doc table — §2.3 rules that a new arm enters only with its
     // discriminator against the nearest existing voice stated beside its class string, as below.
     //
-    // DECLARED LAST ON PURPOSE: tv() emits variant classes in key order and `defaultVariants` always
-    // supplies size/weight/tone/transform, so every conflicting axis a voice sets must come AFTER them for
-    // tailwind-merge to keep it. Each voice therefore re-spells EVERY axis it needs to win (family, size,
-    // leading, tracking, weight, color) — an under-spelled voice silently inherits a default. Pinned by
-    // computed value in tests/legacy/ui/density-tier.suite.ct.tsx, never by reading this file.
+    // Voices override typography defaults; an explicit status tone overrides the voice colour.
     voice: {
       // A section's NAME — never a datum. The mocks' `.kicker` (9.5px caps, .09em, 650); pair with
       // <Section kicker> for the hairline rule that completes the CD1 "a grouping is not a box" swap.
@@ -198,18 +186,16 @@ export const textVariants = tv({
     lines: {
       2: "line-clamp-2 orb-lines-2 whitespace-normal",
     },
-    // THE INHERITED-INK MODIFIER (side-eye 2026-08-09 P1-1). Every voice re-spells its own COLOR — which
-    // is correct on a surface and actively wrong inside a FILLED control, where the control already
-    // decided the ink. Measured on the refinery stage stepper: `voice="label"`/`"gloss"` inside
-    // `<Button intent="primary">` painted `text-foreground`/`text-muted-foreground` on `bg-primary` at
-    // **1.14:1 and 2.30:1** — a WCAG failure produced entirely by the two layers each being individually
-    // correct. `tone` cannot express the fix: it is declared BEFORE `voice`, so a voice's own color wins
-    // the merge (the ordering law in the `voice` comment above).
-    //
-    // `ink="inherit"` hands the color back to whatever set `currentColor` — the button's
-    // `text-primary-foreground`, a tinted banner, an inverted band. It is a CONTEXT statement, not a
-    // taste knob, which is why it is not one of the four internal axes the density gate ratchets (the
-    // `prose` precedent). Declared LAST so it wins the color merge against both `tone` and `voice`.
+    tone: {
+      // The base supplies default ink; leaving this empty preserves each voice colour.
+      default: "",
+      muted: "text-muted-foreground",
+      accent: "text-primary",
+      destructive: "text-destructive",
+      success: "text-success",
+      warning: "text-warning",
+    },
+    // Filled controls own their ink, even when the child supplies a voice or tone.
     ink: {
       /** Take the surrounding control's ink. The ONLY correct value for text inside a filled control. */
       inherit: "text-current",

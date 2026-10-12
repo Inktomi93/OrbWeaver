@@ -17,8 +17,26 @@ Each is a written rule the gates claim but miss.
 
 ## Done when
 
-The sites are fixed or derived; no-loose-id-cast judges single-step brand casts; no-raw-id judges bare and plural ids; each widened gate has planted controls.
+The source sites are fixed or derived; plugin inputs use canonical ID parsing; gate extension acceptance cases are recorded for the owning lane.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Source standardization only, by owner direction. Gate extensions belong to the gate rebuild.
+
+- `no-loose-id-cast`: the plugin broker's `chatAt` cast guest input to ChatId without parsing.
+- `no-raw-id`: `themeSchema.id` and `assembleTraceSchema.worldInfoActivated[].id` accepted unvalidated strings.
+- `no-raw-id` negative case: `TriggerFact.worldInfo.entryIds` crosses the plugin sandbox as unbranded predicate data, as its contract requires.
+
+Chat tool sets carry typed closures over the concrete registry result. Plugin chat and book inputs pass through canonical ID parsers.
+
+The shared config lift walker preserves strict file rejection and permissive stored-config degradation. Extraction uses native structuredClone. Maps, sets, role projections and time units use their canonical homes.
+
+`worldInfoDropped.id` remains a string because the budget includes synthetic injection keys such as `user:0`.
+`AppFormInstance` mirrors TanStack's third-party function, which the TypeScript law permits.
+
+Package typechecks passed for client, contracts, db, inference, kit, server and ui. The node and browser test-program typechecks passed.
+Focused contract, auth, plugin, import, stats and tool-turn tests passed. The commit report names their scopes.
+
+Integration preserves the strict dialog CT mirror while existing tests remain under the legacy folder.
+The rebuilt directory is collected by CT, composite sweeps, ESLint and import-population.
+Strict dialog CTs, the selected legacy CTs, the conflicted image/tool ordering suite and affected typecheck programs passed.

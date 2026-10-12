@@ -11,27 +11,33 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { CharacterPicker, PickerDialog, QueryBoundary } from "#components";
+import { SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useConnectCharacter, useDisconnectCharacter } from "../hooks/use-persona-mutations.ts";
 
-/** Connected characters: list + disconnect + the connect picker. Non-suspense read — the editor is an
- *  expansion body and must not blank its siblings while the junction loads. */
-export function PersonaConnectedCharacters({ personaId }: { readonly personaId: PersonaId }): ReactElement {
+/** Keeps junction loading and retry local to the editor section. */
+export function PersonaConnectedCharacters(props: { readonly personaId: PersonaId }): ReactElement {
+  return (
+    <QueryBoundary fallback={<SkeletonRows count={3} shape="avatar-row" />}>
+      <ConnectedCharactersBody {...props} />
+    </QueryBoundary>
+  );
+}
+
+function ConnectedCharactersBody({ personaId }: { readonly personaId: PersonaId }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const connect = useConnectCharacter({ trpc, invalidation });
   const disconnect = useDisconnectCharacter({ trpc, invalidation });
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { data: connected } = useQuery(trpc.persona.listConnectedCharacters.queryOptions({ personaId }));
+  const { data: connected } = useSuspenseQuery(trpc.persona.listConnectedCharacters.queryOptions({ personaId }));
 
   const onPick = (characterId: CharacterId): void => {
     connect.mutate({ characterId, personaId });
@@ -40,8 +46,8 @@ export function PersonaConnectedCharacters({ personaId }: { readonly personaId: 
 
   return (
     <Section heading="Connected characters">
-      {connected === undefined || connected.length === 0 ? (
-        <Text voice="gloss">{connected === undefined ? "Loading…" : "No characters connected."}</Text>
+      {connected.length === 0 ? (
+        <Text voice="gloss">No characters connected.</Text>
       ) : (
         <Stack gap="row">
           {connected.map((character) => (
@@ -63,23 +69,18 @@ export function PersonaConnectedCharacters({ personaId }: { readonly personaId: 
           Connect a character
         </Button>
       </Row>
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>Connect a character</DialogTitle>
-            <CharacterPicker
-              autoFocusSearch={true}
-              emptyText="No characters match."
-              excludeIds={(connected ?? []).map((character) => character.id)}
-              label="Connect a character"
-              onEscape={(): void => setPickerOpen(false)}
-              onSelect={onPick}
-              placeholder="Search characters…"
-              reserveKey="persona.connectCharacterPicker"
-            />
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <PickerDialog title="Connect a character" open={pickerOpen} onOpenChange={setPickerOpen}>
+        <CharacterPicker
+          autoFocusSearch={true}
+          emptyText="No characters match."
+          excludeIds={connected.map((character) => character.id)}
+          label="Connect a character"
+          onEscape={(): void => setPickerOpen(false)}
+          onSelect={onPick}
+          placeholder="Search characters…"
+          reserveKey="persona.connectCharacterPicker"
+        />
+      </PickerDialog>
     </Section>
   );
 }

@@ -5,7 +5,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Images } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -15,6 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useAddToGallery, useGalleryCandidates } from "../hooks/use-character-gallery.ts";
@@ -89,7 +90,10 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
   };
 
   return (
-    <Dialog
+    <PickerDialog
+      title="Add images to the gallery"
+      bodyProps={{ className: "@container" }}
+      popupProps={{ size: "lg" }}
       open={open}
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
@@ -97,13 +101,8 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
         }
       }}
     >
-      <DialogPopup size="lg">
-        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1 @container`}>
-          <DialogTitle>Add images to the gallery</DialogTitle>
-          <OwnedAssetPicker characterId={characterId} failure={failure} isOwned={isOwned} onConfirm={confirmAdd} onUploadInstead={onUploadInstead} />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+      <OwnedAssetPicker characterId={characterId} failure={failure} isOwned={isOwned} onConfirm={confirmAdd} onUploadInstead={onUploadInstead} />
+    </PickerDialog>
   );
 }
 
@@ -197,7 +196,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         onLoadMore={focus.loadMore}
       />
       {failure === null ? null : (
-        <Text className="text-destructive" role="alert" voice="label">
+        <Text tone="destructive" role="alert" voice="label">
           {failure}
         </Text>
       )}

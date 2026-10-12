@@ -5,13 +5,12 @@
 // the picker's own grammar); the switch is read at pick time, so it sits ABOVE the list.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker } from "#components";
+import { CharacterPicker, PickerDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { usePersonaFromCharacter } from "../hooks/use-persona-mutations.ts";
@@ -49,27 +48,22 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup>
-        <Stack gap="block">
-          <DialogTitle>New persona from a character</DialogTitle>
-          <Row gap="row" align="center" className="justify-between">
-            <Text voice="label">{SWAP_LABEL}</Text>
-            {/* Default ON: a card's description speaks about {{char}}; as a persona the same prose must
+    <PickerDialog title="New persona from a character" open={open} onOpenChange={onOpenChange}>
+      <Row gap="row" align="center" className="justify-between">
+        <Text voice="label">{SWAP_LABEL}</Text>
+        {/* Default ON: a card's description speaks about {{char}}; as a persona the same prose must
                 speak about {{user}} or every self-reference points at the wrong seat. */}
-            <Switch aria-label={SWAP_LABEL} checked={swapMacros} onCheckedChange={setSwapMacros} />
-          </Row>
-          <CharacterPicker
-            autoFocusSearch={true}
-            emptyText="No characters match."
-            label="New persona from a character"
-            onEscape={(): void => onOpenChange(false)}
-            onSelect={onPick}
-            placeholder="Search characters…"
-            reserveKey="persona.fromCharacterPicker"
-          />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+        <Switch aria-label={SWAP_LABEL} checked={swapMacros} onCheckedChange={setSwapMacros} />
+      </Row>
+      <CharacterPicker
+        autoFocusSearch={true}
+        emptyText="No characters match."
+        label="New persona from a character"
+        onEscape={(): void => onOpenChange(false)}
+        onSelect={onPick}
+        placeholder="Search characters…"
+        reserveKey="persona.fromCharacterPicker"
+      />
+    </PickerDialog>
   );
 }

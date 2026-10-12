@@ -38,7 +38,7 @@ export function useThemeAutosave({ theme, mint }: ThemeAutosaveDeps): ThemeAutos
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTheme = useUpdateTheme({ trpc, invalidation });
-  const themeId = theme.id as ThemeId;
+  const themeId = theme.id;
 
   // The row this session actually writes to, and the single in-flight mint. Both are refs: read/written
   // only inside `ensureRow`, never at render.
@@ -55,9 +55,9 @@ export function useThemeAutosave({ theme, mint }: ThemeAutosaveDeps): ThemeAutos
     mintRef.current = pending;
     try {
       const row = await pending;
-      rowIdRef.current = row.id as ThemeId;
+      rowIdRef.current = row.id;
       setMintedName(row.name);
-      return row.id as ThemeId;
+      return row.id;
     } catch (err) {
       // Let a retry (the autosave driver's own retry affordance, or the next debounced attempt) mint
       // again rather than inheriting the rejection.

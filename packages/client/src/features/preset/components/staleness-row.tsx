@@ -6,6 +6,7 @@ import type { SamplerKnob } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -81,17 +82,19 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
     // The rack's missing-pivot callout idiom, density-conformed: `rounded-base` (the ELEVATED `rounded-card`
     // step is D6-reserved) and the warning signal carried by the band + the glyph rather than by a `tone`
     // prop on Text (the four-voice grammar owns type color, §2).
-    <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
-      <Icon icon={AlertTriangle} size="sm" />
-      <Text voice="label">
-        Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
-      </Text>
-      <Button intent="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
-        Keep
-      </Button>
-      <Button intent="secondary" onClick={clear} size="sm" type="button">
-        Clear
-      </Button>
-    </Row>
+    <Card tone="warning">
+      <Row align="center" className="text-warning" gap="field">
+        <Icon icon={AlertTriangle} size="sm" />
+        <Text voice="label">
+          Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
+        </Text>
+        <Button intent="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
+          Keep
+        </Button>
+        <Button intent="secondary" onClick={clear} size="sm" type="button">
+          Clear
+        </Button>
+      </Row>
+    </Card>
   );
 }

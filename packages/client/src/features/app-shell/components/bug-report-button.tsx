@@ -20,7 +20,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { useTRPC } from "#data";
+import { readFresh, useTRPC } from "#data";
 import type { BugReportServerFacts, PublicBugReport } from "#lib";
 import { buildPublicBugReport, copyWithNotice, downloadJson, IS_DEV, publicBugReportIssueUrl } from "#lib";
 import type { ChromePresentation } from "#state";
@@ -281,7 +281,7 @@ export function ReportBugChromeButton({ presentation }: { readonly presentation:
   const loadServerFacts = async (): Promise<BugReportServerFacts> => {
     const [version, diagnostics] = await Promise.allSettled([
       queryClient.query(trpc.settings.getVersion.queryOptions()),
-      queryClient.query({ ...trpc.bugReportDiagnostics.queryOptions(), staleTime: 0 }),
+      readFresh(queryClient, trpc.bugReportDiagnostics.queryOptions()),
     ]);
     return {
       version: version.status === "fulfilled" ? version.value : null,

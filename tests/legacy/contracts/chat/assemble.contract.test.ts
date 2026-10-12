@@ -49,7 +49,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
     dynamicSections: [],
     worldInfoIncluded: 1,
     worldInfoDropped: [],
-    worldInfoActivated: [{ id: "we_1", title: "Dragon", keys: ["dragon"] }],
+    worldInfoActivated: [{ id: mintTypeId(ID_PREFIX.worldEntry), title: "Dragon", keys: ["dragon"] }],
     matchedKeys: [],
     compactSummaryIncluded: false,
     memoryIncluded: false,

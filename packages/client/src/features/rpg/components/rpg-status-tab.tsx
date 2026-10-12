@@ -22,6 +22,7 @@ import type { RpgActorOp, RpgActorRef, RpgActorView } from "@orb/contracts/rpg";
 import { resolveTrackerMaxOverride, rpgActorVolatileLockBase, trackerNumber } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -204,42 +205,44 @@ interface RpgStatusCardProps {
 function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
   return (
-    <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={subject} className="rounded-base border border-border bg-card px-block py-row">
-      <Row gap="block" align="center" justify="between">
-        <Row gap="field" align="center" className="min-w-0">
-          <Button
-            intent="ghost"
-            size="inline"
-            onClick={onOpen}
-            aria-label={`Open ${subject}`}
-            title={`Open ${subject}'s sheet`}
-            className="min-w-0 px-field font-medium"
-          >
-            <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
-              {actor.name.slice(0, 1).toUpperCase()}
-            </Avatar>
-            <Text as="span" voice="label" className="truncate">
-              {actor.name}
+    <Card tone="neutral">
+      <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={subject}>
+        <Row gap="block" align="center" justify="between">
+          <Row gap="field" align="center" className="min-w-0">
+            <Button
+              intent="ghost"
+              size="inline"
+              onClick={onOpen}
+              aria-label={`Open ${subject}`}
+              title={`Open ${subject}'s sheet`}
+              className="min-w-0 px-field font-medium"
+            >
+              <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
+                {actor.name.slice(0, 1).toUpperCase()}
+              </Avatar>
+              <Text as="span" voice="label" className="truncate">
+                {actor.name}
+              </Text>
+              <Icon icon={ChevronRight} size="xs" className="shrink-0 text-muted-foreground" />
+            </Button>
+          </Row>
+          {actor.sheet.className === "" ? null : (
+            <Text as="span" voice="gloss" className="shrink-0">
+              {actor.sheet.className}
             </Text>
-            <Icon icon={ChevronRight} size="xs" className="shrink-0 text-muted-foreground" />
-          </Button>
+          )}
         </Row>
-        {actor.sheet.className === "" ? null : (
-          <Text as="span" voice="gloss" className="shrink-0">
-            {actor.sheet.className}
-          </Text>
-        )}
-      </Row>
-      <StatusLine status={volatile?.status ?? ""} subject={subject} {...(edit === undefined ? {} : { edit })} />
+        <StatusLine status={volatile?.status ?? ""} subject={subject} {...(edit === undefined ? {} : { edit })} />
 
-      <ActorMeters actor={actor} subject={subject} {...(edit === undefined ? {} : { edit })} />
-      <ActorTrackerRows actor={actor} subject={subject} {...(edit === undefined ? {} : { edit })} />
+        <ActorMeters actor={actor} subject={subject} {...(edit === undefined ? {} : { edit })} />
+        <ActorTrackerRows actor={actor} subject={subject} {...(edit === undefined ? {} : { edit })} />
 
-      <ConditionChips
-        conditions={volatile?.conditions ?? []}
-        subject={subject}
-        {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })}
-      />
-    </Stack>
+        <ConditionChips
+          conditions={volatile?.conditions ?? []}
+          subject={subject}
+          {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })}
+        />
+      </Stack>
+    </Card>
   );
 }

@@ -9,7 +9,7 @@
 import { historyFloor } from "@orb/contracts/chat";
 import type { PluginInvocationLiveness } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -35,7 +35,7 @@ const PLUGIN_REF = { id: PLUGIN, name: "Bridge Test Plugin", slug: "bridge-test-
 const CHAT = castId<ChatId>("chat_bridge0000000000000000");
 const OTHER_PLUGIN = castId<PluginId>("plugin_other0000000000000000002");
 const OTHER_PLUGIN_REF = { id: OTHER_PLUGIN, name: "Other Plugin", slug: "other-plugin" };
-const BOOK = "wbook_bridge00000000000000000";
+const BOOK = mintTypeId(ID_PREFIX.worldBook);
 /** A LIVE mutating macro — `{{setvar}}` is the one that turns a lore write into durable chat state. */
 const LIVE_MACRO = "tension is {{setvar::tension::99}} now";
 const NOT_ATTACHED_RE = /attached to this chat/u;

@@ -76,17 +76,17 @@ export function LoginFirstRunForm({ ownerHandle, onDone }: LoginFirstRunFormProp
           />
         </Field>
         {tooShort ? (
-          <Text voice="label" className="text-destructive" role="alert" data-testid={testId("firstRunError")}>
+          <Text tone="destructive" voice="label" role="alert" data-testid={testId("firstRunError")}>
             Password must be at least {MIN_PASSWORD_LENGTH} characters.
           </Text>
         ) : null}
         {!tooShort && mismatch ? (
-          <Text voice="label" className="text-destructive" role="alert" data-testid={testId("firstRunError")}>
+          <Text tone="destructive" voice="label" role="alert" data-testid={testId("firstRunError")}>
             The passwords don't match.
           </Text>
         ) : null}
         {error !== null && !tooShort && !mismatch ? (
-          <Text voice="label" className="text-destructive" role="alert" data-testid={testId("firstRunError")}>
+          <Text tone="destructive" voice="label" role="alert" data-testid={testId("firstRunError")}>
             {error}
           </Text>
         ) : null}

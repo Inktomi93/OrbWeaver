@@ -23,13 +23,12 @@
 // `[perf]` survives on `render-profiler.tsx` alone, where it means a slow REACT COMMIT — a different
 // measurement with a different fix, which is why it kept its own tag rather than folding in here.
 
+import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
 import { MOTION_BUDGETS } from "./motion-flaggers.ts";
 import type { LongAnimationFrameEvidence } from "./motion-stats.ts";
 import { subscribeLongAnimationFrames } from "./motion-stats.ts";
 
-const PERF_STYLE = "color:#c60;font-weight:bold";
-const MUTED_STYLE = "color:#888";
 let evidenceStartTime = 0;
 
 /** Move the observer's checkpoint floor without reinstalling it. Buffered entries delivered after a
@@ -197,8 +196,8 @@ function reportLongFrame(frame: LongAnimationFrameEvidence): void {
   const who = attributeFrame(frame.scripts);
   console.warn(
     `%c${logClock()} [frame]%c long frame ${Math.round(frame.duration)}ms · blocking ${blocking}ms (budget ${MOTION_BUDGETS.longFrameMs}ms) · ${who} · route ${route()}`,
-    PERF_STYLE,
-    MUTED_STYLE,
+    CONSOLE_STYLES.warning,
+    CONSOLE_STYLES.muted,
   );
   // The diagnosis half: a script in this frame BLOCKED on synchronous style/layout, so the fix is the
   // layout read, not the script's own work. Different attribution (the forcing script), different fix.
@@ -206,8 +205,8 @@ function reportLongFrame(frame: LongAnimationFrameEvidence): void {
   if (forced !== null) {
     console.warn(
       `%c${logClock()} [reflow]%c forced synchronous style/layout ${Math.round(forced.total)}ms inside that frame · ${forced.who} · route ${route()}`,
-      PERF_STYLE,
-      MUTED_STYLE,
+      CONSOLE_STYLES.warning,
+      CONSOLE_STYLES.muted,
     );
   }
 }
@@ -235,7 +234,7 @@ export function installLongTaskTracer(): void {
         if (entry.duration < MOTION_BUDGETS.longFrameMs) {
           continue;
         }
-        console.warn(`%c${logClock()} [frame]%c long task ${Math.round(entry.duration)}ms · route ${route()}`, PERF_STYLE, MUTED_STYLE);
+        console.warn(`%c${logClock()} [frame]%c long task ${Math.round(entry.duration)}ms · route ${route()}`, CONSOLE_STYLES.warning, CONSOLE_STYLES.muted);
       }
     });
     lt.observe({ type: "longtask", buffered: true });
@@ -250,8 +249,8 @@ export function installLongTaskTracer(): void {
           `%c${logClock()} [input]%c slow ${timing.name} ${Math.round(timing.duration)}ms (budget ${MOTION_BUDGETS.interactionMs}ms) · ${describeTarget(
             timing.target ?? null,
           )} · route ${route()}`,
-          PERF_STYLE,
-          MUTED_STYLE,
+          CONSOLE_STYLES.warning,
+          CONSOLE_STYLES.muted,
         );
       }
     });

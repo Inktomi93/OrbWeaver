@@ -12,12 +12,11 @@
 import { Field } from "@orb/ui/field";
 import { Section } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
 import { QueryBoundary, SettingRowGroup } from "#components";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
 import { configAnchorId } from "#state";
@@ -52,7 +51,7 @@ export function LibrarySettingsSection({ sectionId }: { readonly sectionId: stri
     // list would claim rows that never arrive; the sentence is the honest wait. The key still earns its
     // place: this is a contributed section on the appearance pane, with every later section below it.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your library settings…</Text>}
+      fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your library settings" onRetry={retry} />}
       reserveKey="config.appearance.library"
     >

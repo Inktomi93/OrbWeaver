@@ -36,7 +36,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingSwitchRow } from "#components";
-import { QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
@@ -81,7 +81,7 @@ export function DatabankContextBody(): ReactElement {
     // on a switch — so a key here would buy nothing even if it were safe. Reversing this needs Active-in's
     // #1500 ruling revisited first, which is not a reservation's call to make.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading…</Text>}
+      fallback={<SkeletonRows count={3} shape="datum" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this document's attachments" onRetry={retry} />}
     >
       <ContextBody documentId={documentId} />
