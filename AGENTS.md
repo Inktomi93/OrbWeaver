@@ -167,7 +167,7 @@ without a path are in that folder.
 | lane | a subagent that owns a related batch of work in its own worktree |
 | leg | one dispatch to a lane |
 | merge train | a batch of lane merges into `main` |
-| barrier | the whole-tree check after a merge train |
+| barrier | the whole-tree check on main before the owner pushes (D317) |
 | floor | the checks a lane runs before it reports |
 
 ## Path rules and Codex
