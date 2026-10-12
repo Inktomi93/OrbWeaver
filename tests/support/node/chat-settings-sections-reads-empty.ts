@@ -6,9 +6,11 @@
 // its `QueryBoundary` swaps the section body for `QueryErrorState` (`route-trpc.ts` header). Same precedent as
 // `regex-reads-empty.ts`: one home, so a section that grows a read is fed in one place.
 
+import type { TrpcRoutes } from "./route-trpc.ts";
+
 /** Spread into a `routeTrpc` map by any CT that mounts the "This chat" tab. */
 export const CHAT_SETTINGS_SECTIONS_READS_EMPTY = {
   "automation.listRules": (): readonly never[] => [],
   "plugin.list": (): readonly never[] => [],
   "plugin.listSurfaces": (): readonly never[] => [],
-} as const;
+} as const satisfies TrpcRoutes<"automation.listRules" | "plugin.list" | "plugin.listSurfaces">;

@@ -34,7 +34,15 @@ import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 // boundary and the headings are all this file asserts. Found by the CT reporter's unfed-read census, whose
 // per-file line for this test named all three. Empty declarations = each section's teaching empty state,
 // the arm with the smallest blast radius on the heading/count assertions around them.
-const THIS_CHAT_TAB_READS: TrpcRoutes<"chat.getUserMacroPicks" | "chat.getVariablePicks" | "databank.listActiveForChat" | "worldInfo.listForChat"> = {
+const THIS_CHAT_TAB_READS: TrpcRoutes<
+  | "chat.getUserMacroPicks"
+  | "chat.getVariablePicks"
+  | "databank.listActiveForChat"
+  | "worldInfo.listForChat"
+  | "automation.listRules"
+  | "plugin.list"
+  | "plugin.listSurfaces"
+> = {
   "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "databank.listActiveForChat": () => [],
