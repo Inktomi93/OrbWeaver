@@ -11,17 +11,19 @@ import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import { Button } from "@orb/ui/button";
 import { Bug, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useTRPC } from "#data";
 import type { BugReportServerFacts, PublicBugReport } from "#lib";
 import { buildPublicBugReport, copyWithNotice, downloadJson, IS_DEV, publicBugReportIssueUrl } from "#lib";
+import type { ChromePresentation } from "#state";
 import { captureBugReportBundle, submitBugReport } from "../lib/bug-report-capture.ts";
 import type { PreparedBugReport } from "../lib/bug-report-public-capture.ts";
 import { preparePublicBugReport } from "../lib/bug-report-public-capture.ts";
@@ -60,6 +62,8 @@ interface BugReportButtonProps {
   readonly devCapture: boolean;
   /** Read the server's version and diagnostics. A half that fails resolves to `null`, never a throw. */
   readonly loadServerFacts: () => Promise<BugReportServerFacts>;
+  /** `"bar"` = the topbar icon and its popover; `"sheet"` = the You sheet's inline disclosure. */
+  readonly presentation?: ChromePresentation;
 }
 
 /** The report for the current form state, or `null` until one is prepared. */
@@ -81,7 +85,7 @@ function reportFor(prepared: PreparedBugReport | null, note: string, when: (type
 /** The top-rail bug-report affordance. Its chrome entry below wires the real server reads; the CT mounts it
  *  directly (a CT's production build cannot reach the dev-gated capture — see the header).
  *  @public Test-anchored module surface; the CT fixtures mount it with each `devCapture` arm. */
-export function BugReportButton({ devCapture, loadServerFacts }: BugReportButtonProps): ReactElement {
+export function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: BugReportButtonProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [whenValue, setWhenValue] = useState<string>("now");
@@ -163,8 +167,89 @@ export function BugReportButton({ devCapture, loadServerFacts }: BugReportButton
     }
   };
 
+  const form = (
+    <Stack gap="row">
+      <Text voice="label">What happened?</Text>
+      <Textarea
+        aria-label="What happened?"
+        rows={4}
+        value={note}
+        onChange={(event): void => setNote(event.target.value)}
+        placeholder="What you did, and what went wrong."
+      />
+      <Text voice="label">When?</Text>
+      <RadioGroup aria-label="When did it happen?" value={whenValue} onValueChange={(next): void => setWhenValue(String(next))}>
+        {WHEN_OPTIONS.map((option) => (
+          <RadioGroupItem key={option.value} value={option.value}>
+            <Text as="span" voice="label">
+              {option.label}
+            </Text>
+          </RadioGroupItem>
+        ))}
+      </RadioGroup>
+      <Row gap="field" align="center" className="flex-wrap">
+        <Button type="button" intent="primary" size="sm" disabled={!hasNote || busy} onClick={prepare}>
+          {status.kind === "preparing" ? "Preparing…" : "Prepare report"}
+        </Button>
+        {devCapture ? (
+          <Button type="button" intent="secondary" size="sm" disabled={!hasNote || busy} onClick={capture}>
+            {status.kind === "saving" ? "Capturing…" : "Capture report"}
+          </Button>
+        ) : null}
+      </Row>
+      {report === null || issue === null ? null : (
+        <Stack gap="row" data-slot="bug-report-public">
+          <Text voice="gloss">
+            This is everything the report shares. It leaves out your chats, characters, personas, keys and error messages. Read it, then open the issue or save
+            the file.
+          </Text>
+          <Textarea aria-label="Report to share" readOnly={true} rows={8} value={report.summary} />
+          <Row gap="field" align="center" className="flex-wrap">
+            <Button type="button" intent="primary" size="sm" onClick={share}>
+              Copy and open a GitHub issue
+            </Button>
+            <Button type="button" intent="secondary" size="sm" onClick={download}>
+              Download diagnostics
+            </Button>
+          </Row>
+        </Stack>
+      )}
+      {/* One live region for every outcome — a capture that silently succeeded is indistinguishable from
+          one that silently failed, and this button's whole value is the user trusting it fired. */}
+      <Text role="status" voice="quiet" data-slot="bug-report-status">
+        {statusLine(status)}
+      </Text>
+    </Stack>
+  );
+
   return (
-    <Popover modal={true} onOpenChange={changeOpen} open={open}>
+    <BugReportFrame onOpenChange={changeOpen} open={open} presentation={presentation}>
+      {form}
+    </BugReportFrame>
+  );
+}
+
+interface BugReportFrameProps {
+  readonly presentation: ChromePresentation;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly children: ReactNode;
+}
+
+/** Where the form opens. The sheet discloses it inline under a sheet row: a popover inside the You sheet would
+ *  be a second layer over a layer (the plugin wand's sheet presentation is the precedent). A `ListRow`, not
+ *  the Collapsible trigger: a touch drag that starts on that trigger does not scroll the drawer. */
+function BugReportFrame({ presentation, open, onOpenChange, children }: BugReportFrameProps): ReactElement {
+  if (presentation === "sheet") {
+    return (
+      <Stack data-slot="bug-report-sheet" gap="row">
+        <ListRow clickable={true} expanded={open} leading={<Icon icon={Bug} size="sm" />} onClick={(): void => onOpenChange(!open)} title="Report a bug" />
+        {open ? children : null}
+      </Stack>
+    );
+  }
+  return (
+    <Popover modal={true} onOpenChange={onOpenChange} open={open}>
       {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <Tooltip>
         <TooltipTrigger
@@ -181,58 +266,7 @@ export function BugReportButton({ devCapture, loadServerFacts }: BugReportButton
         <TooltipPopup side="bottom">Report a bug</TooltipPopup>
       </Tooltip>
       <PopoverPopup aria-label="Report a bug">
-        <Stack gap="row" className="min-w-80">
-          <Text voice="label">What happened?</Text>
-          <Textarea
-            aria-label="What happened?"
-            rows={4}
-            value={note}
-            onChange={(event): void => setNote(event.target.value)}
-            placeholder="What you did, and what went wrong."
-          />
-          <Text voice="label">When?</Text>
-          <RadioGroup aria-label="When did it happen?" value={whenValue} onValueChange={(next): void => setWhenValue(String(next))}>
-            {WHEN_OPTIONS.map((option) => (
-              <RadioGroupItem key={option.value} value={option.value}>
-                <Text as="span" voice="label">
-                  {option.label}
-                </Text>
-              </RadioGroupItem>
-            ))}
-          </RadioGroup>
-          <Row gap="field" align="center" className="flex-wrap">
-            <Button type="button" intent="primary" size="sm" disabled={!hasNote || busy} onClick={prepare}>
-              {status.kind === "preparing" ? "Preparing…" : "Prepare report"}
-            </Button>
-            {devCapture ? (
-              <Button type="button" intent="secondary" size="sm" disabled={!hasNote || busy} onClick={capture}>
-                {status.kind === "saving" ? "Capturing…" : "Capture report"}
-              </Button>
-            ) : null}
-          </Row>
-          {report === null || issue === null ? null : (
-            <Stack gap="row" data-slot="bug-report-public">
-              <Text voice="gloss">
-                This is everything the report shares. It leaves out your chats, characters, personas, keys and error messages. Read it, then open the issue or
-                save the file.
-              </Text>
-              <Textarea aria-label="Report to share" readOnly={true} rows={8} value={report.summary} />
-              <Row gap="field" align="center" className="flex-wrap">
-                <Button type="button" intent="primary" size="sm" onClick={share}>
-                  Copy and open a GitHub issue
-                </Button>
-                <Button type="button" intent="secondary" size="sm" onClick={download}>
-                  Download diagnostics
-                </Button>
-              </Row>
-            </Stack>
-          )}
-          {/* One live region for every outcome — a capture that silently succeeded is indistinguishable from
-              one that silently failed, and this button's whole value is the user trusting it fired. */}
-          <Text role="status" voice="quiet" data-slot="bug-report-status">
-            {statusLine(status)}
-          </Text>
-        </Stack>
+        <Stack className="min-w-80">{children}</Stack>
       </PopoverPopup>
     </Popover>
   );
@@ -241,7 +275,7 @@ export function BugReportButton({ devCapture, loadServerFacts }: BugReportButton
 /** The chrome entry's body: the form wired to the live tRPC reads. Each half resolves to `null` on failure, so
  *  a server that is down still yields a report that says so. `staleTime: 0` on the diagnostics: an error census
  *  from earlier in the session is not the one the user is reporting. */
-export function ReportBugChromeButton(): ReactElement {
+export function ReportBugChromeButton({ presentation }: { readonly presentation: ChromePresentation }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const loadServerFacts = async (): Promise<BugReportServerFacts> => {
@@ -254,7 +288,7 @@ export function ReportBugChromeButton(): ReactElement {
       diagnostics: diagnostics.status === "fulfilled" ? diagnostics.value : null,
     };
   };
-  return <BugReportButton devCapture={IS_DEV} loadServerFacts={loadServerFacts} />;
+  return <BugReportButton devCapture={IS_DEV} loadServerFacts={loadServerFacts} presentation={presentation} />;
 }
 
 /** The one status sentence. The saved arm names the FILE, because the dev review ritual is "read the new reports". */

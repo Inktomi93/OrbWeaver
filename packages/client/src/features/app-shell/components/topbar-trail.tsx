@@ -60,11 +60,10 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
  * `false` from `useVisible` ⇒ render NOTHING (no gap — preserves the notification bell's no-flash rule).
  *
  * THE MODAL ARM'S PRESENTATION IS THE ⌘K CHIP, and that is a DECLARED LIMIT worth reading before adding a
- * second trail modal: `topbar.trail` is a REPEATABLE placement (modal-registry-completeness §4), but the
- * chip's copy is the command palette's own — its `⌘K` key cap and the accessible name WCAG 2.5.3 pins
- * verbatim (#188) are not derived from the entry, because there is nothing to derive them from. A second
- * `topbar.trail` modal is the moment that copy becomes trigger DATA; it is not data today because it would
- * be a shape with one producer and no second value to carry.
+ * second trail modal: `topbar.trail` is a REPEATABLE placement (modal-registry-completeness §4). The glyph
+ * and the tooltip label come from the entry, but the accessible name and the shortcut hint are the command
+ * palette's own. A second `topbar.trail` modal is the moment that copy becomes trigger DATA; it is not data
+ * today because it would be a shape with one producer and no second value to carry.
  *
  * The SECTION arm is unreachable BY TYPE — a section entry's zone is `SectionDefinition.rail.zone`, a
  * `RailZone` (`state/section-registry.ts`), so tsc cannot spell a section outside `rail.*`. It throws
@@ -81,7 +80,12 @@ function TrailEntry({ entry }: { readonly entry: ChromeEntry }): ReactNode {
     case "widget":
       return behavior.body("bar");
     case "modal":
-      return <CommandChip modalId={behavior.modalId} />;
+      // A modal entry's icon derives from the required `ModalTrigger.icon` (`assemble-chrome.ts`); it is
+      // optional on `ChromeEntry` only because widgets carry none.
+      if (entry.icon === undefined) {
+        throw new Error(`TopbarTrail: modal chrome entry "${entry.id}" has no icon — a modal entry derives one from its trigger`);
+      }
+      return <CommandChip icon={entry.icon} label={entry.label} modalId={behavior.modalId} />;
     case "section":
       throw new Error(`TopbarTrail: chrome entry "${entry.id}" is a section — the trail has no section presentation (a section's zone is a RailZone)`);
     default:
