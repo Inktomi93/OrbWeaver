@@ -7,6 +7,7 @@
 
 import type { ChromeEntry, RailZone, SectionId } from "@orb/client/state";
 import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state";
+import { Users } from "@orb/ui/icons";
 import { expect, test } from "../../support/fixtures.ts";
 
 function entry(id: string, zone: ChromeEntry["zone"], mobile?: ChromeEntry["mobile"]): ChromeEntry {
@@ -27,12 +28,12 @@ function section(
   mobile: NonNullable<ChromeEntry["mobile"]>,
   zone: RailZone = "rail.nav",
 ): ChromeEntry {
-  return { id: sectionId, label: sectionId, zone, group, mobile, behavior: { kind: "section", sectionId } };
+  return { id: sectionId, label: sectionId, zone, group, mobile, behavior: { kind: "section", sectionId, icon: Users } };
 }
 
 /** The same, minus the `group` axis — a nav section the rail's group-by-group render can never paint. */
 function ungroupedSection(sectionId: SectionId, mobile: NonNullable<ChromeEntry["mobile"]>): ChromeEntry {
-  return { id: sectionId, label: sectionId, zone: "rail.nav", mobile, behavior: { kind: "section", sectionId } };
+  return { id: sectionId, label: sectionId, zone: "rail.nav", mobile, behavior: { kind: "section", sectionId, icon: Users } };
 }
 
 test("selects ONLY the topbar widgets curated onto the phone's sheet", () => {

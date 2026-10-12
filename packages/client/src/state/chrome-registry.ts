@@ -28,15 +28,15 @@ export type { MobileCuration } from "./section-registry.ts";
  *  has a consumer this wave; the sheet lens lands §E-5. */
 export type ChromePresentation = "bar" | "sheet";
 
-/** Where a chrome entry's affordance comes from — the three sources unified (§A). A `section` arm carries
- *  only its target id; a `modal` arm carries its target id and the trigger's glyph, required so a lens that
- *  draws the trigger never meets a modal without one; a `widget` arm carries a live body a static icon/label
- *  pair can't express. */
+/** Where a chrome entry's affordance comes from — the three sources unified (§A). A `section` or `modal`
+ *  arm carries its target id and its glyph, required, so every lens that draws one has an icon; a `widget`
+ *  arm carries a live body a static icon/label pair can't express, and so no glyph. */
 export type ChromeEntryBehavior = SectionBehavior | ModalBehavior | WidgetBehavior;
 
 interface SectionBehavior {
   readonly kind: "section";
   readonly sectionId: SectionId;
+  readonly icon: LucideIcon;
 }
 
 interface ModalBehavior {
@@ -66,11 +66,10 @@ export interface ActionChromeEntry extends ChromeEntryAxes {
  *  points. The zone and the behavior travel together, so a lens narrows both by checking the zone. */
 export type ChromeEntry = SectionChromeEntry | ActionChromeEntry;
 
-/** `id`/`label`/`icon`/`order`/`mobile` are the presentation axes every source shares. */
+/** `id`/`label`/`order`/`mobile` are the presentation axes every source shares. */
 interface ChromeEntryAxes {
   readonly id: string;
   readonly label: string;
-  readonly icon?: LucideIcon;
   /** `rail.nav` grouping — the divider order derives from it; the group axis has ONE home in
    *  section-registry.ts (kills rail-slots.ts's duplicate tuple). No consumer this wave. */
   readonly group?: SectionGroup;

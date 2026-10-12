@@ -50,12 +50,11 @@ function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
   return {
     id: def.id,
     label: def.rail.label,
-    icon: def.rail.icon,
     zone: def.rail.zone ?? "rail.nav",
     group: def.rail.group,
     order: index,
     mobile: def.rail.mobile,
-    behavior: { kind: "section", sectionId: def.id },
+    behavior: { kind: "section", sectionId: def.id, icon: def.rail.icon },
   };
 }
 
@@ -69,7 +68,6 @@ function modalEntry(def: ModalDefinition, zone: ChromeZone, index: number): Chro
   return {
     id: def.id,
     label: def.trigger.label,
-    icon: def.trigger.icon,
     zone,
     order: def.trigger.order ?? index,
     ...(def.trigger.mobile === undefined ? {} : { mobile: def.trigger.mobile }),
