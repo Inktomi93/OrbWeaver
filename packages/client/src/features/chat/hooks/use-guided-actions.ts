@@ -47,6 +47,7 @@ interface GuidedSteerInput {
   readonly rewriteToggles?: RewriteToggleId[] | undefined;
 }
 
+// @orb-waive contract-structural-copy(GuidedTurnVars): baselined when the gate judged by type; burn-down item 904.
 interface GuidedTurnVars {
   readonly chatId: ChatId;
   readonly timeZone: string;

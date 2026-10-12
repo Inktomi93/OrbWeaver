@@ -22,6 +22,7 @@ import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, effectiveTagFilter, knownTagIds, tagVocabulary } from "../lib/character-library-lens.ts";
 import { useLibraryLens } from "./use-library-lens.ts";
 
+// @orb-waive contract-structural-copy(LibraryScopeArgs): baselined when the gate judged by type; burn-down item 904.
 /** The NARROWING half of `character.list`'s input — spread into the pane's paged read and into the band's
  *  `{limit:1}` census, so the number and the rows are answers about the same scope. Every member is
  *  optional-by-absence (`exactOptionalPropertyTypes`): an omitted axis is UNFILTERED, never a predicate

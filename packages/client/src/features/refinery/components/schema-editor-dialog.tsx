@@ -52,6 +52,7 @@ export interface SchemaEditorDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly stage: RefinerySchemaStage;
   /** Editing an existing row, or null = authoring a new one. */
+  // @orb-waive contract-structural-copy(id): baselined when the gate judged by type; burn-down item 904.
   readonly editing: { readonly id: RefinerySchemaId; readonly name: string; readonly description: string; readonly schema: Record<string, unknown> } | null;
   /** Fired with the saved row's id so the caller can point the session at it. */
   readonly onSaved: (schemaId: RefinerySchemaId) => void;

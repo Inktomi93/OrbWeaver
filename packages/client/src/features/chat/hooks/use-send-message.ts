@@ -15,6 +15,7 @@ import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "
 import { turnMutationToast, viewerTimeZone } from "#lib";
 import { subscribeUserMessageCommitted } from "#state";
 
+// @orb-waive contract-structural-copy(SendVars): baselined when the gate judged by type; burn-down item 904.
 interface SendVars {
   readonly chatId: ChatId;
   readonly content: string;

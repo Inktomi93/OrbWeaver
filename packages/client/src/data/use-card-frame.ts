@@ -17,6 +17,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
 import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
 
+// @orb-waive contract-structural-copy(CardFrameRequest): baselined when the gate judged by type; burn-down item 904.
 // @orb-waive no-inline-wire-interface(CardFrameRequest): baselined when the gate widened; burn-down item 904.
 /** What a caller knows about ONE card. The bytes are the same ones the srcdoc floor would render. */
 export interface CardFrameRequest {
