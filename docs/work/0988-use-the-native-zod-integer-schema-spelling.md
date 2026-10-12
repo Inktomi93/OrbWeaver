@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-12
 priority: P2
+lane: codex/zod-native-integers
 plan: test-foundation
 ---
 
