@@ -20,6 +20,7 @@ import { batchStmt } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -29,7 +30,7 @@ import { insertChatEventStatement } from "#server/domain/chat/persistence/events
 import { listMemberChats } from "#server/domain/chat/persistence/queries.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
+import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */
 const TEST_PAGE_LIMIT = 100;
@@ -92,7 +93,7 @@ function makeDeps(overrides: Partial<Parameters<typeof createStartChat>[1]> = {}
           chatId: event.chatId,
           seq: 1,
           event,
-          createdAt: FROZEN_AT,
+          createdAt: FROZEN_AT_MS,
         }),
         publishCommitted: (): void => {
           emitted.push(event);
@@ -119,7 +120,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
             // @orb-waive no-loose-id-cast("not-a-chat-event"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
             type: "not-a-chat-event" as never,
             payload: event,
-            createdAt: FROZEN_AT,
+            createdAt: FROZEN_AT_MS,
           }),
         ),
         publishCommitted: (): void => {
@@ -716,8 +717,8 @@ describe("startChat — temporary rooms are HIDDEN from the library", () => {
     const permanent = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
     // R0: a freshly minted room is ALSO a husk, and the husk lens would hide the permanent one too — so
     // claim it, isolating what this arm is about (the `temporary` exclusion) from the husk arm beside it.
-    await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, permanent.chat.id));
-    await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, temp.chat.id));
+    await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, permanent.chat.id));
+    await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, temp.chat.id));
 
     expect((await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toEqual([permanent.chat.id]);
     expect((await listMemberChats(db, host, { includeArchived: true, limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toEqual([permanent.chat.id]);

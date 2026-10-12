@@ -55,16 +55,11 @@ const EDITED_ONE_NAME = "Default (edited)";
 const EDITED_TWO_NAME = "Default (edited) 2";
 const IMPORTED_NAME = "Imported RP";
 
-// @orb-waive no-vanity-alias(FROZEN_NOW): baselined when the gate widened; burn-down item 906.
-// The F5 subtitle is a RELATIVE stamp read off the PAGE's wall clock, so the stamp test pins that clock
-// (`page.clock.setFixedTime`) and derives the fixture dates from the SAME frozen instant — the shared
-// `FROZEN_AT_MS`, never an ambient clock read (test-determinism gate).
-const FROZEN_NOW = FROZEN_AT_MS;
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;
 const REVEAL_ON_FOCUS = /group-focus-within:opacity-100/;
 const MINUTE_MS = 60_000;
-const EDITED_ONE_AT = FROZEN_NOW - 5 * MINUTE_MS;
-const EDITED_TWO_AT = FROZEN_NOW - 40 * MINUTE_MS;
+const EDITED_ONE_AT = FROZEN_AT_MS - 5 * MINUTE_MS;
+const EDITED_TWO_AT = FROZEN_AT_MS - 40 * MINUTE_MS;
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const TITLE_ROW = '[data-slot="list-row-title-row"]';
 const TITLE = '[data-slot="list-row-title"]';
@@ -417,7 +412,7 @@ test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offer
 });
 
 test("every non-built-in row carries its own edit stamp — the F5 scent that tells the '(edited)' twins apart", async ({ mount, page }) => {
-  await page.clock.setFixedTime(FROZEN_NOW);
+  await page.clock.setFixedTime(FROZEN_AT_MS);
   await routeLibrary(page, null);
   const component = await mount(<PresetLibrarySurfaceStory />);
 
@@ -593,7 +588,7 @@ test("§12.2 the kebab rests hidden and IS the control-md box (the row grammar's
 test("P3a two forks with the SAME name expose distinct action names (the stamp disambiguates)", async ({ mount, page }) => {
   // The stamp must be the RELATIVE form for the two rows to differ (past the 7-day horizon both collapse to
   // the same date), so this test pins the page clock exactly like the F5 stamp test above.
-  await page.clock.setFixedTime(FROZEN_NOW);
+  await page.clock.setFixedTime(FROZEN_AT_MS);
   await routeTrpc(page, {
     "preset.list": () => [
       summary({ id: EDITED_ONE, name: EDITED_ONE_NAME, updatedAt: EDITED_ONE_AT }),
@@ -787,7 +782,7 @@ test("#481 P1-1 activating ANNOUNCES the new pick in the app's polite live regio
 });
 
 test("#481 P3-5 the ACTIVE row's subtitle is the same shape as an inactive row's, and its stamp survives", async ({ mount, page }) => {
-  await page.clock.setFixedTime(FROZEN_NOW);
+  await page.clock.setFixedTime(FROZEN_AT_MS);
   await routeLibrary(page, IMPORTED);
   // The DOCKED width (272px) is where the defect lived: the "Active · " prefix pushed the active row's own
   // timestamp into an ellipsis in a 155px subtitle cell, while every inactive row printed its metadata whole.

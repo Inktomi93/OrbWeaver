@@ -13,6 +13,7 @@ import type { BatchStmt } from "@orb/db/query";
 import type { ChatInjectionId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -31,7 +32,7 @@ import { loadStoredUserMacroValues } from "#server/domain/chat/persistence/queri
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { scenario } from "../_scenario.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: DurableChatBusEvent[];
@@ -749,7 +750,7 @@ describe("injections — CRUD (write host, list member)", () => {
 describe("reapTemporaryChats — the caller's expired temp chats", () => {
   // The verb's 24h TTL against the frozen clock: a chat born just past the horizon is reap-eligible.
   const ttlMs = 86_400_000;
-  const expiredAt = FROZEN_AT - ttlMs - 1;
+  const expiredAt = FROZEN_AT_MS - ttlMs - 1;
 
   test("reaps only expired+temporary+caller-hosted; fresh / non-temp / foreign-hosted survive", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
@@ -792,7 +793,7 @@ describe("reapTemporaryChats — the caller's expired temp chats", () => {
   test("a user's tempChatTtlHours narrows the reap window (the knob threads, not a const)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     // Born 2h ago — SAFE under the 24h default, EXPIRED under a 1h TTL.
-    const twoHoursAgo = FROZEN_AT - 2 * 3_600_000;
+    const twoHoursAgo = FROZEN_AT_MS - 2 * 3_600_000;
     const chatId = await seedChat(db, "recent-temp", { temporary: true, createdAt: twoHoursAgo });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
 

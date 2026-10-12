@@ -29,10 +29,6 @@ import { chatListResponder } from "../chat/fixtures.ts";
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
 const WEDGED_AGO_MS = 3_600_000;
 
-// @orb-waive no-vanity-alias(NOW): baselined when the gate widened; burn-down item 906.
-/** The instant every databank CT's page believes it is — the SAME instant the server suites freeze at. */
-const NOW = FROZEN_AT_MS;
-
 export const READY_DOC = {
   id: "document_00000000000000000001",
   name: "The Crimson Court",
@@ -43,8 +39,8 @@ export const READY_DOC = {
   charCount: 4200,
   chunkCount: 12,
   embeddedCount: 12,
-  createdAt: NOW,
-  updatedAt: NOW,
+  createdAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
 };
 
 export const INDEXING_DOC = {
@@ -77,8 +73,8 @@ const STALLED_DOC = {
   byteSize: 8192,
   chunkCount: 0,
   embeddedCount: 0,
-  createdAt: NOW - WEDGED_AGO_MS,
-  updatedAt: NOW - WEDGED_AGO_MS,
+  createdAt: FROZEN_AT_MS - WEDGED_AGO_MS,
+  updatedAt: FROZEN_AT_MS - WEDGED_AGO_MS,
 };
 
 /** The room + card the READY document is attached to — exported because the CONTEXT pane's doors are proven
@@ -106,7 +102,7 @@ function phaseOf(doc: StubDocument): IngestPhase {
     return "empty";
   }
   if (doc.chunkCount === 0) {
-    return NOW - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : "indexing";
+    return FROZEN_AT_MS - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : "indexing";
   }
   return doc.embeddedCount < doc.chunkCount ? "embedding" : "ready";
 }
@@ -185,7 +181,7 @@ export async function stubDatabank(
 ): Promise<TrpcRecorder> {
   // Pin the page's `Date.now` so `dataUpdatedAt` — the clock the stall verdict reads — is the same instant
   // the rows below are dated against, on every run and every machine.
-  await page.clock.setFixedTime(NOW);
+  await page.clock.setFixedTime(FROZEN_AT_MS);
   return routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
     // The viewer's settings row (#649). Not any databank test's subject — but unfed it resolved `routeTrpc`'s
@@ -196,7 +192,7 @@ export async function stubDatabank(
       userId: "user_ct_databank",
       schemaVersion: 1,
       config: DEFAULT_USER_SETTINGS,
-      updatedAt: NOW,
+      updatedAt: FROZEN_AT_MS,
       configUnreadable: null,
     },
     // The reads of the door's other home tiles (chat recents and quick picks, the face shelf, saved rosters),
@@ -223,7 +219,7 @@ export async function stubDatabank(
     // whole point of the leak-safe read.
     "databank.listAttachments": () => ({
       global: true,
-      chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Aveline"], at: NOW }],
+      chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Aveline"], at: FROZEN_AT_MS }],
       characters: [{ id: ATTACHED_CHARACTER, name: "Duskwater Warden" }],
     }),
     "databank.reindex": () => ({ workloadId: "workload_0000000000000000001" }),

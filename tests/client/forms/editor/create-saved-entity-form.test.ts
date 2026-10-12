@@ -13,13 +13,25 @@ interface Values {
   avatarAssetId: string | null;
 }
 
-function headlessForm(): FormApi<Values, never, never, never, never, never, never, never, never, never, never, never> {
-  const form = new FormApi({
-    defaultValues: { name: "", avatarAssetId: null } satisfies Values,
-  });
+type HeadlessForm = FormApi<Values, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined>;
+
+function headlessForm(): HeadlessForm {
+  const form: HeadlessForm = new FormApi<
+    Values,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined
+  >({ defaultValues: { name: "", avatarAssetId: null } });
   form.mount();
-  // @orb-waive no-loose-id-cast(form): baselined when the gate widened; burn-down item 906.
-  return form as never;
+  return form;
 }
 
 describe("setFieldValue dontUpdateMeta (the promote() contract)", () => {

@@ -20,10 +20,8 @@ import {
 // Streamdown's UrlTransform is called with (url, key, node); `untrustedUrlTransform` reads ONLY the url,
 // so the hast node arg is an unused deliberate stub. The `UrlTransform` return type is `string | null |
 // undefined`; this gate always yields a string ("" = BLOCK, else the url), and `?? ""` narrows the type.
-const gate = (url: string): string =>
-  // @orb-waive no-test-fabrication(never): the unused hast-node arg — untrustedUrlTransform never reads it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // @orb-waive no-loose-id-cast({ type: "element", tagName: "a" }): baselined when the gate widened; burn-down item 906.
-  untrustedUrlTransform(url, "href", { type: "element", tagName: "a" } as never) ?? "";
+const HAST_NODE: Parameters<typeof untrustedUrlTransform>[2] = { type: "element", tagName: "a", properties: {}, children: [] };
+const gate = (url: string): string => untrustedUrlTransform(url, "href", HAST_NODE) ?? "";
 const BLOCKED = "";
 
 describe("untrustedUrlTransform — dangerous protocols BLOCKED (return empty → Streamdown drops)", () => {

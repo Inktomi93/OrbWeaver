@@ -14,6 +14,7 @@ import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -23,7 +24,7 @@ import type { ChatContext } from "#server/domain/chat/context.ts";
 import { createGenerateImage } from "#server/domain/chat/verbs/generate-image.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
 import { makeHarness } from "../../assets/_support.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -51,7 +52,7 @@ async function seedGeneratedAsset(ownerId: UserId, key: string): Promise<AssetId
     mime: "image/png",
     size: 1,
     hash: `hash_${key}`,
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return assetId;
 }

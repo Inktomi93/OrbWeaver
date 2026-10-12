@@ -3,7 +3,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
-import type { BridgeAuthority } from "#server/infra/plugin-host/bridge-rpc.ts";
+import type { BridgeAuthority, BridgeTarget } from "#server/infra/plugin-host/bridge-rpc.ts";
 import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall } from "#server/infra/plugin-host/bridge-rpc.ts";
 import type { PluginEgressBridge } from "#server/infra/plugin-host/net-egress.ts";
 import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
@@ -83,9 +83,8 @@ test("a broker fetch is walled by the app's own netHosts; the frame carries no h
     assets: { storeFetched: () => Promise.reject(new Error("test: no asset is stored here")) },
   } satisfies PluginEgressBridge;
   const target = {
-    // @orb-waive no-test-fabrication(never): dispatch of the net ops reaches only `netEgress`; the domain bridge is never dereferenced, so any touch throws. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // @orb-waive no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
-    bridge: {} as never,
+    // @orb-waive no-test-fabrication(unknown): dispatch of the net ops reaches only `netEgress`; the domain bridge is never dereferenced, so any touch throws. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    bridge: {} as unknown as BridgeTarget["bridge"],
     netEgress: createPluginNetEgress(["api.allowed.test"], egressBridge),
   };
   const liveness = { aborted: false, onAbort: () => (): void => undefined };

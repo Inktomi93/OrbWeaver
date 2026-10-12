@@ -103,7 +103,7 @@ describe("workloads.list over stored rows from before the import memory scope", 
       poison: false,
     } as const;
     // @orb-waive no-test-fabrication(never): the stored row is the subject; the domain double hands it to the real output schema unchanged. Ends when the list verb can be driven over a seeded row here.
-    // @orb-waive no-loose-id-cast([stored]): baselined when the gate widened; burn-down item 906.
+    // @orb-waive no-loose-id-cast([stored]): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     const list = vi.fn<WorkloadService["list"]>(() => Promise.resolve([stored] as never));
     const call = caller(makeContext({ auth: principal("user"), services: { workloads: { list } } }));
 

@@ -4,7 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-// @orb-waive-file no-loose-id-cast(overrides.metadata ?? null): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(overrides.metadata ?? null): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView, TurnInitiator } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";
@@ -76,9 +76,6 @@ import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "#server/domain/embeddings/persistence/clear.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-export const FROZEN_AT = FROZEN_AT_MS;
-
 /** A CLAIM chokepoint that does nothing (R0). Every chat these suites seed is born CLAIMED (the `seedChat`
  *  default), so the real `createClaimChat` would be a no-op on them and this keeps them byte-identical to
  *  their pre-R0 behavior. The husk lifecycle itself is proved with the REAL chokepoint in
@@ -107,8 +104,8 @@ export async function seedConnection(db: Db, ownerId: UserId, label = "test conn
     label,
     providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
     model: modelIdSchema.parse("test-model"),
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return TEST_CONNECTION_ID;
 }
@@ -131,7 +128,7 @@ export async function seedCharacter(
       ownerId,
       name: key,
       avatarAssetId: overrides.avatarAssetId ?? null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   return id;
@@ -151,8 +148,8 @@ export async function seedPersona(
     name: key,
     description: overrides.description ?? `${key} description`,
     avatarAssetId: overrides.avatarAssetId ?? null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -167,7 +164,7 @@ export async function seedAsset(db: Db, ownerId: UserId, key: string, overrides:
     mime: "image/png",
     size: 1,
     hash: overrides.hash ?? `hash_${key}`,
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -206,9 +203,9 @@ export async function seedChat(
     // The JSON column is `$type<ChatMetadata>()`; tests inject raw blobs (incl. malformed) — cast at the seam.
     metadata: (overrides.metadata ?? null) as never,
     // biome-ignore lint/nursery/useNullishCoalescing: an EXPLICIT null IS the husk (the whole opt-in), and `??` would coalesce it back into the claimed default — only an OMITTED field may fall through.
-    startedAt: overrides.startedAt === undefined ? FROZEN_AT : overrides.startedAt,
-    createdAt: overrides.createdAt ?? FROZEN_AT,
-    updatedAt: overrides.updatedAt ?? FROZEN_AT,
+    startedAt: overrides.startedAt === undefined ? FROZEN_AT_MS : overrides.startedAt,
+    createdAt: overrides.createdAt ?? FROZEN_AT_MS,
+    updatedAt: overrides.updatedAt ?? FROZEN_AT_MS,
   });
   return id;
 }
@@ -245,7 +242,7 @@ export async function seedParticipant(
     role: opts.role ?? "member",
     activePersonaId: opts.activePersonaId ?? null,
     disabled: opts.disabled ?? false,
-    joinedAt: FROZEN_AT,
+    joinedAt: FROZEN_AT_MS,
     joinSeq: opts.joinSeq ?? 0,
     leftSeq: opts.leftSeq ?? null,
     ...(opts.joinHistoryVisibility !== undefined ? { joinHistoryVisibility: opts.joinHistoryVisibility } : {}),
@@ -303,7 +300,7 @@ export async function seedMessage(
     personaId: overrides.personaId ?? null,
     excludedFromPrompt: overrides.excludedFromPrompt ?? false,
     ...(overrides.initiator === undefined ? {} : { initiator: overrides.initiator }),
-    createdAt: overrides.createdAt ?? FROZEN_AT,
+    createdAt: overrides.createdAt ?? FROZEN_AT_MS,
   });
   await db.insert(messageVariants).values({
     id: variantId,
@@ -314,7 +311,7 @@ export async function seedMessage(
     ...(overrides.contextBoundaryMessageId !== undefined ? { contextBoundaryMessageId: overrides.contextBoundaryMessageId } : {}),
     ...(overrides.genStartedAt === undefined ? {} : { genStartedAt: overrides.genStartedAt }),
     ...(overrides.genFinishedAt === undefined ? {} : { genFinishedAt: overrides.genFinishedAt }),
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
   return { messageId, variantId };
@@ -359,7 +356,7 @@ export function makeLoadParticipantViews(db: Db): (chatId: ChatId) => Promise<re
 /** Append an extra variant (swipe) to an existing slot — for the `variantCount` / `selectedVariantIdx` reads. */
 export async function addVariant(db: Db, messageId: MessageId, idx: number, content: string): Promise<MessageVariantId> {
   const variantId = castId<MessageVariantId>(`variant_${messageId}_${idx}`);
-  await db.insert(messageVariants).values({ id: variantId, messageId, idx, content, createdAt: FROZEN_AT });
+  await db.insert(messageVariants).values({ id: variantId, messageId, idx, content, createdAt: FROZEN_AT_MS });
   return variantId;
 }
 
@@ -375,7 +372,7 @@ export async function seedChatEvent(
   const id = castId<ChatEventId>(`chat_event_${chatId}_${seq}`);
   const { text, slotSeq } = typeof row === "string" ? { text: row, slotSeq: seq } : row;
   const payload: ChatBusEvent = { type: "delta", chatId, slotSeq, delta: { chatId, kind: "text", text } };
-  await db.insert(chatEvents).values({ id, chatId, seq, type: "delta", payload, createdAt: FROZEN_AT });
+  await db.insert(chatEvents).values({ id, chatId, seq, type: "delta", payload, createdAt: FROZEN_AT_MS });
   return id;
 }
 
@@ -414,7 +411,7 @@ export async function seedStreamEvent(
     delta,
     messageId,
     generationId: castId<ChatStreamGenerationId>(`stream_generation_${chatId}_${seq}`),
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -436,7 +433,7 @@ export async function seedPendingTurn(
     chatId: opts.chatId,
     triggeredBy: opts.triggeredBy,
     runAsUserId: opts.runAsUserId,
-    createdAt: opts.createdAt ?? FROZEN_AT,
+    createdAt: opts.createdAt ?? FROZEN_AT_MS,
   });
   return id;
 }
@@ -474,7 +471,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
   const base: ChatContext = {
     resolveCorpusSourceState: createSourceState({ db }),
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     // D121-E: the four-scope regex dereference. Empty by default — a suite that wants host-tier regex
     // overrides this op, exactly as it overrides `resolveForeignInputs`.
     resolveRegexSources: () => Promise.resolve({ hostGlobal: [], preset: [], character: [], chat: [] }),

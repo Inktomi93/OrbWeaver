@@ -26,10 +26,6 @@ import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
 import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
-// @orb-waive no-vanity-alias(SNAP_DIR): baselined when the gate widened; burn-down item 906.
-// The pointer-free story-shot family (#1201): `reports/snaps/` is the SNAP instrument's published
-// alias, and a screenshot written there follows the symlink into a finished run's slot.
-const SNAP_DIR = STORY_SHOT_DIR;
 const MEMBERS_PANEL = "[data-testid=members-panel]";
 const INVITE_BUTTON = "[data-testid=invite-people-button]";
 const RENDER_TIMEOUT_MS = 20_000;
@@ -135,10 +131,10 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
       await expect(memberView.page.locator(INVITE_BUTTON)).toHaveCount(0);
 
       // RECEIPTS — the same surface, the same moment, two roles.
-      await hostPanel.screenshot({ path: `${SNAP_DIR}/d22-members-tab-host.png` });
-      await memberPanel.screenshot({ path: `${SNAP_DIR}/d22-members-tab-member.png` });
-      await hostView.page.screenshot({ path: `${SNAP_DIR}/d22-members-room-host.png` });
-      await memberView.page.screenshot({ path: `${SNAP_DIR}/d22-members-room-member.png` });
+      await hostPanel.screenshot({ path: `${STORY_SHOT_DIR}/d22-members-tab-host.png` });
+      await memberPanel.screenshot({ path: `${STORY_SHOT_DIR}/d22-members-tab-member.png` });
+      await hostView.page.screenshot({ path: `${STORY_SHOT_DIR}/d22-members-room-host.png` });
+      await memberView.page.screenshot({ path: `${STORY_SHOT_DIR}/d22-members-room-member.png` });
     } finally {
       await hostView.close();
       await memberView.close();

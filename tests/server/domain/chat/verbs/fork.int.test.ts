@@ -1034,15 +1034,14 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       // The blob as the engine writes it: the hidden truth rides `dynamic` (the wire projection is verbatim) and
       // the pre-join canon rides `static` (the assembled history the fit-pass kept). Only the blob's PRESENCE
       // in the copy is under test — the copy path reads no field of it.
-      // @orb-waive no-test-fabrication(never): an AssembledPrompt stand-in whose fields the copy path never reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
+      // @orb-waive no-test-fabrication(unknown): an AssembledPrompt stand-in whose fields the copy path never reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const snapshot = {
         static: "PRE-JOIN CANON: the vault code is 4417.",
         dynamic: `He smiles. ${lie} "Nothing," he says.`,
         afterHistory: [],
         sendHistory: true,
         trace: {},
-      } as never;
+      } as unknown as typeof messageVariants.$inferInsert.promptSnapshot;
       await db
         .update(messageVariants)
         .set({ promptSnapshot: snapshot })
@@ -1068,9 +1067,14 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
       const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs." });
-      // @orb-waive no-test-fabrication(never): only the blob's PRESENCE is under test; `trace` is never read by the copy path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast({ static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
-      const snapshot = { static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} } as never;
+      // @orb-waive no-test-fabrication(unknown): only the blob's PRESENCE is under test; `trace` is never read by the copy path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      const snapshot = {
+        static: "s",
+        dynamic: `d ${lie}`,
+        afterHistory: [],
+        sendHistory: true,
+        trace: {},
+      } as unknown as typeof messageVariants.$inferInsert.promptSnapshot;
       await db
         .update(messageVariants)
         .set({ promptSnapshot: snapshot })
@@ -1206,9 +1210,14 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await db
         .update(messageVariants)
         .set({
-          // @orb-waive no-test-fabrication(never): an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-          // @orb-waive no-loose-id-cast({ static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
-          promptSnapshot: { static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} } as never,
+          // @orb-waive no-test-fabrication(unknown): an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+          promptSnapshot: {
+            static: "PRE-JOIN CANON",
+            dynamic: "d",
+            afterHistory: [],
+            sendHistory: true,
+            trace: {},
+          } as unknown as typeof messageVariants.$inferInsert.promptSnapshot,
           // The host-gated wire trio's other two members: the initiator's per-send knobs (note the
           // `advanced.claudeEnv` escape hatch + the free-text compaction instructions) and the draw record.
           params: { temperature: 0.7, compaction: { instructions: "HOST-ONLY compaction prose" }, advanced: { claudeEnv: { ["GM_KNOB"]: "host-secret" } } },

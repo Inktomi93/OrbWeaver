@@ -11,13 +11,14 @@ import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "#server/domain/chat/bus.ts";
 import { appendChatEvent } from "#server/domain/chat/persistence/events.ts";
-import { FROZEN_AT, makeChatContext, seedChat, seedUser } from "./_support.ts";
+import { makeChatContext, seedChat, seedUser } from "./_support.ts";
 
 let db: Db;
 
@@ -178,7 +179,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       id: castId<ChatEventId>("chat_event_raw"),
       chatId,
       event: deltaEvent(chatId),
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }).catch((e: unknown) => e);
 
     expect(isConstraintViolation(err)?.kind).toBe("foreign-key");
@@ -349,7 +350,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       chatId,
       acceptedByUserId,
       actorRekeys: [],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
 
@@ -378,7 +379,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       chatId,
       acceptedByUserId,
       actorRekeys: [],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
@@ -405,7 +406,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       chatId,
       acceptedByUserId,
       actorRekeys: [],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
     const bus = createChatBus(makeChatContext(db));

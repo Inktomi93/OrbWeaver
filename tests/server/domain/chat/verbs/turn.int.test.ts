@@ -38,6 +38,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { SeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
@@ -77,7 +78,6 @@ import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts
 import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
 import {
   batchParticipantViews,
-  FROZEN_AT,
   makeChatContext,
   makeLoadParticipantViews,
   seedCharacter,
@@ -700,7 +700,7 @@ describe("send — presence character-gating", () => {
    *  round's WI pool decides whether that marker reaches the wire. */
   async function seedPersonaLore(owner: UserId, personaId: PersonaId, key: string, content: string): Promise<void> {
     const bookId = castId<WorldBookId>(`world_book_${key}`);
-    await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+    await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT_MS });
     await db.insert(worldEntries).values({
       id: castId<WorldEntryId>(`world_entry_${key}`),
       worldBookId: bookId,
@@ -711,9 +711,9 @@ describe("send — presence character-gating", () => {
       priority: 0,
       ignoreBudget: false,
       metadata: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
-    await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT_MS });
   }
 
   // Persona-book lore joins by present membership, the people block's axis: an offline member is still a
@@ -3122,7 +3122,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       },
       selection: async () => {
         const alternate = castId<MessageVariantId>(ids.next(ID_PREFIX.messageVariant));
-        await db.insert(messageVariants).values({ id: alternate, messageId: f.messageId, idx: 1, content: "Other swipe.", createdAt: FROZEN_AT });
+        await db.insert(messageVariants).values({ id: alternate, messageId: f.messageId, idx: 1, content: "Other swipe.", createdAt: FROZEN_AT_MS });
         await db.update(messages).set({ selectedVariantId: alternate }).where(eq(messages.id, f.messageId));
       },
       membership: async () => {
@@ -3400,8 +3400,8 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",
-      now: FROZEN_AT,
-      expiresAt: FROZEN_AT + 60_000,
+      now: FROZEN_AT_MS,
+      expiresAt: FROZEN_AT_MS + 60_000,
     });
 
     // A locked round path (send → the engine acquires the per-speaker lock) YIELDS the round (§6 — a

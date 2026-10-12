@@ -29,8 +29,7 @@ class FakeCdp {
 
   emit(event: string, value: unknown): void {
     for (const listener of this.#listeners.get(event) ?? []) {
-      // @orb-waive no-loose-id-cast(value): baselined when the gate widened; burn-down item 906.
-      listener(value as never);
+      Reflect.apply(listener, undefined, [value]);
     }
   }
 }

@@ -9,6 +9,7 @@ import { characterEmbeddings, characterSummaries, characters, chatDigests, chatS
 import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -16,7 +17,6 @@ import { describe } from "vitest";
 import { computeGroupHubs } from "#server/domain/discovery/substrate/hub-math.ts";
 import {
   EMBED_MODEL,
-  FROZEN_AT,
   makeDiscoveryHarness,
   makeHubScoreRecorder,
   seedAsset,
@@ -54,7 +54,7 @@ async function staleGeneration(db: Db, ownerId: UserId, task: EmbeddingTask): Pr
     connectionRef: castId<UserConnectionId>("user_connection_stale"),
     fingerprint: "stale",
     space: EMBED_MODEL,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -102,7 +102,7 @@ async function seedMixedCorpus(db: Db): Promise<Corpus> {
       model: EMBED_MODEL,
       generationId: lateText,
       dim: LATE_DIMS,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const avatar = (await db.select({ avatar: characters.avatarAssetId }).from(characters).where(eq(characters.id, card)))[0]?.avatar;
     if (avatar === null || avatar === undefined) {
@@ -117,7 +117,7 @@ async function seedMixedCorpus(db: Db): Promise<Corpus> {
       model: EMBED_MODEL,
       generationId: lateImage,
       dim: LATE_DIMS,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
   }
   for (const [i, chatId] of [chat, other].entries()) {
@@ -133,7 +133,7 @@ async function seedMixedCorpus(db: Db): Promise<Corpus> {
       model: EMBED_MODEL,
       generationId: lateText,
       dim: LATE_DIMS,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await db.insert(chatSegments).values({
       id: castId(`chat_segment_late_${i}`),
@@ -148,7 +148,7 @@ async function seedMixedCorpus(db: Db): Promise<Corpus> {
       model: EMBED_MODEL,
       generationId: lateText,
       dim: LATE_DIMS,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
   }
   return { owner, chat, cards };
@@ -211,7 +211,7 @@ describe("discovery never meets a late write from an old generation", () => {
       throw new Error("the fixture has cards");
     }
     // The dossier opens only for a distilled card.
-    await db.insert(characterSummaries).values({ characterId: hero, genre: "fantasy", model: "test-summarize-model", computedAt: FROZEN_AT });
+    await db.insert(characterSummaries).values({ characterId: hero, genre: "fantasy", model: "test-summarize-model", computedAt: FROZEN_AT_MS });
     await expect(svc.characterDossier(owner, hero)).resolves.toMatchObject({ characterId: hero });
   });
 });

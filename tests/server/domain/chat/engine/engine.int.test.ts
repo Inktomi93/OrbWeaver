@@ -35,6 +35,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { applyStatsDelta, reconcileStats } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -58,7 +59,6 @@ import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadStreamReplay, loadTurnOrigin } from "#server/domain/chat/persistence/queries.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import {
-  FROZEN_AT,
   fakeRecallResult,
   makeChatContext,
   seedCharacter,
@@ -1116,8 +1116,8 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",
-      now: FROZEN_AT,
-      expiresAt: FROZEN_AT + 60_000,
+      now: FROZEN_AT_MS,
+      expiresAt: FROZEN_AT_MS + 60_000,
     });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId))).rejects.toBeInstanceOf(ChatOperationError);
@@ -1137,7 +1137,7 @@ describe("createTurnEngine — an ACCEPTED turn's pre-start refusals CLOSE the s
   // `locked` and MISSING-persist-target arms below — every accepted-then-refused turn owes one turnAborted.
   test("a held lock → locked + exactly turnAborted(error)", async () => {
     const chatId = await seedChat(db, "a");
-    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
+    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT_MS, expiresAt: FROZEN_AT_MS + 60_000 });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true }))).rejects.toMatchObject({ code: "locked" });
     expect(types(h.events)).toEqual(["turnAborted"]);
@@ -1161,7 +1161,7 @@ describe("createTurnEngine — an ACCEPTED turn's pre-start refusals CLOSE the s
 
   test("an AUTOMATION-initiated accepted turn's refusal carries its cascade depth (the retry-loop guard)", async () => {
     const chatId = await seedChat(db, "a");
-    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
+    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT_MS, expiresAt: FROZEN_AT_MS + 60_000 });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true, automationDepth: 2 }))).rejects.toMatchObject({ code: "locked" });
     expect(h.events[0]).toMatchObject({ type: "turnAborted", automationDepth: 2 });
@@ -1368,8 +1368,8 @@ describe("createTurnEngine — generate (LOCK-FREE; active-turns)", () => {
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",
-      now: FROZEN_AT,
-      expiresAt: FROZEN_AT + 60_000,
+      now: FROZEN_AT_MS,
+      expiresAt: FROZEN_AT_MS + 60_000,
     });
     const h = harness(db);
     await expect(h.engine.runTurn(prepOf(chatId, { kind: "send" }))).rejects.toMatchObject({
@@ -1719,7 +1719,7 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     const chatId = await seedChat(db, "hb");
     const provider = gatedProvider();
     // Advancing clock: each `now()` read is later, so a refresh writes a strictly larger `expiresAt`.
-    let clock = FROZEN_AT;
+    let clock = FROZEN_AT_MS;
     const now = (): number => {
       clock += 1000;
       return clock;
@@ -1753,8 +1753,8 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     const stolen = await tryAcquireLock(db, {
       chatId,
       holder: "replica-2",
-      now: FROZEN_AT + HEARTBEAT_TTL + 10,
-      expiresAt: FROZEN_AT + HEARTBEAT_TTL + 10 + HEARTBEAT_TTL,
+      now: FROZEN_AT_MS + HEARTBEAT_TTL + 10,
+      expiresAt: FROZEN_AT_MS + HEARTBEAT_TTL + 10 + HEARTBEAT_TTL,
     });
     expect(stolen).toBe(true);
 
@@ -1765,7 +1765,7 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     // The dead turn committed no assistant row — the thief is the sole canon writer.
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
     // The holder-scoped release is a no-op after the steal: replica-2's lock survives untouched.
-    expect(await tryAcquireLock(db, { chatId, holder: "replica-3", now: FROZEN_AT, expiresAt: FROZEN_AT + HEARTBEAT_TTL })).toBe(false);
+    expect(await tryAcquireLock(db, { chatId, holder: "replica-3", now: FROZEN_AT_MS, expiresAt: FROZEN_AT_MS + HEARTBEAT_TTL })).toBe(false);
   });
 
   test("stops the heartbeat on every exit path — no timer leaks past success OR throw", async () => {
@@ -2072,7 +2072,7 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     await seedConnection(db, await seedUser(db, castId<Handle>("host")));
     const resolved = resolveChat({ temperature: 0.9 }, NoSamplingCapability);
     const knobDropped = createRunChatTurnBridge({
-      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT) }),
+      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT_MS) }),
     });
     const h = harness(db, { runChatTurn: knobDropped });
 
@@ -2462,7 +2462,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
           providerId: request.connection.providerId,
           resumed: calls > 1,
           savedTotals: calls === 1 ? NO_SAVED_TOTALS : { costUsd: 0.25, webSearchRequests: 0 },
-          now: () => FROZEN_AT,
+          now: () => FROZEN_AT_MS,
           appliedEffort: null,
           secrets: resolvedScrubSet(request.connection),
           onObservedResult: (result) => observeChatResult(request, result),
@@ -2478,7 +2478,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
   const first = await h.engine.runTurn(prepOf(chatId, { connection, speakerCharacterId: characterId }));
   expect(first.aborted).toBe(false);
   const firstMessage = first.messages[0];
@@ -2505,7 +2505,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
   expect(await db.select().from(chatGenerationObservations)).toEqual([]);
   const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0];
   expect(live).toMatchObject({ assistantTurns: 1, costUsd: 0.125, costSamples: 1, notionalCostSamples: 1, tokensIn: 15, tokensOut: 20 });
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
     assistantTurns: 1,
     costUsd: 0.125,
@@ -2531,7 +2531,7 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
           providerId: request.connection.providerId,
           resumed: false,
           savedTotals: NO_SAVED_TOTALS,
-          now: () => FROZEN_AT,
+          now: () => FROZEN_AT_MS,
           appliedEffort: null,
           secrets: resolvedScrubSet(request.connection),
           onObservedResult: (result) => observeChatResult(request, result),
@@ -2566,7 +2566,7 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
       terminalReason: "api_error",
     },
   ]);
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
     assistantTurns: 0,
     costUsd: 0.25,
@@ -2609,7 +2609,7 @@ test.for([
           providerId: request.connection.providerId,
           resumed: false,
           savedTotals: NO_SAVED_TOTALS,
-          now: () => FROZEN_AT,
+          now: () => FROZEN_AT_MS,
           appliedEffort: null,
           secrets: resolvedScrubSet(request.connection),
           onObservedResult: (result) => observeChatResult(request, result),

@@ -17,10 +17,9 @@ import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, 
 import { castId } from "@orb/kit/ids";
 import { createCharacterOwned } from "@orb/server/domain/character";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeResolved, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-
-const FROZEN_AT = 1_750_000_000_000;
 
 /** A tiny valid PNG header — sniffMime resolves it to image/png. */
 export const PNG_BYTES = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -103,7 +102,7 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
   });
   const ctx: ImageryContext = {
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
     newCallId: (): ImageryCallId => castId<ImageryCallId>(ids.next("imagery_call")),
     resolveGenerateImage: () => Promise.resolve({ connection, capability: generationOf(connection) }),

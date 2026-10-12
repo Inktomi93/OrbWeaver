@@ -7,12 +7,13 @@ import { rpgSnapshots } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { MessageId, RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findCheckpoint, insertCheckpoint, listCheckpoints } from "#server/domain/rpg/persistence/checkpoints.ts";
 import { buildRestoredSnapshotStatement, insertSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
-import { expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
+import { expect, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -31,10 +32,10 @@ describe("create + list", () => {
       variantId,
       location: "camp",
       committed: 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const cpId = castId<RpgCheckpointId>("rpg_checkpoint_1");
-    await insertCheckpoint(db, { id: cpId, gameId, snapshotId: snap.id, label: "before the boss", trigger: "manual", createdAt: FROZEN_AT });
+    await insertCheckpoint(db, { id: cpId, gameId, snapshotId: snap.id, label: "before the boss", trigger: "manual", createdAt: FROZEN_AT_MS });
 
     const list = await listCheckpoints(db, gameId);
     expect(list).toHaveLength(1);
@@ -55,10 +56,10 @@ describe("restore", () => {
       variantId: first.variantId,
       location: "camp",
       committed: 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const cpId = castId<RpgCheckpointId>("rpg_checkpoint_1");
-    const cp = await insertCheckpoint(db, { id: cpId, gameId, snapshotId: base.id, label: "camp", trigger: "manual", createdAt: FROZEN_AT });
+    const cp = await insertCheckpoint(db, { id: cpId, gameId, snapshotId: base.id, label: "camp", trigger: "manual", createdAt: FROZEN_AT_MS });
 
     // Restore as a HAND ROW (D124 fork 4): read the checkpoint's snapshot, clone it forward committed. No
     // message is keyed to it — the visible "— scene restored —" notice is pure prose the verb posts separately.
@@ -74,7 +75,7 @@ describe("restore", () => {
     }
     const notice = await seedMessage(db, chatId, 2, { role: "assistant", content: "— scene restored —" });
     const restoredId = snapshotId("restored");
-    await db.batch(batchMany([buildRestoredSnapshotStatement(db, checkpointed, { id: restoredId, gameId, now: FROZEN_AT }, notice.messageId)]));
+    await db.batch(batchMany([buildRestoredSnapshotStatement(db, checkpointed, { id: restoredId, gameId, now: FROZEN_AT_MS }, notice.messageId)]));
     const [restored] = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.id, restoredId)).limit(1);
     if (restored === undefined) {
       throw new Error("restored snapshot was not committed");
@@ -100,7 +101,7 @@ describe("the RESTRICT belt", () => {
       variantId,
       location: "camp",
       committed: 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await insertCheckpoint(db, {
       id: castId<RpgCheckpointId>("rpg_checkpoint_1"),
@@ -108,7 +109,7 @@ describe("the RESTRICT belt", () => {
       snapshotId: snap.id,
       label: "camp",
       trigger: "manual",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     await expect(db.delete(rpgSnapshots).where(eq(rpgSnapshots.id, snap.id))).rejects.toThrow();
@@ -135,7 +136,7 @@ describe("the cross-game lineage invariant", () => {
       variantId: beatB.variantId,
       location: "room B camp",
       committed: 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     // Both FKs resolve; nothing pairs them. The write goes through.
@@ -145,7 +146,7 @@ describe("the cross-game lineage invariant", () => {
       snapshotId: foreign.id,
       label: "a bookmark into someone else's game",
       trigger: "manual",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const stored = await listCheckpoints(db, gameA);

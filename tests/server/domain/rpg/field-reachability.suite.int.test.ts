@@ -428,11 +428,6 @@ interface FieldProbe {
   readonly macroAbsent?: (f: Fixture) => readonly MacroNeedle[];
 }
 
-// @orb-waive no-vanity-alias(ACTOR_CARRIERS): baselined when the gate widened; burn-down item 906.
-/** Every carrier kind — the per-actor probes run the WHOLE axis (the participant/cast split is exactly where the
- *  read surfaces drifted), derived from the one tuple so a new kind joins the matrix automatically. */
-const ACTOR_CARRIERS: readonly CarrierKind[] = CARRIER_KINDS;
-
 const MANA: RpgTrackerDef = rpgTrackerDefSchema.parse({
   key: "mana",
   label: "Mana",
@@ -483,7 +478,7 @@ const PROBES: readonly FieldProbe[] = [
     // claim the demotion makes.
     name: "health — the SEEDED hp meter reads absolutely and diffs signed like any other tracker",
     reminderPaths: [],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     trackers: [SEEDED_HP],
     drive: async (f) => {
       await f.beat(openingBeat(f.carrier));
@@ -499,7 +494,7 @@ const PROBES: readonly FieldProbe[] = [
     name: "status — the free-prose per-actor state reads absolutely",
     reminderPaths: ["state.actorState[].volatile.status"],
     macroPaths: ["state.actorState[].volatile.status"],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, status: "favouring one leg" }] });
     },
@@ -511,7 +506,7 @@ const PROBES: readonly FieldProbe[] = [
     reminderPaths: ["state.actorState[].volatile.conditions[].name"],
     deltaPaths: ["state.actorState[].volatile.conditions[].name"],
     macroPaths: ["state.actorState[].volatile.conditions[].name"],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, addCondition: { name: "poisoned" } }] });
       await f.beat({ party: [{ targetRef: f.carrier.targetRef, addCondition: { name: "bleeding" }, removeCondition: "poisoned" }] });
@@ -542,7 +537,7 @@ const PROBES: readonly FieldProbe[] = [
       "state.actorState[].volatile.inventory[].location",
       "state.actorState[].volatile.inventory[].description",
     ],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     drive: async (f) => {
       await f.beat({
         ...stageCast(f.carrier),
@@ -582,7 +577,7 @@ const PROBES: readonly FieldProbe[] = [
     reminderPaths: ["state.actorState[].volatile.wallet[].name", "state.actorState[].volatile.wallet[].amount"],
     deltaPaths: ["state.actorState[].volatile.wallet[].name", "state.actorState[].volatile.wallet[].amount"],
     macroPaths: ["state.actorState[].volatile.wallet[].name", "state.actorState[].volatile.wallet[].amount"],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), inventory: [{ targetRef: f.carrier.targetRef, walletDeltas: [{ name: "gold", delta: 40 }] }] });
       await f.beat({ inventory: [{ targetRef: f.carrier.targetRef, walletDeltas: [{ name: "gold", delta: 15 }] }] });
@@ -612,7 +607,7 @@ const PROBES: readonly FieldProbe[] = [
       "tracker.subject",
       "tracker.appliesTo",
     ],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     trackers: [MANA],
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, trackerSets: [{ key: "mana", value: 7 }] }] });
@@ -632,7 +627,7 @@ const PROBES: readonly FieldProbe[] = [
     reminderPaths: ["state.actorState[].volatile.trackerValues.*.value"],
     deltaPaths: ["state.actorState[].volatile.trackerValues.*.value"],
     macroPaths: ["state.actorState[].volatile.trackerValues.*.value"],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     trackers: [TRUST],
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, trackerSets: [{ key: "trust", value: "guarded" }] }] });
@@ -647,7 +642,7 @@ const PROBES: readonly FieldProbe[] = [
     reminderPaths: ["state.actorState[].volatile.trackerValues.*.items[]"],
     deltaPaths: ["state.actorState[].volatile.trackerValues.*.items[]"],
     macroPaths: ["state.actorState[].volatile.trackerValues.*.items[]"],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     trackers: [PACK],
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, trackerSets: [{ key: "pack", items: ["rope"] }] }] });
@@ -661,7 +656,7 @@ const PROBES: readonly FieldProbe[] = [
     name: "tracker max OVERRIDE — the carrier's own ceiling is what the model is taught",
     reminderPaths: ["state.actorState[].volatile.trackerValues.*.max"],
     macroPaths: ["state.actorState[].volatile.trackerValues.*.max"],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     trackers: [MANA],
     drive: async (f) => {
       await f.beat({ ...openingBeat(f.carrier), party: [{ targetRef: f.carrier.targetRef, trackerSets: [{ key: "mana", value: 4 }] }] });
@@ -685,7 +680,7 @@ const PROBES: readonly FieldProbe[] = [
     // ONE beat means `prev === null` on the lineage, which is exactly the arm under test.
     name: "SCENE OPENS — the first snapshot names an on-stage actor by her DISPLAY NAME, never her ref key",
     reminderPaths: [],
-    carriers: ACTOR_CARRIERS,
+    carriers: CARRIER_KINDS,
     drive: async (f) => {
       await f.beat({ scene: { location: "The Ford", presentUpsert: [{ name: f.carrier.targetRef }] } });
     },
@@ -1143,7 +1138,7 @@ test("EMPTY state: a fresh game's read surfaces carry no phantom headers (absenc
 
 test("CARRIAGE is the datum: a carried-but-unmoved tracker lists its bare label on every carrier kind", async () => {
   await Promise.all(
-    ACTOR_CARRIERS.map(async (kind) => {
+    CARRIER_KINDS.map(async (kind) => {
       const f = await openGame({ carrier: CARRIERS[kind], trackers: [MANA] });
       await f.beat(stageCast(f.carrier));
       const reminder = await f.reminder();
@@ -1261,7 +1256,7 @@ test("the participant/cast SPLIT is total: the same write reaches the model on a
   // The parity claim in one place: whatever plane a beat writes, the carrier kind must not decide whether the
   // model gets to see it. (`a4188c3a6f` fixed conditions on this axis; the volatile planes followed.)
   await Promise.all(
-    ACTOR_CARRIERS.map(async (kind) => {
+    CARRIER_KINDS.map(async (kind) => {
       const f = await openGame({ carrier: CARRIERS[kind] });
       await f.beat({
         ...stageCast(f.carrier),

@@ -11,6 +11,7 @@ import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -18,21 +19,7 @@ import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { insertJournalEntry, listActiveJournal } from "#server/domain/rpg/persistence/journal.ts";
 import { findSnapshotByVariant, resolveSnapshotForTurn, writeHandSnapshot, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
-import {
-  actorWithWallet,
-  addVariant,
-  emptyState,
-  expect,
-  FROZEN_AT,
-  handTarget,
-  quest,
-  seedChat,
-  seedGame,
-  seedMessage,
-  target,
-  test,
-  UNCLAMPED,
-} from "./_support.ts";
+import { actorWithWallet, addVariant, emptyState, expect, handTarget, quest, seedChat, seedGame, seedMessage, target, test, UNCLAMPED } from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -123,7 +110,7 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
       content: "x",
       variantId: variantA,
       sourceMessageId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await insertJournalEntry(db, {
       id: castId<RpgJournalId>("rpg_journal_hand"),
@@ -133,7 +120,7 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
       content: "x",
       variantId: null,
       sourceMessageId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await insertJournalEntry(db, {
       id: castId<RpgJournalId>("rpg_journal_b"),
@@ -143,7 +130,7 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
       content: "x",
       variantId: variantB,
       sourceMessageId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     await selectVariant(messageId, variantA);
@@ -196,7 +183,7 @@ describe("the ratification pin — the HAND plane rides ALONGSIDE the swipe, nev
       db,
       { ...snapshotRowToState(selected), location: "the host's corrected hall" },
       null,
-      handTarget({ gameId, chatId, key: "hand_correction", now: FROZEN_AT + 1 }),
+      handTarget({ gameId, chatId, key: "hand_correction", now: FROZEN_AT_MS + 1 }),
     );
     expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the host's corrected hall");
 

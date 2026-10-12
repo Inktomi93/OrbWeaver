@@ -23,6 +23,7 @@
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
 // @orb-waive-file no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
+import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -30,6 +31,7 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -45,7 +47,7 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { createSetRpgPointer } from "#server/domain/chat/verbs/set-rpg-pointer.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the LENS, not the keyset. */
 const TEST_PAGE_LIMIT = 100;
@@ -210,9 +212,8 @@ describe("claim — the one-way, idempotent stamp", () => {
   test("startChat mints a HUSK (started_at NULL) and the room is not in the list until something claims it", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    // @orb-waive no-test-fabrication(never): startChat reads exactly one card field on this path (`greetings[0]`, absent here) — a full CharacterCard literal is twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // @orb-waive no-loose-id-cast({ name: "Aria", greetings: [] }): baselined when the gate widened; burn-down item 906.
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve({ name: "Aria", greetings: [] } as never) });
+    // @orb-waive no-test-fabrication(unknown): startChat reads exactly one card field on this path (`greetings[0]`, absent here) — a full CharacterCard literal is twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve({ name: "Aria", greetings: [] } as unknown as CharacterCard) });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
     const { chat } = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
@@ -222,14 +223,14 @@ describe("claim — the one-way, idempotent stamp", () => {
 
   test("the stamp is idempotent + one-way: a second claim at a later clock never moves the first instant", async () => {
     const { host, chatId } = await seedHusk("c");
-    const later = FROZEN_AT + 5000;
+    const later = FROZEN_AT_MS + 5000;
     const life = lifecycle(makeChatContext(db));
 
     await life.star({ principal: principal(host), chatId, starred: true });
-    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
 
     await lifecycle(makeChatContext(db, { now: () => later })).archive({ principal: principal(host), chatId, archived: true });
-    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
   });
 
   test("a claim fans chatsChanged so a SECOND device's list learns the room appeared without a reload", async () => {
@@ -284,9 +285,8 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
-      // @orb-waive no-test-fabrication(never): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hello there friend." }] }): baselined when the gate widened; burn-down item 906.
-      getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hello there friend." }] } as never),
+      // @orb-waive no-test-fabrication(unknown): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hello there friend." }] } as unknown as CharacterCard),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);
       },
@@ -312,9 +312,8 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
-      // @orb-waive no-test-fabrication(never): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hi." }] }): baselined when the gate widened; burn-down item 906.
-      getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hi." }] } as never),
+      // @orb-waive no-test-fabrication(unknown): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hi." }] } as unknown as CharacterCard),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);
       },
@@ -337,7 +336,7 @@ describe("firstness — a husk never consumes a character's first-chat bump (§4
     await seedParticipant(db, { chatId: husk, key: "h1", characterId: aria });
 
     expect(await characterSeatedInAnotherChat(db, aria, probe)).toBe(false);
-    await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, husk));
+    await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, husk));
     expect(await characterSeatedInAnotherChat(db, aria, probe)).toBe(true);
   });
 });
@@ -383,7 +382,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
   test("reapHusk: a claim landing before the write LEAVES THE ROOM and announces NO death (R1-4b + R1-4a)", async () => {
     const { host, chatId } = await seedHusk("interleave-husk");
     const racing = dbClaimingBeforeDelete(db, async () => {
-      await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, chatId));
+      await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, chatId));
     });
 
     await lifecycle(makeChatContext(racing)).reapHusk({ principal: principal(host), chatId });
@@ -402,13 +401,13 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     // and all. It is now ONE `DELETE … RETURNING` whose WHERE carries the whole conjunction, so the
     // qualification decision and the write are the same statement — and `RETURNING` is simultaneously the
     // honest count and the exact fan set.
-    const stale = FROZEN_AT - TTL_MS - 1000;
+    const stale = FROZEN_AT_MS - TTL_MS - 1000;
     const doomed = await seedHusk("sweep-doomed", { createdAt: stale });
     const rescued = await seedChat(db, "sweep-rescued", { startedAt: null, createdAt: stale });
     await seedParticipant(db, { chatId: rescued, key: "p_sweep_rescued", userId: doomed.host, role: "host" });
 
     const racing = dbClaimingBeforeDelete(db, async () => {
-      await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, rescued));
+      await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, rescued));
     });
 
     const result = await lifecycle(makeChatContext(racing)).reapTemporaryChats({ principal: principal(doomed.host) });
@@ -440,10 +439,10 @@ describe("reap — the nav-away verb and the TTL belt", () => {
   });
 
   test("the TTL belt sweeps an EXPIRED husk, spares a fresh one, and still sweeps expired temporary chats", async () => {
-    const { host, chatId: expired } = await seedHusk("old", { createdAt: FROZEN_AT - TTL_MS - 1 });
-    const fresh = await seedChat(db, "fresh", { startedAt: null, createdAt: FROZEN_AT });
+    const { host, chatId: expired } = await seedHusk("old", { createdAt: FROZEN_AT_MS - TTL_MS - 1 });
+    const fresh = await seedChat(db, "fresh", { startedAt: null, createdAt: FROZEN_AT_MS });
     await seedParticipant(db, { chatId: fresh, key: "pf", userId: host, role: "host" });
-    const temp = await seedChat(db, "temp", { temporary: true, createdAt: FROZEN_AT - TTL_MS - 1 });
+    const temp = await seedChat(db, "temp", { temporary: true, createdAt: FROZEN_AT_MS - TTL_MS - 1 });
     await seedParticipant(db, { chatId: temp, key: "pt", userId: host, role: "host" });
 
     const { reaped } = await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: principal(host) });
@@ -454,9 +453,9 @@ describe("reap — the nav-away verb and the TTL belt", () => {
   });
 
   test("the TTL belt is host-scoped: another user's expired husk is untouched", async () => {
-    const { host } = await seedHusk("mine", { createdAt: FROZEN_AT - TTL_MS - 1 });
+    const { host } = await seedHusk("mine", { createdAt: FROZEN_AT_MS - TTL_MS - 1 });
     const stranger = await seedUser(db, castId<Handle>("stranger"));
-    const theirs = await seedChat(db, "theirs", { startedAt: null, createdAt: FROZEN_AT - TTL_MS - 1 });
+    const theirs = await seedChat(db, "theirs", { startedAt: null, createdAt: FROZEN_AT_MS - TTL_MS - 1 });
     await seedParticipant(db, { chatId: theirs, key: "ps", userId: stranger, role: "host" });
 
     await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: principal(host) });
@@ -464,7 +463,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
   });
 
   test("the TTL belt spares a husk that gained a SECOND human — a multi-human room is somebody else's too", async () => {
-    const { host, chatId } = await seedHusk("shared", { createdAt: FROZEN_AT - TTL_MS - 1 });
+    const { host, chatId } = await seedHusk("shared", { createdAt: FROZEN_AT_MS - TTL_MS - 1 });
     const guest = await seedUser(db, castId<Handle>("guest"));
     await seedParticipant(db, { chatId, key: "g", userId: guest, role: "member" });
 

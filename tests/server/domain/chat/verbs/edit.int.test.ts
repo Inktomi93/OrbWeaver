@@ -34,6 +34,7 @@ import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
@@ -51,7 +52,6 @@ import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/wri
 import { emptyState, seedGame, snapshotId } from "../../rpg/_support.ts";
 import {
   addVariant,
-  FROZEN_AT,
   makeChatContext,
   noClaim,
   seedCharacter,
@@ -190,9 +190,8 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       characterId: charA,
     });
     const ctx = makeChatContext(db, {
-      // @orb-waive no-test-fabrication(never): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast({ name: "Aria", avatarAssetId: null, regexScripts: [] }): baselined when the gate widened; burn-down item 906.
-      getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
+      // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as unknown as CharacterCard),
     });
     const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -864,7 +863,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       role: "assistant",
       characterId: charA,
     });
-    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT });
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT_MS });
     const deltas: StatsDelta[] = [];
     const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1065,7 +1064,7 @@ function recordingStatsCtx(database: Db, sink: StatsDelta[]): ReturnType<typeof 
 }
 
 describe("canon-mutator stats drift gate (live delta == a reconcile over the resulting canon)", () => {
-  const clock = { now: () => FROZEN_AT };
+  const clock = { now: () => FROZEN_AT_MS };
 
   test("SDK leg economics survive duplicate, selected API swap and signed copy deletion without new observations", async () => {
     const { host, chatId, charA } = await seedRoom();
@@ -1076,7 +1075,7 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
       model: testModelId("sdk-model"),
       provider: "claude-sub",
       wire: "agent-sdk",
-      observedAt: FROZEN_AT - 86_400_000,
+      observedAt: FROZEN_AT_MS - 86_400_000,
       contextWindow: null,
       maxOutputTokens: null,
       modelCalls: 1,
@@ -1095,7 +1094,7 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
       costUsd: 0.25,
       costProvenance: "measured",
       costDetails: { totalUsd: 0.25 },
-      observedAt: FROZEN_AT,
+      observedAt: FROZEN_AT_MS,
       servedModel: "served-api",
     });
     await db
@@ -1168,8 +1167,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
         cacheReadTokens: 5,
         cacheWriteTokens: 3,
         contextWindow: 1000,
-        genStartedAt: FROZEN_AT,
-        genFinishedAt: FROZEN_AT + 100,
+        genStartedAt: FROZEN_AT_MS,
+        genFinishedAt: FROZEN_AT_MS + 100,
         reasoning: "hmm",
       })
       .where(eq(messageVariants.id, v0));
@@ -1185,8 +1184,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
         cacheReadTokens: 50,
         cacheWriteTokens: 30,
         contextWindow: 2000,
-        genStartedAt: FROZEN_AT,
-        genFinishedAt: FROZEN_AT + 300,
+        genStartedAt: FROZEN_AT_MS,
+        genFinishedAt: FROZEN_AT_MS + 300,
         reasoning: "big think",
       })
       .where(eq(messageVariants.id, v1));
@@ -1280,8 +1279,8 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
         cacheReadTokens: 7,
         cacheWriteTokens: 5,
         contextWindow: 800,
-        genStartedAt: FROZEN_AT,
-        genFinishedAt: FROZEN_AT + 200,
+        genStartedAt: FROZEN_AT_MS,
+        genFinishedAt: FROZEN_AT_MS + 200,
         reasoning: "hmm",
       })
       .where(eq(messageVariants.id, variantId));
@@ -1807,7 +1806,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
       location: "the konbini",
       recentEvents: ["Mira asked about the drinks"],
       committed: 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await seedDigest(db, { chatId, scopedCharacterId: charA, tier: 0, blockIdx: 0, text: "Mira bargained with the clerk." });
 
@@ -2030,7 +2029,7 @@ describe("applyProseRewrite — C3's variant-pinned, hash-guarded rewrite door",
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "The door was open." });
     const deltas: StatsDelta[] = [];
     const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
-    const clock = { now: (): number => FROZEN_AT };
+    const clock = { now: (): number => FROZEN_AT_MS };
 
     // Baseline: reconcile the PRE-rewrite canon (reconcile is a per-owner REPLACE, so the live path has to be
     // applied ON TOP of a baseline for the comparison to mean anything).

@@ -14,11 +14,12 @@ import { castId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { SummarizeOp } from "#server/domain/chat/contract/context.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 interface SummarizeCall {
   readonly inputs: readonly SummarizeInput[];
@@ -72,7 +73,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -106,7 +107,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -127,7 +128,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -152,7 +153,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -180,7 +181,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -207,7 +208,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -226,7 +227,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -246,7 +247,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -302,7 +303,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -330,7 +331,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),

@@ -50,8 +50,6 @@ const ANALYZE_RUN = mintTypeId(ID_PREFIX.refineryRun);
  *  "this verdict is about a rewrite the canvas is not showing". */
 const ORPHANED_REWRITE = mintTypeId(ID_PREFIX.refineryRun);
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
 // PROSE-LENGTH on both sides (over `accept-review`'s 200-char inline-diff threshold) so the description
 // block renders the side-by-side PAIR and the after pane carries the whole rewrite verbatim — an
 // assertable string. Personality stays short on purpose: that block takes the FORK-C inline word diff,
@@ -92,8 +90,8 @@ function sessionView(sessionId: RefinerySessionId = SESSION_ID): TrpcWireOutput<
     rewriteDecisions: {},
     guidance: null,
     iterationCount: 1,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 
@@ -115,7 +113,7 @@ function scoreRun(row: { id: string; iteration: number; overallScore: number; su
     durationMs: 23_600,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: FROZEN_AT + iteration,
+    createdAt: FROZEN_AT_MS + iteration,
     stage: "score",
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: { fieldScores: [], overallScore, priorityImprovements: [], summary },
@@ -133,7 +131,7 @@ function rewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
     durationMs: 18_000,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: FROZEN_AT + 2,
+    createdAt: FROZEN_AT_MS + 2,
     stage: "rewrite",
     payloadConfig: { kind: "fixed", mode: "balanced" },
     payload: {
@@ -157,7 +155,7 @@ function analyzeRun(sourceRunId: string): TrpcWireOutput<"refinery.listRuns">[nu
     durationMs: 12_000,
     sourceRunId,
     strippedKeys: [],
-    createdAt: FROZEN_AT + 3,
+    createdAt: FROZEN_AT_MS + 3,
     stage: "analyze",
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: {
@@ -263,7 +261,7 @@ function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.listRuns" | 
 
 /** Freeze the page clock so the masthead's elapsed-since credit line is a fixed string. */
 async function freeze(page: Page): Promise<void> {
-  await page.clock.setFixedTime(new Date(FROZEN_AT));
+  await page.clock.setFixedTime(new Date(FROZEN_AT_MS));
 }
 
 // ── THE LANDING PICK: resume-or-mint (#79) ───────────────────────────────────────────────────────────
@@ -310,7 +308,7 @@ function rosterRow(
   status: TrpcWireOutput<"refinery.listSessions">[number]["status"],
   updatedAt: number,
 ): TrpcWireOutput<"refinery.listSessions">[number] {
-  return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT, updatedAt });
+  return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT_MS, updatedAt });
 }
 
 /**
@@ -330,7 +328,7 @@ async function pickZephyrine(page: Page): Promise<void> {
 test("picking a character that already has an OPEN session RESUMES the newest one — no duplicate is minted (#79)", async ({ mount, page }) => {
   await freeze(page);
   const trpc = await routeTrpc(page, {
-    ...landingRoutes([rosterRow(OLDER_OPEN_SESSION_ID, "active", FROZEN_AT), rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000)]),
+    ...landingRoutes([rosterRow(OLDER_OPEN_SESSION_ID, "active", FROZEN_AT_MS), rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT_MS + 10_000)]),
     // A mint that WOULD SUCCEED, scripted on purpose. Leaving `startSession` unlisted makes the old
     // always-mint behaviour fail on a null response instead of on the count below — a red about the stub
     // rather than about the defect. With the mint working, the only thing separating the two behaviours is
@@ -363,7 +361,7 @@ test("picking a character whose only session is FINISHED mints a fresh one and o
   const trpc = await routeTrpc(page, {
     // The roster is NOT empty — it carries a `completed` session on this very card. Resumable is the OPEN
     // status alone: an applied session is finished work, so picking the card again starts over.
-    ...landingRoutes([rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT + 10_000)]),
+    ...landingRoutes([rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT_MS + 10_000)]),
     "refinery.startSession": () => sessionView(MINTED_SESSION_ID),
   });
   await mount(<RefineryStartStory />);
@@ -781,7 +779,7 @@ function strayIndexRewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
     durationMs: 18_000,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: FROZEN_AT + 2,
+    createdAt: FROZEN_AT_MS + 2,
     stage: "rewrite",
     payloadConfig: { kind: "fixed", mode: "balanced" },
     payload: {
@@ -906,7 +904,7 @@ test("RE-ENTERING with an open session offers it on the landing, and the door op
   await freeze(page);
   const asked: string[] = [];
   await routeTrpc(page, {
-    ...landingRoutes([rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000), rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT)]),
+    ...landingRoutes([rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT_MS + 10_000), rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT_MS)]),
     "refinery.getSession": (input) => {
       const { sessionId } = input;
       asked.push(sessionId);

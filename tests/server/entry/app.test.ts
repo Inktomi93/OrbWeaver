@@ -113,9 +113,8 @@ function testServices(extra: Record<string, unknown> = {}): AppDeps["services"] 
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
  *  typed stubs (the routes that would touch them are covered by their own slice tests). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
-  // @orb-waive no-test-fabrication(never): the unhit-port stub the header above describes — routes that reach it throw loudly. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // @orb-waive no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
-  const stub = {} as never;
+  // @orb-waive no-test-fabrication(unknown): the unhit-port stub the header above describes — routes that reach it throw loudly. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const stub = <T>(): T => ({}) as unknown as T;
   const services = testServices();
   return {
     now: (): number => FROZEN_AT_MS,
@@ -134,15 +133,15 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     // The multiplexed-socket cells (SSE-1). Real, frozen-clock instance: the /api/_debug/stream/sockets
     // route reads it, and route tests want the honest "zero live sockets" answer, not a stub's opinion.
     sockets: createSocketRegistry((): number => FROZEN_AT_MS),
-    assets: stub,
-    cas: stub,
-    character: stub,
-    exportService: stub,
+    assets: stub(),
+    cas: stub(),
+    character: stub(),
+    exportService: stub(),
     portability: [inertChatPortability],
-    settleImportMemory: stub,
-    importWorldInfo: stub,
-    importCardScripts: stub,
-    sessions: stub,
+    settleImportMemory: stub(),
+    importWorldInfo: stub(),
+    importCardScripts: stub(),
+    sessions: stub(),
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
     inContainer: false,

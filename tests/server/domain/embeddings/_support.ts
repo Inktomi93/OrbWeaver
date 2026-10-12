@@ -49,9 +49,6 @@ import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 /** The test embed space `(model, dim)`. Small dim keeps vectors cheap; the model strings are the space tag. */
 export const EMBED_DIM = 8;
 export const EMBED_MODEL = "qwen3-embed-test";
@@ -240,7 +237,7 @@ export function embedAs(harness: StoreHarness, model: string): void {
 /** Build an `EmbeddingsContext` over a real db with deterministic clock/ids + a recording fake bundle.
  *  `sources` feeds the bulk-pass enumeration/canon-read fakes (recording `vi.fn`s, overridable per test). */
 export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imageArm: FakeImageArm = "joint"): StoreHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const roleClients = makeRoleClients(true, imageArm);
   const listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]> = vi.fn<EmbeddingsContext["listCharacterIds"]>(() =>
@@ -435,7 +432,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, overrides: { readon
 /** Insert a `chats` row (the producer FK for chat_digests / chat_segments). Returns its branded id. */
 export async function seedChat(db: Db, id = "chat_test", hostUserId?: UserId): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   if (hostUserId !== undefined) {
     // The PRESENT host row — the owner the chat-memory purge scopes on (a chat's vectors belong to its host).
     await db.insert(chatParticipants).values({
@@ -444,7 +441,7 @@ export async function seedChat(db: Db, id = "chat_test", hostUserId?: UserId): P
       kind: "human",
       userId: hostUserId,
       role: "host",
-      joinedAt: FROZEN_AT,
+      joinedAt: FROZEN_AT_MS,
       joinSeq: 0,
     });
   }
@@ -466,8 +463,8 @@ export async function seedDocument(db: Db, ownerId: UserId, overrides: { readonl
     importHash: `seed-import-${id}`,
     byteSize: extractedText.length,
     extractorVersion: "none",
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -482,7 +479,7 @@ export async function seedAsset(db: Db, ownerId: UserId, overrides: { readonly i
     mime: "image/png",
     size: 8,
     hash: overrides.hash ?? contentHash(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])),
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }

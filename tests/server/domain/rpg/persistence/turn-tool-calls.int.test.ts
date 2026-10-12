@@ -13,11 +13,12 @@ import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import type { RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findTurnToolCallsByVariant, listTurnToolCalls, recordTurnToolCalls } from "#server/domain/rpg/persistence/turn-tool-calls.ts";
-import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test } from "../_support.ts";
+import { addVariant, expect, seedChat, seedGame, seedMessage, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -43,7 +44,7 @@ describe("recordTurnToolCalls", () => {
       messageId,
       variantId: variantA,
       calls: callsFor("update_scene", "applied"),
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await recordTurnToolCalls(db, {
       id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_b"),
@@ -51,7 +52,7 @@ describe("recordTurnToolCalls", () => {
       messageId,
       variantId: variantB,
       calls: callsFor("update_party", "dropped"),
-      createdAt: FROZEN_AT + 1,
+      createdAt: FROZEN_AT_MS + 1,
     });
 
     expect((await findTurnToolCallsByVariant(db, variantA))[0]?.calls[0]?.name).toBe("update_scene");
@@ -66,14 +67,14 @@ describe("recordTurnToolCalls", () => {
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
     const id = castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_a");
 
-    await recordTurnToolCalls(db, { id, gameId, messageId, variantId, calls: callsFor("update_scene", "dropped"), createdAt: FROZEN_AT });
+    await recordTurnToolCalls(db, { id, gameId, messageId, variantId, calls: callsFor("update_scene", "dropped"), createdAt: FROZEN_AT_MS });
     await recordTurnToolCalls(db, {
       id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_a2"),
       gameId,
       messageId,
       variantId,
       calls: callsFor("update_scene", "applied"),
-      createdAt: FROZEN_AT + 5,
+      createdAt: FROZEN_AT_MS + 5,
     });
 
     const rows = await findTurnToolCallsByVariant(db, variantId);
@@ -92,7 +93,7 @@ describe("recordTurnToolCalls", () => {
       messageId,
       variantId: variantB,
       calls: callsFor("update_scene", "applied"),
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     await db.delete(messageVariants).where(eq(messageVariants.id, variantB));
@@ -117,7 +118,7 @@ describe("recordTurnToolCalls", () => {
           messageId,
           variantId,
           calls: callsFor("update_scene", "applied"),
-          createdAt: FROZEN_AT + seq,
+          createdAt: FROZEN_AT_MS + seq,
         });
         return variantId;
       }),
@@ -145,7 +146,7 @@ describe("recordTurnToolCalls", () => {
           messageId,
           variantId,
           calls: callsFor("update_scene", "applied"),
-          createdAt: FROZEN_AT + i,
+          createdAt: FROZEN_AT_MS + i,
         }),
       ),
     );
@@ -174,7 +175,7 @@ describe("the cross-chat lineage invariant", () => {
       messageId: slotA.messageId,
       variantId: slotA.variantId,
       calls: callsFor("update_scene", "applied"),
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     // Room B's window never sees room A's record — the property a cross-chat `game_id` would break.

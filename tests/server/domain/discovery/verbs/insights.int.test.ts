@@ -9,10 +9,11 @@ import type { ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
+import { makeDiscoveryHarness, seedCharacter, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 // 2024-01-15 and 2024-03-20 (epoch-ms) — each on a calendar-bucket boundary.
 const JAN_2024 = Date.UTC(2024, 0, 15);
@@ -34,7 +35,7 @@ async function seedCluster(db: Db, args: { ownerId: UserId; clusterIdx: number; 
     name: args.name,
     size: 1,
     model: "test-embed-model-1024",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -53,7 +54,7 @@ async function assignDigest(db: Db, args: { digestId: string; chatId: ChatId; cl
     digestId: castId(args.digestId),
     themeClusterId: args.clusterId,
     msgMidAt: args.msgMidAt,
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 
@@ -155,7 +156,7 @@ describe("themeDrift", () => {
       digestId: castId("d_null"),
       themeClusterId: cluster,
       msgMidAt: null,
-      computedAt: FROZEN_AT,
+      computedAt: FROZEN_AT_MS,
     });
     expect(await svcFor(db).themeDrift(owner)).toEqual([]);
   });
@@ -189,7 +190,7 @@ describe("unusedCharacters", () => {
       characterId: played,
       role: "member",
       joinSeq: 1,
-      joinedAt: FROZEN_AT,
+      joinedAt: FROZEN_AT_MS,
     });
 
     const rows = await svcFor(db).unusedCharacters(owner);

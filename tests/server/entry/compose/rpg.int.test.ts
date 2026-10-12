@@ -57,6 +57,7 @@ import type { RpgTraceSink } from "@orb/server/domain/rpg";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
@@ -72,7 +73,7 @@ import { findTurnToolCallsByVariant } from "#server/domain/rpg/persistence/turn-
 import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "#server/entry/compose/rpg.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-compat/_ollama-native-recordings.ts";
-import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { addVariant, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { ANTHROPIC_PATCH_ROUND_200 } from "./_structured-state-round-recordings.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
@@ -483,7 +484,7 @@ function buildCannedRpgWithText(args: {
   };
   return buildRpg({
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
     rpgChatOps:
       args.presetMaxContext === undefined
@@ -619,7 +620,7 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
     gameId,
     messageId: base.messageId,
     variantId: base.variantId,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, base.variantId);
@@ -1072,7 +1073,7 @@ test("F4: presentRemove enum names an existing scene NPC + party.targetRef reach
     gameId,
     messageId: baseMsg,
     variantId: baseVar,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, baseVar);
@@ -1118,7 +1119,7 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
         },
       })),
     },
-    { id: castId("rpg_snapshot_r5a"), gameId, messageId: baseMsg, variantId: baseVar, now: FROZEN_AT },
+    { id: castId("rpg_snapshot_r5a"), gameId, messageId: baseMsg, variantId: baseVar, now: FROZEN_AT_MS },
   );
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, baseVar);
@@ -1273,7 +1274,7 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
 function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unknown): ReturnType<typeof buildRpg> {
   return buildRpg({
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
@@ -1369,7 +1370,7 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 test("R-OBS composed-real: a folded turn records its mount, its calls, its flush path and its bus emits", async ({ app, db }) => {
-  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT_MS });
   const { chatId, hostId } = await seedHostGameChat(db, "robs-fold");
   const rpgCompose = buildCannedRpgWithText({
     app,
@@ -1458,7 +1459,7 @@ function flushedEvent(recorder: ReturnType<typeof createRpgTraceRecorder>, chatI
 }
 
 test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the reason, never the quiet beat's `no-writes`", async ({ app, db }) => {
-  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT_MS });
   const { chatId, hostId } = await seedHostGameChat(db, "roundfail-cheap");
   const rpgCompose = buildCannedRpgWithText({
     app,
@@ -1494,7 +1495,7 @@ test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the r
 });
 
 test("#1468: the AGENT-SDK degrade (structured extraction) carries the same failure arm — it is not the tool round's optional half", async ({ app, db }) => {
-  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT_MS });
   const { chatId, hostId } = await seedHostGameChat(db, "roundfail-sdk");
   // An agent-sdk wire carries no `tools[]`, so `runToolRound` degrades INSIDE itself to one structured call —
   // a whole class of connection whose failure arm lives in the OTHER catch.
@@ -2329,8 +2330,8 @@ test("PROSE-1: a GM-preset extraction override rides the RESYNC's system prompt,
         "rpg.extract.plane.inventory": { text: "INVENTORY — only coin and what a hand can carry. Nothing else is tracked at this table.", baseVersion: 1 },
       },
     },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
   await compose.service.updateConfig({ principal, chatId, extractionMode: "cheap", gmPresetId: presetId });
@@ -2528,7 +2529,7 @@ test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the 
   const written = await writeStagedSnapshot(
     db,
     { ...defaultSnapshotState(), location: "the konbini", recentEvents: [`${dup}, then asked about drinks.`, `${dup} and dropped the cat-bit.`, `${dup}.`] },
-    { id: castId("rpg_snapshot_ver1a_dup"), gameId, messageId: slot.messageId, variantId: slot.variantId, now: FROZEN_AT },
+    { id: castId("rpg_snapshot_ver1a_dup"), gameId, messageId: slot.messageId, variantId: slot.variantId, now: FROZEN_AT_MS },
   );
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, slot.variantId);
@@ -2768,7 +2769,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   const spy = emptySpy();
   const rpgCompose = buildRpg({
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
@@ -2923,8 +2924,8 @@ test("PROSE-1 POPULATE: a GM-preset override reaches every one of the round's SE
         "rpg.populate.targetLine": { text: "Fill only {{targetRef}}.", baseVersion: 1 },
       },
     },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
 
   const spy = emptySpy();
@@ -2966,7 +2967,7 @@ test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one th
     const presetId = castId<PresetId>(id);
     await db
       .insert(presets)
-      .values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+      .values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
     return presetId;
   };
   /** A game room whose GM knob points at `presetOwner`'s preset, with the nominee seated + nominated. */
@@ -3435,7 +3436,7 @@ test("0511: a structured round that skipped a named existing item runs the inven
         gameId: created.gameId,
         messageId: base.messageId,
         variantId: base.variantId,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       })
     ).ok,
   ).toBe(true);

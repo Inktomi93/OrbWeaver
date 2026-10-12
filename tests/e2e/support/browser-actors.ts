@@ -18,6 +18,7 @@
 //
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 // @orb-waive-file no-test-fabrication(OrbNavMethods | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
@@ -53,10 +54,7 @@ interface OrbNavGlobal {
 type OrbNavMethods = Readonly<Record<string, (arg: string) => NavResult | Promise<NavResult>>>;
 
 const APP_READY = "html[data-app-ready]";
-// The wire-fixed CSRF header name, declared LOCALLY (the e2e-support tree stays import-free of the package
-// trees — the `actors.ts` posture). Its one true home is `@orb/contracts/identity` (`CSRF_HEADER`). The login
-// route requires it (blocks login-CSRF), so this actor sends it exactly as the real client does.
-const CSRF_HEADER = "x-orb-csrf";
+// The login route requires the CSRF header (blocks login-CSRF), so this actor sends it exactly as the real client does.
 const READY_TIMEOUT_MS = 30_000;
 /** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members — <count>`) — the count varies
  *  with the room, so the prefix is the stable half. */

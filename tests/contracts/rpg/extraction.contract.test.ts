@@ -565,9 +565,7 @@ test("EXT-4b: the PROJECTION re-requires journal[].type (prevention where the ba
   expect(rpgExtractionSchema.safeParse({ journal: [{ content: "kindless" }] }).success).toBe(true);
 });
 
-// @orb-waive no-vanity-alias(NO_REFS): baselined when the gate widened; burn-down item 906.
 // ── EXTRACTION_PLANE_PROMPTS — the §1.6 per-plane prompt-fragment registry + its RATCHET ─────────────────
-const NO_REFS: ExtractionRefs = BARE_REFS;
 const baseConfig = (): RpgGameConfig => rpgGameConfigSchema.parse({});
 
 test("RATCHET (§1.6): every top-level rpgExtractionSchema key has a registry row (a new writable plane needs a fragment)", () => {
@@ -580,7 +578,7 @@ test("RATCHET (§1.6): every top-level rpgExtractionSchema key has a registry ro
 });
 
 test("§1.6: the composed teaching prompts the newly-covered planes (plot gate ON, emoji, reconcile, inventory-infer)", () => {
-  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS });
   expect(teaching).toContain("scene.plot"); // plotProgression defaults ON → the plot clause composes
   expect(teaching).toContain("emoji"); // the portrait-fallback emoji clause
   expect(teaching).toContain("RECONCILE"); // the anti-drift doctrine
@@ -591,7 +589,7 @@ test("RV-9: the scene fragment teaches WHEN to move time + weather (the panel's 
   // The owner finding: the Waystone "does not read as a clock" partly because the model never ADVANCES
   // timeOfDay/weather. Same class as the R4b gloss lesson — a field with no when-to-write clause goes
   // unwritten, so the teaching must name the triggers (time spent, sky turning), not just the field.
-  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS });
   expect(teaching).toContain("KEEP TIME MOVING");
   expect(teaching).toContain("advance scene.timeOfDay");
   expect(teaching).toContain("never leave it parked");
@@ -682,22 +680,22 @@ test("SCENE-DROPPED, THE SYMPTOM DYING: the exact live indoor payload now applie
 
 test("RV-9: the structured dateMode teaches WHEN the day counter ticks over (a night passed), not just that it exists", () => {
   const structured = rpgGameConfigSchema.parse({ dateMode: "structured" });
-  const teaching = composePlaneTeaching({ config: structured, refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config: structured, refs: BARE_REFS });
   expect(teaching).toContain("advance it by one");
   expect(teaching).toContain("sleeps through the");
 });
 
 test("§1.6: the plot clause is GATED — plotProgression OFF drops it (applicability, no dead prompt)", () => {
   const off = rpgGameConfigSchema.parse({ features: { plotProgression: false } });
-  expect(composePlaneTeaching({ config: off, refs: NO_REFS })).not.toContain("scene.plot");
+  expect(composePlaneTeaching({ config: off, refs: BARE_REFS })).not.toContain("scene.plot");
 });
 
 test("§1.6: the game-tracker fragment is null when the game defines none, and names them when it does", () => {
-  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("GAME TRACKERS");
+  expect(composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS })).not.toContain("GAME TRACKERS");
   const config = rpgGameConfigSchema.parse({
     trackers: [{ key: "alarm", label: "Town alarm", shape: "meter", write: "set", subject: "game", max: 100, hint: "how hard the watch is looking" }],
   });
-  const teaching = composePlaneTeaching({ config, refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config, refs: BARE_REFS });
   expect(teaching).toContain("GAME TRACKERS");
   expect(teaching).toContain("Town alarm");
   expect(teaching).toContain("how hard the watch is looking");
@@ -713,7 +711,7 @@ test("R2/R6: the party teaching names THIS game's trackers by label + hint, spli
       { key: "sealed", label: "Sealed", shape: "meter", write: "delta", subject: "actor", locked: true, hint: "the host owns this" },
     ],
   });
-  const teaching = composePlaneTeaching({ config, refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config, refs: BARE_REFS });
   expect(teaching).toContain("TRACKED RESOURCES");
   expect(teaching).toContain("Grit");
   expect(teaching).toContain("0-10");
@@ -732,7 +730,7 @@ test("R2: the per-game tool DESCRIPTIONS interpolate the game's own trackers (te
       { key: "alarm", label: "Town alarm", shape: "meter", write: "set", subject: "game", max: 100, hint: "how hard the watch is looking" },
     ],
   });
-  const described = buildRpgToolDescriptions({ config, refs: NO_REFS });
+  const described = buildRpgToolDescriptions({ config, refs: BARE_REFS });
   const party = described.get("update_party") ?? "";
   expect(party).toContain("Grit");
   expect(party).toContain("resolve you spend to push through danger");
@@ -748,10 +746,10 @@ test("EXT-4c: BOTH objective gestures are TAUGHT — the teaching and the tool d
   // A schema arm the model is never told about is a dead arm (the §1.6 plane-under-service class). The steer is
   // PROSE in both the plane teaching and the tool description — the model must learn that ticking one objective
   // off is `completeObjectives`, not a re-listing (which is what wiped the other flags before EXT-4c).
-  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS });
   expect(teaching).toContain("completeObjectives");
   expect(teaching).toContain("do NOT restate the objective list");
-  const quest = buildRpgToolDescriptions({ config: baseConfig(), refs: NO_REFS }).get("upsert_quest") ?? "";
+  const quest = buildRpgToolDescriptions({ config: baseConfig(), refs: BARE_REFS }).get("upsert_quest") ?? "";
   expect(quest).toContain("completeObjectives");
   expect(quest).toContain("never re-send objectives[] to report progress");
   // The registry baseline is the same render — registry and wire can never say different things.
@@ -761,7 +759,7 @@ test("EXT-4c: BOTH objective gestures are TAUGHT — the teaching and the tool d
 test("MOOD IS A SHORT READ: the cast-mood steer rides both the teaching and update_scene's description", () => {
   // Owner report: models write whole sentences into `mood`, which janks the npc row. Taught in PROSE ONLY —
   // a schema maxLength would make the whole call unemittable on a non-enforcing wire and cost the beat.
-  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS });
   expect(teaching).toContain("MOOD IS A SHORT READ");
   expect(teaching).toContain("1-3 words");
   expect(teaching).toContain("never a sentence");
@@ -773,18 +771,18 @@ test("MOOD IS A SHORT READ: the cast-mood steer rides both the teaching and upda
 
 test("§1.6: the structured dateMode prompts the day counter; narrated does NOT (mode-aware fragment)", () => {
   const structured = rpgGameConfigSchema.parse({ dateMode: "structured" });
-  expect(composePlaneTeaching({ config: structured, refs: NO_REFS })).toContain("scene.day");
+  expect(composePlaneTeaching({ config: structured, refs: BARE_REFS })).toContain("scene.day");
   // The default (narrated) mode teaches calendarDate, never the integer day counter.
-  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("scene.day");
+  expect(composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS })).not.toContain("scene.day");
 });
 
 test("§1.6 #7 (recommendation A): a deception-active game prefixes the surface-only clause; a plain game does NOT", () => {
   const deceptive = rpgGameConfigSchema.parse({ features: { deception: true } });
-  const clause = composePlaneTeaching({ config: deceptive, refs: NO_REFS });
+  const clause = composePlaneTeaching({ config: deceptive, refs: BARE_REFS });
   expect(clause).toContain("Record only the players' SURFACE reality");
   expect(clause).toContain("Do NOT write a character's secret truth");
   // A non-deception game is byte-free of the clause (the clause is deception-gated).
-  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("SURFACE reality");
+  expect(composePlaneTeaching({ config: baseConfig(), refs: BARE_REFS })).not.toContain("SURFACE reality");
 });
 
 // ── malformedToolCalls (R1 — the DROP predicate the fold's observability reads) ─────────────────────────

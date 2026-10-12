@@ -44,8 +44,6 @@ const BAND_DOOR = /New at the top of the list/u;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-// @orb-waive no-vanity-alias(NOW): baselined when the gate widened; burn-down item 906.
-const NOW = FROZEN_AT_MS;
 
 function character(name: string, overrides: Partial<CharacterSummaryFixture> = {}): CharacterSummaryFixture {
   return makeCharacterSummary({ id: `char_${name.toLowerCase().replaceAll(" ", "_")}`, name, ...overrides });
@@ -54,39 +52,39 @@ function character(name: string, overrides: Partial<CharacterSummaryFixture> = {
 const SABINE = character("Sabine Veyra", {
   starred: true,
   chatCount: 4,
-  lastChattedAt: NOW - 3 * HOUR_MS,
+  lastChattedAt: FROZEN_AT_MS - 3 * HOUR_MS,
   lastChatId: "chat_sabine_newest",
   elevatorPitch: "Warden of the outer stair; wary, precise, owes a debt.",
-  createdAt: NOW - 2 * DAY_MS,
+  createdAt: FROZEN_AT_MS - 2 * DAY_MS,
 });
 const ELIAS = character("Elias Thorn", {
   chatCount: 2,
-  lastChattedAt: NOW - DAY_MS,
+  lastChattedAt: FROZEN_AT_MS - DAY_MS,
   lastChatId: "chat_elias_newest",
   elevatorPitch: "A scribe who talks to lanterns.",
-  createdAt: NOW - 3 * DAY_MS,
+  createdAt: FROZEN_AT_MS - 3 * DAY_MS,
 });
 const KOHAKU = character("Kohaku", {
   starred: true,
   chatCount: 7,
-  lastChattedAt: NOW - 2 * DAY_MS,
+  lastChattedAt: FROZEN_AT_MS - 2 * DAY_MS,
   lastChatId: "chat_kohaku_newest",
   elevatorPitch: "Shrine fox, bored of prayers.",
-  createdAt: NOW - 40 * DAY_MS,
+  createdAt: FROZEN_AT_MS - 40 * DAY_MS,
 });
 const NIKO = character("Niko", {
   chatCount: 1,
-  lastChattedAt: NOW - 5 * DAY_MS,
+  lastChattedAt: FROZEN_AT_MS - 5 * DAY_MS,
   lastChatId: "chat_niko_newest",
   elevatorPitch: "Courier. Never late, never early.",
-  createdAt: NOW - 41 * DAY_MS,
+  createdAt: FROZEN_AT_MS - 41 * DAY_MS,
 });
 /** Never chatted, never starred — the row the recent SORT sinks to its tail and the shelf must drop. */
-const AVEL = character("Avel the Quiet", { elevatorPitch: "Says four words a day. Chooses them.", createdAt: NOW - DAY_MS });
+const AVEL = character("Avel the Quiet", { elevatorPitch: "Says four words a day. Chooses them.", createdAt: FROZEN_AT_MS - DAY_MS });
 
 /** The seeded roster: shipped, nothing chatted, nothing starred. */
 const SHIPPED = ["Odalys", "Tobias Brand", "Marisol Reyes"].map((name, index) =>
-  character(name, { provenance: "shipped", elevatorPitch: `${name} in one line.`, createdAt: NOW - (index + 1) * DAY_MS }),
+  character(name, { provenance: "shipped", elevatorPitch: `${name} in one line.`, createdAt: FROZEN_AT_MS - (index + 1) * DAY_MS }),
 );
 
 /**

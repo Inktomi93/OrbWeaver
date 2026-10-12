@@ -21,7 +21,7 @@ import type { Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -36,17 +36,7 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { chatCreatedDelta } from "#server/domain/chat/substrate/stats-delta.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
-import {
-  FROZEN_AT,
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedParticipant,
-  seedPersona,
-  seedUser,
-  stubRunCompaction,
-  TEST_CAPABILITY,
-} from "../_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser, stubRunCompaction, TEST_CAPABILITY } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 
@@ -297,7 +287,7 @@ describe("engine stats dispatch — live deltas equal a canon rebuild across eve
     );
 
     // Writer A — reconcile the four rollups from the engine-produced canon.
-    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
+    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT_MS + 5000).now });
     const reconciled = await snapshotRollups(db, HOST);
 
     // Writer B — replay the deltas the engine recorded (+ the chat-creation counts reconcile derives from the
@@ -312,7 +302,7 @@ describe("engine stats dispatch — live deltas equal a canon rebuild across eve
         characterId: charId,
         forked: false,
         newCharacter: true,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       }),
     );
     for (const delta of deltas) {
@@ -346,7 +336,7 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
     await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));
 
     // Writer A — reconcile the four rollups from the engine-produced canon (which carries the reasoning text).
-    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
+    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT_MS + 5000).now });
     const reconciled = await snapshotRollups(db, HOST);
 
     // Writer B — replay the engine's recorded live deltas (+ the chat-creation counts reconcile derives).
@@ -360,7 +350,7 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
         characterId: charId,
         forked: false,
         newCharacter: true,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       }),
     );
     for (const delta of deltas) {
@@ -384,7 +374,7 @@ describe("engine stats — a reasoning-bearing assistant turn credits model_stat
 describe("engine stats — gen-time is populated on the live path (F2)", () => {
   test("a real turn stamps gen bounds → owner/model gen-time > 0", async () => {
     // An ADVANCING clock so the pipeline window (gen_finished − gen_started) is non-zero.
-    let t = FROZEN_AT;
+    let t = FROZEN_AT_MS;
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
       now: () => {
@@ -439,7 +429,7 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
   test("a streamed reasoning turn persists metadata.reasoning_duration and both writers roll it into reasoning_ms", async () => {
     // The clock advances ONLY between the reasoning delta and the first answer token, so the measured window
     // is exactly reasoningWindowMs — a deterministic stand-in for a model that thought that long.
-    let t = FROZEN_AT;
+    let t = FROZEN_AT_MS;
     const thinkingTurn: RunChatTurn = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
         await Promise.resolve();
@@ -501,7 +491,7 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
 
     // (c) THE REBUILD — reconcile from the engine-produced canon reads the same number off the same column.
     await wipeRollups(db);
-    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
+    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT_MS + 5000).now });
     const reconciled = await snapshotRollups(db, HOST);
     expect(reconciled.owner).toMatchObject({ reasoningMs: reasoningWindowMs });
   });
@@ -514,7 +504,7 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
   // back through the contract's own parser, so it runs either way and pre-fix reports `{ reasoning_duration }`
   // with the provider arm missing.
   test("a turn whose runner reported per-provider provenance persists it BESIDE the reasoning window, under one parsed sidecar", async () => {
-    let t = FROZEN_AT;
+    let t = FROZEN_AT_MS;
     const providerMetadata = { provider: "claude-sub", warmSpareClaimed: true, sdkSessionId: "sess-9", cacheCreation1hTokens: 4096 } as const;
     const receiptTurn: RunChatTurn = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
@@ -577,7 +567,7 @@ describe("engine stats — a reasoning continue keeps the row's reasoning window
   const continueWindowMs = 150;
 
   test("new-slot reasoning turn, then a reasoning continue: the row and the live rollup both settle on the continuation's window", async () => {
-    let t = FROZEN_AT;
+    let t = FROZEN_AT_MS;
     // A scripted turn that reasons for `windowMs` (measured on the shared, mutable `t`) then answers `content`.
     function thinkingTurn(windowMs: number, content: string): RunChatTurn {
       return (): AsyncGenerator<TurnStreamChunk> =>
@@ -642,7 +632,7 @@ describe("engine stats — a reasoning continue keeps the row's reasoning window
 
     // (b) THE LIVE WRITER vs (c) THE REBUILD — replay the engine's recorded deltas into a clean set of
     // rollups and compare against `reconcileStats` reading the same engine-produced canon.
-    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
+    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT_MS + 5000).now });
     const reconciled = await snapshotRollups(db, HOST);
     await wipeRollups(db);
     const batch: BatchStmt[] = [];

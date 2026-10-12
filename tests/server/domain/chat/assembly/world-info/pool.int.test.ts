@@ -7,11 +7,12 @@ import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { loadWorldInfoPool } from "#server/domain/chat/assembly/world-info/pool.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../../_support.ts";
+import { seedCharacter, seedChat, seedUser } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -25,8 +26,8 @@ async function seedPersona(owner: UserId, key: string): Promise<PersonaId> {
     ownerId: owner,
     name: key,
     description: `${key} desc`,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -34,7 +35,7 @@ async function seedPersona(owner: UserId, key: string): Promise<PersonaId> {
 /** Insert a book + one entry; returns the book id. `keys` non-empty ⇒ the entry resolves keyword-scope. */
 async function seedBook(owner: UserId, key: string, entry: { content: string; keys?: string[] }): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT_MS });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -45,7 +46,7 @@ async function seedBook(owner: UserId, key: string, entry: { content: string; ke
     priority: 0,
     ignoreBudget: false,
     metadata: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return bookId;
 }
@@ -65,16 +66,16 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     // A foreign tenant's global book — must NOT surface for this host.
     const foreignGlobal = await seedBook(other, "foreign", { content: "foreign lore" });
 
-    await db.insert(chatBooks).values({ chatId, worldBookId: chatBook, createdAt: FROZEN_AT });
+    await db.insert(chatBooks).values({ chatId, worldBookId: chatBook, createdAt: FROZEN_AT_MS });
     await db.insert(characterBooks).values({
       characterId: charId,
       worldBookId: charBook,
       role: "auxiliary",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
-    await db.insert(globalBooks).values({ worldBookId: globalBook, createdAt: FROZEN_AT });
-    await db.insert(globalBooks).values({ worldBookId: foreignGlobal, createdAt: FROZEN_AT });
-    await db.insert(personaBooks).values({ personaId, worldBookId: personaBook, createdAt: FROZEN_AT });
+    await db.insert(globalBooks).values({ worldBookId: globalBook, createdAt: FROZEN_AT_MS });
+    await db.insert(globalBooks).values({ worldBookId: foreignGlobal, createdAt: FROZEN_AT_MS });
+    await db.insert(personaBooks).values({ personaId, worldBookId: personaBook, createdAt: FROZEN_AT_MS });
 
     const pool = await loadWorldInfoPool(db, {
       chatId,
@@ -108,12 +109,12 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const shared = await seedBook(host, "shared", { content: "shared lore" });
-    await db.insert(chatBooks).values({ chatId, worldBookId: shared, createdAt: FROZEN_AT });
+    await db.insert(chatBooks).values({ chatId, worldBookId: shared, createdAt: FROZEN_AT_MS });
     await db.insert(characterBooks).values({
       characterId: charId,
       worldBookId: shared,
       role: "auxiliary",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const pool = await loadWorldInfoPool(db, {
@@ -154,7 +155,7 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const foreignBook = await seedBook(other, "foreignchar", { content: "foreign character lore" });
-    await db.insert(characterBooks).values({ characterId: charId, worldBookId: foreignBook, role: "auxiliary", createdAt: FROZEN_AT });
+    await db.insert(characterBooks).values({ characterId: charId, worldBookId: foreignBook, role: "auxiliary", createdAt: FROZEN_AT_MS });
 
     const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [charId], personaIds: [], memberPersonaLore: true });
 
@@ -169,7 +170,7 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const chatId = await seedChat(db, "a");
     const personaId = await seedPersona(member, "membernyx");
     const foreignBook = await seedBook(other, "foreignpers", { content: "foreign persona lore" });
-    await db.insert(personaBooks).values({ personaId, worldBookId: foreignBook, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId, worldBookId: foreignBook, createdAt: FROZEN_AT_MS });
 
     const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId], memberPersonaLore: true });
 
@@ -186,7 +187,7 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const chatId = await seedChat(db, "a");
     const personaId = await seedPersona(member, "membernyx");
     const memberBook = await seedBook(member, "memberpers", { content: "member persona lore" });
-    await db.insert(personaBooks).values({ personaId, worldBookId: memberBook, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId, worldBookId: memberBook, createdAt: FROZEN_AT_MS });
 
     const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId], memberPersonaLore: true });
 
@@ -201,8 +202,8 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const memberPersona = await seedPersona(member, "membernyx");
     const hostBook = await seedBook(host, "hostpers", { content: "host persona lore" });
     const memberBook = await seedBook(member, "memberpers", { content: "member persona lore" });
-    await db.insert(personaBooks).values({ personaId: hostPersona, worldBookId: hostBook, createdAt: FROZEN_AT });
-    await db.insert(personaBooks).values({ personaId: memberPersona, worldBookId: memberBook, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId: hostPersona, worldBookId: hostBook, createdAt: FROZEN_AT_MS });
+    await db.insert(personaBooks).values({ personaId: memberPersona, worldBookId: memberBook, createdAt: FROZEN_AT_MS });
 
     const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [hostPersona, memberPersona], memberPersonaLore: false });
 

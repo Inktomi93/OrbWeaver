@@ -69,9 +69,6 @@ const STATS_NOW = 1_700_000_000_000;
 // The injected writeHubScores op type (not re-exported from the front door — derive it from the ctx).
 type WriteHubScores = DiscoveryContext["writeHubScores"];
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-/** A fixed epoch-ms (the frozen clock instant — stable timestamp assertions). */
-export const FROZEN_AT = FROZEN_AT_MS;
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
 const VECTOR_DIM = 1024;
 /** The default embed model the seeders tag rows with (the `(model)` space tag). */
@@ -108,7 +105,7 @@ async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask, mode
       connectionRef: connectionId,
       fingerprint: `test:${task}:${model}`,
       space: model,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     })
     .onConflictDoNothing();
   await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
@@ -121,7 +118,7 @@ async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask, mode
         activeGenerationId: id,
         candidateGenerationId: null,
         candidateEpoch: null,
-        completedAt: FROZEN_AT,
+        completedAt: FROZEN_AT_MS,
       })),
     )
     .onConflictDoNothing();
@@ -268,7 +265,7 @@ export function makeDiscoveryHarness(
   const stats = createStatsService(db, () => STATS_NOW);
   const ctx: DiscoveryContext = {
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     newDuplicateCharacterPairId: seededMinter<DuplicateCharacterPairId>("duplicate_character_pair"),
     newThemeClusterId: seededMinter<ThemeClusterId>("theme_cluster"),
     newKeywordCooccurrenceId: seededMinter<KeywordCooccurrenceId>("keyword_cooccurrence"),
@@ -331,7 +328,7 @@ export async function seedCharacter(
       ...(overrides.description !== undefined ? { description: overrides.description } : {}),
       ...(overrides.avatarAssetId !== undefined ? { avatarAssetId: overrides.avatarAssetId } : {}),
       synthetic: overrides.synthetic ?? false,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   return id;
@@ -362,7 +359,7 @@ export async function seedCharacterEmbedding(
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 }
 
@@ -373,7 +370,7 @@ export async function seedCharacterEmbedding(
 // economics-insights reads silently see zero generations for it.
 export async function seedChat(db: Db, id: string): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT, startedAt: FROZEN_AT });
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS, startedAt: FROZEN_AT_MS });
   return chatId;
 }
 
@@ -403,7 +400,7 @@ export async function seedHostedChat(db: Db, id: string, ownerId: UserId): Promi
     userId: ownerId,
     role: "host",
     joinSeq: 0,
-    joinedAt: FROZEN_AT,
+    joinedAt: FROZEN_AT_MS,
   });
   return chatId;
 }
@@ -419,7 +416,7 @@ export async function seedDepartedHost(db: Db, chatId: ChatId, userId: UserId, l
     userId,
     role: "host",
     joinSeq: -1,
-    joinedAt: FROZEN_AT,
+    joinedAt: FROZEN_AT_MS,
     leftSeq,
   });
 }
@@ -441,8 +438,8 @@ async function ensureGroupChar(db: Db): Promise<void> {
       role: "user",
       enabled: true,
       passwordHash: null,
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     })
     .onConflictDoNothing();
   await db
@@ -454,7 +451,7 @@ async function ensureGroupChar(db: Db): Promise<void> {
         ownerId: DIGEST_OWNER,
         name: "group",
         synthetic: true,
-        createdAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
       }),
     )
     .onConflictDoNothing();
@@ -493,7 +490,7 @@ export async function seedChatDigest(
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 }
 
@@ -528,7 +525,7 @@ export async function seedChatSegment(
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 }
 
@@ -607,7 +604,7 @@ export async function seedMessageVariant(
     messageId: castId<MessageId>(overrides.messageId),
     idx: overrides.idx,
     content: overrides.content ?? "",
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 }
 
@@ -620,7 +617,7 @@ export async function seedAsset(db: Db, id: string, ownerId: UserId): Promise<As
     mime: "image/png",
     size: 1,
     hash: `cas_${id}`,
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return assetId;
 }
@@ -650,7 +647,7 @@ export async function seedImageEmbedding(
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   if (overrides.caption !== undefined || overrides.captionMeta !== undefined) {
     await db
@@ -660,7 +657,7 @@ export async function seedImageEmbedding(
         contentHash: sql<string>`(select ${assets.hash} from ${assets} where ${assets.id} = ${overrides.assetId})`,
         caption: overrides.caption ?? "a fixture portrait",
         captionMeta: overrides.captionMeta ?? {},
-        createdAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
       })
       .onConflictDoNothing();
   }

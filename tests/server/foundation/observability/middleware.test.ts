@@ -211,6 +211,14 @@ function makeErrorCtx(opts: { path?: string; method?: string; incomingId?: strin
   };
 }
 
+type ErrorHandlerCtx = Parameters<typeof observabilityErrorHandler>[1];
+
+/** The minimal error-path double narrowed to the handler's Hono `Context`; the handler reads only what the double carries. */
+function honoCtx(ctx: ReturnType<typeof makeErrorCtx>): ErrorHandlerCtx {
+  // @orb-waive no-test-fabrication(unknown): Hono is not a test-reachable dep, so the double is the only Context here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  return ctx as unknown as ErrorHandlerCtx;
+}
+
 describe("observabilityErrorHandler (the thrown-request path)", () => {
   test("logs ONE request.thrown error line carrying the err, and returns Hono's default 500 text", async () => {
     // pino output is silenced (LOG_LEVEL=silent) in tests; spy `logger.error` directly (the same posture
@@ -219,8 +227,7 @@ describe("observabilityErrorHandler (the thrown-request path)", () => {
     const spy = vi.spyOn(logger, "error");
     const err = new Error("handler-blew-up");
     // ErrorHandler's return type is `Response | Promise<Response>`; await covers both.
-    // @orb-waive no-loose-id-cast(makeErrorCtx): baselined when the gate widened; burn-down item 906.
-    const res = await observabilityErrorHandler(err, makeErrorCtx() as never);
+    const res = await observabilityErrorHandler(err, honoCtx(makeErrorCtx()));
 
     expect(spy).toHaveBeenCalledOnce();
     const [fields, msg] = spy.mock.calls[0] as [Record<string, unknown>, string];
@@ -238,8 +245,7 @@ describe("observabilityErrorHandler (the thrown-request path)", () => {
   test("a throw ABOVE the scope records the request itself: ring entry + trace + the X-Request-Id stamp", async () => {
     initTracing();
     const incomingId = "above-scope-req-1";
-    // @orb-waive no-loose-id-cast(makeErrorCtx): baselined when the gate widened; burn-down item 906.
-    const res = await observabilityErrorHandler(new Error("auth-blew-up"), makeErrorCtx({ path: "/api/chats", incomingId }) as never);
+    const res = await observabilityErrorHandler(new Error("auth-blew-up"), honoCtx(makeErrorCtx({ path: "/api/chats", incomingId })));
 
     expect(res.headers.get("X-Request-Id")).toBe(incomingId);
     const record = recentRequests(200).find((r) => r.id === incomingId);
@@ -251,15 +257,13 @@ describe("observabilityErrorHandler (the thrown-request path)", () => {
 
   test("…the id it records obeys the SAME charset guard (a malicious header never reaches the ring)", async () => {
     const malicious = "abc def\nSet-Cookie: evil";
-    // @orb-waive no-loose-id-cast(makeErrorCtx): baselined when the gate widened; burn-down item 906.
-    await observabilityErrorHandler(new Error("auth-blew-up"), makeErrorCtx({ path: "/api/chats", incomingId: malicious }) as never);
+    await observabilityErrorHandler(new Error("auth-blew-up"), honoCtx(makeErrorCtx({ path: "/api/chats", incomingId: malicious })));
     expect(recentRequests(200).some((r) => r.id === malicious)).toBe(false);
   });
 
   test("…and a /join/<token> path is REDACTED in that record (the capability never enters the ring)", async () => {
     const incomingId = "above-scope-join-1";
-    // @orb-waive no-loose-id-cast(makeErrorCtx): baselined when the gate widened; burn-down item 906.
-    await observabilityErrorHandler(new Error("auth-blew-up"), makeErrorCtx({ path: "/join/secret-capability", incomingId }) as never);
+    await observabilityErrorHandler(new Error("auth-blew-up"), honoCtx(makeErrorCtx({ path: "/join/secret-capability", incomingId })));
     const record = recentRequests(200).find((r) => r.id === incomingId);
     expect(record?.path).toBe("/join/:token");
   });
@@ -273,8 +277,7 @@ describe("observabilityErrorHandler (the thrown-request path)", () => {
     // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await (observability as unknown as MiddlewareFn)(ctx, (): Promise<void> => Promise.resolve());
 
-    // @orb-waive no-loose-id-cast(ctx): baselined when the gate widened; burn-down item 906.
-    await observabilityErrorHandler(new Error("handler-blew-up"), ctx as never);
+    await observabilityErrorHandler(new Error("handler-blew-up"), honoCtx(ctx));
 
     const records = recentRequests(200).filter((r) => r.id === incomingId);
     expect(records).toHaveLength(1);

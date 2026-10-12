@@ -4,10 +4,11 @@
 import type { Db } from "@orb/db";
 import type { Handle, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
 import { insertJournalEntry } from "#server/domain/rpg/persistence/journal.ts";
-import { expect, FROZEN_AT, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
+import { expect, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -72,7 +73,7 @@ describe("listJournal — the D16 history floor", () => {
       content: "the pact was sworn",
       variantId: null,
       sourceMessageId: preJoin.messageId,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await insertJournalEntry(db, {
       id: castId<RpgJournalId>("rpg_journal_post"),
@@ -83,7 +84,7 @@ describe("listJournal — the D16 history floor", () => {
       content: "the ford was crossed",
       variantId: null,
       sourceMessageId: postJoin.messageId,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     // A HAND entry carries NO canon anchor (`sourceMessageId IS NULL`) — the anchorless-rides-through rule the
     // chat event clamp states. A host's room note is not a pre-join turn.

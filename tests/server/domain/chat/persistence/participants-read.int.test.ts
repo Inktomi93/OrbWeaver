@@ -5,11 +5,12 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { buildInitialParticipantRows, loadParticipants } from "#server/domain/chat/persistence/participants-read.ts";
-import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -63,7 +64,7 @@ describe("buildInitialParticipantRows (pure)", () => {
     const rows = buildInitialParticipantRows({
       chatId,
       joinSeq: 0,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
       host: {
         participantId: castId<ChatParticipantId>("cp_host"),
         userId: castId<UserId>("user_host"),
@@ -97,6 +98,6 @@ describe("buildInitialParticipantRows (pure)", () => {
         characterId: castId<CharacterId>("char_2"),
       }),
     ]);
-    expect(rows.every((r) => r.joinSeq === 0 && r.joinedAt === FROZEN_AT)).toBe(true);
+    expect(rows.every((r) => r.joinSeq === 0 && r.joinedAt === FROZEN_AT_MS)).toBe(true);
   });
 });

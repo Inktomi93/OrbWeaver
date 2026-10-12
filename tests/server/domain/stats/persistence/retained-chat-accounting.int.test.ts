@@ -1,9 +1,10 @@
 import { characterStats, characters, chatParticipants, chats, messageVariants, ownerStats } from "@orb/db";
 import { castId } from "@orb/kit/ids";
 import { createResolveRetainedChatAccountingScope, reconcileStats } from "@orb/server/domain/stats";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../chat/_support.ts";
 
 test("multi-owner retained canon rebuild writes only its owned character grain and preserves both owner totals", async ({ db }) => {
   const a = await seedUser(db, castId("cohort_a"));
@@ -15,8 +16,8 @@ test("multi-owner retained canon rebuild writes only its owned character grain a
   await seedParticipant(db, { chatId, key: "cohort_other", characterId: other, role: "member", joinSeq: 1 });
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: voice, content: "Retained reply." });
   await db.update(messageVariants).set({ costUsd: 0.25, tokensIn: 10, tokensOut: 20, tokenProvenance: "measured" }).where(eq(messageVariants.id, variantId));
-  await reconcileStats(db, { ownerId: a, now: () => FROZEN_AT });
-  await expect(reconcileStats(db, { ownerId: b, now: () => FROZEN_AT })).resolves.toMatchObject({ owners: 1, characters: 1 });
+  await reconcileStats(db, { ownerId: a, now: () => FROZEN_AT_MS });
+  await expect(reconcileStats(db, { ownerId: b, now: () => FROZEN_AT_MS })).resolves.toMatchObject({ owners: 1, characters: 1 });
   for (const ownerId of [a, b]) {
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]).toMatchObject({
       costUsd: 0.25,
@@ -37,7 +38,7 @@ test("multi-owner retained canon rebuild writes only its owned character grain a
     tokensOut: 0,
     assistantTurns: 0,
   });
-  await reconcileStats(db, { ownerId: a, now: () => FROZEN_AT });
+  await reconcileStats(db, { ownerId: a, now: () => FROZEN_AT_MS });
   expect(await db.select().from(characterStats)).toHaveLength(2);
 });
 

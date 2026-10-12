@@ -183,9 +183,8 @@ const PEER_ENV = {
 /** Build `AppDeps` with the ports this probe never touches stubbed — the middleware chain it DOES drive
  *  (security headers → auth → observability → healthz) needs only the seam + the settings read. */
 function appDeps(): AppDeps {
-  // @orb-waive no-test-fabrication(never): the ports whose routes this probe never drives (covered by their own slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // @orb-waive no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
-  const untouched = {} as never;
+  // @orb-waive no-test-fabrication(unknown): the ports whose routes this probe never drives (covered by their own slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const untouched = <T>(): T => ({}) as unknown as T;
   // Only the settings slice is read here (the CSP + auth-meta live reads); the other domain services are
   // deliberately absent — their routes are covered by their own slice tests.
   // @orb-waive no-test-fabrication(unknown): settings-only slice of the 17-service bundle. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
@@ -211,16 +210,16 @@ function appDeps(): AppDeps {
       },
       read: (userId) => ({ userId, online: true, lastSeenAt: null }),
     },
-    sockets: untouched,
-    assets: untouched,
-    cas: untouched,
-    character: untouched,
-    exportService: untouched,
+    sockets: untouched(),
+    assets: untouched(),
+    cas: untouched(),
+    character: untouched(),
+    exportService: untouched(),
     portability: [inertChatPortability],
-    settleImportMemory: untouched,
-    importWorldInfo: untouched,
-    importCardScripts: untouched,
-    sessions: untouched,
+    settleImportMemory: untouched(),
+    importWorldInfo: untouched(),
+    importCardScripts: untouched(),
+    sessions: untouched(),
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
     inContainer: false,

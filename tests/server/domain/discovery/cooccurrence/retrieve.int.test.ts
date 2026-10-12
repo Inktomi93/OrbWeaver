@@ -7,10 +7,11 @@ import { characterKeywordProfiles, keywordCooccurrence } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
+import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 
 let coocN = 0;
 let profN = 0;
@@ -23,7 +24,7 @@ async function seedPair(db: Db, ownerId: UserId, pair: { a: string; b: string; c
     keywordA: pair.a,
     keywordB: pair.b,
     count: pair.count,
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 
@@ -34,7 +35,7 @@ async function seedProfile(db: Db, characterId: CharacterId, keyword: string, co
     characterId,
     keyword,
     count,
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 

@@ -3,19 +3,20 @@ import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { assemblePrompt } from "#server/domain/chat/assembly/assemble.ts";
 import { buildAssembleContext } from "#server/domain/chat/assembly/context.ts";
-import { FROZEN_AT, makeChatContext, seedChat, seedUser } from "../_support.ts";
+import { makeChatContext, seedChat, seedUser } from "../_support.ts";
 
 test("cache diagnostics name only matched, kept keyword entries at active system anchors", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, castId<Handle>("lore-host"));
   const chatId = await seedChat(db, "cache-lore");
   const bookId = mintTypeId(ID_PREFIX.worldBook);
-  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "Attached lore", createdAt: FROZEN_AT });
-  await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "Attached lore", createdAt: FROZEN_AT_MS });
+  await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: FROZEN_AT_MS });
   const entries = [
     { title: "Dragon arrival", keys: ["dragon"], metadata: { position: "before" }, enabled: true, priority: 10, content: "A dragon appears." },
     { title: "Dragon aftermath", keys: ["dragon"], metadata: { position: "after" }, enabled: true, priority: 10, content: "Ash remains." },
@@ -27,7 +28,7 @@ test("cache diagnostics name only matched, kept keyword entries at active system
   ] satisfies Pick<typeof worldEntries.$inferInsert, "title" | "keys" | "metadata" | "enabled" | "priority" | "content">[];
   await db
     .insert(worldEntries)
-    .values(entries.map((entry) => ({ ...entry, id: mintTypeId(ID_PREFIX.worldEntry), worldBookId: bookId, ignoreBudget: false, createdAt: FROZEN_AT })));
+    .values(entries.map((entry) => ({ ...entry, id: mintTypeId(ID_PREFIX.worldEntry), worldBookId: bookId, ignoreBudget: false, createdAt: FROZEN_AT_MS })));
   const input = {
     chatId,
     ownerId,

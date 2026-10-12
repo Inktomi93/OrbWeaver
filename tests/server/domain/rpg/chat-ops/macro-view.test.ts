@@ -7,7 +7,7 @@
 // while the extraction round wrote them on every beat, the steering reminder printed them and the Scene tab
 // rendered them — writable everywhere, readable by no predicate.
 
-import type { RpgActorView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgActorView, RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
 import { RPG_NPC_GUIDE_FIELDS, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
@@ -67,12 +67,17 @@ function emptyState(): RpgSnapshotState {
 }
 
 const DELTA_CONTEXT: DeltaContext = { participantNames: {}, trackerDefs: [], relationshipHints: {} };
-// @orb-waive no-vanity-alias(STAT_PROFILE): baselined when the gate widened; burn-down item 906.
-const STAT_PROFILE: RpgStatProfile = RPG_PROFILE_FREEFORM;
 
 function feedFor(view: RpgTrackerView): ReturnType<typeof buildRpgMacroFeed> {
   const state = emptyState();
-  return buildRpgMacroFeed({ view, prevSnapshot: state, curSnapshot: state, deltaContext: DELTA_CONTEXT, dateMode: "narrated", statProfile: STAT_PROFILE });
+  return buildRpgMacroFeed({
+    view,
+    prevSnapshot: state,
+    curSnapshot: state,
+    deltaContext: DELTA_CONTEXT,
+    dateMode: "narrated",
+    statProfile: RPG_PROFILE_FREEFORM,
+  });
 }
 
 /** Read the feed the way a preset author does: parse the `{{expr}}` source and evaluate it against the staged

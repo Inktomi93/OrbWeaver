@@ -29,6 +29,7 @@ import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeApiKeySecret } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -43,7 +44,6 @@ import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate
 import type { SearchContext } from "#server/domain/search/context.ts";
 import { createDigests } from "#server/domain/search/verbs/digests.ts";
 import {
-  FROZEN_AT,
   fakeRecallResult,
   makeChatContext,
   seedCharacter,
@@ -345,7 +345,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     const searchCtx = {
       db,
       roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients({ embed: (): Promise<never> => Promise.reject(rejected) })),
-      now: () => FROZEN_AT,
+      now: () => FROZEN_AT_MS,
       resolveActiveDocumentIds: () => Promise.resolve([]),
     } as unknown as SearchContext;
     const digests = createDigests(searchCtx);
