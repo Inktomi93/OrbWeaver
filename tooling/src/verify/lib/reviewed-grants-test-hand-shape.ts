@@ -5,7 +5,7 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 const POLICY = "test-hand-shape";
 
-/** One grant per `[subject, operation]`; the operation is the gate's `respells:` or `copies:` identity. */
+/** One grant per `[subject, operation]`; the operation is the gate's `copies:` or `overlaps:` identity. */
 function handShapeGrants(item: string, rows: readonly (readonly [string, string])[]): readonly ReviewedGateGrant[] {
   return rows.map(([subject, operation]) => ({
     id: `${POLICY}:${subject}#${operation}`,
@@ -43,11 +43,17 @@ export const REVIEWED_GRANTS_TEST_HAND_SHAPE: readonly ReviewedGateGrant[] = [
     ["tests/server/domain/import/_support.ts", "copies:ArtAttachCall=packages/server/src/domain/character/contract/params.ts#AttachImportedArtParams"],
     ["tests/server/domain/preset/_support.ts", "overlaps:SeedPresetOverrides=packages/server/src/domain/preset/contract/views.ts#PresetDetail"],
     ["tests/server/domain/search/_support.ts", "copies:SeedCharacterSummaryOverrides=packages/contracts/src/discovery/index.ts#BrowseCharacter"],
-    [
-      "tests/server/domain/world-info/_support.ts",
-      "overlaps:SeedCharacterOverrides=packages/server/src/foundation/observability/debug/inspect/config.ts#CharacterDetailRow",
-    ],
     ["tests/support/chat/tape.ts", "copies:ErrorOptions=packages/inference/src/contract/errors.ts#ProviderErrorInit"],
     ["tests/support/iso/app-blocking-receipt.ts", "copies:AppBlockingFrameTiming=packages/client/src/lib/motion-stats.ts#LongAnimationFrameEvidence"],
   ]),
+  // The overlap lands on the debug inspector's row, which only shares the columns; the seeder writes `characters`.
+  {
+    id: `${POLICY}:tests/server/domain/world-info/_support.ts#overlaps:SeedCharacterOverrides`,
+    policyId: POLICY,
+    subject: "tests/server/domain/world-info/_support.ts",
+    operation: "overlaps:SeedCharacterOverrides=packages/server/src/foundation/observability/debug/inspect/config.ts#CharacterDetailRow",
+    why: "tests/server/domain/world-info/_support.ts declared its seed overrides by hand; the fields are columns of the `characters` insert row, which the gate matched through the debug inspector's row of the same columns.",
+    endsWhen:
+      "the overrides derive from the `characters` insert type in packages/db/src/schema/character.ts, or the seeder moves to the shared character factory (burn-down: docs/work item 906); this row then consumes nothing and reds stale.",
+  },
 ];

@@ -47,8 +47,8 @@
 // carried as resource proofs, while the real-Git suite preserves the staged-only, working-only, duplicate,
 // ignored-path, blindness, and real-tree controls.
 import { extname } from "node:path";
+import { blankSpan } from "@orb/kit/strings";
 import type { SourceFile } from "ts-morph";
-import { blankSpan } from "../../floor/code-facts/blank-span.ts";
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { JsonValue } from "../contract/resource-json.ts";

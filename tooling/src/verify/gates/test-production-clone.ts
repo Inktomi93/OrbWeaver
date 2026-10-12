@@ -196,8 +196,48 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "#requireGeneration`" },
       why: 'THE BRACKET SPELLING: `cap["kind"]` reads the same member as `cap.kind`, so a copy that respells the access is the same copy',
     },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: "export function rowLabel(row: Row): string {\n  const { id } = row;\n  return lookup(id) ?? fail(id);\n}\n",
+        "tests/inference/capability/synthesize.test.ts":
+          "export function labelOf(entry: Row): string {\n  const { id: key } = entry;\n  return lookup(key) ?? fail(key);\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "#rowLabel`" },
+      why: "A DESTRUCTURED KEY IS A FIELD, ITS LOCAL IS A SLOT: `{ id }` and `{ id: key }` read the same field into a local, so the shorthand copy and the renamed one are one shape",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: 'export const metaKind = (cap: Cap): string => (cap.meta?.kind === "x" ? load(cap.meta?.kind) : skip(cap));\n',
+        "tests/inference/capability/synthesize.test.ts":
+          'export const kindOf = (c: Cap): string => (c.meta?.["kind"] === "x" ? load(c.meta?.["kind"]) : skip(c));\n',
+      },
+      expect: { count: 1, messageIncludes: "#metaKind`" },
+      why: 'THE OPTIONAL BRACKET SPELLING: `c.meta?.["kind"]` is `c.meta?.kind`, optional chain included',
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]:
+          "export function rowLabel(row: Row): string {\n  const { id } = row;\n  return lookup(id) ?? fail(id);\n}\nexport const rowTitle = ({ id }: Row): string => lookup(id) ?? fail(id);\n",
+        "tests/inference/capability/synthesize.test.ts":
+          "export function labelOf(entry: Row): string {\n  const { name } = entry;\n  return lookup(name) ?? fail(name);\n}\nexport const titleOf = ({ name }: Row): string => lookup(name) ?? fail(name);\n",
+      },
+      why: "A DESTRUCTURED KEY IS A PROPERTY NAME, in a declaration and in a parameter alike: `{ id }` and `{ name }` read different fields",
+    },
+    {
+      mode: "types",
+      files: {
+        [PRODUCTION_READS]: 'export const metaKind = (cap: Cap): string => (cap.meta.kind === "x" ? load(cap.meta.kind) : skip(cap));\n',
+        "tests/inference/capability/synthesize.test.ts":
+          'export const kindOf = (c: Cap): string => (c.meta?.["kind"] === "x" ? load(c.meta?.["kind"]) : skip(c));\n',
+      },
+      why: 'AN OPTIONAL CHAIN IS BEHAVIOUR: `c.meta?.["kind"]` tolerates a missing `meta` that `cap.meta.kind` throws on, so the two are different shapes',
+    },
+
     {
       mode: "types",
       files: {

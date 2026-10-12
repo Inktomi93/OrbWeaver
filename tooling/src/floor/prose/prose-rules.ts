@@ -7,7 +7,7 @@
 // and an owner-voice section. Frontmatter is data (its `updated:` is the one sanctioned date), code and
 // path literals quote the codebase exactly, a link target is a path, and the owner's own words are exempt
 // from the plain style. They are blanked to spaces (newlines kept) so a finding still reports its real line.
-import { blankText } from "../code-facts/blank-span.ts";
+import { blankText } from "@orb/kit/strings";
 
 const FENCE_PATTERN = /^\s*(```|~~~)/u;
 const FRONTMATTER_FENCE = "---";

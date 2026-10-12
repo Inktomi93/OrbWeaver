@@ -128,13 +128,38 @@ function substanceOf(node: ts.Node, root: ts.Node): number {
   return acts ? 1 : 0;
 }
 
-/** The tokens of a name: a binding through `nameOf`, a member name kept free. `{ id }` is the key `id` holding the
- *  value `id`, so the key stays a free name and the value goes through `nameOf`. */
-function leafTokens(node: ts.Node, nameOf: (name: string) => string): readonly string[] | undefined {
-  if (ts.isIdentifier(node)) {
-    return [isMemberName(node) ? `#${node.text}` : nameOf(node.text)];
+/** The token of an identifier: a member name stays free, any other name goes through `nameOf`. */
+function nameToken(node: ts.Identifier, nameOf: (name: string) => string): string {
+  return isMemberName(node) ? `#${node.text}` : nameOf(node.text);
+}
+
+/** A shorthand that names a property and a binding at once: `{ id }` in an object literal, and `{ id }` in a
+ *  destructuring pattern. The key is a property name (`{ id }` and `{ name }` read different fields); the value
+ *  is the binding. Undefined for anything else, including a `...rest` element. */
+function shorthandKey(node: ts.Node): { readonly name: string; readonly initializer: ts.Node | undefined } | undefined {
+  if (ts.isShorthandPropertyAssignment(node)) {
+    return { name: node.name.text, initializer: node.objectAssignmentInitializer };
   }
-  return ts.isShorthandPropertyAssignment(node) ? [String(node.kind), `#${node.name.text}`, nameOf(node.name.text)] : undefined;
+  const plainBinding = ts.isBindingElement(node) && node.propertyName === undefined && node.dotDotDotToken === undefined && ts.isIdentifier(node.name);
+  return plainBinding ? { name: node.name.text, initializer: node.initializer } : undefined;
+}
+
+/** The token sequence for a node whose syntax differs from what it reads, as tokens and child nodes to emit in
+ *  order; undefined for every other node. */
+function specialForm(node: ts.Node, nameOf: (name: string) => string): readonly (string | ts.Node)[] | undefined {
+  if (ts.isIdentifier(node)) {
+    return [nameToken(node, nameOf)];
+  }
+  const key = shorthandKey(node);
+  if (key !== undefined) {
+    return [String(node.kind), `#${key.name}`, nameOf(key.name), ...(key.initializer === undefined ? [] : [key.initializer])];
+  }
+  if (!(ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression))) {
+    return;
+  }
+  // `x["name"]` and `x?.["name"]` are `x.name` and `x?.name` spelled with brackets.
+  const optional = node.questionDotToken === undefined ? [] : [String(ts.SyntaxKind.QuestionDotToken)];
+  return [String(ts.SyntaxKind.PropertyAccessExpression), node.expression, ...optional, `#${node.argumentExpression.text}`];
 }
 
 /** The shape of one function-like node (declaration, arrow, expression, method), or undefined below either floor. */
@@ -157,6 +182,7 @@ export function functionShape(fn: Node): FunctionShape | undefined {
     return `$${String(slot)}`;
   };
   const isBound = (name: string): boolean => bound.has(name) || name === self;
+  const nameOf = (name: string): string => (isBound(name) ? bind(name) : `#${name}`);
   const emit = (node: ts.Node): void => {
     const unwrapped = transparentOperand(node) ?? singleReturn(node);
     if (unwrapped !== undefined) {
@@ -166,22 +192,24 @@ export function functionShape(fn: Node): FunctionShape | undefined {
     if (isTypeOnly(node)) {
       return;
     }
-    const leaf = leafTokens(node, (name) => (isBound(name) ? bind(name) : `#${name}`));
-    if (leaf !== undefined) {
-      tokens.push(...leaf);
-      return;
-    }
-    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
-      // `x["name"]` is `x.name` spelled with brackets.
-      tokens.push(String(ts.SyntaxKind.PropertyAccessExpression));
-      emit(node.expression);
-      tokens.push(`#${node.argumentExpression.text}`);
+    const parts = specialForm(node, nameOf);
+    if (parts !== undefined) {
+      for (const part of parts) {
+        emitPart(part);
+      }
       return;
     }
     substance += substanceOf(node, root);
     tokens.push(ts.isLiteralExpression(node) || ts.isTemplateLiteralToken(node) ? `${String(node.kind)}:${node.text}` : String(node.kind));
     ts.forEachChild(node, emit);
   };
+  function emitPart(part: string | ts.Node): void {
+    if (typeof part === "string") {
+      tokens.push(part);
+    } else {
+      emit(part);
+    }
+  }
   for (const parameter of root.parameters) {
     emit(parameter);
   }

@@ -1,8 +1,9 @@
 // One dispatcher-fed source index for the UI primitive family. Resource membership supplies topology;
 // syntax facts preserve the legacy direct-export, literal-color and JSX-tag observation boundaries.
+
+import { blankSpan } from "@orb/kit/strings";
 import type { ExportDeclaration, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { blankSpan } from "../../floor/code-facts/blank-span.ts";
 import { defineFact } from "../contract/fact.ts";
 import { blankTsComments } from "./comment-spans.ts";
 import { testNarrationSpans } from "./test-narration.ts";

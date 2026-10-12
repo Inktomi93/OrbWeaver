@@ -3,9 +3,10 @@
 // (tooling/src/verify/gates/GATE-AUTHORING.md §1) — comments are trivia a value scan must skip. Both helpers return text of the
 // SAME LENGTH with comment characters replaced by spaces and newlines preserved, so a caller's
 // `split("\n")` line numbers and column offsets stay exact.
+
+import { blankSpan } from "@orb/kit/strings";
 import type { SourceFile } from "ts-morph";
 import { Project, ScriptKind, SyntaxKind, ts } from "ts-morph";
-import { blankSpan } from "../../floor/code-facts/blank-span.ts";
 
 const CSS_COMMENT_CLOSE = "*/";
 

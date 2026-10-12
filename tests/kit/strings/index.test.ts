@@ -1,4 +1,6 @@
 import {
+  blankSpan,
+  blankText,
   decodeXmlText,
   fileStem,
   formatBytes,
@@ -150,4 +152,12 @@ test("decodeXmlText: malformed or non-character references stay literal", () => 
     expect(decodeXmlText(raw)).toBe(raw);
   }
   expect(decodeXmlText("tab&#9;nl&#10;")).toBe("tab\tnl\n");
+});
+
+test("an astral character blanks to two spaces, so the text keeps its UTF-16 length and every later offset", () => {
+  const text = "a 👍 b\nc";
+  expect(blankText(text)).toBe("      \n ");
+  const blanked = blankSpan(text, 0, 6);
+  expect(blanked.length).toBe(text.length);
+  expect(blanked.indexOf("c")).toBe(text.indexOf("c"));
 });

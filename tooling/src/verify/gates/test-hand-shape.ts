@@ -1,8 +1,8 @@
 // Policy: test-hand-shape (docs/law/Spine-Testing.md §10, "Derive types") — e2e code and test support modules may not
 // hand-declare an object shape production owns: an interface or type-literal alias whose fields copy one exported
-// shape, or that kept most of an exported shape's field names after drifting (`lib/contract-structural-copy.ts`).
-// Judged by fields, never by name; derived aliases pass. FAMILY `contract-derives-not-respells` (both matchers are its
-// reader). Existing hand shapes are reviewed-grant rows in `lib/reviewed-grants-test-hand-shape.ts`.
+// shape, or that kept most of its field names after drifting. Judged by fields, never by name. DECLARED LIMIT: the
+// drift test (4 shared names, 80 %, one retype) is calibrated, and a row of generic field names can trip it. FAMILY
+// `contract-derives-not-respells` (`lib/contract-structural-copy.ts`). Debt: `lib/reviewed-grants-test-hand-shape.ts`.
 import type { InterfaceDeclaration, SourceFile, TypeAliasDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
