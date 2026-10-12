@@ -288,6 +288,7 @@ export async function listPendingCharacterSuggestions(db: Db, ownerId: UserId, c
 
 /** Count junction rows per tag for the given tag ids, on one junction's tagId column. */
 async function countByTag(db: Db, table: SQLiteTable, tagCol: SQLiteColumn, ids: readonly TagId[]): Promise<Record<string, number>> {
+  // @orb-waive owner-scoped-reads(table): `countByTag` is called only with the tag junction tables, and its ids are the caller's owned tags `listOwnedTagsWithUsage` already resolved, so every count is keyed to an owned tag. Ends if a caller-supplied table or id reaches it.
   const rows = await db
     .select({ tagId: tagCol, n: sql<number>`count(*)` })
     .from(table)

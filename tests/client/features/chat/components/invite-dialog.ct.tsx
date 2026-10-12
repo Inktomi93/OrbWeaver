@@ -10,7 +10,7 @@ import type { AuthConfigShare, AuthMode, UserRole } from "@orb/contracts/identit
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { auditRenderedTextContrast } from "@orb/testkit/browser/pixel-contrast.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -19,7 +19,7 @@ import { InviteDialogStory } from "../_ct-stories.tsx";
 
 const REVOKE_RE = /Revoke/u;
 /** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D259 shape. */
-const ME_USER = { userId: "user_ct_viewer", handle: "viewer", globalRole: "user" } satisfies TrpcFixtureOutput<"sessions.me">;
+const ME_USER = { userId: "user_ct_viewer", handle: "viewer", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const MINTED_LINK_RE = /\/join\/tok_ct_minted$/u;
 const SHARE_OFF: AuthConfigShare = { state: "off", url: null };
 const SHARE_URL = "https://calm-river-four-birds.trycloudflare.com";
@@ -75,7 +75,7 @@ const MINT = {
   token: "tok_ct_minted",
 } satisfies TrpcWireOutput<"invites.createInvite">;
 
-function outstanding(): TrpcFixtureOutput<"invites.listInvites"> {
+function outstanding(): TrpcWireOutput<"invites.listInvites"> {
   return [
     {
       id: "chatinvite_ct_a",
@@ -85,6 +85,7 @@ function outstanding(): TrpcFixtureOutput<"invites.listInvites"> {
       remainingUses: 2,
       expiresAt: null,
       invitedUserId: null,
+      allowSignup: false,
       createdAt: 1,
     },
     {
@@ -95,6 +96,7 @@ function outstanding(): TrpcFixtureOutput<"invites.listInvites"> {
       remainingUses: null,
       expiresAt: null,
       invitedUserId: "user_frodo",
+      allowSignup: false,
       createdAt: 2,
     },
   ];
@@ -460,7 +462,7 @@ test.describe("at a 360px viewport", () => {
 // D259 — the sign-up switch. It is drawn for a global admin in a mode that mints signup invites and only for a
 // share link; the caps are enforced in the form before any wire call. The viewer and the mode are stubbed at
 // the network boundary (`sessions.me` and `/api/auth/config`), the two reads the dialog gates on.
-function meAs(role: UserRole): TrpcFixtureOutput<"sessions.me"> {
+function meAs(role: UserRole): TrpcWireOutput<"sessions.me"> {
   return { userId: "user_ct_viewer", handle: "viewer", globalRole: role };
 }
 

@@ -213,7 +213,7 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
 // The retry button stays mounted and busy while the list reloads, so focus never falls to the document.
 test("a saved row's failed list names the failure and retries into the list, keeping focus on the retry", async ({ mount, page }) => {
   let reads = 0;
-  const reload = trpcHold();
+  const reload = trpcHold<"connection.catalogModels">();
   await stubWith(page, () => {
     reads += 1;
     return reads === 1 ? { listed: false, reason: "openrouter.ai answered 500." } : reload;
@@ -365,7 +365,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
     test.use(device);
 
     test(`${arm}: loading — skeleton rows under a progressbar, then the list`, async ({ mount, page }) => {
-      const catalog = trpcHold();
+      const catalog = trpcHold<"connection.catalogModels">();
       await stubWith(page, catalog);
       await mount(<ConnectionsAuthoringStory width={width} />);
       const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);

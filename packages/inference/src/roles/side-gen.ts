@@ -26,6 +26,7 @@ const SIDE_GEN_POSTURE = "side-gen";
  *  the payload's own content. */
 const PROSE_REASONING_TAGS = { prefix: THINK_PREFIX_DEFAULT, suffix: THINK_SUFFIX_DEFAULT } as const;
 
+// @orb-waive no-inline-package-interface(SideGenDeps): baselined when the gate landed; burn-down item 952.
 /** What the loop needs from the backend that serves the task. */
 export interface SideGenDeps {
   /** The wire's own chat turn. */
@@ -37,6 +38,7 @@ export interface SideGenDeps {
   readonly now: () => number;
 }
 
+// @orb-waive no-inline-package-interface(SideGenItem): baselined when the gate landed; burn-down item 952.
 /** One side-generation item as a chat turn's inputs: its two prompts and its images as URLs or data URLs. */
 export interface SideGenItem {
   readonly systemPrompt: string;

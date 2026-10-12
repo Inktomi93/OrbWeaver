@@ -2,6 +2,7 @@
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { isTypeWorldSource } from "@orb/tooling/floor/compiler/project-worlds";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { PolicyProgramMembership } from "../contract/policy-scope.ts";
@@ -49,8 +50,9 @@ export function programClosures(root: string, programs: readonly PolicyProgramMe
   return out;
 }
 
-export function nativeProgramRoots(root: string, program: PolicyProgramMembership): ReadonlySet<string> | undefined {
-  const result = runNicedSync(process.execPath, [TS7_WRAPPER, "--showConfig", "-p", program.config], {
+/** `launcher` is the injected native compiler wrapper; the checkout's own wrapper by default. */
+export function nativeProgramRoots(root: string, program: PolicyProgramMembership, launcher: string = TS7_WRAPPER): ReadonlySet<string> | undefined {
+  const result = runNicedSync(process.execPath, [launcher, "--showConfig", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
   });
@@ -76,7 +78,7 @@ export function nativeProgramRoots(root: string, program: PolicyProgramMembershi
   for (const file of files) {
     const absolute = isAbsolute(file) ? file : join(configDir, file);
     const rel = relative(root, absolute);
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || rel.includes(`${sep}node_modules${sep}`)) {
+    if (!isWithinRoot(root, resolve(absolute), { sep }) || rel.includes(`${sep}node_modules${sep}`)) {
       continue;
     }
     const posix = rel.split(sep).join("/");

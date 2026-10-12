@@ -2,10 +2,10 @@
 // stories reach feature internals the front door doesn't re-export (the section BODIES are mounted by the
 // settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
 
-// @orb-waive-file testid-typed-only-stories("operations-connections"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider, useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import { QueryClientProvider, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -221,7 +221,7 @@ function OperationsConnectionProbe(): ReactElement {
       },
     },
   );
-  return <span data-testid="operations-connections">{connections}</span>;
+  return <span data-testid={storyTestId("operationsConnections")}>{connections}</span>;
 }
 
 /** Restart recovery follows the real app socket and room hooks; the CT stubs only transport. */

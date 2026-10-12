@@ -3,12 +3,12 @@
 // No copied token-pair table decides membership: the owning element and its framebuffer backdrop are the
 // pair. The controls below are hostile on purpose and prove the instrument refuses blind populations.
 
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { auditRenderedTextContrast, pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -28,12 +28,7 @@ function routeRoom(page: Page): Promise<{ readonly count: (path: string) => numb
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): {
-      participants: never[];
-      anchorPersonaId: null;
-      identities: readonly ChatIdentity[];
-      group: GroupConfig;
-    } => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+    "chat.getChat": () => makeChatDetail({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
     "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({ id: castId<MessageId>("msg_contrast_user"), role: "user", content: "Is the path clear?", seq: 1 }),

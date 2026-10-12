@@ -17,6 +17,7 @@ function assertOwnerSegment(ownerId: string): void {
   }
 }
 
+// @orb-waive no-inline-package-interface(UserRuntimeDirs): baselined when the gate landed; burn-down item 952.
 export interface UserRuntimeDirs {
   /** The path — created on first read (0700), so a spawn never races a missing directory. */
   readonly dirFor: (ownerId: UserId, tool: RuntimeTool) => string;

@@ -154,6 +154,7 @@ async function loadWorldInfoSources(
       .where(and(eq(chatBooks.chatId, target.chatId), eq(worldEntries.enabled, true))),
     // character → scoped to the HOST owner, the same `world_books.ownerId` join `loadCharacterCardLore`
     // below already applies to this very junction (see FLAG[attachment-scope]).
+    // @orb-waive owner-scoped-reads(characters): `characterIds` are the room roster's own present character seats, resolved by the assembly caller after the room authority gate, and the read is pinned to the host's books by `eq(worldBooks.ownerId, target.ownerId)`. Ends if a caller-supplied character id reaches the pool.
     characterIds.length === 0
       ? Promise.resolve([])
       : db

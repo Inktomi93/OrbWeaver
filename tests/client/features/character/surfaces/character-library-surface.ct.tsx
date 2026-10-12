@@ -21,7 +21,8 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
 import { makeImportedCard } from "@orb/testkit/node/factories/imported-card.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeTagWithUsage } from "@orb/testkit/node/factories/tag-view.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -61,7 +62,7 @@ const LIBRARY_AMBIENT_ROUTES: TrpcRoutes<"settings.getUserSettings" | "chat.list
 function tagGroupCensus(
   groups: readonly (readonly [string, string, number, TrpcWireOutput<"character.listTagGroups">["groups"][number]["folderType"]])[],
   uncategorized: number,
-): TrpcFixtureOutput<"character.listTagGroups"> {
+): TrpcWireOutput<"character.listTagGroups"> {
   return {
     groups: groups.map(([id, name, characters, folderType]) => ({ id, name, characters, folderType })),
     uncategorized,
@@ -94,12 +95,12 @@ const CASSIUS = makeCharacterSummary({
   tags: [],
 });
 
-const PAGE_1_CURSOR = { createdAt: BOLT.createdAt, id: BOLT.id };
+const PAGE_1_CURSOR = { sort: "recent", lastChattedAt: null, createdAt: BOLT.createdAt, id: BOLT.id } as const;
 const THREE_ROW_TOTAL = 3;
 
 /** A two-page keyset series: page 1 = [ARIA, BOLT] + a cursor; page 2 = [CASSIUS], exhausted. Both pages
  *  carry the SAME census — every page of one keyset run counts the same scope. */
-function twoPageResponder(input: Parameters<CharacterListResponder>[0]): TrpcFixtureOutput<"character.list"> {
+function twoPageResponder(input: Parameters<CharacterListResponder>[0]): TrpcWireOutput<"character.list"> {
   const cursor = input?.cursor;
   return cursor === undefined
     ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR, totalCount: THREE_ROW_TOTAL }
@@ -258,11 +259,11 @@ const TAGGED = makeCharacterSummary({
  *  now, not the loaded rows', so it has to be routed wherever a chip is asserted. */
 function tagLibraryOf(
   ...names: readonly { readonly id: string; readonly name: string; readonly characters: number }[]
-): TrpcFixtureOutput<"tag.listTagFilterVocabulary"> {
+): TrpcWireOutput<"tag.listTagFilterVocabulary"> {
   return names.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: tag.characters }));
 }
 
-const RPG_TAG_LIBRARY: TrpcFixtureOutput<"tag.listTagFilterVocabulary"> = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1 });
+const RPG_TAG_LIBRARY: TrpcWireOutput<"tag.listTagFilterVocabulary"> = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1 });
 
 /** Route the three fixtures through the INPUT-AWARE responder (the chips/search narrow the REQUEST) + an
  *  empty `listChats` (empty resume map) + the tag library the chips come from. */
@@ -559,12 +560,18 @@ test("F1 the sort Select cannot crush the search box — search keeps the row's 
  *  pane's own chip rail no longer shares it: it reads the `listTagFilterVocabulary` projection (side-eye
  *  2026-08-18 P2-6), so a test that drives BOTH surfaces routes both keys. */
 const TAG_LIBRARY = [
-  { ...makeTagFixture({ id: "tag_adventure", name: "adventure" }), usage: { characters: 5, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 5 } },
-  { ...makeTagFixture({ id: "tag_fantasy", name: "fantasy" }), usage: { characters: 12, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 12 } },
+  makeTagWithUsage({
+    ...makeTagFixture({ id: "tag_adventure", name: "adventure" }),
+    usage: { characters: 5, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 5 },
+  }),
+  makeTagWithUsage({
+    ...makeTagFixture({ id: "tag_fantasy", name: "fantasy" }),
+    usage: { characters: 12, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 12 },
+  }),
 ];
 
 /** The same two tags, as the library rail's own read answers them. */
-const TAG_VOCABULARY: TrpcFixtureOutput<"tag.listTagFilterVocabulary"> = tagLibraryOf(
+const TAG_VOCABULARY: TrpcWireOutput<"tag.listTagFilterVocabulary"> = tagLibraryOf(
   { id: "tag_adventure", name: "adventure", characters: 5 },
   { id: "tag_fantasy", name: "fantasy", characters: 12 },
 );
@@ -572,7 +579,7 @@ const TAG_VOCABULARY: TrpcFixtureOutput<"tag.listTagFilterVocabulary"> = tagLibr
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
@@ -606,7 +613,7 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
 test("the tag picker suggests EXISTING tags as you type, and picking one attaches it", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
@@ -634,7 +641,7 @@ test("the tag picker suggests EXISTING tags as you type, and picking one attache
 test("a name that matches nothing makes CREATING the deliberate, labelled act", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
@@ -662,7 +669,7 @@ test("a name that matches nothing makes CREATING the deliberate, labelled act", 
 test("a no-match query opens NO popup — the confirm stays clickable and in the a11y tree", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
@@ -706,7 +713,7 @@ test("D4 the create dialog gates Create on BOTH name and description, with the r
 // ⑪ — the library page size is the user's `UserSettings.library.pageSize` (a consumer-supplied param into
 // createCollectionSurface, not a factory-internal settings read). A custom pageSize reaches the
 // `character.list` request's `limit`; unset falls to the schema default (30), byte-identical to pre-wire.
-function settingsView(pageSize: number): TrpcFixtureOutput<"settings.getUserSettings"> {
+function settingsView(pageSize: number): TrpcWireOutput<"settings.getUserSettings"> {
   return {
     userId: "user_ct_lib",
     schemaVersion: 1,
@@ -1409,7 +1416,7 @@ test("P2 selecting a chip no longer reshuffles the rail — the count datum cann
 // reader. The rail RESERVES the lines while the read is in flight, so the group's own height is the same
 // before and after the vocabulary lands.
 test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does not grow the group", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"tag.listTagFilterVocabulary">();
   const tags = Array.from({ length: 12 }, (_unused, at) => makeTagFixture({ id: `tag_bulk_${String(at)}`, name: `bulk-${String(at).padStart(2, "0")}` }));
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,

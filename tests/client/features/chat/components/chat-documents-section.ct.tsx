@@ -18,6 +18,7 @@
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -228,11 +229,12 @@ test("host + documents + a preset that never places {{databank}}: the rack says 
     }),
     // An imported-ST-shaped arrangement: a main prompt and nothing else. This is the live 2026-08-15 case —
     // add → index → attach all worked, and the model still received zero retrieved bytes.
-    [PRESET_GET]: () => ({
-      id: ACTIVE_PRESET_ID,
-      name: "Imported",
-      config: { ...DEFAULT_PROMPT_CONFIG, sections: DEFAULT_PROMPT_CONFIG.sections.filter((section) => section.id !== "databank") },
-    }),
+    [PRESET_GET]: () =>
+      makePresetDetail({
+        id: ACTIVE_PRESET_ID,
+        name: "Imported",
+        config: { ...DEFAULT_PROMPT_CONFIG, sections: DEFAULT_PROMPT_CONFIG.sections.filter((section) => section.id !== "databank") },
+      }),
   });
   const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
 
@@ -245,7 +247,7 @@ test("host + documents + a preset that never places {{databank}}: the rack says 
 test("host + documents + the shipped default preset: no warning — the slot is placed", async ({ mount, page }) => {
   const trpc = await stubRack(page, {
     // Deliberately fed but unreachable: the built-in arm has no PresetId and therefore no preset read.
-    [PRESET_GET]: () => ({ id: ACTIVE_PRESET_ID, name: "SHOULD NOT BE CALLED", config: DEFAULT_PROMPT_CONFIG }),
+    [PRESET_GET]: () => makePresetDetail({ id: ACTIVE_PRESET_ID, name: "SHOULD NOT BE CALLED", config: DEFAULT_PROMPT_CONFIG }),
   });
   const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
 
@@ -265,7 +267,7 @@ test("no documents attached: the slotless preset is not worth mentioning yet", a
       ...SETTINGS_BUILT_IN,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
     }),
-    [PRESET_GET]: () => ({ id: ACTIVE_PRESET_ID, name: "Imported", config: { ...DEFAULT_PROMPT_CONFIG, sections: [] } }),
+    [PRESET_GET]: () => makePresetDetail({ id: ACTIVE_PRESET_ID, name: "Imported", config: { ...DEFAULT_PROMPT_CONFIG, sections: [] } }),
   });
   const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
 
@@ -282,7 +284,7 @@ test("member: no warning even on a slotless preset — it is the HOST's preset t
       ...SETTINGS_BUILT_IN,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
     }),
-    [PRESET_GET]: () => ({ id: ACTIVE_PRESET_ID, name: "Imported", config: { ...DEFAULT_PROMPT_CONFIG, sections: [] } }),
+    [PRESET_GET]: () => makePresetDetail({ id: ACTIVE_PRESET_ID, name: "Imported", config: { ...DEFAULT_PROMPT_CONFIG, sections: [] } }),
   });
   const component = await mount(<ChatDocumentsSectionStory isHost={false} />);
 

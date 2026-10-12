@@ -160,7 +160,7 @@ test("a first connection explicitly reuses a saved key for listing and saving wi
 test("changing saved keys retires the model and ignores the previous key's late catalog", async ({ mount, page }) => {
   const first = credentialRow({ label: "First key" });
   const second = credentialRow({ id: mintTypeId(ID_PREFIX.userCredential), label: "Second key" });
-  const delayed = trpcHold();
+  const delayed = trpcHold<"connection.draftCatalogModels">();
   const trpc = await stubConnectionsPane(page, {
     credentials: [first, second],
     draftCatalogModels: (input) => (input.credentialId === first.id ? delayed : catalogOf([catalogEntry("second/model")])),
@@ -887,8 +887,8 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
     test.use(device);
 
     test(`${arm}: loading — key storage is checked first, then the model list shows skeleton rows while it loads`, async ({ mount, page }) => {
-      const storage = trpcHold();
-      const listing = trpcHold();
+      const storage = trpcHold<"credentials.storageStatus">();
+      const listing = trpcHold<"connection.draftCatalogModels">();
       await stubConnectionsPane(page, { storageStatus: storage, draftCatalogModels: listing });
       await mount(<ConnectionsAuthoringStory width={width} />);
       const dialog = await openAddDialog(page);
@@ -1095,7 +1095,7 @@ test("a failed first Chat assignment is stated and retried without creating anot
 });
 
 test("closing setup during the Chat write still reports a late refusal with recovery", async ({ mount, page }) => {
-  const response = trpcHold();
+  const response = trpcHold<"connection.setBinding">();
   const trpc = await stubConnectionsPane(page, { setBinding: response });
   const component = await mount(<ConnectionsAuthoringStory width={870} />);
   await addOpenRouter(page, await openAddDialog(page), OPUS);

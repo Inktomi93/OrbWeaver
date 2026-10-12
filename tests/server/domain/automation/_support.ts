@@ -277,8 +277,8 @@ export interface RuleFixture {
 }
 
 /** A fresh db + a host + their chat + the built service — the shared rule-lifecycle test setup. */
-export async function ruleFixture(overrides: HarnessOverrides = {}): Promise<RuleFixture> {
-  const db = await freshDb();
+export async function ruleFixture(overrides: HarnessOverrides = {}, freshHandle?: Db): Promise<RuleFixture> {
+  const db = freshHandle ?? (await freshDb());
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
   const events: AutomationBusEvent[] = [];

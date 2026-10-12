@@ -12,6 +12,7 @@ function toChatMlPrompt(text: string, instruction: string): string {
   return `<|im_start|>system\n${instruction}<|im_end|>\n<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
 }
 
+// @orb-waive no-inline-package-interface(VectorFit): baselined when the gate landed; burn-down item 952.
 /** The width a returned vector must have, and whether the model's vectors may be cut down to it. */
 export interface VectorFit {
   readonly dims: number;

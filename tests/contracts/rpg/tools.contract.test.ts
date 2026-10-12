@@ -127,7 +127,7 @@ test("add_journal_entry: a title-LESS entry now PARSES (the blocker fix — titl
 
 // EXT-4b — `type` sits in the IDENTICAL nested-array blind spot `title` did, so it gets the identical
 // treatment: optional at parse + healed at apply, with the projection re-requiring it for the backends that
-// DO enforce nested `required` (pinned in extraction.contract). `content` deliberately stays required.
+// DO enforce nested `required` (pinned in extraction-salvage.contract). `content` deliberately stays required.
 test("add_journal_entry: a type-LESS entry PARSES and heals to `note`; a content-LESS entry is refused", () => {
   const typeless = addJournalEntryArgsSchema.safeParse({ content: "The gate groaned open." });
   expect(typeless.success).toBe(true);

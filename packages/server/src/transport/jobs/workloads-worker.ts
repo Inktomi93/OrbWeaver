@@ -85,6 +85,7 @@ type SubscribeWakeOp = (listener: () => void) => () => void;
 // closure so the handle type never leaks (no `NodeJS.Timeout`/`ReturnType<>` in the surface).
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
+// @orb-waive no-inline-package-interface(WorkloadsWorkerDeps): baselined when the gate landed; burn-down item 952.
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
 export interface WorkloadsWorkerDeps {
   /** The per-dispatch runner deps (db + the cross-feature `env` hub + the per-owner binder + the injected

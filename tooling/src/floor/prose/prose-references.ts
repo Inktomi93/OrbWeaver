@@ -4,7 +4,8 @@
 // Filesystem-touching, so it sits beside the pure rules in `prose-rules.ts` rather than inside them; the
 // instruction-layer walk and the docs walk are its two importers.
 import { existsSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, posix, relative, sep } from "node:path";
+import { dirname, join, posix, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { GIT_READ_PREFIX, runGit } from "../git/git.ts";
 import { backtickedRelativePaths, backtickedRepoPaths, markdownLinkTargets } from "./prose-rules.ts";
 
@@ -22,8 +23,7 @@ function isIgnoredBuildOutput(root: string, path: string, ignored: (path: string
     missing = existing;
     existing = posix.dirname(existing);
   }
-  const ancestor = relative(realpathSync(root), realpathSync(join(root, existing)));
-  if (ancestor === ".." || ancestor.startsWith(`..${sep}`) || isAbsolute(ancestor)) {
+  if (!isWithinRoot(realpathSync(root), realpathSync(join(root, existing)), { sep })) {
     return false;
   }
   if (existing !== "." && ignored(existing)) {
@@ -32,8 +32,9 @@ function isIgnoredBuildOutput(root: string, path: string, ignored: (path: string
   return ignored(missing);
 }
 
-/** Cache Git answers for shared prefixes within one immutable document or resource-load invocation. */
-export function ignoredBuildOutputClassifier(root: string): (path: string) => boolean {
+/** Cache Git answers for shared prefixes within one immutable document or resource-load invocation.
+ *  `git` is the injected Git door, so a caller can count the queries one invocation spends. */
+export function ignoredBuildOutputClassifier(root: string, git: typeof runGit = runGit): (path: string) => boolean {
   const answers = new Map<string, boolean>();
   const ignored = (path: string): boolean => {
     const cached = answers.get(path);
@@ -41,7 +42,7 @@ export function ignoredBuildOutputClassifier(root: string): (path: string) => bo
       return cached;
     }
     // A directory-only ignore needs the slash when Git cannot stat the absent prefix.
-    const answer = runGit(root, [...GIT_READ_PREFIX, "check-ignore", "--", path, `${path}/`]).status === 0;
+    const answer = git(root, [...GIT_READ_PREFIX, "check-ignore", "--", path, `${path}/`]).status === 0;
     answers.set(path, answer);
     return answer;
   };
@@ -49,9 +50,9 @@ export function ignoredBuildOutputClassifier(root: string): (path: string) => bo
 }
 
 /** Every dead link target and dead backticked path (repository or relative) in one file, as `path:line: what` strings. */
-export function referenceProblems(root: string, rel: string, source: string): readonly string[] {
+export function referenceProblems(root: string, rel: string, source: string, git: typeof runGit = runGit): readonly string[] {
   const problems: string[] = [];
-  const ignoredBuildOutput = ignoredBuildOutputClassifier(root);
+  const ignoredBuildOutput = ignoredBuildOutputClassifier(root, git);
   for (const { line, target } of markdownLinkTargets(source)) {
     if (target !== "" && !existsSync(join(root, dirname(rel), target))) {
       problems.push(`${rel}:${line}: link target does not exist: ${target}`);

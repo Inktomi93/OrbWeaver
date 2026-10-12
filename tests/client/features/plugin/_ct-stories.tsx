@@ -9,7 +9,6 @@
 // and the declared list comes from a client-side manifest read of the uploaded bytes — a story that passed
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
-// @orb-waive-file testid-typed-only-stories("ct-extensions-content"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
@@ -56,6 +55,7 @@ import {
 } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { configSections, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -603,7 +603,7 @@ export function ExtensionsSectionStory(): ReactElement {
             <div style={{ width: SWITCHER_PANE_WIDTH }}>
               <ExtensionsListHarness />
             </div>
-            <div data-testid="ct-extensions-content" style={{ height: PAGE_REGION.height, width: PAGE_REGION.width }}>
+            <div data-testid={storyTestId("ctExtensionsContent")} style={{ height: PAGE_REGION.height, width: PAGE_REGION.width }}>
               <ExtensionsContentHarness />
             </div>
           </Row>

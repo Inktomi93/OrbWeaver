@@ -4,17 +4,20 @@
 // @subject packages/server/src/domain/imagery/verbs/extract-prompt.ts
 
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
-import { assets, characters } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import { characters } from "@orb/db";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import { createAssetsService } from "@orb/server/domain/assets";
+import { createCharacterService } from "@orb/server/domain/character";
 import { createImageryService, PromptExtractionFailedError } from "@orb/server/domain/imagery";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { and, eq } from "drizzle-orm";
-import { describe } from "vitest";
+import { describe, onTestFinished } from "vitest";
+import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
+import { makeHarness as makeCharacterHarness } from "../../character/_support.ts";
 import { makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_room");
@@ -105,16 +108,19 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     expect(extraction).toEqual([{ viewer: member, funder: host }]);
   });
 
-  // The reads are the owner-scoped ones the character and assets domains enforce (a character and its avatar
-  // belong to the host alone), so a read made as the member finds nothing.
+  // The reads are the character and assets domains' own owner-scoped verbs, the ones compose wires (a character
+  // and its avatar belong to the host alone), so a read made as the member finds nothing.
   test("a member's caption reads the host's subject card and avatar as the host, and funds as the host", async () => {
     const db = await freshDb();
     const host = await seedOwner(db, castId<Handle>("host"));
     const member = await seedOwner(db, castId<Handle>("member"));
-    const avatar = castId<AssetId>("asset_host_avatar");
     const subject = castId<CharacterId>("character_aria");
-    await db.insert(assets).values({ id: avatar, ownerId: host, kind: "avatar", mime: "image/png", size: PNG_BYTES.length, hash: "host_avatar" });
-    await db.insert(characters).values(makeCharacter({ id: subject, ownerId: host, avatarAssetId: avatar }));
+    const assetsHarness = await makeAssetsHarness(db);
+    onTestFinished(assetsHarness.cleanup);
+    const assetsService = createAssetsService(assetsHarness.ctx);
+    const characterService = createCharacterService(makeCharacterHarness(db).ctx);
+    const avatar = await assetsService.store({ principal: principal(host), bytes: PNG_BYTES, kind: "avatar", mime: "image/png" });
+    await db.insert(characters).values(makeCharacter({ id: subject, ownerId: host, avatarAssetId: avatar.assetId }));
     const reads: { readonly card: UserId[]; readonly avatar: UserId[]; readonly instruction: UserId[]; readonly funder: UserId[] } = {
       card: [],
       avatar: [],
@@ -123,27 +129,13 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     };
     const { ctx } = makeHarness(db, {
       resolveRoomRunAs: () => Promise.resolve(principal(host)),
-      getCard: async (caller, characterId) => {
+      getCard: (caller, characterId) => {
         reads.card.push(caller.userId);
-        const [row] = await db
-          .select()
-          .from(characters)
-          .where(and(eq(characters.id, characterId), eq(characters.ownerId, caller.userId)));
-        if (row === undefined) {
-          throw new Error("character not found");
-        }
-        return row;
+        return characterService.get({ principal: caller, characterId });
       },
-      readAsset: async (caller, assetId) => {
+      readAsset: (caller, assetId) => {
         reads.avatar.push(caller.userId);
-        const [row] = await db
-          .select({ id: assets.id })
-          .from(assets)
-          .where(and(eq(assets.id, assetId), eq(assets.ownerId, caller.userId)));
-        if (row === undefined) {
-          throw new Error("asset not found");
-        }
-        return { bytes: PNG_BYTES, mime: "image/png" };
+        return assetsService.readOwnedAssetBytes(caller, assetId);
       },
       resolveCaptionInstruction: (runAs, mode) => {
         reads.instruction.push(runAs.userId);

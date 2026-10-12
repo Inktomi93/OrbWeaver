@@ -3151,11 +3151,6 @@
       "reason": "documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says \"No stack log was found to preserve\" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened."
     },
     {
-      "siteId": "tooling/src/snap/ops/stage-wait.ts::stageWaiterTurn::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a non-busy boot failure is written onto the ticket as failed with its message; the caller prints it as STAGE WAIT FAILED and exits 2. Ends if the ticket detail stops reaching the caller."
-    },
-    {
       "siteId": "tooling/src/snap/ops/watch.ts::runWatchSeries::page.screenshot::1",
       "verdict": "deliberate-absorb",
       "reason": "captured into shotError on the returned tick, which report.ts prints as FAILED and run.ts counts into the verdict. Ends if that count/print stops being read."

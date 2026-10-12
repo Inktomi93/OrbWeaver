@@ -19,7 +19,7 @@ async function clickInOneBrowserTask(component: Locator, actions: readonly Enabl
 }
 
 test("a repeated Enable gesture admits one owned write and clears selection only after success", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"regex.bulkSetEnabled">();
   const trpc = await routeTrpc(page, { "regex.bulkSetEnabled": held });
   const component = await mount(<RegexBulkBarStory />);
   const enable = component.getByRole("button", { name: "Enable", exact: true });
@@ -44,7 +44,7 @@ for (const actions of [
   ["Disable", "Enable"],
 ] as const) {
   test(`${actions.join(" then ")} in one browser task admits only the first write`, async ({ mount, page }) => {
-    const held = trpcHold();
+    const held = trpcHold<"regex.bulkSetEnabled">();
     const trpc = await routeTrpc(page, { "regex.bulkSetEnabled": held });
     const component = await mount(<RegexBulkBarStory />);
 
@@ -64,7 +64,7 @@ for (const actions of [
 }
 
 test("a rejected write releases both actions for retry and retains the selection", async ({ mount, page }) => {
-  const first = trpcHold();
+  const first = trpcHold<"regex.bulkSetEnabled">();
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     "regex.bulkSetEnabled": () => {

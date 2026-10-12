@@ -79,6 +79,7 @@ interface FrameHandlePut extends Omit<FrameHandleEntry, "bytes" | "doc"> {
   readonly doc: string | ((id: string) => string);
 }
 
+// @orb-waive no-inline-package-interface(FrameHandleStore): baselined when the gate landed; burn-down item 952.
 export interface FrameHandleStore {
   /** Store a document and return its opaque handle. */
   readonly put: (entry: FrameHandlePut) => string;

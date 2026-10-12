@@ -12,6 +12,7 @@
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { BackgroundSourceFieldStory } from "./background-source-field.fixtures.tsx";
@@ -28,13 +29,7 @@ const PLATE = {
 
 function stub(page: Page, library = [PLATE, ENTRY]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
-    "settings.getUserSettings": () => ({
-      userId: "user_ct_bg",
-      schemaVersion: 1,
-      config: { appearance: { backgroundLibrary: library } },
-      updatedAt: 0,
-      configUnreadable: null,
-    }),
+    "settings.getUserSettings": () => userSettingsView({ appearance: { backgroundLibrary: library } }),
   });
 }
 

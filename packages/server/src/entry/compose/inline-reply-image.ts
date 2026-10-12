@@ -26,6 +26,7 @@ const OK_STATUS_MIN = 200;
 const OK_STATUS_MAX = 300;
 const BASE64 = "base64";
 
+// @orb-waive no-inline-package-interface(InlineReplyImageDeps): baselined when the gate landed; burn-down item 952.
 export interface InlineReplyImageDeps {
   /** `assets.store` bound with `kind:"generated"` + `enforceMagic` + the per-image cap, under the room HOST
    *  (the keystone resolves the id to a real `Principal` — the domain never mints one). */

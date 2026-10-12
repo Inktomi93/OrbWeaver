@@ -153,6 +153,7 @@ const DATA = "data:";
 /** The external-media allowance. `https:` only — see the header's scope note. */
 const HTTPS = "https:";
 
+// @orb-waive no-inline-package-interface(SecurityHeadersOptions): baselined when the gate landed; burn-down item 952.
 export interface SecurityHeadersOptions {
   readonly dev: boolean;
   /**

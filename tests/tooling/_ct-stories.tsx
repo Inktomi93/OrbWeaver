@@ -5,106 +5,7 @@
 // Imports go through the SAME `@orb/ui/*` aliases the CT providers use — a relative path into
 // packages/ui would resolve a second module instance and mount blank.
 
-// @orb-waive-file testid-typed-only-stories("above-fold-control"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("accent-card-oklch"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("accent-card-rgb"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("below-fold-extent"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("below-fold-healthy"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("below-fold-subtarget"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("box-carried-isolated"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("capability-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("capability-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("card-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cast-badges"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cast-dialog"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cast-name"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cast-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cast-start"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("cbtt-edge-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("clip-blank"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("clip-dialog"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("clipped-no-affordance"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("coarse-under-floor-box"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("dimmed-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("duplicate-action-primary"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("duplicate-action-secondary"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("edge-fixed-ring"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("edge-real-subtarget"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("edge-recentrable"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("element-promoted"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ellipsis-truncated"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("erased-label"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("focus-wrapper-inner"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("focus-wrapper-outer"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("fold-band-above"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("fold-band-below"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("fold-scroll-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("forwarded-checkbox"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("glyph-alone"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("glyph-in-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("glyph-in-tight-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("healthy-badge"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("healthy-blank"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("healthy-dialog"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("healthy-scrolled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("healthy-scroller"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("healthy-sr-link"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hidden-below-ramp"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hidden-low-contrast"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hidden-small-control"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hidden-tracked-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hint-described"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hint-name-repeat"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("hint-opted-out"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("inline-in-bare-clip"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("inline-in-ellipsis-clip"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("kicker-literal"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("kicker-transformed"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("list-row-wrapper"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("measure-47ch-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("measure-75ch-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("measure-75ch-transcript"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("measure-gloss-voice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("measure-label-voice"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("misdirected-checkbox"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("neighbour-a"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("neighbour-b"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("neutral-card"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("off-canvas-phantom"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("oklch-gradient-bled"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("oklch-gradient-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("outer-card"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("plain-accent-card"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("plate-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("pseudo-carried-isolated"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("pseudo-inflow"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("pseudo-promoted"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ratified-selected-body"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("ratified-selected-root"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("real-nested-card"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("revealed-skip"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("rgb-gradient-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("selected-not-a-list-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("shared-label-button"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("shared-label-checkbox"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("shown-legible-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("slot-stage"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sr-live-region"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sr-nameless"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sr-nested-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sr-skip-legacy"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("sr-skip-modern"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tight-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tight-row"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tinted-row-subtitle"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("titled-clip"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tracked-prose"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("under-floor-box"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("undimmed-line"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("unlabelled-checkbox"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("unselected-row-accent"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("visible-overflow"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("visible-subtarget"): baselined when the gate widened; burn-down item 906.
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Slider } from "@orb/ui/slider";
@@ -129,11 +30,11 @@ export function WalkerSliderCompositeStory(): ReactElement {
 export function WalkerListRowCardStory(): ReactElement {
   const panel = { backgroundColor: "rgb(24, 24, 28)", border: "1px solid rgb(58, 58, 66)", borderRadius: 10, padding: 12 } as const;
   return (
-    <div data-testid="outer-card" style={{ ...panel, width: 360 }}>
-      <div data-slot="list-row-root" data-testid="list-row-wrapper" style={panel}>
+    <div data-testid={storyTestId("outerCard")} style={{ ...panel, width: 360 }}>
+      <div data-slot="list-row-root" data-testid={storyTestId("listRowWrapper")} style={panel}>
         <button type="button">Open the sanctioned row</button>
       </div>
-      <div data-testid="real-nested-card" style={{ ...panel, marginTop: 12 }}>
+      <div data-testid={storyTestId("realNestedCard")} style={{ ...panel, marginTop: 12 }}>
         A genuinely decorative card inside another card
       </div>
     </div>
@@ -145,7 +46,7 @@ export function WalkerListRowCardStory(): ReactElement {
  *  dozens of `[data-slot=text]`). A finding that reports only the slot names all of them and locates none. */
 export function WalkerDuplicateSlotStory(): ReactElement {
   return (
-    <div data-testid="slot-stage" style={{ padding: 24, width: 320 }}>
+    <div data-testid={storyTestId("slotStage")} style={{ padding: 24, width: 320 }}>
       <section>
         <span data-slot="text">left copy</span>
       </section>
@@ -164,13 +65,13 @@ export function WalkerCapsTrackingStory(): ReactElement {
   const kicker = { fontSize: 10.5, letterSpacing: "0.08em", fontWeight: 600 } as const;
   return (
     <div style={{ padding: 24, width: 480 }}>
-      <span data-testid="kicker-transformed" style={{ ...kicker, textTransform: "uppercase" }}>
+      <span data-testid={storyTestId("kickerTransformed")} style={{ ...kicker, textTransform: "uppercase" }}>
         Pick up where you left off
       </span>
-      <span data-testid="kicker-literal" style={kicker}>
+      <span data-testid={storyTestId("kickerLiteral")} style={kicker}>
         PICK UP WHERE YOU LEFT OFF
       </span>
-      <p data-testid="tracked-prose" style={{ fontSize: 15, letterSpacing: "0.08em" }}>
+      <p data-testid={storyTestId("trackedProse")} style={{ fontSize: 15, letterSpacing: "0.08em" }}>
         This is ordinary running prose set with label tracking, which is exactly the defect the rule exists to catch.
       </p>
     </div>
@@ -186,11 +87,11 @@ export function WalkerDimmedContrastStory(): ReactElement {
   return (
     <div style={{ backgroundColor: "rgb(16, 16, 20)", padding: 24, width: 480 }}>
       <div style={{ opacity: 0.6 }}>
-        <p data-testid="dimmed-line" style={{ color: "rgb(180, 180, 185)", fontSize: 14 }}>
+        <p data-testid={storyTestId("dimmedLine")} style={{ color: "rgb(180, 180, 185)", fontSize: 14 }}>
           waiting on: the reply that never comes
         </p>
       </div>
-      <p data-testid="undimmed-line" style={{ color: "rgb(180, 180, 185)", fontSize: 14 }}>
+      <p data-testid={storyTestId("undimmedLine")} style={{ color: "rgb(180, 180, 185)", fontSize: 14 }}>
         this line is painted at full opacity and reads exactly as its color says
       </p>
     </div>
@@ -207,7 +108,7 @@ export function WalkerTranslucentTintStory(): ReactElement {
   return (
     <div style={{ backgroundColor: "rgb(18, 18, 22)", padding: 24, width: 480 }}>
       <div style={{ backgroundColor: "rgba(230, 120, 40, 0.15)", padding: 12 }}>
-        <p data-testid="tinted-row-subtitle" style={{ color: "rgb(215, 215, 220)", fontSize: 14 }}>
+        <p data-testid={storyTestId("tintedRowSubtitle")} style={{ color: "rgb(215, 215, 220)", fontSize: 14 }}>
           the last thing anyone said in this conversation
         </p>
       </div>
@@ -231,13 +132,13 @@ export function WalkerAccentBorderStory(): ReactElement {
   } as const;
   return (
     <div style={{ padding: 24, width: 400 }}>
-      <div data-testid="accent-card-oklch" style={{ ...card, border: "1px solid rgb(40, 40, 46)", borderLeft: "3px solid oklch(0.72 0.175 52)" }}>
+      <div data-testid={storyTestId("accentCardOklch")} style={{ ...card, border: "1px solid rgb(40, 40, 46)", borderLeft: "3px solid oklch(0.72 0.175 52)" }}>
         resume where you left off
       </div>
-      <div data-testid="accent-card-rgb" style={{ ...card, border: "1px solid rgb(40, 40, 46)", borderLeft: "3px solid rgb(226, 122, 40)" }}>
+      <div data-testid={storyTestId("accentCardRgb")} style={{ ...card, border: "1px solid rgb(40, 40, 46)", borderLeft: "3px solid rgb(226, 122, 40)" }}>
         resume where you left off
       </div>
-      <div data-testid="neutral-card" style={{ ...card, border: "1px solid rgb(40, 40, 46)" }}>
+      <div data-testid={storyTestId("neutralCard")} style={{ ...card, border: "1px solid rgb(40, 40, 46)" }}>
         an ordinary elevated panel
       </div>
     </div>
@@ -267,19 +168,19 @@ export function WalkerListRowSelectionStory(): ReactElement {
   } as const;
   return (
     <div style={{ padding: 24, width: 400 }}>
-      <div data-selected="" data-slot="list-row-body" data-testid="ratified-selected-body" style={row}>
+      <div data-selected="" data-slot="list-row-body" data-testid={storyTestId("ratifiedSelectedBody")} style={row}>
         the selected preset
       </div>
-      <div data-selected="" data-slot="list-row-root" data-testid="ratified-selected-root" style={row}>
+      <div data-selected="" data-slot="list-row-root" data-testid={storyTestId("ratifiedSelectedRoot")} style={row}>
         the selected chat
       </div>
-      <div data-slot="list-row-body" data-testid="unselected-row-accent" style={row}>
+      <div data-slot="list-row-body" data-testid={storyTestId("unselectedRowAccent")} style={row}>
         an unselected row wearing a hardcoded accent
       </div>
-      <div data-selected="" data-testid="selected-not-a-list-row" style={row}>
+      <div data-selected="" data-testid={storyTestId("selectedNotAListRow")} style={row}>
         a selected something-else
       </div>
-      <div data-testid="plain-accent-card" style={row}>
+      <div data-testid={storyTestId("plainAccentCard")} style={row}>
         an ordinary rounded card with an accent edge
       </div>
     </div>
@@ -317,15 +218,18 @@ export function WalkerScreenReaderOnlyStory(): ReactElement {
   } as const;
   return (
     <div style={{ padding: 24, position: "relative", width: 400 }}>
-      <button data-testid="sr-skip-modern" style={{ ...srOnly, clipPath: "inset(50%)", top: 0 }} type="button">
+      <button data-testid={storyTestId("srSkipModern")} style={{ ...srOnly, clipPath: "inset(50%)", top: 0 }} type="button">
         Skip to content
       </button>
-      <button data-testid="sr-skip-legacy" style={{ ...srOnly, clip: "rect(0px, 0px, 0px, 0px)", top: 40 }} type="button">
+      <button data-testid={storyTestId("srSkipLegacy")} style={{ ...srOnly, clip: "rect(0px, 0px, 0px, 0px)", top: 40 }} type="button">
         Skip to content
       </button>
-      <button data-testid="sr-nameless" style={{ ...srOnly, clipPath: "inset(50%)", top: 80 }} type="button" />
-      <div data-testid="sr-live-region" style={{ clipPath: "inset(50%)", height: 20, overflow: "hidden", position: "absolute", top: 120, width: 1 }}>
-        <div data-testid="sr-nested-line" style={{ whiteSpace: "nowrap" }}>
+      <button data-testid={storyTestId("srNameless")} style={{ ...srOnly, clipPath: "inset(50%)", top: 80 }} type="button" />
+      <div
+        data-testid={storyTestId("srLiveRegion")}
+        style={{ clipPath: "inset(50%)", height: 20, overflow: "hidden", position: "absolute", top: 120, width: 1 }}
+      >
+        <div data-testid={storyTestId("srNestedLine")} style={{ whiteSpace: "nowrap" }}>
           saved three minutes ago
         </div>
       </div>
@@ -334,12 +238,12 @@ export function WalkerScreenReaderOnlyStory(): ReactElement {
           credits a lone control with its wrapper's extent (its own declared limit) and the sub-target
           reading never appears — the stage would be a fence that cannot fail. */}
       <div style={{ backgroundColor: "rgb(18, 18, 22)", height: 150, insetInlineStart: 0, position: "absolute", top: 0, width: 400, zIndex: 1 }}>
-        <button data-testid="visible-subtarget" style={{ height: 20, marginTop: 60, width: 20 }} type="button">
+        <button data-testid={storyTestId("visibleSubtarget")} style={{ height: 20, marginTop: 60, width: 20 }} type="button">
           x
         </button>
       </div>
       <button
-        data-testid="revealed-skip"
+        data-testid={storyTestId("revealedSkip")}
         style={{
           boxSizing: "border-box",
           clipPath: "none",
@@ -355,7 +259,7 @@ export function WalkerScreenReaderOnlyStory(): ReactElement {
       >
         Skip to content
       </button>
-      <div data-testid="visible-overflow" style={{ marginTop: 200, overflow: "hidden", whiteSpace: "nowrap", width: 60 }}>
+      <div data-testid={storyTestId("visibleOverflow")} style={{ marginTop: 200, overflow: "hidden", whiteSpace: "nowrap", width: 60 }}>
         the reply that never came
       </div>
     </div>
@@ -367,10 +271,10 @@ export function WalkerScreenReaderOnlyStory(): ReactElement {
 export function WalkerNeighbourButtonsStory(): ReactElement {
   return (
     <div style={{ display: "flex", gap: 4, padding: 24, width: 320 }}>
-      <button data-testid="neighbour-a" style={{ height: 20, width: 20 }} type="button">
+      <button data-testid={storyTestId("neighbourA")} style={{ height: 20, width: 20 }} type="button">
         A
       </button>
-      <button data-testid="neighbour-b" style={{ height: 20, width: 20 }} type="button">
+      <button data-testid={storyTestId("neighbourB")} style={{ height: 20, width: 20 }} type="button">
         B
       </button>
     </div>
@@ -393,7 +297,11 @@ export function WalkerNeighbourButtonsStory(): ReactElement {
 export function WalkerBoxCarriedIsolatedControlStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
-      <button data-testid="box-carried-isolated" style={{ display: "block", height: 16, marginInlineStart: 48, padding: 0, width: 16 }} type="button">
+      <button
+        data-testid={storyTestId("boxCarriedIsolated")}
+        style={{ display: "block", height: 16, marginInlineStart: 48, padding: 0, width: 16 }}
+        type="button"
+      >
         x
       </button>
     </div>
@@ -427,23 +335,23 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 60, width: 460 }}>
       <div style={{ marginBlockEnd: 80, marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="glyph-alone" intent="ghost" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid={storyTestId("glyphAlone")} intent="ghost" size="glyph-sm" />
       </div>
       {/* The prose is ABSOLUTELY placed at a known offset and raised, so "which element owns x=+22 from
           the control's centre" is a fixed fact of this story rather than a flex-gap accident. */}
-      <div data-testid="capability-row" style={{ display: "flex", marginBlockEnd: 80, position: "relative", width: 360 }}>
-        <Button aria-label="Grant file access" data-testid="glyph-in-row" intent="ghost" size="glyph-sm" />
+      <div data-testid={storyTestId("capabilityRow")} style={{ display: "flex", marginBlockEnd: 80, position: "relative", width: 360 }}>
+        <Button aria-label="Grant file access" data-testid={storyTestId("glyphInRow")} intent="ghost" size="glyph-sm" />
         <p
-          data-testid="capability-prose"
+          data-testid={storyTestId("capabilityProse")}
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: 30, margin: 0, position: "absolute", zIndex: 1 }}
         >
           reads and writes your files
         </p>
       </div>
-      <div data-testid="tight-row" style={{ display: "flex", position: "relative", width: 360 }}>
-        <Button aria-label="Grant network access" data-testid="glyph-in-tight-row" intent="ghost" size="glyph-sm" />
+      <div data-testid={storyTestId("tightRow")} style={{ display: "flex", position: "relative", width: 360 }}>
+        <Button aria-label="Grant network access" data-testid={storyTestId("glyphInTightRow")} intent="ghost" size="glyph-sm" />
         <p
-          data-testid="tight-prose"
+          data-testid={storyTestId("tightProse")}
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: "1.3rem", margin: 0, position: "absolute", zIndex: 1 }}
         >
           reaches the network
@@ -470,7 +378,7 @@ export function WalkerPseudoCarriedIsolatedGlyphStory(): ReactElement {
       <div style={{ marginInlineStart: 48 }}>
         {/* `intent` is pinned: the default is `primary`, which stamps `data-cta` and adds the gradient
             ring — a second pseudo, and a second variable, in a stage about one pseudo's reach. */}
-        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" intent="ghost" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid={storyTestId("pseudoCarriedIsolated")} intent="ghost" size="glyph-sm" />
       </div>
     </div>
   );
@@ -494,12 +402,12 @@ export function WalkerPaintLayerStory(): ReactElement {
         style={{ backgroundImage: "linear-gradient(rgb(232, 226, 214), rgb(198, 190, 176))", inset: 0, pointerEvents: "none", position: "fixed" }}
       />
       <div style={{ backgroundColor: "rgba(24, 20, 16, 0.65)", padding: 16, position: "relative" }}>
-        <p data-testid="plate-line" style={{ color: "rgb(86, 75, 59)", fontSize: 15 }}>
+        <p data-testid={storyTestId("plateLine")} style={{ color: "rgb(86, 75, 59)", fontSize: 15 }}>
           the reading plate is translucent, so this line is painted over the wallpaper — not over the base beneath it
         </p>
       </div>
       <div style={{ backgroundColor: "rgb(24, 24, 28)", marginTop: 16, padding: 16, position: "relative" }}>
-        <p data-testid="card-line" style={{ color: "rgb(74, 74, 80)", fontSize: 14 }}>
+        <p data-testid={storyTestId("cardLine")} style={{ color: "rgb(74, 74, 80)", fontSize: 14 }}>
           this line sits on an opaque card with nothing painting over it, and reads about 2:1
         </p>
       </div>
@@ -521,17 +429,17 @@ export function WalkerGradientBackdropStory(): ReactElement {
   return (
     <div style={{ backgroundColor: "rgb(12, 12, 14)", padding: 24, width: 400 }}>
       <div style={{ ...panel, backgroundImage: "linear-gradient(oklch(0.19 0.02 260), oklch(0.26 0.03 260))" }}>
-        <p data-testid="oklch-gradient-line" style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
+        <p data-testid={storyTestId("oklchGradientLine")} style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
           near-white copy over a dark oklch ramp — legible against every stop
         </p>
       </div>
       <div style={{ ...panel, backgroundImage: "linear-gradient(oklch(0.93 0.04 95), oklch(0.88 0.06 95))" }}>
-        <p data-testid="oklch-gradient-bled" style={{ color: "rgb(232, 232, 236)", fontSize: 15 }}>
+        <p data-testid={storyTestId("oklchGradientBled")} style={{ color: "rgb(232, 232, 236)", fontSize: 15 }}>
           near-white copy over a near-white oklch ramp — the bled-over-art defect itself
         </p>
       </div>
       <div style={{ ...panel, backgroundImage: "linear-gradient(rgb(24, 24, 34), rgb(38, 38, 52))" }}>
-        <p data-testid="rgb-gradient-line" style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
+        <p data-testid={storyTestId("rgbGradientLine")} style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
           the rgb-authored twin of the legible ramp — the arm that always worked
         </p>
       </div>
@@ -549,23 +457,23 @@ export function WalkerAriaHiddenVisualStory(): ReactElement {
   return (
     <div style={{ backgroundColor: "rgb(16, 16, 20)", padding: 24, width: 480 }}>
       <div aria-hidden="true">
-        <p data-testid="hidden-low-contrast" style={{ color: "rgb(56, 56, 62)", fontSize: 15 }}>
+        <p data-testid={storyTestId("hiddenLowContrast")} style={{ color: "rgb(56, 56, 62)", fontSize: 15 }}>
           decorative copy set two shades off its own surface — unreadable, and still painted
         </p>
-        <p data-testid="hidden-below-ramp" style={{ color: "rgb(240, 240, 245)", fontSize: 9 }}>
+        <p data-testid={storyTestId("hiddenBelowRamp")} style={{ color: "rgb(240, 240, 245)", fontSize: 9 }}>
           nine pixels
         </p>
-        <p data-testid="hidden-tracked-prose" style={{ color: "rgb(240, 240, 245)", fontSize: 15, letterSpacing: "0.08em" }}>
+        <p data-testid={storyTestId("hiddenTrackedProse")} style={{ color: "rgb(240, 240, 245)", fontSize: 15, letterSpacing: "0.08em" }}>
           This is ordinary running prose set with label tracking, which is exactly the defect the rule exists to catch.
         </p>
         {/* 10.5px is `text.micro` exactly — ON the ramp, so the ramp arm passes it through and the
             INTERACTIVE floor is the arm that judges it. It is also the live size the facet preview
             renders at, which is the finding #253 watched disappear. */}
-        <button data-testid="hidden-small-control" style={{ fontSize: 10.5 }} type="button">
+        <button data-testid={storyTestId("hiddenSmallControl")} style={{ fontSize: 10.5 }} type="button">
           Apply
         </button>
       </div>
-      <p data-testid="shown-legible-line" style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
+      <p data-testid={storyTestId("shownLegibleLine")} style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
         an announced line at a legible size and contrast — the control that must stay clean
       </p>
     </div>
@@ -687,18 +595,18 @@ export function WalkerListRowDoorStory(): ReactElement {
 export function WalkerProgrammaticFocusDoorStory(): ReactElement {
   return (
     <div style={{ backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)", padding: 24, width: 520 }}>
-      <div data-testid="focus-wrapper-outer" tabIndex={-1}>
-        <div data-testid="focus-wrapper-inner" tabIndex={-1}>
+      <div data-testid={storyTestId("focusWrapperOuter")} tabIndex={-1}>
+        <div data-testid={storyTestId("focusWrapperInner")} tabIndex={-1}>
           Programmatic focus target
         </div>
       </div>
       <section data-slot="primary-actions" style={{ marginTop: 16 }}>
-        <button data-testid="duplicate-action-primary" type="button">
+        <button data-testid={storyTestId("duplicateActionPrimary")} type="button">
           Duplicate action
         </button>
       </section>
       <footer data-slot="secondary-actions" style={{ marginTop: 16 }}>
-        <button data-testid="duplicate-action-secondary" type="button">
+        <button data-testid={storyTestId("duplicateActionSecondary")} type="button">
           Duplicate action
         </button>
       </footer>
@@ -720,22 +628,22 @@ export function WalkerReadingMeasureStory(): ReactElement {
           and the two arms are the two ratified tokens: 47ch is `--reading-measure-prose`, 75ch is
           `--reading-measure` (the transcript's). The same 75ch box appears TWICE, once as teaching copy and
           once inside a message bubble, because after the #1145 split its verdict depends on which. */}
-      <p data-testid="measure-47ch-prose" style={{ width: "47ch" }}>
+      <p data-testid={storyTestId("measure47chProse")} style={{ width: "47ch" }}>
         {prose}
       </p>
-      <p data-testid="measure-75ch-prose" style={{ width: "75ch" }}>
+      <p data-testid={storyTestId("measure75chProse")} style={{ width: "75ch" }}>
         {prose}
       </p>
       <div data-slot="message-bubble" style={{ width: "75ch" }}>
-        <p data-testid="measure-75ch-transcript">{prose}</p>
+        <p data-testid={storyTestId("measure75chTranscript")}>{prose}</p>
       </div>
       {/* The POPULATION half of #1183: a settings-row description is a `<Text as="span" voice="gloss">`,
           which is prose by the reading-surface law and invisible to a prose-TAG census. Its chrome twin
           (`voice="label"`, the name of a datum) is the control that the widening is not "everything". */}
-      <span data-testid="measure-gloss-voice" data-voice="gloss" style={{ display: "block", width: "75ch" }}>
+      <span data-testid={storyTestId("measureGlossVoice")} data-voice="gloss" style={{ display: "block", width: "75ch" }}>
         {prose}
       </span>
-      <span data-testid="measure-label-voice" data-voice="label" style={{ display: "block", width: "75ch" }}>
+      <span data-testid={storyTestId("measureLabelVoice")} data-voice="label" style={{ display: "block", width: "75ch" }}>
         {prose}
       </span>
     </div>
@@ -765,13 +673,16 @@ export function WalkerPseudoPromotionStory(): ReactElement {
   return (
     <div style={{ position: "relative", height: 260, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)" }}>
       <style>{css}</style>
-      <div className="cbpp-host" data-testid="pseudo-promoted">
+      <div className="cbpp-host" data-testid={storyTestId("pseudoPromoted")}>
         carried by a pseudo
       </div>
-      <div data-testid="element-promoted" style={{ position: "absolute", top: 120.5, left: 10.5, width: 200, height: 60, backdropFilter: "blur(4px)" }}>
+      <div
+        data-testid={storyTestId("elementPromoted")}
+        style={{ position: "absolute", top: 120.5, left: 10.5, width: 200, height: 60, backdropFilter: "blur(4px)" }}
+      >
         carried by the element
       </div>
-      <div className="cbpp-inflow" data-testid="pseudo-inflow" style={{ marginTop: 200 }}>
+      <div className="cbpp-inflow" data-testid={storyTestId("pseudoInflow")} style={{ marginTop: 200 }}>
         an in-flow pseudo
       </div>
     </div>
@@ -808,10 +719,10 @@ export function WalkerClippedInflowControlStory(): ReactElement {
   const srOnly = { position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" } as const;
   return (
     <div style={{ width: 520, padding: 20, backgroundColor: "rgb(16, 16, 20)" }}>
-      <div data-testid="clip-dialog" style={{ ...dialog, height: 220, overflow: "auto" }}>
+      <div data-testid={storyTestId("clipDialog")} style={{ ...dialog, height: 220, overflow: "auto" }}>
         <p>Pick a character to start.</p>
         <div style={row}>
-          <button data-testid="clip-blank" type="button" style={{ ...button, width: 120 }}>
+          <button data-testid={storyTestId("clipBlank")} type="button" style={{ ...button, width: 120 }}>
             Blank chat
           </button>
           <button type="button" style={{ ...button, width: 238 }}>
@@ -819,25 +730,25 @@ export function WalkerClippedInflowControlStory(): ReactElement {
           </button>
         </div>
       </div>
-      <div data-testid="healthy-dialog" style={{ ...dialog, height: 300, marginTop: 20 }}>
-        <a data-testid="healthy-sr-link" href="#main" style={srOnly}>
+      <div data-testid={storyTestId("healthyDialog")} style={{ ...dialog, height: 300, marginTop: 20 }}>
+        <a data-testid={storyTestId("healthySrLink")} href="#main" style={srOnly}>
           Skip to content
         </a>
-        <span data-testid="healthy-badge" style={{ position: "absolute", top: 4, right: 4 }}>
+        <span data-testid={storyTestId("healthyBadge")} style={{ position: "absolute", top: 4, right: 4 }}>
           3
         </span>
         {/* overflow-x hidden + overflow-y auto: one box that CLIPS on one axis and SCROLLS on the
             other, so the per-side law has something to be wrong about (right is judged, bottom is not). */}
-        <div data-testid="healthy-scroller" style={{ height: 80, overflowX: "hidden", overflowY: "auto" }}>
+        <div data-testid={storyTestId("healthyScroller")} style={{ height: 80, overflowX: "hidden", overflowY: "auto" }}>
           <div style={{ height: 320 }}>
             A pane whose content legitimately extends past its box.
-            <button data-testid="healthy-scrolled" type="button" style={button}>
+            <button data-testid={storyTestId("healthyScrolled")} type="button" style={button}>
               Scrolled out of view
             </button>
           </div>
         </div>
         <div style={{ ...row, flexWrap: "wrap", marginTop: 12 }}>
-          <button data-testid="healthy-blank" type="button" style={{ ...button, width: 120 }}>
+          <button data-testid={storyTestId("healthyBlank")} type="button" style={{ ...button, width: 120 }}>
             Blank chat
           </button>
           <button type="button" style={{ ...button, width: 238 }}>
@@ -886,9 +797,9 @@ export function WalkerBelowTheFoldStory(): ReactElement {
       {/* The host is nearly as tall as the CT viewport ON PURPOSE: the walker's viewport predicate does not
           model ancestor clipping, so a short host would put controls inside the viewport but outside the
           host's clip — a stage whose geometry is ambiguous proves nothing about the fix. */}
-      <div data-testid="fold-scroll-host" style={{ height: 400, overflow: "auto", width: 460 }}>
+      <div data-testid={storyTestId("foldScrollHost")} style={{ height: 400, overflow: "auto", width: 460 }}>
         <div style={{ height: 1600 }}>
-          <button data-testid="above-fold-control" style={{ height: 44, width: 120 }} type="button">
+          <button data-testid={storyTestId("aboveFoldControl")} style={{ height: 44, width: 120 }} type="button">
             In view already
           </button>
           <div style={{ paddingTop: 856 }}>
@@ -897,16 +808,16 @@ export function WalkerBelowTheFoldStory(): ReactElement {
                 padded/gapped wrapper is credited with the wrapper's pixels and measures 44 no matter how
                 short it is. The live defect has the same shape — the 6px bands above and below the rule
                 row's disclosure are not owned by it, which is why it really does fail the floor. */}
-            <div data-testid="fold-band-above" style={{ height: 40, width: 413 }}>
+            <div data-testid={storyTestId("foldBandAbove")} style={{ height: 40, width: 413 }}>
               Nudge the pacing
             </div>
-            <button data-testid="below-fold-subtarget" style={{ display: "block", height: 16, padding: 0, width: 413 }} type="button">
+            <button data-testid={storyTestId("belowFoldSubtarget")} style={{ display: "block", height: 16, padding: 0, width: 413 }} type="button">
               Recent activity
             </button>
-            <div data-testid="fold-band-below" style={{ height: 40, width: 413 }}>
+            <div data-testid={storyTestId("foldBandBelow")} style={{ height: 40, width: 413 }}>
               Runs on every message
             </div>
-            <button data-testid="below-fold-healthy" style={{ display: "block", height: 48, width: 120 }} type="button">
+            <button data-testid={storyTestId("belowFoldHealthy")} style={{ display: "block", height: 48, width: 120 }} type="button">
               Run now
             </button>
             <div style={{ height: 24 }} />
@@ -915,7 +826,7 @@ export function WalkerBelowTheFoldStory(): ReactElement {
                 whether or not the extent works — a fence that cannot fail. 48px clears the widest radius. */}
             <button
               className="cb-hit-extent"
-              data-testid="below-fold-extent"
+              data-testid={storyTestId("belowFoldExtent")}
               style={{ display: "block", height: 20, marginInlineStart: 48, padding: 0, width: 20 }}
               type="button"
             >
@@ -925,7 +836,11 @@ export function WalkerBelowTheFoldStory(): ReactElement {
         </div>
       </div>
       {/* Fixed, so no ancestor scroll can bring it in: unreachable, not merely un-scrolled-to. */}
-      <button data-testid="off-canvas-phantom" style={{ height: 20, insetInlineStart: "300vw", position: "fixed", top: 0, width: 20 }} type="button">
+      <button
+        data-testid={storyTestId("offCanvasPhantom")}
+        style={{ height: 20, insetInlineStart: "300vw", position: "fixed", top: 0, width: 20 }}
+        type="button"
+      >
         p
       </button>
     </div>
@@ -968,21 +883,21 @@ export function WalkerViewportEdgeTargetStory(): ReactElement {
           `scrollTop` alone, which the test sets. Inset from x=0 so only the VERTICAL edge is under test —
           `ownsPoint` refuses negative coordinates on both axes, and a stage failing for two reasons at
           once cannot attribute either. */}
-      <div data-testid="cbtt-edge-host" style={{ height: "100vh", insetInlineStart: 60, overflow: "auto", position: "fixed", top: 0, width: 240 }}>
+      <div data-testid={storyTestId("cbttEdgeHost")} style={{ height: "100vh", insetInlineStart: 60, overflow: "auto", position: "fixed", top: 0, width: 240 }}>
         <div style={{ height: 600 }} />
         {/* Inset 60px inside the host: `overflow: auto` CLIPS the ::after ring, so a control flush against
             the host's own left edge loses its left probe to the clip rather than to the viewport edge —
             two reasons to fail at once, and a stage that cannot attribute proves nothing. */}
         <button
           className="cbtt-ring"
-          data-testid="edge-recentrable"
+          data-testid={storyTestId("edgeRecentrable")}
           style={{ display: "block", height: 18, marginInlineStart: 60, padding: 0, width: 18 }}
           type="button"
         >
           r
         </button>
         <div style={{ height: 300 }} />
-        <button data-testid="edge-real-subtarget" style={{ display: "block", height: 18, padding: 0, width: 18 }} type="button">
+        <button data-testid={storyTestId("edgeRealSubtarget")} style={{ display: "block", height: 18, padding: 0, width: 18 }} type="button">
           s
         </button>
         <div style={{ height: 600 }} />
@@ -991,7 +906,7 @@ export function WalkerViewportEdgeTargetStory(): ReactElement {
           frame, and its 44×44 ring means the bare box would be a pure fabrication. */}
       <button
         className="cbtt-ring"
-        data-testid="edge-fixed-ring"
+        data-testid={storyTestId("edgeFixedRing")}
         style={{ bottom: -6, height: 18, insetInlineStart: 400, padding: 0, position: "fixed", width: 18 }}
         type="button"
       >
@@ -1026,15 +941,15 @@ export function WalkerForwardingLabelStory(): ReactElement {
   return (
     <div style={{ padding: 48, width: 460 }}>
       <label htmlFor={`${uid}-consent`} style={row}>
-        <input data-testid="forwarded-checkbox" id={`${uid}-consent`} style={box} type="checkbox" />
+        <input data-testid={storyTestId("forwardedCheckbox")} id={`${uid}-consent`} style={box} type="checkbox" />
         <span>Send me release notes</span>
       </label>
       <div style={{ ...row, paddingInline: 0 }}>
-        <input data-testid="unlabelled-checkbox" style={box} type="checkbox" />
+        <input data-testid={storyTestId("unlabelledCheckbox")} style={box} type="checkbox" />
         <span>No label forwards to this one</span>
       </div>
       <label htmlFor={`${uid}-elsewhere`} style={row}>
-        <input data-testid="misdirected-checkbox" style={box} type="checkbox" />
+        <input data-testid={storyTestId("misdirectedCheckbox")} style={box} type="checkbox" />
         <span>This label names another control</span>
       </label>
       <input id={`${uid}-elsewhere`} style={{ height: 48, width: 240 }} type="text" />
@@ -1042,8 +957,8 @@ export function WalkerForwardingLabelStory(): ReactElement {
           the label paints — and the checkbox would inherit the whole row after all. The button must abut
           it for the "another control owns these pixels" arm to be the thing under test. */}
       <label htmlFor={`${uid}-shared`} style={{ ...row, gap: 0 }}>
-        <input data-testid="shared-label-checkbox" id={`${uid}-shared`} style={box} type="checkbox" />
-        <button data-testid="shared-label-button" style={{ height: 44, width: 200 }} type="button">
+        <input data-testid={storyTestId("sharedLabelCheckbox")} id={`${uid}-shared`} style={box} type="checkbox" />
+        <button data-testid={storyTestId("sharedLabelButton")} style={{ height: 44, width: 200 }} type="button">
           Manage
         </button>
       </label>
@@ -1073,19 +988,19 @@ export function WalkerCastRowStory({ badges }: { badges: number }): ReactElement
   const badge = { flex: "0 0 auto", width: 110, height: 24, fontSize: 13, backgroundColor: "rgb(52, 52, 60)" } as const;
   const start = { flex: "0 0 auto", width: 150, height: 28, fontSize: 14 } as const;
   return (
-    <div data-testid="cast-dialog" style={dialog}>
-      <div data-testid="cast-row" style={row}>
-        <span data-testid="cast-name" style={name}>
+    <div data-testid={storyTestId("castDialog")} style={dialog}>
+      <div data-testid={storyTestId("castRow")} style={row}>
+        <span data-testid={storyTestId("castName")} style={name}>
           Spire Trio
         </span>
-        <span data-testid="cast-badges" style={badgeWrap}>
+        <span data-testid={storyTestId("castBadges")} style={badgeWrap}>
           {["3 members", "2 rules"].slice(0, badges).map((label, i) => (
             <span data-testid={`cast-badge-${i}`} key={label} style={badge}>
               {label}
             </span>
           ))}
         </span>
-        <button data-testid="cast-start" style={start} type="button">
+        <button data-testid={storyTestId("castStart")} style={start} type="button">
           Start a chat
         </button>
       </div>
@@ -1106,23 +1021,26 @@ export function WalkerTruncationAffordanceStory(): ReactElement {
   const row = { display: "flex", alignItems: "center", width: 220, fontSize: 16 } as const;
   return (
     <div style={{ padding: 24, width: 400 }}>
-      <div data-testid="ellipsis-truncated" style={{ ...clip, textOverflow: "ellipsis" }}>
+      <div data-testid={storyTestId("ellipsisTruncated")} style={{ ...clip, textOverflow: "ellipsis" }}>
         {sentence}
       </div>
-      <div data-testid="clipped-no-affordance" style={clip}>
+      <div data-testid={storyTestId("clippedNoAffordance")} style={clip}>
         {sentence}
       </div>
-      <div data-testid="titled-clip" style={clip} title={sentence}>
+      <div data-testid={storyTestId("titledClip")} style={clip} title={sentence}>
         {sentence}
       </div>
       <div style={{ ...clip, textOverflow: "ellipsis" }}>
-        <span data-testid="inline-in-ellipsis-clip">{sentence}</span>
+        <span data-testid={storyTestId("inlineInEllipsisClip")}>{sentence}</span>
       </div>
       <div style={clip}>
-        <span data-testid="inline-in-bare-clip">{sentence}</span>
+        <span data-testid={storyTestId("inlineInBareClip")}>{sentence}</span>
       </div>
       <div style={row}>
-        <span data-testid="erased-label" style={{ flex: "1 1 0%", minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+        <span
+          data-testid={storyTestId("erasedLabel")}
+          style={{ flex: "1 1 0%", minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}
+        >
           Spire Trio
         </span>
         <span style={{ flex: "0 0 auto", width: 220, height: 24, backgroundColor: "rgb(52, 52, 60)" }}>actions</span>
@@ -1190,7 +1108,7 @@ export function WalkerCoarseTouchFloorStory(): ReactElement {
         <span>the row below, 22px from the checkbox&apos;s centre</span>
       </div>
       <div style={row}>
-        <button data-testid="coarse-under-floor-box" style={{ display: "block", height: 40, padding: 0, width: 40 }} type="button">
+        <button data-testid={storyTestId("coarseUnderFloorBox")} style={{ display: "block", height: 40, padding: 0, width: 40 }} type="button">
           x
         </button>
         <span>a box-carried 40px control</span>
@@ -1214,7 +1132,7 @@ export function WalkerFinePointerFloorStory(): ReactElement {
         <span>the selected row's label</span>
       </div>
       <div style={row}>
-        <button data-testid="under-floor-box" style={{ display: "block", height: 22, padding: 0, width: 22 }} type="button">
+        <button data-testid={storyTestId("underFloorBox")} style={{ display: "block", height: 22, padding: 0, width: 22 }} type="button">
           x
         </button>
         <span>the under-floor row's label</span>
@@ -1236,15 +1154,15 @@ export function WalkerTooltipHintStory(): ReactElement {
   return (
     <div style={{ display: "flex", gap: 32, padding: 48, width: 520 }}>
       <Tooltip>
-        <TooltipTrigger render={<Button aria-label="Send message" data-testid="hint-described" intent="ghost" size="icon" type="button" />} />
+        <TooltipTrigger render={<Button aria-label="Send message" data-testid={storyTestId("hintDescribed")} intent="ghost" size="icon" type="button" />} />
         <TooltipPopup>Local engine is off — enable it to send.</TooltipPopup>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<Button aria-label="Notifications" data-testid="hint-name-repeat" intent="ghost" size="icon" type="button" />} />
+        <TooltipTrigger render={<Button aria-label="Notifications" data-testid={storyTestId("hintNameRepeat")} intent="ghost" size="icon" type="button" />} />
         <TooltipPopup>Notifications</TooltipPopup>
       </Tooltip>
       <Tooltip describesTrigger={false}>
-        <TooltipTrigger render={<Button aria-label="Try another reply" data-testid="hint-opted-out" intent="ghost" size="icon" type="button" />} />
+        <TooltipTrigger render={<Button aria-label="Try another reply" data-testid={storyTestId("hintOptedOut")} intent="ghost" size="icon" type="button" />} />
         <TooltipPopup>Try another reply — needs an existing reply</TooltipPopup>
       </Tooltip>
     </div>

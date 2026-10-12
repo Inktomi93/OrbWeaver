@@ -1,4 +1,4 @@
-import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
+import type { StatsDelta } from "@orb/contracts/stats";
 import { statsDeltaSchema } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -218,30 +218,4 @@ test("statsDeltaSchema rejects a non-numeric increment", () => {
     tokensIn: "1200",
   };
   expect(statsDeltaSchema.safeParse(value).success).toBe(false);
-});
-
-// ApplyStatsDelta is the injected-op signature (chat↔stats wire, db-free here via generic Batch/Db
-// params). Pin it structurally: a no-op default (chat's stats-less default) satisfies the type, and the
-// op receives the StatsDelta this node owns. The concrete Batch/Db are bound at the domain/chat sites.
-test("ApplyStatsDelta is satisfiable by a no-op and consumes a StatsDelta", () => {
-  type Batch = unknown[];
-  type Db = Record<string, never>;
-  const seen: StatsDelta[] = [];
-  const applyStatsDelta: ApplyStatsDelta<Batch, Db> = (sink, _db, received) => {
-    sink.push(received);
-    seen.push(received);
-  };
-  const delta: StatsDelta = {
-    ownerId: OWNER_ID,
-    characterId: CHARACTER_ID,
-    bucketStart: BUCKET_START,
-    model: MODEL,
-    provider: PROVIDER,
-    now: NOW_MS,
-    assistantTurns: 1,
-  };
-  const batch: Batch = [];
-  applyStatsDelta(batch, {}, delta);
-  expect(batch).toHaveLength(1);
-  expect(seen[0]).toEqual(delta);
 });

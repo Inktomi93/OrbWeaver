@@ -1,7 +1,8 @@
 // TypeScript owns config inheritance, include/exclude expansion, and project-reference paths. This shared
 // leaf publishes those native compiler facts without importing verifier policy or any sibling tool.
 import { existsSync, realpathSync, statSync } from "node:fs";
-import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, extname, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { ts } from "ts-morph";
 import { assertRepoPath, readAuthoredRepositoryInventory } from "./authored-repository.ts";
 import type {
@@ -52,10 +53,10 @@ function compare(left: string, right: string): number {
 }
 
 function containedRelative(root: string, canonical: string, label: string): string {
-  const rel = relative(root, canonical);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  if (!isWithinRoot(root, canonical, { sep })) {
     throw new Error(`${label} resolves outside repository`);
   }
+  const rel = relative(root, canonical);
   const posix = rel.split(sep).join("/");
   assertRepoPath(posix, label);
   return posix;

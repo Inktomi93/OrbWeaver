@@ -20,7 +20,8 @@
 // whole stage exists to remove. Every read below is of a path the directory listing produced moments
 // earlier, so a failure is a genuine I/O fault and belongs as a throw the stage reports as exit 2.
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, relative as relativePath, sep } from "node:path";
+import { dirname, join, relative as relativePath, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { ts } from "ts-morph";
 import { classifyTestFilename, runtimeForTestFamily } from "../../floor/testing/test-kinds.ts";
 import type { InstrumentAffectedPolicyReach } from "../contract/instrument-affected.ts";
@@ -95,11 +96,11 @@ function compilerOptions(root: string): ts.CompilerOptions {
 }
 
 function repoPath(canonicalRoot: string, absolute: string): string | undefined {
-  const path = relativePath(canonicalRoot, realpathSync(absolute));
-  if (path === ".." || path.startsWith(`..${sep}`) || isAbsolute(path)) {
+  const canonical = realpathSync(absolute);
+  if (!isWithinRoot(canonicalRoot, canonical, { sep })) {
     return;
   }
-  return path.split(sep).join("/");
+  return relativePath(canonicalRoot, canonical).split(sep).join("/");
 }
 
 function moduleResolver(root: string): (importer: string, specifier: string) => string | undefined {

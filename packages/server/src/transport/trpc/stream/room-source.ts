@@ -14,6 +14,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { StreamChannel, StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { Services } from "../context.ts";
 
+// @orb-waive no-inline-package-interface(RoomArgs): baselined when the gate landed; burn-down item 952.
 /** What every room source is handed. `ref` is narrowed to its own channel, so an `rpg` source reads
  *  `ref.chatId` without a cast and a `user` source has no chatId to misuse. */
 export interface RoomArgs<C extends StreamChannel> {
@@ -37,6 +38,7 @@ export interface RoomArgs<C extends StreamChannel> {
   readonly multiHumanCapable: boolean;
 }
 
+// @orb-waive no-inline-package-interface(RoomSourceDef): baselined when the gate landed; burn-down item 952.
 export interface RoomSourceDef<C extends StreamChannel> {
   /**
    * Can this room RESUME — i.e. does its channel have a durable log a pump can replay from a cursor? It is

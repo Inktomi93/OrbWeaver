@@ -167,11 +167,12 @@ describe("digests", () => {
   test("the embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3)", async () => {
     const db = await freshDb();
     const { chat, char } = await seedOwnerChatChar(db);
-    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1) });
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1), embedInstructionAware: true });
 
     const embedInstructions: (string | undefined)[] = [];
     const rerankQueries: string[] = [];
     const svc = makeSearch(db, {
+      embedInstructionAware: true,
       embedVector: () => vec(1),
       onEmbed: (_input, embedOpts) => embedInstructions.push(embedOpts?.instruction),
       rerank: (rerankQuery, docs) => {

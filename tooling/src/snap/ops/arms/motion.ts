@@ -40,7 +40,6 @@ import {
   loafTotals,
   observedClsTotals,
   prepareMeasuredClick,
-  runAudit,
 } from "../../../motion-audit/index.ts";
 import type {
   ArmActionContext,
@@ -61,7 +60,7 @@ import { motionFactState, motionStatus, motionTimingPolicy } from "../../lib/mot
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
-import { navigateInsideWindow } from "./motion-nav.ts";
+import { runMotionWindow } from "./motion-nav.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -150,12 +149,7 @@ async function measureMotionAction(
     const environment = await readBrowserEnvironment(page, session.environmentContract);
     const measuredClick = await prepareMeasuredClick(page, selector);
     await settleAndReset(page, selector, ctx.actionIndex);
-    const raw = await runAudit(
-      page,
-      cdp,
-      { selector, windowMs: opts.motionWindowMs, ...(goto === null ? {} : { measuredNav: (): Promise<boolean> => navigateInsideWindow(page, goto) }) },
-      measuredClick,
-    );
+    const raw = await runMotionWindow(page, cdp, { selector, goto, windowMs: opts.motionWindowMs }, measuredClick);
     const data: AuditData = {
       ...raw,
       environment,

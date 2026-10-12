@@ -186,6 +186,16 @@ function removeStageWait(home: string, id: string, deps: StageWaitDeps): void {
   rmSync(stageWaitLogPath(home, id), { force: true });
 }
 
+/** The boot as data, so the caught failure is a value the caller reads rather than an absorbed throw. */
+function bootTicket(deps: StageWaitDeps, ask: EnsureStageOpts): { readonly status: "booted" } | { readonly status: "failed"; readonly error: unknown } {
+  try {
+    deps.ensure(ask);
+    return { status: "booted" };
+  } catch (error) {
+    return { status: "failed", error };
+  }
+}
+
 /** One waiter step. The ticket is served only when it is the oldest pending one; the boot runs outside the
  *  queue lock (it takes a minute), and a busy table keeps the place rather than ending the ticket. */
 export function stageWaiterTurn(home: string, id: string, deps: StageWaitDeps): StageWaiterTurn {
@@ -207,14 +217,13 @@ export function stageWaiterTurn(home: string, id: string, deps: StageWaitDeps): 
   if (head?.id !== id) {
     return { kind: "wait" };
   }
-  // @orb-waive caught-failure-ownership(error): a non-busy boot failure is written onto the ticket as `failed` with its message, which the caller prints as STAGE WAIT FAILED and exits 2. Ends if the ticket detail stops reaching the caller.
-  try {
-    deps.ensure(mine.ask);
-  } catch (error) {
-    if (error instanceof StageBusyError) {
+  const boot = bootTicket(deps, mine.ask);
+  if (boot.status === "failed") {
+    // A full table keeps the head ticket's place; any other failure ends the ticket.
+    if (boot.error instanceof StageBusyError) {
       return { kind: "wait" };
     }
-    settleStageWait(home, deps, id, { state: "failed", detail: error instanceof Error ? error.message : String(error) });
+    settleStageWait(home, deps, id, { state: "failed", detail: boot.error instanceof Error ? boot.error.message : String(boot.error) });
     return { kind: "exit", code: EXIT.toolError };
   }
   settleStageWait(home, deps, id, { state: "ready", detail: null });

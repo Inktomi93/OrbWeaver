@@ -7,7 +7,7 @@
 import { checkWireSchema, effectiveStructuredLimits, structuredSchemaComplexity, WIRE_SCHEMA_MODES } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgStateRoundTool, RpgToolCall } from "@orb/contracts/rpg";
 import {
-  constrainExtractionSchema,
+  buildToolRoundWireTools,
   describePatchFields,
   malformedToolCallDetails,
   malformedToolCalls,
@@ -16,7 +16,7 @@ import {
   patchToolsOnlyFields,
   RPG_PATCH_INDEX_MAX,
   recordToolCalls,
-  rpgExtractionSchema,
+  rpgGameConfigSchema,
   salvagedToolCallFields,
   stateRoundPatchSchema,
   strippedToolCallKeys,
@@ -43,25 +43,9 @@ const SPLIT_REFS: ExtractionRefs = {
   ],
 };
 
-/** The round's wire tools as the compose builds them: each plane lifted from ONE constrained projection. */
+/** The round's wire tools, built by the product's own builder for a default game. */
 function roundTools(refs: ExtractionRefs): RpgStateRoundTool[] {
-  const constrained = z
-    .object({ properties: z.record(z.string(), z.record(z.string(), z.unknown())) })
-    .parse(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs));
-  const plane = (field: string): Record<string, unknown> => {
-    const node = constrained.properties[field] ?? {};
-    return z.record(z.string(), z.unknown()).safeParse(node["items"]).data ?? node;
-  };
-  const tool = (name: string, parameters: Record<string, unknown>): RpgStateRoundTool => ({ name, description: `${name} help`, parameters });
-  return [
-    tool("update_party", plane("party")),
-    tool("update_inventory", plane("inventory")),
-    tool("update_scene", plane("scene")),
-    tool("set_tracker", plane("trackers")),
-    tool("upsert_quest", plane("quests")),
-    tool("add_journal_entry", plane("journal")),
-    tool("no_changes", { type: "object", properties: {}, additionalProperties: false }),
-  ];
+  return buildToolRoundWireTools(refs, rpgGameConfigSchema.parse({}), {});
 }
 
 const TOOLS = roundTools(REFS);

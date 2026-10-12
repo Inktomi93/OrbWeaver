@@ -930,7 +930,9 @@
     {
       "includes": [
         "packages/server/src/domain/sessions/substrate/role-policy.ts",
-        "tests/server/foundation/env/index.test.ts",
+        "tests/server/foundation/env/_support.ts",
+        "tests/server/foundation/env/env-file-load.test.ts",
+        "tests/server/foundation/env/floor-defaults.test.ts",
         "tests/support/node/snap-out.ts"
       ],
       "linter": {
@@ -2175,7 +2177,8 @@
         "packages/client/src/features/refinery/lib/builtin-hints.ts",
         "packages/client/src/features/refinery/components/context-tabs.tsx",
         "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
-        "tests/contracts/preset/index.contract.test.ts",
+        "tests/contracts/preset/st-preset-import.contract.test.ts",
+        "tests/contracts/preset/user-intent-and-guided-actions.contract.test.ts",
         "tests/server/domain/import/substrate/appearance.test.ts",
         "tests/server/domain/import/substrate/card.test.ts",
         "tests/server/domain/import/substrate/chat-input.test.ts",
@@ -2186,9 +2189,21 @@
         "tests/server/domain/import/verbs/import-chats.test.ts",
         "tests/server/domain/import/verbs/import-group-chats.test.ts",
         "tests/server/entry/http/auth-routes.test.ts",
+        "tests/server/entry/import/_profile-dir-import-support.ts",
+        "tests/server/entry/import/run-profile-dir-import-groups.test.ts",
+        "tests/server/entry/import/run-profile-dir-import-partial-run.test.ts",
+        "tests/server/entry/import/run-profile-dir-import-presets.test.ts",
         "tests/server/entry/import/run-profile-dir-import.test.ts",
         "tests/server/entry/import/st-chat-fidelity.suite.int.test.ts",
-        "tests/server/foundation/env/index.test.ts",
+        "tests/server/foundation/env/_support.ts",
+        "tests/server/foundation/env/auth-fallback-pairing.test.ts",
+        "tests/server/foundation/env/auth-mode-boot.test.ts",
+        "tests/server/foundation/env/auth-mode-source.test.ts",
+        "tests/server/foundation/env/bind-posture.test.ts",
+        "tests/server/foundation/env/broker-limits-and-secret-files.test.ts",
+        "tests/server/foundation/env/env-file-load.test.ts",
+        "tests/server/foundation/env/floor-defaults.test.ts",
+        "tests/server/foundation/env/host-and-peer-allowlists.test.ts",
         "tests/server/primitives/serde/card/index.test.ts",
         "tests/server/primitives/serde/chat/index.test.ts"
       ],

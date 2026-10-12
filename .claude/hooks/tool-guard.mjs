@@ -1042,7 +1042,7 @@ const CONTEXTS = {
   rewriteRedirectDropped:
     "tool-guard dropped this redirect/tee: the harness writes its own artifacts under reports/ regardless of where its stdout goes, so capturing stdout to a private file or `tee` sink is never necessary and only tempts a later poll of that file instead of reading the harness's own exit code. Run it bare and read the artifact — `pnpm check:show` for check/verify, reports/test-report.json (or reports/ct-flaky.json for test:ct) for a test run.",
   wholeTreeRun:
-    "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier after merging. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
+    "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier once on main before the owner pushes. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git's children (a push/pull/fetch credential helper, or commit/merge hooks and their verify runs) hold a pipe open after the visible command ends, and a pipe reports the reader's exit code, so a failed hook would read as success. Output went to ${log}, your reader ran against the file, and git's real exit code is preserved.`,
   commitTimeout: (ms) =>

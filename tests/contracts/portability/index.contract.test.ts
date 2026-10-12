@@ -1,7 +1,6 @@
-import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS, PORTABLE_PARSE_FAILURES } from "@orb/contracts/portability";
-import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
+import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS, PORTABLE_PARSE_FAILURES, portableImportOutcomeSchema } from "@orb/contracts/portability";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("image generation provenance restores after its owned assets, subjects and room files", () => {
@@ -79,49 +78,18 @@ test("PORTABLE_IMPORT_ORDER is a permutation of PORTABLE_KINDS (every kind exact
   expect(PORTABLE_IMPORT_ORDER.toSorted()).toEqual(PORTABLE_KINDS.toSorted());
 });
 
-// ── Shape pins: the descriptor + its aggregate the delivery core consumes ───────────────────────────────
-const SAMPLE_OWNER = castId<UserId>("user-alice");
-
-test("PortableEntity descriptor shape is buildable and iterable", async () => {
-  const rows: readonly PortableFile[] = [{ filename: "my-preset.json", bytes: new Uint8Array([1, 2]) }];
-  const descriptor: PortableEntity = {
-    kind: "preset",
-    dir: "presets/",
-    ext: ".json",
-    async *exportAll(_ownerId: UserId): AsyncIterable<PortableFile> {
-      yield* rows;
-    },
-    importFile: async (_ownerId: UserId, file: PortableFile): Promise<PortableImportOutcome> => ({
-      ok: true,
-      created: file.bytes.length > 0,
-    }),
-  };
-
-  expect(descriptor.kind).toBe("preset");
-  expect(descriptor.dir).toBe("presets/");
-
-  const files: PortableFile[] = [];
-  for await (const f of descriptor.exportAll(SAMPLE_OWNER)) {
-    files.push(f);
-  }
-  expect(files).toHaveLength(1);
-
-  const outcome = await descriptor.importFile(SAMPLE_OWNER, {
-    filename: "x.json",
-    bytes: new Uint8Array([1]),
-  });
-  expect(outcome).toEqual({ ok: true, created: true });
-
-  // The registry is just a readonly list of descriptors — the core iterates it.
-  const registry: PortabilityRegistry = [descriptor];
-  expect(registry).toHaveLength(1);
-});
-
-test("PortableImportOutcome carries an isolated failure without throwing", () => {
+// ── The per-file import result the core aggregates into the bundle report ──────────────────────────────
+// `importFile` never throws for one malformed file: it returns ok:false with an error string, so one bad entry
+// cannot abort the bundle. The schema is the wire form of that outcome.
+test("portableImportOutcomeSchema carries an isolated failure and a success with its notes, and refuses an undeclared field", () => {
   const failed: PortableImportOutcome = { ok: false, error: "bad envelope" };
-  expect(failed.ok).toBe(false);
-  expect(failed.created).toBeUndefined();
-  expect(failed.error).toBe("bad envelope");
+  expect(portableImportOutcomeSchema.parse(failed)).toEqual(failed);
+
+  const restored: PortableImportOutcome = { ok: true, created: true, notes: ["overlay skipped"], memoryChatIds: [mintTypeId(ID_PREFIX.chat)] };
+  expect(portableImportOutcomeSchema.parse(restored)).toEqual(restored);
+
+  expect(portableImportOutcomeSchema.safeParse({ ...failed, reason: "bad envelope" }).success).toBe(false);
+  expect(portableImportOutcomeSchema.safeParse({ ok: true, memoryChatIds: ["chat_not_a_typeid"] }).success).toBe(false);
 });
 
 // #1460 — `invalid-encoding` is a DISTINCT reason from `not-json`: byte-level corruption (malformed UTF-8) is

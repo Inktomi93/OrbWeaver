@@ -51,7 +51,7 @@
 
 import type { NodeEnvironment } from "#primitives/node-environment";
 
-// @orb-waive no-inline-wire-interface(OwnerFallbackCredentialInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(OwnerFallbackCredentialInput): baselined when the gate landed; burn-down item 952.
 /** The raw env values the OWNER-FALLBACK credential rule reads — passed in so this file never touches
  *  `process.env` (the `BindPostureInput` shape). `authFallback` is a LAUNCH-time value, never a `.env` key
  *  (`foundation/env`'s superRefine refuses one), so a box's answer here is decided by how it was started. */
@@ -108,7 +108,7 @@ export const DIAGNOSTICS_EXPOSURES = ["minimal", "retaining", "retaining-open"] 
 // @orb-waive no-inline-types(DiagnosticsExposure): the §7.5 keystone — this derived type MUST co-locate with its `as const` tuple, and the exposure axis is a server-foundation env axis, not a cross-boundary contract. Ends when the exposure axis becomes a cross-boundary contract and the tuple moves to @orb/contracts with it.
 export type DiagnosticsExposure = (typeof DIAGNOSTICS_EXPOSURES)[number];
 
-// @orb-waive no-inline-wire-interface(DiagnosticsPostureInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(DiagnosticsPostureInput): baselined when the gate landed; burn-down item 952.
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
 export interface DiagnosticsPostureInput {
   readonly debugToken: string | undefined;
@@ -117,6 +117,7 @@ export interface DiagnosticsPostureInput {
   readonly rpgTrace: "on" | "off";
 }
 
+// @orb-waive no-inline-package-interface(DiagnosticsPosture): baselined when the gate landed; burn-down item 952.
 /** The composed posture. Every field is a FACT about the running box, safe to print in a boot log and on
  *  the (already host-gated) `/api/_debug/info` probe — no secret value appears, only whether one is set. */
 export interface DiagnosticsPosture {

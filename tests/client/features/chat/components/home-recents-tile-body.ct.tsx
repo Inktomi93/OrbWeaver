@@ -514,7 +514,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // with `character.list` held open forever, and the row is at its settled width in that state. A regression
 // that reintroduces a portrait read would hang here rather than merely shifting.
 test("#147/#192 an also-open row's faces come from the CHAT page — held-open character.list, settled width anyway", async ({ mount, page }) => {
-  const characters = trpcHold();
+  const characters = trpcHold<"character.list">();
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, PAIR_ROOM]), "character.list": characters });
 
   const home = await mount(<ChatRecentsPairStory />);

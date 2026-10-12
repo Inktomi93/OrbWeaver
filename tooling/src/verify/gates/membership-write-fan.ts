@@ -14,7 +14,7 @@
 // member originating in DatabankOps.fanDatabankRoomsForDocument. Same-spelled foreign members and
 // unawaited calls do not certify delivery.
 // FAMILY: `tenancy-scope` — the shared canonical declarations are `lib/tenancy-scope.ts`'s
-// `schemaTableIdents` / `reportBlindWhenEmpty` and `lib/tenancy-read.ts`'s `tableTargetOf`, all three of
+// `schemaTableIndex` / `reportBlindWhenEmpty` and `lib/tenancy-read.ts`'s `tableTargetOf`, all three of
 // which `owner-scoped-writes` also reaches from its production hooks. The (b)-class half of the registry
 // (`membershipScopedTableIdents`) landed with this policy beside the (a)-class half it mirrors.
 // POPULATION: NEW policy, no legacy predecessor and therefore no port. `@server` under `domain/**` MINUS
@@ -35,7 +35,7 @@ import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { isDrizzleWriteStatement, tableTargetOf } from "../lib/tenancy-read.ts";
-import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
+import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 
 /** The drizzle write verbs whose first argument is the table. `insert` is IN (unlike `owner-scoped-writes`,
@@ -200,7 +200,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const membershipIdents = membershipScopedTableIdents(schemaFact.value);
-        const allIdents = schemaTableIdents(schemaFact.value);
+        const allIdents = schemaTableIndex(schemaFact.value);
         for (const candidate of candidates) {
           const target = tableTargetOf(candidate.arg, membershipIdents, allIdents);
           // `unresolvable` is deliberately NOT an arm here (see the header's declared limits): the sibling

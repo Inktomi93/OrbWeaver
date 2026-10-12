@@ -4,16 +4,15 @@
 
 import type { Db } from "@orb/db";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { RpgContext } from "@orb/server/domain/rpg";
+import type { PostNarratorMessage } from "@orb/server/domain/chat";
+import { createPostNarratorMessage } from "@orb/server/domain/chat";
 import { createRpgService } from "@orb/server/domain/rpg";
+import { createRpgRestorePost } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { PostNarratorMessage } from "#server/domain/chat/contract/context.ts";
-import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
 import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
 import { makeChatContext, noClaim, seedCharacter, seedParticipant, seedUser } from "../../../chat/_support.ts";
 import type { RpgHarness } from "../../_support.ts";
@@ -55,7 +54,7 @@ describe("restoreCheckpoint", () => {
       messageId: sequence(duplicate.messageId, retryMessageId),
       variantId: sequence(castId<MessageVariantId>("variant_restore_marker_failure"), castId<MessageVariantId>("variant_restore_marker_retry")),
     });
-    const service = createRpgService({ ...h.ctx, postNarratorMessage: rpgRestorePost(post) });
+    const service = createRpgService({ ...h.ctx, postNarratorMessage: createRpgRestorePost(post) });
 
     await expect(service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId })).rejects.toThrow();
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(beforeMessages.length);
@@ -88,7 +87,7 @@ describe("restoreCheckpoint", () => {
     const service = createRpgService({
       ...h.ctx,
       ids: { ...h.ctx.ids, snapshot: sequence(checkpoint.snapshotId, retrySnapshotId) },
-      postNarratorMessage: rpgRestorePost(post),
+      postNarratorMessage: createRpgRestorePost(post),
     });
 
     await expect(service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId })).rejects.toThrow();
@@ -126,22 +125,6 @@ async function realNarratorPost(
     ...(ids.variantId === undefined ? {} : { newMessageVariantId: ids.variantId }),
   });
   return createPostNarratorMessage(ctx, { emit: () => Promise.resolve(), claimChat: noClaim });
-}
-
-type RestoreCompanion = (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => BatchStmt;
-
-/** Adapt through chat's restore-options arm without letting this red-first test depend on the source
- * type before the production contract lands. The explicit missing-callback refusal makes the old two-commit
- * restore fail rather than accidentally ratifying it. */
-function rpgRestorePost(post: PostNarratorMessage): RpgContext["postNarratorMessage"] {
-  // @orb-waive no-test-fabrication(unknown): this compatibility adapter intentionally models the pre-contract restore callback so Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // the red-first test fails behaviorally when production omits the atomic companion statement.
-  return ((chatId: ChatId, content: string, buildSnapshotStatement: RestoreCompanion | undefined) => {
-    if (buildSnapshotStatement === undefined) {
-      throw new Error("restore did not supply its atomic companion statement");
-    }
-    return Reflect.apply(post, undefined, [chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement }]) as ReturnType<PostNarratorMessage>;
-  }) as unknown as RpgContext["postNarratorMessage"];
 }
 
 function sequence<T>(first: T, second: T): () => T {

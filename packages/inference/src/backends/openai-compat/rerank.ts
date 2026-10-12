@@ -25,6 +25,7 @@ import { toImageUrl } from "../wire/image-normalize.ts";
 const RERANK_SCAFFOLD_RESERVE_TOKENS = 128;
 const TRAILING_SLASH_RE = /\/$/u;
 
+// @orb-waive no-inline-package-interface(RerankDeps): baselined when the gate landed; burn-down item 952.
 export interface RerankDeps {
   readonly fetch: typeof fetch;
   readonly normalize: NormalizeImageBytes;

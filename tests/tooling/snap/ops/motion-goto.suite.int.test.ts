@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { runNav } from "../../../../tooling/src/floor/instrument/nav.ts";
 import { runAudit } from "../../../../tooling/src/motion-audit/ops/trace.ts";
+import { runMotionWindow } from "../../../../tooling/src/snap/ops/arms/motion-nav.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -52,9 +53,8 @@ async function withApp<T>(
 }
 
 test("a goto run inside the trace captures the fade; the same goto run before the window leaves it nearly empty", { timeout: BROWSER_TIMEOUT_MS }, async () => {
-  const inside = await withApp((page, cdp) =>
-    runAudit(page, cdp, { selector: null, windowMs: WINDOW_MS, measuredNav: async () => (await runNav(page, "goto", "chats")).ok }, null),
-  );
+  // The arm's own window runner, given the goto target the way `--motion-goto` does.
+  const inside = await withApp((page, cdp) => runMotionWindow(page, cdp, { selector: null, goto: "chats", windowMs: WINDOW_MS }, null));
   // CONTROL: the old selector-less shape. The fade is over before the window opens; one stray idle frame is noise.
   const before = await withApp(async (page, cdp) => {
     await runNav(page, "goto", "chats");

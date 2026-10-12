@@ -12,7 +12,6 @@ import { useRulePresetCatalogue } from "./use-saved-rosters.ts";
 /** What a start reads off a roster. Both the list summary and the editor's full view carry these fields. */
 type StartableRoster = Pick<RosterPresetSummary, "anchorPersonaId" | "game" | "id" | "members" | "name">;
 
-// @orb-waive no-inline-wire-interface(UseStartRosterResult): baselined when the gate widened; burn-down item 904.
 export interface UseStartRosterResult {
   /** Start a chat from `roster` and report what landed. Failures are toasted by the two mutations' own
    *  `errorToast`s, so the caller has nothing to await or catch. */

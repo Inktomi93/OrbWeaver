@@ -16,7 +16,7 @@
 // a data-slot census: those names are what a screen-reader user navigates the list by, and they are the
 // affordance the whole ticket adds.
 
-import type { TrpcFixtureOutput, TrpcInput, TrpcRecorder, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -49,8 +49,8 @@ const LOOSE = { ...SCRIPT_BASE, id: "regex_script_000000000000000c", name: "not 
 function stubScope(
   page: Page,
   proc: "regex.listForCharacter" | "regex.listGlobal",
-  library: TrpcFixtureOutput<"regex.listScripts">,
-  attached: TrpcFixtureOutput<"regex.listForCharacter">,
+  library: TrpcWireOutput<"regex.listScripts">,
+  attached: TrpcWireOutput<"regex.listForCharacter">,
 ): Promise<TrpcRecorder> {
   let current = [...attached];
   const applyScopeOrder: TrpcResponder<"regex.applyScopeOrder"> = (input: TrpcInput<"regex.applyScopeOrder">) => {
@@ -70,7 +70,7 @@ function stubScope(
     // The context pane also reads the reverse ROSTERS (REGROSTER). Not what these tests are about, but an
     // unlisted proc resolves `null` and the pane would render nothing at all — the rosters are pinned by
     // tests/client/features/regex/components/regex-context-body.ct.tsx.
-    "regex.listScriptUsage": (): TrpcFixtureOutput<"regex.listScriptUsage"> => ({ presets: [], characters: [], rooms: [] }),
+    "regex.listScriptUsage": (): TrpcWireOutput<"regex.listScriptUsage"> => ({ presets: [], characters: [], rooms: [] }),
     [APPLY_PROC]: applyScopeOrder,
   };
   return proc === "regex.listForCharacter"

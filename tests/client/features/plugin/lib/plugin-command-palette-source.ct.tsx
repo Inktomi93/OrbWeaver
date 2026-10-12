@@ -12,6 +12,7 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -24,7 +25,7 @@ const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
  *  object is one `plugin.listCommands` row as the wire projects it (`PluginCommandView`): the command PLUS the
  *  slug and plugin name only this side knows — the projection the palette row is built from. */
 const TWO_COMMANDS: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
-  "chat.listChats": () => ({ items: [], nextCursor: null }),
+  "chat.listChats": () => makeChatListPage(),
   // `args: []` — these commands declare NO typed args (the U8 shape); a picked row dispatches directly.
   "plugin.listCommands": () => [
     {
@@ -53,7 +54,7 @@ const TWO_COMMANDS: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
 /** No commands come back — the shape a caller sees when their plugins are DISABLED or UNGRANTED (the server's
  *  owner-scoped `listCommands` returns none). The source runs and yields zero rows. */
 const NO_COMMANDS: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
-  "chat.listChats": () => ({ items: [], nextCursor: null }),
+  "chat.listChats": () => makeChatListPage(),
   "plugin.listCommands": () => [],
 };
 
@@ -165,7 +166,7 @@ const UNSORTED_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
 ];
 
 test("plugin command rows follow the shown plugin attribution and command name, not the wire order", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => UNSORTED_COMMANDS });
+  await routeTrpc(page, { "chat.listChats": () => makeChatListPage(), "plugin.listCommands": () => UNSORTED_COMMANDS });
 
   await mount(<PluginCommandPaletteStory />);
 

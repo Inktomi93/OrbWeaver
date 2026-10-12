@@ -33,6 +33,7 @@ import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 
+// @orb-waive no-inline-package-interface(PortabilityDeps): baselined when the gate landed; burn-down item 952.
 /** What the registry builder needs from the composition root to compose each descriptor. */
 export interface PortabilityDeps {
   readonly db: Db;

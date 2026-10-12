@@ -59,6 +59,7 @@ interface QueuedFrame {
   readonly frame: StreamFrame;
 }
 
+// @orb-waive no-inline-package-interface(FrameQueueOptions): baselined when the gate landed; burn-down item 952.
 export interface FrameQueueOptions {
   /** The room's last DELIVERED durable seq (`null` for a live-only room) — what a `roomLagged` carries. */
   readonly cursorFor: (key: string) => number | null;
@@ -74,6 +75,7 @@ export interface FrameQueueOptions {
   readonly capacity?: number;
 }
 
+// @orb-waive no-inline-package-interface(FrameQueue): baselined when the gate landed; burn-down item 952.
 export interface FrameQueue {
   /** Enqueue one room DATA frame under its channel's overflow policy. */
   readonly push: (ref: StreamRoomRef, frame: StreamDataFrame) => void;

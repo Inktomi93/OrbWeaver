@@ -18,6 +18,7 @@ import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { listProcesses, processGroupId } from "@orb/tooling/floor/host/platform";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { TOOLING_PRIORITY } from "@orb/tooling/floor/process/process-priority";
@@ -25,15 +26,6 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url);
 const NICED_EXEC_PATH = `${REPO_ROOT.pathname}tooling/src/floor/process/niced-exec.ts`;
-
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** The one direct child of `pid`, read from the process table rather than inferred from signal side
  *  effects — the fact a niced launcher's real command is discoverable by, since niced-exec exposes no pid
@@ -62,10 +54,10 @@ async function waitGone(pid: number, budgetMs: number): Promise<boolean> {
   // @orb-waive test-determinism(Date.now): the SUBJECT is real wall-clock time — polling a real OS process's liveness after a real signal has no injectable clock.
   const deadline = Date.now() + budgetMs;
   // @orb-waive test-determinism(Date.now): see the waiver above; the same real-time polling loop.
-  while (isAlive(pid) && Date.now() < deadline) {
+  while (pidAlive(pid) && Date.now() < deadline) {
     await sleep(50);
   }
-  return !isAlive(pid);
+  return !pidAlive(pid);
 }
 
 test("under runTool, a full-priority child stays at the caller's priority while a niced child is lowered", () => {
@@ -134,7 +126,7 @@ test("a group SIGKILL of the launcher leaves no survivor — the verifier's repr
   const launcherPid = launcher.pid as number;
   expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
   const childPid = await firstChildOf(launcherPid);
-  expect(isAlive(childPid), "the child must be running before the group kill proves anything").toBe(true);
+  expect(pidAlive(childPid), "the child must be running before the group kill proves anything").toBe(true);
 
   process.kill(-launcherPid, "SIGKILL");
 
@@ -150,7 +142,7 @@ test("SIGTERM to the launcher's own pid (not a group signal) ends the child", as
     const launcherPid = launcher.pid as number;
     expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
     const childPid = await firstChildOf(launcherPid);
-    expect(isAlive(childPid), "the child must be running before the signal proves anything").toBe(true);
+    expect(pidAlive(childPid), "the child must be running before the signal proves anything").toBe(true);
 
     launcher.kill("SIGTERM");
 
@@ -166,7 +158,7 @@ test("SIGHUP to the launcher's GROUP ends its real child, so a closed terminal n
   const launcherPid = launcher.pid as number;
   expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
   const childPid = await firstChildOf(launcherPid);
-  expect(isAlive(childPid), "the child must be running before the signal proves anything").toBe(true);
+  expect(pidAlive(childPid), "the child must be running before the signal proves anything").toBe(true);
 
   // A real terminal hangup reaches every member of the foreground group directly — this is the group
   // delivery, not a single-pid signal, since the launcher no longer relays SIGHUP itself.

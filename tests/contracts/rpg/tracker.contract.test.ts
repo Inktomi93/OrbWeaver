@@ -5,14 +5,16 @@
 // resolver `trackerCeiling`, and above all the ONE carrier predicate
 // (`resolve(appliesTo) + grants − revokes`) that every consumer derives from instead of re-deciding who
 // carries what. The R6 write-surface GROUPING + the schema projection it feeds are pinned next door in
-// `extraction.contract.test.ts` (they are a property of the projected schema, not of these shapes).
+// `extraction-constraint.contract.test.ts` (they are a property of the projected schema, not of these shapes).
 
-import type { RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
+  actorRefKey,
   carriesTracker,
   gameTrackers,
   RPG_TRACKER_VALUE_EMPTY,
   resolveTrackerMaxOverride,
+  rpgNpcSlug,
   rpgTrackerDefSchema,
   rpgTrackerValueSchema,
   sortTrackers,
@@ -22,6 +24,8 @@ import {
   trackerReading,
   trackersForCarrier,
 } from "@orb/contracts/rpg";
+import type { UserId } from "@orb/kit/ids";
+import { newId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 /** A def with the axes a case cares about; everything else takes its schema default. */
@@ -31,7 +35,8 @@ function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" 
 
 /** A carrier (an actor a tracker may land on), with no sheet exceptions unless given. */
 function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgTrackerCarrier> = {}): RpgTrackerCarrier {
-  return { actorKey: `${kind === "npcs" ? "npc" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
+  const ref: RpgActorRef = kind === "npcs" ? { kind: "npc", npcKey: rpgNpcSlug(name) } : { kind: "user", userId: newId<UserId>() };
+  return { actorKey: actorRefKey(ref), name, kind, grants: [], revokes: [], ...over };
 }
 
 test("the def parses its axes and defaults the rest (a minimal def is legal — the add flow supplies four fields)", () => {
@@ -111,10 +116,11 @@ test("carrier CLASSES: party covers roster actors, npcs covers scene npcs, every
 });
 
 test("an EXPLICIT appliesTo list matches by actor-ref KEY, never by display name (a rename never orphans it)", () => {
-  const bound = def({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: ["npc:demon"] });
-  expect(carriesTracker(bound, carrier("demon", "npcs"))).toBe(true);
+  const demon = carrier("demon", "npcs");
+  const bound = def({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: [demon.actorKey] });
+  expect(carriesTracker(bound, demon)).toBe(true);
   // Same DISPLAY name, different ref key ⇒ not a carrier (the key is the identity).
-  expect(carriesTracker(bound, { ...carrier("demon", "npcs"), actorKey: "npc:demon_2" })).toBe(false);
+  expect(carriesTracker(bound, { ...demon, actorKey: actorRefKey({ kind: "npc", npcKey: "demon-2" }) })).toBe(false);
 });
 
 test("a GRANT reaches an actor the class missed; a REVOKE beats the class AND a grant", () => {

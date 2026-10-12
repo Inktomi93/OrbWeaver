@@ -7,11 +7,12 @@
 // attribution read is SELECTED-variants-only with the reactor's display identity flattened on.
 
 import type { Db } from "@orb/db";
-import { messageReactions } from "@orb/db";
+import { chatParticipants, messageReactions } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   deleteReaction,
@@ -196,13 +197,25 @@ describe("the B7 room loaders", () => {
     expect(await loadPresentCharacterNames(db, chatId)).toEqual(["Alice"]);
   });
 
-  test("loadPresentHostUserId: the present host, and undefined for a hostless room", async () => {
+  test("loadPresentHostUserId: the present host, and null for a hostless room", async () => {
     const { userId, chatId } = await seedRoom("h");
     expect(await loadPresentHostUserId(db, chatId)).toBe(userId);
 
-    // A hostless room (every host departed) — the caller falls to DEFAULT_CHAT_BEHAVIOR, never a crash.
+    // A hostless room — the caller falls to DEFAULT_CHAT_BEHAVIOR, never a crash.
     const bare = await seedChat(db, "hostless");
-    expect(await loadPresentHostUserId(db, bare)).toBeUndefined();
+    expect(await loadPresentHostUserId(db, bare)).toBeNull();
+  });
+
+  test("loadPresentHostUserId: a departed host is no host, and a present member never answers", async () => {
+    const { chatId } = await seedRoom("d");
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 3 })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host")));
+    const member = await seedUser(db, castId<Handle>("d-member"));
+    await seedParticipant(db, { chatId, key: "d-member", userId: member, role: "member" });
+
+    expect(await loadPresentHostUserId(db, chatId)).toBeNull();
   });
 
   test("loadCharacterSeatByName: exact (trimmed) present-character match; departed/unknown answer undefined", async () => {

@@ -53,6 +53,7 @@ const OWNED_ROOT_ENTRIES: ReadonlySet<string> = new Set([
 // legacy dir moves, so they are created only when nothing is moving onto them.
 const CONTAINER_DIRS = [DATA_LAYOUT_DIRS.db, DATA_LAYOUT_DIRS.backups, DATA_LAYOUT_DIRS.secrets, DATA_LAYOUT_DIRS.cache, DATA_LAYOUT_DIRS.reports] as const;
 
+// @orb-waive no-inline-package-interface(DataLayoutMove): baselined when the gate landed; burn-down item 952.
 /** One planned rename, both ends relative to the data root. */
 export interface DataLayoutMove {
   readonly from: string;
@@ -70,6 +71,7 @@ interface Journal {
   readonly moves: readonly DataLayoutMove[];
 }
 
+// @orb-waive no-inline-package-interface(MigrateDataLayoutDeps): baselined when the gate landed; burn-down item 952.
 export interface MigrateDataLayoutDeps {
   readonly layout: DataLayout;
   /** This process's pid, written to the journal and recognised on resume; injectable so a test can plant
@@ -92,6 +94,7 @@ interface FsOps {
   readonly rename: Rename;
 }
 
+// @orb-waive no-inline-package-interface(DataLayoutMigrationReport): baselined when the gate landed; burn-down item 952.
 export interface DataLayoutMigrationReport {
   readonly moved: readonly DataLayoutMove[];
   /** Root entries the layout does not own, named so an operator can see what the move did not touch. */

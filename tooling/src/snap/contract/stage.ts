@@ -381,6 +381,36 @@ export interface EnsureStageOpts {
   readonly stageDb?: string;
 }
 
+/** What the band allocator is asked: the table home, who is asking for which commit, and the row-builder for
+ *  the band it hands back. */
+export interface StageBandAcquireInput {
+  readonly home: string;
+  readonly root: string;
+  readonly checkout: string;
+  readonly targetSha: string;
+  readonly dirty: boolean;
+  readonly fresh: boolean;
+  readonly nowMs: number;
+  readonly auth: StageAuthMode;
+  readonly claim: (band: number) => StageRow;
+}
+
+/** The allocator's answer: the decision, and the census it judged. */
+export interface StageBandAcquisition {
+  readonly allocation: StageAllocation;
+  readonly views: readonly StageBandView[];
+}
+
+/** The box-facing steps `ensureStage` runs before it boots or reuses a stage, injected so a test drives the
+ *  hold registration without a sibling's live stage. `snap` wires the real ones at the entry. */
+export interface EnsureStageOps {
+  readonly repoRoot: () => string;
+  readonly resolveRef: (root: string, ref: string) => string;
+  readonly markerRoot: (root: string) => string;
+  readonly acquireStageBand: (input: StageBandAcquireInput) => StageBandAcquisition;
+  readonly armStageKeeper: (home: string, row: StageRow) => StageRow;
+}
+
 /** The isolated-stage half of snap's parsed argv (serve from a frozen HEAD worktree, not the live dev
  *  stack); `Args` extends it. */
 export interface StageArgs {
@@ -391,35 +421,28 @@ export interface StageArgs {
   ref: string | null;
   /** Force-rebuild the stage even when a warm one at this sha exists. Implies --isolated. */
   fresh: boolean;
-  /** Stage the WORKING TREE (uncommitted changes), not a commit — rsyncs tracked+modified+untracked
-   *  source (gitignore-filtered) into a fixed stage dir and re-syncs on every call (refreshable, no
-   *  full re-stage when warm). Implies --isolated; takes priority over --ref. */
+  /** Stage the WORKING TREE, not a commit: rsyncs tracked, modified and untracked source (gitignore-filtered)
+   *  into a fixed stage dir on every call. Implies --isolated; takes priority over --ref. */
   dirty: boolean;
   /** `--stage-auth`: how the stage signs users in. `local` boots an empty data root with the fixture's
    *  seeded humans, and `--contexts`/`--as` then log in against the stage. Implies --isolated. */
   stageAuth: StageAuthMode;
-  /** `--stage-db <path>`: clone this db (and its -wal/-shm, and the assets/ beside its db/) into the stage
-   *  instead of the dev db. Implies --isolated and --fresh; with `--stage-auth local` the fixture humans are
-   *  seeded into the clone. */
+  /** `--stage-db <path>`: clone this db, its -wal/-shm and the assets/ beside its db/ into the stage. Implies
+   *  --isolated and --fresh; with `--stage-auth local` the fixture humans are seeded into the clone. */
   stageDb: string | null;
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;
-  /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
-   *  engines status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
+  /** Print the stage's visibility (marker, band port owners, worktree dirs) and exit, ignoring the route. */
   stageStatus: boolean;
   /** Reap a STRANDED stage (a stage-rooted band process nothing has used inside the idle TTL) and prune
    *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
    *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
   stageSweep: boolean;
-  /** `--stage-keeper <band>`: the band idle TIMER'S OWN entry (#1163 arm b) — spawned by `ensureStage`
-   *  through ops/stage-keeper.ts, never typed by an operator. It polls that band's row and tears the stage
-   *  down through the `--stage-down` path once nothing has used it for the TTL. null = not a keeper. */
+  /** `--stage-keeper <band>`: the band idle timer's own entry (#1163 arm b), spawned by `ensureStage`, never typed. */
   stageKeeper: number | null;
-  /** `--stage-wait <min>`: when no stage can be had now, queue a ticket and let a detached waiter boot it in
-   *  order, for up to this many minutes. The wait survives the caller stopping; the same command resumes it.
-   *  Implies --isolated. null = fail at once on a busy table. */
+  /** `--stage-wait <min>`: queue for a busy table; a detached waiter boots the stage in order. null = no wait. */
   stageWait: number | null;
-  /** `--stage-waiter <ticket>`: the queue waiter's own entry, spawned by `--stage-wait`, never typed. */
+  /** `--stage-waiter <ticket>`: the queue waiter's own entry, never typed. */
   stageWaiter: string | null;
   /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
    *  therefore requires --force; a bare --force never broadens the default owned-row selection. */

@@ -17,10 +17,11 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeImpersonateStream } from "@orb/testkit/node/route-impersonate-stream.ts";
 import type { SubscriptionErrorPayload } from "@orb/testkit/node/route-orb-socket.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -33,7 +34,7 @@ const DISENGAGED_CHAT = castId<ChatId>("chat_ct_off_01");
 
 /** `chat.getChat` shaped for the pointer gate's THREE states: a live game, a chat with no pointer at all,
  *  and — the case the old re-spelled null-check got wrong — a chat whose game is present but TOGGLED OFF. */
-const getChat = (input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getChat"> => {
+const getChat = (input: TrpcInput<"chat.getChat">): TrpcWireOutput<"chat.getChat"> => {
   const chatId = input.chatId;
   const rpg = ((): TrpcWireOutput<"chat.getChat">["rpg"] => {
     if (chatId === GAME_CHAT) {
@@ -44,7 +45,7 @@ const getChat = (input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getC
     }
     return null;
   })();
-  return { id: chatId, title: "room", viewerUserId: "user_ct_socket", rpg };
+  return makeChatDetail({ id: chatId, title: "room", rpg });
 };
 
 const RPG_FRAME: StreamFrame = { channel: "rpg", chatId: GAME_CHAT, event: { type: "gameChanged", chatId: GAME_CHAT } };

@@ -91,6 +91,7 @@ import {
   estimateMemoryBackfillCalls,
   getGroupConfig,
   getRoomOverrides,
+  loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { readOwnedDistillates } from "#domain/discovery";
@@ -269,7 +270,7 @@ export function createSignupMinterCheck(
   };
 }
 
-// @orb-waive no-inline-wire-interface(ChatComposeInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ChatComposeInput): baselined when the gate landed; burn-down item 952.
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
@@ -363,7 +364,7 @@ export interface ChatComposeInput {
   readonly pluginMacros?: ChatContext["pluginMacros"] | undefined;
 }
 
-// @orb-waive no-inline-wire-interface(ChatComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ChatComposeResult): baselined when the gate landed; burn-down item 952.
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
  *  publish onto the chat bus (e.g. world-info). */
 export interface ChatComposeResult {
@@ -914,14 +915,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
   // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
-  const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
-    const hostRows = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    return hostRows.at(0)?.userId ?? null;
-  };
+  const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
   // ⇒ no declared variables.

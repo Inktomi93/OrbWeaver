@@ -11,12 +11,12 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats } from "@orb/db";
+import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
-import { parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
+import { loadPresentHostUserId, parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -65,15 +65,11 @@ function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayP
       // `[]` regardless — so the roster read never happens on the default path.
       return { enabled: false, hostUserId: null };
     }
-    const [host] = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(LIMIT_ONE);
-    return { enabled: true, hostUserId: host?.userId ?? null };
+    return { enabled: true, hostUserId: await loadPresentHostUserId(db, chatId) };
   };
 }
 
+// @orb-waive no-inline-package-interface(RegexComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {
   readonly db: Db;
@@ -85,7 +81,7 @@ export interface RegexComposeDeps {
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
-// @orb-waive no-inline-wire-interface(RegexComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(RegexComposeResult): baselined when the gate landed; burn-down item 952.
 /** The regex compose product: the service + the four portability ops + the chat-turn resolve op. */
 export interface RegexComposeResult {
   readonly regex: RegexService;

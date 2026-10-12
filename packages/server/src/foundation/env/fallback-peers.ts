@@ -35,7 +35,7 @@
 // un-credentialed owner-password claim on a `deny` box. A containerized local deploy uses
 // `LOCAL_INITIAL_PASSWORD` instead (spec §3.2, already its documented state).
 
-// @orb-waive no-inline-wire-interface(OwnerFallbackPeerInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(OwnerFallbackPeerInput): baselined when the gate landed; burn-down item 952.
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
 export interface OwnerFallbackPeerInput {
   /** `AUTH_FALLBACK` — the knob `resolve` tests BEFORE the peer gate; `deny` makes this set unreachable. */
@@ -44,6 +44,7 @@ export interface OwnerFallbackPeerInput {
   readonly trustedPeers: string | undefined;
 }
 
+// @orb-waive no-inline-package-interface(OwnerFallbackPeerPosture): baselined when the gate landed; burn-down item 952.
 /** The composed posture. Both fields are facts about this boot, safe to print in a boot log. */
 export interface OwnerFallbackPeerPosture {
   /** The parsed CIDR entries, reported even when `AUTH_FALLBACK=deny` makes them inert — a misconfigured

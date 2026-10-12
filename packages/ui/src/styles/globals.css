@@ -874,7 +874,7 @@
  * block, both mid-stream and on scroll-in. Correct geometry wins.
  *
  * No animation is introduced, so there is nothing here for reduced-motion to suppress. Pinned by the
- * two `M5:` cases in tests/ui/markdown/markdown.ct.tsx (mount-frame overshoot + the offscreen box). */
+ * two `M5:` cases in tests/ui/markdown/markdown-streaming.ct.tsx (mount-frame overshoot + the offscreen box). */
 [data-streamdown="code-block"] {
   /* biome-ignore lint/complexity/noImportantStyles: the only way to beat Streamdown's hardcoded INLINE content-visibility on an element it never forwards style/className to */
   content-visibility: visible !important;
