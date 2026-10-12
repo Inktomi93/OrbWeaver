@@ -7,11 +7,12 @@ import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { MessageId, MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { deleteJournalEntry, insertJournalEntry, listActiveJournal, listJournalByVariant } from "#server/domain/rpg/persistence/journal.ts";
-import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test, UNCLAMPED } from "../_support.ts";
+import { addVariant, expect, seedChat, seedGame, seedMessage, test, UNCLAMPED } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -38,7 +39,7 @@ async function addEntry(opts: {
     content: opts.title,
     variantId: opts.variantId,
     sourceMessageId: opts.sourceMessageId ?? null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 }
 

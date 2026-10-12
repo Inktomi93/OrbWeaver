@@ -136,6 +136,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   /** Install ONE example for `principal`. The outcome is the LATCH INPUT, not a log detail (#1411):
    *  `installed`/`present` are both "this slug is accounted for", `unavailable` is not. Returns the version
    *  it wrote so the caller can record OUR provenance for it. */
+  // @orb-waive compose-wiring-only(seedOne): baselined when the gate landed; burn-down item 964.
   async function seedOne(principal: Principal, slug: string, held: boolean): Promise<{ readonly outcome: SeedOutcome; readonly version: string | null }> {
     if (held) {
       return { outcome: "present", version: null };
@@ -156,6 +157,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
 
   /** The INSTALL half. Returns whether it LATCHED (which is also whether the memo may record the pass) plus
    *  the provenance every newly-installed slug earned. */
+  // @orb-waive compose-wiring-only(install): baselined when the gate landed; burn-down item 964.
   async function install(
     principal: Principal,
     held: ReadonlySet<string>,
@@ -194,6 +196,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
    *  already treats a row's `version` as the oracle and passes over a `version-diverged` recipient because
    *  "they have taken the plugin over". `recorded === undefined` is the pre-#803 BACKFILL arm (adopt; the
    *  file header states why that is the safe arm and how it self-retires). */
+  // @orb-waive compose-wiring-only(isPristine): baselined when the gate landed; burn-down item 964.
   function isPristine(row: HeldShowcasePlugin, recorded: string | undefined): boolean {
     return recorded === undefined || recorded === row.version;
   }
@@ -201,6 +204,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   /** Take ONE held row from `row.version` to the shipped bundle, or answer `null` for "left alone" (nothing
    *  newer ships · this package ships no such slug · the owner has diverged · the upgrade failed). Split out
    *  from the loop so each reason states itself once. */
+  // @orb-waive compose-wiring-only(upgradeOne): baselined when the gate landed; burn-down item 964.
   async function upgradeOne(principal: Principal, row: HeldShowcasePlugin, recorded: string | undefined): Promise<string | null> {
     const shipped = await deps.bundledVersion(row.slug);
     if (shipped === null || !isVersionNewer(shipped, row.version)) {
@@ -241,6 +245,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   }
 
   /** The UPGRADE half. Runs on every pass; returns the provenance it advanced (empty when nothing moved). */
+  // @orb-waive compose-wiring-only(upgradeHeld): baselined when the gate landed; burn-down item 964.
   async function upgradeHeld(
     principal: Principal,
     held: readonly HeldShowcasePlugin[],
@@ -260,6 +265,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   }
 
   /** Runs a pass; returns whether it LATCHED (which is also whether the in-process memo may record it). */
+  // @orb-waive compose-wiring-only(seed): baselined when the gate landed; burn-down item 964.
   async function seed(principal: Principal): Promise<boolean> {
     const alreadySeeded = await deps.isSeeded(principal);
     const showcase = new Set<string>(SHOWCASE_PLUGIN_SLUGS);
@@ -285,6 +291,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   }
 
   return {
+    // @orb-waive compose-wiring-only(ensureSeeded): baselined when the gate landed; burn-down item 964.
     ensureSeeded: (principal: Principal): Promise<void> => {
       if (settled.has(principal.userId)) {
         return Promise.resolve();

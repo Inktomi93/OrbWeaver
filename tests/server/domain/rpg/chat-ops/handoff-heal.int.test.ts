@@ -15,12 +15,13 @@ import { characters, presets, rpgSheets } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { eq } from "drizzle-orm";
 import { findGameByChat, insertGame } from "#server/domain/rpg/persistence/games.ts";
 import type { RpgHarness } from "../_support.ts";
-import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support.ts";
+import { expect, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support.ts";
 
 const NEW_HOST = castId<UserId>("user_nominee");
 const OLD_HOST = castId<UserId>("user_departing");
@@ -52,8 +53,8 @@ async function seedGameRoom(
     gmUserId: gm,
     gmPresetId: opts.gmPresetId ?? null,
     config: { ...liteConfig(), engaged: opts.engaged ?? true },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return { chatId, gameId };
 }
@@ -64,15 +65,15 @@ async function seedSheetFor(db: Db, gameId: RpgGameId, ownerId: UserId, key: str
   const characterId = castId<CharacterId>(`character_${key}`);
   await db
     .insert(characters)
-    .values(makeCharacter({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: FROZEN_AT }));
+    .values(makeCharacter({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: FROZEN_AT_MS }));
   await db.insert(rpgSheets).values({
     id: castId<RpgSheetId>(`rpg_sheet_${key}`),
     gameId,
     characterId,
     userId: null,
     sheet: { className: "warden", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return characterId;
 }
@@ -80,7 +81,9 @@ async function seedSheetFor(db: Db, gameId: RpgGameId, ownerId: UserId, key: str
 /** A preset row the `gmPresetId` FK can point at (owner irrelevant here — readability is the injected op's). */
 async function seedPresetRow(db: Db, id: string, ownerId: UserId): Promise<PresetId> {
   const presetId = castId<PresetId>(id);
-  await db.insert(presets).values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db
+    .insert(presets)
+    .values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return presetId;
 }
 
@@ -203,7 +206,7 @@ test("the copied cast's SHEETS re-key onto the copies in the swap batch (the roo
       handle: castId<CharacterHandle>("mira_copy"),
       name: "Mira",
       tokenSize: 0,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   const h = makeRpgService(db);

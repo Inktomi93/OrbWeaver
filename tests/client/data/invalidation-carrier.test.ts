@@ -85,8 +85,7 @@ describe("applyCanonView — the view carrier written into the room's message li
   test("REPLACES its row in place (the swipe's new variant, with no wire read)", () => {
     const { queryClient, trpc } = setup();
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
-    // @orb-waive no-loose-id-cast(page): baselined when the gate widened; burn-down item 906.
-    queryClient.setQueryData([...key], page([view(OTHER_MESSAGE_ID, "Ping?"), view(MESSAGE_ID, "old variant")]) as never);
+    queryClient.setQueryData([...key], page([view(OTHER_MESSAGE_ID, "Ping?"), view(MESSAGE_ID, "old variant")]));
 
     applyCanonView(queryClient, trpc, { type: "messageCommitted", chatId: CHAT_ID, messageId: MESSAGE_ID, view: view(MESSAGE_ID, "new variant") });
 
@@ -99,8 +98,7 @@ describe("applyCanonView — the view carrier written into the room's message li
   test("APPENDS at the tail for a row the page has never seen (a fresh reply / the caller's own send)", () => {
     const { queryClient, trpc } = setup();
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
-    // @orb-waive no-loose-id-cast(page): baselined when the gate widened; burn-down item 906.
-    queryClient.setQueryData([...key], page([view(OTHER_MESSAGE_ID, "Ping?")]) as never);
+    queryClient.setQueryData([...key], page([view(OTHER_MESSAGE_ID, "Ping?")]));
 
     applyCanonView(queryClient, trpc, { type: "messageCommitted", chatId: CHAT_ID, messageId: MESSAGE_ID, view: view(MESSAGE_ID, "the reply") });
 
@@ -128,8 +126,7 @@ describe("applyCanonView — the view carrier written into the room's message li
     const { queryClient, trpc } = setup();
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
     const before = page([view(MESSAGE_ID, "untouched")]);
-    // @orb-waive no-loose-id-cast(before): baselined when the gate widened; burn-down item 906.
-    queryClient.setQueryData([...key], before as never);
+    queryClient.setQueryData([...key], before);
 
     applyCanonView(queryClient, trpc, { type: "messageCommitted", chatId: CHAT_ID, messageId: MESSAGE_ID });
 
@@ -140,8 +137,7 @@ describe("applyCanonView — the view carrier written into the room's message li
     const { queryClient, trpc } = setup();
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
     const before = page([view(MESSAGE_ID, "untouched")]);
-    // @orb-waive no-loose-id-cast(before): baselined when the gate widened; burn-down item 906.
-    queryClient.setQueryData([...key], before as never);
+    queryClient.setQueryData([...key], before);
 
     applyCanonView(queryClient, trpc, { type: "messagesDeleted", chatId: CHAT_ID, messageIds: [MESSAGE_ID] });
 

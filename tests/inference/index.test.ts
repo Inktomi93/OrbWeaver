@@ -408,7 +408,7 @@ test("POSITIVE CONTROL — the collapse did not blunt the fence: the owner still
   // The owner resolves through the id-taking belt.
   expect((await runtime.capabilities.for({ connectionId: ids.embed, principal: s.alice })).capability.kind).toBe("embedding");
   // And `forbidden` still means what it meant — the row cannot serve the task. The two live readers of that
-  // kind (`resolve/availability.ts`, `entry/compose/rpg.ts`) sit on THIS arm, never on the owner fence.
+  // kind (`resolve/availability.ts`, `domain/rpg/tools/rounds/round-connection.ts`) sit on THIS arm, never on the owner fence.
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "rerank", connectionId: ids.embed });
   await expect(runtime.resolve({ task: "rerank", principal: s.alice })).rejects.toMatchObject({ kind: "forbidden" });
 });

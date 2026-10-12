@@ -1,17 +1,16 @@
 // persistence/games — the `rpg_games` row lifecycle (docs/plans/rpg/design.md). .int: real FK. Create/read (by id
 // + by chat — game-ness resolves here) + config-patch + the config parse-on-read belt.
 
-// @orb-waive-file no-loose-id-cast({ ...liteConfig): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ statProfile: liteConfig): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat, findGameById, insertGame, updateGame } from "#server/domain/rpg/persistence/games.ts";
-import { expect, FROZEN_AT, liteConfig, seedChat, test } from "../_support.ts";
+import { expect, liteConfig, seedChat, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -24,7 +23,7 @@ describe("create + read", () => {
   test("insertGame writes the row; findGameById + findGameByChat read it back parsed", async () => {
     const chatId = await seedChat(db, "a");
     const id = castId<RpgGameId>("rpg_game_g1");
-    const game = await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    const game = await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
     expect(game.mode).toBe("lite");
     expect(game.gmPresetId).toBeNull(); // the knob's lite default (= augment)
 
@@ -42,10 +41,10 @@ describe("config write door + the gmPresetId knob", () => {
   test("updateGame patches the config blob and the knob", async () => {
     const chatId = await seedChat(db, "a");
     const id = castId<RpgGameId>("rpg_game_g1");
-    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
 
     const nextConfig = { ...liteConfig(), lite: { steeringNote: "lean darker" } };
-    await updateGame(db, id, { config: nextConfig, updatedAt: FROZEN_AT });
+    await updateGame(db, id, { config: nextConfig, updatedAt: FROZEN_AT_MS });
     expect((await findGameById(db, id))?.config.lite.steeringNote).toBe("lean darker");
   });
 });
@@ -54,11 +53,12 @@ describe("parse-on-read corruption belt", () => {
   test("a corrupt config blob throws RpgStateCorruptError", async () => {
     const chatId = await seedChat(db, "a");
     const id = castId<RpgGameId>("rpg_game_g1");
-    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
     // Poison the steeringNote past its max (a string longer than 500 chars).
     await db
       .update(rpgGames)
       // @orb-waive no-test-fabrication(never): invalid-input probe — poisons the config blob past its schema to prove parse-on-read throws Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ statProfile: liteConfig): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ config: { statProfile: liteConfig().statProfile, lite: { steeringNote: "x".repeat(600) } } as never })
       .where(eq(rpgGames.id, id));
     await expect(findGameById(db, id)).rejects.toThrow(CORRUPT_RE);
@@ -69,10 +69,11 @@ describe("parse-on-read corruption belt", () => {
     // while it existed must not hard-throw the whole room for a knob. The heal is scoped to that ONE field.
     const chatId = await seedChat(db, "a");
     const id = castId<RpgGameId>("rpg_game_g1");
-    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
     await db
       .update(rpgGames)
       // @orb-waive no-test-fabrication(never): retired-value probe — a blob written before the mode was deleted Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ ...liteConfig): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ config: { ...liteConfig(), extractionMode: "a-mode-that-no-longer-exists" } as never })
       .where(eq(rpgGames.id, id));
 

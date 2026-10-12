@@ -1,7 +1,7 @@
 // The D8 `session_entries` write-path (issue #71): the ONLY `@orb/db` touch this concern gets — the
-// agent-sdk backend is a sealed executor (never imports `@orb/db`/a domain, D8 +
-// the `infra/**` "NEVER @orb/db" file-header invariant), so the compose root builds the real
-// `db.insert`/`db.update` ops here and injects them DOWN as a `SessionEntryWriter` (session/store.ts).
+// agent-sdk backend is a sealed executor (never imports `@orb/db`/a domain, D8), so the connection domain,
+// which owns the connections these seats are keyed by, builds the real writes and the composition root injects
+// them DOWN into the inference runtime as a `SessionEntryWriter` (session/store.ts).
 //
 // THE PRIMARY SEAT. Every write names the lineage its connection now runs on, so every write moves the
 // `(chat, connection)` primary onto that row: un-primary the connection's current seat, THEN set the
@@ -24,21 +24,17 @@ import type { Db } from "@orb/db";
 import { sessionEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { SessionEntryWriter } from "@orb/inference";
-import type { ChatId, UserConnectionId } from "@orb/kit/ids";
-import { ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { minter } from "./minter.ts";
 
 const FOREIGN_SESSION_REFUSAL = "session entry write refused: the SDK session does not belong to the resolved connection";
 
 // A second handle on the table for the subqueries, so their columns never resolve to the outer row.
 const lineage = alias(sessionEntries, "lineage");
 
-export function createSessionEntryWriter(db: Db): SessionEntryWriter {
-  const newSessionEntryId = minter(ID_PREFIX.sessionEntry);
-
+export function createSessionEntryWriter(db: Db, newSessionEntryId: () => SessionEntryId): SessionEntryWriter {
   /** Demote the connection's current seat in `chatId`, unless `sdkSessionId` is already owned elsewhere. */
   function demoteSeat(chatId: SQL<ChatId | null>, connectionId: UserConnectionId, sdkSessionId: string): BatchStmt {
     return db

@@ -11,10 +11,11 @@
 import type { Db } from "@orb/db";
 import type { Handle, RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
 import { recordTurnToolCalls } from "#server/domain/rpg/persistence/turn-tool-calls.ts";
-import { addVariant, expect, FROZEN_AT, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
+import { addVariant, expect, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -39,7 +40,7 @@ describe("listTurnToolCalls", () => {
       messageId,
       variantId,
       calls: [{ name: "update_scene", args: '{"location":"the ford"}', verdict: "applied", issues: [] }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const rows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
@@ -74,7 +75,7 @@ describe("listTurnToolCalls", () => {
       messageId: old.messageId,
       variantId: old.variantId,
       calls: [{ name: "update_scene", args: '{"location":"the ford"}', verdict: "applied", issues: [] }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     // ONE newer slot, rerolled past the default 50-turn window's worth of ROWS. Every one of these is a
@@ -90,7 +91,7 @@ describe("listTurnToolCalls", () => {
           variantId,
           calls: [{ name: "update_party", args: "{}", verdict: "applied", issues: [] }],
           // Strictly NEWER than the old turn's record, so a row-denominated window fills with these first.
-          createdAt: FROZEN_AT + 10 + i,
+          createdAt: FROZEN_AT_MS + 10 + i,
         });
       }),
     );
@@ -122,7 +123,7 @@ describe("listTurnToolCalls — hidden spans are the HOST's plane, not the membe
       messageId,
       variantId,
       calls: [{ name: "update_scene", args, verdict: "applied", issues: [] }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
@@ -147,7 +148,7 @@ describe("listTurnToolCalls — hidden spans are the HOST's plane, not the membe
       messageId,
       variantId,
       calls: [{ name: "update_scene", args: "{}", verdict: "dropped", issues: [issue] }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
@@ -171,7 +172,7 @@ describe("listTurnToolCalls — hidden spans are the HOST's plane, not the membe
       messageId,
       variantId,
       calls: [{ name: "update_scene", args, verdict: "dropped", issues: ["arguments: not valid JSON"] }],
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });

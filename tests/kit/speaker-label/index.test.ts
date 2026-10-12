@@ -353,5 +353,5 @@ test("NAME_END_BOUNDARY is a lookahead that a built pattern can embed (the `\\b`
   expect(re("Nova🌙").test("@Nova🌙 waves")).toBe(true);
   expect(re("Аня").test("@Анятолия смотрит")).toBe(false);
   // The control: the same assertions under `\b` are exactly the reported miss.
-  expect(new RegExp("@Аня\\b", "giu").test("@Аня открыла")).toBe(false);
+  expect(/@Аня\b/giu.test("@Аня открыла")).toBe(false);
 });

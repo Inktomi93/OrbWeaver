@@ -1,6 +1,6 @@
 // verb: listUsage — the preset CONTEXT panel's backward bindings (#279). The verb owns the GATE and nothing
 // else: readability is preset's own rule, everything after it is an injected op (settings' active pick +
-// rpg's GM redirect + chat's membership, assembled at `entry/compose/preset-usage.ts` and tested there).
+// rpg's GM redirect + chat's membership, ruled in `domain/preset/verbs/resolve-preset-usage.ts` and tested there).
 //
 // So these pins are exactly two claims: a stranger cannot aim this at someone else's preset (it collapses
 // to the same NotFound a `get` does — no existence oracle), and a readable preset's answer is the injected

@@ -8,11 +8,12 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { FROZEN_AT, makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("updateUserSettingsSection", () => {
   test("attachment quality persists independently and preserves sibling chat settings", async () => {
@@ -181,7 +182,7 @@ describe("updateUserSettingsSection", () => {
       schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
       // @orb-waive no-test-fabrication(unknown): a non-object config column IS the corruption under test; no typed factory expresses it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       config: stored as unknown as UserSettings,
-      updatedAt: FROZEN_AT,
+      updatedAt: FROZEN_AT_MS,
     });
 
     await expect(
@@ -193,7 +194,7 @@ describe("updateUserSettingsSection", () => {
 
     const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, u));
     expect(row?.config).toBe(stored);
-    expect(row?.updatedAt).toBe(FROZEN_AT);
+    expect(row?.updatedAt).toBe(FROZEN_AT_MS);
     // The refusal happens BEFORE the side effects — no audit row claims a write that never landed.
     expect(h.audits).toHaveLength(0);
   });

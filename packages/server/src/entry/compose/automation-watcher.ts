@@ -38,6 +38,7 @@ const LIMIT_ONE = 1;
  *  SCOPED BY THE CHAT, not by the id alone (#1456): the resolver hands this op the room the event fired in,
  *  and the fact it returns is what reaches third-party automation rules and plugin guest code. Looking the
  *  message up by id alone let a malformed, stale or cross-wired event hydrate a fact out of ANOTHER room. */
+// @orb-waive compose-wiring-only(getMessageFact): baselined when the gate landed; burn-down item 964.
 async function getMessageFact(db: Db, chatId: ChatId, messageId: MessageId): Promise<NonNullable<TriggerFact["message"]> | null> {
   const rows = await db
     .select({
@@ -55,6 +56,7 @@ async function getMessageFact(db: Db, chatId: ChatId, messageId: MessageId): Pro
   return rows[0] ?? null;
 }
 
+// @orb-waive compose-wiring-only(readChatColumn): baselined when the gate landed; burn-down item 964.
 async function readChatColumn(db: Db, chatId: ChatId, column: "runtime" | "choice"): Promise<Record<string, string>> {
   const rows = await db.select({ runtime: chats.runtimeVariables, choice: chats.variableValues }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   return rows[0]?.[column] ?? {};

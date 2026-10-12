@@ -5,16 +5,12 @@
 // key ever seen — an unbounded Map keyed by chatId is a memory leak on a long-lived server).
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { describe } from "vitest";
 import { activeLaneCount, runInLane } from "#server/domain/automation/substrate/serial-lanes.ts";
 
 /** A promise a test resolves by hand — the only way to hold a job open across an assertion. */
 function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
-  let resolve!: () => void;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
+  const { promise, resolve } = Promise.withResolvers<void>();
   return { promise, resolve };
 }
 

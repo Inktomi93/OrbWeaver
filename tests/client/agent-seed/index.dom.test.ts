@@ -338,18 +338,10 @@ test("concurrent retries join one in-flight finish without invoking the failed d
 
   await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
 
-  let releaseRetry: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const retryHeld = new Promise<void>((resolve) => {
-    releaseRetry = resolve;
-  });
-  let markRetryStarted: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const retryStarted = new Promise<void>((resolve) => {
-    markRetryStarted = resolve;
-  });
+  const { promise: retryHeld, resolve: releaseRetry } = Promise.withResolvers<void>();
+  const { promise: retryStarted, resolve: markRetryStarted } = Promise.withResolvers<void>();
   const retryCreate = vi.fn<AgentSeedClient["rpg"]["createGame"]["mutate"]>(({ chatId }) => {
-    markRetryStarted?.();
+    markRetryStarted();
     return retryHeld.then(() => {
       applied.push(`${chatId}:createGame`);
     });
@@ -359,7 +351,7 @@ test("concurrent retries join one in-flight finish without invoking the failed d
   const firstRetry = seed.game({ profile: "d20" });
   const secondRetry = seed.game({ profile: "d20" });
   await retryStarted;
-  releaseRetry?.();
+  releaseRetry();
 
   await expect(Promise.all([firstRetry, secondRetry])).resolves.toEqual([{ chatId: CHAT_ID }, { chatId: CHAT_ID }]);
   expect(retryCreate).toHaveBeenCalledOnce();
@@ -373,20 +365,12 @@ test("a joined retry failure rejects every waiter and releases the finish for a 
 
   await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
 
-  let rejectRetry: ((reason: Error) => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const retryHeld = new Promise<void>((_resolve, reject) => {
-    rejectRetry = reject;
-  });
-  let markRetryStarted: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const retryStarted = new Promise<void>((resolve) => {
-    markRetryStarted = resolve;
-  });
+  const { promise: retryHeld, reject: rejectRetry } = Promise.withResolvers<void>();
+  const { promise: retryStarted, resolve: markRetryStarted } = Promise.withResolvers<void>();
   const retryCreate = vi
     .fn<AgentSeedClient["rpg"]["createGame"]["mutate"]>()
     .mockImplementationOnce(() => {
-      markRetryStarted?.();
+      markRetryStarted();
       return retryHeld;
     })
     .mockImplementation(({ chatId }) => {
@@ -398,7 +382,7 @@ test("a joined retry failure rejects every waiter and releases the finish for a 
   const firstRetry = seed.game({ profile: "d20" });
   const secondRetry = seed.game({ profile: "d20" });
   await retryStarted;
-  rejectRetry?.(new Error("joined retry failed"));
+  rejectRetry(new Error("joined retry failed"));
 
   const joined = await Promise.allSettled([firstRetry, secondRetry]);
   expect(joined.map((result) => result.status)).toEqual(["rejected", "rejected"]);

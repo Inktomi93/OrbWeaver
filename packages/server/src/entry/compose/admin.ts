@@ -98,6 +98,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       // account, the human's other devices hold valid cookies and resume in one reconnect through the
       // existing barrier, and per-user is the ONLY arm that also reaches sockets admitted with no session
       // row at all (the owner fallback / forward-header SSO), which a session id cannot name.
+      // @orb-waive compose-wiring-only(revoke): baselined when the gate landed; burn-down item 964.
       revoke: async (sessionId: SessionId): Promise<void> => {
         const owner = await sessions.revoke(sessionId);
         if (owner !== null) {
@@ -126,6 +127,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       isReservedHandle: isReservedSignupHandle,
     },
     embed: {
+      // @orb-waive compose-wiring-only(embedCharacterCard): baselined when the gate landed; burn-down item 964.
       embedCharacterCard: async (principal, characterId): Promise<boolean> => {
         const card = await character.getCard({ principal, characterId });
         if (card === null) {

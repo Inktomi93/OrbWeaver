@@ -10,6 +10,7 @@ import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
@@ -30,7 +31,7 @@ import {
 } from "#server/domain/chat/persistence/canon-write.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "#server/domain/chat/persistence/queries.ts";
 import { continuedSignatureMetadata } from "#server/domain/chat/substrate/content-signatures.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedConnection, seedMessage, seedUser } from "../_support.ts";
+import { seedCharacter, seedChat, seedConnection, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -97,7 +98,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           messageId,
           variantId: alternate,
           idx: 1,
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "A different card.", toolCalls: [{ ...first, result: "Sun" }] },
         }),
       ),
@@ -105,7 +106,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
     expect((await loadCanonHistory(db, chatId))[0]?.toolCalls[0]?.result).toBe("Sun");
     await db.batch(batchMany([selectActiveVariantStatement(db, messageId, variantId)]));
     expect((await loadCanonHistory(db, chatId))[0]?.toolCalls).toEqual(after);
-    await db.batch(batchMany(editMessageContentStatements(db, { messageId, variantId, content: "Edited prose.", editedAt: FROZEN_AT, toolCalls: after })));
+    await db.batch(batchMany(editMessageContentStatements(db, { messageId, variantId, content: "Edited prose.", editedAt: FROZEN_AT_MS, toolCalls: after })));
     const edited = (await loadCanonHistory(db, chatId))[0];
     expect(edited?.toolCalls.map((record) => record.name)).toEqual(["draw", "tick"]);
     expect(edited?.toolCalls.every((record) => record.textOffset === undefined)).toBe(true);
@@ -120,7 +121,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       chatId,
       seq: 1,
       role: "assistant" as const,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
       variant: {
         content: "hello world",
         model: testModelId("opus"),
@@ -158,7 +159,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       chatId,
       seq: 1,
       role: "assistant" as const,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
       variant: { content: "generated", connectionId },
     };
 
@@ -180,7 +181,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       seq: 1,
       role: "assistant" as const,
       characterId: characterId as CharacterId,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
       variant: {
         content: "voiced",
         costUsd: 0.002,
@@ -207,7 +208,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "first" },
         }),
       ),
@@ -220,7 +221,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           messageId,
           variantId: v2,
           idx: 1,
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "rerolled" },
         }),
       ),
@@ -244,7 +245,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "first" },
         }),
       ),
@@ -256,7 +257,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           messageId,
           variantId: v2,
           idx: 1,
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "rerolled" },
         }),
       ),
@@ -283,7 +284,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "capped", maxOutputTokens: 4096, reasoningEffort: "high" },
         }),
       ),
@@ -312,7 +313,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "first", macroDraws: firstDraws },
         }),
       ),
@@ -330,7 +331,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           messageId,
           variantId: v2,
           idx: 1,
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "rerolled", macroDraws: firstDraws },
         }),
       ),
@@ -351,7 +352,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "no draws" },
         }),
       ),
@@ -380,7 +381,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "first" },
         }),
       ),
@@ -391,7 +392,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
           messageId,
           variantId: castId<MessageVariantId>("variant_m1_1"),
           idx: 1,
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "background" },
           selectActive: false,
         }),
@@ -447,7 +448,7 @@ describe("commitCanonAppend — the allocation retry is BOUNDED", () => {
         chatId,
         seq,
         role: "assistant",
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
         variant: { content: "mine" },
       }),
       result: seq,
@@ -489,7 +490,7 @@ describe("commitCanonAppend — the allocation retry is BOUNDED", () => {
         chatId,
         seq,
         role: "assistant",
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
         variant: { content: "mine" },
       }),
       result: seq,
@@ -519,7 +520,7 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "reasoned", reasoningTokens: 17, costDetails: details, reasoningEffort: "low" },
         }),
       ),
@@ -536,7 +537,9 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
     const chatId = await seedChat(db, "a");
     const { messageId, variantId } = ids("m1");
     await db.batch(
-      batchMany(insertCanonMessageStatements(db, { messageId, variantId, chatId, seq: 1, role: "assistant", now: FROZEN_AT, variant: { content: "plain" } })),
+      batchMany(
+        insertCanonMessageStatements(db, { messageId, variantId, chatId, seq: 1, role: "assistant", now: FROZEN_AT_MS, variant: { content: "plain" } }),
+      ),
     );
     const [row] = await db
       .select({ reasoningTokens: messageVariants.reasoningTokens, costDetails: messageVariants.costDetails })
@@ -562,7 +565,7 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: { content: "first", reasoning: "Paris needs the tool.", reasoningParts: signed },
         }),
       ),
@@ -598,7 +601,7 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
           chatId,
           seq: 1,
           role: "assistant",
-          now: FROZEN_AT,
+          now: FROZEN_AT_MS,
           variant: {
             ...makeGenerationUsage(0.18, {
               tokensIn: 7,

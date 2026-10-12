@@ -11,12 +11,12 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
-// @orb-waive-file no-loose-id-cast(overrides.metadata): baselined when the gate widened; burn-down item 906.
 import type { EntryView } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
 import type { Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -24,7 +24,6 @@ import { describe } from "vitest";
 import { listBookEntries, loadOwnedBook, loadOwnedEntry, toBookView, toEntryView } from "#server/domain/world-info/persistence/queries.ts";
 import { seedUser } from "../_support.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 type DbHandle = Awaited<ReturnType<typeof freshDb>>;
 
 /** First row, or fail the test — keeps `!` (noNonNullAssertion) out of the assertions. */
@@ -38,14 +37,32 @@ function only<T>(rows: T[]): T {
 
 async function seedBook(db: DbHandle, ownerId: UserId, id: string): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(id);
-  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "B", createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "B", createdAt: FROZEN_AT_MS });
   return bookId;
 }
 
-async function seedEntry(
+interface EntrySeed {
+  id: string;
+  keys?: string[] | null;
+  priority?: number;
+}
+
+/** An entry whose metadata is a valid column value. */
+function seedEntry(db: DbHandle, bookId: WorldBookId, overrides: EntrySeed & { metadata?: typeof worldEntries.$inferInsert.metadata }): Promise<WorldEntryId> {
+  return insertEntryRow(db, bookId, overrides, overrides.metadata);
+}
+
+/** An entry whose metadata is a corrupt blob written past drizzle's unchecked $type column. */
+function seedForgedEntry(db: DbHandle, bookId: WorldBookId, overrides: EntrySeed & { metadata: unknown }): Promise<WorldEntryId> {
+  // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+  return insertEntryRow(db, bookId, overrides, overrides.metadata as never);
+}
+
+async function insertEntryRow(
   db: DbHandle,
   bookId: WorldBookId,
-  overrides: { id: string; keys?: string[] | null; metadata?: unknown; priority?: number },
+  overrides: EntrySeed,
+  metadata: typeof worldEntries.$inferInsert.metadata,
 ): Promise<WorldEntryId> {
   const entryId = castId<WorldEntryId>(overrides.id);
   await db.insert(worldEntries).values({
@@ -55,8 +72,8 @@ async function seedEntry(
     content: "c",
     keys: overrides.keys ?? null,
     priority: overrides.priority ?? 0,
-    metadata: overrides.metadata as never,
-    createdAt: FROZEN_AT,
+    metadata,
+    createdAt: FROZEN_AT_MS,
   });
   return entryId;
 }
@@ -76,7 +93,7 @@ describe("toBookView / toEntryView projections", () => {
       keys: ["dragon"],
       metadata: { scopeMode: "keyword", inject: { depth: 2, role: "system" }, position: "after" },
     });
-    const corruptId = await seedEntry(db, bookId, {
+    const corruptId = await seedForgedEntry(db, bookId, {
       id: "world_entry_corrupt",
       metadata: "not-an-object",
     });

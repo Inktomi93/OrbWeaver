@@ -18,6 +18,7 @@
 
 import { expect, test } from "@playwright/test";
 import { charactersRailButton, typeAndSend } from "./support/chat-room.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const NON_WHITESPACE = /\S/u;
@@ -37,7 +38,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
   // the rail's Characters nav is the entry to the library (exact — "Characters" is a substring of
   // "Collapse Characters panel").
   const charactersNav = charactersRailButton(page);
-  await expect(charactersNav).toBeVisible({ timeout: 30_000 });
+  await expect(charactersNav).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await charactersNav.click();
 
   // The first character row's "Chat with <name>" CTA (§4.4 — the 1-click core loop). The row kebab carries
@@ -48,7 +49,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
     .locator('[data-slot="list-row-root"]')
     .filter({ has: page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }) })
     .first();
-  await expect(chatRow).toBeVisible({ timeout: 30_000 });
+  await expect(chatRow).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await chatRow.hover();
   await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
 
@@ -66,7 +67,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
   // MORE THAN ONE user row — assert on the LAST (the message we just sent), not the strict-mode-violating
   // multi-match locator.
   const userRow = page.locator('[data-slot="message-row"][data-role="user"]').last();
-  await expect(userRow).toContainText("Hello there!", { timeout: 30_000 });
+  await expect(userRow).toContainText("Hello there!", { timeout: WAIT_SETTLE_MS });
 
   // The money shot: with a character in the room there IS a speaker, so the assistant generates and its
   // reply streams back as a real canonical row with non-empty content. (We assert on the landed reply,
@@ -74,8 +75,8 @@ test("pick a character, send a message, and the assistant streams a reply", {
   // the SSE-subscribe-vs-turnStarted timing; the reply appearing is the robust, deterministic proof the
   // turn actually generated, corroborated by the local vLLM gen engine's message-POST log.)
   const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-  await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
-  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
+  await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
+  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
 });
 
 // The draft-promotion P1 (found by a live UX review): on a NEW-CHAT DRAFT, the first send promotes the
@@ -94,11 +95,11 @@ test("draft promotion: after the first send completes, the composer returns to S
 
   await page.goto("/");
   const charactersNav = charactersRailButton(page);
-  await expect(charactersNav).toBeVisible({ timeout: 30_000 });
+  await expect(charactersNav).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await charactersNav.click();
 
   const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
-  await expect(chatCta).toBeAttached({ timeout: 30_000 });
+  await expect(chatCta).toBeAttached({ timeout: WAIT_SETTLE_MS });
   await chatCta.click();
 
   const composer = page.getByRole("textbox", { name: "Message" });
@@ -108,14 +109,14 @@ test("draft promotion: after the first send completes, the composer returns to S
   await typeAndSend(composer, "Hello there! Please introduce yourself in one short sentence.");
 
   const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-  await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
-  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
+  await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
+  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
 
   // THE RECOVERY (the bug): the turn is done, so the composer MUST return to Send — the Stop button gone,
   // the primary Send present, and the input re-enabled. Before the fix this stuck on "Stop generating"
   // indefinitely (input + Send disabled), recoverable only by a page reload.
   const sendButton = page.locator('[data-testid="composer-send"]');
-  await expect(sendButton).toBeVisible({ timeout: 30_000 });
+  await expect(sendButton).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByRole("button", { name: "Stop generating" })).toHaveCount(0);
   await expect(composer).toBeEnabled();
 
@@ -123,6 +124,8 @@ test("draft promotion: after the first send completes, the composer returns to S
   // sends, committing its own durable user row — the journey the reviewer could not complete without a reload.
   const userRowsBefore = await page.locator('[data-slot="message-row"][data-role="user"]').count();
   await typeAndSend(composer, "Great — now name one hobby you enjoy.");
-  await expect.poll(async () => page.locator('[data-slot="message-row"][data-role="user"]').count(), { timeout: 30_000 }).toBeGreaterThan(userRowsBefore);
-  await expect(page.locator('[data-slot="message-row"][data-role="user"]').last()).toContainText("one hobby", { timeout: 30_000 });
+  await expect
+    .poll(async () => page.locator('[data-slot="message-row"][data-role="user"]').count(), { timeout: WAIT_SETTLE_MS })
+    .toBeGreaterThan(userRowsBefore);
+  await expect(page.locator('[data-slot="message-row"][data-role="user"]').last()).toContainText("one hobby", { timeout: WAIT_SETTLE_MS });
 });

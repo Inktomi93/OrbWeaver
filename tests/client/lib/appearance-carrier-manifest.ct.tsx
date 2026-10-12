@@ -12,8 +12,8 @@ import type { Page } from "@playwright/test";
 import type { AppearanceCarrierObservable } from "#client/lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES } from "#client/lib/appearance-carrier-manifest.ts";
 import { AppearanceCarrierStory } from "../features/app-shell/_ct-stories.tsx";
-import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
-import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
+import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.fixtures.ts";
+import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.fixtures.ts";
 
 function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnapshot>> {
   return page.evaluate((observables): Partial<AppearanceCarrierSnapshot> => {

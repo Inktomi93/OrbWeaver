@@ -4,6 +4,7 @@
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -13,7 +14,7 @@ const BOOK = {
   id: castId<WorldBookId>("worldbook_ct_0000000000001"),
   name: "Ashfall Almanac",
   description: "Lore for the eastern wastes",
-  createdAt: 1_750_000_000_000,
+  createdAt: FROZEN_AT_MS,
 } satisfies TrpcWireOutput<"worldInfo.listBooks">[number];
 
 test("a populated picker exposes the shared close glyph and a keyboard-operable Cancel", async ({ mount, page }) => {

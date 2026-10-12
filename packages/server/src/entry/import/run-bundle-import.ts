@@ -69,17 +69,20 @@ export interface BundleImportDeps {
  *  is the ONE derivation of "what did a bundle import leave behind" — a caller that needs the operator-facing
  *  notes (the workload result, a future sync route) reads them off HERE rather than re-walking `outcomes`
  *  itself, so a new note-carrying entity plane is visible everywhere without a second traversal to update. */
+// @orb-waive compose-wiring-only(bundleImportNotes): baselined when the gate landed; burn-down item 964.
 export function bundleImportNotes(report: BundleImportReport): readonly string[] {
   return report.outcomes.flatMap((outcome) => outcome.notes ?? []);
 }
 
 /** Every real conversation the bundle wrote, in file order — the input that decides whether the import has a
  *  memory scope at all, on the {@link bundleImportNotes} precedent. */
+// @orb-waive compose-wiring-only(bundleImportMemoryChatIds): baselined when the gate landed; burn-down item 964.
 export function bundleImportMemoryChatIds(report: BundleImportReport): readonly ChatId[] {
   return report.outcomes.flatMap((outcome) => outcome.memoryChatIds ?? []);
 }
 
 /** The leading directory of an archive path, including the trailing slash, or null for a top-level file. */
+// @orb-waive compose-wiring-only(leadingDir): baselined when the gate landed; burn-down item 964.
 function leadingDir(path: string): string | null {
   const slash = path.indexOf("/");
   return slash === -1 ? null : path.slice(0, slash + 1);
@@ -92,6 +95,7 @@ interface StagedFile {
 }
 
 /** Group the staged entries by their leading directory. Files with no directory are unroutable skips. */
+// @orb-waive compose-wiring-only(groupByDir): baselined when the gate landed; burn-down item 964.
 function groupByDir(staged: StagedArchive): {
   readonly byDir: Map<string, StagedFile[]>;
   readonly unrouted: string[];
@@ -124,6 +128,7 @@ function notAttemptedFrom(entity: PortableEntity, files: readonly StagedFile[]):
 
 /** One descriptor answer as the report's file outcome. The two lists are forwarded only when the descriptor
  *  said something: an empty list on every clean file would bury the one file that has a note. */
+// @orb-waive compose-wiring-only(fileOutcome): baselined when the gate landed; burn-down item 964.
 function fileOutcome(entity: PortableEntity, path: string, result: PortableImportOutcome): BundleImportFileOutcome {
   return {
     kind: entity.kind,
@@ -137,6 +142,7 @@ function fileOutcome(entity: PortableEntity, path: string, result: PortableImpor
 }
 
 /** Import every file routed to one entity, isolating per-file failures into outcomes. */
+// @orb-waive compose-wiring-only(importEntity): baselined when the gate landed; burn-down item 964.
 async function importEntity(
   entity: PortableEntity,
   files: readonly StagedFile[],
@@ -172,6 +178,7 @@ async function importEntity(
 
 /** Import every registered entity in the fixed dependency order. A kind with no registered descriptor, or
  *  no files in the bundle, is simply absent from the pass. */
+// @orb-waive compose-wiring-only(importInDepOrder): baselined when the gate landed; burn-down item 964.
 async function importInDepOrder(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
@@ -200,6 +207,7 @@ async function importInDepOrder(
 }
 
 /** Record every file that matched no registered entity as a skip. */
+// @orb-waive compose-wiring-only(collectSkips): baselined when the gate landed; burn-down item 964.
 function collectSkips(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
@@ -226,6 +234,7 @@ function collectSkips(
   return outcomes;
 }
 
+// @orb-waive compose-wiring-only(tally): baselined when the gate landed; burn-down item 964.
 function tally(outcomes: readonly BundleImportFileOutcome[]): {
   readonly imported: number;
   readonly skipped: number;
@@ -263,6 +272,7 @@ export interface StagedBundleImportDeps {
  * dependency order, then dispose the staging dir. The seam BOTH sources funnel through — an extracted zip
  * (`runBundleImport`) and an uploaded folder (`stageDirectory`) — so the entity routing lives in one place.
  */
+// @orb-waive compose-wiring-only(importStagedArchive): baselined when the gate landed; burn-down item 964.
 export async function importStagedArchive(deps: StagedBundleImportDeps): Promise<BundleImportReport> {
   const { registry, ownerId, staged, signal } = deps;
   try {

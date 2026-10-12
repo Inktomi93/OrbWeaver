@@ -13,6 +13,7 @@
 // clamp arm cannot be a false positive from an empty room or a broken read.
 //
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -422,8 +423,7 @@ async function pollForReply(host: ActorClient, chatId: ChatId): Promise<Messages
     const page = await host.query("chat.listMessages", { chatId });
     reply = [...page.messages].reverse().find((m) => m.role === "assistant" && m.content.includes(FIXTURE_COVER_MARKER));
     if (reply === undefined) {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, REPLY_POLL_INTERVAL_MS));
+      await sleep(REPLY_POLL_INTERVAL_MS);
     }
   }
   return reply;
@@ -473,8 +473,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
       until: (values) => values.some((v) => JSON.stringify(v).includes(FIXTURE_COVER_MARKER)),
       timeoutMs: REPLY_POLL_TIMEOUT_MS,
     });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, PRESENCE_SETTLE_MS));
+    await sleep(PRESENCE_SETTLE_MS);
 
     // The MEMBER fires the turn. The anchor is deliberately UNSET, so the only way their persona can reach
     // the prompt is the trigger-plane resolution D122 widened.

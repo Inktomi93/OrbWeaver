@@ -23,7 +23,7 @@ export type {
   PresetExportFile,
   PresetImportOutcome,
 } from "./contract/portability.ts";
-export type { PresetService, ResolveChatCapabilityOp, ResolvePresetUsageOp } from "./contract/service.ts";
+export type { PresetService, PresetUsageDeps, ResolveChatCapabilityOp, ResolvePresetUsageOp } from "./contract/service.ts";
 export type {
   EffectiveKnob,
   EffectiveKnobReading,
@@ -48,3 +48,5 @@ export { ensureSystemDefaultPreset } from "./seed.ts";
 export { createPresetService } from "./service.ts";
 export { createExport as createExportPresets } from "./verbs/export.ts";
 export { createImport as createImportPresets } from "./verbs/import.ts";
+// The backward-bindings rule `PresetContext.resolvePresetUsage` runs; compose wires its three foreign inputs.
+export { createResolvePresetUsage } from "./verbs/resolve-preset-usage.ts";

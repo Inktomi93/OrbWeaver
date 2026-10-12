@@ -6,6 +6,7 @@
 // any component logic, so a minimal DOM with the same classes/attributes/slots reproduces it exactly.
 
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
+import { BLUR_SURFACES } from "@orb/contracts/settings";
 import type { ThemeDensity } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Surface } from "@orb/ui/layout";
@@ -188,7 +189,7 @@ export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataT
   useAppearanceRootEffects({
     fontScale: 1,
     dataTheme,
-    blurSurfaces: ALL_GLASS_SURFACES,
+    blurSurfaces: BLUR_SURFACES,
     shadowEffects: false,
     blurStrength: 14,
     reading: { lineHeight: 1.55, letterSpacing: 0, paragraphSpacing: 0.75, nameScale: 1, bodyScale: 1, justify: false },
@@ -222,8 +223,6 @@ export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataT
     </ThemeScope>
   );
 }
-
-const ALL_GLASS_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals", "messages"];
 
 /** The grain probes are sized and given a flat fill so a framebuffer read of the overlay has a uniform
  *  backdrop to measure the noise against (a content-empty probe collapses to 0x0 and samples nothing). */

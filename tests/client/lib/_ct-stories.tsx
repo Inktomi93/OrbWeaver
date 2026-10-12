@@ -40,7 +40,7 @@ import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "#client/
 import { __resetMotionStats, installMotionObservers, markAgentNavigation, motionSnapshot, subscribeLongAnimationFrames } from "#client/lib/motion-stats.ts";
 import { perfMeasureFromLoad } from "#client/lib/perf-marks.ts";
 import { recordRender } from "#client/lib/render-stats.ts";
-import type { SelectOpeningTestCase } from "./select-opening-cases.ts";
+import type { SelectOpeningTestCase } from "./select-opening-cases.fixtures.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT

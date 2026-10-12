@@ -10,7 +10,7 @@ area: server
 
 ## What
 
-The co-participant art query (packages/server/src/entry/compose/co-participant-assets.ts) requires the art owner's seat to be present (leftSeq null) but never checks users.enabled, so a disabled owner's character, persona and attachment art keeps serving to the other members while a departed owner's stops. Route the owner side through the same consent set every other room read uses, presentAndEnabledHumanUserIdsOf (packages/server/src/domain/chat/substrate/participants-humans.ts:61). Exception: the room's held anchor persona keeps serving its avatar while its pin is held (item 885), so a held pin never shows a broken image.
+The co-participant art query (packages/server/src/domain/chat/persistence/co-participant-assets.ts) requires the art owner's seat to be present (leftSeq null) but never checks users.enabled, so a disabled owner's character, persona and attachment art keeps serving to the other members while a departed owner's stops. Route the owner side through the same consent set every other room read uses, presentAndEnabledHumanUserIdsOf (packages/server/src/domain/chat/substrate/participants-humans.ts:61). Exception: the room's held anchor persona keeps serving its avatar while its pin is held (item 885), so a held pin never shows a broken image.
 
 ## Why
 

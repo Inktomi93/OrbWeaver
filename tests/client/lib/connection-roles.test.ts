@@ -2,7 +2,6 @@
 // on the contract's routable tasks (a new task is a compile error AND a pin here), the readouts speak in the
 // persisted read's words, and the `Needs:` rail and the background repair judge what the resolver judges.
 
-// @orb-waive-file platform-spellings(tasks): baselined when the gate widened; burn-down item 906.
 import type { Capability } from "@orb/contracts/inference";
 import {
   CONNECTION_OP_CODES,
@@ -57,7 +56,7 @@ function boundTo(connectionId: string | null): { readonly connectionId: string |
 test("every routable task has exactly ONE Model-roles row, in the client's render order (a new task is caught here)", () => {
   const tasks = ROLE_ROWS_ORDERED.map((row) => row.task);
   expect(new Set(tasks).size).toBe(tasks.length);
-  expect([...tasks].sort()).toEqual([...ROUTABLE_TASKS].sort());
+  expect(tasks.toSorted()).toEqual([...ROUTABLE_TASKS].sort());
   // Chat first, the utility row second — the two a fresh user must set before anything works.
   expect(tasks.slice(0, 2)).toEqual(["chat", "summarize"]);
 });

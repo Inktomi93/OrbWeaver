@@ -128,6 +128,7 @@ import {
 import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -3619,8 +3620,6 @@ export function RoomImageDetailStory({ reservedSrc }: RoomImageDetailStoryProps)
 
 // ── Metadata / cost stories (WS3) ─────────────────────────────────────────────────────────────────
 
-const FROZEN_META_AT = 1_750_000_000_000;
-
 /** `MessageMetadataRow` over a fully-populated `MessageView`, the visibility toggles supplied by the
  *  `.ct.tsx` — proving the datum-gating matrix (toggle ⋀ datum-present) + the `·` separators + the
  *  render-nothing-when-empty floor. Wrapped in `CtDataProviders` because a revealed cost datum's
@@ -3637,8 +3636,8 @@ export function MessageMetadataRowStory({
     tokensOut: 128,
     tokensIn: 64,
     tokenProvenance: "measured",
-    genStartedAt: FROZEN_META_AT,
-    genFinishedAt: FROZEN_META_AT + 3400,
+    genStartedAt: FROZEN_AT_MS,
+    genFinishedAt: FROZEN_AT_MS + 3400,
     generationId: null,
     ...message,
   });

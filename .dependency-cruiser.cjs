@@ -42,8 +42,8 @@
  * exemption is granted HERE because this is the only one of the three with a rule-level `pathNot` seam.
  * knip has already deferred in writing (`knip.ts`, `cycles: "warn"` — the report twin). biome's
  * `suspicious/noImportCycles` is "error" repo-wide with NO per-rule seam, and its SCOPE IS WIDER than this
- * file's: `pnpm depcruise` runs `depcruise packages tooling`, so biome is the only cycle gate over `tests/`,
- * `scripts/` and `playwright/`. Layered enforcement is doctrine (constitution §2), so three gates on one true
+ * file's: `pnpm depcruise` cruises the roots in `IMPORT_ENTRY_ROOTS` (`tooling/src/floor/compiler/import-population.ts`),
+ * so biome is the only cycle gate over the rest of `tests/`, `scripts/` and `playwright/`. Layered enforcement is doctrine (constitution §2), so three gates on one true
  * invariant is intended — do not turn one off to de-duplicate. biome carries no comment of its own beside
  * either rule because it CANNOT: measured 2026-09-19 with `biome rage --linter` in both directions, a `//`
  * line in `biome.json` makes biome 2.5.1 silently skip the file and load an ancestor config with no parse

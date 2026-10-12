@@ -2,24 +2,20 @@
 // Built AFTER chat: `applyToChat` drives chat's OWN host-gated verbs (addCharacterToChat / setSeatKnobs /
 // setGroupConfig) plus chat's own `requireHost` guard — ONE authority home, wired here so the domain
 // never sideways-imports chat at runtime. The two ownership belts (member characters, anchor persona) are
-// the owning domains' own reads; the present-seat classification pre-read is a direct compose-root db read
-// (the `resolveChatHostUserId` precedent): an injected op that reads tenant-scoped data either takes the
-// caller and gates inside (the chat verbs do) or is a pure ownership/classification read whose subject
-// the calling verb already gated.
+// the owning domains' own reads; the present-seat classification pre-read is chat's roster read, a pure
+// classification read whose subject the calling verb already host-gated.
 
 import type { Can } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
 import type { AutomationService } from "#domain/automation";
 import { resolveChatRulePresetKnobs } from "#domain/automation";
 import { createOwnedCharacterIds } from "#domain/character";
 import type { ChatService } from "#domain/chat";
-import { requireHost } from "#domain/chat";
+import { loadPresentCharacterSeats, requireHost } from "#domain/chat";
 import { createPersonaOwned } from "#domain/persona";
-import type { PresentCharacterSeat, RosterPresetContext, RosterPresetService } from "#domain/roster-preset";
+import type { RosterPresetContext, RosterPresetService } from "#domain/roster-preset";
 import { createRosterPresetService } from "#domain/roster-preset";
 import type { AuditEntry } from "#foundation/observability";
 import { minter } from "./minter.ts";
@@ -57,13 +53,7 @@ export function buildRosterPreset(input: RosterPresetComposeInput): RosterPreset
       },
       // The added-vs-alreadyPresent classification pre-read: PRESENT character seats only (leftSeq NULL
       // — a departed seat re-adds fresh, era-per-row). Runs strictly AFTER the host gate above.
-      listPresentCharacterSeats: async (chatId): Promise<readonly PresentCharacterSeat[]> => {
-        const rows = await db
-          .select({ characterId: chatParticipants.characterId, participantId: chatParticipants.id })
-          .from(chatParticipants)
-          .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
-        return rows.flatMap((row) => (row.characterId === null ? [] : [{ characterId: row.characterId, participantId: row.participantId }]));
-      },
+      listPresentCharacterSeats: (chatId) => loadPresentCharacterSeats(db, chatId),
     },
     // B10's rules rider — automation's OWN front-door verbs (every write host-gated inside automation;
     // the ONE rule write path stays automation's) + its exported capture belt. The same sanctioned

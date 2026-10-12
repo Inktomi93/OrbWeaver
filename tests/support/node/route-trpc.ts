@@ -403,16 +403,8 @@ interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined
 export function trpcHold<TPath extends TrpcProcedurePath = never>(): TrpcHoldMarker<TPath> {
   // `new Promise`'s executor runs SYNCHRONOUSLY, so both handles are assigned before the return below
   // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
-  let onRequest!: () => void;
-  let release!: (data: TrpcHoldRelease<TPath>) => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const requested = new Promise<void>((resolve) => {
-    onRequest = resolve;
-  });
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const released = new Promise<unknown>((resolve) => {
-    release = resolve;
-  });
+  const { promise: requested, resolve: onRequest } = Promise.withResolvers<void>();
+  const { promise: released, resolve: release } = Promise.withResolvers<unknown>();
   return { [HOLD_MARK]: { onRequest, released }, requested, release };
 }
 
@@ -467,7 +459,7 @@ export interface TrpcRecorder {
    *  call is still in flight. */
   readonly requireLastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>;
   /** How many times a procedure was called. */
-  readonly count: (proc: string) => number;
+  readonly count: (proc: TrpcProcedurePath) => number;
   /**
    * Procedures the mounted tree REQUESTED that this call did not stub, first-seen order (header, #629).
    * They were answered `null`, which is not a view — a suspending reader throws on it and its

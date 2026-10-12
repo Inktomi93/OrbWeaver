@@ -1,4 +1,4 @@
-// entry/compose/session-entries — the D8 write path (issue #71) against a real libSQL :memory: db (FK
+// domain/connection/persistence/session-entries — the D8 write path (issue #71) against a real libSQL :memory: db (FK
 // enforcement ON, via freshDb): `createSessionEntryWriter`'s `insert` mints a real `SessionEntryId`
 // (ID_PREFIX.sessionEntry) and picks the next per-chat `seq` off the current max (0 for the first entry);
 // every write moves the `(chat, connection)` primary seat onto the row it touches (demote, then promote),
@@ -14,12 +14,12 @@ import { chats, sessionEntries, userConnections } from "@orb/db";
 import { agentSdkSessionIdSchema } from "@orb/inference";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSessionEntryWriter } from "@orb/server/domain/connection";
 import { tableCounts } from "@orb/server/foundation/observability/debug";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
-import { createSessionEntryWriter } from "#server/entry/compose/session-entries.ts";
 
 const SEEDED_THROUGH_SEQ = 2;
 const CANON_HASH = "canon-hash-abc";
@@ -47,7 +47,7 @@ test("insert mints a real SessionEntryId, seq=0, and isPrimary=true for a chat's
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_first");
   const connectionId = await seedConnection(db, "first");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
 
   await writer.insert({
     chatId,
@@ -74,7 +74,7 @@ test("a new lineage on the same connection demotes the old primary and takes the
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_second");
   const connectionId = await seedConnection(db, "second");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   const first = agentSdkSessionIdSchema.parse("0fbad1c0-60fd-4b60-b347-02db454429dc");
   const second = agentSdkSessionIdSchema.parse("bd75c2b7-8885-4296-9ea3-675804c5e790");
 
@@ -93,7 +93,7 @@ test("two funders alternating in one chat each keep their own primary lineage", 
   const chatId = await seedChat(db, "chat_writer_two_funders");
   const funderA = await seedConnection(db, "funder-a");
   const funderB = await seedConnection(db, "funder-b");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   const a1 = agentSdkSessionIdSchema.parse("1a0c6d52-6a0e-4a49-9b1e-2b8f0e5c7d11");
   const a2 = agentSdkSessionIdSchema.parse("2b1d7e63-7b1f-4b5a-8c2f-3c9f1f6d8e22");
   const b1 = agentSdkSessionIdSchema.parse("3c2e8f74-8c20-4c6b-9d30-4da020708f33");
@@ -125,7 +125,7 @@ test("concurrent reseeds of the same chat and connection keep every row and exac
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_concurrent");
   const connectionId = await seedConnection(db, "concurrent");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   await writer.insert({
     chatId,
     connectionId,
@@ -151,7 +151,7 @@ test("re-inserting a lineage the table already holds (a restart re-seeds the sam
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_reinsert");
   const connectionId = await seedConnection(db, "reinsert");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   const kept = agentSdkSessionIdSchema.parse("8173d4c9-d175-41b0-8285-92f575c53488");
   const later = agentSdkSessionIdSchema.parse("9284e5da-e286-42c1-9396-a30686d64599");
   await writer.insert({ chatId, connectionId, sdkSessionId: kept, seededThroughSeq: 1, canonHash: "kept" });
@@ -171,7 +171,7 @@ test("the same chat keeps an independent primary lineage for each connection", a
   const chatId = await seedChat(db, "chat_writer_connection_primaries");
   const firstConnectionId = await seedConnection(db, "primary-first");
   const secondConnectionId = await seedConnection(db, "primary-second");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
 
   await writer.insert({
     chatId,
@@ -197,7 +197,7 @@ test("the same chat keeps an independent primary lineage for each connection", a
 
 test("insert on a MISSING chat rejects via the chatId FK (a live throw, not a silent orphan write)", async () => {
   const db = await freshDb();
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
 
   await expect(
@@ -215,7 +215,7 @@ test("update rewrites the SAME row in place — no new row, seq unchanged, conte
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_update");
   const connectionId = await seedConnection(db, "update");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   const sdkSessionId = agentSdkSessionIdSchema.parse("fe4c9e8c-8775-4c21-a207-0cc63da2c1e0");
   await writer.insert({ chatId, connectionId, sdkSessionId, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
 
@@ -236,7 +236,7 @@ test("update refuses an SDK session owned by another connection and leaves its l
   const owningConnectionId = await seedConnection(db, "owning");
   const foreignConnectionId = await seedConnection(db, "foreign");
   const sdkSessionId = agentSdkSessionIdSchema.parse("d9f7b024-2147-4468-a359-0bfd63d61b5c");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   await writer.insert({ chatId, connectionId: owningConnectionId, sdkSessionId, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
 
   await expect(writer.update({ connectionId: foreignConnectionId, sdkSessionId, seededThroughSeq: 99, canonHash: "foreign-rewrite" })).rejects.toThrow(
@@ -256,7 +256,7 @@ test("insert refuses an SDK session owned by another connection and leaves both 
   const foreignConnectionId = await seedConnection(db, "insert-foreign");
   const owned = agentSdkSessionIdSchema.parse("a395f6eb-f397-43d2-a4a7-b41797e756aa");
   const foreignPrimary = agentSdkSessionIdSchema.parse("b4a607fc-04a8-44e3-b5b8-c528a8f867bb");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
   await writer.insert({ chatId, connectionId: owningConnectionId, sdkSessionId: owned, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
   await writer.insert({ chatId, connectionId: foreignConnectionId, sdkSessionId: foreignPrimary, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
 
@@ -275,7 +275,7 @@ test("the observability row count (tableCounts) reflects live writer inserts", a
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_observability");
   const connectionId = await seedConnection(db, "observability");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
 
   expect((await tableCounts(db))["session_entries"]).toBe(0);
   await writer.insert({
@@ -300,7 +300,7 @@ test("the persisted row's own columns are EXACTLY the schema's — no extra/secr
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_shape");
   const connectionId = await seedConnection(db, "shape");
-  const writer = createSessionEntryWriter(db);
+  const writer = createSessionEntryWriter(db, () => mintTypeId(ID_PREFIX.sessionEntry));
 
   await writer.insert({
     chatId,

@@ -57,7 +57,7 @@ import { createEmbeddingsService, SpaceMismatchError } from "@orb/server/domain/
 import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
@@ -66,9 +66,6 @@ import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/sc
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
 import { makeStoreHarness } from "../embeddings/_support.ts";
-
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
 
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
 const VECTOR_DIM = 1024;
@@ -288,7 +285,7 @@ function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClien
 
 /** Compose's embedding-connection resolve over a fake runtime that embeds through `roleClients`. */
 function searchEmbeddingConnection(roleClients: RoleClients): ResolveEmbeddingConnection {
-  return createResolveEmbeddingConnection(makeEmbeddingRuntime(roleClients, ownConnection), (userId) => Promise.resolve(makePrincipal(userId)));
+  return createResolveEmbeddingConnection(makeEmbeddingRuntime(roleClients, ownConnection), (userId) => Promise.resolve(principal(userId)));
 }
 
 /** Each owner binds their own connection row, as two real users do. */
@@ -335,8 +332,8 @@ export async function seedDocument(db: Db, o: SeedDocumentOverrides): Promise<Do
     byteSize: 0,
     importHash: `import_${id}`,
     extractorVersion: "test-1",
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -371,7 +368,7 @@ export async function seedDocumentChunk(db: Db, o: SeedDocumentChunkOverrides): 
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -432,7 +429,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
       description: overrides.description ?? null,
       synthetic: overrides.synthetic ?? false,
       avatarAssetId: overrides.avatarAssetId ?? null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     }),
   );
   return id;
@@ -471,7 +468,7 @@ export async function seedCharacterEmbedding(db: Db, overrides: SeedCharacterEmb
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -491,7 +488,7 @@ export async function seedCharacterSummary(db: Db, overrides: SeedCharacterSumma
     tone: overrides.tone ?? null,
     elevatorPitch: overrides.elevatorPitch ?? null,
     model: "test-summary-model",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 
@@ -511,7 +508,7 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
     mime: "image/png",
     size: 1,
     hash: overrides.hash ?? "hash_a",
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -544,7 +541,7 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   if (o.caption !== undefined && o.caption !== null) {
     await db
@@ -554,7 +551,7 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
         contentHash: sql<string>`(select ${assets.hash} from ${assets} where ${assets.id} = ${o.assetId})`,
         caption: o.caption,
         captionMeta: {},
-        createdAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
       })
       .onConflictDoNothing();
   }
@@ -566,7 +563,7 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
  *  un-renamed room stores the empty string as often as null — both are "unnamed" to a reader). */
 export async function seedChat(db: Db, id: string, title?: string): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId, title: title ?? null, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id: chatId, title: title ?? null, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return chatId;
 }
 
@@ -621,7 +618,7 @@ export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<Ch
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -662,7 +659,7 @@ export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<
     model,
     generationId,
     dim: VECTOR_DIM,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }

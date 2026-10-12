@@ -15,6 +15,7 @@ import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -23,7 +24,7 @@ import type { ChatContext } from "#server/domain/chat/context.ts";
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 /** One UTC day in ms — the gap that makes a claim land on a different `day` bucket than the creation. */
 const ONE_DAY = 86_400_000;
@@ -98,14 +99,14 @@ describe("claimChat — the conditional stamp", () => {
     const claim = createClaimChat(recordingCtx());
 
     await claim(chatId);
-    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
     expect(fanned).toStrictEqual([chatId]);
     const afterFirst = deltas.length;
     expect(afterFirst).toBeGreaterThan(0);
 
     // A later clock, the same room: the WHERE clause is the transition test, so nothing happens twice.
-    await createClaimChat(recordingCtx({ now: () => FROZEN_AT + ONE_DAY }))(chatId);
-    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    await createClaimChat(recordingCtx({ now: () => FROZEN_AT_MS + ONE_DAY }))(chatId);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
     expect(fanned).toStrictEqual([chatId]);
     expect(deltas).toHaveLength(afterFirst);
   });
@@ -121,7 +122,7 @@ describe("claimChat — the conditional stamp", () => {
     const chatId = await seedChat(db, "orphan", { startedAt: null });
     await createClaimChat(recordingCtx())(chatId);
 
-    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
     expect(fanned).toStrictEqual([chatId]);
     // D18 makes a hostless room representable (an archived orphan); a stats delta with no owner would be a
     // fabricated attribution, so the replay is skipped rather than guessed at.
@@ -180,7 +181,7 @@ describe("claimChat — the conditional stamp", () => {
     expect(await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host))).toStrictEqual([]);
 
     await claim(chatId);
-    expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
+    expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.chats).toBe(1);
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBeGreaterThan(0);
   });
@@ -201,7 +202,7 @@ describe("claimChat — the creation-stats replay", () => {
 
     await held.reached;
     const visibleWhileReplayHeld = await startedAtOf(chatId);
-    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT + ONE_DAY });
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT_MS + ONE_DAY });
     held.release();
     await claiming;
 
@@ -212,7 +213,7 @@ describe("claimChat — the creation-stats replay", () => {
   });
 
   test("buckets the chat-created delta on the ROW'S createdAt, not the claim instant (the rebuild buckets by created_at)", async () => {
-    const bornAt = FROZEN_AT - 3 * ONE_DAY;
+    const bornAt = FROZEN_AT_MS - 3 * ONE_DAY;
     const { chatId } = await seedHusk("late", { createdAt: bornAt });
 
     await createClaimChat(recordingCtx())(chatId);
@@ -302,14 +303,14 @@ describe("claimChat — the per-character room census (#1147)", () => {
     const live = await characterCensus();
 
     await db.delete(characterStats);
-    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT });
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT_MS });
     const rebuilt = await characterCensus();
 
     expect(live).toStrictEqual(rebuilt);
     // …and not vacuously: BOTH seats hold the one room, each stamped with the room's creation instant.
     expect(live).toStrictEqual([
-      { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT },
-      { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT },
+      { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT_MS },
+      { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT_MS },
     ]);
   });
 
@@ -320,15 +321,15 @@ describe("claimChat — the per-character room census (#1147)", () => {
     const live = await characterCensus();
 
     await db.delete(characterStats);
-    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT });
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT_MS });
     const rebuilt = await characterCensus();
 
     expect(live).toStrictEqual(rebuilt);
     // "Seated here, never spoke" is a real library state (a greet-less card, an imported seated character) —
     // the row carries the room and zero economics, it is not an ABSENT character.
     expect(live).toStrictEqual([
-      { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT },
-      { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT },
+      { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT_MS },
+      { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT_MS },
     ]);
     const [silent] = await db.select().from(characterStats).where(eq(characterStats.characterId, b));
     expect(silent).toMatchObject({ assistantTurns: 0, contentChars: 0 });

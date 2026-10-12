@@ -10,10 +10,10 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-
+import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -27,8 +27,6 @@ const OLDER_OPEN_SESSION = mintTypeId(ID_PREFIX.refinerySession);
 const NEWEST_OPEN_SESSION = mintTypeId(ID_PREFIX.refinerySession);
 const COMPLETED_SESSION = mintTypeId(ID_PREFIX.refinerySession);
 const MINTED_SESSION = mintTypeId(ID_PREFIX.refinerySession);
-
-const FROZEN_AT = 1_750_000_000_000;
 
 /** One `refinery.listSessions` row, at a chosen card / status / freshness. */
 function rosterRow(row: {
@@ -46,7 +44,7 @@ function rosterRow(row: {
     status: row.status,
     iterationCount: 0,
     latestVerdict: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
     updatedAt: row.updatedAt,
   };
 }
@@ -81,11 +79,11 @@ test("a card with an OPEN session resumes the NEWEST one and mints nothing (#79)
   const trpc = await routeTrpc(
     page,
     routes([
-      rosterRow({ id: OLDER_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT }),
-      rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT + 10_000 }),
+      rosterRow({ id: OLDER_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT_MS }),
+      rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT_MS + 10_000 }),
       // A newer session on a DIFFERENT card — the decision is per-card, and a roster-order shortcut
       // ("take the first row") would open this one.
-      rosterRow({ id: MINTED_SESSION, characterId: OTHER_CHARACTER_ID, status: "active", updatedAt: FROZEN_AT + 99_000 }),
+      rosterRow({ id: MINTED_SESSION, characterId: OTHER_CHARACTER_ID, status: "active", updatedAt: FROZEN_AT_MS + 99_000 }),
     ]),
   );
   const component = await mount(<OpenRefineryStory characterId={CHARACTER_ID} />);
@@ -99,7 +97,7 @@ test("a card with an OPEN session resumes the NEWEST one and mints nothing (#79)
 });
 
 test("a FINISHED session is not resumable — picking the card again starts over", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, routes([rosterRow({ id: COMPLETED_SESSION, characterId: CHARACTER_ID, status: "completed", updatedAt: FROZEN_AT })]));
+  const trpc = await routeTrpc(page, routes([rosterRow({ id: COMPLETED_SESSION, characterId: CHARACTER_ID, status: "completed", updatedAt: FROZEN_AT_MS })]));
   const component = await mount(<OpenRefineryStory characterId={CHARACTER_ID} />);
   await component.getByRole("button", { name: "open refinery" }).click();
 
@@ -119,9 +117,9 @@ test("the roster is AWAITED, not gated on — a first-ever click still resumes r
   // Playwright resolves routes LIFO (last-registered wins) — the delaying route below MUST be
   // registered AFTER routeTrpc, or routeTrpc (registered second, winning the match) answers every
   // request immediately and this 400ms hold never runs at all (#643/route-trpc-lifo-order).
-  const trpc = await routeTrpc(page, routes([rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT })]));
+  const trpc = await routeTrpc(page, routes([rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT_MS })]));
   await page.route("**/api/trpc/refinery.listSessions**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await sleep(400);
     await route.fallback();
   });
   const component = await mount(<OpenRefineryStory characterId={CHARACTER_ID} />);
@@ -137,7 +135,7 @@ test("the roster is AWAITED, not gated on — a first-ever click still resumes r
 for (const invalidated of [false, true]) {
   test(`a ${invalidated ? "invalidated" : "fresh"} cached roster resumes without a new decision read`, async ({ mount, page }) => {
     let reads = 0;
-    const cached = [rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT })];
+    const cached = [rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT_MS })];
     const trpc = await routeTrpc(page, {
       ...routes(cached),
       "refinery.listSessions": () => (reads++ === 0 ? cached : []),

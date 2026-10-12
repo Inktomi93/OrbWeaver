@@ -15,13 +15,11 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
 import type { ProviderExecutor, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { generationOf, resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatUserMacroDefs, ResolveViewerVisibility } from "#domain/chat";
@@ -61,7 +59,7 @@ export interface ImageryComposeDeps {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
   /** The chat's present host: the room a preview runs as (D298). */
   readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
-  /** Is the character a present character seat of the chat? A preview's subject must be (`createCharacterSeated`). */
+  /** Is the character a present character seat of the chat? A preview's subject must be (chat's `isCharacterSeated`). */
   readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
@@ -81,25 +79,6 @@ export interface ImageryComposeDeps {
   readonly toolUse: Pick<ToolUseService, "register">;
 }
 
-/** Is `characterId` a present character seat of `chatId`? The roster a room preview's subject must come from. */
-export function createCharacterSeated(db: Db): (chatId: ChatId, characterId: CharacterId) => Promise<boolean> {
-  return async (chatId, characterId) => {
-    const rows = await db
-      .select({ id: chatParticipants.id })
-      .from(chatParticipants)
-      .where(
-        and(
-          eq(chatParticipants.chatId, chatId),
-          eq(chatParticipants.kind, "character"),
-          eq(chatParticipants.characterId, characterId),
-          isNull(chatParticipants.leftSeq),
-        ),
-      )
-      .limit(1);
-    return rows.length > 0;
-  };
-}
-
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
 
@@ -117,6 +96,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
       const { resolved } = await connection.resolve({ task: "generateImage", principal: runAs, ...(actor !== undefined ? { actor } : {}) });
       return { connection: resolved as Resolved<"generateImage">, capability: generationOf(resolved) };
     },
+    // @orb-waive compose-wiring-only(generateImage): baselined when the gate landed; burn-down item 964.
     generateImage: async (req) => {
       const result = await executor.generateImage(req);
       // Map the infra runner's edit-strip belt warnings (`ResolvedWarning{code,message}`) onto the domain's
@@ -136,10 +116,12 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // a per-turn signal is a follow-up in the imagery/chat contracts.
     fetchImage: (url) => fetchImageBytes(url, deps.maxImageBytes()),
     resolveRunAs: (runAsUserId) => deps.resolveHostPrincipal(runAsUserId),
+    // @orb-waive compose-wiring-only(callerInChat): baselined when the gate landed; burn-down item 964.
     callerInChat: async (caller, chatId) => (await deps.resolveViewerVisibility(chatId, caller.userId)) !== null,
     // D298: a preview runs as the room host. The visibility gate runs first, so a caller the room does
     // not admit reaches no host read and spends nothing of the host's; the turn identity is the one home of
     // "the host funds and runs as".
+    // @orb-waive compose-wiring-only(resolveRoomRunAs): baselined when the gate landed; burn-down item 964.
     resolveRoomRunAs: async (caller, chatId, subjectCharacterId) => {
       if ((await deps.resolveViewerVisibility(chatId, caller.userId)) === null) {
         throw new DomainNotFoundError("chat", chatId);
@@ -175,6 +157,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         // after imagery, and this is only ever deref'd at request time).
         resolveUserMacroDefs: deps.resolveUserMacroDefs,
       });
+      // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
       return async ({ caller, ...rest }) => {
         // MEMBERSHIP *AND* THE FLOOR — one op, one answer. The old gate was `loadPresentRole !== null`
         // (membership only), which admitted a `from-join`-clamped member and then let the extractor read the
@@ -190,6 +173,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     })(),
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
     // lane (IC-B: runSummarize forwards images as multimodal content parts).
+    // @orb-waive compose-wiring-only(captionImage): baselined when the gate landed; burn-down item 964.
     captionImage: async ({ runAs, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
       // The run-as principal's Utility-role preset over the `caption` posture (temperature 0.2,
       // maxOutputTokens 512). Under task defaults the posture alone applies.

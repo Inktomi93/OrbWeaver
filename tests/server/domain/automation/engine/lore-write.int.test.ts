@@ -3,7 +3,6 @@
 // ≤64-entries-per-book cap counts only NET-NEW titles, and every written title is ruleId-namespaced
 // (`auto/<ruleId>:<key>`) — the idempotency handle a re-upsert relies on.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -188,10 +187,7 @@ describe("#1421 the per-rule ceiling holds against a concurrent writer", () => {
       })),
     );
 
-    let release = (): void => undefined;
-    const held = new Promise<void>((done) => {
-      release = done;
-    });
+    const { promise: held, resolve: release } = Promise.withResolvers<void>();
     const { ops, calls } = heldWritingOps(fixture.db, fixture.ctx.ops, held);
     const write = (entryKey: string): Promise<{ ok: boolean }> =>
       applyRuleLoreWrite(

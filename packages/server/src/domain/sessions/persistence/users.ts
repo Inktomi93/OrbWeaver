@@ -5,7 +5,7 @@ import type { AwaitableBatchStmt } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { ProvisionCandidate } from "../contract/results.ts";
 
 // The `users`-row resolution queries. Lookups for `ensureUser` (by handle) + `provisionIdentity` (by
@@ -54,6 +54,23 @@ export async function selectAuthByHandle(db: Db, handle: Handle): Promise<{ id: 
 export async function selectForProvisionById(db: Db, id: UserId): Promise<ProvisionCandidate | undefined> {
   const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.id, id)).limit(1);
   return rows.at(0);
+}
+
+/** A user's account handle, or null for a gone id — the display fallback the persona domain's user-publics
+ *  op reads through an injected op (sessions owns the `users` read). */
+export async function selectHandleById(db: Db, id: UserId): Promise<Handle | null> {
+  const rows = await db.select({ handle: users.handle }).from(users).where(eq(users.id, id)).limit(1);
+  return rows.at(0)?.handle ?? null;
+}
+
+/** The account handles of `ids` in one read; a gone id is absent. Empty input asks nothing. */
+export async function selectHandlesByIds(db: Db, ids: readonly UserId[]): Promise<{ readonly id: UserId; readonly handle: Handle }[]> {
+  return ids.length === 0
+    ? []
+    : await db
+        .select({ id: users.id, handle: users.handle })
+        .from(users)
+        .where(inArray(users.id, [...ids]));
 }
 
 /** `ensureUser` lookup by handle. */

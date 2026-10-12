@@ -301,6 +301,7 @@ export async function existingSegmentHash(
  *  folds into the hash — §4); `model` is in the key so the read scopes to the active space. */
 export async function existingDigestHash(
   db: Db,
+  // @orb-waive contract-structural-copy(chatId): baselined when the gate judged by type; burn-down item 904.
   key: {
     chatId: ChatId;
     scopedCharacterId: CharacterId;

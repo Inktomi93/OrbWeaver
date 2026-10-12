@@ -31,7 +31,7 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createTurn } from "#server/domain/chat/verbs/turn.ts";
-import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
+import { makeHarness } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
 function principal(userId: UserId): Principal {
@@ -90,7 +90,7 @@ interface Harness {
 /** A minimal real-engine harness whose `filterOwnedAssetIds` is the assets verb compose wires. */
 async function harness(database: Db, names: Readonly<Record<string, string>>): Promise<Harness> {
   const events: ChatBusEvent[] = [];
-  const assetsHarness = await makeAssetsHarness(database);
+  const assetsHarness = await makeHarness(database);
   onTestFinished(assetsHarness.cleanup);
   const assetsService = createAssetsService(assetsHarness.ctx);
   const ctx = makeChatContext(database, {

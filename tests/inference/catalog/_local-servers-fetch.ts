@@ -3,12 +3,9 @@
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ readonly model?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-inline-types(LocalServerArm): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-inline-types(TranscriptArm): baselined when the gate widened; burn-down item 906.
+import type { LocalServerArm, TranscriptArm } from "../_support.ts";
 import { LOCAL_SERVER_FIXTURES } from "./_local-servers-fixtures.ts";
 import { LOCAL_SERVER_TRANSCRIPTS } from "./_local-servers-transcripts.ts";
-
-export type TranscriptArm = keyof typeof LOCAL_SERVER_TRANSCRIPTS;
 
 interface RecordedExchange {
   readonly method: string;
@@ -53,8 +50,6 @@ export function recordedAnswer(arm: TranscriptArm, method: string, path: string)
   }
   return hit;
 }
-
-export type LocalServerArm = keyof typeof LOCAL_SERVER_FIXTURES;
 
 type Recorded = Record<string, unknown>;
 

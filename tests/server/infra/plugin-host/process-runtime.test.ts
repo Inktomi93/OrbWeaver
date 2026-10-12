@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
@@ -197,8 +198,7 @@ test("connectOnce never respawns a broker once the app tears it down with nothin
   await __terminateManagedPluginBrokerForTest();
   // A clean teardown with no in-flight command must leave the broker gone — no straggling reconnect chase
   // should spawn a replacement process nobody asked for.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await sleep(100);
   expect(__hasManagedPluginBrokerForTest()).toBe(false);
 });
 
@@ -242,13 +242,7 @@ test("broker death while a Worker waits on the synchronous seam cannot block the
 });
 
 test("broker exit during an async invoke fails the call and marks the resident crashed", { timeout: LONG }, async () => {
-  let reached = (): void => {
-    throw new Error("test: bridge call arrived before gate initialization");
-  };
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const called = new Promise<void>((resolve) => {
-    reached = resolve;
-  });
+  const { promise: called, resolve: reached } = Promise.withResolvers<void>();
   const base = bridge();
   const waitingBridge: PluginBridge = {
     ...base,
@@ -277,12 +271,8 @@ test("broker exit during an async invoke fails the call and marks the resident c
 });
 
 test("disposing a pinned logical plugin cancels its Worker and rejects late callback reuse", { timeout: LONG }, async () => {
-  let reached = (): void => undefined;
   let release = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const called = new Promise<void>((resolve) => {
-    reached = resolve;
-  });
+  const { promise: called, resolve: reached } = Promise.withResolvers<void>();
   const held = new Promise<string | null>((resolve) => {
     release = (): void => resolve("late");
   });
@@ -1000,16 +990,8 @@ test.each(["disable", "upgrade", "uninstall"] as const)("%s during a deferred co
       },
     },
   };
-  let loaderStarted!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const started = new Promise<void>((resolve) => {
-    loaderStarted = resolve;
-  });
-  let releaseLoader!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const loaderGate = new Promise<void>((resolve) => {
-    releaseLoader = resolve;
-  });
+  const { promise: started, resolve: loaderStarted } = Promise.withResolvers<void>();
+  const { promise: loaderGate, resolve: releaseLoader } = Promise.withResolvers<void>();
   const source = `
       const h = orb.host(1);
       void h.variables.get("activation");

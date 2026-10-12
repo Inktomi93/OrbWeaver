@@ -9,11 +9,12 @@ import { characterBooks, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach } from "vitest";
 import type { buildAssembleContext } from "#server/domain/chat/assembly/context.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
-import { FROZEN_AT, makeChatContext } from "../_support.ts";
+import { makeChatContext } from "../_support.ts";
 
 export { buildAssembleContext } from "#server/domain/chat/assembly/context.ts";
 export type { ChatContext } from "#server/domain/chat/context.ts";
@@ -63,7 +64,7 @@ export async function attachChatEntry(
   entry: { content: string; keys?: string[]; priority?: number; inject?: { depth: number } },
 ): Promise<void> {
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT_MS });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -74,15 +75,15 @@ export async function attachChatEntry(
     priority: entry.priority ?? 0,
     ignoreBudget: false,
     metadata: entry.inject ? { inject: { depth: entry.inject.depth } } : null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
-  await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
+  await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT_MS });
 }
 
 /** Attach a CHARACTER-scope book with one always-scope entry to `characterId`, the book owned by `owner`. */
 export async function attachCharacterEntry(owner: UserId, characterId: CharacterId, key: string, content: string): Promise<void> {
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT_MS });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -93,9 +94,9 @@ export async function attachCharacterEntry(owner: UserId, characterId: Character
     priority: 0,
     ignoreBudget: false,
     metadata: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
-  await db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT });
+  await db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT_MS });
 }
 
 export interface InputOver {

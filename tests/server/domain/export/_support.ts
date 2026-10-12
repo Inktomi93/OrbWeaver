@@ -22,9 +22,6 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { ExportContext } from "#server/domain/export/context.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 // An 8×8 PNG (distinct from the 256×256 placeholder) — a real, decodable PNG so `writeCardChunk` accepts
 // it as a base image; being distinct lets a test prove the AVATAR (not the placeholder) was embedded.
 const AVATAR_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGM4ISeHFTEMLQkAkL9BAbKfPiIAAAAASUVORK5CYII=";
@@ -132,7 +129,7 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
     mime: overrides.mime ?? "image/png",
     size: 1,
     hash: overrides.hash ?? "hash_a",
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -181,7 +178,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
       extensions: null,
       depthPrompt: null,
       avatarAssetId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
       // overrides win over the defaults above; identity columns are set last.
       ...columns,
       id,
@@ -198,7 +195,7 @@ export async function seedWorldBook(db: Db, ownerId: UserId, id = "world_book_b"
     ownerId,
     name,
     description: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return bookId;
 }
@@ -228,23 +225,23 @@ export async function seedWorldEntry(db: Db, overrides: SeedEntryOverrides): Pro
     priority: overrides.priority ?? 0,
     ignoreBudget: overrides.ignoreBudget ?? false,
     metadata: overrides.metadata ?? null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
 
 export async function seedCharacterBook(db: Db, characterId: CharacterId, worldBookId: WorldBookId, role: WorldBookRole = "auxiliary"): Promise<void> {
-  await db.insert(characterBooks).values({ characterId, worldBookId, role, createdAt: FROZEN_AT });
+  await db.insert(characterBooks).values({ characterId, worldBookId, role, createdAt: FROZEN_AT_MS });
 }
 
 export async function seedTag(db: Db, ownerId: UserId, name: string): Promise<TagId> {
   const id = castId<TagId>(`tag_${name}`);
-  await db.insert(tags).values({ id, ownerId, name, createdAt: FROZEN_AT });
+  await db.insert(tags).values({ id, ownerId, name, createdAt: FROZEN_AT_MS });
   return id;
 }
 
 export async function seedCharacterTag(db: Db, characterId: CharacterId, tagId: TagId, status: TagStatus = "pending"): Promise<void> {
-  await db.insert(characterTags).values({ characterId, tagId, status, createdAt: FROZEN_AT });
+  await db.insert(characterTags).values({ characterId, tagId, status, createdAt: FROZEN_AT_MS });
 }
 
 export function principal(userId: UserId, role: UserRole = "user"): Principal {

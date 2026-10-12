@@ -7,7 +7,7 @@
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
 import { handleKey } from "@orb/kit/handle-key";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { Principal, UserRole } from "#contracts/identity/index.ts";
 import { builtinProvider } from "#contracts/inference/index.ts";
 import type { Db } from "#db/client/index.ts";
@@ -20,7 +20,6 @@ import type { CredentialsService } from "#server/domain/credentials/index.ts";
 import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 // A fixed 32-byte key so the SecretBox is enabled + deterministic across runs.
 const TEST_KEY = Buffer.alloc(32, 7);
 
@@ -64,8 +63,8 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
     role: overrides.role ?? "user",
     enabled: true,
     passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -77,7 +76,7 @@ export function principal(userId: UserId, role: UserRole = "user"): Principal {
 
 /** Build the CredentialContext over a real db with the real SecretBox/guard + recording fake ops. */
 export function makeHarness(db: Db): CredentialHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const audits: AuditCall[] = [];
   const ctx: CredentialContext = {
     db,

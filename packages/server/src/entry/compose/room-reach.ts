@@ -64,6 +64,7 @@ type RoomReachTable = { readonly [K in RoomEntityKind]: (db: Db, id: RoomEntityI
 /** Rooms seating this character RIGHT NOW. `leftSeq IS NULL` is load-bearing: a departed character's history
  *  rows carry their own D28 snapshot identity and must stay frozen — a card edit does not retro-repaint them.
  *  Served by `chat_participants_character_idx` (the index's own comment cites this lookup). */
+// @orb-waive compose-wiring-only(resolveCharacterRooms): baselined when the gate landed; burn-down item 964.
 async function resolveCharacterRooms(db: Db, characterId: CharacterId): Promise<ChatId[]> {
   const rows = await db
     .select({ chatId: chatParticipants.chatId })
@@ -74,10 +75,11 @@ async function resolveCharacterRooms(db: Db, characterId: CharacterId): Promise<
 
 /** Rooms this persona is LIVE in — two sources, and both are needed:
  *   • a present human seat whose `activePersonaId` is this persona (their member-visible displayName + avatar
- *     ARE this persona's, `entry/compose/chat.ts::resolveUserPublics`) — `chat_participants_active_persona_idx`;
+ *     ARE this persona's, `domain/persona/verbs/resolve-user-publics.ts`) — `chat_participants_active_persona_idx`;
  *   • the chat's ANCHOR persona, which resolves `{{user}}` for the room's assembly even while its owner is
  *     offline and holds no seat (`domain/chat/substrate/participants-humans.ts`) — `chats_anchor_persona_idx`.
  *  Deduped by the caller. */
+// @orb-waive compose-wiring-only(resolvePersonaRooms): baselined when the gate landed; burn-down item 964.
 async function resolvePersonaRooms(db: Db, personaId: PersonaId): Promise<ChatId[]> {
   const [seated, anchored] = await Promise.all([
     db
@@ -103,6 +105,7 @@ async function resolvePersonaRooms(db: Db, personaId: PersonaId): Promise<ChatId
  *  be a silent hole in exactly the set the design says defines reach.
  *  Over-reach here is cheap and safe: a room with no subscriber costs a no-listener publish, and the payload is
  *  id-free, so a room that did not actually need the refresh learns nothing from it. */
+// @orb-waive compose-wiring-only(resolveWorldInfoRooms): baselined when the gate landed; burn-down item 964.
 async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatId[]> {
   const [chatScoped, characterScoped, personaSeated, personaAnchored, globalScoped] = await Promise.all([
     db.select({ chatId: chatBooks.chatId }).from(chatBooks).where(eq(chatBooks.worldBookId, bookId)),
@@ -152,6 +155,7 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
  *  deliberately absent: a member cannot see them (they are host-library facts, D19), so an edit to one of them
  *  has no member-visible projection to refresh — only the HOST's own effective read moves, and that rides the
  *  host's user-plane `regexChanged`. */
+// @orb-waive compose-wiring-only(resolveRegexScriptRooms): baselined when the gate landed; burn-down item 964.
 async function resolveRegexScriptRooms(db: Db, scriptId: RegexScriptId): Promise<ChatId[]> {
   const rows = await db.select({ chatId: chatRegexScripts.chatId }).from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, scriptId));
   return rows.map((row) => row.chatId);
@@ -161,6 +165,7 @@ async function resolveRegexScriptRooms(db: Db, scriptId: RegexScriptId): Promise
  *  verbs take an id list, and `bulkRemoveScripts` learns only AFTER its one owner-scoped statement which of
  *  those ids were really its own — so the capture must snapshot per script and the thunk filter by the
  *  confirmed set, or a foreign id in the list would fan a stranger's room. One round trip, not N. */
+// @orb-waive compose-wiring-only(resolveRegexScriptsRooms): baselined when the gate landed; burn-down item 964.
 async function resolveRegexScriptsRooms(db: Db, scriptIds: readonly RegexScriptId[]): Promise<Map<RegexScriptId, ChatId[]>> {
   const byScript = new Map<RegexScriptId, ChatId[]>();
   if (scriptIds.length === 0) {
@@ -180,6 +185,7 @@ async function resolveRegexScriptsRooms(db: Db, scriptIds: readonly RegexScriptI
  *  credits EVERY present human member's global documents to the room (not just the host's — that is where it
  *  differs from world-info's host-only global tenant scope), so a global attach/detach by any member moves
  *  every room they are sitting in. `chat_participants_user_idx` leads with userId. */
+// @orb-waive compose-wiring-only(resolveMemberRooms): baselined when the gate landed; burn-down item 964.
 async function resolveMemberRooms(db: Db, userId: UserId): Promise<ChatId[]> {
   const rows = await db
     .select({ chatId: chatParticipants.chatId })
@@ -202,6 +208,7 @@ async function resolveMemberRooms(db: Db, userId: UserId): Promise<ChatId[]> {
  *  the union (the panel shows it to the host, the retrieval path subtracts it), and the fan is id-free — a
  *  room that did not need the refresh learns nothing from it, while dropping a room whose host had hidden the
  *  document would make the host's own rack stale on their second device. */
+// @orb-waive compose-wiring-only(resolveDatabankRooms): baselined when the gate landed; burn-down item 964.
 async function resolveDatabankRooms(db: Db, documentId: DocumentId): Promise<ChatId[]> {
   const [chatScoped, characterScoped, globalScoped] = await Promise.all([
     db.select({ chatId: chatDocuments.chatId }).from(chatDocuments).where(eq(chatDocuments.documentId, documentId)),
@@ -241,6 +248,7 @@ const ROOM_REACH = {
 /** Resolve + fan one kind. Deduped (the world-info scopes and the persona sources overlap by design — a chat
  *  can seat a persona AND anchor it), and the emits are ordered but not awaited-per-room: the live-only fan is
  *  a synchronous in-process publish with no durable write and no seq to serialize against. */
+// @orb-waive compose-wiring-only(fanTo): baselined when the gate landed; burn-down item 964.
 function fanTo(emitRoomEvent: (event: LiveOnlyChatBusEvent) => void, entity: RoomEntityKind, rooms: readonly ChatId[]): void {
   for (const chatId of new Set(rooms)) {
     emitRoomEvent({ type: "roomEntityChanged", chatId, entity });
@@ -315,6 +323,7 @@ export function createDeleteReachCapture(db: Db, emitRoomEvent: (event: LiveOnly
  *  ONE `roomEntityChanged` per reached ROOM, not per deleted script: the payload is id-free by design
  *  (contracts §3.3), so a second event for the same room carries no new information and buys a second
  *  refetch of the read the first one already invalidated. */
+// @orb-waive compose-wiring-only(captureRegexScriptRooms): baselined when the gate landed; burn-down item 964.
 async function captureRegexScriptRooms(
   db: Db,
   scriptIds: readonly RegexScriptId[],
@@ -383,6 +392,7 @@ function assertNeverEvent(event: never): never {
 export function createRoomEntityFan(db: Db, emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): (event: DomainEvent) => Promise<void> {
   // The param is annotated rather than inferred from the return type: biome's type service does not narrow a
   // contextually-typed union parameter here and calls every case unreachable (the `#world-info` subpath class).
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (event: DomainEvent): Promise<void> => {
     switch (event.type) {
       case "character.updated":

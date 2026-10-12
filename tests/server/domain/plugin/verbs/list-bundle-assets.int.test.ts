@@ -4,7 +4,6 @@
 // BUNDLE half of `plugin_assets` (a runtime `net.fetchAsset` cover is not a named resolution target).
 // @subject packages/server/src/domain/plugin/verbs/list-bundle-assets.ts
 
-// @orb-waive-file no-loose-id-cast(shipped?.assetId): baselined when the gate widened; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
@@ -56,8 +55,10 @@ test("a RUNTIME-fetched cover (#802) is NOT in the map — only bundle-shipped p
   });
   // The bundle's own asset id doubles as a stand-in for a fetched cover here — what matters is the `''` path.
   const [shipped] = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
-  expect(shipped).toBeDefined();
-  await recordPluginFetchedAsset(db, installed.id, shipped?.assetId as never, 1000);
+  if (shipped === undefined) {
+    throw new Error("the install shipped no bundle asset");
+  }
+  await recordPluginFetchedAsset(db, installed.id, shipped.assetId, 1000);
 
   const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
   expect(map.map((entry) => entry.path)).toEqual(["ui/assets/shipped.png"]);

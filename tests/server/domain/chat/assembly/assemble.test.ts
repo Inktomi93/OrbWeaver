@@ -11,6 +11,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { assemblePrompt, assemblePromptWithSlices, previewSection } from "#server/domain/chat/assembly/assemble.ts";
@@ -276,7 +277,7 @@ describe("assemblePrompt — section walk", () => {
 
   test("a volatile macro ({{date}}) in a STATIC section is reported as a cache-buster", () => {
     const config = configOf([literal("today is {{date}}", { role: "system" }), marker({ marker: "chat_history" })]);
-    const out = assemblePrompt(config, ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" }));
+    const out = assemblePrompt(config, ctxOf({ nowMs: FROZEN_AT_MS, timezone: "UTC" }));
     expect(out.trace.staticCacheBusters).toContain("date");
   });
 
@@ -812,7 +813,7 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
 /** A char field that is non-blank at SOURCE and renders to pure whitespace. */
 const RENDERS_BLANK = " {{getvar::__unset__}} ";
 /** A fixed instant + zone so `{{date}}`/`{{time}}` resolve rather than passing through verbatim. */
-const CLOCK = { nowMs: 1_750_000_000_000, timezone: "UTC" } as const;
+const CLOCK = { nowMs: FROZEN_AT_MS, timezone: "UTC" } as const;
 
 /** A per-turn user-macro registry exposing exactly one NON-volatile macro, `{{mood}}` → "grim". */
 function moodRegistry(): MacroRegistry {

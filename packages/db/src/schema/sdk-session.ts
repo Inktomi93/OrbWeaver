@@ -53,7 +53,7 @@ export const sessionEntries = sqliteTable(
     // advanced past it ⇒ resume from the tail / reseed), mirroring `chats.compactedAtSeq`. THE CURRENT
     // WRITER STORES THE SEEDED-TURN COUNT INSTEAD: the backend seam (`AgentSeedTurn`) carries no true
     // canon seq, so a reader wanting the real horizon must first extend that seam (writer:
-    // entry/compose/session-entries.ts). No live reader exists; the value is internally consistent.
+    // domain/connection/persistence/session-entries.ts). No live reader exists; the value is internally consistent.
     seededThroughSeq: integer("seeded_through_seq").notNull(),
     // A hash of the canon prefix the seed was built from — the staleness GATE (D25 "detected vs canon,
     // not a flag"): re-hash the live canon and compare; a mismatch ⇒ canon diverged ⇒ reseed. Mirrors the

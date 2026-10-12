@@ -1,4 +1,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+// @subject packages/server/src/domain/rpg/tools/rounds/folded.ts
+// @subject packages/server/src/domain/rpg/tools/rounds/observers.ts
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the folded turn (R1): its calls land state with no second model call, its trace and recorded tool calls, and the degrade matrix.
 
@@ -10,7 +13,7 @@ import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-import { FROZEN_AT, seedMessage } from "../../domain/chat/_support.ts";
+import { seedMessage } from "../../domain/chat/_support.ts";
 import {
   buildCannedRpg,
   buildCannedRpgWithText,
@@ -66,7 +69,7 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 test("R-OBS composed-real: a folded turn records its mount, its calls, its flush path and its bus emits", async ({ app, db }) => {
-  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT_MS });
   const { chatId, hostId } = await seedHostGameChat(db, "robs-fold");
   const rpgCompose = buildCannedRpgWithText({
     app,
@@ -155,7 +158,7 @@ function flushedEvent(recorder: ReturnType<typeof createRpgTraceRecorder>, chatI
 }
 
 test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the reason, never the quiet beat's `no-writes`", async ({ app, db }) => {
-  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT_MS });
   const { chatId, hostId } = await seedHostGameChat(db, "roundfail-cheap");
   const rpgCompose = buildCannedRpgWithText({
     app,
@@ -191,7 +194,7 @@ test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the r
 });
 
 test("#1468: the AGENT-SDK degrade (structured extraction) carries the same failure arm — it is not the tool round's optional half", async ({ app, db }) => {
-  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT_MS });
   const { chatId, hostId } = await seedHostGameChat(db, "roundfail-sdk");
   // An agent-sdk wire carries no `tools[]`, so `runToolRound` degrades INSIDE itself to one structured call —
   // a whole class of connection whose failure arm lives in the OTHER catch.

@@ -9,6 +9,7 @@ import type { EmbeddingsService } from "#domain/embeddings";
 
 type EmbeddingSegmentRow = Parameters<EmbeddingsService["storeSegments"]>[0][number];
 
+// @orb-waive compose-wiring-only(memorySegmentReceipts): baselined when the gate landed; burn-down item 964.
 function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Awaited<ReturnType<EmbeddingsService["storeSegments"]>>): MemoryStoreReceipt[] {
   const receipts: MemoryStoreReceipt[] = [];
   for (const [index, result] of results.entries()) {
@@ -39,6 +40,7 @@ export function createMemoryEmbeddingOps(deps: {
   const { embeddings, resolveChatHostUserId } = deps;
   return {
     // No binding is the honest `NoConnectionError`: a default would silently write into a space nobody reads.
+    // @orb-waive compose-wiring-only(resolveMemoryEmbedSpace): baselined when the gate landed; burn-down item 964.
     resolveMemoryEmbedSpace: async (hostUserId): Promise<MemoryEmbedSpace> => {
       const generation = await embeddings.resolveGeneration(hostUserId, "embed");
       if (generation === null) {
@@ -46,6 +48,7 @@ export function createMemoryEmbeddingOps(deps: {
       }
       return { ownerId: hostUserId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
     },
+    // @orb-waive compose-wiring-only(embeddingsStore): baselined when the gate landed; burn-down item 964.
     embeddingsStore: async (params): Promise<MemoryStoreReceipt> => {
       const hostUserId = await resolveChatHostUserId(params.key.chatId);
       if (hostUserId !== params.ownerId) {
@@ -75,6 +78,7 @@ export function createMemoryEmbeddingOps(deps: {
     },
     // A BATCH op: memory hands over every pending chunk (one chat's on the live path, the whole corpus's on the
     // sweep) and embeddings submits them to the engine as one flood.
+    // @orb-waive compose-wiring-only(embeddingsStoreSegments): baselined when the gate landed; burn-down item 964.
     embeddingsStoreSegments: async (params, signal): Promise<MemoryStoreReceipt[]> => {
       const rows: EmbeddingSegmentRow[] = [];
       for (const p of params) {
@@ -101,6 +105,7 @@ export function createMemoryEmbeddingOps(deps: {
     },
     // The SHRINK half: memory stores every block that exists, then reclaims the ones that stopped existing. The
     // DELETE lives in embeddings (the one vector write path, D20) and is scoped to the host's target generation.
+    // @orb-waive compose-wiring-only(embeddingsPruneBlocks): baselined when the gate landed; burn-down item 964.
     embeddingsPruneBlocks: async (params): Promise<void> => {
       if (params.lens === "digest") {
         await embeddings.pruneMemoryBlocks({

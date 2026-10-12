@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildTurnMacroContext, renderHistoryMacros, renderMacros, resolveGuidedActionText, resolveNudgeText } from "#server/domain/chat/assembly/macros.ts";
@@ -104,7 +105,7 @@ describe("renderMacros", () => {
   });
 
   test("determinism: a pinned nowMs makes {{date}} stable + format-correct", () => {
-    const ctx = ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" });
+    const ctx = ctxOf({ nowMs: FROZEN_AT_MS, timezone: "UTC" });
     const a = renderMacros("{{date}}", ctx, null);
     const b = renderMacros("{{date}}", ctx, null);
     expect(a).toBe(b);

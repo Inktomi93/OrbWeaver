@@ -14,7 +14,6 @@ export { createMemoryRecallInspector, createRpgTraceInspector } from "./debug-in
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
 export { createResolveEmbeddingConnection } from "./embedding-connection.ts";
-export { createChatChangedEmitter } from "./emit-chat-changed.ts";
 export type { DomainEventBus } from "./event-bus.ts";
 export { createDomainEventBus } from "./event-bus.ts";
 export type { InlineReplyImageDeps } from "./inline-reply-image.ts";

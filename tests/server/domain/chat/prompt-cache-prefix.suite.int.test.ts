@@ -17,6 +17,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { parseWorldBookFile } from "@orb/server/primitives/serde/world-info";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -32,7 +33,7 @@ import type { GroupOutput, TurnMessage, TurnRequest } from "#server/domain/chat/
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
 import type { ChatScenario } from "./_scenario.ts";
 import { scenario } from "./_scenario.ts";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 /** The history rows up to and including the row the runner pins its deepest-in-history marker on. */
 function rowsThroughMarker(req: TurnRequest): readonly TurnMessage[] {
@@ -432,7 +433,7 @@ describe("the people block follows membership, never presence", () => {
 /** Attach an always-on persona book to `personaId`, owned by the persona's owner, carrying one entry. */
 async function seedPersonaLore(db: Db, ownerId: UserId, personaId: PersonaId, content: string): Promise<void> {
   const bookId = mintTypeId(ID_PREFIX.worldBook);
-  await db.insert(worldBooks).values({ id: bookId, ownerId, name: `lore of ${personaId}`, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId, name: `lore of ${personaId}`, createdAt: FROZEN_AT_MS });
   await db.insert(worldEntries).values({
     id: mintTypeId(ID_PREFIX.worldEntry),
     worldBookId: bookId,
@@ -443,9 +444,9 @@ async function seedPersonaLore(db: Db, ownerId: UserId, personaId: PersonaId, co
     priority: 0,
     ignoreBudget: false,
     metadata: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
-  await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT });
+  await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT_MS });
 }
 
 // Persona-book lore joins by the same present membership as the people block, and each member's book
@@ -631,7 +632,7 @@ describe("F5 — keyword lore follows its entry's anchor, in the per-turn half",
       throw new Error("the ST world file did not parse");
     }
     const bookId = mintTypeId(ID_PREFIX.worldBook);
-    await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: book.name, createdAt: FROZEN_AT });
+    await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: book.name, createdAt: FROZEN_AT_MS });
     for (const entry of book.entries) {
       await db.insert(worldEntries).values({
         id: mintTypeId(ID_PREFIX.worldEntry),
@@ -643,10 +644,10 @@ describe("F5 — keyword lore follows its entry's anchor, in the per-turn half",
         priority: entry.priority,
         ignoreBudget: entry.ignoreBudget,
         metadata: entry.metadata,
-        createdAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
       });
     }
-    await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: FROZEN_AT });
+    await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: FROZEN_AT_MS });
 
     const marker = (id: string, name: "main_prompt" | "world_info_before" | "char_description" | "world_info_after" | "chat_history"): PromptSection => ({
       type: "marker",

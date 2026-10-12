@@ -59,16 +59,8 @@ interface Observed {
 function observe(): Observed & { readonly onUrl: (url: string) => void; readonly onExit: (detail: string) => void } {
   const urls: string[] = [];
   const exits: string[] = [];
-  let resolveUrl: (url: string) => void = () => undefined;
-  let resolveExit: (detail: string) => void = () => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const firstUrl = new Promise<string>((resolve) => {
-    resolveUrl = resolve;
-  });
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const exited = new Promise<string>((resolve) => {
-    resolveExit = resolve;
-  });
+  const { promise: firstUrl, resolve: resolveUrl } = Promise.withResolvers<string>();
+  const { promise: exited, resolve: resolveExit } = Promise.withResolvers<string>();
   return {
     urls,
     exits,

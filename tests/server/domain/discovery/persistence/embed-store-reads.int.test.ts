@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { ChatDigestId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, expectTypeOf } from "vitest";
@@ -31,7 +32,6 @@ import {
 } from "#server/domain/discovery/persistence/embed-store-reads.ts";
 import {
   EMBED_MODEL,
-  FROZEN_AT,
   seedAsset,
   seedCharacter,
   seedCharacterEmbedding,
@@ -96,11 +96,11 @@ async function seedThemeAssignment(db: Db, ownerId: UserId, digestId: string): P
     name: "Adventures",
     size: 1,
     model: EMBED_MODEL,
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
   await db
     .insert(digestThemeAssignments)
-    .values({ digestId: castId<ChatDigestId>(digestId), themeClusterId: clusterId, msgMidAt: null, computedAt: FROZEN_AT });
+    .values({ digestId: castId<ChatDigestId>(digestId), themeClusterId: clusterId, msgMidAt: null, computedAt: FROZEN_AT_MS });
 }
 
 describe("readOwnedCharacterVectors", () => {
@@ -300,14 +300,14 @@ describe("readThemeCluster* — owner-scoped (#1480 item 6)", () => {
       name: "Quests",
       size: 1,
       model: EMBED_MODEL,
-      computedAt: FROZEN_AT,
+      computedAt: FROZEN_AT_MS,
     });
     await db.insert(digestThemeAssignments).values({
       digestId: castId<ChatDigestId>("chat_digest_t1"),
       themeClusterId: cluster,
       // Seven minutes into a calendar bucket: the timeline floors it to the bucket's start.
       msgMidAt: Date.UTC(2024, 0, 10, 0, 7),
-      computedAt: FROZEN_AT,
+      computedAt: FROZEN_AT_MS,
     });
 
     // Receipt AS THE STRANGER: they name the owner's clusterId at the persistence seam.

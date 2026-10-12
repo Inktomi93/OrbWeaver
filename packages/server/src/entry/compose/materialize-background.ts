@@ -32,12 +32,14 @@ export interface MaterializeBackgroundDeps {
 /** Map an egress/read throw onto a user-facing reason. A byte-cap hit is `too-large`; everything else the
  *  egress belt refuses (scheme / private-range / unresolvable / deadline / non-2xx / network) is `unreachable`
  *  — the internal detail (a resolved private IP) NEVER leaks past the belt's own securityEvent log. */
+// @orb-waive compose-wiring-only(egressReason): baselined when the gate landed; burn-down item 964.
 function egressReason(err: unknown): "too-large" | "unreachable" {
   return err instanceof EgressBlockedError && err.reason === "too-large" ? "too-large" : "unreachable";
 }
 
 /** Map the image guard's rejection onto a user-facing reason: a real-but-oversized image is `too-large`; a
  *  non-image / disallowed-mime / unparseable buffer is `not-image` (the honest "that wasn't a usable image"). */
+// @orb-waive compose-wiring-only(imageReason): baselined when the gate landed; burn-down item 964.
 function imageReason(err: unknown): "too-large" | "not-image" {
   if (err instanceof ImageRejectedError && (err.reason === "too-large" || err.reason === "dimensions-exceeded")) {
     return "too-large";
@@ -47,6 +49,7 @@ function imageReason(err: unknown): "too-large" | "not-image" {
 
 export function createMaterializeBackground(deps: MaterializeBackgroundDeps): MaterializeBackgroundOp {
   const fetchImpl = deps.fetchImpl ?? safeFetch;
+  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
   return async (principal: Principal, url: string): Promise<MaterializeBackgroundResult> => {
     const maxBytes = deps.maxBytes();
 

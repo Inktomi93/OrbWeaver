@@ -9,6 +9,7 @@
 // hard-to-reach states on one screen, because an empty stub is what a visual review kept landing on.
 
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "@orb/testkit/browser/settings-geometry.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -211,9 +212,9 @@ function workloadRowBase(id = "workload_ct_pane"): WorkloadRowBase {
     dependsOn: null,
     error: null,
     progress: null,
-    scheduledAt: 1_750_000_000_000,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    scheduledAt: FROZEN_AT_MS,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 
@@ -263,8 +264,8 @@ function scheduleRow(overrides: Partial<ScheduleRow>): ScheduleRow {
     nextRunAt: 1_750_000_100_000,
     lastRunAt: null,
     enabled: true,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }

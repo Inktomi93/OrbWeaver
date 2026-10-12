@@ -17,9 +17,6 @@ import { makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-conn
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { PresetContext } from "#server/domain/preset/context.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-export const FROZEN_AT = FROZEN_AT_MS;
-
 interface AuditCall {
   readonly entry: Parameters<PresetContext["audit"]>[0];
   readonly at: number;
@@ -69,8 +66,8 @@ export async function seedPreset(db: Db, overrides: SeedPresetOverrides = {}): P
     config,
     schemaVersion: overrides.schemaVersion ?? config.schemaVersion,
     forkedFrom: overrides.forkedFrom ?? null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -78,7 +75,7 @@ export async function seedPreset(db: Db, overrides: SeedPresetOverrides = {}): P
 /** Build the PresetContext over a real db with a frozen clock, seeded ids, a recording audit fake, and the
  *  injected chat-capability op (defaulting to the shared vLLM fixture descriptor). */
 export function makeHarness(db: Db, options: HarnessOptions = {}): PresetHarness {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const ctx: PresetContext = {

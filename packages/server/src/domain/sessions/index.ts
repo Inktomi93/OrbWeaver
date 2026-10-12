@@ -12,6 +12,7 @@ export type { ProvisionIdentityOptions } from "./contract/params.ts";
 export type { RevokedSessionsSummary, UserPrincipalFields } from "./contract/results.ts";
 export type { SessionsService } from "./contract/service.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
+export { selectHandleById, selectHandlesByIds } from "./persistence/users.ts";
 export { createSessionsService } from "./service.ts";
 // Exported so entry's boot owner-seed and the login-derived role path can never fork.
 // `groupRoleGovernanceActive` rides out for the same no-fork reason: entry's OIDC claim mapper asks THIS
@@ -21,3 +22,5 @@ export { createSessionsService } from "./service.ts";
 // password hashing, through this one predicate.
 export { groupRoleGovernanceActive, isReservedSignupHandle, ownerHandles } from "./substrate/role-policy.ts";
 export { createTokenHasher } from "./tokens/tokens.ts";
+// The disabled-account containment read compose wires into every non-request consumer (fail-closed on a missing row).
+export { createResolveUserEnabled } from "./verbs/resolve-user-enabled.ts";

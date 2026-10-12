@@ -14,6 +14,7 @@ import { REACTION_ATTRIBUTION_MAX_PER_MESSAGE, REACTION_EMOJIS } from "@orb/cont
 import type { Db } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach } from "vitest";
@@ -21,7 +22,7 @@ import type { TeachingContext, TeachingContribution } from "#server/domain/chat/
 import type { StoredSegmentAnchor } from "#server/domain/chat/contract/params.ts";
 import { insertReaction } from "#server/domain/chat/persistence/reactions.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "./_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "./_support.ts";
 
 let db: Db;
 
@@ -82,7 +83,7 @@ test("no reactions ⇒ EMPTY_COLLECTION, and the plane knob OFF silences a room 
   // The byte-identity arm: nothing reacted, nothing injected.
   expect(await attribution().collect(tctxFor(chatId))).toEqual({ injections: [], toolNames: [] });
 
-  await react({ variantId, seat: cassSeat, emoji: "🔥", at: FROZEN_AT + 1 });
+  await react({ variantId, seat: cassSeat, emoji: "🔥", at: FROZEN_AT_MS + 1 });
   // The knob is the RESOLVED verdict the turn build hands in — OFF means the loop contributes nothing
   // even though rows exist (the same silencing the wire read enforces for the pills).
   expect(await attribution().collect(tctxFor(chatId, { reactionsEnabled: false }))).toEqual({ injections: [], toolNames: [] });
@@ -90,7 +91,7 @@ test("no reactions ⇒ EMPTY_COLLECTION, and the plane knob OFF silences a room 
 
 test("a whole-message reaction becomes ONE depth-0 in_chat system note naming the reactor's DISPLAY identity", async () => {
   const { chatId, cassSeat, variantId } = await seedRoom("b");
-  await react({ variantId, seat: cassSeat, emoji: "🔥", at: FROZEN_AT + 1 });
+  await react({ variantId, seat: cassSeat, emoji: "🔥", at: FROZEN_AT_MS + 1 });
 
   const out = await attribution().collect(tctxFor(chatId));
   expect(out.toolNames).toEqual([]);
@@ -108,7 +109,7 @@ test("a persona-less HUMAN reactor reads as 'A member' — never a raw id", asyn
   const { chatId, variantId } = await seedRoom("c");
   const plain = await seedUser(db, castId<Handle>("plain-c"));
   const plainSeat = await seedParticipant(db, { chatId, key: "m-c", userId: plain });
-  await react({ variantId, seat: plainSeat, emoji: "👍", at: FROZEN_AT + 1 });
+  await react({ variantId, seat: plainSeat, emoji: "👍", at: FROZEN_AT_MS + 1 });
 
   const out = await attribution().collect(tctxFor(chatId));
   expect(out.injections[0]?.content).toBe('[A member reacted with 👍 to the message: "A reply worth reacting to."]');
@@ -130,14 +131,14 @@ test("a segment note quotes the STORED snippet and names whose line; a STALE anc
     variantId,
     seat: aliceSeat,
     emoji: "😂",
-    at: FROZEN_AT + 1,
+    at: FROZEN_AT_MS + 1,
     segment: { segmentIndex: 1, segmentSpeaker: "Bob", segmentSnippet: "Bob: Fine day." },
   });
   await react({
     variantId,
     seat: aliceSeat,
     emoji: "😮",
-    at: FROZEN_AT + 2,
+    at: FROZEN_AT_MS + 2,
     segment: { segmentIndex: 0, segmentSpeaker: "Alice", segmentSnippet: "Alice: something replaced" },
   });
 
@@ -155,7 +156,7 @@ test("the per-message K cap keeps the MOST-RECENT K notes", async () => {
   const { chatId, cassSeat, variantId } = await seedRoom("k");
   // One row per vocabulary emoji (the whole-message unique caps one per (seat, emoji)) — 10 rows, K = 8.
   for (const [i, emoji] of REACTION_EMOJIS.entries()) {
-    await react({ variantId, seat: cassSeat, emoji, at: FROZEN_AT + 1 + i });
+    await react({ variantId, seat: cassSeat, emoji, at: FROZEN_AT_MS + 1 + i });
   }
 
   const out = await attribution().collect(tctxFor(chatId));

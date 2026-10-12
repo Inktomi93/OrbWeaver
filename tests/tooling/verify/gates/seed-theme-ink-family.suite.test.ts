@@ -1,11 +1,10 @@
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as seedThemeInkContrast } from "../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
+import { gate } from "../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
 import { collectCssFacts } from "../../../../tooling/src/verify/lib/css-resource-facts.ts";
 import { parseCssStylesheet } from "../../../../tooling/src/verify/lib/css-rules.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -19,7 +18,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const POLICY_PROOFS_TIMEOUT_MS = scaledBudget(12_000);
 
 test("seed-theme-ink-contrast keeps its three-arm proofs", { timeout: POLICY_PROOFS_TIMEOUT_MS }, () => {
-  expect(verifyPolicyProofs([seedThemeInkContrast])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 /** THE NESTING ADJUDICATION (#2293 leg 2) — three cases, three verdicts, decided rather than inherited.
@@ -281,8 +280,8 @@ function pass(scratch: string, grants: readonly ReviewedGateGrant[]): PolicyPass
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.createSourceFile(`${scratch}/${CARRIER}`, OVERLAY[CARRIER], { overwrite: true });
   return runPolicyPass({
-    knownPolicies: [seedThemeInkContrast],
-    policies: [seedThemeInkContrast],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project,
     resourceOptions: { overlay: OVERLAY },
@@ -349,8 +348,8 @@ function passOnDisk(scratch: string, files: Readonly<Record<string, string>>, by
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.createSourceFile(join(scratch, CARRIER), OVERLAY[CARRIER], { overwrite: true });
   return runPolicyPass({
-    knownPolicies: [seedThemeInkContrast],
-    policies: [seedThemeInkContrast],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project,
     reviewedGrants: [],

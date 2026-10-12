@@ -20,12 +20,13 @@
 
 // @orb-waive-file no-test-fabrication(NonNullable<typeof signed>): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import type { PerRequestSeamDeps } from "@orb/server/entry/auth";
-import { createAuthSeam, createHostPrincipalResolver, createResolveUserEnabled } from "@orb/server/entry/auth";
+import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
@@ -449,7 +450,7 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
   vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
 
-  const withHeader = await seam.resolvePrincipal(new Headers({ "x-orb-csrf": "1" }), { transport: "http" });
+  const withHeader = await seam.resolvePrincipal(new Headers({ [CSRF_HEADER]: "1" }), { transport: "http" });
   const without = await seam.resolvePrincipal(new Headers(), { transport: "http" });
 
   expect(withHeader.csrfHeaderPresent).toBe(true);
@@ -566,19 +567,6 @@ test("createHostPrincipalResolver degrades an unknown id to role=user (fail-clos
   expect(principal.role).toBe("user");
   expect(principal.userId).toBe(COOKIE_UID);
   expect(principal.handle).toBe(COOKIE_UID); // the userId-as-handle degrade, never a throw
-});
-
-test("createResolveUserEnabled answers the live row's enabled bit, and FALSE for a missing row (fail-closed)", async () => {
-  const fields = (enabled: boolean): Awaited<ReturnType<SessionsService["loadUserById"]>> => ({
-    role: "user",
-    handle: castId<Handle>("member"),
-    externalId: null,
-    enabled,
-  });
-
-  expect(await createResolveUserEnabled(stubSessions({ loadUserById: () => Promise.resolve(fields(true)) }))(COOKIE_UID)).toBe(true);
-  expect(await createResolveUserEnabled(stubSessions({ loadUserById: () => Promise.resolve(fields(false)) }))(COOKIE_UID)).toBe(false);
-  expect(await createResolveUserEnabled(stubSessions({ loadUserById: () => Promise.resolve(null) }))(COOKIE_UID)).toBe(false);
 });
 
 // ── The `enabled` parity of the THREE request arms (D135 amendment) ──────────────────────────────────────

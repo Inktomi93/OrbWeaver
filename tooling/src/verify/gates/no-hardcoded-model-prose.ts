@@ -73,7 +73,6 @@ export const SEAM_PREFIXES = [
   "packages/server/src/domain/imagery/tool/",
 ] as const;
 export const SEAM_FILES = [
-  "packages/server/src/entry/compose/rpg.ts",
   "packages/server/src/domain/chat/engine/smart-arbitrate.ts",
   "packages/server/src/domain/chat/verbs/compaction.ts",
   "packages/server/src/domain/automation/engine/arm-executors.ts",
@@ -372,7 +371,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "packages/server/src/entry/compose/rpg.ts":
+        "packages/server/src/domain/rpg/tools/rounds/prompts.ts":
           'export function operatorRefusal() {\n  return { ok: false, reason: "A bound RPG character card supplies the extractor target, so scene extraction cannot run without one selected for this room." };\n}\n',
       },
       expect: { count: 1, token: "A" },
@@ -445,7 +444,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "packages/server/src/entry/compose/rpg.ts":
+        "packages/server/src/domain/rpg/tools/rounds/prompts.ts":
           'export function operatorRefusal() {\n  // @orb-waive no-hardcoded-model-prose(A): VERIFIED-FP: this operator refusal returns before model dispatch; ends if this sentence is sent to a model.\n  return { ok: false, reason: "A bound RPG character card supplies the extractor target, so scene extraction cannot run without one selected for this room." };\n}\n',
       },
       why: "the exact line-adjacent verified operator-refusal marker disposes only its authored first-word candidate; no reason-key exemption is added",
@@ -498,7 +497,8 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "packages/server/src/entry/compose/rpg.ts": 'export const V = ["a", "b"].join(", ");\nexport const SHORT = `only a few short template words here`;\n',
+        "packages/server/src/domain/rpg/tools/rounds/prompts.ts":
+          'export const V = ["a", "b"].join(", ");\nexport const SHORT = `only a few short template words here`;\n',
       },
       why: "short joins/templates below the word floor never trip — the wire vocabulary stays legal",
     },

@@ -9,6 +9,7 @@ import { builtinProvider, providerDisplayLabel } from "@orb/contracts/inference"
 import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 
+// @orb-waive contract-structural-copy(CreditConnectionRow): baselined when the gate judged by type; burn-down item 904.
 // @orb-waive no-inline-wire-interface(CreditConnectionRow): baselined when the gate widened; burn-down item 904.
 /** One of the VIEWER's own connection rows (`connection.list`), as a readout names it. */
 export interface CreditConnectionRow {

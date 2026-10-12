@@ -2,6 +2,7 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, messageReactions, personas, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, MessageReactionId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -28,7 +29,7 @@ import { insertJoinerPersonaStatement } from "#server/domain/persona/persistence
 import { insertSignupUserStatement } from "#server/domain/sessions/persistence/users.ts";
 import { insertJoinerSettingsStatement } from "#server/domain/settings/persistence/joiner.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
-import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support.ts";
+import { seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -49,7 +50,7 @@ async function seedInvite(
     tokenHash,
     maxUses: overrides.maxUses ?? null,
     expiresAt: overrides.expiresAt ?? null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return tokenHash;
 }
@@ -134,7 +135,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_j"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result?.chatId).toBe(chatId);
     expect(result?.participant.role).toBe("member");
@@ -156,7 +157,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_j"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result?.participant.joinSeq).toBe(2);
   });
@@ -172,7 +173,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       invitedUserId: joiner,
       maxUses: null,
       expiresAt: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const result = await acceptInviteByIdAtomic(raceDb(db, chatId, 2), {
@@ -180,7 +181,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_j2"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result?.participant.joinSeq).toBe(2);
   });
@@ -198,7 +199,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_ignored"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
 
     // ONE upserted row per human membership (conflict target: chatId+userId): the re-join re-stamps the floor
@@ -227,7 +228,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       variantId,
       reactorParticipantId: seat,
       emoji: "\u{1F44D}",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const hash = await seedInvite(db, chatId, "reaction-rejoin", { maxUses: 5 });
 
@@ -236,7 +237,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_fresh_mint"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
 
     expect(result?.participant.id).toBe(seat);
@@ -257,7 +258,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: a,
       participantId: castId<ChatParticipantId>("chat_participant_a"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(first).toBeDefined();
     const second = await redeemInviteAtomic(db, {
@@ -265,7 +266,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: b,
       participantId: castId<ChatParticipantId>("chat_participant_b"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(second).toBeUndefined();
     expect((await findInviteByTokenHash(db, hash))?.status).toBe("accepted");
@@ -283,14 +284,14 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
         userId: joiner,
         participantId: castId<ChatParticipantId>("chat_participant_race_a"),
         activePersonaId: null,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       }),
       redeemInviteAtomic(db, {
         tokenHash: hash,
         userId: joiner,
         participantId: castId<ChatParticipantId>("chat_participant_race_b"),
         activePersonaId: null,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       }),
     ]);
 
@@ -313,7 +314,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
         userId: joiner,
         participantId: castId<ChatParticipantId>("chat_participant_collision"),
         activePersonaId: null,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       }),
     ).rejects.toThrow();
     expect((await findInviteByTokenHash(db, hash))?.uses).toBe(0);
@@ -323,13 +324,13 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
   test("redeem refuses an expired invite", async () => {
     const joiner = await seedUser(db, castId<Handle>("joiner"));
     const chatId = await seedChat(db, "a");
-    const hash = await seedInvite(db, chatId, "i", { expiresAt: FROZEN_AT - 1 });
+    const hash = await seedInvite(db, chatId, "i", { expiresAt: FROZEN_AT_MS - 1 });
     const result = await redeemInviteAtomic(db, {
       tokenHash: hash,
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_j"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result).toBeUndefined();
     expect((await findInviteByTokenHash(db, hash))?.uses).toBe(0);
@@ -347,7 +348,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       userId: member,
       participantId: castId<ChatParticipantId>("chat_participant_dup"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result).toBeUndefined();
     expect((await findInviteByTokenHash(db, hash))?.uses).toBe(0);
@@ -383,7 +384,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_t"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result?.chatId).toBe(chatId);
     expect(result?.participant.role).toBe("member");
@@ -402,7 +403,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       userId: anyone,
       participantId: castId<ChatParticipantId>("chat_participant_x"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result).toBeUndefined();
     expect((await findInviteById(db, inviteId))?.uses).toBe(0);
@@ -420,7 +421,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       userId: attacker,
       participantId: castId<ChatParticipantId>("chat_participant_a"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result).toBeUndefined();
     const inv = await findInviteById(db, inviteId);
@@ -431,14 +432,14 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   test("an expired invite is refused", async () => {
     const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
-    const inviteId = await seedTargetedInvite(chatId, "i", target, { expiresAt: FROZEN_AT - 1 });
+    const inviteId = await seedTargetedInvite(chatId, "i", target, { expiresAt: FROZEN_AT_MS - 1 });
 
     const result = await acceptInviteByIdAtomic(db, {
       inviteId,
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_t"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result).toBeUndefined();
   });
@@ -454,7 +455,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_dup"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(result).toBeUndefined();
     expect((await findInviteById(db, inviteId))?.uses).toBe(0);
@@ -470,7 +471,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_t"),
       activePersonaId: null,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(first).toBeDefined();
     expect((await findInviteById(db, inviteId))?.status).toBe("accepted");
@@ -570,28 +571,28 @@ describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", 
       tokenHash,
       maxUses: over.maxUses,
       uses: over.uses,
-      expiresAt: FROZEN_AT + DayMs,
+      expiresAt: FROZEN_AT_MS + DayMs,
       allowSignup: true,
       createdByUserId: minter,
       mintMode: Mode,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     return tokenHash;
   }
 
   function attempt(key: string, tokenHash: string, handle: Handle, userId = castId<UserId>(`usr_signup_${handle}`)): Parameters<typeof redeemSignupAtomic>[1] {
-    const admission = signupAccountAdmission({ tokenHash, now: FROZEN_AT, mode: Mode });
+    const admission = signupAccountAdmission({ tokenHash, now: FROZEN_AT_MS, mode: Mode });
     const personaId = castId<PersonaId>(`persona_signup_${handle}`);
     return {
       tokenHash,
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
       mode: Mode,
       leading: [],
-      account: insertSignupUserStatement(db, { id: userId, handle, passwordHash: "scrypt$fake", at: FROZEN_AT }, admission),
-      persona: insertJoinerPersonaStatement(db, { id: personaId, ownerId: userId, persona: { name: handle, description: "" }, at: FROZEN_AT }),
+      account: insertSignupUserStatement(db, { id: userId, handle, passwordHash: "scrypt$fake", at: FROZEN_AT_MS }, admission),
+      persona: insertJoinerPersonaStatement(db, { id: personaId, ownerId: userId, persona: { name: handle, description: "" }, at: FROZEN_AT_MS }),
       personaId,
-      pointers: insertJoinerSettingsStatement(db, { ownerId: userId, personaId, at: FROZEN_AT }),
-      audit: buildAuditStatementIfPrecedingWrote(db, { actorUserId: userId, action: "invites.signup", entityType: "chat_invite", entityId: key }, FROZEN_AT),
+      pointers: insertJoinerSettingsStatement(db, { ownerId: userId, personaId, at: FROZEN_AT_MS }),
+      audit: buildAuditStatementIfPrecedingWrote(db, { actorUserId: userId, action: "invites.signup", entityType: "chat_invite", entityId: key }, FROZEN_AT_MS),
       inviteId: castId<ChatInviteId>(`chat_invite_signup_${key}`),
       userId,
       participantId: castId<ChatParticipantId>(`chat_participant_signup_${handle}`),

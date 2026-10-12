@@ -3,8 +3,6 @@
 // preservation when no re-confirmation is needed.
 // @subject packages/server/src/domain/plugin/verbs/upgrade.ts
 
-// @orb-waive-file no-loose-id-cast(after[0]?.assetId): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(droppedId): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";
@@ -436,8 +434,9 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const before = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
     const keptId = before.find((entry) => entry.path === "ui/assets/keep.png")?.assetId;
     const droppedId = before.find((entry) => entry.path === "ui/assets/drop.gif")?.assetId;
-    expect(keptId).toBeDefined();
-    expect(droppedId).toBeDefined();
+    if (keptId === undefined || droppedId === undefined) {
+      throw new Error("the install produced no asset links");
+    }
 
     // v1.1 re-ships `keep.png` VERBATIM and drops `drop.gif`. The harness CAS de-duplicates by (owner, hash)
     // exactly as production does, so the re-shipped bytes come back with the SAME assetId — which is what
@@ -453,8 +452,9 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     // THE DROPPED path resolves to nothing — a node still naming it paints a placeholder rather than stale art.
     expect(after.some((entry) => entry.path === "ui/assets/drop.gif")).toBe(false);
     // …and the dropped blob is gone from the CAS, while the surviving link's asset is still there.
-    expect(h.storedBytes.has(droppedId as never)).toBe(false);
-    expect(h.storedBytes.has(after[0]?.assetId as never)).toBe(true);
+    expect(h.storedBytes.has(droppedId)).toBe(false);
+    expect(after[0]?.assetId).toBe(keptId);
+    expect(h.storedBytes.has(keptId)).toBe(true);
   });
 
   test("upgrading to a bundle with NO images clears the whole set", async () => {

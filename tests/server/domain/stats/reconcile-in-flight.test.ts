@@ -5,7 +5,6 @@
 // releases on BOTH settle arms (a throwing rebuild must not wedge the owner out forever), and the key is the
 // owner (one user's rebuild never blocks another's).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,12 +17,7 @@ const BOB: UserId = castId<UserId>("user_bob");
 
 /** A promise the test settles by hand — the running task stays parked until `resolve`/`reject` is called. */
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (error: Error) => void } {
-  let resolve!: (value: T) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
+  const { promise, resolve, reject } = Promise.withResolvers<T>();
   return { promise, resolve, reject };
 }
 

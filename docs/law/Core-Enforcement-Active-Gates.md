@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(368 registered gates)
+(370 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -96,6 +96,7 @@ in its own module header, never restated here.
 | `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
 | `component-size` | — | hard/error | @client\* | a client source file exceeds the hard… |
 | `component-size-ui` | component-size | hard/error | @ui\* | an @orb/ui source file exceeds the… |
+| `compose-wiring-only` | — | ordinary/error | @server\* | an entry/compose module runs a… |
 | `config-anchor-in-registry` | — | reviewed-grant/error | @client | a file stamps configAnchorId(…) but… |
 | `config-group-completeness` | registry-definitions | ordinary/error | @client | a config group is dishonest: a… |
 | `content-part-seam` | — | reviewed-grant/error | @product | ChatContentPart is named outside the… |
@@ -219,7 +220,7 @@ in its own module header, never restated here.
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests\* | exported type/zod-schema outside a… |
 | `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
-| `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data interface outside… |
+| `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
 | `no-legacy-react-api` | react-origin | ordinary/error | @authored | a legacy React API: cloneElement,… |

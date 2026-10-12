@@ -17,6 +17,7 @@ import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments } from 
 import type { ChatDigestId, ChatParticipantId, ChatSegmentId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -24,8 +25,6 @@ import { describe } from "vitest";
 import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedUser } from "../_support.ts";
-
-const NOW = 1_750_000_000_000;
 
 async function seedVectorParents(db: Db, ownerId: UserId): Promise<EmbedGenerationId> {
   const harness = makeStoreHarness(db);
@@ -73,7 +72,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
         speakerCharacterIds: [],
       });
     }
@@ -109,7 +108,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
 
@@ -145,7 +144,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
         speakerCharacterIds: [],
       });
     }
@@ -184,7 +183,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
           model: generation.space,
           generationId: generation.id,
           dim: EMBED_DIM,
-          now: NOW,
+          now: FROZEN_AT_MS,
           speakerCharacterIds: [],
         });
       }
@@ -201,7 +200,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       kind: "human",
       userId: second,
       role: "host",
-      joinedAt: NOW,
+      joinedAt: FROZEN_AT_MS,
       joinSeq: 2,
     });
     const secondGeneration = await resolveTargetGeneration(harness.ctx, second, "embed");
@@ -243,7 +242,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
     await db.update(chatParticipants).set({ leftSeq: 1 }).where(eq(chatParticipants.chatId, chatId));
@@ -276,7 +275,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
     await db.insert(chatDigestSpeakers).values({ digestId, characterId: scopedCharacterId });
@@ -307,7 +306,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
       });
     }
 
@@ -353,7 +352,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
       });
     }
 

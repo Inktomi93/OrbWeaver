@@ -16,9 +16,6 @@
 // real tree would red any concurrent whole-tree biome pass, and `**/__probe*` is gitignored so biome
 // (useIgnoreFile) never sees a probe planted there — measured on this tree 2026-09-05: four planted probe
 // files came back "No files were processed in the specified paths".
-// @orb-waive-file platform-spellings(EXPECTED_GROUP): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(Object): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(row): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -124,7 +121,7 @@ test(
     expect(report.summary.skipped ?? 0, "files biome skipped").toBe(0);
     expect(report.summary.diagnosticsNotPrinted ?? 0, "diagnostics the reporter withheld").toBe(0);
     // Exactly the three banned importers fire; the singular twin in the SAME run does not.
-    expect(restrictedImportPaths(report)).toEqual([...Object.keys(BANNED_FILES)].sort());
+    expect(restrictedImportPaths(report)).toEqual(Object.keys(BANNED_FILES).toSorted());
     // The diagnostic must carry the D-cite, or a reader gets a ban with no ruling behind it.
     for (const diagnostic of report.diagnostics.filter((d) => d.category === RULE_CATEGORY)) {
       expect(diagnostic.message ?? "", `${diagnostic.location?.path ?? "?"} must cite D12`).toContain("D12");
@@ -142,7 +139,7 @@ test("the row itself: one pattern group covering the specifier and its subpaths,
   if (row === undefined) {
     throw new Error(`biome.json has no noRestrictedImports pattern row banning ${BANNED_SPECIFIER}`);
   }
-  expect([...(row.group ?? [])].sort()).toEqual([...EXPECTED_GROUP].sort());
+  expect((row.group ?? []).toSorted()).toEqual(EXPECTED_GROUP.toSorted());
   expect(row.message, "the ban must carry its D-cite and where to contest it").toMatch(/D12/u);
 });
 

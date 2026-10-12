@@ -3,6 +3,7 @@
 // assertion, since the surface had NO CT file at all until now (the #1200 padding fix rode the
 // overview's pinned pattern uncovered on this twin).
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -36,8 +37,8 @@ const CHARACTER_STATS: TrpcWireOutput<"stats.character"> = {
   reasoningRate: 0.1,
   contentChars: 40_000,
   firstChatAt: 1_740_000_000_000,
-  lastActivityAt: 1_750_000_000_000,
-  computedAt: 1_750_000_000_000,
+  lastActivityAt: FROZEN_AT_MS,
+  computedAt: FROZEN_AT_MS,
   reasoningMs: 4500,
   costUsd: 0.5,
   cacheReadTokens: 0,

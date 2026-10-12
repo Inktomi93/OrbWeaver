@@ -2,6 +2,7 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -14,7 +15,6 @@ import {
   updateUser,
 } from "#server/domain/sessions/persistence/users.ts";
 
-const T0 = 1_750_000_000_000;
 const ALICE = castId<UserId>("user_alice");
 const HANDLE = castId<Handle>("alice");
 const EXTERNAL = castId<ExternalId>("authentik|abc");
@@ -33,8 +33,8 @@ async function seedAlice(): Promise<void> {
     email: null,
     role: "user",
     enabled: true,
-    createdAt: T0,
-    updatedAt: T0,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
 }
 
@@ -57,8 +57,8 @@ describe("persistence/users", () => {
       email: null,
       role: "owner",
       enabled: true,
-      createdAt: T0,
-      updatedAt: T0,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     });
     const row = (await db.select().from(users).where(eq(users.handle, HANDLE)))[0];
     expect(row?.id).toBe(ALICE);
@@ -82,7 +82,7 @@ describe("persistence/users", () => {
 
   test("updateUser patches only the supplied columns", async () => {
     await seedAlice();
-    await updateUser(db, ALICE, { handle: castId<Handle>("renamed"), updatedAt: T0 + 1 });
+    await updateUser(db, ALICE, { handle: castId<Handle>("renamed"), updatedAt: FROZEN_AT_MS + 1 });
     const row = (await db.select().from(users).where(eq(users.id, ALICE)))[0];
     expect(row?.handle).toBe("renamed");
     expect(row?.role).toBe("user");

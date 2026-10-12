@@ -146,11 +146,7 @@ describe("session channel — single-flight", () => {
   // make the follower re-run the ladder after the leader finished, which is the stampede with extra steps.
   test("two contenders: exactly one RUNS, the other FOLLOWS without running the work", async () => {
     let runs = 0;
-    let releaseLeader: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<void>((resolve) => {
-      releaseLeader = resolve;
-    });
+    const { promise: gate, resolve: releaseLeader } = Promise.withResolvers<void>();
     const leader = channel.runSessionRecoverySingleFlight(async () => {
       runs += 1;
       await gate;
@@ -160,7 +156,7 @@ describe("session channel — single-flight", () => {
       runs += 1;
       return Promise.resolve();
     });
-    releaseLeader?.();
+    releaseLeader();
 
     expect(follower).toBe("followed");
     expect(await leader).toBe("ran");
@@ -179,11 +175,7 @@ describe("session channel — single-flight", () => {
   test("with NO Web Locks, single-flight still holds WITHIN the tab", async () => {
     vi.stubGlobal("navigator", undefined);
     let runs = 0;
-    let release: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>();
     const leader = channel.runSessionRecoverySingleFlight(async () => {
       runs += 1;
       await gate;
@@ -192,7 +184,7 @@ describe("session channel — single-flight", () => {
       runs += 1;
       return Promise.resolve();
     });
-    release?.();
+    release();
 
     expect(follower).toBe("followed");
     expect(await leader).toBe("ran");

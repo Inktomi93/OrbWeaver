@@ -7,10 +7,9 @@
 // legitimately hold the same namespaced plugin tool name, and each must get THEIR copy.
 // @subject packages/server/src/domain/tool-use/verbs/resolve-tools.ts
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
@@ -19,8 +18,8 @@ import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 
-const ALICE = makePrincipal(castId("user_alice"), { handle: castId("alice") });
-const BOB = makePrincipal(castId("user_bob"), { handle: castId("bob") });
+const ALICE = principal(castId("user_alice"), { handle: castId("alice") });
+const BOB = principal(castId("user_bob"), { handle: castId("bob") });
 
 /** Two installers' copies of the SAME plugin: identical namespaced name, distinct planted behavior. */
 function sharedSpec(installer: typeof ALICE, echo: string): PluginToolSpec {

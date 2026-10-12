@@ -22,12 +22,11 @@
 /// <reference path="../../../packages/plugin-sdk/shared.d.ts" />
 /// <reference path="../../../packages/plugin-sdk/frame.d.ts" />
 
-// @orb-waive-file no-vanity-alias(ChatHandle): baselined when the gate widened; burn-down item 906.
 import type {
+  ChatHandle,
   PluginSurfaceAnchor as ContractAnchor,
   PluginBoundGridTile as ContractBoundGridTile,
   PluginCapability as ContractCapability,
-  ChatHandle as ContractChatHandle,
   PluginCommandArgSpec as ContractCommandArgSpec,
   PluginCommandPlacement as ContractCommandPlacement,
   PluginHostV1 as ContractHost,
@@ -39,7 +38,7 @@ import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 
 /** The branded ids that cross the guest surface — the ONLY types the mirror flattens. */
-type GuestBrand = ContractChatHandle | AssetId | CharacterId;
+type GuestBrand = ChatHandle | AssetId | CharacterId;
 
 /** Erase guest brands to `string`, recursively, preserving everything else (literal unions survive because a
  *  literal is not assignable to a brand). Functions recurse through params + return; tuples/arrays/objects

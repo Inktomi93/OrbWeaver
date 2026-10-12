@@ -68,6 +68,13 @@ export async function findGameByChat(db: Db, chatId: ChatId): Promise<RpgGameRow
   return rows[0] ? parseGameRow(rows[0]) : undefined;
 }
 
+/** The rooms whose game's GM voice redirects to `presetId`, ACROSS owners. Deliberately unfiltered: the filter
+ *  that matters is the asking caller's room membership, which the consumer applies. */
+export async function listGmPresetChatIds(db: Db, presetId: PresetId): Promise<ChatId[]> {
+  const rows = await db.select({ chatId: rpgGames.chatId }).from(rpgGames).where(eq(rpgGames.gmPresetId, presetId));
+  return rows.map((row) => row.chatId);
+}
+
 /** The `gmPresetId` clear, UNEXECUTED — the host-handoff heal hands it to chat so the knob clear commits in
  *  the SAME atomic batch as the role swap (the {@link AwaitableBatchStmt} co-statement seam chat's own
  *  `markUserLeftStatement`/`setPendingHostStatement` ride). A separate write would leave a window where the

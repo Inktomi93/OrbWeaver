@@ -42,10 +42,10 @@ packages/server/src/entry/
 │   ├── chat.ts               the chat domain's slice of the graph
 │   ├── workload-contributions.ts  spreads every domain's WorkloadContribution factory into ONE exhaustive
 │   │                         registry (D117 — the former runner-env.ts hub is DELETED; D4 superseded)
-│   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, …)
+│   ├── event-bus.ts          constructs the in-process typed event bus over the `@orb/kit/pubsub` engine
 │   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
-│   ├── room-reach.ts / emit-chat-changed.ts   cross-feature event-emit wiring (room-reach = the entity→room
-│   │                         reach table: a DomainEvent → a live-only roomEntityChanged per reached room)
+│   ├── room-reach.ts         cross-feature event-emit wiring (the entity→room reach table: a DomainEvent →
+│   │                         a live-only roomEntityChanged per reached room)
 │   ├── portability.ts        import/export composition wiring
 │   └── resolve-image-ref.ts  cross-feature image-ref resolution wiring
 ├── http/                     non-tRPC registrars (compose domain + infra + auth)
@@ -95,7 +95,7 @@ Keep the split: **only `seedOwner` runs pre-compose**, because compose binds the
 
 ## Invariants
 
-1. **`entry/` owns no business logic** — only wiring/boot/HTTP-edge. *(review + dep-cruiser.)*
+1. **`entry/` owns no business logic** — only wiring/boot/HTTP-edge. A compose module runs no query, and no function value it hands out decides on runtime data; a decision while the graph is built is wiring. *(`compose-wiring-only` for `entry/compose`; review elsewhere.)*
 2. **`entry/` is the ONLY tier that may import both `infra/auth` and `domain/sessions`** (the auth seam) — and the only tier that may cross features at runtime. *(dep-cruiser: `domain-no-cross-feature` exempts `entry/` alone.)*
 3. **Nothing imports `entry/`** — the top of the cake. *(resolve-time.)*
 4. **Every cross-feature op is typed in a `contract/` and supplied here.** *(lint: `domain-no-cross-feature`.)*

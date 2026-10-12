@@ -36,6 +36,7 @@ const PLUGIN_MESSAGE_MAX_LIMIT = 50;
  * so an untrusted guest realm running as a non-host member never receives a GM-plane secret; `true` (the host
  * reveal plane) reads verbatim. Stripping here — not a post-filter — keeps the security predicate at the read.
  */
+// @orb-waive compose-wiring-only(loadPluginMessages): baselined when the gate landed; burn-down item 964.
 export async function loadPluginMessages(
   db: Db,
   chatId: ChatId,
@@ -89,6 +90,7 @@ export async function loadPluginMessages(
  * `getCharacters` surface is the character cast) and `left_seq IS NULL` (a departed seat is not present roster).
  * `avatarAssetId` crosses as inert text a guest may hand to an `image` node or `assets.read`.
  */
+// @orb-waive compose-wiring-only(loadPluginCharacters): baselined when the gate landed; burn-down item 964.
 export async function loadPluginCharacters(db: Db, chatId: ChatId): Promise<readonly PluginCharacterView[]> {
   const rows = await db
     .select({

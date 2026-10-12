@@ -21,7 +21,6 @@ import type {
   RpgQuestView,
   RpgSheet,
   RpgSnapshotState,
-  RpgTrackerCarrier,
   RpgTrackerDef,
   RpgTrackerEntry,
   RpgTrackerOrb,
@@ -32,6 +31,7 @@ import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { listSheets } from "../persistence/sheets.ts";
 import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
+import { actorCarrier } from "../substrate/actor-carrier.ts";
 
 /** The orb-row envelope (§4.11 #5) — the band fits at most this many orbs at the 17rem floor. Caps the
  *  PINNED set so a host over-pinning can't crush the row (the pins are ordered by the tracker `sort`, so the
@@ -63,25 +63,6 @@ function sheetRef(row: { characterId: CharacterId | null; userId: UserId | null 
     return { kind: "user", userId: row.userId };
   }
   return null;
-}
-
-/** THE carrier record for ANY actor (R2) — the ONE derivation of "what class is this person, and what are
- *  their exceptions". `kind` comes off `actorRef.kind`, so the classes partition PEOPLE, not rows. That is the
- *  §1.4 read/write drift fix and it is structural: the view used to classify by which PLANE a row sat on, so a
- *  participant character standing in the scene was BOTH a `party` carrier (to the write surface, which deduped by
- *  name, participants first) and an `npcs` one (to the reminder and Scene tab, which walked the npc rows). A
- *  `trust(appliesTo:"npcs")` def was therefore taught on her line and offered on nobody's — the exact
- *  reminder-is-knowledge / tools-are-permissions drift the file header calls impossible. An npc carries
- *  no sheet, so its exceptions are empty (a one-off NPC field homes on the def's explicit `appliesTo` list —
- *  the honest home, not a row the NPC doesn't have). */
-export function actorCarrier(ref: RpgActorRef, name: string, sheet: RpgSheet | undefined): RpgTrackerCarrier {
-  return {
-    actorKey: actorRefKey(ref),
-    name,
-    kind: ref.kind === "npc" ? "npcs" : "party",
-    grants: sheet?.trackerGrants ?? [],
-    revokes: sheet?.trackerRevokes ?? [],
-  };
 }
 
 /** Pair a carrier's trackers with their readings off a volatile row's `trackerValues`. */

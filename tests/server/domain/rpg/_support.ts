@@ -29,6 +29,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import { viewerReadsHidden } from "#server/domain/chat/index.ts";
@@ -44,10 +45,10 @@ import type {
 } from "#server/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
-import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
+import { seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 export { expect, test } from "@orb/testkit/node/fixtures.ts";
-export { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
+export { addVariant, seedCharacter, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 /** The empty-born snapshot state (the createGame seed shape — null ambient, empty planes, no locks). */
 export function emptyState(): RpgSnapshotState {
@@ -111,8 +112,8 @@ export async function seedGame(db: Db, chatId: ChatId, key = "g1", over: { confi
     gmUserId: null,
     gmPresetId: null,
     config: over.config ?? liteConfig(),
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -155,14 +156,14 @@ export function target(opts: { gameId: RpgGameId; chatId: ChatId; seq: number; v
     gameId: opts.gameId,
     messageId: castId<MessageId>(`message_${opts.chatId}_${opts.seq}`),
     variantId: opts.variantId,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   };
 }
 
 /** A HAND-arm write target (D124) — message-less; the as-of stamp is resolved inside the write off the
  *  chat's tail slot, so a caller names only the chat. */
 export function handTarget(opts: { gameId: RpgGameId; chatId: ChatId; key: string; now?: number }): HandSnapshotTarget {
-  return { id: snapshotId(opts.key), gameId: opts.gameId, chatId: opts.chatId, now: opts.now ?? FROZEN_AT };
+  return { id: snapshotId(opts.key), gameId: opts.gameId, chatId: opts.chatId, now: opts.now ?? FROZEN_AT_MS };
 }
 
 // ── the verb-service harness (W1b) ───────────────────────────────────────────────────────────────────────
@@ -458,7 +459,7 @@ export function makeRpgService(
       return fakes.toolRoundDelta;
     }
     // The REAL fold: the model's structured output applied over the round's REAL base by the production
-    // applier — the same call `runStateRound` makes in `entry/compose/rpg.ts`.
+    // applier — the same call `runStateRound` makes in `domain/rpg/tools/rounds/`.
     extractionMintSeq += 1;
     const n = extractionMintSeq;
     return extractionToStateDelta(
@@ -484,7 +485,7 @@ export function makeRpgService(
 
   const ctx: RpgContext = {
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     ids: {
       game: () => mintTypeId(ID_PREFIX.rpgGame),
       snapshot: () => mintTypeId(ID_PREFIX.rpgSnapshot),
@@ -712,8 +713,8 @@ export async function seedPreset(db: Db, key: string, ownerHandle: string): Prom
     name: key,
     kind: "user",
     config: DEFAULT_PROMPT_CONFIG,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }

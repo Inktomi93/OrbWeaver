@@ -9,6 +9,7 @@
 
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 import type { CanonMessage } from "./trpc.ts";
 
 const SCROLL_CONTAINER = '[data-slot="message-list-scroll"]';
@@ -66,7 +67,7 @@ async function settleWindow(page: Page): Promise<void> {
         previous = signature;
         return stable;
       },
-      { timeout: 5000, intervals: [50, 100, 150] },
+      { timeout: WAIT_SHORT_MS, intervals: [50, 100, 150] },
     )
     .toBe(true);
 }
@@ -135,7 +136,7 @@ const MAX_CONVERGENCE_PASSES = 6;
  */
 export async function collectVirtualRows(page: Page): Promise<readonly SweptRow[]> {
   const container = page.locator(SCROLL_CONTAINER);
-  await expect(container).toBeVisible({ timeout: 15_000 });
+  await expect(container).toBeVisible({ timeout: WAIT_SURFACE_MS });
 
   let previous: readonly SweptRow[] = [];
   let previousSignature = "";

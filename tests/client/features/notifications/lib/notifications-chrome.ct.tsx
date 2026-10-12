@@ -15,10 +15,10 @@
 // CT rather than a unit test for the same reason it always was: the claim is about a RENDERED first frame
 // with the config withheld.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
@@ -48,15 +48,12 @@ async function seedHint(page: Page, multiHumanCapable: boolean): Promise<void> {
 /** Hold `/api/auth/config` in flight; the returned fn lands the deployment's answer when the test wants it.
  *  The boot window under test is the one where it has NOT landed. */
 async function routeAuthConfig(page: Page): Promise<(multiHumanCapable: boolean) => void> {
-  let land: ((capable: boolean) => void) | undefined;
-  const answered = new Promise<boolean>((resolve) => {
-    land = resolve;
-  });
+  const { promise: answered, resolve: land } = Promise.withResolvers<boolean>();
   await page.route("**/api/auth/config", async (route) => {
     const multiHumanCapable = await answered;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local", multiHumanCapable }) });
   });
-  return (capable: boolean): void => land?.(capable);
+  return (capable: boolean): void => land(capable);
 }
 
 /** The bell's own reads — an empty inbox, so its accessible name is the bare "Notifications". */
@@ -145,7 +142,7 @@ test.describe("the You tab's tell (#1815)", () => {
       readAt: 1_750_000_000_001,
       dismissedAt: null,
       actionable: true,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
     };
   }
 

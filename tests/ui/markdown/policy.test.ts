@@ -7,8 +7,6 @@
 // (browser package; @orb/ui is not node-resolvable) like shiki-theme.test.ts.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-loose-id-cast({ type: "element", tagName, properties, children: [] }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ type: "element", tagName: "a" }): baselined when the gate widened; burn-down item 906.
 import { describe } from "vitest";
 import {
   ownOriginMediaOnly,
@@ -22,9 +20,8 @@ import {
 // Streamdown's UrlTransform is called with (url, key, node); `untrustedUrlTransform` reads ONLY the url,
 // so the hast node arg is an unused deliberate stub. The `UrlTransform` return type is `string | null |
 // undefined`; this gate always yields a string ("" = BLOCK, else the url), and `?? ""` narrows the type.
-const gate = (url: string): string =>
-  // @orb-waive no-test-fabrication(never): the unused hast-node arg — untrustedUrlTransform never reads it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  untrustedUrlTransform(url, "href", { type: "element", tagName: "a" } as never) ?? "";
+const HAST_NODE: Parameters<typeof untrustedUrlTransform>[2] = { type: "element", tagName: "a", properties: {}, children: [] };
+const gate = (url: string): string => untrustedUrlTransform(url, "href", HAST_NODE) ?? "";
 const BLOCKED = "";
 
 describe("untrustedUrlTransform — dangerous protocols BLOCKED (return empty → Streamdown drops)", () => {
@@ -173,8 +170,7 @@ describe("element allowlists — the img-drop is the untrusted↔trusted differe
 // this gate is the only thing that keeps a trusted character's off-origin image from loading.
 describe("ownOriginMediaOnly — trusted content on a row that forbids external media", () => {
   const admits = (tagName: string, properties: Record<string, string> = {}): boolean =>
-    // @orb-waive no-test-fabrication(never): a hast element literal; `hast` does not resolve from the test program, so the gate's parameter type is unreachable here. Ends when the test program resolves `hast`.
-    ownOriginMediaOnly({ type: "element", tagName, properties, children: [] } as never, 0, undefined) === true;
+    ownOriginMediaOnly({ type: "element", tagName, properties, children: [] }, 0, undefined) === true;
 
   test.each([
     ["an absolute https url", "https://tracker.example/pixel.png"],

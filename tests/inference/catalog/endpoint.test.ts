@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
 import { fetchEndpointModels, probeListedModel } from "#inference/catalog/endpoint.ts";
 import type { EndpointModel } from "#inference/contract/runtime.ts";
-import type { LocalServerArm, TranscriptArm } from "./_local-servers-fetch.ts";
+import type { LocalServerArm, TranscriptArm } from "../_support.ts";
 import { localServerFetch, transcriptFetch } from "./_local-servers-fetch.ts";
 
 /** The base catalog facts, projected separately from the per-model probe facts. */

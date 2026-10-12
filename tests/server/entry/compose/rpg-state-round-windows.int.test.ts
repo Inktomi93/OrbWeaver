@@ -1,4 +1,6 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+// @subject packages/server/src/domain/rpg/tools/rounds/delivery.ts
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 
 // entry/compose/rpg — patch-reply drops, the room window and overflow notices, hidden spans in NPC names and the persisted ability roll.
@@ -21,7 +23,7 @@ import { vi } from "vitest";
 // @orb-waive-file no-test-fabrication({ event?: string; code?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ properties: { changes: { items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } }): baselined when the gate widened to value casts; burn-down item 906.
 import { stateRoundNeededTokens } from "#server/domain/rpg/substrate/state-round-fit.ts";
-import { FROZEN_AT, seedCharacter, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import type { buildRpg } from "./_rpg-support.ts";
 import {
   buildCannedRpgWithText,
@@ -169,7 +171,7 @@ test("0511: a structured round that skipped a named existing item runs the inven
         gameId: created.gameId,
         messageId: base.messageId,
         variantId: base.variantId,
-        now: FROZEN_AT,
+        now: FROZEN_AT_MS,
       })
     ).ok,
   ).toBe(true);

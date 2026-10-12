@@ -4,9 +4,10 @@ import { rpgGameConfigSchema, rpgGameFeaturesSchema } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { Handle, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { getTableColumns } from "drizzle-orm";
-import { actorWithWallet, expect, FROZEN_AT, liteConfig, makeRpgService, quest, seedChat, seedMessage, seedUser, test } from "../_support.ts";
+import { actorWithWallet, expect, liteConfig, makeRpgService, quest, seedChat, seedMessage, seedUser, test } from "../_support.ts";
 import {
   findGameByChat,
   insertCheckpoint,
@@ -78,8 +79,8 @@ test("no COPIED column is silently dropped — every populated row-plane column 
     gmUserId: gm,
     gmPresetId: null,
     config: liteConfig(),
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
   // EVERY nullable snapshot column populated distinctively (a null-vs-value copy bug is otherwise invisible).
@@ -102,7 +103,7 @@ test("no COPIED column is silently dropped — every populated row-plane column 
     plot: { act: 2, title: "The reckoning", acts: [{ title: "Arrival", summary: "s1" }] },
     fieldLocks: { "ambient.location": true },
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await insertJournalEntry(db, {
     id: castId("rpg_journal_census"),
@@ -113,7 +114,7 @@ test("no COPIED column is silently dropped — every populated row-plane column 
     content: "It rang twice.",
     variantId,
     sourceMessageId: messageId,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await upsertSheet(db, {
     id: castId("rpg_sheet_census"),
@@ -121,9 +122,9 @@ test("no COPIED column is silently dropped — every populated row-plane column 
     characterId: null,
     userId: gm,
     sheet: { className: "Warden", attributes: { grit: 3 }, flavor: "scarred", level: 5, trackerGrants: ["bound_will"], trackerRevokes: ["morale"] },
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
-  await insertCheckpoint(db, { id: castId("rpg_checkpoint_census"), gameId, snapshotId, label: "the ford", trigger: "manual", createdAt: FROZEN_AT });
+  await insertCheckpoint(db, { id: castId("rpg_checkpoint_census"), gameId, snapshotId, label: "the ford", trigger: "manual", createdAt: FROZEN_AT_MS });
 
   const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "census", { messageId, variantId });
   const h = makeRpgService(db);

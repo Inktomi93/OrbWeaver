@@ -9,6 +9,7 @@ import { assets } from "@orb/db";
 import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -17,7 +18,6 @@ import { assetIdForHash, metadataForOwnedHash, storeBlob } from "#server/domain/
 import { pngBytes, pngBytesWithDims, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
-const NOW = 1_750_000_000_000;
 
 async function freshCas(): Promise<ReturnType<typeof createCas>> {
   const dir = await mkdtemp(join(tmpdir(), "orb-assets-cas-"));
@@ -38,7 +38,7 @@ describe("storeBlob", () => {
       kind: "avatar",
       mime: PNG,
       candidateId: castId<AssetId>("asset_one"),
-      now: NOW,
+      now: FROZEN_AT_MS,
       enforceMagic: false,
     });
 
@@ -47,7 +47,7 @@ describe("storeBlob", () => {
     expect(await assetIdForHash(db, owner, stored.hash)).toBe(stored.assetId);
     const rows = await db.select().from(assets).where(eq(assets.id, stored.assetId));
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.uploadedAt).toBe(NOW);
+    expect(rows[0]?.uploadedAt).toBe(FROZEN_AT_MS);
   });
 
   // #1529 — the CHECK `assets_measurements_check` (#1378 item 1) says a STORED dimension is positive, and
@@ -66,7 +66,7 @@ describe("storeBlob", () => {
       kind: "avatar",
       mime: PNG,
       candidateId: castId<AssetId>("asset_zero"),
-      now: NOW,
+      now: FROZEN_AT_MS,
       enforceMagic: false,
     });
 
@@ -89,7 +89,7 @@ describe("storeBlob", () => {
       kind: "avatar",
       mime: PNG,
       candidateId: castId<AssetId>("asset_sized"),
-      now: NOW,
+      now: FROZEN_AT_MS,
       enforceMagic: false,
     });
 
@@ -110,7 +110,7 @@ describe("storeBlob", () => {
       kind: "avatar",
       mime: PNG,
       candidateId: castId<AssetId>("asset_first"),
-      now: NOW,
+      now: FROZEN_AT_MS,
       enforceMagic: false,
     });
     const second = await storeBlob(db, cas, {
@@ -119,7 +119,7 @@ describe("storeBlob", () => {
       kind: "avatar",
       mime: PNG,
       candidateId: castId<AssetId>("asset_second"),
-      now: NOW,
+      now: FROZEN_AT_MS,
       enforceMagic: false,
     });
 
@@ -144,7 +144,7 @@ describe("owner-scoped reads", () => {
       kind: "avatar",
       mime: PNG,
       candidateId: castId<AssetId>("asset_x"),
-      now: NOW,
+      now: FROZEN_AT_MS,
       enforceMagic: false,
     });
 
@@ -169,7 +169,7 @@ describe("owner-scoped reads", () => {
         kind: "avatar",
         mime: PNG,
         candidateId: castId<AssetId>("asset_bad"),
-        now: NOW,
+        now: FROZEN_AT_MS,
         enforceMagic: true,
       }),
     ).rejects.toThrow();

@@ -124,7 +124,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G: readonly ReviewedGateGra
     "#server/domain/persona/contract/views.ts",
     "#server/domain/tool-use/index.ts",
   ],
-  "tests/server/entry/compose/co-participant-assets.int.test.ts": ["#server/entry/compose/co-participant-assets.ts"],
   "tests/server/entry/compose/databank.int.test.ts": ["#server/entry/compose/databank.ts"],
   "tests/server/entry/compose/imagery.test.ts": ["#server/domain/imagery/index.ts", "#server/entry/compose/imagery.ts"],
   "tests/server/entry/compose/plugin-chat-reads.int.test.ts": ["#server/entry/compose/plugin-chat-reads.ts"],
@@ -133,11 +132,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G: readonly ReviewedGateGra
   "tests/server/entry/compose/portability-runner.suite.int.test.ts": ["#server/entry/boot/planner-maintenance.ts"],
   "tests/server/entry/compose/portability-runner.test.ts": ["#server/entry/compose/portability-runner.ts"],
   "tests/server/entry/compose/portability.test.ts": ["#server/entry/compose/portability.ts", "#server/primitives/serde/chat-bundle/index.ts"],
-  "tests/server/entry/compose/preset-usage.int.test.ts": [
-    "#server/domain/settings/index.ts",
-    "#server/entry/compose/preset-usage.ts",
-    "#server/entry/compose/visible-rooms.ts",
-  ],
   "tests/server/entry/compose/refinery.test.ts": ["#server/entry/compose/refinery.ts"],
   "tests/server/entry/compose/regex.int.test.ts": ["#server/entry/compose/regex.ts"],
   "tests/server/entry/compose/research-familiar.suite.int.test.ts": ["#server/entry/compose/automation-watcher.ts"],
@@ -148,7 +142,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G: readonly ReviewedGateGra
     "#inference/capability/synthesize.ts",
     "#server/domain/rpg/index.ts",
     "#server/domain/rpg/substrate/readonly-axis.ts",
-    "#server/entry/compose/rpg.ts",
   ],
   "tests/server/entry/compose/_rpg-support.ts": [
     "#inference/capability/families.ts",
@@ -175,7 +168,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G: readonly ReviewedGateGra
     "#server/transport/trpc/notifications-bus.ts",
     "#server/transport/trpc/user-events-bus.ts",
   ],
-  "tests/server/entry/compose/session-entries.int.test.ts": ["#server/entry/compose/session-entries.ts"],
   "tests/server/entry/compose/share-seating.test.ts": ["#server/entry/compose/share-seating.ts"],
   "tests/server/entry/compose/side-gen-params.test.ts": ["#server/entry/compose/side-gen-params.ts"],
   "tests/server/entry/compose/speaker-arbiter.suite.test.ts": [
@@ -189,7 +181,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_G: readonly ReviewedGateGra
     "#inference/structured/plan.ts",
     "#server/entry/compose/chat.ts",
   ],
-  "tests/server/entry/compose/visible-rooms.int.test.ts": ["#server/entry/compose/visible-rooms.ts"],
   "tests/server/entry/compose/workload-contributions.test.ts": ["#server/entry/compose/workload-contributions.ts"],
   "tests/server/entry/compose/world-info.test.ts": ["#server/entry/compose/world-info.ts"],
   "tests/server/entry/http/auth-routes.int.test.ts": [

@@ -212,7 +212,7 @@ test("a refused URL surfaces the verb's own leak-free reason inline, writes noth
   // debounce (never a guessed sleep) — a write queued behind the debounce would land inside it.
   await page.evaluate(
     (idleMs) =>
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+      // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
       new Promise<void>((resolve) => {
         setTimeout(resolve, idleMs);
       }),
@@ -253,7 +253,7 @@ test("the section's rendered geometry settles after mount and stays settled with
   // it is real elapsed page time the app cannot render through unobserved.
   await page.evaluate(
     async () =>
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+      // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
       await new Promise<void>((resolve) => {
         setTimeout(resolve, 500);
       }),
@@ -381,7 +381,7 @@ for (const deviceScaleFactor of [1, 2] as const) {
       // long enough that a loop firing per animation frame would have logged hundreds of times.
       await page.evaluate(
         () =>
-          // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+          // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
           new Promise<void>((resolve) => {
             setTimeout(resolve, 3000);
           }),

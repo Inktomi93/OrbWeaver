@@ -18,11 +18,12 @@ import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgG
 import { castId } from "@orb/kit/ids";
 import type { RpgPortabilityContext } from "@orb/server/domain/rpg";
 import { createExportRpgGame, createImportRpgGame } from "@orb/server/domain/rpg";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../../chat/_support.ts";
+import { seedChat, seedMessage, seedUser } from "../../chat/_support.ts";
 import { seedGame, snapshotId } from "../_support.ts";
 
 let db: Db;
@@ -113,7 +114,7 @@ function portabilityCtx(database: Db): RpgPortabilityContext {
   };
   return {
     db: database,
-    now: (): number => FROZEN_AT,
+    now: (): number => FROZEN_AT_MS,
     ids: {
       game: () => castId(next("rpg_game")),
       snapshot: () => castId(next("rpg_snapshot")),
@@ -140,7 +141,7 @@ async function seedSourceCampaign(database: Db): Promise<{ chatId: ChatId; gameI
     variantId,
     location: "the broken bridge",
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await database.insert(rpgJournal).values({
     id: castId("rpg_journal_src"),
@@ -151,7 +152,7 @@ async function seedSourceCampaign(database: Db): Promise<{ chatId: ChatId; gameI
     content: "The span gave way.",
     variantId,
     sourceMessageId: messageId,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await database.insert(rpgTurnToolCalls).values({
     id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_src"),
@@ -159,7 +160,7 @@ async function seedSourceCampaign(database: Db): Promise<{ chatId: ChatId; gameI
     messageId,
     variantId,
     calls: [{ name: "update_scene", args: '{"location":"the broken bridge"}', verdict: "applied", issues: [] }],
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await database.insert(rpgCheckpoints).values({
     id: castId<RpgCheckpointId>("rpg_checkpoint_src"),
@@ -167,7 +168,7 @@ async function seedSourceCampaign(database: Db): Promise<{ chatId: ChatId; gameI
     snapshotId: snapId,
     label: "before the bridge",
     trigger: "manual",
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return { chatId, gameId, variantId, messageId };
 }
@@ -214,7 +215,7 @@ describe("createExportRpgGame", () => {
             asOfMessageId: null,
             location: "after the concurrent write",
             committed: 1,
-            createdAt: FROZEN_AT + 1,
+            createdAt: FROZEN_AT_MS + 1,
           });
           await writer.update(rpgCheckpoints).set({ snapshotId: nextSnapshotId }).where(eq(rpgCheckpoints.gameId, gameId));
           mutationApplied = true;
@@ -302,8 +303,8 @@ describe("createImportRpgGame", () => {
         characterId: null,
         userId: sheetUser,
         sheet: { className: "Wanderer", attributes: {}, flavor: "", level: 4, trackerGrants: [], trackerRevokes: [] },
-        createdAt: FROZEN_AT,
-        updatedAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
+        updatedAt: FROZEN_AT_MS,
       },
     ]);
     const exported = await createExportRpgGame({ db })({ chatId: sourceChat });

@@ -12,6 +12,7 @@ import { chats, compactionSpend } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -20,7 +21,7 @@ import { beforeEach, describe } from "vitest";
 import type { QuietGenerate, QuietGenerateParams } from "#server/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createCompaction } from "#server/domain/chat/verbs/compaction.ts";
-import { FROZEN_AT, makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
+import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -283,7 +284,7 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
     expect(costDelta?.characterId).toBeNull();
     expect(costDelta?.model).toBeNull();
     // …and its ledger row committed beside it, the canon a stats rebuild re-derives the spend from.
-    expect(await db.select().from(compactionSpend)).toEqual([{ id: expect.any(String), ownerId: host, costUsd: 0.042, createdAt: FROZEN_AT }]);
+    expect(await db.select().from(compactionSpend)).toEqual([{ id: expect.any(String), ownerId: host, costUsd: 0.042, createdAt: FROZEN_AT_MS }]);
   });
 
   test("a NULL generation cost stamps NO cost delta (a local vLLM turn reports none)", async () => {

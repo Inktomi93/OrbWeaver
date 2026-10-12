@@ -1,9 +1,8 @@
 // Final gate-ignore residue policy: dispatcher-owned historical grammar and the complete frozen Phase-F differential.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { gate as gateIgnoreInventory } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
+import { gate } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
@@ -15,8 +14,8 @@ function passOf(files: Readonly<Record<string, string>>, requestedPaths?: readon
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
   return runPolicyPass({
-    knownPolicies: [gateIgnoreInventory],
-    policies: [gateIgnoreInventory],
+    knownPolicies: [gate],
+    policies: [gate],
     root: ROOT,
     project,
     reviewedGrants: [],
@@ -26,7 +25,7 @@ function passOf(files: Readonly<Record<string, string>>, requestedPaths?: readon
 }
 
 test("every final gate-ignore proof row holds through production dispatch", () => {
-  expect(verifyPolicyProofs([gateIgnoreInventory])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("a narrowed request defers the entire-population residue owner", () => {
@@ -52,9 +51,9 @@ test("the showcase workspace remains inside the retired-marker population", () =
       line: 1,
       column: 1,
       token: "old-gate",
-      message: gateIgnoreInventory.message,
-      fix: gateIgnoreInventory.fix,
-      policyId: gateIgnoreInventory.id,
+      message: gate.message,
+      fix: gate.fix,
+      policyId: gate.id,
     },
   ]);
 });

@@ -3,7 +3,7 @@
 // forced/@mention hard override; solo = roster-of-1; the eligible-set predicates (muted/left excluded).
 
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
-import { speakerKey } from "@orb/contracts/chat";
+import { speakerKey, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -31,7 +31,7 @@ const keys = (refs: readonly SpeakerRef[]): string[] => refs.map(speakerKey);
 function candidate(ref: SpeakerRef, over: Partial<ArbiterCandidate> = {}): ArbiterCandidate {
   return {
     ref,
-    talkativeness: over.talkativeness ?? 0.5,
+    talkativeness: over.talkativeness ?? TALKATIVENESS_DEFAULT,
     disabled: over.disabled ?? false,
     leftSeq: over.leftSeq ?? null,
   };

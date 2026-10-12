@@ -1,4 +1,4 @@
-// entry/compose/emit-chat-changed — the `chatsChanged` MEMBER-FAN (PD user-bus lane; cross-device + multi-human
+// domain/chat/verbs/emit-chat-changed — the `chatsChanged` MEMBER-FAN (PD user-bus lane; cross-device + multi-human
 // chat-list recency). THE load-bearing SECURITY property: a `chatId` fans ONLY to users who are/were-at-this-
 // moment members of that chat — every present human member receives (so member B's list reorders on member A's
 // action in a shared room), and a NON-member NEVER does (the isolation boundary — the fan enumerates the roster,
@@ -9,12 +9,12 @@
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createChatChangedEmitter } from "@orb/server/entry/compose";
-import { publishUserEvent, subscribeUserEvents } from "@orb/server/transport/trpc";
+import { createEmitChatChanged } from "@orb/server/domain/chat";
+import { publishChatChanged, publishUserEvent, subscribeUserEvents } from "@orb/server/transport/trpc";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 /** Read the next event off a live stream — `on()` buffered anything published after subscribe. */
 async function next(stream: AsyncIterable<UserBusEvent>): Promise<UserBusEvent> {
@@ -35,7 +35,7 @@ describe("emit-chat-changed — member fan + non-member isolation", () => {
     await seedParticipant(db, { chatId, key: "b", userId: memberB, role: "member" });
     // nonMemberC is NOT seated in this chat.
 
-    const emit = createChatChangedEmitter(db);
+    const emit = createEmitChatChanged({ db }, publishChatChanged);
     const abortA = new AbortController();
     const abortB = new AbortController();
     const abortC = new AbortController();
@@ -75,7 +75,7 @@ describe("emit-chat-changed — member fan + non-member isolation", () => {
       leftSeq: 5,
     });
 
-    const emit = createChatChangedEmitter(db);
+    const emit = createEmitChatChanged({ db }, publishChatChanged);
     const abortA = new AbortController();
     const abortLeft = new AbortController();
     const streamA = subscribeUserEvents(memberA, abortA.signal);
