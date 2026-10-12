@@ -973,6 +973,7 @@ test.describe("final policy planner", () => {
         grantedFindings: [],
         authorityAlarms: [],
         unjudgedReviewedGrants: [],
+        waiverBudget: null,
         toolErrors: [],
         withheldPolicyIds: [],
         ordinaryConsumption: [],

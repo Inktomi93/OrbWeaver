@@ -171,8 +171,17 @@ export interface GateAuthorityVerdict {
   readonly failOnWarnings: boolean;
 }
 
-/** Committed waived plus granted allowance per policy id (`lib/waiver-budget.ts`). A policy with no row has a budget of zero. */
+/** Committed waived plus granted allowance per policy id over the policy's whole declared population
+ *  (`lib/waiver-budget.ts`). A policy with no row has a budget of zero. */
 export type WaiverBudget = Readonly<Record<string, number>>;
+
+/** Which selected policies this run judged against the budget, and which it could not because their owner did
+ *  not walk the whole declared population (a scoped or application selection). An unjudged policy is neither
+ *  within budget nor over it. */
+export interface WaiverBudgetReport {
+  readonly judged: readonly string[];
+  readonly unjudged: readonly string[];
+}
 
 export interface GateAuthorityBatchInput {
   readonly knownPolicies: readonly SelectedGatePolicy[];
@@ -191,6 +200,8 @@ export interface GateAuthorityBatchResult {
   readonly grantedFindings: readonly GrantedGateFinding[];
   readonly authorityAlarms: readonly GateAuthorityAlarm[];
   readonly unjudgedReviewedGrants: readonly UnjudgedReviewedGrant[];
+  /** Null when no budget was handed in. */
+  readonly waiverBudget: WaiverBudgetReport | null;
   readonly toolErrors: readonly GateAuthorityToolError[];
   readonly withheldPolicyIds: readonly string[];
   readonly ordinaryConsumption: readonly AuthorityConsumption[];
