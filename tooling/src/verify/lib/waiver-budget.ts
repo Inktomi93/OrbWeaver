@@ -124,7 +124,6 @@ const IMPLEMENTATION = Object.freeze({
   suppressions: 7,
   "test-determinism": 32,
   "test-file-size": 11,
-  "test-mock-doctrine": 7,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,
