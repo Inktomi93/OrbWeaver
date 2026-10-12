@@ -89,7 +89,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   suppressions: 58,
   "surface-a11y-focus": 5,
   "test-determinism": 80,
-  "test-reach": 518,
+  "test-reach": 517,
   "testid-typed-only-stories": 336,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,

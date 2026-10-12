@@ -321,7 +321,6 @@ export const REVIEWED_GRANTS_TEST_REACH_VERBS: readonly ReviewedGateGrant[] = [
     "packages/server/src/domain/sessions/verbs/ensure-user.ts",
     "packages/server/src/domain/sessions/verbs/link-external-id.ts",
     "packages/server/src/domain/sessions/verbs/list.ts",
-    "packages/server/src/domain/sessions/verbs/load-user-by-id.ts",
     "packages/server/src/domain/sessions/verbs/local-user.ts",
     "packages/server/src/domain/sessions/verbs/owner-password.ts",
     "packages/server/src/domain/sessions/verbs/pending-signup.ts",

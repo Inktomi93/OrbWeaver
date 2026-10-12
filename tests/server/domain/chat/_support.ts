@@ -55,6 +55,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
+import { createPersonaOwned } from "@orb/server/domain/persona";
 import { createSourceState } from "@orb/server/domain/search";
 import {
   applyCharacterStatsDelta,
@@ -466,6 +467,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
   const notStubbed = (): never => {
     throw new Error("ChatContext op not stubbed in this test");
   };
+  const personaOwned = createPersonaOwned(db);
   const base: ChatContext = {
     resolveCorpusSourceState: createSourceState({ db }),
     db,
@@ -618,12 +620,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The character-lock hop (D62): default "no connection" — the connected-anchor tests override
     // with a resolver fake (the REAL join is the composition root's; op fakes keep tests op-shaped).
     resolveConnectedPersona: () => Promise.resolve(null),
-    // Default = the REAL ownership read against the seeded `personas` (mirrors the root's `verifyPersonaOwned`)
-    // so the `reattributePersona` tests need no per-test override; a test may override to force a verdict.
-    verifyPersonaOwned: async ({ ownerId, personaId }) => {
-      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
-      return rows[0]?.ownerId === ownerId;
-    },
+    // Default = persona's own ownership read, the one compose wires, so the `reattributePersona` tests need no
+    // per-test override; a test may override to force a verdict.
+    verifyPersonaOwned: ({ ownerId, personaId }) => personaOwned(ownerId, personaId),
     resolveMemoryEmbedSpace: (ownerId) =>
       Promise.resolve({
         ownerId,
@@ -635,8 +634,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     embeddingsStoreSegments: notStubbed,
     // Default = the REAL prune against the seeded vector tables (the `verifyPersonaOwned` precedent), not a
     // stub: the shrink reclaim is a CORRECTNESS step of every build pass, so a memory test that fakes it
-    // would prove the build while silently exempting the half that deletes. It calls the same
-    // embeddings/persistence functions the composition root wires — the DELETE has one home.
+    // would prove the build while silently exempting the half that deletes. Unlike compose's prune it does not
+    // scope the DELETE to the host's target generation: these fixtures seed rows outside any target.
     embeddingsPruneBlocks: async (params) => {
       if (params.lens === "digest") {
         await pruneChatDigests(db, params.chatId, params.scopedCharacterId, { keepPerTier: params.keepPerTier });

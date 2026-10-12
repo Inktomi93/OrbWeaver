@@ -59,6 +59,7 @@ import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
 import { createResolvePresetUsage } from "./preset-usage.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
+import { createVacuousMemoryReceipt } from "./vector-sweep-ops.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
 /** The embed-space sweep enqueues' own trace root, for both scopes. One name so the debug surface and any future
@@ -420,16 +421,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     emitUserEvent: publishUserEvent,
   });
 
-  // The memory receipt for an owner a sweep covers but builds no space for. Only completable when memory is OFF
-  // for them: they have no memory vectors, so the scope is vacuously in the target space. An ENABLED owner gets
-  // none; its memory sweep records its own.
-  const vacuousMemoryReceipt = async (ownerId: UserId): Promise<MemoryEmbedSpace | null> => {
-    if (await deps.isMemoryEnabled(ownerId)) {
-      return null;
-    }
-    const generation = await embeddings.resolveGeneration(ownerId, "embed");
-    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
-  };
+  // The memory receipt for an owner a sweep covers but builds no space for.
+  const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, embeddings });
 
   // An owner's memory sweep: a memory-backfill run, or for a memory-off owner (refused at admission, and it
   // would derive nothing) the vacuous receipt recorded directly.

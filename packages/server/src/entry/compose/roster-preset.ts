@@ -1,22 +1,24 @@
 // The roster-preset seam (D61 B6 — saved parties; D170).
 // Built AFTER chat: `applyToChat` drives chat's OWN host-gated verbs (addCharacterToChat / setSeatKnobs /
 // setGroupConfig) plus chat's own `requireHost` guard — ONE authority home, wired here so the domain
-// never sideways-imports chat at runtime. The two ownership belts (member characters, anchor persona)
-// and the present-seat classification pre-read are direct compose-root db reads — the
-// `verifyPersonaOwned` (compose/chat.ts) and `resolveChatHostUserId` (services.ts) precedents: an
-// injected op that reads tenant-scoped data either takes the caller and gates inside (the chat verbs
-// do) or is a pure ownership/classification read whose subject the calling verb already gated.
+// never sideways-imports chat at runtime. The two ownership belts (member characters, anchor persona) are
+// the owning domains' own reads; the present-seat classification pre-read is a direct compose-root db read
+// (the `resolveChatHostUserId` precedent): an injected op that reads tenant-scoped data either takes the
+// caller and gates inside (the chat verbs do) or is a pure ownership/classification read whose subject
+// the calling verb already gated.
 
 import type { Can } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, personas } from "@orb/db";
+import { chatParticipants } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { AutomationService } from "#domain/automation";
 import { resolveChatRulePresetKnobs } from "#domain/automation";
+import { createOwnedCharacterIds } from "#domain/character";
 import type { ChatService } from "#domain/chat";
 import { requireHost } from "#domain/chat";
+import { createPersonaOwned } from "#domain/persona";
 import type { PresentCharacterSeat, RosterPresetContext, RosterPresetService } from "#domain/roster-preset";
 import { createRosterPresetService } from "#domain/roster-preset";
 import type { AuditEntry } from "#foundation/observability";
@@ -42,21 +44,8 @@ export function buildRosterPreset(input: RosterPresetComposeInput): RosterPreset
     emitUserEvent,
     // The owned subset of `characterIds` — the FK proves existence, never ownership, so the producer
     // verb gates through this read (D18/D20).
-    verifyCharactersOwned: async (ownerId, characterIds) => {
-      if (characterIds.length === 0) {
-        return [];
-      }
-      const rows = await db
-        .select({ id: characters.id })
-        .from(characters)
-        .where(and(inArray(characters.id, [...characterIds]), eq(characters.ownerId, ownerId)));
-      return rows.map((row) => row.id);
-    },
-    // Absent/foreign ⇒ false (leak-free) — the compose/chat.ts spelling.
-    verifyPersonaOwned: async (ownerId, personaId) => {
-      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
-      return rows[0]?.ownerId === ownerId;
-    },
+    verifyCharactersOwned: createOwnedCharacterIds(db),
+    verifyPersonaOwned: createPersonaOwned(db),
     chat: {
       addCharacterToChat: chat.addCharacterToChat,
       setSeatKnobs: chat.setSeatKnobs,

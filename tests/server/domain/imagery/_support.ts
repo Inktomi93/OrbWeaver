@@ -9,14 +9,14 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { assets, characters, userConnections, users } from "@orb/db";
+import { assets, userConnections, users } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createCharacterOwned } from "@orb/server/domain/character";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
-import { and, eq } from "drizzle-orm";
 import { makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -153,15 +153,8 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     applyStatsDelta: (_batch, _db, delta) => {
       recordedStats.push(delta);
     },
-    // The real owner-scoped `characters` read compose wires, so the auto-add gate is exercised for real.
-    ownsCharacter: async (ownerId, characterId) => {
-      const rows = await db
-        .select({ id: characters.id })
-        .from(characters)
-        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-        .limit(1);
-      return rows.length > 0;
-    },
+    // The character-owned read compose wires, so the auto-add gate is exercised for real.
+    ownsCharacter: createCharacterOwned(db),
     addToGallery: (caller, assetId, subjectCharacterId) => {
       galleryAdds.push({ ownerId: caller.userId, assetId, subjectCharacterId });
       return Promise.resolve();

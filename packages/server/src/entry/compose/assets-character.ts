@@ -15,17 +15,21 @@ import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { characters as charactersTable } from "@orb/db";
-import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
+import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
-import type { AssetId, CharacterHandle, CharacterId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
-import { createCharacterService, createDefaultCharacterSeeder, createLinkCharacterAvatars, migrateSeededCardBackgrounds } from "#domain/character";
+import {
+  createCharacterOwned,
+  createCharacterService,
+  createDefaultCharacterSeeder,
+  createLinkCharacterAvatars,
+  migrateSeededCardBackgrounds,
+} from "#domain/character";
 import { migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
@@ -45,8 +49,10 @@ import { publishUserEvent } from "#transport/trpc";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "./co-participant-assets.ts";
+import { createGalleryCharacterOps } from "./gallery-character-ops.ts";
 import { createMaterializeBackground } from "./materialize-background.ts";
 import { minter } from "./minter.ts";
+import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 
 /** What the assets/character seam needs from the composition root. `getPreset`/`getPersona` are the request-time
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
@@ -168,16 +174,8 @@ export function createPersonaSeedLatch(deps: {
 export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCharacterComposeResult {
   const { db, now, cas, variants, imageAdapter, tag, roleClientsFor, settings } = deps;
 
-  // The one owner-scoped "does this user own this character?" read: the gallery add verb's subject gate and
-  // imagery's auto-add gate both close over it.
-  const characterOwned = async (ownerId: UserId, characterId: CharacterId): Promise<boolean> => {
-    const rows = await db
-      .select({ id: charactersTable.id })
-      .from(charactersTable)
-      .where(and(eq(charactersTable.id, characterId), eq(charactersTable.ownerId, ownerId)))
-      .limit(1);
-    return rows.length > 0;
-  };
+  // The gallery add verb's subject gate and imagery's auto-add gate both close over this one read.
+  const characterOwned = createCharacterOwned(db);
 
   // Captured as a named const so the portability registry's gallery descriptor can reuse it.
   const assetsCtx: AssetsContext = {
@@ -284,17 +282,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   // The live assets ctx extended with the two character-handle resolvers the gallery export/import verbs
   // need. Wired after `character` so the forward reference resolves.
-  const galleryCtx: AssetsContext = {
-    ...assetsCtx,
-    resolveCharacterHandle: async (characterId): Promise<string | null> => {
-      const rows = await db.select({ handle: charactersTable.handle }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
-      return rows[0]?.handle ?? null;
-    },
-    findCharacterByHandle: async ({ ownerId, handle }) => {
-      const ref = await character.findByHandle({ ownerId, handle });
-      return ref?.characterId ?? null;
-    },
-  };
+  const galleryCtx: AssetsContext = { ...assetsCtx, ...createGalleryCharacterOps(db, character) };
 
   // The SCENE-PLATE seeder, built BEFORE the card seeder because the card pack's dressing resolves its
   // plate through this one (`resolveSeededBackground` below). It is the composition point where the three
@@ -343,6 +331,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     },
   });
 
+  const seedAvatars = createSeedAvatarOps(assets);
+
   // The one idempotent instance boot + the app first-request hook share.
   const characterSeeder = createDefaultCharacterSeeder({
     resolveSeededBackground: backgroundSeeder.resolvePlate,
@@ -351,38 +341,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     characters: character,
     attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
       tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
-    // A missing bundled file / store hiccup returns null → the card seeds avatar-less (never blocks the seed).
-    storeAvatar: async (principal, handle): Promise<AssetId | null> => {
-      const art = await readSeedAvatar(handle);
-      if (art === null) {
-        return null;
-      }
-      const stored = await assets.store({
-        principal,
-        bytes: art.bytes,
-        kind: "avatar",
-        mime: art.mime,
-        enforceMagic: true,
-      });
-      return stored.assetId;
-    },
-    seedGallery: async (principal, characterId, handle): Promise<void> => {
-      const avatarArt = await readSeedAvatar(handle);
-      if (avatarArt !== null) {
-        const avatarAsset = await assets.store({
-          principal,
-          bytes: avatarArt.bytes,
-          kind: "avatar",
-          mime: avatarArt.mime,
-          enforceMagic: true,
-        });
-        await assets.addToGallery({
-          principal,
-          assetId: avatarAsset.assetId,
-          subjectCharacterId: characterId,
-        });
-      }
-    },
+    ...seedAvatars.character,
     markWelcomeAssistant: async (principal, welcomeAssistantId): Promise<void> => {
       const current = (await settings.getUserSettings({ principal })).config;
       if (current.seeds.welcomeAssistantCharacterId === null) {
@@ -394,8 +353,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     },
   });
 
-  // Mirror of characterSeeder, for the default `{{user}}` persona. The bundled art keeps its `persona-you`
-  // seed-asset key — that is a FILE key, not the display name, and renaming it would be a pack migration.
+  // Mirror of characterSeeder, for the default `{{user}}` persona.
   const personaSeeder = createDefaultPersonaSeeder({
     // AUTOMATION-ONLY auto-create (the forced-first-run redesign — `boot/seed-default-persona.ts` header):
     // a stack an agent/script booted seeds Traveler so no dev regen or e2e boot ever hits the blocking ask;
@@ -406,20 +364,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       const detail = await deps.getPersona().create({ principal, input });
       return { id: detail.id };
     },
-    storeAvatar: async (principal): Promise<AssetId | null> => {
-      const art = await readSeedAvatar(castId<CharacterHandle>("persona-you"));
-      if (art === null) {
-        return null;
-      }
-      const stored = await assets.store({
-        principal,
-        bytes: art.bytes,
-        kind: "avatar",
-        mime: art.mime,
-        enforceMagic: true,
-      });
-      return stored.assetId;
-    },
+    ...seedAvatars.persona,
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),
   });
 

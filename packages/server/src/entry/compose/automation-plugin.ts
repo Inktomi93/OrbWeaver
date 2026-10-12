@@ -88,6 +88,7 @@ import { superviseDetached } from "#foundation/observability";
 import { fetchPluginBundle, pluginGitSource } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
 import { publishAutomationEvent, publishNotification, publishUserEvent } from "#transport/trpc";
+import { createResolveUserEnabled } from "../auth/index.ts";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
@@ -469,9 +470,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     transforms: automationTransforms,
     resolveAuthor: resolveOwnerPrincipal,
-    // C5 — FAIL-CLOSED at the wiring: an absent row answers `false`, never "assume enabled". `loadUserById`
-    // is sessions' own read, which is the whole reason this crosses as an op instead of a local select.
-    isAuthorEnabled: async (userId): Promise<boolean> => (await deps.sessions.loadUserById(userId))?.enabled === true,
+    // Sessions' own `users` read, which is why this crosses as an op instead of a local select.
+    isAuthorEnabled: createResolveUserEnabled(deps.sessions),
     // S4 POSTURE 2, the plugin arm — declared by automation, BODIED by plugin. THE ENFORCEMENT SET FOLLOWS THE
     // ORIGIN: a confirmed plugin act re-enters through the PLUGIN's own bridge (`buildConfirmedActRunner`), so
     // it meets the attach gate, the per-plugin entry ceiling, `neutralizeMacros` and the hourly belts — NOT
