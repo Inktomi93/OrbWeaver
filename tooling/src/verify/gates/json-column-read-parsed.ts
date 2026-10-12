@@ -1,11 +1,11 @@
 // Gate: json-column-read-parsed — a TYPED JSON column (`mode:"json"` + `$type<T>`) whose T has a zod twin is
 // parsed on read in `persistence/**`. The `$type` is a cast: it states what the writer meant, not what the row
-// holds after a schema change, a hand migration or an import. A read off a SELECT row (`row.col`, `row["col"]`,
-// `const { col } = row`) must reach a parser declared by zod or the versioned-config codec, directly, through a
-// helper handed the schema, or one hop into a helper that parses its parameter. Reader: `lib/json-column-read.ts`.
+// holds after a schema change, a hand migration or an import. A read off a SELECT row (`row.col`, `row["col"]`, `row[KEY]`,
+// a flat or nested destructure; the row may reach a local helper's parameter one hop) must reach a parser zod or the
+// versioned-config codec declares, directly or one hop into a helper that parses its parameter. Reader: `lib/json-column-read.ts`.
 // TWIN: T's declaration is `z.infer`/`z.output<typeof X>` (twin X), or T's module exports `<lowerFirst(T)>Schema`.
 // DECLARED LIMITS (mustPass rows): an open column is `open-json-column-key-parity`'s subject; a value written straight
-// back (a write builder, an insert-model literal, an assignment) or only presence-tested is not consumed.
+// back under its own key (a drizzle write builder, an insert-model literal, an assignment) or only presence-tested is not consumed.
 // FAMILY `open-json-column-key-parity`: the open-json-column family, reading the shared `drizzleSchemaFact`.
 import type { Node, Type } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
@@ -14,7 +14,16 @@ import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { ColumnRead } from "../lib/json-column-read.ts";
-import { bindingUsesJudged, columnReadAt, isParsedValue, isPresenceTest, isWriteSink, readsSelectRow, rowModels } from "../lib/json-column-read.ts";
+import {
+  bindingUsesJudged,
+  columnReadAt,
+  columnValueType,
+  isParsedValue,
+  isPresenceTest,
+  isWriteSink,
+  readsSelectRow,
+  rowModels,
+} from "../lib/json-column-read.ts";
 import { isBoundary } from "../lib/ordinary-waiver-carrier.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
@@ -145,17 +154,17 @@ export const gate = defineGate({
         const models = rowModels(schema.value);
         ctx.receipt({ kind: "population", source: "typed-json-columns-with-twin", members: [...typed.values()].reduce((n, m) => n + m.size, 0) });
         const reads = candidates.flatMap((read) => {
-          const twin = typed.get(read.column)?.get(namedType(read.value.getType()).compilerType);
+          const twin = typed.get(read.column)?.get(namedType(columnValueType(read)).compilerType);
           if (twin === undefined || !readsSelectRow(read, models, query)) {
             return [];
           }
           const judged = N.isBindingElement(read.value.getParent())
-            ? bindingUsesJudged(read, models)
-            : isWriteSink(read.value, models) || isPresenceTest(read.value) || isParsedValue(read.value);
+            ? bindingUsesJudged(read, models, query)
+            : isWriteSink(read.value, read.column, models, query) || isPresenceTest(read.value) || isParsedValue(read.value);
           return judged ? [] : [{ read, twin, region: waiverRegion(read.value) }];
         });
         for (const { read, twin } of outermostPerRegion(reads)) {
-          ctx.report.node(read.anchor, { token: read.column, offset: read.offset, message: `Twin: \`${twin}\`. ${MESSAGE}` });
+          ctx.report.node(read.anchor, { token: read.token, offset: read.offset, message: `Twin: \`${twin}\`. ${MESSAGE}` });
         }
       },
     };
@@ -224,6 +233,49 @@ export const gate = defineGate({
       expect: { count: 2, token: "manifest" },
       why: "a parse is judged by the parser, not the callee's name: a `parse*`-named helper with no schema, and a helper that reads the raw value, both report",
     },
+    {
+      mode: "types",
+      files: proofFiles(
+        "export const nested = (row: Row): string => {\n  const { manifest: { name } } = row;\n  return name;\n};\n" +
+          "const KEY = 'manifest' as const;\n" +
+          "export const keyed = (row: Row): string => row[KEY].name;\n",
+      ),
+      expect: { count: 2 },
+      why: "a nested destructure consumes the column where it stands, and a const-bound key is the literal key's read",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        "function castWith<T>(schema: ZodType<T>, value: unknown): T {\n  void schema;\n  return value as T;\n}\n" +
+          "export const handedOnly = (row: Row): string => castWith(pluginManifestSchema, row.manifest).name;\n",
+      ),
+      expect: { count: 1, token: "manifest" },
+      why: "a helper HANDED a schema is not a parse: this one casts the value, so the read reports",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        "export const spread = (row: Row): string[] => Object.values(row.manifest);\n" +
+          "const cache = new Map<string, PluginManifest>();\n" +
+          "export const cached = (row: Row): void => {\n  cache.set('k', row.manifest);\n};\n" +
+          "export const other = (row: Row): void => db.update(plugins).set({ note: { text: row.manifest.name } });\n" +
+          "export const crossKey = (row: Row): Insert => ({ note: row.manifest });\n" +
+          "declare const store: { set(value: { readonly manifest: PluginManifest }): void };\n" +
+          "export const stored = (row: Row): void => store.set({ manifest: row.manifest });\n" +
+          "export const elsewhere = (row: Row): void => db.insert(audits).values({ manifest: row.manifest });\n",
+      ),
+      expect: { count: 6, token: "manifest" },
+      why: "write-ness is the drizzle builder's declaration plus the same column key: `Object.values`, a Map `set`, a read inside another column's written value, a literal key of another column, a `set` whose chain names no table, and a write to a table that has no such column are all reads",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        "function describe(card: { readonly manifest: PluginManifest }): string {\n  return card.manifest.name;\n}\n" +
+          "export const viaHelper = (row: Row): string => describe(row);\n",
+      ),
+      expect: { count: 1, token: "manifest" },
+      why: "THE ROW-TO-PARAMETER HOP: a row handed to a local helper whose parameter is a hand copy of the row is still a select row",
+    },
   ],
   mustRefuse: [
     {
@@ -263,13 +315,14 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles(
-        "declare const db: { insert(table: unknown): { values(value: object): void } };\n" +
-          "export const write = (input: Row): void => db.insert(plugins).values({ manifest: input.manifest });\n" +
+        "export const write = (input: Row): void => db.insert(plugins).values({ manifest: input.manifest });\n" +
+          "export const merged = (input: Row): void => db.update(plugins).set({ manifest: { ...input.manifest, name: 'x' } });\n" +
+          "export const upsert = (input: Row): void => db.insert(plugins).values(input).onConflictDoUpdate({ set: { manifest: input.manifest } });\n" +
           "export const assign = (target: { manifest: PluginManifest }, input: PluginManifest): void => {\n  target.manifest = input;\n};\n" +
           "export const copy = (source: Row): Insert => ({ manifest: source.manifest, grantedCapabilities: source.grantedCapabilities });\n" +
           "export const present = (row: Row): boolean => row.manifest !== null && typeof row.manifest === 'object';\n",
       ),
-      why: "DECLARED LIMIT: a write builder argument, an assignment target, a row copied into an insert-model literal and a presence test consume no field",
+      why: "DECLARED LIMIT: the column's own key in a drizzle write's row (spread into it too, and an upsert's `set`), an assignment target, a row copied into an insert-model literal under its own key and a presence test consume no field",
     },
     {
       mode: "types",
@@ -278,6 +331,14 @@ export const gate = defineGate({
           "export const nested = (input: { readonly draft: { readonly manifest: PluginManifest } }): string => input.draft.manifest.name;\n",
       ),
       why: "a same-named, same-typed property on a value that is not a select row (a verb input, a domain shape) is not a column read",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        "function describe(card: { readonly manifest: PluginManifest }): string {\n  return card.manifest.name;\n}\n" +
+          "export const fromInput = (input: { readonly manifest: PluginManifest }): string => describe(input);\n",
+      ),
+      why: "the parameter hop needs a ROW at a call: a helper only ever handed a verb input is not reading a column",
     },
     {
       mode: "types",
@@ -312,7 +373,8 @@ function proofFiles(body: string): Readonly<Record<string, string>> {
       "export interface Column<T> { readonly value: T; $type<U>(): Column<U>; notNull(): Column<T> }\n" +
       "export declare function text(name: string, options?: { mode?: string }): Column<unknown>;\n" +
       "export declare function sqliteTable<const Columns extends Record<string, Column<unknown>>>(name: string, columns: Columns): Columns & " +
-      '{ $inferSelect: { [Key in keyof Columns]: Columns[Key]["value"] }; $inferInsert: { [Key in keyof Columns]?: Columns[Key]["value"] } };\n',
+      '{ $inferSelect: { [Key in keyof Columns]: Columns[Key]["value"] }; $inferInsert: { [Key in keyof Columns]?: Columns[Key]["value"] } };\n' +
+      "export interface Db { insert(table: unknown): { values(value: object): { onConflictDoUpdate(config: object): void } }; update(table: unknown): { set(value: object): void } }\n",
     "node_modules/zod/index.d.ts": "export interface ZodType<T> { parse(value: unknown): T; safeParse(value: unknown): { success: boolean } }\n",
     "packages/contracts/src/versioned-config/index.ts":
       "export interface VersionedConfig<T> { parse(raw: unknown): T; parseOutcome(raw: unknown): { readonly value: T } }\n",
@@ -327,13 +389,16 @@ function proofFiles(body: string): Readonly<Record<string, string>> {
       'import type { Note, PluginCapability, PluginManifest } from "../../../contracts/src/plugin/index.ts";\n' +
       'export const plugins = sqliteTable("plugins", {\n  manifest: text("manifest", { mode: "json" }).$type<PluginManifest>().notNull(),\n' +
       '  grantedCapabilities: text("granted_capabilities", { mode: "json" }).$type<PluginCapability[]>().notNull(),\n' +
-      '  note: text("note", { mode: "json" }).$type<Note>().notNull(),\n});\n',
+      '  note: text("note", { mode: "json" }).$type<Note>().notNull(),\n});\n' +
+      'export const audits = sqliteTable("audits", { label: text("label").notNull() });\n',
     "packages/server/src/domain/plugin/persistence/plugins.ts":
       'import type { ZodType } from "zod";\n' +
-      'import { plugins } from "../../../../../db/src/schema/plugin.ts";\n' +
+      'import type { Db } from "drizzle-orm/sqlite-core";\n' +
+      'import { audits, plugins } from "../../../../../db/src/schema/plugin.ts";\n' +
       'import { manifestConfig, pluginCapabilitySchema, pluginManifestSchema, type PluginCapability, type PluginManifest } from "../../../../../contracts/src/plugin/index.ts";\n' +
       "type Row = typeof plugins.$inferSelect;\n" +
       "type Insert = typeof plugins.$inferInsert;\n" +
+      "declare const db: Db;\n" +
       body,
   };
 }

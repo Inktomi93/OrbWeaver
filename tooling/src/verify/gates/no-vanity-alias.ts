@@ -5,7 +5,8 @@
 // Vendor-package renames are always legal.
 // docs/law/Spine-TypeScript-and-Patterns.md.
 //
-// FAMILY: singleton. The census hypothesis ("import/export identity → canonical origin fact") does not
+// CANDIDATES: the authored rename syntax comes from `floor/code-facts/rename-bindings.ts`, the reader `pnpm ast aliases`
+// lists every rename with; this policy adds the sanctioned-rename rules. FAMILY: singleton. The census hypothesis ("import/export identity → canonical origin fact") does not
 // hold: every existing `canonical-origin` family reader resolves a symbol's ORIGIN across module
 // boundaries (is this the sealed X, does this re-export land on the same declaration); this policy's three
 // arms never resolve an origin at all — the subject IS the AUTHORED alias syntax and a same-file/whole-
@@ -57,6 +58,7 @@
 // by both.
 import type { ExportSpecifier, ImportSpecifier, Node as MorphNode, SourceFile, TypeAliasDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { renameBindingOf } from "../../floor/code-facts/rename-bindings.ts";
 import { defineGate } from "../contract/policy.ts";
 
 const DOC = "docs/law/Spine-TypeScript-and-Patterns.md";
@@ -156,12 +158,8 @@ function doubleAliasGroups(rel: string, aliases: readonly TypeAliasDeclaration[]
   }
   const byTarget = new Map<string, MorphNode[]>();
   for (const ta of aliases) {
-    const tn = ta.getTypeNode();
-    if (tn === undefined || !Node.isTypeReference(tn) || tn.getTypeArguments().length > 0) {
-      continue;
-    }
-    const targetName = tn.getTypeName();
-    if (!Node.isIdentifier(targetName)) {
+    const targetName = renameBindingOf(ta)?.targetName;
+    if (targetName === undefined || !Node.isIdentifier(targetName)) {
       continue;
     }
     const target = targetName.getText();
@@ -271,38 +269,32 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.ImportSpecifier],
           visit: (node, sourceFile) => {
-            if (!Node.isImportSpecifier(node)) {
+            const rename = renameBindingOf(node);
+            const spec = rename?.moduleSpecifier;
+            if (
+              rename?.kind !== "rename-import" ||
+              !Node.isImportSpecifier(node) ||
+              spec === undefined ||
+              !isWorkspaceSpecifier(spec) ||
+              isOrbUiSpecifier(spec)
+            ) {
               return;
             }
-            const rel = ctx.relativePath(sourceFile);
-            const aliasNode = node.getAliasNode();
-            const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-            if (aliasNode === undefined || decl === undefined) {
-              return;
-            }
-            const spec = decl.getModuleSpecifierValue();
-            if (!isWorkspaceSpecifier(spec) || isOrbUiSpecifier(spec)) {
-              return;
-            }
-            importCandidates.push({ node, rel, spec, original: node.getName(), alias: aliasNode.getText() });
+            importCandidates.push({ node, rel: ctx.relativePath(sourceFile), spec, original: rename.original, alias: rename.alias });
           },
         },
         {
           kinds: [SyntaxKind.ExportSpecifier],
           visit: (node) => {
-            if (!Node.isExportSpecifier(node)) {
+            const rename = renameBindingOf(node);
+            if (rename?.kind !== "rename-export" || !Node.isExportSpecifier(node)) {
               return;
             }
-            const aliasNode = node.getAliasNode();
-            const decl = node.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
-            if (aliasNode === undefined || decl === undefined) {
-              return;
-            }
-            const spec = decl.getModuleSpecifierValue();
+            const spec = rename.moduleSpecifier;
             if (spec !== undefined && !isWorkspaceSpecifier(spec)) {
               return; // vendor-source rename-export (echarts-setup's OrbChartOption) — always legal
             }
-            exportCandidates.push({ node, original: node.getName() });
+            exportCandidates.push({ node, original: rename.original });
           },
         },
       ],

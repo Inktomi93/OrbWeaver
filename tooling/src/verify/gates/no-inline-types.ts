@@ -90,10 +90,17 @@ export const gate = defineGate({
       "packages/server/src/primitives/**",
       "tooling/src/floor/**",
       "**/contract/**",
-      // The test type home: shared helpers and fixture modules hold the test-only shapes suites import.
+      // The test type home: shared helpers and fixture modules hold the test-only shapes suites import. Scoped to
+      // `tests/`, so a product or tooling file named like a fixture is still judged.
       "tests/support/**",
+      "tests/**/fixtures.ts",
+      "tests/**/*.fixtures.ts",
+      "tests/**/*.fixtures.tsx",
+      "tests/**/*-fixtures.ts",
+      "tests/**/*-fixtures.tsx",
+      "tests/**/_support.ts",
     ],
-    notNamed: ["contract.ts", "fixtures.ts", "*.fixtures.ts", "*.fixtures.tsx", "*-fixtures.ts", "*-fixtures.tsx", "_support.ts"],
+    notNamed: ["contract.ts"],
   },
   analysis: "types",
   execution: "selected-files",
@@ -182,6 +189,17 @@ export const gate = defineGate({
       },
       expect: { count: 2 },
       why: "TESTS ARE JUDGED: a suite or a CT story exporting a shape is outside the test type home; the shape belongs in a fixture or support module, or is derived from its contract",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/fixtures.ts": "export type A = string;\n",
+        "packages/server/src/domain/x/seed-fixtures.ts": "export type B = string;\n",
+        "packages/server/src/domain/x/_support.ts": "export type C = string;\n",
+        "tooling/src/snap/lib/run.fixtures.ts": "export type D = string;\n",
+      },
+      expect: { count: 4 },
+      why: "THE TEST HOME IS SCOPED TO `tests/`: a product or tooling module named like a fixture or support file is not a type home",
     },
   ],
   mustPass: [

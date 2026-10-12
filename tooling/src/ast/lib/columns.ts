@@ -1,5 +1,6 @@
 // drizzle column defs + the STRUCTURAL write scan (schema tables ride floor/code-facts/schema-read).
 
+import { drizzleWriteOf, writeKeysOf } from "@orb/tooling/floor/code-facts/drizzle-columns";
 import type { SchemaTable } from "@orb/tooling/floor/code-facts/schema-read";
 import { schemaTables } from "@orb/tooling/floor/code-facts/schema-read";
 import type { Expression } from "ts-morph";
@@ -93,17 +94,6 @@ import { rawInsertHeaders } from "./sql-insert-header.ts";
 const COLUMN_OK_RE = /@column-ok:\s*\S/u;
 
 const SCHEMA_DIR = "/packages/db/src/schema/";
-
-/** The drizzle write METHODS whose first argument names columns. `set` is name-ambiguous on its own
- *  (`Map.set`, `URLSearchParams.set`) — it only counts when the chain walk below lands on an `update(<T>)`
- *  call, which no non-drizzle receiver has. */
-const DRIZZLE_WRITE_METHODS = new Set(["values", "set", "select"]);
-
-/** The upsert form: its argument is a CONFIG object whose `set` property holds the written columns. */
-const DRIZZLE_UPSERT_METHOD = "onConflictDoUpdate";
-
-/** The chain-terminating calls that NAME the table being written. */
-const DRIZZLE_WRITE_ROOTS = new Set(["insert", "update"]);
 
 /** How many consumption sites a hit names before it collapses to a count. */
 export const COLUMN_SITES_SHOWN = 2;
@@ -200,30 +190,6 @@ export function isColumnConsumer(fp: string): boolean {
   return isPackageSourcePath(fp) && !(fp.includes(SCHEMA_DIR) || isTestPath(fp));
 }
 
-/** Walk a drizzle method chain down to the `insert(<T>)` / `update(<T>)` call that NAMES the table, and return
- *  that table expression. Undefined for any other receiver — which is what keeps `Map.set` / `Object.values`
- *  out of the write scan (their chains never reach an `insert`/`update` call). */
-function drizzleWriteTarget(receiver: Node): Node | undefined {
-  // ONE exit point: an early `return` inside the walk plus a trailing one is a shape tsc's noImplicitReturns
-  // and biome's noUselessReturn cannot both accept — the accumulator satisfies both.
-  let target: Node | undefined;
-  let cur: Node | undefined = receiver;
-  while (cur !== undefined && target === undefined) {
-    const node: Node = cur;
-    const inner: Node = Node.isCallExpression(node) ? node.getExpression() : node;
-    if (!Node.isPropertyAccessExpression(inner)) {
-      cur = undefined; // not a member access at all — the chain is not a drizzle write chain; stop.
-      continue;
-    }
-    if (Node.isCallExpression(node) && DRIZZLE_WRITE_ROOTS.has(inner.getName())) {
-      target = node.getArguments()[0];
-      continue;
-    }
-    cur = inner.getExpression();
-  }
-  return target;
-}
-
 /** Resolve a table EXPRESSION (`rpgGames`, `schema.rpgGames`) to its TableDef through the definition graph —
  *  never by bare identifier text, so a local alias or a renaming import hop still lands on one table. */
 export function resolveTableDef(expr: Node, byKey: ReadonlyMap<string, TableDef>): TableDef | undefined {
@@ -235,63 +201,6 @@ export function resolveTableDef(expr: Node, byKey: ReadonlyMap<string, TableDef>
     .getDefinitionNodes()
     .map((d) => byKey.get(declKey(d)))
     .find((hit) => hit !== undefined);
-}
-
-/** The columns one write ARGUMENT names, and whether it is (partly) OPAQUE. An object literal names its keys;
- *  a spread inside it hides the rest; an array literal is a multi-row insert (union of its elements); anything
- *  else (a typed variable, a call, a conditional) names nothing at all. */
-function writtenKeysOf(arg: Node | undefined): { names: string[]; opaque: boolean } {
-  if (arg === undefined) {
-    return { names: [], opaque: true };
-  }
-  if (Node.isArrayLiteralExpression(arg)) {
-    const merged = arg.getElements().map((e) => writtenKeysOf(e));
-    return { names: merged.flatMap((m) => m.names), opaque: merged.some((m) => m.opaque) };
-  }
-  if (!Node.isObjectLiteralExpression(arg)) {
-    return { names: [], opaque: true };
-  }
-  const names: string[] = [];
-  let opaque = false;
-  for (const prop of arg.getProperties()) {
-    if (Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop)) {
-      names.push(prop.getName());
-    } else {
-      opaque = true; // a spread (`{ ...patch }`) or a computed key — the rest of the row is unknown.
-    }
-  }
-  return { names, opaque };
-}
-
-/** The write ARGUMENT of one drizzle write call: `.values(x)` / `.set(x)` take it directly; the upsert form
- *  `.onConflictDoUpdate({ target, set })` carries it on the config's `set` property. */
-function writeArgOf(call: Node, method: string): Node | undefined {
-  if (!Node.isCallExpression(call)) {
-    return;
-  }
-  const arg = call.getArguments()[0];
-  if (method !== DRIZZLE_UPSERT_METHOD) {
-    return arg;
-  }
-  if (arg === undefined || !Node.isObjectLiteralExpression(arg)) {
-    return;
-  }
-  const setProp = arg.getProperty("set");
-  return Node.isPropertyAssignment(setProp) ? setProp.getInitializer() : undefined;
-}
-
-/** The named projection of `insert(table).select(db.select({ … }))`. Drizzle maps these object keys to the
- *  insert row; a positional/raw select is opaque because its target columns cannot be proved structurally. */
-function insertSelectKeysOf(arg: Node | undefined): { names: string[]; opaque: boolean } {
-  if (arg === undefined) {
-    return { names: [], opaque: true };
-  }
-  const calls = [arg, ...arg.getDescendantsOfKind(SyntaxKind.CallExpression)].filter(Node.isCallExpression);
-  const select = calls.find((candidate) => {
-    const expr = candidate.getExpression();
-    return Node.isPropertyAccessExpression(expr) && expr.getName() === "select";
-  });
-  return select === undefined ? { names: [], opaque: true } : writtenKeysOf(select.getArguments()[0]);
 }
 
 function recordRawHeader(header: { table: string; columns: readonly string[] }, tables: readonly TableDef[], site: string, writes: WriteScan): void {
@@ -409,26 +318,14 @@ export function scanColumnWrites(project: SourceCorpus, tables: readonly TableDe
 /** Record ONE call expression's contribution to the write scan (a no-op for the overwhelming majority — any
  *  call whose chain does not reach a drizzle `insert`/`update`). */
 function recordWriteCall(call: Node, byKey: ReadonlyMap<string, TableDef>, writes: WriteScan): void {
-  if (!Node.isCallExpression(call)) {
-    return;
-  }
-  const expr = call.getExpression();
-  if (!Node.isPropertyAccessExpression(expr)) {
-    return;
-  }
-  const method = expr.getName();
-  if (!(DRIZZLE_WRITE_METHODS.has(method) || method === DRIZZLE_UPSERT_METHOD)) {
-    return;
-  }
-  const target = drizzleWriteTarget(expr.getExpression());
-  const table = target === undefined ? undefined : resolveTableDef(target, byKey);
-  if (table === undefined) {
+  const write = drizzleWriteOf(call);
+  const table = write === undefined ? undefined : resolveTableDef(write.target, byKey);
+  if (write === undefined || table === undefined) {
     return;
   }
   const site = `${relPath(call.getSourceFile().getFilePath())}:${call.getStartLineNumber()}`;
   writes.perTable.set(table.key, [...(writes.perTable.get(table.key) ?? []), site]);
-  const arg = writeArgOf(call, method);
-  const { names, opaque } = method === "select" ? insertSelectKeysOf(arg) : writtenKeysOf(arg);
+  const { names, opaque } = writeKeysOf(write);
   for (const name of names) {
     const key = columnKey(table.key, name);
     writes.perColumn.set(key, [...(writes.perColumn.get(key) ?? []), site]);

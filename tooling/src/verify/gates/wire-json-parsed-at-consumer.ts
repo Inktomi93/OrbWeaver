@@ -1,9 +1,9 @@
 // Gate: wire-json-parsed-at-consumer — a client response body is parsed through its contract schema, never cast.
 // ts-reset types `Response.json()` as `unknown`, so an `as`/`satisfies` over the body is the one way to skip the parse:
-// `<x>.json()` awaited, parenthesised, typed `Promise<T>` or returned from a `.then` callback, and `JSON.parse` over a
-// `<x>.text()` body. A target of `unknown`, or a literal of only `unknown` members, is still unparsed data and passes.
-// Subject: the `json` (or `JSON.parse`'s `parse`) name. Population: `@client`. DECLARED LIMIT: syntax tier, so the
-// global `JSON` is matched by spelling. FAMILY: singleton — no other policy reads response bodies.
+// `<x>.json()` awaited, parenthesised, through an `as unknown` step, typed `Promise<T>`, returned from a `.then` callback,
+// or held one hop in a local `const`; and `JSON.parse` over a `<x>.text()` body. A target of `unknown`, or a literal of
+// only `unknown` members, is still unparsed data and passes. Subject: the `json` (or `parse`) name. Population: `@client`.
+// DECLARED LIMIT: syntax tier, so the global `JSON` and the local `const` are matched lexically. FAMILY: singleton.
 import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -24,12 +24,46 @@ const FIX =
   "with `@orb-waive wire-json-parsed-at-consumer(json): <reason naming its burn-down item>` on the line above; the " +
   "position is the `json` method name, or `parse` for `JSON.parse(await res.text())`.";
 
-function unwrapAwait(node: Node): Node {
+// Through what hands the body on unchanged: parentheses, `await`, and an `as unknown` / `satisfies unknown` step.
+function unwrapBody(node: Node): Node {
   let current = node;
-  while (N.isParenthesizedExpression(current) || N.isAwaitExpression(current)) {
-    current = current.getExpression();
+  for (;;) {
+    if (N.isParenthesizedExpression(current) || N.isAwaitExpression(current)) {
+      current = current.getExpression();
+    } else if ((N.isAsExpression(current) || N.isSatisfiesExpression(current)) && keepsUnknown(current.getTypeNode())) {
+      current = current.getExpression();
+    } else {
+      return current;
+    }
   }
-  return current;
+}
+
+// The initializer of the nearest `const` an identifier names, declared before it in an enclosing block; a parameter of
+// the same name in between shadows it. One lexical hop, so `const body = await res.json(); return body as T` is read.
+function localConstInitializer(identifier: Node): Node | undefined {
+  const name = identifier.getText();
+  const shadows = (scope: Node): boolean =>
+    (N.isArrowFunction(scope) || N.isFunctionExpression(scope) || N.isFunctionDeclaration(scope)) && scope.getParameters().some((p) => p.getName() === name);
+  const declaredIn = (scope: Node): Node | undefined =>
+    N.isBlock(scope) || N.isSourceFile(scope)
+      ? scope
+          .getStatements()
+          .filter((statement) => N.isVariableStatement(statement) && statement.getEnd() <= identifier.getStart())
+          .flatMap((statement) => (N.isVariableStatement(statement) && statement.getDeclarationKind() === "const" ? statement.getDeclarations() : []))
+          .findLast((candidate) => candidate.getName() === name)
+      : undefined;
+  let found: Node | undefined;
+  for (let scope = identifier.getParent(); scope !== undefined && found === undefined && !shadows(scope); scope = scope.getParent()) {
+    found = declaredIn(scope);
+  }
+  return found !== undefined && N.isVariableDeclaration(found) ? found.getInitializer() : undefined;
+}
+
+// The body expression a cast operand or a callback result stands for: unwrapped, and through one local `const`.
+function bodyExpression(node: Node): Node {
+  const current = unwrapBody(node);
+  const initializer = N.isIdentifier(current) ? localConstInitializer(current) : undefined;
+  return initializer === undefined ? current : unwrapBody(initializer);
 }
 
 /** `<x>.<method>()` with no arguments: the method's name node. */
@@ -41,7 +75,7 @@ function bodyRead(node: Node, method: string): Node | undefined {
   return N.isPropertyAccessExpression(callee) && callee.getName() === method && node.getArguments().length === 0 ? callee.getNameNode() : undefined;
 }
 
-/** The value a `.then` callback resolves to: its expression body, or its body's single `return` expression. */
+/** The value a `.then` callback resolves to: its expression body, or its body's final `return` expression. */
 function callbackResult(callback: Node | undefined): Node | undefined {
   if (callback === undefined || !(N.isArrowFunction(callback) || N.isFunctionExpression(callback))) {
     return;
@@ -50,14 +84,13 @@ function callbackResult(callback: Node | undefined): Node | undefined {
   if (!N.isBlock(body)) {
     return body;
   }
-  const statements = body.getStatements();
-  const [only] = statements;
-  return statements.length === 1 && only !== undefined && N.isReturnStatement(only) ? only.getExpression() : undefined;
+  const last = body.getStatements().at(-1);
+  return last !== undefined && N.isReturnStatement(last) ? last.getExpression() : undefined;
 }
 
 /** The body read under a cast operand: `.json()`, a `.then` callback returning `.json()`, or `JSON.parse(.text())`. */
 function bodyReadUnder(operand: Node): Node | undefined {
-  const current = unwrapAwait(operand);
+  const current = bodyExpression(operand);
   const json = bodyRead(current, JSON_METHOD);
   if (json !== undefined || !N.isCallExpression(current)) {
     return json;
@@ -69,10 +102,10 @@ function bodyReadUnder(operand: Node): Node | undefined {
   const [first] = current.getArguments();
   if (callee.getName() === THEN_METHOD) {
     const result = callbackResult(first);
-    return result === undefined ? undefined : bodyRead(unwrapAwait(result), JSON_METHOD);
+    return result === undefined ? undefined : bodyRead(bodyExpression(result), JSON_METHOD);
   }
   const parsesText = callee.getName() === PARSE_METHOD && callee.getExpression().getText() === JSON_GLOBAL && first !== undefined;
-  return parsesText && bodyRead(unwrapAwait(first), TEXT_METHOD) !== undefined ? callee.getNameNode() : undefined;
+  return parsesText && bodyRead(bodyExpression(first), TEXT_METHOD) !== undefined ? callee.getNameNode() : undefined;
 }
 
 /** `unknown`, `Promise<unknown>`, or a type literal whose every member is (recursively) `unknown`: the body stays unparsed data. */
@@ -158,6 +191,18 @@ export const gate = defineGate({
       expect: { count: 1, token: "parse" },
       why: "`JSON.parse` over the `.text()` body skips the parse the same way; the position is `parse`",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/data/stepped.ts":
+          "interface Row { readonly id: string }\n" +
+          "export async function doubled(res: Response): Promise<Row> {\n  return (await res.json()) as unknown as Row;\n}\n" +
+          "export async function twoStep(res: Response): Promise<Row> {\n  const body = await res.json();\n  return body as Row;\n}\n" +
+          "export const inThen = (u: string): Promise<Row> => fetch(u).then(async (r) => {\n  const b = await r.json();\n  return b;\n}) as Promise<Row>;\n",
+      },
+      expect: { count: 3, token: "json" },
+      why: "an `as unknown` step does not launder the body, and a body held in a local `const` (also inside a `.then` block) is the same read",
+    },
   ],
   mustPass: [
     {
@@ -171,9 +216,11 @@ export const gate = defineGate({
           'declare const doc: { json(key: string): unknown };\nexport const other = (): string => doc.json("k") as string;\n' +
           "export const chained = (u: string): Promise<unknown> => fetch(u).then((r) => r.json()) as Promise<unknown>;\n" +
           "export const viaSchema = (u: string): Promise<{ id: string }> => fetch(u).then(async (r) => schema.parse(await r.json()));\n" +
-          "declare const stored: string;\nexport const local = (): { id: string } => JSON.parse(stored) as { id: string };\n",
+          "declare const stored: string;\nexport const local = (): { id: string } => JSON.parse(stored) as { id: string };\n" +
+          "export async function reassigned(res: Response): Promise<{ id: string }> {\n  let body: unknown = await res.json();\n  body = schema.parse(body);\n  return body as { id: string };\n}\n" +
+          "const outer = fetch('/x').then((r) => r.json());\nexport const shadow = (outer: unknown): { id: string } => outer as { id: string };\n",
       },
-      why: "the remedy (a schema parse, also inside a `.then`), an `unknown` target (also through `.then`), a literal of only `unknown` members (nested literals included), a `json` method that takes an argument, and `JSON.parse` of a string that is not a `.text()` body",
+      why: "a local that is reassigned is not followed, and a same-named parameter shadows an outer const — plus the remedy (a schema parse, also inside a `.then`), an `unknown` target (also through `.then`), a literal of only `unknown` members (nested literals included), a `json` method that takes an argument, and `JSON.parse` of a string that is not a `.text()` body",
     },
     {
       mode: "source",
