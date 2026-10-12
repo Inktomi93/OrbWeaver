@@ -70,9 +70,9 @@ describe("persistence/pending-signups", () => {
     const hit = await db.batch(
       batchMany([takePendingSignupStatement(db, "h1", AT), insertPendingSignupUserStatement(db, account("friend", "friend@example.test"), ADMITS)]),
     );
-    expect([(hit[0] as readonly object[]).length, (hit[1] as readonly object[]).length]).toEqual([1, 1]);
+    expect(hit.map((rows) => rows.length)).toEqual([1, 1]);
     const miss = await db.batch(batchMany([takePendingSignupStatement(db, "h1", AT), insertPendingSignupUserStatement(db, account("again", null), ADMITS)]));
-    expect([(miss[0] as readonly object[]).length, (miss[1] as readonly object[]).length]).toEqual([0, 0]);
+    expect(miss.map((rows) => rows.length)).toEqual([0, 0]);
   });
 
   test("an email already on a row writes no account even after a live take", async () => {

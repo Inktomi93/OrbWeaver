@@ -83,10 +83,16 @@ const FILLABLE: readonly [string, FillableIcon][] = [
 // The counter-examples: multi-path outlines cast into the fill axis ON PURPOSE so the gallery shows
 // WHY the `FillableIcon` brand exists (SunMoon = many subpaths, Settings/Menu = open strokes).
 // Production code cannot do this — `tsc` rejects it; the cast is the point of the demonstration.
+// @orb-waive no-test-fabrication(FillableIcon): SunMoon forges the fill brand on purpose: the gallery shows why the brand exists; ends when the gallery stops demonstrating the refused pairing; burn-down item 906.
+const FORGED_SUN_MOON = SunMoon as FillableIcon;
+// @orb-waive no-test-fabrication(FillableIcon): Settings forges the fill brand on purpose: the gallery shows why the brand exists; ends when the gallery stops demonstrating the refused pairing; burn-down item 906.
+const FORGED_SETTINGS = Settings as FillableIcon;
+// @orb-waive no-test-fabrication(FillableIcon): Menu forges the fill brand on purpose: the gallery shows why the brand exists; ends when the gallery stops demonstrating the refused pairing; burn-down item 906.
+const FORGED_MENU = Menu as FillableIcon;
 const NOT_FILLABLE: readonly [string, FillableIcon][] = [
-  ["SunMoon", SunMoon as FillableIcon],
-  ["Settings", Settings as FillableIcon],
-  ["Menu", Menu as FillableIcon],
+  ["SunMoon", FORGED_SUN_MOON],
+  ["Settings", FORGED_SETTINGS],
+  ["Menu", FORGED_MENU],
 ];
 
 const WEIGHTS: readonly IconWeight[] = ["hairline", "regular", "bold"];

@@ -40,6 +40,7 @@ import {
   updatePartyArgsSchema,
   updateSceneArgsSchema,
 } from "@orb/contracts/rpg";
+import { isPlainObject } from "@orb/kit/guards";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
@@ -1097,14 +1098,13 @@ function wireKeywords(node: unknown, acc: Set<string> = new Set<string>()): Set<
     }
     return acc;
   }
-  if (node === null || typeof node !== "object") {
+  if (!isPlainObject(node)) {
     return acc;
   }
-  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(node)) {
     acc.add(key);
-    if (NAME_MAP_KEYS.has(key) && value !== null && typeof value === "object" && !Array.isArray(value)) {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      for (const child of Object.values(value as Record<string, unknown>)) {
+    if (NAME_MAP_KEYS.has(key) && isPlainObject(value)) {
+      for (const child of Object.values(value)) {
         wireKeywords(child, acc);
       }
       continue;

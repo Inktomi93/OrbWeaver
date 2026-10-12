@@ -8,6 +8,7 @@
 // @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ extra: Record<string, unknown> }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { VariantMetadata } from "@orb/contracts/chat";
+import { isPlainObject } from "@orb/kit/guards";
 import type { JsonValue } from "@orb/kit/json";
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/primitives/serde/chat";
 import { buildChatJsonl, buildChatTxt, chatContentHash, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/primitives/serde/chat";
@@ -17,6 +18,14 @@ import { expect, test } from "../../../../support/fixtures.ts";
 // ── parse ────────────────────────────────────────────────────────────────────────────────────────────────
 
 const MIGRATION_MS = Date.UTC(2025, 6, 18, 12, 0, 0); // 2025-07-18 — the re-save clobber date
+
+function withReversedKeys(json: string): string {
+  const parsed = JSON.parse(json);
+  if (!isPlainObject(parsed)) {
+    throw new Error("withReversedKeys: the fixture line is not a JSON object");
+  }
+  return JSON.stringify(Object.fromEntries(Object.entries(parsed).toReversed()));
+}
 
 function header(over: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -720,11 +729,7 @@ describe("chatContentHash — the transcript's content identity", () => {
     const opts = { fileName: "a.jsonl", charDirName: "Aria" };
     const saved = parseChatJsonl(`${header()}\n${line({ mes: "one" })}\n${line({ mes: "two", is_user: true })}`, opts);
     const resaved = parseChatJsonl(
-      [
-        JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(header()) as Record<string, unknown>).toReversed())),
-        JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(line({ mes: "one" })) as Record<string, unknown>).toReversed())),
-        `  ${line({ mes: "two", is_user: true })}  `,
-      ].join("\n"),
+      [withReversedKeys(header()), withReversedKeys(line({ mes: "one" })), `  ${line({ mes: "two", is_user: true })}  `].join("\n"),
       opts,
     );
     const edited = parseChatJsonl(`${header()}\n${line({ mes: "one" })}\n${line({ mes: "two!", is_user: true })}`, opts);
