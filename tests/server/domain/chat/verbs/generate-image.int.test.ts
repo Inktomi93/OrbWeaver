@@ -5,8 +5,6 @@
 // domain/imagery); the mapping imagery→chat lives at the composition root, not here.
 
 // @orb-waive-file no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -16,6 +14,7 @@ import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -24,8 +23,8 @@ import { beforeEach, describe, onTestFinished } from "vitest";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import { createGenerateImage } from "#server/domain/chat/verbs/generate-image.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
-import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { makeHarness } from "../../assets/_support.ts";
+import { makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -53,7 +52,7 @@ async function seedGeneratedAsset(ownerId: UserId, key: string): Promise<AssetId
     mime: "image/png",
     size: 1,
     hash: `hash_${key}`,
-    uploadedAt: FROZEN_AT,
+    uploadedAt: FROZEN_AT_MS,
   });
   return assetId;
 }
@@ -86,17 +85,14 @@ describe("generateImage", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
 
     let arrivals = 0;
-    let release: (() => void) | undefined;
-    const together = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: together, resolve: release } = Promise.withResolvers<void>();
     const calls: string[] = [];
     const ctx = makeChatContext(db, {
       generatePicture: async (p) => {
         calls.push(p.prompt ?? "");
         arrivals += 1;
         if (arrivals === 2) {
-          release?.();
+          release();
         }
         await together;
         const assetId = await seedGeneratedAsset(host, p.prompt ?? "none");
@@ -210,7 +206,7 @@ describe("generateImage", () => {
 
     await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "shared view" });
 
-    const harness = await makeAssetsHarness(db);
+    const harness = await makeHarness(db);
     onTestFinished(harness.cleanup);
     if (generatedAssetId === undefined) {
       throw new Error("the generated asset id was not captured");
@@ -259,7 +255,7 @@ describe("generateImage", () => {
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
     await generateImage({ principal: principal(member), chatId, mode: "free", prompt: "a lantern" });
     const picture = castId<AssetId>("asset_room-only");
-    const harness = await makeAssetsHarness(db);
+    const harness = await makeHarness(db);
     onTestFinished(harness.cleanup);
     const assetsService = createAssetsService(harness.ctx);
 

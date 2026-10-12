@@ -14,8 +14,8 @@
 // guaranteed by the scrub state being allocated INSIDE the pump — weaker-looking, therefore tested: one
 // principal, one socket, two chats, ONE deception-active.
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
@@ -630,7 +630,7 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
    *  first pull attaches BOTH listeners before anything is published). */
   async function drain(iterator: AsyncIterator<unknown>, count: number, drive: () => void): Promise<StreamFrame[]> {
     const first = iterator.next();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     drive();
     const frames: StreamFrame[] = [frameOf((await first).value)];
     for (let i = 1; i < count; i++) {

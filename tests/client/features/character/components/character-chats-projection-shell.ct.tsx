@@ -67,9 +67,6 @@ const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 /** Every per-row kebab, by the shape of its name ("Chat actions for <subject>"). */
 const ANY_ROW_MENU = /^Chat actions for /;
-// @orb-waive no-vanity-alias(FROZEN_NOW): baselined when the gate widened; burn-down item 906.
-/** The page clock the stamp test pins — never an ambient wall-clock read (test-determinism gate). */
-const FROZEN_NOW = FROZEN_AT_MS;
 const HOUR_MS = 3_600_000;
 
 /** R1: New chat mints a REAL room — the ChatDetail the startChat responder returns. */
@@ -122,10 +119,10 @@ test("D3 the projection INHERITS the shared row upgrade: a multi-seat room stack
 test("same-titled rows whose stamps ALSO collide still expose distinct action names", async ({ mount, page }) => {
   // The stamp is clock-relative, so the page clock is pinned: both rows land in the SAME "1h" bucket, which
   // is exactly the collision (a minute apart, indistinguishable on screen).
-  await page.clock.setFixedTime(FROZEN_NOW);
+  await page.clock.setFixedTime(FROZEN_AT_MS);
   const twins = [
-    chat({ id: "chat_ct_twin_a", title: "Aveline", seats: [AVELINE], lastMessageAt: FROZEN_NOW - HOUR_MS }),
-    chat({ id: "chat_ct_twin_b", title: "Aveline", seats: [AVELINE], lastMessageAt: FROZEN_NOW - HOUR_MS - 60_000 }),
+    chat({ id: "chat_ct_twin_a", title: "Aveline", seats: [AVELINE], lastMessageAt: FROZEN_AT_MS - HOUR_MS }),
+    chat({ id: "chat_ct_twin_b", title: "Aveline", seats: [AVELINE], lastMessageAt: FROZEN_AT_MS - HOUR_MS - 60_000 }),
   ];
   await routeAll(page, twins);
   const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);

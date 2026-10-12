@@ -20,9 +20,10 @@ import type { Db } from "@orb/db";
 import { messageVariants, presets, rpgCheckpoints, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
-import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, quest, questId, seedChat, seedMessage, seedUser, test } from "../_support.ts";
+import { emptyState, expect, liteConfig, makeRpgService, quest, questId, seedChat, seedMessage, seedUser, test } from "../_support.ts";
 import {
   findGameByChat,
   insertCheckpoint,
@@ -47,7 +48,7 @@ const LIE = '<lie character="Mira" truth="she is the assassin"/>';
 /** Seed a preset row for an ALREADY-seeded owner (no user re-seed — the FK owner exists). The `gmPresetId` FK
  *  references `presets.id`, so a game's preset knob must point at a real row. */
 async function seedPresetRow(db: Db, id: PresetId, ownerId: UserId): Promise<PresetId> {
-  await db.insert(presets).values({ id, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(presets).values({ id, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return id;
 }
 
@@ -83,8 +84,8 @@ async function seedSourceGame(
     gmUserId: gm,
     gmPresetId: opts.gmPresetId ?? null,
     config,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
   const snapshotId = castId<RpgSnapshotId>(`rpg_snapshot_src_${gmHandle}`);
@@ -97,7 +98,7 @@ async function seedSourceGame(
     location: "the tavern",
     recentEvents: [`Mira smiles warmly ${LIE}`],
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await insertJournalEntry(db, {
     id: castId(`rpg_journal_model_${gmHandle}`),
@@ -107,7 +108,7 @@ async function seedSourceGame(
     content: `They met at the ford. ${LIE}`,
     variantId,
     sourceMessageId: messageId,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await insertJournalEntry(db, {
     id: castId(`rpg_journal_hand_${gmHandle}`),
@@ -117,7 +118,7 @@ async function seedSourceGame(
     content: "a hand entry (every lineage)",
     variantId: null,
     sourceMessageId: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await upsertSheet(db, {
     id: castId(`rpg_sheet_src_${gmHandle}`),
@@ -125,9 +126,9 @@ async function seedSourceGame(
     characterId: null,
     userId: gm,
     sheet: { className: "Rogue", attributes: {}, flavor: "", level: 3, trackerGrants: ["bound_will"], trackerRevokes: [] },
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
-  await insertCheckpoint(db, { id: castId(`rpg_checkpoint_src_${gmHandle}`), gameId, snapshotId, label: "start", trigger: "manual", createdAt: FROZEN_AT });
+  await insertCheckpoint(db, { id: castId(`rpg_checkpoint_src_${gmHandle}`), gameId, snapshotId, label: "start", trigger: "manual", createdAt: FROZEN_AT_MS });
   return { chatId, gameId, messageId, variantId, snapshotId };
 }
 
@@ -309,7 +310,7 @@ test("a HAND row rides the fork on every lineage, with its as-of stamp re-keyed 
     id: castId<RpgSnapshotId>("rpg_snapshot_hand_src"),
     gameId: src.gameId,
     chatId: src.chatId,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
   const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "hand", src);
 
@@ -342,7 +343,7 @@ test("a FLOORED fork keeps the hand row and SET-NULLs its as-of (state survives,
     id: castId<RpgSnapshotId>("rpg_snapshot_hand_floored"),
     gameId: src.gameId,
     chatId: src.chatId,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
   // A D106 FLOORED fork: the source's early slots collapsed below the floor, so NEITHER map carries them.
   const forkChatId = await seedChat(db, "fork_floored");
@@ -430,13 +431,13 @@ test("swipe remap: a two-variant slot forks each variant's snapshot to ITS copie
     gmUserId: gm,
     gmPresetId: null,
     config: liteConfig(),
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   // One slot, two variants A + B — each with its OWN snapshot (the swipe plane).
   const { messageId, variantId: varA } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A" });
   const varB = castId<MessageVariantId>("variant_swipe_B");
-  await db.insert(messageVariants).values({ id: varB, messageId, idx: 1, content: "B", createdAt: FROZEN_AT });
+  await db.insert(messageVariants).values({ id: varB, messageId, idx: 1, content: "B", createdAt: FROZEN_AT_MS });
   await insertSnapshot(db, {
     id: castId<RpgSnapshotId>("rpg_snapshot_A"),
     gameId,
@@ -445,7 +446,7 @@ test("swipe remap: a two-variant slot forks each variant's snapshot to ITS copie
     ...emptyState(),
     location: "loc A",
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await insertSnapshot(db, {
     id: castId<RpgSnapshotId>("rpg_snapshot_B"),
@@ -455,14 +456,14 @@ test("swipe remap: a two-variant slot forks each variant's snapshot to ITS copie
     ...emptyState(),
     location: "loc B",
     committed: 0,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 
   // The fork copies BOTH variants (a fork at the head carries the whole swipe fan).
   const forkChatId = await seedChat(db, "fork_swipe");
   const { messageId: forkMsg, variantId: forkVarA } = await seedMessage(db, forkChatId, 1, { role: "assistant", content: "A (fork)" });
   const forkVarB = castId<MessageVariantId>("variant_fork_swipe_B");
-  await db.insert(messageVariants).values({ id: forkVarB, messageId: forkMsg, idx: 1, content: "B (fork)", createdAt: FROZEN_AT });
+  await db.insert(messageVariants).values({ id: forkVarB, messageId: forkMsg, idx: 1, content: "B (fork)", createdAt: FROZEN_AT_MS });
 
   const h = makeRpgService(db);
   await h.chatOps.forkGame({
@@ -502,7 +503,7 @@ test("truncated fork: a snapshot/journal whose variant is NOT in the map is DROP
     ...emptyState(),
     location: "the future",
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   await insertJournalEntry(db, {
     id: castId("rpg_journal_later"),
@@ -512,7 +513,7 @@ test("truncated fork: a snapshot/journal whose variant is NOT in the map is DROP
     content: "past the horizon",
     variantId: laterVar,
     sourceMessageId: laterMsg,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 
   // The fork copies ONLY the first slot (the maps omit the later variant — exactly what a throughSeq truncation does).
@@ -624,8 +625,8 @@ test("a fork of a DISENGAGED game is born disengaged (the pointer mirrors the cl
     gmUserId: gm,
     gmPresetId: null,
     config: { ...liteConfig(), engaged: false },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
   await insertSnapshot(db, {
@@ -635,7 +636,7 @@ test("a fork of a DISENGAGED game is born disengaged (the pointer mirrors the cl
     variantId,
     ...emptyState(),
     committed: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 
   const forkChatId = await seedChat(db, "fork_off");

@@ -3,6 +3,7 @@
 
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -10,7 +11,7 @@ import type { Page } from "@playwright/test";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryStartStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";
-import { CARD, CHARACTER_ID, FROZEN_AT, freeze, ledger, preflight, sessionView, testId } from "./_refinery-content-support.ts";
+import { CARD, CHARACTER_ID, freeze, ledger, preflight, sessionView, testId } from "./_refinery-content-support.ts";
 
 // ── THE LANDING PICK: resume-or-mint (#79) ───────────────────────────────────────────────────────────
 // Measured 2026-08-14: picking a character always minted, so ordinary re-entry left 3 duplicate sessions on
@@ -56,7 +57,7 @@ function rosterRow(
   status: TrpcWireOutput<"refinery.listSessions">[number]["status"],
   updatedAt: number,
 ): TrpcWireOutput<"refinery.listSessions">[number] {
-  return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT, updatedAt });
+  return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT_MS, updatedAt });
 }
 
 /**
@@ -76,7 +77,7 @@ async function pickZephyrine(page: Page): Promise<void> {
 test("picking a character that already has an OPEN session RESUMES the newest one — no duplicate is minted (#79)", async ({ mount, page }) => {
   await freeze(page);
   const trpc = await routeTrpc(page, {
-    ...landingRoutes([rosterRow(OLDER_OPEN_SESSION_ID, "active", FROZEN_AT), rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000)]),
+    ...landingRoutes([rosterRow(OLDER_OPEN_SESSION_ID, "active", FROZEN_AT_MS), rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT_MS + 10_000)]),
     // A mint that WOULD SUCCEED, scripted on purpose. Leaving `startSession` unlisted makes the old
     // always-mint behaviour fail on a null response instead of on the count below — a red about the stub
     // rather than about the defect. With the mint working, the only thing separating the two behaviours is
@@ -109,7 +110,7 @@ test("picking a character whose only session is FINISHED mints a fresh one and o
   const trpc = await routeTrpc(page, {
     // The roster is NOT empty — it carries a `completed` session on this very card. Resumable is the OPEN
     // status alone: an applied session is finished work, so picking the card again starts over.
-    ...landingRoutes([rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT + 10_000)]),
+    ...landingRoutes([rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT_MS + 10_000)]),
     "refinery.startSession": () => sessionView(MINTED_SESSION_ID),
   });
   await mount(<RefineryStartStory />);
@@ -191,7 +192,7 @@ test("RE-ENTERING with an open session offers it on the landing, and the door op
   await freeze(page);
   const asked: string[] = [];
   await routeTrpc(page, {
-    ...landingRoutes([rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000), rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT)]),
+    ...landingRoutes([rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT_MS + 10_000), rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT_MS)]),
     "refinery.getSession": (input) => {
       const { sessionId } = input;
       asked.push(sessionId);

@@ -25,6 +25,7 @@ import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids"
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createStoreInlineReplyImage } from "@orb/server/entry/compose";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -42,7 +43,7 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonContentSignatures, loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
 import { pngBytesWithDims } from "../../assets/_support.ts";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 
@@ -123,7 +124,9 @@ function harness(database: Db, over: { readonly runChatTurn: ChatContext["runCha
       storeGenerated: async (ownerId, _bytes, mime) => {
         counter += 1;
         const assetId = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
-        await database.insert(assets).values({ id: assetId, ownerId, kind: "generated", mime, size: 5, hash: `hash_inline_${counter}`, uploadedAt: FROZEN_AT });
+        await database
+          .insert(assets)
+          .values({ id: assetId, ownerId, kind: "generated", mime, size: 5, hash: `hash_inline_${counter}`, uploadedAt: FROZEN_AT_MS });
         stored.push(assetId);
         return { assetId };
       },
@@ -273,7 +276,7 @@ describe("§6.7 inline reply images — the round trip", () => {
       mime: "image/png",
       size: 5,
       hash: "hash_imagine_1",
-      uploadedAt: FROZEN_AT,
+      uploadedAt: FROZEN_AT_MS,
     });
 
     const sink: TurnRequest[] = [];

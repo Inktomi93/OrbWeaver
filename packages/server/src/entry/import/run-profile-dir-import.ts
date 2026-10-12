@@ -80,6 +80,7 @@ const AVATAR_MIME = "image/png";
 
 /** The ST wall-clock zone for this run: the caller's pin, else the host's. ONE resolver so the collect pass
  *  and the per-file import verbs can never disagree about which clock a snapshot's dates were written on. */
+// @orb-waive compose-wiring-only(stWallClockZone): baselined when the gate landed; burn-down item 964.
 function stWallClockZone(deps: ProfileDirImportDeps): string {
   return deps.stWallClockZone ?? hostTimeZone();
 }
@@ -160,6 +161,7 @@ export interface ProfileDirImportDeps {
 /** Apply the direct-tree byte belts at the read boundary. `stat` rejects before the allocation, while the
  *  post-read check closes a file-growth race. Repeated reads of one path count only its largest observed
  *  size toward the run-wide budget. */
+// @orb-waive compose-wiring-only(withProfileReadLimits): baselined when the gate landed; burn-down item 964.
 function withProfileReadLimits(fs: ImportFsPort): ImportFsPort {
   const accountedByPath = new Map<string, number>();
   let totalBytes = 0;
@@ -246,6 +248,7 @@ interface Collected extends CollectRecords {
 
 /** Union one profile dir's ST library tags into the run-wide map: a card/avatar FILENAME can recur across user
  *  dirs, so the tag lists merge rather than overwrite. */
+// @orb-waive compose-wiring-only(mergeTags): baselined when the gate landed; burn-down item 964.
 function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readonly string[]>): void {
   for (const [key, names] of from) {
     const merged = into.get(key) ?? [];
@@ -261,6 +264,7 @@ function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readon
 /** Append one profile dir's "not imported" records onto the run-wide set. Split out of the collect loop so the
  *  loop reads as "collect, merge, record" — the record list grows with every new plane and inlining it made
  *  the loop the file's most complex function. */
+// @orb-waive compose-wiring-only(mergeRecords): baselined when the gate landed; burn-down item 964.
 function mergeRecords(into: CollectRecords, from: Awaited<ReturnType<typeof collectBundlesFromDir>>): void {
   into.unreadableCards.push(...from.unreadableCards);
   into.unreadableWorlds.push(...from.unreadableWorlds);
@@ -282,6 +286,7 @@ function mergeRecords(into: CollectRecords, from: Awaited<ReturnType<typeof coll
 /** Collect every user-profile subdirectory under the root, merging the per-dir results into one set. A
  *  non-profile entry (a stray file, a `_cache` dir with no `characters/`) yields an empty collect and adds
  *  nothing — the loader's port returns `[]` for a missing subdir rather than throwing. */
+// @orb-waive compose-wiring-only(collectProfileRoot): baselined when the gate landed; burn-down item 964.
 async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected> {
   const { fs, profileRoot, signal } = deps;
   const bundles: CollectedCard[] = [];
@@ -380,6 +385,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
 
 /** scanned = every examined ST entity: happy-path bundles + personas + worlds + presets + groups (and their
  *  transcripts) + chat files, plus the recorded skips. */
+// @orb-waive compose-wiring-only(tallyScanned): baselined when the gate landed; burn-down item 964.
 function tallyScanned(collected: Collected): number {
   let scanned =
     collected.bundles.length +
@@ -404,6 +410,7 @@ function tallyScanned(collected: Collected): number {
  *  found: whether that row may take the PNG's art is decided by the write, not predicted here. Personas/chats
  *  can't be predicted without their write op, so they are examined (counted in scanned) but never in the
  *  dryRun `changed`. */
+// @orb-waive compose-wiring-only(countWouldCreate): baselined when the gate landed; burn-down item 964.
 async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly CollectedCard[]): Promise<number> {
   const ownerId = deps.principal.userId;
   let changed = 0;
@@ -428,6 +435,7 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
 }
 
 /** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
+// @orb-waive compose-wiring-only(toPersonaInput): baselined when the gate landed; burn-down item 964.
 async function toPersonaInput(store: ImportAssetPort["store"], principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
   let avatarAssetId: AssetId | null = null;
   if (p.avatarBytes !== undefined) {
@@ -453,6 +461,7 @@ async function toPersonaInput(store: ImportAssetPort["store"], principal: Princi
  *  them (a) GC-rooted — an unreferenced blob is reclaimed an hour after the import — and (b) pickable in the
  *  background picker. The asset itself also shows up in `assets.listOwned`, the pool every character gallery
  *  curates from (owner ruling: "backgrounds is our gallery — a media store for characters and etc"). */
+// @orb-waive compose-wiring-only(storeCollectedBackgrounds): baselined when the gate landed; burn-down item 964.
 async function storeCollectedBackgrounds(
   deps: ProfileDirImportDeps,
   backgrounds: readonly CollectedBackground[],
@@ -498,6 +507,7 @@ async function storeCollectedBackgrounds(
  *  unreferenced — unreachable from the picker and reclaimed by the GC an hour later — which used to be
  *  entirely silent (neither counted nor reported, #1469). `storedFiles` is index-aligned to `entries`, so the
  *  report names exactly the files that landed in the CAS and nowhere else. */
+// @orb-waive compose-wiring-only(landBackgroundsAndAppearance): baselined when the gate landed; burn-down item 964.
 async function landBackgroundsAndAppearance(
   deps: ProfileDirImportDeps,
   collected: Collected,
@@ -522,6 +532,7 @@ async function landBackgroundsAndAppearance(
 
 /** The inert SillyTavern activation fields a book's entries carry, each with the count of entries carrying
  *  it — the report's "kept but not active yet" line per book (owner ruling). */
+// @orb-waive compose-wiring-only(inertFieldCounts): baselined when the gate landed; burn-down item 964.
 function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertFields"] {
   const counts = new Map<string, number>();
   for (const entry of book.entries) {
@@ -536,6 +547,7 @@ function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertF
  *  reused and a same-named different one lands under a free name. Returns the net-new count, one note per
  *  book for the report, and the row each world landed as, keyed by the name the profile calls it — the map the
  *  name-link wave binds by, since the landed row may carry another name. Aborts cleanly on signal. */
+// @orb-waive compose-wiring-only(importCollectedWorlds): baselined when the gate landed; burn-down item 964.
 async function importCollectedWorlds(
   deps: ProfileDirImportDeps,
   worlds: readonly CollectedWorld[],
@@ -687,6 +699,7 @@ function dryRunCensus(collected: Collected): ImportDryRunCensus {
   };
 }
 
+// @orb-waive compose-wiring-only(reportFrom): baselined when the gate landed; burn-down item 964.
 function reportFrom({ collected, scanned, changed, skippedCards, waves, dryRunWouldImport }: ReportArgs): ImportReport {
   return {
     scanned,
@@ -733,6 +746,7 @@ function liftGlobalScripts(lift: ImportGlobalScripts, ownerId: UserId, scripts: 
 /** One character's world name-links, attached through the injected world-info op. `primary` is the card's
  *  own `extensions.world`; `extras` are the profile's `charLore` bindings for this card; `landed` is the
  *  worlds wave's name → row map. Missing names come back per character for the report. */
+// @orb-waive compose-wiring-only(attachWorldLinksFor): baselined when the gate landed; burn-down item 964.
 async function attachWorldLinksFor(args: {
   readonly attach: AttachOwnedBooksByName;
   readonly ownerId: UserId;
@@ -760,6 +774,7 @@ async function attachWorldLinksFor(args: {
 /** The world NAME-LINK wave over every imported bundle (see the call site's ordering comment). A bundle
  *  whose card was skipped has no character to attach to — its links skip with it (the card's own skip row
  *  already tells the story). An UNWIRED attach op with real links to make is a recorded reason. */
+// @orb-waive compose-wiring-only(attachCollectedWorldLinks): baselined when the gate landed; burn-down item 964.
 async function attachCollectedWorldLinks(
   deps: ProfileDirImportDeps,
   collected: Collected,
@@ -798,6 +813,7 @@ const ORPHAN_IMPORT_TAG = "orphan import";
 /** The ORPHAN wave: mint a placeholder per orphan dir (the verb owns the evidence rule + idempotency),
  *  import its transcripts through the ORDINARY chats verb, tag the mint. PER-ORPHAN ISOLATION — one bad
  *  dir is one skip row, never an aborted wave (the card wave's rule). */
+// @orb-waive compose-wiring-only(importOrphanBundles): baselined when the gate landed; burn-down item 964.
 async function importOrphanBundles(
   deps: ProfileDirImportDeps,
   service: ReturnType<typeof createImportService>,
@@ -856,6 +872,7 @@ async function importOrphanBundles(
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
  *  net-new count (created character + imported chats) and the resolved character id (for the tag attach).
  *  Throws are the CALLER's to isolate. */
+// @orb-waive compose-wiring-only(importOneBundle): baselined when the gate landed; burn-down item 964.
 async function importOneBundle(
   service: ReturnType<typeof createImportService>,
   bundle: CollectedCard,
@@ -897,6 +914,7 @@ async function importOneBundle(
  *  suggestion. The attaches are independent and the verb is race-safe/idempotent (try-insert, fall back on
  *  conflict; never downgrades an accepted row), so they run together; `allSettled` isolates a single tag's
  *  failure so one bad tag never loses the already-imported character. */
+// @orb-waive compose-wiring-only(attachBundleTags): baselined when the gate landed; burn-down item 964.
 async function attachBundleTags(
   deps: ProfileDirImportDeps,
   bundle: CollectedCard,
@@ -925,6 +943,7 @@ async function attachBundleTags(
  *  malformed embedded book, any single-card defect) is skipped and counted in `failed` — it NEVER aborts the
  *  batch. Across hundreds of arbitrary ST cards some will always violate some cap; the import must still land
  *  every card that CAN import. Returns net-new `changed` + the `failed` count. */
+// @orb-waive compose-wiring-only(importCollectedBundles): baselined when the gate landed; burn-down item 964.
 async function importCollectedBundles(
   deps: ProfileDirImportDeps,
   service: ReturnType<typeof createImportService>,
@@ -1037,6 +1056,7 @@ function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"])
  * Import a staged ST profile-directory snapshot into the target owner. Returns the maintenance-pass counts
  * (scanned + changed). `dryRun` collects + matches with ZERO writes.
  */
+// @orb-waive compose-wiring-only(runProfileDirImport): baselined when the gate landed; burn-down item 964.
 export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<ImportReport> {
   const collected = await collectProfileRoot({ ...deps, fs: withProfileReadLimits(deps.fs) });
   const scanned = tallyScanned(collected);
@@ -1201,6 +1221,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
 
 type FsEntry = Awaited<ReturnType<ImportFsPort["readdir"]>>[number];
 
+// @orb-waive compose-wiring-only(direntKind): baselined when the gate landed; burn-down item 964.
 function direntKind(e: Dirent): FsEntry["kind"] {
   if (e.isFile()) {
     return "file";
@@ -1219,6 +1240,7 @@ const ABSENT_DIR_CODES: ReadonlySet<string> = new Set(["ENOENT", "ENOTDIR"]);
  *  (the port contract — a profile may carry only one subdir) and REJECTS on an infrastructure fault. */
 export function createNodeFsImportPort(): ImportFsPort {
   return {
+    // @orb-waive compose-wiring-only(readdir): baselined when the gate landed; burn-down item 964.
     readdir: async (dir): Promise<readonly FsEntry[]> => {
       // The catch is NARROWED to the two ABSENT
       // codes and RE-THROWS everything else — an infra fault leaves as a rejection, which the collector

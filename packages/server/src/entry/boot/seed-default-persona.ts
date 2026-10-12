@@ -106,6 +106,7 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();
 
+  // @orb-waive compose-wiring-only(seed): baselined when the gate landed; burn-down item 964.
   async function seed(principal: Principal): Promise<void> {
     if (await deps.isSeeded(principal)) {
       return;
@@ -129,6 +130,7 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
   }
 
   return {
+    // @orb-waive compose-wiring-only(ensureSeeded): baselined when the gate landed; burn-down item 964.
     ensureSeeded: (principal: Principal): Promise<void> => {
       // The real-stack arm: no create, no latch, no settings read at all (the FIRST-RUN ASK owns this user).
       // Checked per call, not once at build: the knob is a stack posture, and reading it here keeps the

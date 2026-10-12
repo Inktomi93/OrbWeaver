@@ -23,6 +23,7 @@
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -118,7 +119,7 @@ const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.listReactions" | "chat
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   }),

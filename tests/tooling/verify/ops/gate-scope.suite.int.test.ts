@@ -25,12 +25,11 @@
 // about ONE FLAT ID NAMESPACE ACROSS TWO CONTRACTS. There is one contract now, so that arm retired with its
 // premise; what it was really protecting — a selection resolves to at most one module, because the loader
 // asserts `id === basename` — is the loader's own law and is pinned in `tests/tooling/verify/lib/loader.test.ts`.
-// @orb-waive-file no-vanity-alias(plantedSubject): baselined when the gate widened; burn-down item 906.
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import type { PlantedPolicyRequest } from "@orb/testkit/node/planted-gate-corpus.ts";
-import { plantedPolicySource, SUBJECT_COLUMN, plantedSubject as subject } from "@orb/testkit/node/planted-gate-corpus.ts";
+import { plantedPolicySource, plantedSubject, SUBJECT_COLUMN } from "@orb/testkit/node/planted-gate-corpus.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
@@ -70,11 +69,11 @@ function plantedTreeFiles(repoRoot: string): Readonly<Record<string, string>> {
     [`${GATES}/${LONE}.ts`]: plantedPolicy(repoRoot, { id: LONE, family: LONE, subjectPath: LONE_SUBJECT, token: "lone" }),
     [`${GATES}/${SILENT}.ts`]: plantedPolicy(repoRoot, { id: SILENT, subjectPath: SILENT_SUBJECT, token: "unplanted" }),
     [`${GATES}/${LOUD}.ts`]: plantedPolicy(repoRoot, { id: LOUD, subjectPath: LOUD_SUBJECT, token: "loud" }),
-    [ALPHA_SUBJECT]: subject("alpha"),
-    [BETA_SUBJECT]: subject("beta"),
-    [LONE_SUBJECT]: subject("lone"),
-    [LOUD_SUBJECT]: subject("loud"),
-    [`${SUBJECT_DIR}/quiet.ts`]: subject("quiet"),
+    [ALPHA_SUBJECT]: plantedSubject("alpha"),
+    [BETA_SUBJECT]: plantedSubject("beta"),
+    [LONE_SUBJECT]: plantedSubject("lone"),
+    [LOUD_SUBJECT]: plantedSubject("loud"),
+    [`${SUBJECT_DIR}/quiet.ts`]: plantedSubject("quiet"),
   };
 }
 
@@ -300,7 +299,7 @@ test("a QUIET run says so — the negative control the positive arm is worthless
 test("a run that OBSERVES a planted fixture path refuses to be a verdict (exit 2), by file AND by directory", {
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const byFile = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const byFile = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: plantedSubject("planted") });
   const file = await runCli("verify", ["structure", "--check", SILENT], { cwd: byFile, timeoutMs: RUN_TIMEOUT_MS });
   // exit 2, not 1: the run is not a verdict at all — it is not "a verdict with a violation in it"
   await expect(file).toExitWith(2);
@@ -312,7 +311,7 @@ test("a run that OBSERVES a planted fixture path refuses to be a verdict (exit 2
 
   // the planter creates `__g_` DIRECTORIES too (`packages/server/src/domain/__g_struct/index.ts`) — the sweep
   // names the directory, which is the entry that matches
-  const byDir = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_DIR_FILE]: subject("planted") });
+  const byDir = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_DIR_FILE]: plantedSubject("planted") });
   const dir = await runCli("verify", ["structure", "--check", SILENT], { cwd: byDir, timeoutMs: RUN_TIMEOUT_MS });
   await expect(dir).toExitWith(2);
   expect(readSlotArtifact(byDir, dir.stdout).run.incompleteReasons.join(" ")).toContain("packages/server/src/domain/__g_dir");
@@ -323,7 +322,7 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const root = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: plantedSubject("planted") });
   const own = await runCli("verify", ["structure", "--check", SILENT], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
@@ -397,7 +396,7 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
 });
 
 test("a CONTAMINATED run is a non-verdict too — same field, different reason", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const root = await plantedRepository(plantedTree, { ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: plantedSubject("planted") });
   const run = await runCli("verify", ["structure", "--check", SILENT], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(run).toExitWith(2);
   const report = readSlotArtifact(root, run.stdout);
@@ -490,7 +489,7 @@ test("structure-delta: an identical pair is exit 0, a FALL is exit 0, and a RISE
   // comparison, so a real regression reads as a repair and the tool exits 0 on it. The pin that proved
   // rise-detection therefore DEPENDED on the hole, and it is re-derived here rather than re-pointed:
   // restore the subject, run again, and diff the fall's slot against the restored one.
-  writeFileSync(join(root, ALPHA_SUBJECT), subject("alpha"));
+  writeFileSync(join(root, ALPHA_SUBJECT), plantedSubject("alpha"));
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const restored = readPointer(root).run.runId;
 

@@ -10,7 +10,6 @@
 
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
-// @orb-waive-file no-loose-id-cast(result): baselined when the gate widened; burn-down item 906.
 import "@orb/testkit/node/composed-real.ts";
 import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
 import type { UserSettingsView } from "@orb/contracts/settings";
@@ -245,7 +244,7 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
   return {
     path: `invites.${verb}`,
     make: (): ReturnType<BeltSurface["make"]> => {
-      const fn = vi.fn(async () => result as never);
+      const fn = vi.fn(async () => result);
       return { services: { chat: { [verb]: fn } }, presence: inertPresence, probe: fn };
     },
     drive,

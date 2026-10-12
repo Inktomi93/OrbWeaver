@@ -19,6 +19,7 @@
 
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
@@ -415,8 +416,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
     process.on("unhandledRejection", onUnhandled);
     try {
       await fn();
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await sleep(0);
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
@@ -425,11 +425,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
 
   test("the 33rd concurrent host call is rejected (≤32 in-flight cap) and the 32 pending drain cleanly at dispose", { timeout: LONG }, async () => {
     const host = makeHost();
-    let release!: (v: Record<string, string>) => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<Record<string, string>>((r) => {
-      release = r;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<Record<string, string>>();
     const bridge: PluginBridge = {
       chat: {
         listMessages: () => Promise.resolve([]),
@@ -512,8 +508,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
         // late release lands) before settling — so the burst is fired at the worst possible moment for the count.
         listMessages: async () => {
           releaseStragglers();
-          // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-          await new Promise((r) => setTimeout(r, 50));
+          await sleep(50);
           return [];
         },
         getVariables: () => Promise.resolve({}),
@@ -819,11 +814,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     // duration; a `while(true)` there is a permanent whole-process wedge (SIGKILL, exit 137).
     const host = makeHost();
     const wrote: string[] = [];
-    let release!: (value: string | null) => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<string | null>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<string | null>();
     // `resumed` proves the continuation actually RAN (without it an all-refused / never-pumped run would
     // satisfy the ceiling vacuously); `escaped` is the bytecode PAST the runaway loop, which must never run.
     const main = `
@@ -867,11 +858,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     // A run that logs but never writes is an authority defect, not a pump defect.
     const host = makeHost();
     const wrote: string[] = [];
-    let release!: (value: string | null) => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<string | null>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<string | null>();
     const main = `
       const h = orb.host(1);
       h.storage.get('gate').then(function () {
@@ -954,8 +941,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     expect(readsAtRefusal).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
     expect(readsAtRefusal - readsAtReturn).toBeLessThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
     // The chain is dead, not slowed: no further host call lands after the refusal.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await sleep(200);
     expect(reads).toBe(readsAtRefusal);
     host.dispose(outcome.instance);
   });

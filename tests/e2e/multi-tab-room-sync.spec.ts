@@ -32,6 +32,7 @@ import {
   openMemberRowMenu,
   typeAndSend,
 } from "./support/chat-room.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SETTLE_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import type { GroupConfigInput } from "./support/trpc.ts";
 import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc.ts";
 
@@ -77,7 +78,7 @@ async function teardown(room: Room): Promise<void> {
  *  a mutation fired from the sibling tab can land before this tab is subscribed and the assertion races. */
 async function joinRoom(page: Page, title: string): Promise<void> {
   await openChatByTitle(page, title);
-  await expect(characterChips(page).first()).toBeVisible({ timeout: 15_000 });
+  await expect(characterChips(page).first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 test("a roster change in tab A reaches tab B's open room live (seat added, then removed)", async ({ browser }) => {
@@ -102,10 +103,10 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     await openContextTab(tabA, "Members");
     await tabA.getByRole("button", { name: "Add a character", exact: true }).click();
     await tabA.getByRole("option", { name: CHARACTERS[2].name, exact: true }).click();
-    await expect.poll(async () => (await characterChipNames(tabA)).length, { timeout: 15_000 }).toBe(3);
+    await expect.poll(async () => (await characterChipNames(tabA)).length, { timeout: WAIT_SURFACE_MS }).toBe(3);
 
     // THE load-bearing assertion: tab B never touched anything, yet its OPEN ROOM shows the new member.
-    await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: 15_000 }).toBe(3);
+    await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: WAIT_SURFACE_MS }).toBe(3);
     expect(await characterChipNames(tabB)).toContain(CHARACTERS[2].name);
     // The multi-add picker remains open intentionally; finish that gesture before using the room again.
     await tabA.getByPlaceholder("Search characters…", { exact: true }).press("Escape");
@@ -117,8 +118,8 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     await openMemberRowMenu(tabA, CHARACTERS[2].name);
     await tabA.getByRole("menuitem", { name: `Remove ${CHARACTERS[2].name} from chat` }).click();
 
-    await expect.poll(async () => (await characterSeats(room.chatId)).length, { timeout: 15_000 }).toBe(2);
-    await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: 15_000 }).toBe(2);
+    await expect.poll(async () => (await characterSeats(room.chatId)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);
+    await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);
     expect(await characterChipNames(tabB)).not.toContain(CHARACTERS[2].name);
   } finally {
     await ctx.close();
@@ -145,10 +146,10 @@ test("a group-config change in tab A reaches tab B's open Group-behavior section
 
     await tabA.getByRole("button", { name: "Narrator", exact: true }).click();
     // The write really landed (so a red below is a SYNC failure, never a lost write).
-    await expect.poll(async () => (await getGroupConfig(room.chatId)).output, { timeout: 20_000 }).toBe("narrator");
+    await expect.poll(async () => (await getGroupConfig(room.chatId)).output, { timeout: WAIT_ROUND_TRIP_MS }).toBe("narrator");
 
     // THE load-bearing assertion: tab B's open Group-behavior section re-reads the room's behavior off the bus.
-    await expect(tabB.getByRole("button", { name: "Narrator", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
+    await expect(tabB.getByRole("button", { name: "Narrator", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: WAIT_SURFACE_MS });
   } finally {
     await ctx.close();
     await teardown(room);
@@ -173,9 +174,9 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
     await typeAndSend(tabA.getByRole("textbox", { name: "Message" }), probe);
 
     // The human line fans first (persistUserMessage emits `messageCommitted` before the AI round runs)…
-    await expect(tabB.getByText(probe).first()).toBeVisible({ timeout: 30_000 });
+    await expect(tabB.getByText(probe).first()).toBeVisible({ timeout: WAIT_SETTLE_MS });
     // …and then the character's turn lands in the passive tab's transcript too.
-    await expect.poll(async () => assistantRows(tabB).count(), { timeout: 120_000 }).toBeGreaterThanOrEqual(1);
+    await expect.poll(async () => assistantRows(tabB).count(), { timeout: WAIT_LIVE_TURN_MS }).toBeGreaterThanOrEqual(1);
 
     // Let the WHOLE round finish before teardown. An assistant ROW in the DOM appears while the reply is
     // still streaming, and tearing the room down mid-round makes the next `delta` chat_events insert violate
@@ -183,8 +184,8 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
     // reported as a separate robustness finding). Two gates, because the round owes TWO speakers: every row
     // is durable in canon, AND tab A's Stop affordance has closed (it stays up until the bus's
     // turnCompleted/turnAborted lands, so its absence is the honest "nothing is in flight" signal).
-    await expect.poll(async () => (await assistantTurns(room.chatId)).length, { timeout: 120_000 }).toBe(2);
-    await expect(tabA.getByRole("button", { name: STOP_AFFORDANCE })).toHaveCount(0, { timeout: 60_000 });
+    await expect.poll(async () => (await assistantTurns(room.chatId)).length, { timeout: WAIT_LIVE_TURN_MS }).toBe(2);
+    await expect(tabA.getByRole("button", { name: STOP_AFFORDANCE })).toHaveCount(0, { timeout: WAIT_STREAM_MS });
   } finally {
     await ctx.close();
     await teardown(room);

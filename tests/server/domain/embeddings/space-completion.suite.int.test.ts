@@ -30,6 +30,7 @@ import { chatDigests, chatSegments, embedGenerations, embedSpaceState } from "@o
 import type { CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -47,13 +48,12 @@ import { createVacuousMemoryReceipt, createVectorSweepOps } from "#server/entry/
 import type { StoreHarness } from "./_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedDocument, seedUser } from "./_support.ts";
 
-const NOW = 1_750_000_000_000;
 const CARD_TEXT = "a seeded card, embedded through the per-owner catch-up";
 const STALE_MODEL = "old-embed-model-v0";
 const NO_OP_REINDEX = { documents: 0, chunksUpserted: 0, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] } as const;
 
 function runContext(ownerId: UserId | null, actor: UserId): WorkloadRunContext {
-  return { userId: actor, ownerId, now: () => NOW };
+  return { userId: actor, ownerId, now: () => FROZEN_AT_MS };
 }
 
 function liveSignal(): AbortSignal {
@@ -193,7 +193,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
       model: EMBED_MODEL,
       generationId: (await targetOf(f.harness, neighbour)).id,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
 
     await runPerOwnerCatchUp(f, [f.owner, neighbour]);
@@ -225,7 +225,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
       model: STALE_MODEL,
       generationId: generation.id,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     const chat = createChatWorkloadContributions(chatDeps(f, { spaces: [{ ownerId: f.owner, generation }] }));
     await chat[0].run(runContext(f.owner, f.owner), {}, vi.fn(), liveSignal());
@@ -273,7 +273,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
       connectionRef: castId<UserConnectionId>(`fixture:${STALE_MODEL}`),
       fingerprint: `fixture:${STALE_MODEL}`,
       space: STALE_MODEL,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     });
     const generation = await targetOf(f.harness, f.owner);
     for (const [suffix, model, generationId, seed] of [
@@ -293,7 +293,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
         model,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
       });
       await upsertChatDigest(f.db, {
         id: castId<ChatDigestId>(`chat_digest_${suffix}`),
@@ -310,7 +310,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
         model,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
         speakerCharacterIds: [],
       });
     }

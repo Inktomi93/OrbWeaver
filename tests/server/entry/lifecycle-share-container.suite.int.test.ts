@@ -4,6 +4,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { fakeRelaySeams } from "@orb/testkit/node/fake-relay.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeAll, vi } from "vitest";
@@ -48,7 +49,7 @@ beforeAll(async () => {
   base = `http://localhost:${String(address.port)}`;
   const claim = await fetch(`${base}/api/auth/first-run`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
+    headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ password: OWNER_PASSWORD }).toString(),
   });
   expect(claim.status).toBe(OK);
@@ -69,7 +70,7 @@ afterAll(async () => {
 async function shareMutation(verb: "start" | "stop"): Promise<Response> {
   return await fetch(`${base}/api/trpc/share.${verb}`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-orb-csrf": "1", cookie: ownerCookie },
+    headers: { "content-type": "application/json", [CSRF_HEADER]: "1", cookie: ownerCookie },
     body: "{}",
   });
 }

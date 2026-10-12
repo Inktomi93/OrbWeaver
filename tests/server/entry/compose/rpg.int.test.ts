@@ -1,4 +1,5 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (docs/plans/rpg/design.md). The [compose-stub-goes-stale]/
 // [ct-stub-lie] antidote: drive the domain end-to-end through the ACTUAL `buildRpg` wiring — the real
@@ -30,7 +31,7 @@ import type { ServicesResult } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
 import { subscribeRpgEvents } from "#server/domain/rpg/index.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import {
   buildCannedRpg,
   buildCannedRpgWithText,
@@ -301,7 +302,7 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
     gameId,
     messageId: base.messageId,
     variantId: base.variantId,
-    now: FROZEN_AT,
+    now: FROZEN_AT_MS,
   });
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, base.variantId);

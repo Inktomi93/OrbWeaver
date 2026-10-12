@@ -106,6 +106,7 @@ export interface ImportContextWiring {
  * Assemble the per-owner `ImportContext` from the entry-supplied ports. `exactOptionalPropertyTypes`: the
  * optional `importLorebook`/`profile` are spread only when defined, never assigned `undefined`.
  */
+// @orb-waive compose-wiring-only(buildImportContext): baselined when the gate landed; burn-down item 964.
 export function buildImportContext(wiring: ImportContextWiring): ImportContext {
   const { principal, character, storeAvatar, attachCardTag, importLorebook, hasPrimaryBook, linkCarriedBooks, importCardScripts, profile } = wiring;
   const ownerId = principal.userId;

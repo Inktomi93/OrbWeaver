@@ -29,6 +29,7 @@
 //      is what "in flight" means) and degrades to the game-wide fallback, which hands the hand door an OLDER
 //      slot's uncommitted row.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { messages } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -69,8 +70,7 @@ function untilRoundStarted(calls: readonly unknown[], want: number): Promise<voi
     if (attemptsLeft === 0) {
       return Promise.reject(new Error(`the state round never started (wanted ${want} calls) — the edit would not have been mid-flight`));
     }
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    return new Promise((resolve) => setTimeout(resolve, 5)).then(() => poll(attemptsLeft - 1));
+    return sleep(5).then(() => poll(attemptsLeft - 1));
   };
   return poll(400);
 }
@@ -82,11 +82,8 @@ test("A (single speaker): a hand edit mid-flight survives the flush — AND the 
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   // HOLD the round in flight — the real 0.8-2.9s window, made deterministic.
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_solo"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
 
@@ -120,11 +117,8 @@ test("B (back-to-back assistant turns): a hand edit mid-flight of the SECOND tur
 
   // Speaker 2's turn — its round held in flight.
   const second = await seedMessage(db, chatId, 2, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, second.messageId, second.variantId, castId<ChatTurnId>("chat_turn_sp2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
 
@@ -152,11 +146,8 @@ test("SAME field, both writers: the HUMAN's value stands (manual-edit-wins, to t
   await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_clash"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
   await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
@@ -204,11 +195,8 @@ test("pre-first-turn: an edit landing MID-FLIGHT of the very FIRST turn keeps bo
   await seedMessage(db, chatId, 2, { role: "user", content: "I cross." });
   const first = await seedMessage(db, chatId, 3, { role: "assistant" });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_first"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
   await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
@@ -272,11 +260,8 @@ test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own 
   // her return. Anything that brings her back came from the fold's own stale base.
   h.fakes.toolRoundDelta = ROUND_DELTA;
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_dismiss"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
@@ -311,11 +296,8 @@ test("CE1 (PRODUCTION patch shape): a round that re-authors PRESENCE does not re
     journal: [],
   };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_p6"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
@@ -344,11 +326,8 @@ test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor
     journal: [],
   };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_tomb"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
@@ -396,11 +375,8 @@ test("TWO staged writes on ONE flat plane: the fold duplicates nothing (beats an
     presentCharacters: ["npc:mari", "npc:kai"],
   });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, turnId, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   // A hand edit on an UNRELATED field, so the fold runs but claims none of the planes under test.
@@ -428,11 +404,8 @@ test("CE1: a mid-flight deleteQuest is NOT undone by the fold either (the same c
 
   h.fakes.toolRoundDelta = ROUND_DELTA;
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_q2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   await h.service.deleteQuest({ principal: HOST, chatId, questId: castId("q_k1") }); // returns void, unlike the other hand doors
@@ -480,11 +453,8 @@ test("CE2: the user sends their NEXT message mid-flight, then steers — the tur
   await pinExtractionMode(h, chatId, "cheap");
   const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_ce2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
   await seedMessage(db, chatId, 2, { role: "user", content: "I cross." }); // the next send, while the round is out
@@ -523,11 +493,8 @@ test("the fold's REFUSAL arm fires onFlushDropped (a rejected merge is never sil
 
   h.fakes.toolRoundDelta = { statePatch: { location: null }, journal: [] };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_ref2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: {}, releaseLocks: ["location"] })).resolves.toEqual({ ok: true });

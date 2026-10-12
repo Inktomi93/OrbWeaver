@@ -11,7 +11,6 @@
 // UNWRAPPED control in the same run, because that control IS the defect: N per-item emits deliver N events,
 // which is what churned the visible library for the length of an ST import (staleness design §2.5).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -155,15 +154,11 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
     // this human's unrelated edit from another tab for the whole ten-minute import. The persona save below is
     // raised outside `quietScope.run`, so it must arrive verbatim.
     const seen = collect(USER_A);
-    let releaseImport = (): void => {
-      // Replaced synchronously by the promise executor below; never called in this shape.
-    };
+    const { promise: importHeld, resolve: releaseImport } = Promise.withResolvers<void>();
     const importDone = withQuietBulkFanout(async () => {
       publishUserEvent(USER_A, { type: "charactersChanged" });
       publishUserEvent(USER_A, { type: "charactersChanged" });
-      await new Promise<void>((resolve) => {
-        releaseImport = resolve;
-      });
+      await importHeld;
     });
     await settle();
 

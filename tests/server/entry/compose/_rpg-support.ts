@@ -1,4 +1,5 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // @orb-waive-file no-test-fabrication({ name: string; description: string; parameters: Record<string, unknown> }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
@@ -19,7 +20,7 @@ import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import { buildRpg } from "#server/entry/compose/rpg.ts";
-import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 export { rpgPromotionProvenance } from "@orb/server/domain/rpg";
 export type { RpgTurnContext } from "#server/domain/chat/index.ts";
@@ -251,7 +252,7 @@ export function buildCannedRpgWithText(args: {
   };
   return buildRpg({
     db,
-    now: () => FROZEN_AT,
+    now: () => FROZEN_AT_MS,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
     rpgChatOps:
       args.presetMaxContext === undefined

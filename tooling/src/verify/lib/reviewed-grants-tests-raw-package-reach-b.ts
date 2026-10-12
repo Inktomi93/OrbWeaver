@@ -137,7 +137,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B: readonly ReviewedGateGra
   "tests/client/lib/agent-plugin-bridge.test.ts": ["#client/lib/agent-plugin-bridge.ts"],
   "tests/client/lib/appearance-carrier-manifest.ct.tsx": ["#client/lib/appearance-carrier-manifest.ts"],
   "tests/client/lib/appearance-carrier-manifest.test.ts": ["#client/lib/appearance-carrier-manifest.ts"],
-  "tests/client/lib/appearance-carrier-matrix.ts": ["#client/lib/appearance-carrier-manifest.ts"],
+  "tests/client/lib/appearance-carrier-matrix.fixtures.ts": ["#client/lib/appearance-carrier-manifest.ts"],
   "tests/client/lib/appearance-message-registry.test.ts": ["#client/lib/appearance-message-registry.ts"],
   "tests/client/lib/bug-report-bundle.dom.test.ts": ["#client/lib/bug-report-bundle.ts"],
   "tests/client/lib/bug-report-public.dom.test.ts": ["#client/lib/bug-report-public.ts", "#client/lib/safe-error-ring.ts"],

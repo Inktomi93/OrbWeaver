@@ -41,6 +41,7 @@ export interface SeedLocalLightDeps {
 }
 
 /** One user's seed with the shared never-rethrow posture. Returns the rows newly inserted (0 on failure). */
+// @orb-waive compose-wiring-only(seedOneUser): baselined when the gate landed; burn-down item 964.
 async function seedOneUser(deps: SeedLocalLightDeps, userId: UserId): Promise<number> {
   try {
     const seeded = await seedLocalLightConnections(seedDepsFrom(deps), userId);

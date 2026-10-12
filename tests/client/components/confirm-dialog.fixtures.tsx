@@ -1,7 +1,6 @@
 // CT harness (not a spec — Playwright CT needs mounted components in their own module, and biome
 // forbids exporting a component from a `.ct.tsx`). Exercises the controlled entry shape: caller owns
 // `open`/`onOpenChange`, no default trigger renders.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { ConfirmDialog } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
@@ -64,6 +63,7 @@ export function ConfirmDialogRejectingHarness(): ReactElement {
         description="This permanently deletes the thing."
         onConfirm={async (): Promise<void> => {
           setAttempts((n) => n + 1);
+          // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
           await new Promise((resolve) => setTimeout(resolve, 10));
           if (attempts === 0) {
             throw new Error("the row is locked by another seat");

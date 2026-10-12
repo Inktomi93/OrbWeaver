@@ -10,8 +10,6 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
@@ -61,10 +59,7 @@ test("the Start seam creates the room, enters it, and lands the rail on Chats", 
 test("the response seeds both room reads and confirms the message page after the native crossfade", async ({ mount, page }) => {
   const listMessages = trpcHold<"chat.listMessages">();
   await page.addInitScript(() => {
-    let finish: (() => void) | undefined;
-    const finished = new Promise<void>((resolve) => {
-      finish = resolve;
-    });
+    const { promise: finished, resolve: finish } = Promise.withResolvers<void>();
     Object.defineProperty(document, "startViewTransition", {
       configurable: true,
       value: (update: () => void | Promise<void>) => {

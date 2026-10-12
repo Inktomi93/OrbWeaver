@@ -401,15 +401,13 @@ describe("updateConfig — knobs + profile mutability", () => {
   test("the tracker COUNT cap is refused past RPG_CONFIG_MAX_TRACKERS, and accepted at it", async () => {
     const { chatId, h } = await seedLiteGame(db);
     const host = principal(castId<Handle>("host"));
-    const many = (n: number): unknown[] =>
+    const many = (n: number): ReturnType<typeof rpgTrackerDefSchema.parse>[] =>
       Array.from({ length: n }, (_, i) =>
         rpgTrackerDefSchema.parse({ key: `t${i}`, label: `T${i}`, shape: "meter", write: "delta", subject: "actor", appliesTo: "party" }),
       );
-    // @orb-waive no-loose-id-cast(many): baselined when the gate widened; burn-down item 906.
-    await h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS) as never } });
+    await h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS) } });
     expect((await findGameByChat(db, chatId))?.config.trackers.length).toBe(RPG_CONFIG_MAX_TRACKERS);
-    // @orb-waive no-loose-id-cast(many): baselined when the gate widened; burn-down item 906.
-    await expect(h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) as never } })).rejects.toThrow(
+    await expect(h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) } })).rejects.toThrow(
       /exceeds the cap/i,
     );
   });

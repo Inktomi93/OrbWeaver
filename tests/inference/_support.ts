@@ -22,6 +22,8 @@ import type { TokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
 import { createTokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
 import type { ConnectionTransport, Resolved } from "#inference/contract/resolved.ts";
 import type { BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderSnapshot, ProviderStore, SnapshotStore } from "#inference/deps.ts";
+import type { LOCAL_SERVER_FIXTURES } from "./catalog/_local-servers-fixtures.ts";
+import type { LOCAL_SERVER_TRANSCRIPTS } from "./catalog/_local-servers-transcripts.ts";
 
 /** A token lexicon over its own in-memory store. With no server given, every lookup fails, so a turn that
  *  tokenized anything would carry a dropped-bias warning. */
@@ -382,3 +384,9 @@ export function fakeResolved<T extends Task>(args: {
     factsModel: castId<ModelId>(args.factsModel ?? args.model),
   };
 }
+
+/** One rig server whose recorded advertisements the catalog and resolver tests replay. */
+export type LocalServerArm = keyof typeof LOCAL_SERVER_FIXTURES;
+
+/** One rig server whose recorded request/response transcript `transcriptFetch` replays. */
+export type TranscriptArm = keyof typeof LOCAL_SERVER_TRANSCRIPTS;

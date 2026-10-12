@@ -46,6 +46,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
+import { WAIT_UI_MS } from "./support/timeouts.ts";
 import {
   assembledPromptText,
   canonMessage,
@@ -112,7 +113,7 @@ async function typeSteer(page: Page, steer: string): Promise<void> {
   await box.fill(steer);
   // `fill` bypasses React onChange for a CONTROLLED textarea — verify the value stuck; if a room-settle
   // remount ate it, retype (chat-room.ts typeAndSend documents this remount hazard).
-  await expect(box).toHaveValue(steer, { timeout: 10_000 });
+  await expect(box).toHaveValue(steer, { timeout: WAIT_UI_MS });
 }
 
 /** A composer icon that is present AND willing to fire. Both assertions are load-bearing: a guided icon
@@ -121,9 +122,9 @@ async function typeSteer(page: Page, steer: string): Promise<void> {
  *  refuse the native way, which the aria check alone would miss. */
 async function armedIcon(page: Page, name: string): Promise<ReturnType<Page["getByRole"]>> {
   const icon = page.getByRole("button", { name, exact: true });
-  await expect(icon).toBeVisible({ timeout: 10_000 });
-  await expect(icon).toBeEnabled({ timeout: 10_000 });
-  await expect(icon).not.toHaveAttribute("aria-disabled", "true", { timeout: 10_000 });
+  await expect(icon).toBeVisible({ timeout: WAIT_UI_MS });
+  await expect(icon).toBeEnabled({ timeout: WAIT_UI_MS });
+  await expect(icon).not.toHaveAttribute("aria-disabled", "true", { timeout: WAIT_UI_MS });
   return icon;
 }
 
@@ -253,7 +254,7 @@ test.describe("guided generations on the live local stack", () => {
       await typeSteer(page, STEER_REWRITE);
       await (await armedIcon(page, UTILITY_MENU)).click();
       const corrections = page.getByRole("menuitem", { name: CORRECTIONS_ITEM });
-      await expect(corrections).not.toHaveAttribute("aria-disabled", "true", { timeout: 10_000 });
+      await expect(corrections).not.toHaveAttribute("aria-disabled", "true", { timeout: WAIT_UI_MS });
       await corrections.click();
       await page.getByRole("textbox", { name: "Correction instruction" }).waitFor({ state: "visible" });
       await page.getByRole("button", { name: "Rewrite" }).click();
@@ -297,7 +298,7 @@ test.describe("guided generations on the live local stack", () => {
       await row.hover();
       await row.getByRole("button", { name: "More message actions" }).click();
       const undoItem = page.getByRole("menuitem", { name: "Undo last continuation" });
-      await expect(undoItem).toBeVisible({ timeout: 10_000 });
+      await expect(undoItem).toBeVisible({ timeout: WAIT_UI_MS });
       await expect(undoItem).toHaveAttribute("aria-disabled", "true");
       await expect(undoItem).toHaveAttribute("title", CONTINUE_UNLOCK_REASON);
       await page.keyboard.press("Escape");
@@ -353,7 +354,7 @@ test.describe("guided generations on the live local stack", () => {
       // plus one item per member. One click opens it, one click picks BRAVO — the old hover-into-a-submenu
       // step is gone with the wand.
       await (await armedIcon(page, GUIDED_RESPONSE)).click();
-      await expect(page.getByRole("menuitem", { name: "Let the room pick" })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("menuitem", { name: "Let the room pick" })).toBeVisible({ timeout: WAIT_UI_MS });
       await page.getByRole("menuitem", { name: DUO[1].name }).click();
 
       // SERVER TRUTH: exactly one assistant row committed and it is authored by the CHOSEN speaker (bravo),

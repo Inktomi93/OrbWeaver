@@ -8,10 +8,11 @@ import type { RpgSheet } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
 import { findSheet, listSheets, upsertSheet } from "#server/domain/rpg/persistence/sheets.ts";
-import { expect, FROZEN_AT, seedCharacter, seedChat, seedGame, seedUser, test } from "../_support.ts";
+import { expect, seedCharacter, seedChat, seedGame, seedUser, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -49,7 +50,7 @@ describe("row-on-first-write", () => {
       characterId: charId,
       userId: null,
       sheet: sheetWith("rogue"),
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(created.sheet.className).toBe("rogue");
 
@@ -59,7 +60,7 @@ describe("row-on-first-write", () => {
       characterId: charId,
       userId: null,
       sheet: sheetWith("mage"),
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
     expect(updated.sheet.className).toBe("mage");
     // Still exactly ONE row (the second upsert overwrote, never inserted a duplicate).
@@ -74,7 +75,14 @@ describe("the participants ∪ rows projection (derivation pinned inline)", () =
     const owner = await seedUser(db, castId<Handle>("owner"));
     const withRow = await seedChar(owner, "aria");
     const withoutRow = await seedChar(owner, "bryn");
-    await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: withRow, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });
+    await upsertSheet(db, {
+      id: castId<RpgSheetId>("rpg_sheet_aria"),
+      gameId,
+      characterId: withRow,
+      userId: null,
+      sheet: sheetWith("rogue"),
+      now: FROZEN_AT_MS,
+    });
 
     // The verb's projection: for each participant actor, its row's sheet OR the default.
     const participantCharacterIds: readonly CharacterId[] = [withRow, withoutRow];
@@ -92,14 +100,21 @@ describe("the participants ∪ rows projection (derivation pinned inline)", () =
     const owner = await seedUser(db, castId<Handle>("owner"));
     const present = await seedChar(owner, "aria");
     const departed = await seedChar(owner, "ghost");
-    await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: present, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });
+    await upsertSheet(db, {
+      id: castId<RpgSheetId>("rpg_sheet_aria"),
+      gameId,
+      characterId: present,
+      userId: null,
+      sheet: sheetWith("rogue"),
+      now: FROZEN_AT_MS,
+    });
     await upsertSheet(db, {
       id: castId<RpgSheetId>("rpg_sheet_ghost"),
       gameId,
       characterId: departed,
       userId: null,
       sheet: sheetWith("cleric"),
-      now: FROZEN_AT,
+      now: FROZEN_AT_MS,
     });
 
     // The departed actor is off the current participants; the projection keys on the participants, so it drops out —

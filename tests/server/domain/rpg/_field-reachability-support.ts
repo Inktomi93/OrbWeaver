@@ -23,8 +23,8 @@ const STATE_HEADING = "# Game state";
 /** The CARRIER axis — the three kinds of actor the per-actor planes can hang on. Declared ONCE as a tuple and
  *  derived (the string-union dispatch discipline): the `CARRIERS` record below is mapped over it, so a fourth
  *  kind (full's `npc` ref arm) fails `tsc` here until the matrix runs it too. */
-const CARRIER_KINDS = ["user", "character", "npc"] as const;
-type CarrierKind = (typeof CARRIER_KINDS)[number];
+export const ACTOR_CARRIERS = ["user", "character", "npc"] as const;
+type CarrierKind = (typeof ACTOR_CARRIERS)[number];
 
 /** One CARRIER of the per-actor planes: a participant human (`user`), a participant character, or a scene-npc.
  *  `targetRef` is what the model writes; `label` is what BOTH read surfaces must name the carrier. */
@@ -178,11 +178,6 @@ export function openingBeat(carrier: Carrier): Partial<RpgExtraction> {
 function withStage(carrier: Carrier, scene: NonNullable<RpgExtraction["scene"]>): NonNullable<RpgExtraction["scene"]> {
   return carrier.onStage ? { ...scene, presentUpsert: [{ name: carrier.targetRef }, ...(scene.presentUpsert ?? [])] } : scene;
 }
-
-// @orb-waive no-vanity-alias(ACTOR_CARRIERS): baselined when the gate widened; burn-down item 906.
-/** Every carrier kind — the per-actor probes run the WHOLE axis (the participant/cast split is exactly where the
- *  read surfaces drifted), derived from the one tuple so a new kind joins the matrix automatically. */
-export const ACTOR_CARRIERS: readonly CarrierKind[] = CARRIER_KINDS;
 
 export const MANA: RpgTrackerDef = rpgTrackerDefSchema.parse({
   key: "mana",

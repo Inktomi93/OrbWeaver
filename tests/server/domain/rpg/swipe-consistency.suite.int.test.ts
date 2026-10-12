@@ -7,11 +7,11 @@
 //
 // This is the "hardest-won" machinery: total swipe consistency across every panel plane, from ONE mechanism.
 
-// @orb-waive-file no-loose-id-cast(await findSnapshotByVariant): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -19,21 +19,7 @@ import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { insertJournalEntry, listActiveJournal } from "#server/domain/rpg/persistence/journal.ts";
 import { findSnapshotByVariant, resolveSnapshotForTurn, writeHandSnapshot, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
-import {
-  actorWithWallet,
-  addVariant,
-  emptyState,
-  expect,
-  FROZEN_AT,
-  handTarget,
-  quest,
-  seedChat,
-  seedGame,
-  seedMessage,
-  target,
-  test,
-  UNCLAMPED,
-} from "./_support.ts";
+import { actorWithWallet, addVariant, emptyState, expect, handTarget, quest, seedChat, seedGame, seedMessage, target, test, UNCLAMPED } from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -124,7 +110,7 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
       content: "x",
       variantId: variantA,
       sourceMessageId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await insertJournalEntry(db, {
       id: castId<RpgJournalId>("rpg_journal_hand"),
@@ -134,7 +120,7 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
       content: "x",
       variantId: null,
       sourceMessageId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await insertJournalEntry(db, {
       id: castId<RpgJournalId>("rpg_journal_b"),
@@ -144,7 +130,7 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
       content: "x",
       variantId: variantB,
       sourceMessageId: null,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     await selectVariant(messageId, variantA);
@@ -189,11 +175,15 @@ describe("the ratification pin — the HAND plane rides ALONGSIDE the swipe, nev
     await selectVariant(messageId, variantA);
     // The host then hand-corrects the location. PRE-D124 this minted a blank assistant slot to key the
     // correction; now it is a message-less hand row stamped as-of the tail slot.
+    const selected = await findSnapshotByVariant(db, variantA);
+    if (selected === undefined) {
+      throw new Error("the selected variant has no snapshot to correct");
+    }
     await writeHandSnapshot(
       db,
-      { ...snapshotRowToState((await findSnapshotByVariant(db, variantA)) as never), location: "the host's corrected hall" },
+      { ...snapshotRowToState(selected), location: "the host's corrected hall" },
       null,
-      handTarget({ gameId, chatId, key: "hand_correction", now: FROZEN_AT + 1 }),
+      handTarget({ gameId, chatId, key: "hand_correction", now: FROZEN_AT_MS + 1 }),
     );
     expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the host's corrected hall");
 

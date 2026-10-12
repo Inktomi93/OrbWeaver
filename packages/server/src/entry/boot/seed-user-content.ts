@@ -51,6 +51,7 @@ export interface UserContentSeeder {
 }
 
 /** The keys the pre-ledger latches already stand for. */
+// @orb-waive compose-wiring-only(latchedKeys): baselined when the gate landed; burn-down item 964.
 function latchedKeys(manifest: readonly SeedManifestItem[], latches: LegacySeedLatches): readonly string[] {
   return manifest.flatMap((item) => ((item.kind === "character" && latches.characters) || (item.kind === "persona" && latches.persona) ? [item.key] : []));
 }
@@ -64,6 +65,7 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
   const inFlight = new Map<UserId, Promise<void>>();
 
   /** Seed one item. `true` ⇒ the item is settled for this account and its key may be recorded. */
+  // @orb-waive compose-wiring-only(seedItem): baselined when the gate landed; burn-down item 964.
   async function seedItem(principal: Principal, item: SeedManifestItem): Promise<boolean> {
     switch (item.kind) {
       case "character":
@@ -90,6 +92,7 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
   }
 
   /** The keys already settled for this account: its ledger, or on its first ledger pass its pre-ledger latches. */
+  // @orb-waive compose-wiring-only(settledKeys): baselined when the gate landed; burn-down item 964.
   async function settledKeys(principal: Principal): Promise<ReadonlySet<string>> {
     const seeded = await deps.seededKeys(principal.userId);
     if (seeded.size > 0) {
@@ -101,6 +104,7 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
   }
 
   /** One pass over the manifest. Resolves `true` when every item is settled for this account. */
+  // @orb-waive compose-wiring-only(seed): baselined when the gate landed; burn-down item 964.
   async function seed(principal: Principal): Promise<boolean> {
     const userId = principal.userId;
     const seeded = await settledKeys(principal);
@@ -124,6 +128,7 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
   }
 
   return {
+    // @orb-waive compose-wiring-only(ensureSeeded): baselined when the gate landed; burn-down item 964.
     ensureSeeded: (principal: Principal): Promise<void> => {
       if (!deps.enabled() || settled.has(principal.userId)) {
         return Promise.resolve();

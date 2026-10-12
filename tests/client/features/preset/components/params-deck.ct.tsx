@@ -16,7 +16,6 @@
 // of a name — F-27). The split is the 2026-08-19 P1-2 fix: the pair used to share one name exactly.
 
 // @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { TokenizeResult, WordTokens } from "@orb/contracts/inference";
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
@@ -339,6 +338,7 @@ test("STALENESS — Keep dismisses the row for the session without touching the 
   await deck.getByRole("button", { name: "Keep" }).click();
 
   await expect(deck.getByText("Set but not honored by this model: top_a 0.2", { exact: true })).toBeHidden();
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the wait above IS the negative-assertion window (Keep is a dismissal, not a write).
   expect(await saved(deck).textContent()).toContain("keys=- ");

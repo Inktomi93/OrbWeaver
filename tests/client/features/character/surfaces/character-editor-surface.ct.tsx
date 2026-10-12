@@ -19,6 +19,7 @@ import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "@or
 import { expectCircle } from "@orb/testkit/browser/expect-circle.ts";
 import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-block.ts";
 import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -537,7 +538,7 @@ const OVERVIEW_CHATS: readonly ScopedChatSummaryFixture[] = [
     isGame: false,
     gamePaused: false,
     viewerRole: "host",
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     updatedAt: 1_750_000_100_000,
   },
   {
@@ -555,7 +556,7 @@ const OVERVIEW_CHATS: readonly ScopedChatSummaryFixture[] = [
     isGame: false,
     gamePaused: false,
     viewerRole: "host",
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     updatedAt: 1_750_000_200_000,
   },
 ];

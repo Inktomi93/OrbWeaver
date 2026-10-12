@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -21,7 +22,7 @@ import type { ForeignInputs } from "#server/domain/chat/contract/foreign.ts";
 import type { MemoryRecallInputs } from "#server/domain/chat/contract/memory.ts";
 import { gatherAssembleContext } from "#server/domain/chat/substrate/assemble-gather.ts";
 import type { DatabankGatherParams } from "#server/domain/databank/contract/params.ts";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
 
 const MIN_MS = 60_000;
@@ -96,7 +97,7 @@ async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; ar
 async function attachAlwaysEntry(owner: UserId, chatId: ChatId, key: string, entry: { readonly content: string; readonly priority: number }): Promise<void> {
   const { content, priority } = entry;
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT_MS });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -107,9 +108,9 @@ async function attachAlwaysEntry(owner: UserId, chatId: ChatId, key: string, ent
     priority,
     ignoreBudget: false,
     metadata: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
-  await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
+  await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT_MS });
 }
 
 describe("gatherAssembleContext — the chat-internal merge", () => {
@@ -124,7 +125,7 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
       depth: 0,
       role: "system",
       content: "OPERATOR",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     await db
       .update(chats)
@@ -163,9 +164,9 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
     // ctx.now() is FROZEN_AT; the prior beat committed 8 minutes before, the in-flight one AT now.
     await db
       .update(messages)
-      .set({ createdAt: FROZEN_AT - 8 * MIN_MS })
+      .set({ createdAt: FROZEN_AT_MS - 8 * MIN_MS })
       .where(eq(messages.id, prior.messageId));
-    await db.update(messages).set({ createdAt: FROZEN_AT }).where(eq(messages.id, inflight.messageId));
+    await db.update(messages).set({ createdAt: FROZEN_AT_MS }).where(eq(messages.id, inflight.messageId));
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
 
     const out = await gatherAssembleContext(ctx, { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [] }, foreignOf());

@@ -48,9 +48,6 @@ import type { AssetsContext } from "#server/domain/assets/context.ts";
 import { createGalleryCharacterOps } from "#server/entry/compose/gallery-character-ops.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 // The PNG magic bytes — every `pngBytes(...)` starts here so `sniffMime` returns image/png. The tail makes
 // distinct images hash distinctly.
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
@@ -78,7 +75,7 @@ export interface AssetsHarness {
 
 /** Build an AssetsContext over a real db + real CAS/variant temp dirs with deterministic + recording fakes. */
 export async function makeHarness(db: Db): Promise<AssetsHarness> {
-  const clock = createFrozenClock(FROZEN_AT);
+  const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const casDir = await mkdtemp(join(tmpdir(), "orb-assets-cas-"));
   const variantDir = await mkdtemp(join(tmpdir(), "orb-assets-var-"));
@@ -234,7 +231,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, overrides: SeedChar
 /** Insert a bare `chats` row (D18: no ownerId — authority is the host participant). Returns the id. */
 export async function seedChatRow(db: Db, id: string): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
   return chatId;
 }
 
@@ -260,7 +257,7 @@ export async function seedParticipant(db: Db, chatId: ChatId, kind: ParticipantK
     userId: overrides.userId,
     characterId: overrides.characterId,
     role: overrides.role ?? "member",
-    joinedAt: FROZEN_AT,
+    joinedAt: FROZEN_AT_MS,
     joinSeq: 0,
     leftSeq: overrides.leftSeq,
     activePersonaId: overrides.activePersonaId,

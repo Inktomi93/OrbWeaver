@@ -203,9 +203,10 @@ export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as
 // `E2E_ALLOW_DEV_TARGET=1` flips this project back to the pre-2026-08-01 shape: the dev ports 8788/5173 and
 // NO DATABASE_URL pin, i.e. the operator's real dev stack + dev DB (reused, not booted — see
 // playwright.config.ts). That is the supervised-live-drive escape hatch, and it waives the target guard. ──
-const SINGLE_USER_ON_DEV_STACK = devTargetAllowed(process.env);
-const SINGLE_BACKEND_PORT = String(SINGLE_USER_ON_DEV_STACK ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
-const SINGLE_VITE_PORT = String(SINGLE_USER_ON_DEV_STACK ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
+/** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)? Read by `playwright.config.ts` (reuse the running stack instead of booting one) and by `global-setup.ts` (waive the target guard). */
+export const DEV_TARGET_ALLOWED = devTargetAllowed(process.env);
+const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
+const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
   name: "single-user",
   baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
@@ -227,7 +228,7 @@ export const SINGLE_USER: ModeProject = {
     E2E_HARNESS: "on",
     // The dev-target escape hatch boots/reuses the dev stack VERBATIM (its own .env-driven DB) — pinning
     // ports or a DB there would defeat the point of asking for the operator's stack.
-    ...(SINGLE_USER_ON_DEV_STACK
+    ...(DEV_TARGET_ALLOWED
       ? {}
       : {
           PORT: SINGLE_BACKEND_PORT,
@@ -247,12 +248,6 @@ export const SINGLE_USER: ModeProject = {
   seedMultiUser: false,
   clientWarmup: "room",
 };
-
-// @orb-waive no-vanity-alias(DEV_TARGET_ALLOWED): baselined when the gate widened; burn-down item 906.
-/** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)?
- *  Read by `playwright.config.ts` (reuse the running stack instead of booting one) and by `global-setup.ts`
- *  (waive the target guard). */
-export const DEV_TARGET_ALLOWED = SINGLE_USER_ON_DEV_STACK;
 
 // ── local (cookie/BFF sessions) — ports 8799/5183, ISOLATED DB/assets under .cache. AUTH_MODE=local +
 // the local-mode secrets; global-setup flips localMultiUser on + seeds a member. adopt-only + WIRE_CAPTURE

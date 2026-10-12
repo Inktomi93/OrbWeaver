@@ -1,9 +1,11 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import {
   AUTHORED_CARD_CREATOR,
+  CARD_VERSION_MAX,
   CHARA_CARD_V3_SPEC,
   CHARACTER_LIST_SORTS,
   CHARACTER_PROVENANCES,
+  CREATOR_MAX,
   cardDepthPromptSchema,
   characterBulkTagFailureSchema,
   characterBulkTagResultSchema,
@@ -14,12 +16,15 @@ import {
   characterListSortSchema,
   characterProvenanceOf,
   createCharacterSchema,
+  GREETINGS_MAX,
+  NICKNAME_MAX,
   repairImportedCardInput,
   updateCharacterSchema,
 } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { SubstituteFindRegex } from "@orb/kit/regex";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // A fully-specified regex script (every field present) so `parse` is an identity on the card → the card
@@ -168,24 +173,24 @@ test("createCharacterSchema rejects a missing required name", () => {
 
 // ── import repair: clamp over-cap fields so a foreign card still imports (repair, then isolate) ──
 test("repairImportedCardInput clamps over-cap fields, so a card that would be rejected now validates", () => {
-  const longVersion = "v".repeat(500); // > CARD_VERSION_MAX (200)
+  const longVersion = "v".repeat(CARD_VERSION_MAX + 300);
   const raw = {
     handle: "foreign-card",
     name: "Foreign Card",
     description: "",
-    greetings: Array.from({ length: 150 }, (_, i) => ({ text: `greeting ${i}` })), // > GREETINGS_MAX (100)
+    greetings: Array.from({ length: GREETINGS_MAX + 50 }, (_, i) => ({ text: `greeting ${i}` })),
     cardVersion: longVersion,
-    creator: "c".repeat(300), // > CREATOR_MAX (200)
-    nickname: "n".repeat(300), // > NICKNAME_MAX (200)
+    creator: "c".repeat(CREATOR_MAX + 100),
+    nickname: "n".repeat(NICKNAME_MAX + 100),
   };
   // Raw would be REJECTED (three over-cap strings + an oversized array)…
   expect(createCharacterSchema.safeParse(raw).success).toBe(false);
   // …but the repaired candidate validates (parse throws on failure), with every field clamped to its limit.
   const data = createCharacterSchema.parse(repairImportedCardInput(raw));
-  expect(data.cardVersion).toHaveLength(200);
-  expect(data.creator).toHaveLength(200);
-  expect(data.nickname).toHaveLength(200);
-  expect(data.greetings).toHaveLength(100);
+  expect(data.cardVersion).toHaveLength(CARD_VERSION_MAX);
+  expect(data.creator).toHaveLength(CREATOR_MAX);
+  expect(data.nickname).toHaveLength(NICKNAME_MAX);
+  expect(data.greetings).toHaveLength(GREETINGS_MAX);
 });
 
 test("repairImportedCardInput leaves an in-bounds card byte-identical (no needless mutation)", () => {
@@ -365,7 +370,7 @@ test("characterListCursorSchema parses each sort variant (recent carries a nulla
   const recent = characterListCursorSchema.parse({
     sort: "recent",
     lastChattedAt: null, // never-chatted boundary (the NULLS-LAST tail)
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     id: CHAR_ID,
   });
   expect(recent.sort).toBe("recent");
@@ -380,7 +385,7 @@ test("characterListCursorSchema parses each sort variant (recent carries a nulla
   expect(starred.sort).toBe("starred");
   const newest = characterListCursorSchema.parse({
     sort: "newest",
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     id: CHAR_ID,
   });
   expect(newest.sort).toBe("newest");

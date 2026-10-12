@@ -3,16 +3,16 @@
 // same dispatch seam production crosses) and asserts on the wire body or the item; each names a divergence the
 // separate batch path had from the chat turn.
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication(AbortController | undefined): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ readonly effort?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(extras): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Capability, ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -132,7 +132,7 @@ function userTextOf(body: Record<string, unknown>): string {
 function openRouterConnection<T extends "summarize" | "structured">(
   task: T,
   model: string,
-  extras?: Record<string, unknown>,
+  extras?: Readonly<Record<string, JsonValue>>,
 ): ReturnType<typeof fakeResolved<T>> {
   const query = { model, providerId: castId<ProviderId>("openrouter"), wire: "openai-compat", api: "chat-completions" } as const;
   const { capability } = synthesizeCapability("generation", "anthropic", { curated: curatedRows(query), measured: measuredRows(query) });
@@ -142,7 +142,7 @@ function openRouterConnection<T extends "summarize" | "structured">(
     model,
     capability,
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
-    ...(extras === undefined ? {} : { extras: extras as never }),
+    ...(extras === undefined ? {} : { extras }),
   });
 }
 
@@ -504,7 +504,7 @@ test("(3) agent-sdk side generation fans out to the connection's utility calls a
       inFlight += 1;
       peak = Math.max(peak, inFlight);
       return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await sleep(5);
         yield* agentFrames(model);
         inFlight -= 1;
       })();

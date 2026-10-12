@@ -8,7 +8,7 @@ import { Node as N, SyntaxKind } from "ts-morph";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ContractFieldShape, StructuralCopyMatch } from "../lib/contract-structural-copy.ts";
-import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, indexByField } from "../lib/contract-structural-copy.ts";
+import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, createFieldAgreement, indexByField } from "../lib/contract-structural-copy.ts";
 
 const TESTS = "tests/";
 const E2E = "tests/e2e/";
@@ -28,6 +28,7 @@ const MESSAGES_PAGE = (name: string): string =>
   `export interface ${name} {\n  readonly chatId: string;\n  readonly items: readonly string[];\n  readonly nextCursor: string | null;\n  readonly total: number;\n}\n`;
 
 type HandShape = InterfaceDeclaration | TypeAliasDeclaration;
+type FieldAgreement = ReturnType<typeof createFieldAgreement>;
 
 /** e2e specs and helpers, and every test-tree module that is not itself a test: stories, fixtures, harnesses. */
 function isJudged(path: string): boolean {
@@ -56,19 +57,20 @@ interface HandShapeVerdict {
 }
 
 /** A whole-field copy first; failing that, a drifted copy that kept most of an export's field names. */
-function handShapeVerdict(node: HandShape, index: ReadonlyMap<string, readonly ContractFieldShape[]>): HandShapeVerdict | undefined {
-  const own = candidateFields(N.isInterfaceDeclaration(node) ? node : node.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeLiteral));
-  if (own === undefined) {
+function handShapeVerdict(node: HandShape, index: ReadonlyMap<string, readonly ContractFieldShape[]>, agree: FieldAgreement): HandShapeVerdict | undefined {
+  const fields = candidateFields(N.isInterfaceDeclaration(node) ? node : node.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeLiteral));
+  if (fields === undefined) {
     return;
   }
-  const copy = bestCopyMatch(own, index);
+  const own = { decl: node, fields };
+  const copy = bestCopyMatch(own, index, agree);
   if (copy !== undefined) {
     return { match: copy, relation: `declares ${String(copy.shared)} of the fields of`, operation: COPY_OPERATION };
   }
-  const overlap = bestOverlapMatch(own, index);
+  const overlap = bestOverlapMatch(own, index, agree);
   return overlap === undefined
     ? undefined
-    : { match: overlap, relation: `shares ${String(overlap.shared)} of its ${String(own.size)} field names with`, operation: OVERLAP_OPERATION };
+    : { match: overlap, relation: `shares ${String(overlap.shared)} of its ${String(fields.size)} field names with`, operation: OVERLAP_OPERATION };
 }
 
 export const gate = defineGate({
@@ -96,7 +98,7 @@ export const gate = defineGate({
         for (const [name, declaration] of exportedShapes(sourceFile)) {
           const shape = contractFields(declaration);
           if (shape !== undefined) {
-            fields.push({ name, file, fields: shape });
+            fields.push({ name, file, decl: declaration, fields: shape });
           }
         }
       },
@@ -114,8 +116,9 @@ export const gate = defineGate({
       evaluate: () => {
         ctx.receipt({ kind: "population", source: "production-exported-shapes", members: fields.length });
         const index = indexByField(fields);
+        const agree = createFieldAgreement("test-hand-shape", ctx.checker());
         for (const { node, file } of candidates) {
-          const verdict = handShapeVerdict(node, index);
+          const verdict = handShapeVerdict(node, index, agree);
           if (verdict !== undefined) {
             const name = node.getName();
             ctx.report.node(node.getNameNode(), {

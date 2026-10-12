@@ -13,6 +13,7 @@ import { chatInvites, chatParticipants, users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -22,7 +23,7 @@ import type { AssembleInvitePreviewOp, ClaimChatOp } from "#server/domain/chat/c
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createInvitePreview, guestModeSentence } from "#server/domain/chat/verbs/invite-preview.ts";
 import { createInvites } from "#server/domain/chat/verbs/invites.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: number;
@@ -73,7 +74,7 @@ async function seedInvite(
     expiresAt: null,
     invitedUserId: opts.invitedUserId ?? null,
     status: "pending",
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -112,7 +113,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
 
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
     expect(row?.maxUses).toBe(1);
-    expect(row?.expiresAt).toBe(FROZEN_AT + 48 * 60 * 60 * 1000);
+    expect(row?.expiresAt).toBe(FROZEN_AT_MS + 48 * 60 * 60 * 1000);
   });
 
   test("an EXPLICIT expiresAt:null still means never-expires (the durable-link escape hatch)", async () => {
@@ -145,7 +146,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     // shape that arm depends on — not merely "not 1".
     expect(row?.maxUses).toBeNull();
     // …and the OTHER bound still took its safe default, because only one field was spoken for.
-    expect(row?.expiresAt).toBe(FROZEN_AT + 48 * 60 * 60 * 1000);
+    expect(row?.expiresAt).toBe(FROZEN_AT_MS + 48 * 60 * 60 * 1000);
   });
 
   test("a plain member is refused with not_host", async () => {
@@ -209,7 +210,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     return { host, chatId };
   }
 
-  const valid = { allowSignup: true, maxUses: 3, expiresAt: FROZEN_AT + DayMs } as const;
+  const valid = { allowSignup: true, maxUses: 3, expiresAt: FROZEN_AT_MS + DayMs } as const;
 
   test("a host whose global role is user is refused; an admin host mints it and the row is stamped", async () => {
     const plain = await hostedRoom("user", "signup_plain");
@@ -223,20 +224,20 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const admin = await hostedRoom("admin", "signup_admin");
     const { invite } = await invites.createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input: valid });
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
-    expect(row).toMatchObject({ allowSignup: true, createdByUserId: admin.host, mintMode: "local", maxUses: 3, expiresAt: FROZEN_AT + DayMs });
+    expect(row).toMatchObject({ allowSignup: true, createdByUserId: admin.host, mintMode: "local", maxUses: 3, expiresAt: FROZEN_AT_MS + DayMs });
     expect(invite.allowSignup).toBe(true);
   });
 
   test.each([
-    ["maxUses omitted", { allowSignup: true, expiresAt: FROZEN_AT + DayMs }],
+    ["maxUses omitted", { allowSignup: true, expiresAt: FROZEN_AT_MS + DayMs }],
     ["maxUses null", { ...valid, maxUses: null }],
     ["maxUses zero", { ...valid, maxUses: 0 }],
     ["maxUses over the cap", { ...valid, maxUses: SignupCaps.maxUses + 1 }],
     ["expiresAt omitted", { allowSignup: true, maxUses: 3 }],
     ["expiresAt null", { ...valid, expiresAt: null }],
-    ["expiresAt in the past", { ...valid, expiresAt: FROZEN_AT - 1 }],
-    ["expiresAt now", { ...valid, expiresAt: FROZEN_AT }],
-    ["expiresAt over the cap", { ...valid, expiresAt: FROZEN_AT + SignupCaps.ttlMs + 1 }],
+    ["expiresAt in the past", { ...valid, expiresAt: FROZEN_AT_MS - 1 }],
+    ["expiresAt now", { ...valid, expiresAt: FROZEN_AT_MS }],
+    ["expiresAt over the cap", { ...valid, expiresAt: FROZEN_AT_MS + SignupCaps.ttlMs + 1 }],
     ["a target", { ...valid, invitedHandle: castId<Handle>("someone") }],
   ])("%s is refused with invite_signup_shape and writes no row", async (_label, input) => {
     const admin = await hostedRoom("admin", "signup_shape");
@@ -254,7 +255,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const { invite } = await invites.createInvite({
       principal: makePrincipal(admin.host, { role: "admin" }),
       chatId: admin.chatId,
-      input: { allowSignup: true, maxUses: SignupCaps.maxUses, expiresAt: FROZEN_AT + SignupCaps.ttlMs },
+      input: { allowSignup: true, maxUses: SignupCaps.maxUses, expiresAt: FROZEN_AT_MS + SignupCaps.ttlMs },
     });
     expect(invite.maxUses).toBe(SignupCaps.maxUses);
   });
@@ -734,7 +735,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
     await db
       .update(chatInvites)
-      .set({ expiresAt: FROZEN_AT - 1 })
+      .set({ expiresAt: FROZEN_AT_MS - 1 })
       .where(eq(chatInvites.id, inviteId));
     const invites = createInvites(makeChatContext(db), makeDeps());
 

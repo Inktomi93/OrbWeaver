@@ -6,7 +6,6 @@
 // patch, never the UI reaction (assert-the-mutation-fired).
 
 // @orb-waive-file no-test-fabrication({ text?: string } | null | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -133,6 +132,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   await expect(arbiter).toHaveValue("y".repeat(PROSE_MAX_CHARS + 499));
 
   // THE PIN: no write. The debounce plus a full round-trip have had their chance.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 900ms real-timer wait IS the negative-assertion window.
   expect(trpc.count(UPDATE_USER_SETTINGS_SECTION)).toBe(0);

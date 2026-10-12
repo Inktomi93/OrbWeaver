@@ -10,7 +10,6 @@
 // pass-through (the DB7 checkpoint, doc 08 §1).
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-web.ts
 
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -22,7 +21,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
-import { makeHarness as makeAssetsHarness } from "../../../assets/_support.ts";
+import { makeHarness } from "../../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 
 const URL_WITH_TITLE = "https://example.com/wiki/Northern_Passes";
@@ -149,7 +148,7 @@ test("an html page that extracts to empty surfaces the empty-extraction warning 
 // no faked store) with html bytes, mirroring the upload lane's real-store proof.
 test("a real html scrape stores end-to-end through the REAL assets.store belt (no faked store)", async () => {
   const db = await freshDb();
-  const assetsH = await makeAssetsHarness(db);
+  const assetsH = await makeHarness(db);
   onTestFinished(assetsH.cleanup);
   const assets = createAssetsService(assetsH.ctx);
   const base = makeDatabankHarness(db, {

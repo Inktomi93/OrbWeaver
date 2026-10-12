@@ -6,7 +6,6 @@
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ phase?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(store): baselined when the gate widened; burn-down item 906.
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
@@ -22,7 +21,7 @@ import type { ChatContext } from "#server/domain/chat/contract/context.ts";
 import type { ResolveBackfillMemoryConfig } from "#server/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "#server/domain/chat/substrate/backfill.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
-import { makeHarness as makeCharacterHarness } from "../../character/_support.ts";
+import { makeHarness } from "../../character/_support.ts";
 import { EMBED_MODEL } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, realMemoryWiring, seedTurns } from "../memory/_support.ts";
@@ -307,7 +306,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     // The mint is the character domain's own verb (compose wires it), so the synthetic row it persists is the
     // real one and the shared-bucket digest's FK resolves. No row was pre-seeded — the sweep mints it.
-    const characterService = createCharacterService(makeCharacterHarness(db).ctx);
+    const characterService = createCharacterService(makeHarness(db).ctx);
     const minted: CharacterId[] = [];
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, {
@@ -446,8 +445,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       characterId: "character_group" as CharacterId,
     }));
-    // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
-    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint as never });
+    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint });
     const resolve: ResolveBackfillMemoryConfig = (hostUserId) => Promise.resolve(hostUserId === hostOff ? { mode: "off" } : {});
 
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS }, resolve);
@@ -549,7 +547,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.failed).toBe(0);
     expect(counts.segments.changed).toBe(6);
     // …and length-sorted, so similar-length sequences pack into the engine's batch with less padding waste.
-    expect(store.segments.map((s) => s.text.length)).toEqual([...store.segments.map((s) => s.text.length)].sort((a, b) => a - b));
+    expect(store.segments.map((s) => s.text.length)).toEqual(store.segments.map((s) => s.text.length).toSorted((a, b) => a - b));
   });
 
   // The flood is ONE call for the whole corpus, so a poisoned chunk would take the entire sweep down with it
@@ -758,8 +756,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     }));
     const ctx = makeChatContext(db, {
       findSyntheticGroupCharacter: () => Promise.resolve(null),
-      // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
-      mintSyntheticGroupCharacter: mint as never,
+      mintSyntheticGroupCharacter: mint,
     });
 
     const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS });
@@ -776,8 +773,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     const ctx = makeChatContext(db, {
       // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       findSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
-      // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
-      mintSyntheticGroupCharacter: mint as never,
+      mintSyntheticGroupCharacter: mint,
     });
 
     const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS });

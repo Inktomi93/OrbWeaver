@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants, messageReactions } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
@@ -26,7 +27,7 @@ import {
   loadReactorSeatId,
   loadVariantSlotInChat,
 } from "#server/domain/chat/persistence/reactions.ts";
-import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { addVariant, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -77,7 +78,7 @@ describe("insertReaction / deleteReaction — the toggle's two statements", () =
   test("the whole-message UNIQUE makes a double-add a NO-OP that says so, and a keyed remove answers honestly", async () => {
     const { chatId, seatId } = await seedRoom("a");
     const { variantId } = await seedMessage(db, chatId, 1);
-    const row = { variantId, reactorParticipantId: seatId, emoji: "👍", segment: null, createdAt: FROZEN_AT };
+    const row = { variantId, reactorParticipantId: seatId, emoji: "👍", segment: null, createdAt: FROZEN_AT_MS };
 
     expect(await insertReaction(db, { id: mintTypeId(ID_PREFIX.messageReaction), ...row })).toBe(true);
     // The SECOND add conflicts away to nothing and REPORTS it — which is what keeps the verb from emitting
@@ -93,7 +94,7 @@ describe("insertReaction / deleteReaction — the toggle's two statements", () =
   test("B7: whole-message and segment-anchored are INDEPENDENT toggles — each arm dedupes and deletes only itself", async () => {
     const { chatId, seatId } = await seedRoom("s");
     const { variantId } = await seedMessage(db, chatId, 1);
-    const base = { variantId, reactorParticipantId: seatId, emoji: "😂", createdAt: FROZEN_AT };
+    const base = { variantId, reactorParticipantId: seatId, emoji: "😂", createdAt: FROZEN_AT_MS };
     const anchor = { segmentIndex: 1, segmentSpeaker: "Bob", segmentSnippet: "the line" };
 
     // Same seat, same emoji, same variant — the whole-message row and the line-anchored row COEXIST
@@ -129,7 +130,7 @@ describe("insertReaction / deleteReaction — the toggle's two statements", () =
         segmentIndex: null,
         segmentSpeaker: null,
         segmentSnippet: "orphan snippet",
-        createdAt: FROZEN_AT,
+        createdAt: FROZEN_AT_MS,
       }),
     ).rejects.toThrow();
     expect(await db.select().from(messageReactions)).toHaveLength(0);
@@ -145,7 +146,7 @@ describe("insertReaction / deleteReaction — the toggle's two statements", () =
       segmentIndex: 0,
       segmentSpeaker: null,
       segmentSnippet: "orphan snippet",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     expect(await db.select().from(messageReactions)).toHaveLength(1);
   });
@@ -159,7 +160,7 @@ describe("listChatReactions — the window", () => {
     // The hot slot has three swipes, every one reacted to — three ROWS on ONE slot.
     const swipeA = await addVariant(db, hot.messageId, 1, "reroll a");
     const swipeB = await addVariant(db, hot.messageId, 2, "reroll b");
-    let at = FROZEN_AT;
+    let at = FROZEN_AT_MS;
     for (const variantId of [older.variantId, hot.variantId, swipeA, swipeB]) {
       at += 1;
       await insertReaction(db, {
@@ -268,7 +269,7 @@ describe("listAttributionReactions — the MR4 read", () => {
       reactorParticipantId: seatId,
       emoji: "👍",
       segment: null,
-      createdAt: FROZEN_AT + 1,
+      createdAt: FROZEN_AT_MS + 1,
     });
     await insertReaction(db, {
       id: mintTypeId(ID_PREFIX.messageReaction),
@@ -276,7 +277,7 @@ describe("listAttributionReactions — the MR4 read", () => {
       reactorParticipantId: seatId,
       emoji: "😂",
       segment: null,
-      createdAt: FROZEN_AT + 2,
+      createdAt: FROZEN_AT_MS + 2,
     });
 
     const rows = await listAttributionReactions(db, chatId, { slotWindow: 10, floorSeq: NO_FLOOR });
@@ -297,7 +298,7 @@ describe("listAttributionReactions — the MR4 read", () => {
       reactorParticipantId: aliceSeat,
       emoji: "🔥",
       segment: null,
-      createdAt: FROZEN_AT + 1,
+      createdAt: FROZEN_AT_MS + 1,
     });
     await insertReaction(db, {
       id: mintTypeId(ID_PREFIX.messageReaction),
@@ -305,7 +306,7 @@ describe("listAttributionReactions — the MR4 read", () => {
       reactorParticipantId: memberSeat,
       emoji: "👍",
       segment: null,
-      createdAt: FROZEN_AT + 2,
+      createdAt: FROZEN_AT_MS + 2,
     });
 
     const rows = await listAttributionReactions(db, chatId, { slotWindow: 10, floorSeq: NO_FLOOR });
@@ -326,7 +327,7 @@ describe("listAttributionReactions — the MR4 read", () => {
       reactorParticipantId: seatId,
       emoji: "👍",
       segment: null,
-      createdAt: FROZEN_AT + 1,
+      createdAt: FROZEN_AT_MS + 1,
     });
     await insertReaction(db, {
       id: mintTypeId(ID_PREFIX.messageReaction),
@@ -334,7 +335,7 @@ describe("listAttributionReactions — the MR4 read", () => {
       reactorParticipantId: seatId,
       emoji: "😂",
       segment: null,
-      createdAt: FROZEN_AT + 2,
+      createdAt: FROZEN_AT_MS + 2,
     });
 
     const oneSlot = await listAttributionReactions(db, chatId, { slotWindow: 1, floorSeq: NO_FLOOR });

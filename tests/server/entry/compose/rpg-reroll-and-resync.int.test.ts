@@ -1,5 +1,6 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @subject packages/server/src/domain/rpg/tools/rounds/resync.ts
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — a reroll supersedes the rejected variant's extraction, a swipe surfaces the selected variant's consequences, and the host resync reconciles rather than appends.
 
@@ -11,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { addVariant, FROZEN_AT, seedMessage } from "../../domain/chat/_support.ts";
+import { addVariant, seedMessage } from "../../domain/chat/_support.ts";
 import type { buildRpg, RpgTurnContext } from "./_rpg-support.ts";
 import {
   buildCannedRpg,
@@ -180,8 +181,8 @@ test("PROSE-1: a GM-preset extraction override rides the RESYNC's system prompt,
         "rpg.extract.plane.inventory": { text: "INVENTORY — only coin and what a hand can carry. Nothing else is tracked at this table.", baseVersion: 1 },
       },
     },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
   await compose.service.updateConfig({ principal, chatId, extractionMode: "cheap", gmPresetId: presetId });
@@ -379,7 +380,7 @@ test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the 
   const written = await writeStagedSnapshot(
     db,
     { ...defaultSnapshotState(), location: "the konbini", recentEvents: [`${dup}, then asked about drinks.`, `${dup} and dropped the cat-bit.`, `${dup}.`] },
-    { id: castId("rpg_snapshot_ver1a_dup"), gameId, messageId: slot.messageId, variantId: slot.variantId, now: FROZEN_AT },
+    { id: castId("rpg_snapshot_ver1a_dup"), gameId, messageId: slot.messageId, variantId: slot.variantId, now: FROZEN_AT_MS },
   );
   expect(written.ok).toBe(true);
   await commitSnapshotForVariant(db, slot.variantId);

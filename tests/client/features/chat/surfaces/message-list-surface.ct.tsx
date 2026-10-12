@@ -23,6 +23,7 @@
 import type { ChatBusEvent, ChatIdentity } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { messageWindowTargetSchema } from "@orb/contracts/search";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -73,7 +74,7 @@ const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   }),
@@ -897,11 +898,7 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
   // `trpc.count` poll hang out to their timeout. Gating the stream on the canon read actually having
   // rendered ("Ping?" visible ⇒ the first fetch is done) makes the invalidate always land on an
   // idle query, so the refetch always fires for real.
-  let releaseStream: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const canonSettled = new Promise<void>((resolve) => {
-    releaseStream = resolve;
-  });
+  const { promise: canonSettled, resolve: releaseStream } = Promise.withResolvers<void>();
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
     if (accept.includes("text/event-stream")) {
@@ -914,7 +911,7 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
 
   // Canon renders — the initial listMessages fetch is now settled; safe to let the stream through.
   await expect(component.getByText("Ping?")).toBeVisible();
-  releaseStream?.();
+  releaseStream();
 
   // The turn completes → listMessages refetches → the assistant reply lands as a canonical row.
   await expect(component.getByText("Hello world")).toBeVisible();
@@ -1184,11 +1181,7 @@ test("a chatOpened at a non-advancing cursor seq STILL invalidates on RE-attach 
   // having RENDERED ("Ping?" visible ⇒ the mount batch settled, getChat is idle) makes the reopen invalidate
   // always land on an idle query, so the refetch always fires for real. Registered last ⇒ runs FIRST per
   // request (Playwright routes are LIFO) and falls through unchanged for non-stream traffic.
-  let releaseStream: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const mountSettled = new Promise<void>((resolve) => {
-    releaseStream = resolve;
-  });
+  const { promise: mountSettled, resolve: releaseStream } = Promise.withResolvers<void>();
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
     if (accept.includes("text/event-stream")) {
@@ -1202,7 +1195,7 @@ test("a chatOpened at a non-advancing cursor seq STILL invalidates on RE-attach 
   // The surface reads its roster once at mount (getChat #1). Once canon has rendered, the mount reads are
   // settled (getChat idle) — release the stream so its trailing chatOpened invalidate lands on an idle query.
   await expect(component.getByText("Ping?")).toBeVisible();
-  releaseStream?.();
+  releaseStream();
 
   // The streamed turn advances the seq mark but fires NO getChat invalidate (turnStarted/delta invalidate nothing).
   await expect(component.getByText("Hello world")).toBeVisible();
@@ -1245,11 +1238,7 @@ test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's o
   // second call, so without the gate this test would go green on the OLD code too (a lying pass). Holding the
   // stream until canon has rendered guarantees `getChat` is IDLE when `chatOpened` arrives — i.e. the exact
   // condition under which the old seam DID spend a second round trip.
-  let releaseStream: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const mountSettled = new Promise<void>((resolve) => {
-    releaseStream = resolve;
-  });
+  const { promise: mountSettled, resolve: releaseStream } = Promise.withResolvers<void>();
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
     if (accept.includes("text/event-stream")) {
@@ -1262,7 +1251,7 @@ test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's o
 
   await expect(component.getByText("Ping?")).toBeVisible();
   await expect.poll(() => trpc.count("chat.getChat"), { intervals: [20, 50, 100] }).toBe(1);
-  releaseStream?.();
+  releaseStream();
 
   // The barrier: the delta AFTER the synthetic is on screen, so the synthetic has been applied.
   await expect(component.getByText("Hello world!")).toBeVisible();
@@ -2254,7 +2243,7 @@ test("a capability warning overlay preserves a stable streaming transcript", asy
     );
   await page.evaluate(
     async () =>
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+      // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
       await new Promise<void>((resolve) => {
         // One settle window for the reflow the resize legitimately causes.
         setTimeout(resolve, 400);

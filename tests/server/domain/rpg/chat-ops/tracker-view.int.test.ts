@@ -10,6 +10,7 @@ import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatTurnId, Handle, RpgSheetId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
 import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
@@ -20,7 +21,6 @@ import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
 import {
   emptyState,
   expect,
-  FROZEN_AT,
   liteConfig,
   makeRpgService,
   participantCharacter,
@@ -117,7 +117,7 @@ async function seedGameWithTrackers(
   // fabricated `character_<key>` id would be silently dropped (the write asserts ok below).
   const characterId = await seedCharacter(db, ownerId, key, { id: mintTypeId(ID_PREFIX.character) });
   const sheet: RpgSheet = { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [], ...sheetOver };
-  await upsertSheet(db, { id: castId<RpgSheetId>(`rpg_sheet_${key}`), gameId, characterId, userId: null, sheet, now: FROZEN_AT });
+  await upsertSheet(db, { id: castId<RpgSheetId>(`rpg_sheet_${key}`), gameId, characterId, userId: null, sheet, now: FROZEN_AT_MS });
   const volatile: RpgActorEntry = {
     actorRef: { kind: "character", characterId },
     volatile: { trackerValues: values, conditions: [], inventory: [], wallet: [], status: "" },

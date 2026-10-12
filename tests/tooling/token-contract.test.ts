@@ -1,7 +1,6 @@
 // The token VAULT contract: official DTCG 2025.10 schemas first, Orb semantic checks second. These
 // fixtures exercise the instrument in both directions; the real corpus assertion pins the shipped
 // exact target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
@@ -15,7 +14,7 @@ import {
   validateTokenContractTexts,
 } from "@orb/ui/token-contract";
 import { describe } from "vitest";
-import { gate as tokensContractGate } from "../../tooling/src/verify/gates/tokens-contract.ts";
+import { gate } from "../../tooling/src/verify/gates/tokens-contract.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
@@ -214,7 +213,7 @@ describe("Orb semantic controls", () => {
   // longer a `ctx.root` conditional — it is the `token-contract` resource's `removalBaseline`, read by the
   // provider and pinned in tests/tooling/verify/gates/token-contract-family.suite.test.ts.
   test("the canonical policy proof stays green without weakening the real-worktree removal ratchet", () => {
-    expect(verifyPolicyProofs([tokensContractGate])).toEqual([]);
+    expect(verifyPolicyProofs([gate])).toEqual([]);
   });
 
   test("comma-packed font members, alias cycles, and terminal type mismatches are refused", () => {

@@ -12,6 +12,7 @@ import { request as httpRequest } from "node:http";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { fakeRelaySeams } from "@orb/testkit/node/fake-relay.ts";
@@ -31,7 +32,7 @@ const OK = 200;
 const BOOT_TIMEOUT_MS = 120_000;
 const RELAY_HOST = "calm-river-four-birds.trycloudflare.com";
 const VISITOR = "203.0.113.9";
-const FORM = { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" };
+const FORM = { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" };
 const SECURE_SESSION_COOKIE = "__Host-orb_session=";
 // The signed-in half of `GET /api/auth/me`, parsed so the handle arrives branded.
 const AUTH_ME = z.object({ handle: brandedId<Handle>() });
@@ -197,7 +198,7 @@ test("a first-run claim through the https hop is refused by its forwarding tell;
 test("share.start runs the relay against the loopback listener, and a visitor it carries reaches the app", async () => {
   const started = await send(LOOPBACK, "/api/trpc/share.start", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-orb-csrf": "1", cookie: ownerCookie },
+    headers: { "content-type": "application/json", [CSRF_HEADER]: "1", cookie: ownerCookie },
     body: "{}",
   });
   expect(started.status, started.body).toBe(OK);

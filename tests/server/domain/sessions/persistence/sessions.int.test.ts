@@ -3,6 +3,7 @@ import { sessions, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -19,7 +20,6 @@ import {
 
 const USER_ID = castId<UserId>("user_alice");
 const HANDLE = castId<Handle>("alice");
-const T0 = 1_750_000_000_000;
 const TTL = 1000;
 
 let db: Db;
@@ -29,7 +29,7 @@ beforeEach(async () => {
   await db.insert(users).values({ id: USER_ID, handle: HANDLE, handleKey: handleKey(HANDLE), role: "owner" });
 });
 
-async function seedSession(id: string, tokenHash: string, createdAt: number = T0): Promise<SessionId> {
+async function seedSession(id: string, tokenHash: string, createdAt: number = FROZEN_AT_MS): Promise<SessionId> {
   const sessionId = castId<SessionId>(id);
   await insertSession(db, {
     id: sessionId,
@@ -61,18 +61,18 @@ describe("persistence/sessions", () => {
 
   test("slideExpiry bumps lastSeenAt + expiresAt together", async () => {
     const id = await seedSession("session_a", "hash-a");
-    await slideExpiry(db, id, T0 + 500, T0 + 500 + TTL);
+    await slideExpiry(db, id, FROZEN_AT_MS + 500, FROZEN_AT_MS + 500 + TTL);
     const row = await selectForValidation(db, "hash-a");
-    expect(row?.lastSeenAt).toBe(T0 + 500);
-    expect(row?.expiresAt).toBe(T0 + 500 + TTL);
+    expect(row?.lastSeenAt).toBe(FROZEN_AT_MS + 500);
+    expect(row?.expiresAt).toBe(FROZEN_AT_MS + 500 + TTL);
   });
 
   test("revokeByTokenHash is atomic — returns the owner ONCE, then nothing", async () => {
     const id = await seedSession("session_a", "hash-a");
-    const first = await revokeByTokenHash(db, "hash-a", T0 + 1);
+    const first = await revokeByTokenHash(db, "hash-a", FROZEN_AT_MS + 1);
     // #141 — the winner also reports the row's sealed OIDC end-session hint (null here: seedSession stores none).
     expect(first).toStrictEqual({ id, userId: USER_ID, oidcIdToken: null });
-    expect(await revokeByTokenHash(db, "hash-a", T0 + 2)).toBeUndefined();
+    expect(await revokeByTokenHash(db, "hash-a", FROZEN_AT_MS + 2)).toBeUndefined();
   });
 
   // #141 — `sealedIdTokenOf`'s ALL-OR-NONE refusal, previously unpinned. Two thirds of an AES-GCM seal is
@@ -88,7 +88,7 @@ describe("persistence/sessions", () => {
   }): Promise<{ id: SessionId; revoked: Awaited<ReturnType<typeof revokeByTokenHash>> }> {
     const id = await seedSession("session_a", "hash-a");
     await db.update(sessions).set(cols).where(eq(sessions.id, id));
-    return { id, revoked: await revokeByTokenHash(db, "hash-a", T0 + 1) };
+    return { id, revoked: await revokeByTokenHash(db, "hash-a", FROZEN_AT_MS + 1) };
   }
 
   // The three partial shapes the table can actually hold, shared by the two loops below (what the call
@@ -133,7 +133,7 @@ describe("persistence/sessions", () => {
   for (const partial of partialSeals) {
     test(`revokeByTokenHash CLEARS a half-written seal off the dead row (${partial.label})`, async () => {
       // …and the revocation itself still happened: the clear is a SECOND statement, not a replacement.
-      expect(await rowAfterRevokingCarrier(partial.cols)).toEqual({ ciphertext: null, iv: null, tag: null, revokedAt: T0 + 1 });
+      expect(await rowAfterRevokingCarrier(partial.cols)).toEqual({ ciphertext: null, iv: null, tag: null, revokedAt: FROZEN_AT_MS + 1 });
     });
   }
 
@@ -144,7 +144,11 @@ describe("persistence/sessions", () => {
     const whole = { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: "iv", oidcIdTokenTag: "tag" };
     await db.update(sessions).set(whole).where(eq(sessions.id, id));
 
-    expect(await revokeByTokenHash(db, "hash-a", T0 + 1)).toStrictEqual({ id, userId: USER_ID, oidcIdToken: { ciphertext: "ct", iv: "iv", tag: "tag" } });
+    expect(await revokeByTokenHash(db, "hash-a", FROZEN_AT_MS + 1)).toStrictEqual({
+      id,
+      userId: USER_ID,
+      oidcIdToken: { ciphertext: "ct", iv: "iv", tag: "tag" },
+    });
     // …and consumed: a dead row keeps no end-session hint at rest.
     const row = (await db.select().from(sessions).where(eq(sessions.id, id)))[0];
     expect(row).toMatchObject({ oidcIdTokenCiphertext: null, oidcIdTokenIv: null, oidcIdTokenTag: null });
@@ -152,21 +156,21 @@ describe("persistence/sessions", () => {
 
   test("revokeById flips one device", async () => {
     const id = await seedSession("session_a", "hash-a");
-    await revokeById(db, id, T0 + 1);
-    expect(await selectForValidation(db, "hash-a")).toMatchObject({ revokedAt: T0 + 1 });
+    await revokeById(db, id, FROZEN_AT_MS + 1);
+    expect(await selectForValidation(db, "hash-a")).toMatchObject({ revokedAt: FROZEN_AT_MS + 1 });
   });
 
   test("revokeAllForUser returns the ids flipped this call (and not already-revoked ones)", async () => {
     const a = await seedSession("session_a", "hash-a");
     const b = await seedSession("session_b", "hash-b");
-    const revoked = await revokeAllForUser(db, USER_ID, T0 + 1);
+    const revoked = await revokeAllForUser(db, USER_ID, FROZEN_AT_MS + 1);
     expect(revoked.toSorted()).toStrictEqual([a, b].toSorted());
-    expect(await revokeAllForUser(db, USER_ID, T0 + 2)).toStrictEqual([]);
+    expect(await revokeAllForUser(db, USER_ID, FROZEN_AT_MS + 2)).toStrictEqual([]);
   });
 
   test("listForUser projects the secret-free view, newest-first", async () => {
-    const older = await seedSession("session_a", "hash-a", T0);
-    const newer = await seedSession("session_b", "hash-b", T0 + 1000);
+    const older = await seedSession("session_a", "hash-a", FROZEN_AT_MS);
+    const newer = await seedSession("session_b", "hash-b", FROZEN_AT_MS + 1000);
     const views = await listForUser(db, USER_ID);
     expect(views.map((v) => v.id)).toStrictEqual([newer, older]);
     expect(views[0]).not.toHaveProperty("tokenHash");
@@ -176,7 +180,7 @@ describe("persistence/sessions", () => {
   test("listForUser caps at the hard ceiling (DoS floor), keeping the newest window", async () => {
     // One over the cap; the STALEST row (created earliest) must be the one dropped by the newest-first cap.
     const cap = 200;
-    await Promise.all(Array.from({ length: cap + 1 }, (_, i) => seedSession(`session_${i}`, `hash-${i}`, T0 + i)));
+    await Promise.all(Array.from({ length: cap + 1 }, (_, i) => seedSession(`session_${i}`, `hash-${i}`, FROZEN_AT_MS + i)));
     const views = await listForUser(db, USER_ID);
     expect(views).toHaveLength(cap);
     expect(views.some((v) => v.id === castId<SessionId>("session_0"))).toBe(false);

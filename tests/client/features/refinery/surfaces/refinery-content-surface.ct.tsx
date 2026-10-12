@@ -23,10 +23,11 @@
 // catchable and flakes where it is not.
 //
 // THE CLOCK IS FROZEN on every mount: the masthead's credit line renders an elapsed-since stamp off the
-// session's `createdAt`, and `FROZEN_AT` here IS `tests/support/iso/clock.ts`'s `FROZEN_AT_MS`, so the stamp
+// session's `createdAt`, and `FROZEN_AT_MS` here IS `tests/support/iso/clock.ts`'s `FROZEN_AT_MS`, so the stamp
 // is a fixed string rather than a value that drifts with the wall clock.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -34,7 +35,6 @@ import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { RefineryContentStory } from "../_ct-stories.tsx";
 import {
   CARD,
-  FROZEN_AT,
   freeze,
   LIVE_DESCRIPTION,
   ledger,
@@ -71,7 +71,7 @@ function analyzeRun(sourceRunId: string): TrpcWireOutput<"refinery.listRuns">[nu
     durationMs: 12_000,
     sourceRunId,
     strippedKeys: [],
-    createdAt: FROZEN_AT + 3,
+    createdAt: FROZEN_AT_MS + 3,
     stage: "analyze",
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: {
@@ -491,7 +491,7 @@ function strayIndexRewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
     durationMs: 18_000,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: FROZEN_AT + 2,
+    createdAt: FROZEN_AT_MS + 2,
     stage: "rewrite",
     payloadConfig: { kind: "fixed", mode: "balanced" },
     payload: {

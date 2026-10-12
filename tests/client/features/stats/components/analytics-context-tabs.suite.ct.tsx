@@ -13,6 +13,7 @@ import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 // These drive the PRODUCTION path: the real tabs over the real data layer, with the drill seeded through
 // the same `#state` selection the leaderboard writes.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
@@ -34,7 +35,7 @@ const MODEL_ROW = makeModelStatRow({
 const LATENCY = makeLatencyStats({ avgTtftMs: 300, p50TtftMs: 280, p90TtftMs: 800, avgGenMs: 1200, p50GenMs: 1000, p90GenMs: 2400 });
 
 function personaRow(name: string, messageCount: number): TrpcWireOutput<"stats.personaUsage">[number] {
-  return makePersonaUsageRow({ personaId: `persona_${name}`, name, chatCount: 2, messageCount, lastUsedAt: 1_750_000_000_000 });
+  return makePersonaUsageRow({ personaId: `persona_${name}`, name, chatCount: 2, messageCount, lastUsedAt: FROZEN_AT_MS });
 }
 
 test("the Models tab says WHOSE numbers these are when a character is drilled", async ({ mount, page }) => {

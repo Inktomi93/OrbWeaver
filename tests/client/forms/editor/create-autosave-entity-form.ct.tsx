@@ -86,7 +86,7 @@ test("CT-2: reseed shows the starter and discards the pre-reseed edit (no write-
 
   // THE PIN: no save carrying the pre-reseed edit ever landed (the discard-flagged teardown skipped the
   // flush). A macrotask boundary gives any (buggy) write-back every chance to fire first.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   await expect(page.getByTestId("reseed-count")).toHaveText("0");
   await expect(page.getByTestId("reseed-log")).toHaveText("");
@@ -158,7 +158,7 @@ test("CT-6: a server echo re-baselines a clean form but is kept out of a dirty o
   // edits. A macrotask gives the (buggy) clobber every chance to land first.
   await page.getByLabel("Echo text").fill("my local edit");
   await page.getByRole("button", { name: "dirty echo" }).click();
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 200)));
   await expect(page.getByLabel("Echo text")).toHaveValue("my local edit");
 });
@@ -182,7 +182,7 @@ test("CT-9: a serverValues churn during the debounce does not drop the pending s
   await expect(page.getByTestId("echo-drop-log")).toHaveText("echo-drop-entity=my edit");
   await expect(page.getByTestId("echo-drop-count")).toHaveText("1");
   // The edit is not double-submitted by the re-subscription either.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 400)));
   await expect(page.getByTestId("echo-drop-count")).toHaveText("1");
 });
@@ -218,7 +218,7 @@ test("CT-11: a boundary with no persistence seam reports error and keeps the dra
   await expect(page.getByTestId("seamless-draft")).toHaveText("edit that must not be discarded");
   // The edit is still in the box, and the status never flips back to a success it did not earn.
   await expect(page.getByLabel("Seamless text")).toHaveValue("edit that must not be discarded");
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   await expect(page.getByTestId("seamless-state")).toHaveText("error");
 });
@@ -238,7 +238,7 @@ test("CT-12: a declared read-only mount reads 'blocked' when edited and mirrors 
   // THE PIN: the status is `blocked`, never "saved" — the driver is not making this write and says so.
   await expect(page.getByTestId("read-only-state")).toHaveText("blocked");
   // A macrotask past the 50ms debounce: no driver ever armed, so nothing flips it back to "saved".
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   await expect(page.getByTestId("read-only-state")).toHaveText("blocked");
   // Nothing was mirrored to the crash draft — a draft this mount could never save is only a future
@@ -259,7 +259,7 @@ test("CT-7/CT-8: a poisoned draft is discarded on mount — field heals to serve
 
   // CT-8: no user input has occurred — a macrotask boundary gives any (buggy) mount-time resurrection
   // save every chance to fire; the count must stay exactly 0.
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   await expect(page.getByTestId("brick-count")).toHaveText("0");
 });

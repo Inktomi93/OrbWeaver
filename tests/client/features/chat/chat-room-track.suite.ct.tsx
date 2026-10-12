@@ -22,6 +22,7 @@
 // desktop-only by design.
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -80,7 +81,7 @@ const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   }),

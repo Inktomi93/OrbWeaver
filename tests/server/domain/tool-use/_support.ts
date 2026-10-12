@@ -12,9 +12,6 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import type { z } from "zod";
 import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext } from "#server/domain/tool-use/index.ts";
 
-// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
-const FROZEN_AT = FROZEN_AT_MS;
-
 export interface ToolUseHarness {
   readonly ctx: ToolUseContext;
   /** Advance the injected clock (ms) — call from inside a handler to pin durationMs. */
@@ -29,7 +26,7 @@ export interface ToolUseHarness {
 export const ANY_DRIVER = castId<UserId>("user_any_driver");
 
 export function makeHarness(): ToolUseHarness {
-  let at = FROZEN_AT;
+  let at = FROZEN_AT_MS;
   const denied = new Set<string>();
   const canImpl = (_principal: Principal, action: string): void => {
     if (denied.has(action)) {

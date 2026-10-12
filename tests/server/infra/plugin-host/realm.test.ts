@@ -20,7 +20,6 @@
 // spelling, so it now carries the shared `@orb-waive test-determinism(performance.timeOrigin)` marker
 // instead of a bracket dodge.
 
-// @orb-waive-file platform-spellings(ALLOWED_GLOBALS): baselined when the gate widened; burn-down item 906.
 import { estimateTokens } from "@orb/kit/tokens";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { getPluginQuickJS, installRealm, LogRing } from "@orb/server/infra/plugin-host";
@@ -210,7 +209,7 @@ describe("installRealm — ambient denial", () => {
     const { ctx } = await realmContext();
     try {
       const actual = evalString(ctx, "Object.getOwnPropertyNames(globalThis).sort().join(',')").split(",");
-      expect(actual).toEqual([...ALLOWED_GLOBALS].sort());
+      expect(actual).toEqual(ALLOWED_GLOBALS.toSorted());
       // The claim the mis-titled test never made: `orb` is the ONE non-intrinsic entry, and it is the surface.
       expect(evalString(ctx, "typeof orb")).toBe("object");
       expect(evalString(ctx, "typeof orb.host")).toBe("function");

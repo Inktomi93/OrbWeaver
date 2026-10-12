@@ -10,8 +10,6 @@ import { imageBelowFloor, MIN_IMAGE_EDGE_PX } from "#server/domain/embeddings/su
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const BYTE = 256;
-// @orb-waive no-vanity-alias(SHIFT_1): baselined when the gate widened; burn-down item 906.
-const SHIFT_1 = BYTE;
 const SHIFT_2 = 65_536;
 const SHIFT_3 = 16_777_216;
 
@@ -24,7 +22,7 @@ function png(width: number, height: number): Uint8Array {
   const u32be = (n: number, at: number): void => {
     b[at] = Math.floor(n / SHIFT_3) % BYTE;
     b[at + 1] = Math.floor(n / SHIFT_2) % BYTE;
-    b[at + 2] = Math.floor(n / SHIFT_1) % BYTE;
+    b[at + 2] = Math.floor(n / BYTE) % BYTE;
     b[at + 3] = n % BYTE;
   };
   u32be(width, 16);

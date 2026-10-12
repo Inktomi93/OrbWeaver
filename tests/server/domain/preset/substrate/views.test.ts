@@ -11,10 +11,10 @@ import type { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { presetDetailSchema, presetSummarySchema, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { toPresetDetail, toPresetSummary } from "#server/domain/preset/substrate/views.ts";
-import { FROZEN_AT } from "../_support.ts";
 
 type PresetRow = typeof presets.$inferSelect;
 
@@ -27,8 +27,8 @@ function row(overrides: Partial<PresetRow> = {}): PresetRow {
     config: DEFAULT_PROMPT_CONFIG,
     schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
     forkedFrom: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }
@@ -48,7 +48,7 @@ describe("toPresetSummary", () => {
 
   test("projects id/name/kind/dates", () => {
     const s = toPresetSummary(row({ name: "Assistant", kind: "assistant" }));
-    expect(s).toMatchObject({ name: "Assistant", kind: "assistant", createdAt: FROZEN_AT });
+    expect(s).toMatchObject({ name: "Assistant", kind: "assistant", createdAt: FROZEN_AT_MS });
   });
 
   // The list row marks an unreadable preset before it opens, so the summary must give the write guard's verdict.

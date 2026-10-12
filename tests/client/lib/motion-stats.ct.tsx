@@ -73,7 +73,7 @@ import type { TraceCapture } from "../../../tooling/src/snap/lib/react-profile-t
 import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
-import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
+import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.fixtures.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
 // Manufactured blocking controls must not run beside this file's cold-opening budget measurements.

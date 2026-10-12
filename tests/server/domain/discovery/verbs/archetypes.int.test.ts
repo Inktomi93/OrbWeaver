@@ -8,12 +8,13 @@ import { characterEmbeddings, characterSummaries } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { FROZEN_AT, makeDiscoveryHarness, seedAsset, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
+import { makeDiscoveryHarness, seedAsset, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 async function seedSummary(db: Db, characterId: CharacterId, facets: { genre?: string; tone?: string; tags?: string[] }): Promise<void> {
   await db.insert(characterSummaries).values({
@@ -22,7 +23,7 @@ async function seedSummary(db: Db, characterId: CharacterId, facets: { genre?: s
     tone: facets.tone ?? null,
     tags: facets.tags ?? [],
     model: "test-summarize-model",
-    computedAt: FROZEN_AT,
+    computedAt: FROZEN_AT_MS,
   });
 }
 

@@ -3,6 +3,7 @@
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
 
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
@@ -12,6 +13,7 @@ import type { BatchStmt } from "@orb/db/query";
 import type { ChatInjectionId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -30,7 +32,7 @@ import { loadStoredUserMacroValues } from "#server/domain/chat/persistence/queri
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { scenario } from "../_scenario.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: DurableChatBusEvent[];
@@ -142,16 +144,8 @@ describe("chat-row flags (host-only)", () => {
   // fire-and-forget emit's rejection was UNHANDLED — the node process exited for every user. The fix is both
   // halves: `delete` ABORTS the room's turns (source) and the bus emit is TOTAL (floor).
   test("deleting a chat mid-turn: the streaming turn is aborted, the post-delete delta is dropped (no unhandled rejection), and the process survives", async () => {
-    let sawFirstDelta!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const streaming = new Promise<void>((resolve) => {
-      sawFirstDelta = resolve;
-    });
-    let deleteDone!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const deleted = new Promise<void>((resolve) => {
-      deleteDone = resolve;
-    });
+    const { promise: streaming, resolve: sawFirstDelta } = Promise.withResolvers<void>();
+    const { promise: deleted, resolve: deleteDone } = Promise.withResolvers<void>();
     // The scripted role stream, PARKED mid-turn: chunk 1 streams while the chat is alive, chunk 2 + the
     // terminal `final` only resume AFTER the chat row is gone — the exact interleaving that crashed.
     async function* gatedStream(): AsyncGenerator<TurnStreamChunk> {
@@ -189,8 +183,7 @@ describe("chat-row flags (host-only)", () => {
     deleteDone();
     const outcome = await sending;
     // Let any rejection the fire-and-forget emits produced reach the process handler.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await sleep(20);
     process.off("unhandledRejection", onUnhandled);
 
     // THE bug: a single racing emit must never reach the process as an unhandled rejection.
@@ -757,7 +750,7 @@ describe("injections — CRUD (write host, list member)", () => {
 describe("reapTemporaryChats — the caller's expired temp chats", () => {
   // The verb's 24h TTL against the frozen clock: a chat born just past the horizon is reap-eligible.
   const ttlMs = 86_400_000;
-  const expiredAt = FROZEN_AT - ttlMs - 1;
+  const expiredAt = FROZEN_AT_MS - ttlMs - 1;
 
   test("reaps only expired+temporary+caller-hosted; fresh / non-temp / foreign-hosted survive", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
@@ -800,7 +793,7 @@ describe("reapTemporaryChats — the caller's expired temp chats", () => {
   test("a user's tempChatTtlHours narrows the reap window (the knob threads, not a const)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     // Born 2h ago — SAFE under the 24h default, EXPIRED under a 1h TTL.
-    const twoHoursAgo = FROZEN_AT - 2 * 3_600_000;
+    const twoHoursAgo = FROZEN_AT_MS - 2 * 3_600_000;
     const chatId = await seedChat(db, "recent-temp", { temporary: true, createdAt: twoHoursAgo });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
 

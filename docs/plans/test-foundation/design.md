@@ -93,6 +93,12 @@ Gate families fold onto the shared readers:
 
 The fact store is built once per world program, updated from file changes and persisted. A `pnpm ast` verb that loads its own program is a defect: one such run held most of the box's memory. Item 965 measures the static tier on a standard hosted runner; the fix is the shared store, never a time or memory cap.
 
+### Gates move to the tool that already does the job
+
+A rule about names, imports, globals, JSX elements or syntax lives in Biome, ESLint or dependency-cruiser config, not in a custom gate. Tailwind's generated `@theme` resets its default scales, so an off-token class is an unknown class and `no-unknown-classes` rejects it. A custom gate stays only where a judgement needs types or code facts, or protects users with a computed value (contrast, density, theming). World purity stays native: per-world tsconfigs written by the type-config generator, checked by `tsc`, plus `noNodejsModules` and the dependency-cruiser world rules; both stay by owner ruling. The config-liveness parsers, their health twins, `verify-registry-parity` and the ESLint selector model are cut: the tools report their own unused suppressions, and one generic dead-path check covers the config paths that remain. The gates about gates are examined last, one by one.
+
+Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
+
 ### Compose holds wiring only
 
 `entry/compose` builds the graph. A decision that runs once while the graph is built, on config, mode or which dependencies exist, is wiring. A decision inside any function compose hands out (an op, a port method, a callback, a handler) runs per call on live data, so it is a rule and lives in its owning domain. Compose calls no drizzle query. The only exemption is the forward-if-set idiom for optional fields. Item 964 builds the gate and moves the rules; item 958 builds the test composition root on the result, so every rule is reachable from its domain.

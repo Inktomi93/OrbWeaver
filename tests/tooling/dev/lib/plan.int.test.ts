@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { listProcesses, pnpmInvocation } from "@orb/tooling/floor/host/platform";
@@ -58,8 +59,7 @@ setInterval(() => {}, 1000);`,
         const deadline = Date.now() + CEILING / 2;
         // @orb-waive test-determinism(Date.now): polling must expire while a real child fails to publish its file. Ends if the child and polling loop share an injected clock.
         while (!existsSync(descendantFile) && Date.now() < deadline) {
-          // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-          await new Promise((resolve) => setTimeout(resolve, 25));
+          await sleep(25);
         }
         const recorded = childRecord.parse(JSON.parse(readFileSync(descendantFile, "utf8")));
         marker = readFileSync(markerFile, "utf8");
@@ -121,8 +121,7 @@ test("the Windows watch plan ignores directory and cache churn but restarts on l
     await expect.poll(() => output, { timeout: scaledBudget(5000) }).toContain("BOOT:first");
     utimesSync(dependencyDir, new Date("2020-01-01T00:00:00Z"), new Date("2020-01-01T00:00:00Z"));
     writeFileSync(join(dependencyDir, "cache.tmp"), "unrelated");
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await sleep(600);
     expect(output.match(/BOOT:/gu)).toHaveLength(1);
     writeFileSync(dependency, 'export const value = "second";');
     await expect.poll(() => output, { timeout: scaledBudget(5000) }).toContain("BOOT:second");

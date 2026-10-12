@@ -3,6 +3,7 @@
 // LIST renders (deferred = queued + future scheduledAt; waiting = queued + deps; dependency_failed = the DAG
 // terminal keyed on the server message fragment), and the plural wait label.
 
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   dependencyWaitLabel,
@@ -22,7 +23,7 @@ test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-lo
 });
 
 test("isDeferredWorkload: queued + scheduledAt well past createdAt; not for a near/non-deferred or non-queued row", () => {
-  const createdAt = 1_750_000_000_000;
+  const createdAt = FROZEN_AT_MS;
   // A user-deferred run: scheduledAt minutes+ ahead of createdAt.
   expect(isDeferredWorkload({ status: "queued", createdAt, scheduledAt: createdAt + 600_000 })).toBe(true);
   // A normal run: scheduledAt ≈ createdAt (within the insert-latency lead) → NOT deferred.

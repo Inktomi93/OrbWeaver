@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, personas, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
@@ -20,7 +21,7 @@ import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joi
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 const DAY_MS = 86_400_000;
 const TOKEN = "tok_signup";
@@ -45,16 +46,16 @@ beforeEach(async () => {
     chatId,
     tokenHash: `h:${TOKEN}`,
     maxUses: 2,
-    expiresAt: FROZEN_AT + DAY_MS,
+    expiresAt: FROZEN_AT_MS + DAY_MS,
     allowSignup: true,
     createdByUserId: minter,
     mintMode: "local",
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
 });
 
 function ops(capability: SignupInviteCapability = LOCAL, failPointers = false): ReturnType<typeof createSignupInvite> {
-  const sessions = createSessionsService({ db, now: () => FROZEN_AT, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
+  const sessions = createSessionsService({ db, now: () => FROZEN_AT_MS, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
   return createSignupInvite(makeChatContext(db, { signupInvites: capability }), {
     signupUserStatement: sessions.signupUserStatement,
     signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>(`persona_joiner_${personasMinted++}`) }),
@@ -144,10 +145,10 @@ describe("signup-invite ops — the minter re-check at redeem", () => {
       chatId,
       tokenHash: "h:tok_plain",
       maxUses: 5,
-      expiresAt: FROZEN_AT + DAY_MS,
+      expiresAt: FROZEN_AT_MS + DAY_MS,
       createdByUserId: minter,
       mintMode: "local",
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     const signup = ops();
     const usersBefore = (await db.select().from(users)).length;

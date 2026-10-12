@@ -9,6 +9,7 @@ import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { busEventTypes, busLive, openOrCreateChat, renameOpenChat, waitForStreamOpen } from "./support/chat-room.ts";
+import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 const POST_METHOD = "POST";
 const POST_REQUEST = `→ ${POST_METHOD}`;
@@ -161,7 +162,7 @@ test.describe("order-of-operations", () => {
       expect(socketRequests.every((entry) => entry.phase === POST_REQUEST && entry.batchSize === 1)).toBe(true);
       // StrictMode can cancel a start, but only one socket may successfully open.
       expect(timeline.filter((entry) => entry.phase === OK_RESPONSE && entry.procedure === CONNECT)).toHaveLength(1);
-    }).toPass({ timeout: 10_000 });
+    }).toPass({ timeout: WAIT_UI_MS });
   });
 
   test("rename → POST updateTitle → fresh chatUpdated bus event → POST room/list refetch", async ({ page }) => {
@@ -173,10 +174,10 @@ test.describe("order-of-operations", () => {
     const timeline = captureTimeline(page);
     const newTitle = `e2e-seq-${Date.now()}`;
     await renameOpenChat(page, newTitle);
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 
     await expect
-      .poll(async (): Promise<number> => (await busEventTypes(page)).filter((type) => type === CHAT_UPDATED).length, { timeout: 10_000 })
+      .poll(async (): Promise<number> => (await busEventTypes(page)).filter((type) => type === CHAT_UPDATED).length, { timeout: WAIT_UI_MS })
       .toBeGreaterThan(beforeEvents);
     await expect(() => {
       expectInOrder(timeline, [
@@ -192,6 +193,6 @@ test.describe("order-of-operations", () => {
           { phase: OK_RESPONSE, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
         ]);
       }
-    }).toPass({ timeout: 10_000 });
+    }).toPass({ timeout: WAIT_UI_MS });
   });
 });

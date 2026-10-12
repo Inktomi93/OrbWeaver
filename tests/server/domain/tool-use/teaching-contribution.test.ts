@@ -11,13 +11,12 @@
 // "at attach time an unknown name is OUR wiring bug" posture — so a contribution that returned a stale name
 // would turn "I switched my plugin off" into a failed turn. The row below proves the union stays resolvable.
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { TeachingContext } from "#server/domain/chat/contract/context.ts";
@@ -28,8 +27,8 @@ import { createToolUseService, createToolUseTeachingContributions } from "#serve
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const ALICE = makePrincipal(castId<UserId>("user_alice"), { handle: castId("alice") });
-const BOB = makePrincipal(castId<UserId>("user_bob"), { handle: castId("bob") });
+const ALICE = principal(castId<UserId>("user_alice"), { handle: castId("alice") });
+const BOB = principal(castId<UserId>("user_bob"), { handle: castId("bob") });
 
 const allowAll: Can = (() => undefined) as Can;
 

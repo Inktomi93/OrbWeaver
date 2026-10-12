@@ -17,6 +17,7 @@ import {
   renameOpenChat,
   waitForAppReady,
 } from "./support/chat-room.ts";
+import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { createLiteGame, mintFreshCharacter, removeCharacter, trpcMutation } from "./support/trpc.ts";
 
 // The spec-owned character is re-minted chatless for every run, so its Chat CTA must create a fresh husk
@@ -34,13 +35,13 @@ async function openFreshHusk(page: Page): Promise<void> {
   const chatRow = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }) });
   await chatRow.hover();
   await chatRow.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }).click();
-  await expect(page.locator('[role="status"]', { hasText: "Loaded chat" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[role="status"]', { hasText: "Loaded chat" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 test("committed room: the ⋯ options menu is present with its actions enabled", async ({ page }) => {
   await openOrCreateChat(page);
-  await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
 
   // The ⋯ menu is present; its canon actions are enabled on a committed chat.
   await openChatOptions(page);
@@ -64,7 +65,7 @@ test("start click mounts the real room surface and the first row write claims th
     await openFreshHusk(page);
 
     // There is no draft-specific twin: the real greeting row, composer, and committed-room menu all mount.
-    await expect(page.locator('[data-slot="message-row"]').first()).toContainText(DRAFT_GREETING, { timeout: 15_000 });
+    await expect(page.locator('[data-slot="message-row"]').first()).toContainText(DRAFT_GREETING, { timeout: WAIT_SURFACE_MS });
     await expect(page.locator('[data-testid="composer-send"]')).toBeVisible();
     await openChatOptions(page);
     await expect(page.getByRole("menuitem", { name: "Rename" })).toBeEnabled();
@@ -75,7 +76,7 @@ test("start click mounts the real room surface and the first row write claims th
     // Rename is explicit activity: it claims the husk, after which ordinary library navigation must reveal it.
     await renameOpenChat(page, claimedTitle);
     await gotoChatsList(page);
-    await expect(page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
   } finally {
     await removeCharacter(characterId);
   }
@@ -93,7 +94,7 @@ test("turning game mode on in an unsent room claims it into the Chats list", asy
 
     await createLiteGame(started.chat.id);
     await gotoChatsList(page);
-    await expect(gameRow.first()).toBeVisible({ timeout: 15_000 });
+    await expect(gameRow.first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
   } finally {
     await removeCharacter(characterId);
   }

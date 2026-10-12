@@ -1,8 +1,8 @@
 // What a local server says about a model reaches every reader: the model's kind is discovered before the resolver and
 // the capability reader choose a task from it, and each model on a shared server gets its own per-model probe.
 
+import { setTimeout as sleep } from "node:timers/promises";
 // @orb-waive-file no-test-fabrication({ readonly model?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -81,7 +81,7 @@ test("a model probe that outlives a refresh of the server's facts does not overw
   const fresh = runtime.modelKind(beta);
   // The stalled probe answers only once the refreshed list is read and held.
   await expect.poll(() => server.shown.filter((model) => model === "beta:7b")).toHaveLength(2);
-  await new Promise((settled) => setTimeout(settled, 50));
+  await sleep(50);
   release(undefined);
   await Promise.all([stale, fresh]);
 

@@ -1,4 +1,3 @@
-// @orb-waive-file no-inline-types(AppearanceCarrierSnapshot): baselined when the gate widened; burn-down item 906.
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { APPEARANCE_CARRIER_MANIFEST, APPEARANCE_CARRIER_OBSERVABLES } from "#client/lib/appearance-carrier-manifest.ts";

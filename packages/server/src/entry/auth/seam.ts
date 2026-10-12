@@ -250,6 +250,7 @@ async function resolveHeaderOrFallbackPrincipal(
  * fail-closed-DENY the owner's own privileged turn.
  */
 // @orb-waive one-principal-mint-population(Principal): the canonical row-to-Principal mapper; ends never (this is the ONE home for the fallback/bridge mint)
+// @orb-waive compose-wiring-only(principalFromRow): baselined when the gate landed; burn-down item 964.
 function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {
   return {
     userId,

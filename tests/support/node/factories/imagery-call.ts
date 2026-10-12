@@ -1,6 +1,7 @@
 import type { PortableImageryCall } from "@orb/contracts/imagery";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "../../iso/clock.ts";
 
 export function makeImageryCall(): PortableImageryCall {
   return {
@@ -28,7 +29,7 @@ export function makeImageryCall(): PortableImageryCall {
       connectionId: null,
       identityHash: null,
       edited: true,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
     },
     images: [
       { sourceGenerationId: mintTypeId(ID_PREFIX.imageryGeneration), assetId: mintTypeId(ID_PREFIX.asset) },

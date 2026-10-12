@@ -15,6 +15,7 @@ import type { SQL } from "drizzle-orm";
 import { and, desc, eq, lte } from "drizzle-orm";
 import type { WorkloadScheduleRow } from "../contract/schedule.ts";
 
+// @orb-waive contract-structural-copy(ScheduleInsert): baselined when the gate judged by type; burn-down item 904.
 /** A new schedule row (file-local; the verb mints `id`, resolves the owner, passes its injected clock). */
 interface ScheduleInsert {
   readonly id: WorkloadScheduleId;

@@ -16,7 +16,6 @@
 // cookie NAME, duplicated Cookie HEADERS, a name-prefix shadowing attempt, broken percent-escapes) — and
 // asserts ONE answer. It pins parse BEHAVIOR, not implementation, and runs once per transport.
 
-// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import type { RequestTransport } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
@@ -29,6 +28,7 @@ import type { AuthSessionsPort } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { sessionCookieFor } from "@orb/server/infra/auth";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
@@ -36,7 +36,6 @@ import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp } from "#server/entry/app.ts";
 
-const FROZEN_NOW = 1_750_000_000_000;
 const SLIDE_MS = 60_000;
 const TRANSPORTS: readonly RequestTransport[] = ["https", "http"];
 const OTHER: Record<RequestTransport, RequestTransport> = { https: "http", http: "https" };
@@ -146,7 +145,7 @@ async function viaLogout(cookieLines: readonly string[], transport: RequestTrans
   registerAuthRoutes(app, {
     sessions,
     sockets: INERT_EVICTION,
-    now: (): number => FROZEN_NOW,
+    now: (): number => FROZEN_AT_MS,
     db: NO_DB,
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,
@@ -184,21 +183,21 @@ const PEER_ENV = {
 /** Build `AppDeps` with the ports this probe never touches stubbed — the middleware chain it DOES drive
  *  (security headers → auth → observability → healthz) needs only the seam + the settings read. */
 function appDeps(): AppDeps {
-  // @orb-waive no-test-fabrication(never): the ports whose routes this probe never drives (covered by their own slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const untouched = {} as never;
+  // @orb-waive no-test-fabrication(unknown): the ports whose routes this probe never drives (covered by their own slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const untouched = <T>(): T => ({}) as unknown as T;
   // Only the settings slice is read here (the CSP + auth-meta live reads); the other domain services are
   // deliberately absent — their routes are covered by their own slice tests.
   // @orb-waive no-test-fabrication(unknown): settings-only slice of the 17-service bundle. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const services = { settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) } } as unknown as AppDeps["services"];
   return {
-    now: (): number => FROZEN_NOW,
+    now: (): number => FROZEN_AT_MS,
     db: NO_DB,
     oidcProviderName: "your identity provider",
     seam: {
       // The slide fires on every request: the middleware re-issues Set-Cookie ONLY from the token it
       // itself parsed off the Cookie header, so the header value is this probe's observable.
       resolvePrincipal: (_headers, req): Promise<SeamResult> => {
-        req?.onSessionSlide?.(FROZEN_NOW + SLIDE_MS);
+        req?.onSessionSlide?.(FROZEN_AT_MS + SLIDE_MS);
         return Promise.resolve({ principal: null, sessionId: null, csrfHeaderPresent: false });
       },
       debugGateAdmits: (): boolean => false,
@@ -211,16 +210,16 @@ function appDeps(): AppDeps {
       },
       read: (userId) => ({ userId, online: true, lastSeenAt: null }),
     },
-    sockets: untouched,
-    assets: untouched,
-    cas: untouched,
-    character: untouched,
-    exportService: untouched,
+    sockets: untouched(),
+    assets: untouched(),
+    cas: untouched(),
+    character: untouched(),
+    exportService: untouched(),
     portability: [inertChatPortability],
-    settleImportMemory: untouched,
-    importWorldInfo: untouched,
-    importCardScripts: untouched,
-    sessions: untouched,
+    settleImportMemory: untouched(),
+    importWorldInfo: untouched(),
+    importCardScripts: untouched(),
+    sessions: untouched(),
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
     inContainer: false,

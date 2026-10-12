@@ -2,7 +2,6 @@
 // crosses from caller text into the durable scheduler graph, so the wire must prove the canonical workload
 // TypeID shape before the domain sees it.
 
-// @orb-waive-file no-loose-id-cast([stored]): baselined when the gate widened; burn-down item 906.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { WorkloadService } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -103,8 +102,8 @@ describe("workloads.list over stored rows from before the import memory scope", 
       result: { imported: 2, skipped: 0, failed: 0, notes: [] },
       poison: false,
     } as const;
-    // @orb-waive no-test-fabrication(never): the stored row is the subject; the domain double hands it to the real output schema unchanged. Ends when the list verb can be driven over a seeded row here.
-    const list = vi.fn<WorkloadService["list"]>(() => Promise.resolve([stored] as never));
+    // @orb-waive no-test-fabrication(unknown): the stored row is the subject; the domain double hands it to the real output schema unchanged. Ends when the list verb can be driven over a seeded row here.
+    const list = vi.fn<WorkloadService["list"]>(() => Promise.resolve([stored] as unknown as Awaited<ReturnType<WorkloadService["list"]>>));
     const call = caller(makeContext({ auth: principal("user"), services: { workloads: { list } } }));
 
     const rows = await call.workloads.list({});

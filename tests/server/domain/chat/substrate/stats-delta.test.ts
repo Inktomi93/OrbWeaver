@@ -4,6 +4,7 @@ import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -13,7 +14,6 @@ import { assistantTurnDelta, canonMessageDelta, chatCreatedDelta, seatChatDelta,
 const OWNER = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");
 const BRANN = castId<CharacterId>("character_brann");
-const NOW = 1_750_000_000_000;
 
 function onlyDeltaOf(sequence: ReturnType<typeof assistantTurnDelta>): ReturnType<typeof assistantTurnDelta>[number] {
   expect(sequence).toHaveLength(1);
@@ -43,19 +43,19 @@ test("typed paid legs retain mixed models, original buckets, zero samples and kn
       ...common,
       ...makeGenerationUsage(0.125, { tokensIn: 10, tokensOut: 20, reasoningTokens: 5 }),
       model: testModelId("first-model"),
-      observedAt: NOW,
+      observedAt: FROZEN_AT_MS,
     }),
     generationUsageLegSchema.parse({
       ...common,
       ...makeGenerationUsage(0, { tokensIn: 20, tokensOut: 30 }),
       model: testModelId("second-model"),
-      observedAt: NOW + 86_400_000,
+      observedAt: FROZEN_AT_MS + 86_400_000,
     }),
     generationUsageLegSchema.parse({
       ...common,
       ...makeGenerationUsage(null, { tokensIn: 30, tokensOut: null }),
       model: testModelId("second-model"),
-      observedAt: NOW + 86_400_000,
+      observedAt: FROZEN_AT_MS + 86_400_000,
     }),
   ];
   const sequence = [
@@ -72,7 +72,7 @@ test("typed paid legs retain mixed models, original buckets, zero samples and kn
         genTimeMs: 100,
         metadata: { usageLegs: legs },
       },
-      now: NOW + 2 * 86_400_000,
+      now: FROZEN_AT_MS + 2 * 86_400_000,
     }),
   ].flat();
   expect(
@@ -92,7 +92,7 @@ test("typed paid legs retain mixed models, original buckets, zero samples and kn
   ).toEqual([
     {
       model: "second-model",
-      bucketStart: statsBucketStart(NOW + 2 * 86_400_000),
+      bucketStart: statsBucketStart(FROZEN_AT_MS + 2 * 86_400_000),
       assistantTurns: 1,
       generations: 1,
       genSamples: 1,
@@ -105,7 +105,7 @@ test("typed paid legs retain mixed models, original buckets, zero samples and kn
     },
     {
       model: "first-model",
-      bucketStart: statsBucketStart(NOW),
+      bucketStart: statsBucketStart(FROZEN_AT_MS),
       assistantTurns: null,
       generations: null,
       genSamples: null,
@@ -118,7 +118,7 @@ test("typed paid legs retain mixed models, original buckets, zero samples and kn
     },
     {
       model: "second-model",
-      bucketStart: statsBucketStart(NOW + 86_400_000),
+      bucketStart: statsBucketStart(FROZEN_AT_MS + 86_400_000),
       assistantTurns: null,
       generations: null,
       genSamples: null,
@@ -131,7 +131,7 @@ test("typed paid legs retain mixed models, original buckets, zero samples and kn
     },
     {
       model: "second-model",
-      bucketStart: statsBucketStart(NOW + 86_400_000),
+      bucketStart: statsBucketStart(FROZEN_AT_MS + 86_400_000),
       assistantTurns: null,
       generations: null,
       genSamples: null,
@@ -159,12 +159,12 @@ describe("assistantTurnDelta", () => {
           tokensOut: 9,
           tokenProvenance: "measured",
         },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.ownerId).toBe(OWNER);
     expect(d.characterId).toBe(ARIA);
-    expect(d.bucketStart).toBe(statsBucketStart(NOW));
+    expect(d.bucketStart).toBe(statsBucketStart(FROZEN_AT_MS));
     expect(d.assistantTurns).toBe(1);
     expect(d.assistantWords).toBe(wordCount("two words"));
     expect(d.tokensIn).toBe(5);
@@ -185,7 +185,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi", model: "opus", provider: "anthropic", tokensIn: 5, tokensOut: 9 },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(add.modelGenerations).toBe(1);
@@ -195,11 +195,11 @@ describe("assistantTurnDelta", () => {
       canonMessageDelta({
         ownerId: OWNER,
         sign: -1,
-        now: NOW,
+        now: FROZEN_AT_MS,
         row: {
           characterId: ARIA,
           role: "assistant",
-          createdAt: NOW,
+          createdAt: FROZEN_AT_MS,
           content: "hi",
           tokensIn: 5,
           tokensOut: 9,
@@ -229,7 +229,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi", model: "opus", provider: "anthropic", genTimeMs: 1200 },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.modelGenSamples).toBe(1);
@@ -241,11 +241,11 @@ describe("assistantTurnDelta", () => {
       canonMessageDelta({
         ownerId: OWNER,
         sign: 1,
-        now: NOW,
+        now: FROZEN_AT_MS,
         row: {
           characterId: ARIA,
           role: "assistant",
-          createdAt: NOW,
+          createdAt: FROZEN_AT_MS,
           content: "hi",
           tokensIn: null,
           tokensOut: 9,
@@ -277,7 +277,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi" },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.model).toBeNull();
@@ -301,7 +301,7 @@ describe("assistantTurnDelta", () => {
           tokensIn: 5,
           tokensOut: 9,
         },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.ownerId).toBe(OWNER); // the HOST funds it (D19)
@@ -318,7 +318,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi", model: "opus", provider: "anthropic", reasoning: "thinking" },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.reasoningGenerations).toBe(1);
@@ -333,7 +333,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi", model: "opus", provider: "anthropic", reasoning: "  \n  " },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.modelReasoningGenerations).toBeUndefined();
@@ -347,7 +347,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi", reasoning: "  \n  " },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.reasoningGenerations).toBeUndefined();
@@ -362,7 +362,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi", contextWindow: 128_000 },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.maxContextTokens).toBe(128_000);
@@ -374,7 +374,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi" },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.maxContextTokens).toBeUndefined();
@@ -386,7 +386,7 @@ describe("assistantTurnDelta", () => {
         ownerId: OWNER,
         characterId: ARIA,
         economics: { content: "hi" },
-        now: NOW,
+        now: FROZEN_AT_MS,
       }),
     );
     expect(d.tokensIn).toBeUndefined();
@@ -401,12 +401,12 @@ describe("userMessageDelta", () => {
       ownerId: OWNER,
       characterId: ARIA,
       content: "hello there",
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     expect(d.userTurns).toBe(1);
     expect(d.userWords).toBe(wordCount("hello there"));
     expect(d.model).toBeNull();
-    expect(d.bucketStart).toBe(statsBucketStart(NOW));
+    expect(d.bucketStart).toBe(statsBucketStart(FROZEN_AT_MS));
   });
 });
 
@@ -416,11 +416,11 @@ describe("userMessageDelta", () => {
 // `chats`/`chatsCreated` would count the same room N times in `owner_stats` and the daily histogram.
 describe("chatCreatedDelta / seatChatDelta — the two chat grains", () => {
   test("the head delta carries BOTH grains; the seat delta carries ONLY the character census", () => {
-    const head = chatCreatedDelta({ ownerId: OWNER, characterId: ARIA, forked: false, newCharacter: true, now: NOW });
-    const seat = seatChatDelta({ ownerId: OWNER, characterId: BRANN, forked: false, newCharacter: false, now: NOW });
+    const head = chatCreatedDelta({ ownerId: OWNER, characterId: ARIA, forked: false, newCharacter: true, now: FROZEN_AT_MS });
+    const seat = seatChatDelta({ ownerId: OWNER, characterId: BRANN, forked: false, newCharacter: false, now: FROZEN_AT_MS });
 
-    expect(head).toMatchObject({ chats: 1, chatsCreated: 1, characterChats: 1, newCharacter: true, firstAt: NOW, lastAt: NOW });
-    expect(seat).toMatchObject({ characterId: BRANN, characterChats: 1, firstAt: NOW, lastAt: NOW });
+    expect(head).toMatchObject({ chats: 1, chatsCreated: 1, characterChats: 1, newCharacter: true, firstAt: FROZEN_AT_MS, lastAt: FROZEN_AT_MS });
+    expect(seat).toMatchObject({ characterId: BRANN, characterChats: 1, firstAt: FROZEN_AT_MS, lastAt: FROZEN_AT_MS });
     expect(seat.chats).toBeUndefined();
     expect(seat.chatsCreated).toBeUndefined();
     // Sparse patch: a non-first, non-forked seat claims nothing it did not earn.
@@ -429,8 +429,8 @@ describe("chatCreatedDelta / seatChatDelta — the two chat grains", () => {
   });
 
   test("a FORK splits the lineage counter the same way — owner grain on the head, character grain per seat", () => {
-    const head = chatCreatedDelta({ ownerId: OWNER, characterId: ARIA, forked: true, newCharacter: false, now: NOW });
-    const seat = seatChatDelta({ ownerId: OWNER, characterId: BRANN, forked: true, newCharacter: false, now: NOW });
+    const head = chatCreatedDelta({ ownerId: OWNER, characterId: ARIA, forked: true, newCharacter: false, now: FROZEN_AT_MS });
+    const seat = seatChatDelta({ ownerId: OWNER, characterId: BRANN, forked: true, newCharacter: false, now: FROZEN_AT_MS });
 
     expect(head).toMatchObject({ forkedChats: 1, characterForkedChats: 1 });
     expect(seat.characterForkedChats).toBe(1);

@@ -2,10 +2,9 @@
 
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import type { AssignabilityChecker } from "../../floor/code-facts/assignability.ts";
-import { readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import type { AssignabilityChecker, AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
+import { mutuallyAssignableAcross, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import { coLocatedSemanticNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
 import { declKey } from "./keys.ts";
@@ -29,16 +28,28 @@ export interface ShapeEntry {
   readonly fields: readonly FieldPair[];
 }
 
+/** The tool error for a TypeScript build without the assignability primitive. */
+export const PRIMITIVE_ABSENT =
+  "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; tooling/src/floor/code-facts/assignability.ts.";
+
 /** The checker's assignability primitive, resolved once. Its ABSENCE is a tool error (exit 2), never a silent
  *  zero — a lens that quietly stops comparing is worse than no lens. */
 export function assignabilityChecker(project: Pick<Project, "getTypeChecker">): AssignabilityChecker {
   const checker = readAssignabilityChecker(project.getTypeChecker());
   if (checker === undefined) {
-    exitToolError(
-      "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; tooling/src/ast/lib/respell-shapes.ts.",
-    );
+    exitToolError(PRIMITIVE_ABSENT);
   }
   return checker;
+}
+
+const DECLARATION_REFUSALS: Readonly<Record<AssignabilityRefusalKind, string>> = {
+  "primitive-absent": PRIMITIVE_ABSENT,
+  "no-shared-program": "ast respell: compared declarations share no native compiler program",
+  "programs-disagree": "ast respell: native compiler programs disagree about declaration assignability",
+};
+
+function refuseDeclarationComparison(kind: AssignabilityRefusalKind): never {
+  return exitToolError(DECLARATION_REFUSALS[kind]);
 }
 
 /** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not
@@ -46,27 +57,7 @@ export function assignabilityChecker(project: Pick<Project, "getTypeChecker">): 
  *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
  *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
 export function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: Node): boolean {
-  const colocated = coLocatedSemanticNodes(a, b);
-  if (colocated.length === 0) {
-    if (a.getProject() !== b.getProject()) {
-      exitToolError("ast respell: compared declarations share no native compiler program");
-    }
-    const ta = a.getType().compilerType;
-    const tb = b.getType().compilerType;
-    return checker.isTypeAssignableTo(ta, tb) && checker.isTypeAssignableTo(tb, ta);
-  }
-  const answers = new Set(
-    colocated.map(({ project, left, right }) => {
-      const effectiveChecker = assignabilityChecker(project);
-      const ta = left.getType().compilerType;
-      const tb = right.getType().compilerType;
-      return effectiveChecker.isTypeAssignableTo(ta, tb) && effectiveChecker.isTypeAssignableTo(tb, ta);
-    }),
-  );
-  if (answers.size !== 1) {
-    exitToolError("ast respell: native compiler programs disagree about declaration assignability");
-  }
-  return answers.has(true);
+  return mutuallyAssignableAcross({ checker, refuse: refuseDeclarationComparison }, a, b, (left, right) => [left.getType(), right.getType()]);
 }
 
 /** The sorted PROPERTY-NAME signature of a declaration's type — the cheap prefilter that keeps the O(n²)
