@@ -32,6 +32,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "#client/lib/embedder-rebuild.ts";
+import { appSettingsView, effectiveAppSettings } from "../../user-admin/app-settings-fixtures.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
 import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorScrollPaneStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
@@ -173,11 +174,8 @@ async function stubEditor(
     },
     "connection.remove": opts.removeConnection ?? ((): undefined => undefined),
     "connection.probe": () => ({ status: "unreachable", checkedAt: 0, reason: "connect ECONNREFUSED" }),
-    "settings.getAppSettingsWithOverrides": () => ({
-      resolved: { privateEndpointAllowlist: opts.allowlist ?? [] },
-      overrides: { privateEndpointAllowlist: null },
-    }),
-    "settings.updateAppSettings": () => ({ privateEndpointAllowlist: [] }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView({ privateEndpointAllowlist: opts.allowlist ?? [] }, { privateEndpointAllowlist: null }),
+    "settings.updateAppSettings": () => effectiveAppSettings({ privateEndpointAllowlist: [] }),
   });
 }
 

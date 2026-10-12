@@ -16,6 +16,7 @@
 // @orb-waive-file no-test-fabrication(ShiftLedger | undefined): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(keyof typeof SETTLED_CEILING_PX): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -24,9 +25,10 @@ import { castId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -210,10 +212,10 @@ const TEST_RULE_RESULT = {
 } satisfies TrpcWireOutput<"automation.testRule">;
 
 interface StubOverrides {
-  readonly rules?: TrpcFixtureOutput<"automation.listRules">;
-  readonly fires?: TrpcFixtureOutput<"automation.listFires">;
-  readonly presets?: TrpcFixtureOutput<"automation.listRulePresets">;
-  readonly books?: TrpcFixtureOutput<"worldInfo.listForChat">;
+  readonly rules?: TrpcWireOutput<"automation.listRules">;
+  readonly fires?: TrpcWireOutput<"automation.listFires">;
+  readonly presets?: TrpcWireOutput<"automation.listRulePresets">;
+  readonly books?: TrpcWireOutput<"worldInfo.listForChat">;
   readonly mint?: TrpcResponder<"automation.createRuleFromPreset">;
   readonly setEnabled?: TrpcResponder<"automation.setRuleEnabled">;
   readonly testRule?: TrpcResponder<"automation.testRule">;
@@ -740,14 +742,15 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section after h
     // The Macro-picks section reads TWO procs; stubbing only the first leaves its boundary in the error
     // arm (which is what the chat tab's own CT does today — reported, not fixed here).
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
-    "chat.getChat": () => ({
-      id: "chat_ct",
-      viewerIsHost: true,
-      toolRecurseLimit: 7,
-      hostDisplayScripts: false,
-      roomOverrides: DEFAULT_ROOM_OVERRIDES,
-      participants: [],
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        id: "chat_ct",
+        viewerIsHost: true,
+        toolRecurseLimit: 7,
+        hostDisplayScripts: false,
+        roomOverrides: DEFAULT_ROOM_OVERRIDES,
+        participants: [],
+      }),
     "databank.listActiveForChat": () => [],
     // #640: the tab now carries a World books section too, and its read must be fed or that boundary
     // error-arms silently inside this composition.
@@ -823,14 +826,15 @@ test("#640 END-TO-END: a room with no books → attach in World books → the au
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
-    "chat.getChat": () => ({
-      id: CHAT,
-      viewerIsHost: true,
-      toolRecurseLimit: 7,
-      hostDisplayScripts: false,
-      roomOverrides: DEFAULT_ROOM_OVERRIDES,
-      participants: [],
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        id: CHAT,
+        viewerIsHost: true,
+        toolRecurseLimit: 7,
+        hostDisplayScripts: false,
+        roomOverrides: DEFAULT_ROOM_OVERRIDES,
+        participants: [],
+      }),
     "databank.listActiveForChat": () => [],
     "automation.listRules": () => [],
     "automation.listFires": () => [],

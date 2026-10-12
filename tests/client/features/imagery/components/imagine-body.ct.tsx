@@ -4,11 +4,13 @@
 // the RECORDED tRPC inputs (routeTrpc is the spy) against the exact seed the story used.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcInput } from "@orb/testkit/node/route-trpc.ts";
+import type { ChatId, MessageId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeMessageView } from "../../chat/fixtures.ts";
 import { ImagineExtractStory, ImagineFreeStory } from "../_ct-stories.tsx";
 
 /** The read-the-chat button's accessible name. It used to be "Preview prompt", a 13px ghost tucked into the
@@ -21,7 +23,7 @@ const GENERATING_ELAPSED = /Generating the image… \d+s/u;
 
 test("imagine free mode: Generate requests chat.generateImage with the verbatim prompt", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  const rec = await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": { id: "message_ct_generated" } });
+  const rec = await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": makeMessageView({ id: castId<MessageId>("message_ct_generated") }) });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
   const generate = cmp.getByRole("button", { name: "Generate" });
@@ -39,7 +41,7 @@ test("imagine extraction mode: Preview fills the prompt from extractPrompt, then
   const rec = await routeTrpc(page, {
     "chat.getChat": room,
     "imagery.extractPrompt": { prompt: extracted, mode: "scenario", source: "extracted", costUsd: 0.001 },
-    "chat.generateImage": { id: "message_ct_generated" },
+    "chat.generateImage": makeMessageView({ id: castId<MessageId>("message_ct_generated") }),
   });
   const cmp = await mount(<ImagineExtractStory chatId={chatId} />);
 
@@ -157,7 +159,7 @@ const UNNAMED_ROOM = mintTypeId(ID_PREFIX.chat);
 const CHAT_ID = typeIdSchema(ID_PREFIX.chat);
 
 /** Every mount reads the roster for the gallery checkbox; the id echoes the request. */
-function room(input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getChat"> {
+function room(input: TrpcInput<"chat.getChat">): TrpcWireOutput<"chat.getChat"> {
   const requested = input?.chatId;
   return roomWithCharacter(requested === undefined ? UNNAMED_ROOM : CHAT_ID.parse(requested));
 }
@@ -165,12 +167,12 @@ function room(input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getChat
 /** The viewer's seat in the room: the host owns Aria, a guest owns nothing here. */
 type Viewer = "host" | "guest";
 
-function roomWithCharacter(chatId: ChatId, viewer: Viewer = "host"): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function roomWithCharacter(chatId: ChatId, viewer: Viewer = "host"): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     id: chatId,
     title: null,
     participants: [
-      {
+      makeParticipantView({
         id: "chat_participant_ct_aria",
         chatId,
         kind: "character",
@@ -188,7 +190,7 @@ function roomWithCharacter(chatId: ChatId, viewer: Viewer = "host"): TrpcFixture
         handle: null,
         avatarAssetId: null,
         avatarHash: null,
-      },
+      }),
     ],
     anchorPersonaId: null,
     identities: [],
@@ -198,7 +200,7 @@ function roomWithCharacter(chatId: ChatId, viewer: Viewer = "host"): TrpcFixture
     viewerGalleryCharacterId: viewer === "host" ? "character_ct_aria" : null,
     background: null,
     rpg: null,
-  };
+  });
 }
 
 for (const viewport of [
@@ -208,7 +210,10 @@ for (const viewport of [
   test(`${viewport.name}: the picture joins the room character's gallery unless the checkbox is cleared`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const chatId = mintTypeId(ID_PREFIX.chat);
-    const rec = await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId), "chat.generateImage": { id: "message_ct_generated" } });
+    const rec = await routeTrpc(page, {
+      "chat.getChat": roomWithCharacter(chatId),
+      "chat.generateImage": makeMessageView({ id: castId<MessageId>("message_ct_generated") }),
+    });
     const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
     const toGallery = cmp.getByRole("checkbox", { name: "Add to Aria's gallery" });
@@ -222,7 +227,10 @@ for (const viewport of [
   test(`${viewport.name}: clearing the checkbox sends the opt-out`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const chatId = mintTypeId(ID_PREFIX.chat);
-    const rec = await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId), "chat.generateImage": { id: "message_ct_generated" } });
+    const rec = await routeTrpc(page, {
+      "chat.getChat": roomWithCharacter(chatId),
+      "chat.generateImage": makeMessageView({ id: castId<MessageId>("message_ct_generated") }),
+    });
     const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
     const toGallery = cmp.getByRole("checkbox", { name: "Add to Aria's gallery" });
@@ -236,7 +244,10 @@ for (const viewport of [
   test(`${viewport.name}: tapping the checkbox's words toggles it, as a real label does`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const chatId = mintTypeId(ID_PREFIX.chat);
-    await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId), "chat.generateImage": { id: "message_ct_generated" } });
+    await routeTrpc(page, {
+      "chat.getChat": roomWithCharacter(chatId),
+      "chat.generateImage": makeMessageView({ id: castId<MessageId>("message_ct_generated") }),
+    });
     const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
     const toGallery = cmp.getByRole("checkbox", { name: "Add to Aria's gallery" });
@@ -250,7 +261,10 @@ for (const viewport of [
   test(`${viewport.name}: a guest who owns no character here is offered no gallery add`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const chatId = mintTypeId(ID_PREFIX.chat);
-    const rec = await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId, "guest"), "chat.generateImage": { id: "message_ct_generated" } });
+    const rec = await routeTrpc(page, {
+      "chat.getChat": roomWithCharacter(chatId, "guest"),
+      "chat.generateImage": makeMessageView({ id: castId<MessageId>("message_ct_generated") }),
+    });
     const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
     // The roster has rendered and still no checkbox: an absence, not a pending read.

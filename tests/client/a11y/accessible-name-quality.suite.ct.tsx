@@ -25,21 +25,22 @@
 // barriers on a SETTLED rendered control before it measures.
 
 import { chatWithActionName } from "@orb/client/lib";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "@orb/testkit/browser/accessible-names.ts";
 import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import { defineTrpcRoutes, routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { AppShellStory, RailStory } from "../features/app-shell/_ct-stories.tsx";
 import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.tsx";
-import { makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";
+import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";
 import { ComposerStory, MembersPanelStory, NewChatPickerStory } from "../features/chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../features/chat/fixtures.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 import { CharacterCreateBandStory, PresetRenameDialogStory } from "../forms/editor/_form-identity-stories.tsx";
 
-const USER_SETTINGS_VIEW = { userId: "user_ct_namecraft", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+const USER_SETTINGS_VIEW = userSettingsView();
 
 /**
  * The viewer-identity reads the composer's own subtree pulls in beyond {@link CHAT_AMBIENT_ROUTES} /
@@ -68,7 +69,7 @@ const VIEWER_IDENTITY_ROUTES = defineTrpcRoutes({
 /** The empty `chat.listChats` page (`ChatListPage` wire shape) — the honest "no chats yet" default the
  *  home masthead / library resume-strip readers compose over (character-library-surface.tsx:175,
  *  home-masthead-body.tsx:58). */
-const EMPTY_CHAT_LIST = { items: [], nextCursor: null, totalCount: 0 };
+const EMPTY_CHAT_LIST = makeChatListPage();
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria Nightshade", createdAt: 3000, tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })] });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt", createdAt: 2000, tags: [] });
@@ -214,7 +215,7 @@ test("the character library is navigable by name", async ({ mount, page }) => {
   await routeTrpc(page, {
     "rosterPreset.list": [],
     "character.count": 2,
-    "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }),
+    "character.list": characterListResponder([ARIA, BOLT]),
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "chat.listChats": () => EMPTY_CHAT_LIST,
   });
@@ -232,7 +233,7 @@ test("the config host (the Settings section's LIST + CONTENT) is navigable by na
 
 test("the new-chat picker is navigable by name", async ({ mount, page }) => {
   // The picker's saved-cast plane reads the cast roster beside the character list — fed empty.
-  await routeTrpc(page, { "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }), "rosterPreset.list": [] });
+  await routeTrpc(page, { "character.list": characterListResponder([ARIA, BOLT]), "rosterPreset.list": [] });
   await mount(<NewChatPickerStory />);
   await expect(page.getByRole("option", { name: "Aria Nightshade" })).toBeVisible();
   await expectEveryNameNavigable(page, "new-chat picker");

@@ -18,8 +18,11 @@
 // EVERY settle (success or fail), which would make "does the row survive to the real read" racy
 // against "when did the assertion happen" instead of actually pinning reconciliation.
 
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import type { PresetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import {
   InlineFailureStory,
@@ -221,7 +224,7 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
 // (the mount); the post-save value can therefore only have come from the write's response.
 test("echo: the write's own response seeds the read — no refetch, no invalidate", async ({ mount, page }) => {
   let stored = "preset_before";
-  const view = (): TrpcFixtureOutput<"settings.getUserSettings"> => ({ config: { seeds: { defaultPresetId: stored } } });
+  const view = (): TrpcWireOutput<"settings.getUserSettings"> => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>(stored) } });
   const routes: TrpcRoutes<"settings.getUserSettings" | "settings.updateUserSettingsSection"> = {
     "settings.getUserSettings": () => view(),
     "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">) => {
@@ -248,7 +251,7 @@ test("echo: the write's own response seeds the read — no refetch, no invalidat
 // `invalidates`), so before this arm a refusal was total silence: a five-plane scene write was lost to one
 // over-length label with the panel simply repainting its pre-write state.
 test("refusal: a canonical errors-as-data refusal TOASTS the server's reason and does NOT seed the echo", async ({ mount, page }) => {
-  const view = (): TrpcFixtureOutput<"settings.getUserSettings"> => ({ config: { seeds: { defaultPresetId: "preset_before" } } });
+  const view = (): TrpcWireOutput<"settings.getUserSettings"> => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>("preset_before") } });
   const routes: TrpcRoutes<"settings.getUserSettings" | "rpg.editSnapshot"> = {
     "settings.getUserSettings": () => view(),
     // A canonical 200 refusal from an AppRouter mutation whose result union carries errors as data.

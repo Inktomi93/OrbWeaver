@@ -6,12 +6,12 @@
 // routeTrpc-stubbed mutation returning text; Accept then persists via character.update.
 
 import { GREETING_TRANSFORMS } from "@orb/contracts/preset";
-import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { makeCharacterDetail } from "../features/character/fixtures.ts";
 import { GreetingStudioStory } from "./greeting-studio.fixtures.tsx";
 
 test("chips render BLIND from the GREETING_TRANSFORMS catalog (one toggle per contract entry)", async ({ mount, page }) => {
@@ -32,10 +32,9 @@ test("Rewrite generates, then Accept fires the character-update mutation exactly
     "settings.getUserSettings": () => settingsStub(false),
     // The studio's rewrite generation returns text; character.update is the accept-persist target. Its
     // result is never read (`StudioHarness`'s mutation has no `optimistic`/`echo` config — `busDriven`
-    // invalidation is what refreshes the cache), so the canonical updated-row response can stay focused
-    // to its id while still exercising the registered mutation.
+    // invalidation is what refreshes the cache), but the wire answer is still the full updated row.
     "character.rewriteGreeting": { text: "A revised, formal greeting.", costUsd: null },
-    "character.update": { id: "character_ct_greeting" },
+    "character.update": makeCharacterDetail({ id: "character_ct_greeting" }),
   });
   await mount(<GreetingStudioStory />);
 
@@ -82,14 +81,8 @@ test("the transform picks ride the rewrite input as KINDS — no fragment bytes 
 const DIALOGUE_SPAN = '[data-slot="dialogue"]';
 const QUOTED_PREVIEW = "He looks up. “You're late,” he says.";
 
-function settingsStub(colorQuotedSpeech: boolean): TrpcFixtureOutput<"settings.getUserSettings"> {
-  return {
-    userId: castId<UserId>("user_ct"),
-    schemaVersion: 1,
-    config: { appearance: { colorQuotedSpeech } },
-    updatedAt: 0,
-    configUnreadable: null,
-  };
+function settingsStub(colorQuotedSpeech: boolean): TrpcWireOutput<"settings.getUserSettings"> {
+  return userSettingsView({ appearance: { colorQuotedSpeech } });
 }
 
 /** The COMPUTED colour of the tinted span vs the scope's resolved `--color-dialogue` (markdown.ct precedent). */

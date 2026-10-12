@@ -11,14 +11,18 @@
 // `ConfigMobileListStory` pins the LIST-is-the-screen half).
 
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { readEscapedAbsolutes } from "@orb/testkit/browser/settings-geometry.ts";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeDocumentListPage } from "@orb/testkit/node/factories/databank-view.ts";
 import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
-import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { signInModeView } from "../../user-admin/auth-config-fixtures.ts";
 import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory, ConfigShellDoorStory } from "../_ct-stories.tsx";
 
@@ -639,10 +643,10 @@ test("a door from another section lands on a below-the-fold setting through the 
   await page.setViewportSize({ width: 1280, height: 800 });
   await stub(page, {
     "notifications.list": () => ({ items: [], nextCursor: null }),
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
-    "databank.list": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
+    "databank.list": () => makeDocumentListPage(),
     "databank.listGlobal": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
     "databank.bankHealth": () => ({
       total: 0,
       passages: 0,
@@ -1368,7 +1372,7 @@ test("the empty landing shows the library's blurb AND its empty sentence AND its
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The unreadable-blob read: same defaults on the wire, plus the server's verdict. */
-function unreadableSettings(failure: "schema-rejected" | "version-from-future"): TrpcFixtureOutput<"settings.getUserSettings"> {
+function unreadableSettings(failure: "schema-rejected" | "version-from-future"): TrpcWireOutput<"settings.getUserSettings"> {
   return { ...USER_SETTINGS_VIEW, configUnreadable: failure };
 }
 

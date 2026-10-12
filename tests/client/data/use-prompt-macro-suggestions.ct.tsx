@@ -11,6 +11,8 @@
 //   3. NO EMPTY WINDOW — while the reads are in flight the catalog is the builtin one, never `[]`; a popover
 //      that opened empty on the first keystroke would read as "this field has no macros".
 
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -22,7 +24,7 @@ const USER_MACROS = [{ name: "sceneTone", description: "This game's tonal regist
 test("the ACTIVE preset's user macros join the builtin catalog — and LEAD it", async ({ mount, page }) => {
   await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: ACTIVE_PRESET_ID } }),
-    "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
+    "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: USER_MACROS } }),
   });
   const component = await mount(<PromptMacroSuggestionsStory />);
 
@@ -35,7 +37,7 @@ test("the ACTIVE preset's user macros join the builtin catalog — and LEAD it",
 test("`defaultPresetId: null` is the BUILT-IN preset — no preset read fires, the builtins still complete", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
-    "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
+    "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: USER_MACROS } }),
   });
   const component = await mount(<PromptMacroSuggestionsStory />);
 

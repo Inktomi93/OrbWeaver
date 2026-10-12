@@ -11,10 +11,13 @@
 // is named so no builtin is a fuzzy match for its prefix (a row proving the plane landed must not be
 // satisfiable by the builtin catalog alone).
 
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { PersonaEditorMacroStory } from "../_ct-stories.tsx";
 
 const PERSONA_RESULT: TrpcWireOutput<"persona.update"> = {
@@ -56,7 +59,7 @@ test("a persona description completes against the ACTIVE PRESET's user macros, g
   await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: ACTIVE_PRESET_ID } }),
-    "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
+    "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: USER_MACROS } }),
     "persona.update": () => PERSONA_RESULT,
   });
   const component = await mount(<PersonaEditorMacroStory />);
@@ -77,7 +80,7 @@ test("with the BUILT-IN preset active there is no plane to read — the builtin 
   const trpc = await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
-    "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
+    "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: USER_MACROS } }),
     "persona.update": () => PERSONA_RESULT,
   });
   const component = await mount(<PersonaEditorMacroStory />);
@@ -110,14 +113,10 @@ test("Connected characters lists the junction read; Disconnect fires with both i
     "persona.update": () => PERSONA_RESULT,
     "persona.connectToCharacter": () => undefined,
     "persona.disconnectFromCharacter": () => ({ disconnected: true }),
-    "character.list": () => ({
-      items: [
-        { id: "character_ct_linked", name: "Captain Vale", avatarHash: null, starred: false },
-        { id: "character_ct_free", name: "The Cartographer", avatarHash: null, starred: false },
-      ],
-      nextCursor: null,
-      totalCount: 2,
-    }),
+    "character.list": characterListResponder([
+      makeCharacterSummary({ id: "character_ct_linked", name: "Captain Vale" }),
+      makeCharacterSummary({ id: "character_ct_free", name: "The Cartographer" }),
+    ]),
   });
   const component = await mount(<PersonaEditorMacroStory />);
 

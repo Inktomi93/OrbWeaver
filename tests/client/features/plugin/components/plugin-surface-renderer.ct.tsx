@@ -16,6 +16,7 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { makeAssetBlobRef } from "@orb/testkit/node/factories/asset-view.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { malformedOrForwardTrpcWire, routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -144,7 +145,7 @@ test("the image owner-scope gate — a foreign assetId renders the placeholder, 
     "plugin.getLog": () => [],
     // The OWNER-SCOPED resolve returns a ref ONLY for the owned id — the foreign id is absent (server WHERE
     // owner_id = caller). A hash is enough for the client to build the blob url.
-    "assets.resolveBlobRefs": () => [{ assetId: ownedId, hash: "0".repeat(64), mime: "image/png" }],
+    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: ownedId, hash: "0".repeat(64) })],
     "sessions.me": () => USER_VIEWER,
   });
   // Serve the OWNED blob so the positive control settles: MessageMedia swaps a 404'd <img> for its
@@ -183,7 +184,7 @@ test("#820 the BUNDLE arm — a shipped path paints, and one the plugin never sh
     "plugin.getLog": () => [],
     // The plugin holds exactly ONE bundle image; the second path is absent from its own map.
     "plugin.listBundleAssets": () => [{ path: "ui/assets/happy.png", assetId: shippedId }],
-    "assets.resolveBlobRefs": () => [{ assetId: shippedId, hash: "0".repeat(64), mime: "image/png" }],
+    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: shippedId, hash: "0".repeat(64) })],
     "sessions.me": () => USER_VIEWER,
   });
   await page.route(`**${BLOB_ROUTE}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(ONE_PX_PNG_B64, "base64") }));
@@ -208,7 +209,7 @@ test("#820 a spec with NO bundle path never asks for the map — the extra read 
     "plugin.getSurfaceState": () => null,
     "plugin.getLog": () => [],
     "plugin.listBundleAssets": () => [],
-    "assets.resolveBlobRefs": () => [{ assetId: ownedId, hash: "0".repeat(64), mime: "image/png" }],
+    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: ownedId, hash: "0".repeat(64) })],
     "sessions.me": () => USER_VIEWER,
   });
   await page.route(`**${BLOB_ROUTE}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(ONE_PX_PNG_B64, "base64") }));
@@ -335,7 +336,7 @@ test("#798: a card-atlas-style detail stage shows its cover — the BOUND hero (
     "plugin.getLog": () => [],
     // The owner-scoped resolve returns a ref for the installer's OWN fetched asset — the state-bound id rides the
     // SAME resolve a declared cover does.
-    "assets.resolveBlobRefs": () => [{ assetId: coverId, hash: "0".repeat(64), mime: "image/png" }],
+    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: coverId, hash: "0".repeat(64) })],
     "sessions.me": () => USER_VIEWER,
   });
   await page.route(`**${BLOB_ROUTE}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(ONE_PX_PNG_B64, "base64") }));

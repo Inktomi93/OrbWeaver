@@ -15,7 +15,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { UTILITY_ROW, utilityBindings } from "@orb/testkit/node/utility-role.ts";
@@ -82,7 +82,7 @@ function themesRow(over: Partial<ThemesRow> = {}): ThemesRow {
 
 /** The user-settings read the chain branches on — memory ON unless a test says otherwise (issue #166: with
  *  memory off there are no digests, so the pass has no themes stage to enqueue and says so). */
-function settings(memoryEnabled: boolean): TrpcFixtureOutput<"settings.getUserSettings"> {
+function settings(memoryEnabled: boolean): TrpcWireOutput<"settings.getUserSettings"> {
   return userSettingsView({ memory: { enabled: memoryEnabled } }, { userId: castId<UserId>(VIEWER.userId), updatedAt: 1 });
 }
 

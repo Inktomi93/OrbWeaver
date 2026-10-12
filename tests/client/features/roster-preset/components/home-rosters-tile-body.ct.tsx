@@ -5,7 +5,8 @@
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { HomeRememberedRostersTileStory, HomeRostersTileStory, HomeSettledHiddenRostersTileStory } from "../_ct-stories.tsx";
@@ -49,7 +50,7 @@ const CAMPAIGN: RosterPresetSummary = {
   game: { ruleset: "d20" },
 };
 
-function applyResult(over: Partial<TrpcFixtureOutput<"rosterPreset.applyToChat">> = {}): TrpcFixtureOutput<"rosterPreset.applyToChat"> {
+function applyResult(over: Partial<TrpcWireOutput<"rosterPreset.applyToChat">> = {}): TrpcWireOutput<"rosterPreset.applyToChat"> {
   return { added: [], alreadyPresent: [], skipped: [], configApplied: false, rulesMinted: [], rulesAlreadyPresent: [], rulesSkipped: [], ...over };
 }
 
@@ -72,7 +73,7 @@ test("one press starts the room with the roster's cast in order, then applies th
     "rosterPreset.list": [SPIRE],
     "rosterPreset.count": 1,
     "automation.listRulePresets": [],
-    "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
+    "chat.startChat": makeStartChatResult({ chat: makeChatDetail({ id: "chat_started_ct" }) }),
     "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"] }),
   });
 
@@ -96,7 +97,7 @@ test("a campaign roster says it starts a game, and its press hands the game to t
     "rosterPreset.list": [CAMPAIGN],
     "rosterPreset.count": 1,
     "automation.listRulePresets": [],
-    "chat.startChat": { chat: { id: "chat_campaign_ct", viewerIsHost: true, participants: [] } },
+    "chat.startChat": makeStartChatResult({ chat: makeChatDetail({ id: "chat_campaign_ct" }) }),
     "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"] }),
   });
 

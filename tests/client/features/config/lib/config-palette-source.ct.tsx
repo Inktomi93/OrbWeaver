@@ -6,6 +6,7 @@
 // link's whole payload is the (group, sub, setting) it targets, and `ConfigNavProbe` prints exactly that.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -13,7 +14,7 @@ import { ConfigNavProbe } from "../../../state/_ct-stories.tsx";
 import { ConfigPaletteStory } from "../_ct-stories.tsx";
 
 const ROUTES = {
-  "chat.listChats": { items: [], nextCursor: null },
+  "chat.listChats": makeChatListPage(),
   "sessions.me": { userId: "user_ct_palette", handle: "ct_palette", globalRole: "user" },
   "settings.getUserSettings": { userId: "user_ct_palette", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 },
 } satisfies TrpcRoutes<"chat.listChats" | "sessions.me" | "settings.getUserSettings">;

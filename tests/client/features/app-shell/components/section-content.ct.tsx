@@ -1,16 +1,18 @@
 // SectionContent CT: a section inside the keep-mounted window survives leaving and returning, so the rail
 // swap back is a reveal, not a fresh mount of the whole section.
 
+import { makeCatalogStats } from "@orb/testkit/node/factories/discovery-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { AppShellContentFetchStory, SectionContentDeferredStory, SectionContentKeepMountedStory } from "../_ct-stories.tsx";
 
 test("unrevealed phone content starts no request and revealed editors retain their draft", async ({ mount, page }) => {
   const calls = await routeTrpc(page, {
-    "discovery.catalog": { totalDistilled: 0 },
+    "discovery.catalog": makeCatalogStats({ totalDistilled: 0 }),
     "character.count": 0,
-    "character.get": { name: "Measured character" },
+    "character.get": makeCharacterDetail({ name: "Measured character" }),
     "notifications.list": { items: [], nextCursor: null },
     "persona.list": [],
     "settings.getUserSettings": userSettingsView(),
@@ -74,9 +76,9 @@ test("the shell applies the section inset and preserves declared full-bleed cont
 test("phone finder defers CONTENT requests until selection while desktop renders them immediately", async ({ mount, page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const calls = await routeTrpc(page, {
-    "discovery.catalog": { totalDistilled: 0 },
+    "discovery.catalog": makeCatalogStats({ totalDistilled: 0 }),
     "character.count": 0,
-    "character.get": { name: "Measured character" },
+    "character.get": makeCharacterDetail({ name: "Measured character" }),
     "notifications.list": { items: [], nextCursor: null },
     "persona.list": [],
     "settings.getUserSettings": userSettingsView(),
@@ -94,9 +96,9 @@ test("phone finder defers CONTENT requests until selection while desktop renders
 test("desktop CONTENT starts its read on unselected library arrival", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const calls = await routeTrpc(page, {
-    "discovery.catalog": { totalDistilled: 0 },
+    "discovery.catalog": makeCatalogStats({ totalDistilled: 0 }),
     "character.count": 0,
-    "character.get": { name: "Measured character" },
+    "character.get": makeCharacterDetail({ name: "Measured character" }),
     "notifications.list": { items: [], nextCursor: null },
     "persona.list": [],
     "settings.getUserSettings": userSettingsView(),

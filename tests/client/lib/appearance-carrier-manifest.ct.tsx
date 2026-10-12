@@ -2,9 +2,11 @@
 // @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AppearanceCarrierObservable } from "#client/lib/appearance-carrier-manifest.ts";
@@ -58,12 +60,7 @@ async function routeAppearance(page: Page, appearance: AppearanceSettings, arm: 
   // routeTrpc's null fulfil the pipelines behind them ran INERT.
   await routeTrpc(page, {
     "persona.list": [],
-    "settings.getUserSettings": {
-      userId: `user_ct_appearance_carrier_${arm}`,
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance },
-      updatedAt: 0,
-    },
+    "settings.getUserSettings": userSettingsView({ appearance }, { userId: castId<UserId>(`user_ct_appearance_carrier_${arm}`) }),
     ...CHAT_AND_INBOX_READS_EMPTY,
   });
 }

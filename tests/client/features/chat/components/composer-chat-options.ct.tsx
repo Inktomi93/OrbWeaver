@@ -18,7 +18,8 @@
 // menu-item assertion uses the PAGE locator (the chat-options-menu.ct.tsx precedent).
 
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ComposerChatOptionsStory } from "../_ct-stories.tsx";
@@ -26,14 +27,14 @@ import { makeMessagesPage } from "../fixtures.ts";
 
 /** A human seat — `role` seats a host/member (the roster shape). The host gate is the separate
  *  server-resolved `viewerIsHost` field, NOT this seat's role. */
-type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+type ParticipantFixture = NonNullable<TrpcWireOutput<"chat.getChat">["participants"]>[number];
 
 function human(role: ParticipantRole): ParticipantFixture {
-  return { id: `participant_${role}`, kind: "human", role, userId: `user_${role}`, characterId: null, leftSeq: null };
+  return makeParticipantView({ id: `participant_${role}`, kind: "human", role, userId: `user_${role}`, characterId: null, leftSeq: null });
 }
 
-function chatDetail(viewerIsHost: boolean): TrpcFixtureOutput<"chat.getChat"> {
-  return { title: "Council of Two", participants: [human("host"), human("member")], viewerIsHost };
+function chatDetail(viewerIsHost: boolean): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({ title: "Council of Two", participants: [human("host"), human("member")], viewerIsHost });
 }
 
 // The panel-homed options that must NEVER reappear in the ☰ menu (the de-dup regression guard).
@@ -68,17 +69,25 @@ test("D111: the left-gutter Chat options door uses the owner-ruled hamburger gly
 // because a gallery add is owner-only. The server names the owned seats (`viewerOwnedCharacterIds`).
 
 function characterSeat(key: string, displayName: string): ParticipantFixture {
-  return { id: `participant_${key}`, kind: "character", role: "member", userId: null, characterId: `character_ct_${key}`, displayName, leftSeq: null };
+  return makeParticipantView({
+    id: `participant_${key}`,
+    kind: "character",
+    role: "member",
+    userId: null,
+    characterId: `character_ct_${key}`,
+    displayName,
+    leftSeq: null,
+  });
 }
 
 /** A group room of Aria and Kai, seen by a viewer who owns `owned`. */
-function groupRoom(owned: readonly string[]): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function groupRoom(owned: readonly string[]): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     title: "Council of Two",
     participants: [human("host"), human("member"), characterSeat("aria", "Aria"), characterSeat("kai", "Kai")],
     viewerIsHost: true,
     viewerOwnedCharacterIds: owned.map((key) => `character_ct_${key}`),
-  };
+  });
 }
 
 for (const viewport of [

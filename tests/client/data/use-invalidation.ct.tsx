@@ -8,6 +8,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail, makeChatListPage, makeChatSummaryView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -17,9 +18,10 @@ const CHAT_ID = castId<ChatId>("chat_ctinvalidationtest");
 
 test("invalidate() (via the hook's live context) refetches the mounted getChat query", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.getChat": (input) => ({
-      title: `room for ${input.chatId}`,
-    }),
+    "chat.getChat": (input) =>
+      makeChatDetail({
+        title: `room for ${input.chatId}`,
+      }),
   });
 
   await mount(<InvalidationStory chatId={CHAT_ID} />);
@@ -45,18 +47,10 @@ test("invalidate() (via the hook's live context) refetches the mounted getChat q
 //    key under test. Requests are recorded at INTERCEPTION, and the barrier's request is issued after the
 //    suspect's click, so once the barrier landed any request the suspect caused is already counted.
 
-interface BurstChatRow {
-  readonly id: ChatId;
-}
-
 const BURST_ROUTES: TrpcRoutes<"chat.getChat" | "chat.listChats"> = {
-  "chat.getChat": (input): { title: string } => ({ title: `room for ${input.chatId}` }),
+  "chat.getChat": (input) => makeChatDetail({ title: `room for ${input.chatId}` }),
   // `listChats` is a keyset PAGE now — the probe reads `.items.length`, so the stub owes the page shape.
-  "chat.listChats": (): { items: readonly BurstChatRow[]; nextCursor: null; totalCount: number } => ({
-    items: [{ id: CHAT_ID }],
-    nextCursor: null,
-    totalCount: 1,
-  }),
+  "chat.listChats": () => makeChatListPage([makeChatSummaryView({ id: CHAT_ID })]),
 };
 
 /** Fire an event that MUST refetch `listChats` (`messageEdited` → the non-terminal canon arm, which never

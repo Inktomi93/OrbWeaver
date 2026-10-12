@@ -17,21 +17,25 @@
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+
 import { IMAGE_GEN_SPENDS_NOW, IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, sendUnavailableReason } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeConnectionRow } from "@orb/testkit/node/factories/connection-view.ts";
 import { routeImpersonateStream } from "@orb/testkit/node/route-impersonate-stream.ts";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
 
 // A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
-function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): TrpcFixtureOutput<"settings.getUserSettings"> {
+function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): TrpcWireOutput<"settings.getUserSettings"> {
   return {
     userId: "user_ct_composer",
     schemaVersion: 1,
@@ -102,7 +106,11 @@ for (const width of [1440, 360]) {
 // owns the menu's contents): present in both phases, and geometrically LEFT of the guided cluster — a
 // mount that landed it on the right would satisfy a presence-only assertion.
 test("D111: the ☰ chat-options menu renders in the composer, LEFT of the message input (committed)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true }) });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": () => makeChatDetail({ title: "Council", participants: [], viewerIsHost: true }),
+  });
   const component = await mount(<ComposerStory />);
   const options = component.getByRole("button", { name: "Chat options" });
   await expect(options).toBeVisible();
@@ -330,14 +338,14 @@ test("#54: an unserveable connection idles the guided fire actions with the caus
 // The no-connection refusal splits on the same predicate as the next-turn line's door: a host with no
 // connection that can serve chat is told to add one; a host with one is told to pick it in Model roles. Each
 // case resolves its reason through its key, so the pin is on which reason shows, not on its wording.
-const EMBED_ONLY_CONNECTION = {
+const EMBED_ONLY_CONNECTION = makeConnectionRow({
   id: "user_connection_ctcomposerembed",
   label: "Built-in embeddings",
   providerId: "local-light",
   providerLabel: "Built-in (this device)",
   model: "jinaai/jina-clip-v2",
   tasks: ["embed", "imageEmbed"],
-} satisfies TrpcFixtureOutput<"connection.list">[number];
+});
 
 for (const refusal of [
   { name: "no connection that can chat", key: "no-chat-connection", routes: { "connection.list": [EMBED_ONLY_CONNECTION] } },
@@ -345,7 +353,7 @@ for (const refusal of [
   {
     name: "a member whose host has no chat role",
     key: "host-no-chat-connection",
-    routes: { "chat.getChat": { title: "Council", participants: [], viewerIsHost: false } },
+    routes: { "chat.getChat": makeChatDetail({ title: "Council", participants: [], viewerIsHost: false }) },
   },
 ] as const) {
   test(`no-connection with ${refusal.name}: Send and the idled guided icons show the ${refusal.key} reason`, async ({ mount, page }) => {
@@ -394,10 +402,10 @@ type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
       : never
     : never
   : never;
-type ParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
+type ParticipantFixture = FixtureArrayElement<TrpcWireOutput<"chat.getChat">, "participants">;
 
 function composerCharacter(key: string, name: string): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `chat_participant_${key}`,
     kind: "character",
     userId: null,
@@ -406,15 +414,15 @@ function composerCharacter(key: string, name: string): ParticipantFixture {
     displayName: name,
     disabled: false,
     talkativeness: 0.5,
-  };
+  });
 }
 
-function groupedComposerChat(): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function groupedComposerChat(): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     title: "Council",
     participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
     viewerIsHost: true,
-  };
+  });
 }
 
 const COMPOSER_ACTIONS = [
@@ -1567,7 +1575,7 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
 const PHONE_ROOM_STUB: TrpcRoutes<"chat.getChat"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
-  "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, identities: [] }),
+  "chat.getChat": () => makeChatDetail({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, identities: [] }),
 };
 
 /** One settled read of the action bar: the four homes' geometry, the resolved gap, and the touch floor. */
@@ -1688,13 +1696,14 @@ test.describe("the desktop composer keeps the same two-row organization", () => 
 const GROUP_PHONE_STUB: TrpcRoutes<"chat.getChat"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
-  "chat.getChat": () => ({
-    title: "Council",
-    viewerIsHost: true,
-    anchorPersonaId: null,
-    identities: [],
-    participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
-  }),
+  "chat.getChat": () =>
+    makeChatDetail({
+      title: "Council",
+      viewerIsHost: true,
+      anchorPersonaId: null,
+      identities: [],
+      participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
+    }),
 };
 
 test.describe("#539 the group-room phone composer", () => {
@@ -1736,7 +1745,7 @@ for (const viewport of [
     test("captures the rendered action groups and menu organization", async ({ mount, page }, testInfo) => {
       await routeTrpc(page, {
         ...GROUP_PHONE_STUB,
-        "character.get": ({ characterId }) => ({ id: characterId, name: "Aria", avatarHash: null, greetings: [] }),
+        "character.get": ({ characterId }) => makeCharacterDetail({ id: characterId, name: "Aria", avatarHash: null, greetings: [] }),
         "chat.previewContextFit": () => ({
           boundaryMessageId: null,
           usedTokens: 120,
@@ -1747,16 +1756,17 @@ for (const viewport of [
           droppedCount: 0,
           compactSummary: null,
         }),
-        "chat.getChat": () => ({
-          ...CHAT_ROOM_ROUTES["chat.getChat"],
-          viewerGalleryCharacterId: "character_aria",
-          title: "Council",
-          viewerIsHost: true,
-          anchorPersonaId: null,
-          identities: [],
-          participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
-          viewerOwnedCharacterIds: ["character_aria", "character_bryn"],
-        }),
+        "chat.getChat": () =>
+          makeChatDetail({
+            ...CHAT_ROOM_DETAIL,
+            viewerGalleryCharacterId: "character_aria",
+            title: "Council",
+            viewerIsHost: true,
+            anchorPersonaId: null,
+            identities: [],
+            participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
+            viewerOwnedCharacterIds: ["character_aria", "character_bryn"],
+          }),
       });
       const room = await mount(<ChatRoomPhoneStory paneHeight={viewport.height - 80} />);
       await expect(room.getByRole("button", { name: "Send message", exact: true })).toBeVisible();

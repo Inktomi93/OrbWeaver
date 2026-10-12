@@ -2,6 +2,7 @@
 // action (the ruleset is a Game-tab setting now), so the admission property is per-DOOR: a held create owns
 // the start button, the re-engage door owns itself, and a failure releases each for retry.
 
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRecorder, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -9,11 +10,11 @@ import type { Page } from "@playwright/test";
 import { RpgGameDoorStory } from "../_ct-stories.tsx";
 
 function stubCreate(page: Page, responder: TrpcResponder<"rpg.createGame">): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "chat.getChat": () => ({ rpg: null }), "rpg.createGame": responder });
+  return routeTrpc(page, { "chat.getChat": () => makeChatDetail({ rpg: null }), "rpg.createGame": responder });
 }
 
 function stubUpdate(page: Page, responder: TrpcResponder<"rpg.updateConfig">): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "chat.getChat": () => ({ rpg: { gameId: "rpg_game_ct", engaged: false } }), "rpg.updateConfig": responder });
+  return routeTrpc(page, { "chat.getChat": () => makeChatDetail({ rpg: { gameId: "rpg_game_ct", engaged: false } }), "rpg.updateConfig": responder });
 }
 
 // #862 — ONE START ACTION. The door used to offer `Freeform story` | `D20 adventure`, two buttons that

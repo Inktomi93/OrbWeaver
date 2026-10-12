@@ -21,14 +21,15 @@
 
 // @orb-waive-file no-test-fabrication(Buffer): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { duplicateActionName, PRESET_UNREADABLE_ROW_MARKER, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expectInstrumentTierLive } from "@orb/testkit/browser/tier-liveness.ts";
 import { resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -168,7 +169,7 @@ function summary(fields: {
 // lineage is UNRESOLVABLE and must print nothing.
 const PACKAGED_SOURCE = "preset_000000000000000000000rpggm";
 
-const PRESETS: TrpcFixtureOutput<"preset.list"> = [
+const PRESETS: TrpcWireOutput<"preset.list"> = [
   summary({ id: BUILT_IN, name: "Default", isSystemDefault: true }),
   summary({ id: EDITED_ONE, name: EDITED_ONE_NAME, updatedAt: EDITED_ONE_AT, forkedFrom: BUILT_IN }),
   summary({ id: EDITED_TWO, name: EDITED_TWO_NAME, updatedAt: EDITED_TWO_AT, forkedFrom: PACKAGED_SOURCE }),
@@ -549,14 +550,15 @@ test("§12 the kebab's Duplicate fires preset.create for THAT row", async ({ mou
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
       configUnreadable: null,
     }),
-    "preset.create": () => ({
-      id: "preset_ct_copy00001",
-      name: `Copy of ${EDITED_ONE_NAME}`,
-      kind: "generation",
-      isSystemDefault: false,
-      createdAt: 0,
-      updatedAt: 0,
-    }),
+    "preset.create": () =>
+      makePresetDetail({
+        id: "preset_ct_copy00001",
+        name: `Copy of ${EDITED_ONE_NAME}`,
+        kind: "generation",
+        isSystemDefault: false,
+        createdAt: 0,
+        updatedAt: 0,
+      }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
@@ -635,7 +637,8 @@ test("P3 the built-in row IS duplicable — a kebab holding Duplicate and nothin
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
       configUnreadable: null,
     }),
-    "preset.create": () => ({ id: "preset_ct_copy00002", name: "Copy of Default", kind: "generation", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
+    "preset.create": () =>
+      makePresetDetail({ id: "preset_ct_copy00002", name: "Copy of Default", kind: "generation", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
@@ -851,22 +854,23 @@ test("#481 the row kebab offers NO Activate — the radio is the list's one acti
 // hand-rolled envelope) is exactly the banned parallel path this arm exists to avoid.
 
 test("G6 the kebab EXPORT downloads the bundle's own orb.preset bytes for that row", async ({ mount, page }) => {
-  const config = { schemaVersion: 5, params: { temperature: 0.42 }, sections: [] };
+  const config = { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, temperature: 0.42 } };
   await routeTrpc(page, {
     "preset.list": () => PRESETS,
     "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
-    "preset.get": () => ({
-      id: EDITED_ONE,
-      name: EDITED_ONE_NAME,
-      kind: "generation",
-      isSystemDefault: false,
-      config,
-      createdAt: 0,
-      updatedAt: 0,
-      forkedFrom: null,
-      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
-      configUnreadable: null,
-    }),
+    "preset.get": () =>
+      makePresetDetail({
+        id: EDITED_ONE,
+        name: EDITED_ONE_NAME,
+        kind: "generation",
+        isSystemDefault: false,
+        config,
+        createdAt: 0,
+        updatedAt: 0,
+        forkedFrom: null,
+        schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+        configUnreadable: null,
+      }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
@@ -1052,12 +1056,12 @@ const ST_SUMMARY = /SillyTavern preset —/;
 const SERVER_PARSE_ERROR = /isn't a valid prompt config/;
 
 /** The library plus an import stub — `outcome` is what `preset.importFile` answers. */
-function routeImportLibrary(page: Page, outcome: TrpcFixtureOutput<"preset.importFile">): Promise<TrpcRecorder> {
+function routeImportLibrary(page: Page, outcome: TrpcWireOutput<"preset.importFile">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "preset.list": () => PRESETS,
     "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
     "preset.importFile": () => outcome,
-    "preset.create": () => ({ id: IMPORTED, name: IMPORTED_NAME, kind: "roleplay", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
+    "preset.create": () => makePresetDetail({ id: IMPORTED, name: IMPORTED_NAME, kind: "roleplay", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
   });
 }
 

@@ -13,12 +13,13 @@
 // visible, the panel's own visibility — never on a state that exists only mid-flight.
 
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+
 import type { AutomationBusEvent } from "@orb/contracts/automation";
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { AutomationRuleId, AutomationSuggestionId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
@@ -79,21 +80,15 @@ async function routeRoom(
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): {
-      title: null;
-      participants: never[];
-      anchorPersonaId: null;
-      identities: readonly ChatIdentity[];
-      group: GroupConfig;
-      viewerIsHost: true;
-    } => ({
-      title: null,
-      participants: [],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-      viewerIsHost: true,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        title: null,
+        participants: [],
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+        viewerIsHost: true,
+      }),
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_audit_room"), role: "assistant", content: BEFORE, seq: 1 })]),
     "automation.confirmSuggestion": () => ({ ran: "stashed-arm", outcome: "fired" }),
     "automation.dismissSuggestion": () => null,

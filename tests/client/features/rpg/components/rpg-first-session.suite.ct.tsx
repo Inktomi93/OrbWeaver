@@ -1,5 +1,6 @@
 import { rpgConfigViewSchema } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -16,13 +17,13 @@ async function routeFirstSession(page: Page, roll?: ReturnType<typeof trpcHold>,
   const attributes: Record<string, number> = {};
   await routeTrpc(page, {
     "settings.getUserSettings": { userId: FIRST_SESSION_USER, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
-    "chat.getChat": {
+    "chat.getChat": makeChatDetail({
       participants: [],
       viewerUserId: FIRST_SESSION_USER,
       viewerIsHost: true,
       viewerActivePersonaId: null,
       rpg: { gameId: "rpg_game_ct_first_session", engaged: true },
-    },
+    }),
     "rpg.getGame": () => {
       const game = makeRpgGameView(CHAT_ID, { ruleset: config.ruleset });
       return { ...game, publicConfig: { ...game.publicConfig, statProfile: config.statProfile } };

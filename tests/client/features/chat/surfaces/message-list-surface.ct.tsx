@@ -19,7 +19,8 @@
 // it remains.
 
 // @orb-waive-file no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
-import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
+
+import type { ChatBusEvent, ChatIdentity } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { messageWindowTargetSchema } from "@orb/contracts/search";
@@ -31,14 +32,16 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
-import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import {
   MessageListFooterDisclosureStory,
   MessageListMomentStory,
@@ -94,17 +97,13 @@ const AI_VIEW = makeMessageView({
 // (if empty) shape rather than routeTrpc's generic `null` unlisted-procedure default.
 const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   ...PREVIEW_FIT_STUB,
-  "chat.getChat": (): {
-    participants: never[];
-    anchorPersonaId: null;
-    identities: readonly ChatIdentity[];
-    group: GroupConfig;
-  } => ({
-    participants: [],
-    anchorPersonaId: null,
-    identities: [],
-    group: DEFAULT_GROUP_CONFIG,
-  }),
+  "chat.getChat": () =>
+    makeChatDetail({
+      participants: [],
+      anchorPersonaId: null,
+      identities: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
 };
 
 /** The swipe chevrons are compact glyph boxes; their touch floor is the glyph arm's hit-area pseudo. */
@@ -201,19 +200,31 @@ for (const width of [320, 430]) {
             updatedAt: 0,
             config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle: "echo" as const } },
           }),
-          "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
-            participants: [{ id: "cp_echo", kind: "character", characterId: character, displayName: "Mira", avatarHash, leftSeq: null, role: "member" }],
-            anchorPersonaId: null,
-            identities: [],
-            group: DEFAULT_GROUP_CONFIG,
-            viewerIsHost: true,
-          }),
-          "character.get": () => ({
-            id: character,
-            name: "Mira",
-            avatarHash,
-            greetings: [{ text: "First opening." }, { text: content }, { text: "Another opening." }],
-          }),
+          "chat.getChat": () =>
+            makeChatDetail({
+              participants: [
+                makeParticipantView({
+                  id: "cp_echo",
+                  kind: "character",
+                  characterId: character,
+                  displayName: "Mira",
+                  avatarHash,
+                  leftSeq: null,
+                  role: "member",
+                }),
+              ],
+              anchorPersonaId: null,
+              identities: [],
+              group: DEFAULT_GROUP_CONFIG,
+              viewerIsHost: true,
+            }),
+          "character.get": () =>
+            makeCharacterDetail({
+              id: character,
+              name: "Mira",
+              avatarHash,
+              greetings: [{ text: "First opening." }, { text: content }, { text: "Another opening." }],
+            }),
           "chat.listMessageVariants": () => [0, 1, 2].map((idx) => ({ idx, variantId: castId<MessageVariantId>(`mv_echo_${idx}`) })),
           "chat.listMessages": () =>
             makeMessagesPage(
@@ -1044,23 +1055,24 @@ test("#937 a streaming card theme carries palette but inherits viewer density", 
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW], [{ kind: "character", id: THEMED_STREAM_CHARACTER, name: "Aria", avatarHash: null }]),
-    "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
-      participants: [
-        {
-          id: "cp_stream_theme",
-          kind: "character",
-          characterId: THEMED_STREAM_CHARACTER,
-          displayName: "Aria",
-          leftSeq: null,
-          avatarHash: null,
-          role: "member",
-          themeOverride: { accent: STREAM_ACCENT, dialogueColor: "oklch(0.82 0.08 305)", density: "compact" },
-        },
-      ],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [
+          makeParticipantView({
+            id: "cp_stream_theme",
+            kind: "character",
+            characterId: THEMED_STREAM_CHARACTER,
+            displayName: "Aria",
+            leftSeq: null,
+            avatarHash: null,
+            role: "member",
+            themeOverride: { accent: STREAM_ACCENT, dialogueColor: "oklch(0.82 0.08 305)", density: "compact" },
+          }),
+        ],
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+      }),
   });
   await routeOrbSocket(page, { frames: chatFrames(THEMED_STREAM_HEAD), awaitAttaches: 1 });
 
@@ -2183,12 +2195,13 @@ const WARNED_TURN: ChatBusEvent[] = [
  *  real name row to make sticky) against this file's empty roster — the #113 test's own idiom. */
 const NARRATOR_ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   ...PREVIEW_FIT_STUB,
-  "chat.getChat": (): { participants: never[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
-    participants: [],
-    anchorPersonaId: null,
-    identities: [],
-    group: groupConfigSchema.parse({ output: "narrator" }),
-  }),
+  "chat.getChat": () =>
+    makeChatDetail({
+      participants: [],
+      anchorPersonaId: null,
+      identities: [],
+      group: groupConfigSchema.parse({ output: "narrator" }),
+    }),
 };
 
 /** Tall enough to calibrate the live row against a bounded scrollport. */
@@ -2282,23 +2295,24 @@ test("a Tier-B card row scrolled out of the window and back keeps the same frame
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([...filler, card, ...tail], [{ kind: "character", id: CARD_CHARACTER, name: "Keeper", avatarHash: null }]),
-    "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
-      participants: [
-        {
-          id: "cp_card_keeper",
-          kind: "character",
-          characterId: CARD_CHARACTER,
-          displayName: "Keeper",
-          leftSeq: null,
-          avatarHash: null,
-          role: "member",
-          renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
-        },
-      ],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [
+          makeParticipantView({
+            id: "cp_card_keeper",
+            kind: "character",
+            characterId: CARD_CHARACTER,
+            displayName: "Keeper",
+            leftSeq: null,
+            avatarHash: null,
+            role: "member",
+            renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
+          }),
+        ],
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+      }),
   });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
   const component = await mount(<MessageListSurfaceStory />);

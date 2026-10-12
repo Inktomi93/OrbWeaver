@@ -6,6 +6,7 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -16,7 +17,7 @@ const ARGS_PLUGIN_ID = castId<PluginId>("plugin_ct_argmodal0000001");
 /** `listCommands` must carry the SAME command the modal seeds (the shared runner resolves the invoke off it by
  *  slug+name), declaring one required enum arg. */
 const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
-  "chat.listChats": () => ({ items: [], nextCursor: null }),
+  "chat.listChats": () => makeChatListPage(),
   "plugin.listCommands": () => [
     {
       pluginId: ARGS_PLUGIN_ID,
@@ -119,7 +120,7 @@ const DEFAULTED_ARGS = [
 test("a declared default opens preselected and is what the run dispatches", async ({ mount, page }) => {
   let captured: { values: unknown } | null = null;
   await routeTrpc(page, {
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "plugin.listCommands": () => [
       {
         pluginId: ARGS_PLUGIN_ID,

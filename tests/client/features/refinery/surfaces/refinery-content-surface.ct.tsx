@@ -29,7 +29,7 @@
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -190,7 +190,7 @@ function preflight(): TrpcWireOutput<"refinery.preflight"> {
 /** Preflight where the named stages breach the CONTEXT ceiling — the arm whose sentence is stage-neutral
  *  ("the assembled prompt likely exceeds the model's context"), i.e. the one two lanes can duplicate.
  *  `maxOutputTokens` stays generous so the output arm, which words itself per stage, does not fire. */
-function preflightOver(over: readonly string[]): TrpcFixtureOutput<"refinery.preflight"> {
+function preflightOver(over: readonly string[]): TrpcWireOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: (["score", "rewrite", "analyze"] as const).map((stage) => ({
@@ -206,7 +206,7 @@ function preflightOver(over: readonly string[]): TrpcFixtureOutput<"refinery.pre
 
 /** Preflight where score is over its OUTPUT ceiling and analyze is over the CONTEXT — two different facts,
  *  so two different sentences, so no hoist. */
-function preflightDiverged(): TrpcFixtureOutput<"refinery.preflight"> {
+function preflightDiverged(): TrpcWireOutput<"refinery.preflight"> {
   return {
     contextTokens: 8000,
     stages: [
@@ -608,7 +608,7 @@ test("the §16.1 WALKER pins a superseded run — ONE lane follows it, the other
 // buttons the issue named is disabled here and the other's CAPTION was the thing that lied.
 
 /** A session with NOTHING run yet — round 0, the state the owner's screenshot was taken in. */
-function emptyLedger(): TrpcFixtureOutput<"refinery.listRuns"> {
+function emptyLedger(): TrpcWireOutput<"refinery.listRuns"> {
   return [];
 }
 

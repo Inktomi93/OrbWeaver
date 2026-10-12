@@ -13,11 +13,14 @@
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
-import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { makeRuleView } from "@orb/testkit/node/factories/automation-view.ts";
+import { makeChatDetail, makeParticipantView, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeRpgGameView } from "../../rpg/fixtures.ts";
 import { RosterPickerHostStory, RosterPickerStory } from "../_ct-stories.tsx";
 
 const ROSTER_A: RosterPresetSummary = {
@@ -56,15 +59,15 @@ const ROSTER_B: RosterPresetSummary = {
 // that makes two rosters carrying the same preset distinguishable, and the whole reason the rider stores a
 // bag rather than an id. A partial `automation.listRules` row: the capture reads exactly these four fields
 // (`hooks/use-saved-rosters.ts::deriveEnabledRosterRules`).
-const ROOM_RULES: TrpcFixtureOutput<"automation.listRules"> = [
-  {
+const ROOM_RULES: TrpcWireOutput<"automation.listRules"> = [
+  makeRuleView({
     id: "rule_ct_pacing",
     name: "Periodic pacing nudge",
     enabled: true,
     rulePresetId: "pacingNudge",
     rulePresetKnobs: { everyN: 12, steer: "Take stock of the pacing: raise a complication, or let the scene breathe." },
     createdAt: 5,
-  },
+  }),
 ];
 /** The catalogue row the gloss reads its knob LABELS off (never hand-spelled per preset). */
 const PACING_PRESET: RulePresetView = {
@@ -82,16 +85,18 @@ const PACING_PRESET: RulePresetView = {
 };
 
 /** The open room the host stories act on — `chat.getChat`'s shape, narrowed to what the picker reads. */
-const HOST_CHAT: TrpcFixtureOutput<"chat.getChat"> = {
+const HOST_CHAT = makeChatDetail({
   id: "chat_roster_ct",
   viewerIsHost: true,
   anchorPersonaId: null,
   rpg: null,
-  participants: [{ id: "participant_ct_1", kind: "character", characterId: "character_ct_1", talkativeness: 0.5, disabled: false, leftSeq: null }],
-};
+  participants: [
+    makeParticipantView({ id: "participant_ct_1", kind: "character", characterId: "character_ct_1", talkativeness: 0.5, disabled: false, leftSeq: null }),
+  ],
+});
 
 /** The apply result's arms, defaulted — a test names only the arm it drives. */
-function applyResult(over: Partial<TrpcFixtureOutput<"rosterPreset.applyToChat">> = {}): TrpcFixtureOutput<"rosterPreset.applyToChat"> {
+function applyResult(over: Partial<TrpcWireOutput<"rosterPreset.applyToChat">> = {}): TrpcWireOutput<"rosterPreset.applyToChat"> {
   return { added: [], alreadyPresent: [], skipped: [], configApplied: false, rulesMinted: [], rulesAlreadyPresent: [], rulesSkipped: [], ...over };
 }
 
@@ -304,7 +309,7 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
     "rosterPreset.list": [ROSTER_A],
     "automation.listRulePresets": [PACING_PRESET],
     "automation.listRules": [],
-    "chat.startChat": { chat: { ...HOST_CHAT, id: "chat_started_ct" } },
+    "chat.startChat": makeStartChatResult({ chat: { ...HOST_CHAT, id: "chat_started_ct" } }),
     // What the server answers after a start: `startChat` already seated every member, so the apply that
     // follows classifies each one as present (`verbs/apply-to-chat.ts`), never as added.
     "rosterPreset.applyToChat": applyResult({
@@ -427,7 +432,7 @@ test("a FAILED capture says so and offers a retry, instead of disabling Save for
 // ruleset; a plain room offers no toggle and saves no game.
 
 /** The saved view `rosterPreset.create` answers with — the report line reads its name and counts. */
-function savedView(game: { readonly ruleset: "d20" } | null): TrpcFixtureOutput<"rosterPreset.create"> {
+function savedView(game: { readonly ruleset: "d20" } | null): TrpcWireOutput<"rosterPreset.create"> {
   return {
     id: "roster_preset_ct_new",
     name: "Fresh roster",
@@ -448,7 +453,7 @@ test("saving from a game room shows the campaign toggle on, and captures the roo
     "chat.getChat": { ...HOST_CHAT, rpg: { gameId: "rpg_game_ct", engaged: true } },
     "automation.listRules": [],
     "automation.listRulePresets": [PACING_PRESET],
-    "rpg.getGame": { publicConfig: { ruleset: "d20" } },
+    "rpg.getGame": makeRpgGameView(castId<ChatId>(HOST_CHAT.id), { ruleset: "d20" }),
     "rosterPreset.create": savedView({ ruleset: "d20" }),
   });
 

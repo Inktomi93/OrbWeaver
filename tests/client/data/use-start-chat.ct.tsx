@@ -11,8 +11,10 @@
 // actions, and its whole observable surface is what a mounted component sees.
 
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -34,14 +36,10 @@ const AUTHORITATIVE_MESSAGE = makeMessageView({
   content: AUTHORITATIVE_TEXT,
 });
 
-const CREATED_CHAT = {
-  id: CREATED_ID,
-  title: "The Ashfall Road",
-  identities: [],
-};
+const CREATED_CHAT = makeChatDetail({ id: CREATED_ID, title: "The Ashfall Road" });
 
 const START_CHAT_ROUTES: TrpcRoutes<"chat.startChat" | "chat.listMessages"> = {
-  "chat.startChat": { chat: CREATED_CHAT, opening: { messages: [OPENING_MESSAGE], aborted: false } },
+  "chat.startChat": makeStartChatResult({ chat: CREATED_CHAT, opening: { messages: [OPENING_MESSAGE], aborted: false } }),
   "chat.listMessages": makeMessagesPage([OPENING_MESSAGE]),
   // Deliberately NOT stubbed to the same row: `chat.getChat` answering `null` here is the CONTROL for the
   // seed pin below — if the response were not written into the cache, the reader would go cold.
@@ -112,7 +110,7 @@ test("the response seeds both room reads and confirms the message page after the
 test("an opening-less response seeds an empty first frame and still closes the pre-attach gap", async ({ mount, page }) => {
   const listMessages = trpcHold();
   const trpc = await routeTrpc(page, {
-    "chat.startChat": { chat: CREATED_CHAT, opening: null },
+    "chat.startChat": makeStartChatResult({ chat: CREATED_CHAT }),
     "chat.listMessages": listMessages,
   });
 

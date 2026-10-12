@@ -1,13 +1,13 @@
 // CT: D269 — the real RPG dice group in the composer's existing Message tools menu. The room exercises
 // the engaged pointer, ruleset gate, keyboard entry, baked roll stamp and absence of a persistent dice door.
 
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RpgGameView, RpgRuleset } from "@orb/contracts/rpg";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveSpacingPx } from "@orb/testkit/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -19,7 +19,7 @@ import { makeRpgGameView } from "../fixtures.ts";
 
 const CHIPS = '[data-slot="chat-control-chips"]';
 const MENU_POPUP = '[data-slot="menu-popup"]';
-const NO_CONNECTION = { available: false, cause: "no-connection" } satisfies TrpcFixtureOutput<"chat.checkSendAvailability">;
+const NO_CONNECTION = { available: false, cause: "no-connection" } satisfies TrpcWireOutput<"chat.checkSendAvailability">;
 
 /** The engaged room's game read (the composer's choice provider suspends on it once the game gate opens
  *  — the guided-cluster/choice CT precedent): the `publicConfig` slice those readers use. The dice group
@@ -37,7 +37,7 @@ function gameView(ruleset: RpgRuleset): RpgGameView {
 
 /** A baked `rpg.rollDice` outcome — the wire shape (`RollDiceResult`) verbatim. Network-stubbed, so a fixed
  *  roll; the stamp is what the action appends to the composer. */
-function rollOutcome(notation: string, rolls: readonly number[], total: number): TrpcFixtureOutput<"rpg.rollDice"> {
+function rollOutcome(notation: string, rolls: readonly number[], total: number): TrpcWireOutput<"rpg.rollDice"> {
   return { notation, rolls, modifier: 0, total, stamp: `[dice: ${notation} → ${total}]` };
 }
 
@@ -72,21 +72,15 @@ function routeRoom(
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): {
-      participants: never[];
-      anchorPersonaId: null;
-      identities: readonly ChatIdentity[];
-      group: GroupConfig;
-      rpg: { gameId: string; engaged: boolean } | null;
-      viewerUserId?: typeof FIRST_SESSION_USER;
-    } => ({
-      participants: [],
-      ...(attributes === undefined ? {} : { viewerUserId: FIRST_SESSION_USER }),
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-      rpg: engaged ? { gameId: "rpg_game_ct_dice", engaged: true } : null,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [],
+        ...(attributes === undefined ? {} : { viewerUserId: FIRST_SESSION_USER }),
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+        rpg: engaged ? { gameId: "rpg_game_ct_dice", engaged: true } : null,
+      }),
     "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_dice_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     // The engaged room's game-aware chrome suspends on getGame; a plain chat never asks for it (no unfed read).

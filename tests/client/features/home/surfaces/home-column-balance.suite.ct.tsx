@@ -10,7 +10,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
+import { CHAT_ROOM_DETAIL, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import { HomeBalanceStory } from "../_ct-stories.tsx";
 
@@ -181,7 +181,7 @@ async function routeHouse(page: Page, house: House): Promise<void> {
   await page.setViewportSize({ width: 2560, height: 1000 });
   await stubDatabank(page, {
     "chat.listChats": chatListResponder(house.rooms),
-    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
+    "chat.getChat": CHAT_ROOM_DETAIL,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FACES),
     "databank.bankHealth": house.health,

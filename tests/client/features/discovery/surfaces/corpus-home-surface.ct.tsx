@@ -31,6 +31,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTimeLib } from "@orb/kit/time";
 import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
+import { makeCatalogStats, makeHomeView, makeThemeRow } from "@orb/testkit/node/factories/discovery-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -108,7 +109,7 @@ const UNANALYSED: TrpcRoutes<
     arcThemes: [],
     duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
   },
-  "discovery.catalog": { totalDistilled: 0, genres: [], tones: [], topTags: [] },
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 0, genres: [], tones: [], topTags: [] }),
   "discovery.visualArchetypes": FAMILIES,
   "discovery.forgottenGems": [],
   "discovery.unusedCharacters": [],
@@ -123,13 +124,13 @@ const UNANALYSED: TrpcRoutes<
  *  surface's one remaining door. */
 const ANALYSED: TrpcRoutes<"discovery.home" | "discovery.catalog"> = {
   ...UNANALYSED,
-  "discovery.home": {
+  "discovery.home": makeHomeView({
     coverage: { characters: 10, digests: 40, segments: 12 },
-    sceneThemes: [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
+    sceneThemes: [makeThemeRow({ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 })],
     arcThemes: [],
     duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  },
-  "discovery.catalog": { totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] },
+  }),
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] }),
 };
 
 /** The focal island's box and the readiness rail's, read together — the two boxes whose relationship IS the
@@ -203,7 +204,12 @@ const FAILED_PASS: TrpcRoutes<"sessions.me" | "workloads.list"> = {
       status: "failed",
       ownerId: "user_me",
       mode: "singular",
+      lane: "sweep",
+      dependsOn: null,
+      poison: false,
+      scheduledAt: 10,
       createdAt: 10,
+      updatedAt: 10,
       params: {},
       progress: null,
       error: "the embed model refused the batch",
@@ -603,7 +609,12 @@ const WARM_KEYWORD_QUEUE: TrpcRoutes<"workloads.list"> = {
       status: "succeeded",
       ownerId: "user_me",
       mode: "singular",
+      lane: "sweep",
+      dependsOn: null,
+      poison: false,
+      scheduledAt: 10,
       createdAt: 10,
+      updatedAt: 10,
       params: {},
       progress: null,
       error: null,
@@ -944,7 +955,7 @@ const POPULATED: TrpcRoutes<
   // `totalCharacters` is the base the distilled count is out of (#535) — the same 320 `discovery.home`
   // reports, because both are `count(*)` over the owner's characters. A fixture that omitted it would let
   // a census assertion pass off a `?? 0` fallback.
-  "discovery.catalog": { totalDistilled: DISTILLED, totalCharacters: CHARACTERS, genres: [], tones: [], topTags: [] },
+  "discovery.catalog": makeCatalogStats({ totalDistilled: DISTILLED, totalCharacters: CHARACTERS, genres: [], tones: [], topTags: [] }),
   "discovery.visualArchetypes": POP_FAMILIES,
   "discovery.forgottenGems": GEMS,
   "discovery.unusedCharacters": UNUSED,

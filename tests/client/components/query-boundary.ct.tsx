@@ -2,6 +2,7 @@
 // (never a bare component), stub tRPC at the network with routeTrpc, assert decoded inputs off the
 // recorder. Copy this file's shape for every client-feature CT.
 
+import { makeTagView } from "@orb/testkit/node/factories/tag-view.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, ReservedBoundaryStory } from "../data/_ct-stories.tsx";
@@ -73,7 +74,7 @@ test("trpcHold parks a query at a STABLE pending render; releasing it settles th
 test("a held batch answers its siblings correctly on release — one well-formed, index-aligned envelope", async ({ mount, page }) => {
   const hold = trpcHold();
   // Only `length` is read off the sibling (see BatchedHoldProbe), so one plausible row is the whole stub.
-  const trpc = await routeTrpc(page, { echo: hold, "tag.listTags": [{ id: "tag_ct_hold_sibling", name: "sibling" }] });
+  const trpc = await routeTrpc(page, { echo: hold, "tag.listTags": [makeTagView({ id: "tag_ct_hold_sibling", name: "sibling" })] });
 
   await mount(<BatchedHoldStory />);
   await hold.requested;

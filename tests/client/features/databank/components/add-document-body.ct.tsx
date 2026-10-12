@@ -3,7 +3,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { CHAT_ROOM_ROUTES } from "../../chat/fixtures.ts";
+import { CHAT_ROOM_DETAIL } from "../../chat/fixtures.ts";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
 import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
@@ -92,7 +92,7 @@ test("paste uses the selected owned character rather than the default global des
 test("link uses the current hosted chat destination", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
   const routes = await stubDatabank(page, {
-    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
+    "chat.getChat": CHAT_ROOM_DETAIL,
     "databank.scrapeWeb": () => ({ document: { ...READY_DOC, id: DOCUMENT_ID }, outcome: "created", ingest: "queued" }),
   });
   const band = await mount(<DatabankListHeaderStory chatId={chatId} />);

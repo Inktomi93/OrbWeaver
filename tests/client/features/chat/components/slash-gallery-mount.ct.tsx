@@ -2,22 +2,31 @@
 // commands. The owner of the room's character opens that character's gallery (the store the app root's host
 // reads; the story's probe prints it). A viewer who owns none is told why and nothing opens.
 
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 import { ChatDoorSlashComposerStory } from "../hooks/_slash-command-stories.tsx";
 
 const NO_GALLERY_HERE = "You own no character in this chat, so it has no gallery of yours to open.";
 
-function galleryRoom(viewerOwnsAria: boolean): TrpcFixtureOutput<"chat.getChat"> {
-  return {
-    ...CHAT_ROOM_ROUTES["chat.getChat"],
+function galleryRoom(viewerOwnsAria: boolean): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
+    ...CHAT_ROOM_DETAIL,
     participants: [
-      { id: "chat_participant_ct_aria", kind: "character", userId: null, characterId: "character_ct_aria", role: "member", displayName: "Aria", leftSeq: null },
+      makeParticipantView({
+        id: "chat_participant_ct_aria",
+        kind: "character",
+        userId: null,
+        characterId: "character_ct_aria",
+        role: "member",
+        displayName: "Aria",
+        leftSeq: null,
+      }),
     ],
     viewerGalleryCharacterId: viewerOwnsAria ? "character_ct_aria" : null,
-  };
+  });
 }
 
 for (const viewport of [
