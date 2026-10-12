@@ -14,6 +14,7 @@ import {
   SHAPE_BREAKPOINT_DECISIONS,
   shapeTraceSchema,
   startChatResultSchema,
+  TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
@@ -42,7 +43,7 @@ export function makeParticipantView(overrides: Partial<ParticipantWire> = {}): P
       characterId: ids.next(ID_PREFIX.character),
       role: "member",
       activePersonaId: null,
-      talkativeness: 0.5,
+      talkativeness: TALKATIVENESS_DEFAULT,
       disabled: false,
       joinedAt: FROZEN_AT_MS,
       joinSeq: 1,

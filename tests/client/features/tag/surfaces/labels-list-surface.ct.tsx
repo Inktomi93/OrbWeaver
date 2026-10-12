@@ -188,7 +188,7 @@ test("New tag skips a name the library holds in another casing", async ({ mount,
 // The rows learn a new name only on the bus refetch, so a second click during the create would offer the
 // same name again: the door holds shut until the create settles.
 test("a double click on New tag creates once", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"tag.createTag">();
   const { usage: _usage, pendingSuggestions: _pending, ...created } = CREATED;
   const trpc = await routeTrpc(page, {
     "tag.listTagsWithUsage": () => [...FEW_TAGS, CREATED],
@@ -541,7 +541,7 @@ test("prune names the exact unused labels and excludes pending suggestions", asy
 });
 
 test("a delete decision survives a bus refresh before its response and does not poison the next Cancel", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"tag.removeTag">();
   let rows = FEW_TAGS;
   await routeTrpc(page, {
     "tag.listTagsWithUsage": () => rows,
@@ -597,7 +597,7 @@ test("a failed delete stays as one retryable decision and keeps the selected edi
 for (const kind of ["delete", "prune"] as const) {
   for (const outcome of ["success", "failure"] as const) {
     test(`${kind}: an abandoned pending ${outcome} cannot settle a later decision`, async ({ mount, page }) => {
-      const hold = trpcHold();
+      const hold = trpcHold<"tag.removeTag" | "tag.pruneUnusedTags">();
       await routeTrpc(page, {
         "tag.listTagsWithUsage": FEW_TAGS,
         "tag.listPendingSuggestions": [],

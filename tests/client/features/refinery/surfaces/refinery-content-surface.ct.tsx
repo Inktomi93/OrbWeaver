@@ -477,7 +477,7 @@ test("#1188 a HELD session read shows the reserved skeleton, never the surface's
   page,
 }) => {
   await freeze(page);
-  const hold = trpcHold();
+  const hold = trpcHold<"refinery.getSession">();
   await routeTrpc(page, { ...baseRoutes(), "refinery.getSession": hold });
   const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
@@ -1038,7 +1038,7 @@ test("a rewrite entry the verb always refuses is shown NOT APPLICABLE with its r
 test("decision writes are SERIALIZED: a press made while one is in flight waits, and the latest sheet lands last", async ({ mount, page }) => {
   await freeze(page);
   const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
-  const firstWrite = trpcHold();
+  const firstWrite = trpcHold<"refinery.decideRewrite">();
   await routeTrpc(page, {
     ...baseRoutes(),
     "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {
@@ -1078,7 +1078,7 @@ function refusedCopy(): TrpcWireOutput<"refinery.applyAsCopy"> {
 test("a DOUBLE press on a refused copy's recovery sends ONE copy, and every terminal control is disabled while it is out", async ({ mount, page }) => {
   await freeze(page);
   const copyInputs: TrpcInput<"refinery.applyAsCopy">[] = [];
-  const retry = trpcHold();
+  const retry = trpcHold<"refinery.applyAsCopy">();
   await routeTrpc(page, {
     ...baseRoutes(),
     "refinery.applyAsCopy": (input: TrpcInput<"refinery.applyAsCopy">) => {
@@ -1109,7 +1109,7 @@ test("a DOUBLE press on a refused copy's recovery sends ONE copy, and every term
 test("a decision pressed while a write is out is still SENT after the workbench unmounts", async ({ mount, page }) => {
   await freeze(page);
   const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
-  const firstWrite = trpcHold();
+  const firstWrite = trpcHold<"refinery.decideRewrite">();
   await routeTrpc(page, {
     ...baseRoutes(),
     "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {

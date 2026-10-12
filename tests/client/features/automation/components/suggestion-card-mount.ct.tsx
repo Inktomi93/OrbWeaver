@@ -176,7 +176,7 @@ test("a rule terminal refreshes the visible room Activity list through the alway
 });
 
 test("a rule terminal delivered before the initial Activity response still refreshes the visible list", async ({ mount, page }) => {
-  const initialActivity = trpcHold();
+  const initialActivity = trpcHold<"automation.listChatActivity">();
   let activityReads = 0;
   await routeRoom(page, [ruleFiredFrame(), rewriteCardFrame()], {
     activity: () => {

@@ -1207,7 +1207,7 @@ const MANY_PRESETS = [
 const LAST_BULK_NAME = "Bulk preset 38";
 
 test("#1748 the search input survives the pending read, and the rows still reach past the fold", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"preset.list">();
   await routeTrpc(page, {
     "preset.list": hold,
     "settings.getUserSettings": () => ({

@@ -71,7 +71,15 @@ test("ordinary direct fixtures derive keys, input, and output from AppRouter", a
     }),
   ).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { health: trpcError() })).toEqualTypeOf<Promise<TrpcRecorder>>();
-  expectTypeOf(routeTrpc(page, { health: trpcHold() })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  expectTypeOf(routeTrpc(page, { health: trpcHold<"health">() })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  const settingsHold = trpcHold<"settings.getUserSettings">();
+  settingsHold.release(completeSettingsOutput);
+  settingsHold.release(trpcError());
+  // @ts-expect-error — a held response is the full wire output too: a subset cannot be released.
+  settingsHold.release({ config: DEFAULT_USER_SETTINGS });
+  const listHold = trpcHold<"assets.listOwned">();
+  // @ts-expect-error — released array rows must be full canonical rows.
+  listHold.release([{ assetId: "asset_wire_id" }]);
 
   // @ts-expect-error — a deleted field cannot survive on a static output.
   await routeTrpc(page, { health: { ok: true, deletedField: "stale" } });

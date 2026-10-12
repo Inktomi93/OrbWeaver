@@ -536,7 +536,7 @@ test("a role whose binding is stale shows the failure band with the server's rea
 });
 
 test("a pending read after a switch holds the skeleton, and a failed one shows the causeless band", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"connection.resolveChatCapability">();
   await routeTrpc(
     page,
     readoutRoutes((input) => {

@@ -254,7 +254,7 @@ for (const arm of [
 // the whole BATCH (one HTTP response per batch), so sibling sections skeleton too; every assertion below
 // is therefore scoped to the Group-behavior section itself rather than to the tab.
 test("committed host + group: the Group-behavior section shows a skeleton (never a spinner void) while loading", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.getGroupConfig">();
   await routeTrpc(page, {
     "chat.getGroupConfig": hold,
     "chat.setRoomOverrides": () => ({}),
@@ -1205,7 +1205,7 @@ test("#640: a room with NO books attached says so rather than rendering an empty
 const SETTLE_SHIFT_BUDGET_PX = 20;
 
 test("#821: resolving Injections does not move the sections around it", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listChatInjections">();
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
@@ -1258,7 +1258,7 @@ test("#821: resolving Injections does not move the sections around it", async ({
   const documentsBefore = await settledDocumentTop();
   const overridesBefore = await documentTop(fieldOverrides);
 
-  hold.release([HELD_INJECTIONS[0]]);
+  hold.release(HELD_INJECTIONS.slice(0, 1));
 
   // The release must actually land — a fallback that never resolves would satisfy a position fence forever.
   await expect(component.getByRole("heading", { name: "Injections 1", level: 3 })).toBeVisible();
@@ -1275,7 +1275,7 @@ test("#821: resolving Injections does not move the sections around it", async ({
 // count is in cache and the reserve is exact; this pin proves the WIRING — the fallback is the section's
 // own collapse-row skeleton (intro painted for real, cards below it), not a fixed one-line bar.
 test("#821: the Injections fallback is the section's own shape, not a line", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listChatInjections">();
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
@@ -1314,7 +1314,7 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
 // its arrival grew the kicker's line box 13.125px → 30.25px (measured by lane cb-this-chat-fixes, 3d9d31280e).
 // Same `trpcHold` barrier as the fence test above — the heading's own bounding-box height, absent vs present.
 test("#829: the count chip's arrival does not resize the kicker's own line box", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listChatInjections">();
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,

@@ -6136,7 +6136,7 @@ test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while
     content: `try { localStorage.setItem("orb:appearance-boot", ${JSON.stringify(REDUCED_MOTION_HINT_BLOB)}); } catch { /* storage disabled */ }`,
   });
   await page.reload();
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   // The barrier is the HELD request, not a timer: past this the shell has mounted and its root effect has
@@ -6148,7 +6148,7 @@ test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while
 });
 
 test("#188 CONTROL: a device with NO hint is not stamped ON by the pending read — the pref is remembered, never guessed", async ({ mount, page }) => {
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -7235,7 +7235,7 @@ async function bootWithAppearanceHint(page: Page): Promise<void> {
 
 test("#231 a remembered fontScale survives the shell's first commit while getUserSettings is in flight", async ({ mount, page }) => {
   await bootWithAppearanceHint(page);
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -7249,7 +7249,7 @@ test("#231 a remembered fontScale survives the shell's first commit while getUse
 
 test("#231 a remembered theme survives it too — a Light user never cold-boots the dark palette", async ({ mount, page }) => {
   await bootWithAppearanceHint(page);
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -7259,7 +7259,7 @@ test("#231 a remembered theme survives it too — a Light user never cold-boots 
 });
 
 test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending read — remembered, never guessed", async ({ mount, page }) => {
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;

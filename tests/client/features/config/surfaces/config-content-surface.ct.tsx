@@ -523,7 +523,7 @@ test("an ADMIN sees the Distribute section on the Plugins group, and publishing 
 test("server-wide withdrawal names its account-wide effect and holds the confirm through cancel, failure, retry, and success", async ({ mount, page }) => {
   let published: TrpcWireOutput<"plugin.listDistributed"> = [{ slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 }];
   let attempts = 0;
-  const firstWithdrawal = trpcHold();
+  const firstWithdrawal = trpcHold<"plugin.uninstallForAllUsers">();
   await stub(page, {
     "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" },
     "plugin.listDistributed": () => published,
@@ -682,7 +682,7 @@ test("an add-connection landing from a door focuses the add verb of the empty co
 // The landing's focus waits for the section to mount. A reader who moves on while it suspends keeps their
 // focus: the late landing must not pull it off the search box they are typing in.
 test("a setting-level landing that resolves after the reader moved focus leaves their focus alone", async ({ mount, page }) => {
-  const bindings = trpcHold();
+  const bindings = trpcHold<"connection.listBindings">();
   await stub(page, { "connection.listBindings": bindings });
   await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
 
@@ -709,7 +709,7 @@ test("a setting-level landing that resolves after the reader moved focus leaves 
 
 // Assistive technology and `element.focus()` move focus with no press or key event; the late landing still yields.
 test("a setting-level landing that resolves after a focus move made without input events leaves focus alone", async ({ mount, page }) => {
-  const bindings = trpcHold();
+  const bindings = trpcHold<"connection.listBindings">();
   await stub(page, { "connection.listBindings": bindings });
   await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
 

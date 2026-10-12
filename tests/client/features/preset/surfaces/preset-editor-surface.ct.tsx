@@ -506,7 +506,7 @@ const BUILT_IN_DETAIL = { ...presetDetail(BUILT_IN, "Default", undefined), isSys
 const MAX_OUTPUT_LABEL = "Max output tokens value";
 
 test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the racing save and the active pick all retarget to it", async ({ mount, page }) => {
-  const mint = trpcHold();
+  const mint = trpcHold<"preset.update">();
   // The server's fork row, accumulating every patch — the CT's stand-in for the persisted copy.
   let forkConfig: PromptConfig = promptConfigSchema.parse(BUILT_IN_DETAIL.config);
   let activeId: string | null = null;
@@ -794,7 +794,7 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
 });
 
 test("FORK-CHOICE delayed completion cannot retarget selection after the user opens another preset", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"preset.update">();
   await routeForkChoice(page, () => held);
   const component = await mount(<PresetForkChoiceStory />);
 

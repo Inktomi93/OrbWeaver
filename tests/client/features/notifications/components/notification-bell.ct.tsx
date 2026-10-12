@@ -286,7 +286,7 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
 });
 
 test("each inbox row owns its pending action: double-click is singular while a sibling stays actionable", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"invites.acceptInvite">();
   const first = inviteRow();
   const second = inviteRow({
     id: "ntf_ct_2",

@@ -386,7 +386,7 @@ test("a room with no enabled rules says so instead of rendering nothing", async 
 });
 
 test("the capture's LOADING arm says it is checking, and Save waits", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"automation.listRules">();
   await routeTrpc(page, {
     "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,

@@ -29,7 +29,7 @@ test("a populated picker exposes the shared close glyph and a keyboard-operable 
 });
 
 test("the picker owns a held attach, ignores a same-tick repeat, and closes only after success", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"worldInfo.attachToChat">();
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooks": () => [BOOK],
     "worldInfo.attachToChat": hold,
@@ -52,8 +52,8 @@ test("the picker owns a held attach, ignores a same-tick repeat, and closes only
 });
 
 test("a rejected attach stays visible and retryable, then closes after the retry succeeds", async ({ mount, page }) => {
-  const rejected = trpcHold();
-  const retry = trpcHold();
+  const rejected = trpcHold<"worldInfo.attachToChat">();
+  const retry = trpcHold<"worldInfo.attachToChat">();
   let attempts = 0;
   await routeTrpc(page, {
     "worldInfo.listBooks": () => [BOOK],

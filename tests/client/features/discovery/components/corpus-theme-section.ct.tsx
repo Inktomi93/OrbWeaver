@@ -46,7 +46,7 @@ const DETAIL_B = {
 } satisfies TrpcWireOutput<"discovery.themeDetail">;
 
 test("#1098: picking a SECOND story theme holds the detail card's measured box — the column below does not jump", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"discovery.themeDetail">();
   let reads = 0;
   const trpc = await routeTrpc(page, {
     // The first pick answers; the SECOND is parked, which is the pending arm the reservation exists for.

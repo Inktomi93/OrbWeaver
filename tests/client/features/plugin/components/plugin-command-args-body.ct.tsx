@@ -79,7 +79,7 @@ test("a required arg left empty BLOCKS the dispatch with a clear message", async
 
 test("a held invocation keeps the modal pending, and a rejected invocation preserves values for retry", async ({ mount, page }) => {
   let attempt = 0;
-  const firstInvocation = trpcHold();
+  const firstInvocation = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
     ...ROUTES,
     "plugin.invokeUiCommand": () => {

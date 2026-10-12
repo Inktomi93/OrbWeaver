@@ -752,7 +752,7 @@ test("an anchored window survives suspension, pages both ways and consumes focus
     seq: 1202,
     content: "Selected source end",
   });
-  const held = trpcHold();
+  const held = trpcHold<"chat.getMessageWindow">();
   const window = {
     outcome: "resolved" as const,
     anchorMessageId: start.id,
@@ -1729,7 +1729,7 @@ async function sampleLoadingPlatePixel(page: Page, skeleton: Locator): Promise<{
 test("LOADING OVER ART: the transcript's skeleton rides a reading plate, not the raw wallpaper", async ({ mount, page }) => {
   // A hold that is never released makes the suspense fallback a SETTLED render — the CT never has to
   // catch a flash, and the state it asserts is the one Resume actually shows for its first frames.
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listMessages">();
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={true} />);
   await hold.requested;
@@ -1763,7 +1763,7 @@ const LIGHT_ROOM_PALETTE = "oklch(0.98 0.004 75)";
 const SKELETON_ON_PLATE_FLOOR = 1.2;
 
 test("#690 LOADING OVER ART, LIGHT ROOM: the skeleton bars are visibly distinct from the plate they ride", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listMessages">();
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={true} art={LIGHT_ROOM_WORST_ART} palette={LIGHT_ROOM_PALETTE} />);
   await hold.requested;
@@ -1784,7 +1784,7 @@ test("#690 LOADING OVER ART, REDUCED MOTION: the flat base fill carries the same
   // one a reduced-motion reader sees, and the half of the fix the two rows above structurally cannot see
   // (the pseudo covers the base whenever motion is on). `page.emulateMedia` re-resolves the mounted tree
   // live; the harness page outlives the test, so it is reset at the end.
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listMessages">();
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={true} art={LIGHT_ROOM_WORST_ART} palette={LIGHT_ROOM_PALETTE} />);
   await hold.requested;
@@ -1804,7 +1804,7 @@ test("#690 LOADING OVER ART, REDUCED MOTION: the flat base fill carries the same
 test("#690 LOADING OVER ART, DARK ROOM: the same bars stay distinct on the polarity that was never broken", async ({ mount, page }) => {
   // The other arm of the same change — the washes replace `muted`/`accent` on BOTH polarities, so the dark
   // room owes a receipt too. Its worst art is the DARK one (the plate is dark, its inks are light).
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listMessages">();
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={true} art="#000000" palette="oklch(0.158 0.006 60)" />);
   await hold.requested;
@@ -1823,7 +1823,7 @@ test("LOADING OVER ART CONTROL: the same probe reads the raw backdrop where no a
   // No `data-has-bg-image` ⇒ the plate is inert by construction (a plain-background room is byte-identical
   // to before this fix). This is the planted positive control: if the sampler ever stops seeing the naked
   // backdrop here, the assertion above is measuring nothing.
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listMessages">();
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": hold });
   const component = await mount(<MessageListOverArtStory artBackdrop={false} />);
   await hold.requested;

@@ -164,7 +164,7 @@ test("a DIALOG-anchored frame renders its own document inside the house modal bo
 });
 
 test("an open dialog shows catalog loading and failure before Retry recovers the registered surface", async ({ mount, page }) => {
-  const firstRead = trpcHold();
+  const firstRead = trpcHold<"plugin.listSurfaces">();
   let reads = 0;
   const recovered = staticRow({ pluginId: DIALOG_ID, id: "board", anchor: "dialog", title: "Chess board", value: "Recovered dialog" });
   await routeTrpc(page, {
@@ -189,7 +189,7 @@ test("an open dialog shows catalog loading and failure before Retry recovers the
 });
 
 test("a selected page shows catalog loading and failure before Retry, never a false gone state", async ({ mount, page }) => {
-  const firstRead = trpcHold();
+  const firstRead = trpcHold<"plugin.listSurfaces">();
   let reads = 0;
   const recovered = staticRow({ pluginId: ORACLE_ID, id: "board_page", anchor: "page", title: "The Board", value: "Recovered page" });
   await routeTrpc(page, {

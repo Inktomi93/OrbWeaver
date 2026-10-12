@@ -1416,7 +1416,7 @@ test("P2 selecting a chip no longer reshuffles the rail — the count datum cann
 // reader. The rail RESERVES the lines while the read is in flight, so the group's own height is the same
 // before and after the vocabulary lands.
 test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does not grow the group", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"tag.listTagFilterVocabulary">();
   const tags = Array.from({ length: 12 }, (_unused, at) => makeTagFixture({ id: `tag_bulk_${String(at)}`, name: `bulk-${String(at).padStart(2, "0")}` }));
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,

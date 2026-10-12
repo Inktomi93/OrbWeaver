@@ -146,7 +146,7 @@ async function selectOwnedImages(page: Page): Promise<void> {
 }
 
 test("the add picker owns the whole held batch, ignores repeat confirmation, and closes after every success", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"assets.addToGallery">();
   const trpc = await routeTrpc(page, {
     "assets.listGallery": () => [],
     "assets.listOwned": () => OWNED,
@@ -171,8 +171,8 @@ test("the add picker owns the whole held batch, ignores repeat confirmation, and
 });
 
 test("a rejected add batch stays visible and retryable, then closes after the retry succeeds", async ({ mount, page }) => {
-  const rejected = trpcHold();
-  const retry = trpcHold();
+  const rejected = trpcHold<"assets.addToGallery">();
+  const retry = trpcHold<"assets.addToGallery">();
   let attempts = 0;
   await routeTrpc(page, {
     "assets.listGallery": () => [],

@@ -107,7 +107,7 @@ test("two hides made before the first write lands both stay hidden, and the seco
   await page.setViewportSize({ width: 1280, height: 800 });
   let hidden: readonly PluginId[] = [];
   const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
-  const firstWrite = trpcHold();
+  const firstWrite = trpcHold<"settings.updateUserSettingsSection">();
   let writes = 0;
   const recorder = await routeTwoPluginRoom(page, {
     "settings.getUserSettings": () => view(),

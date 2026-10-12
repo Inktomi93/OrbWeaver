@@ -99,7 +99,7 @@ test("explicit Polish replaces the visible draft,Undo restores exact bytes, and 
 });
 
 test("a pending Polish cannot overwrite an edit-and-restore or another room, and Undo cannot overwrite a later edit", async ({ mount, page }) => {
-  const pending = [trpcHold(), trpcHold()] as const;
+  const pending = [trpcHold<"plugin.invokeUiCommand">(), trpcHold<"plugin.invokeUiCommand">()] as const;
   let runs = 0;
   await routeTrpc(page, {
     ...DRAFT_ROUTES,
@@ -137,7 +137,7 @@ test("a pending Polish cannot overwrite an edit-and-restore or another room, and
 
 test("a late plugin reply cannot replace the draft after its command registration is removed", async ({ mount, page }) => {
   let resident = true;
-  const pending = trpcHold();
+  const pending = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
     ...DRAFT_ROUTES,
     "plugin.list": () => [],
@@ -342,7 +342,7 @@ test("a placed typed command collects values before dispatch through the shared 
 });
 
 test("a running placed command locks the shared action affordance until the invocation settles", async ({ mount, page }) => {
-  const invocation = trpcHold();
+  const invocation = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
     ...ROUTES,
     "plugin.invokeUiCommand": () => invocation,
@@ -361,7 +361,7 @@ test("a running placed command locks the shared action affordance until the invo
 });
 
 test("a direct invocation marks all fitted actions busy and locks overflow and media until it settles", async ({ mount, page }) => {
-  const invocation = trpcHold();
+  const invocation = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
     "chat.listChats": () => makeChatListPage(),
     "plugin.listCommands": () => ORDER_COMMANDS,

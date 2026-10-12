@@ -152,7 +152,7 @@ test("#862: the ⋯ item is ONE start action — a single click on 'Turn on game
 });
 
 test("#863: a user-initiated START announces itself and opens the panel on the game's Status tab", async ({ mount, page }) => {
-  const response = trpcHold();
+  const response = trpcHold<"rpg.createGame">();
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": () => makeChatListPage(),
@@ -197,7 +197,7 @@ test("#863: the OFF item carries the kept-state line as visible text AND as its 
 });
 
 test("a completed START from an unmounted room owner cannot reveal the replacement room", async ({ mount, page }) => {
-  const response = trpcHold();
+  const response = trpcHold<"rpg.createGame">();
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": () => makeChatListPage(),
@@ -221,7 +221,7 @@ test("a completed START from an unmounted room owner cannot reveal the replaceme
 
 test("#863: turning game mode OFF announces the kept state AND repaints the chats-list marker at t+0", async ({ mount, page }) => {
   let engaged = true;
-  const response = trpcHold();
+  const response = trpcHold<"rpg.createGame">();
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => makeChatDetail({ rpg: { gameId: "rpg_game_ct", engaged } }),
@@ -240,7 +240,7 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
   await page.getByRole("menuitem", { name: "Turn off game mode", exact: true }).click();
   await expect.poll(() => trpc.count("rpg.updateConfig")).toBe(1);
   await expect(page.locator('[data-slot="menu-popup"]')).toHaveCount(0);
-  response.release(null);
+  response.release({ gameId: "rpg_game_ct", trackersReadOnly: false });
 
   await expect(component.getByRole("status")).toHaveText("Game mode off — your sheets, scene and quests are kept");
   // The census flips WITHOUT a reload: `chat.listChats` is in the mutation's invalidation set (#863 P2 —

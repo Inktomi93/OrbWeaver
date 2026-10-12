@@ -90,6 +90,19 @@ const CORPUS_VIEWER_ROUTE: TrpcRoutes<"sessions.me" | "connection.list" | "conne
   ...UTILITY_RUNNING_ROUTES,
 };
 
+const UNANALYSED_HOME = makeHomeView({
+  coverage: { characters: 10, digests: 0, segments: 0 },
+  sceneThemes: [],
+  arcThemes: [],
+  duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+});
+const ANALYSED_HOME = makeHomeView({
+  coverage: { characters: 10, digests: 40, segments: 12 },
+  sceneThemes: [makeThemeRow({ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 })],
+  arcThemes: [],
+  duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+});
+
 /** A library with characters and a finished VISUAL pass only — the invitation holds the focal. */
 const UNANALYSED: TrpcRoutes<
   | "discovery.home"
@@ -103,12 +116,7 @@ const UNANALYSED: TrpcRoutes<
   | "settings.getUserSettings"
   | "workloads.list"
 > = {
-  "discovery.home": {
-    coverage: { characters: 10, digests: 0, segments: 0 },
-    sceneThemes: [],
-    arcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  },
+  "discovery.home": UNANALYSED_HOME,
   "discovery.catalog": makeCatalogStats({ totalDistilled: 0, genres: [], tones: [], topTags: [] }),
   "discovery.visualArchetypes": FAMILIES,
   "discovery.forgottenGems": [],
@@ -124,12 +132,7 @@ const UNANALYSED: TrpcRoutes<
  *  surface's one remaining door. */
 const ANALYSED: TrpcRoutes<"discovery.home" | "discovery.catalog"> = {
   ...UNANALYSED,
-  "discovery.home": makeHomeView({
-    coverage: { characters: 10, digests: 40, segments: 12 },
-    sceneThemes: [makeThemeRow({ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 })],
-    arcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  }),
+  "discovery.home": ANALYSED_HOME,
   "discovery.catalog": makeCatalogStats({ totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] }),
 };
 
@@ -543,7 +546,7 @@ const SKELETON_EYEBROW_MAX_RATIO = 0.4;
 // rectangle for the 1-2s its eight reads take, while the LIST pane beside it ran proper skeletons.
 // `trpcHold()` is the release valve that makes the PENDING render a stable state instead of a flash.
 test("the pending corpus renders a skeleton composition, not a lone sentence (§5)", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"discovery.home">();
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.home": held });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await held.requested;
@@ -568,12 +571,12 @@ test("the pending corpus renders a skeleton composition, not a lone sentence (§
   expect(eyebrowWidth / paneWidth).toBeLessThan(SKELETON_EYEBROW_MAX_RATIO);
 
   // …and it gives way to the real surface when the reads land (the fallback is a fallback, not a state).
-  held.release(ANALYSED["discovery.home"]);
+  held.release(ANALYSED_HOME);
   await expect(page.locator("[data-corpus-focal]")).toBeVisible();
 });
 
 test("below-fold insights do not hold the settled corpus overview hostage (#269)", async ({ mount, page }) => {
-  const heldUnused = trpcHold();
+  const heldUnused = trpcHold<"discovery.unusedCharacters">();
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.unusedCharacters": heldUnused });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await heldUnused.requested;
@@ -624,7 +627,7 @@ const WARM_KEYWORD_QUEUE: TrpcRoutes<"workloads.list"> = {
 };
 
 test("the readiness rail states no keyword measurement while the keyword read is in flight (#384)", async ({ mount, page }) => {
-  const heldKeywords = trpcHold();
+  const heldKeywords = trpcHold<"discovery.topKeywords">();
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...WARM_KEYWORD_QUEUE, "discovery.topKeywords": heldKeywords });
   const component = await mount(<CorpusHomeWarmQueueStory />);
   await heldKeywords.requested;
@@ -1290,7 +1293,7 @@ test.describe("story-theme drift in New York", () => {
 });
 
 test("independent overview reads start while home is held", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"discovery.home">();
   const trpc = await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...UNANALYSED, "discovery.home": held });
   const component = await mount(<CorpusHomeDefaultPaneStory />);
   await held.requested;
@@ -1299,7 +1302,7 @@ test("independent overview reads start while home is held", async ({ mount, page
       .poll(() => [trpc.count("discovery.catalog"), trpc.count("discovery.visualArchetypes"), trpc.count("discovery.forgottenGems")])
       .toEqual([1, 1, 1]);
   } finally {
-    held.release(UNANALYSED["discovery.home"]);
+    held.release(UNANALYSED_HOME);
   }
   await expect(component.locator("[data-corpus-focal]")).toBeVisible();
 });

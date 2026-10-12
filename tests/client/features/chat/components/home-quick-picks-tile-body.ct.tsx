@@ -68,7 +68,7 @@ test("renders the character faces inside the tile frame", async ({ mount, page }
 // with no focus at all. Asserted through the affordances: the pressed cell is STILL the focused element
 // while the mutation is in flight (it was gone), and the rail arrives when the room does.
 test("P2-7 picking a face keeps focus on the cell until the room exists, then moves the rail — assert the STORE", async ({ mount, page }) => {
-  const started = trpcHold();
+  const started = trpcHold<"chat.startChat">();
   await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE, "chat.startChat": started });
 
   const home = await mount(<ChatQuickPicksTileStory />);

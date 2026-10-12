@@ -80,7 +80,7 @@ test("a GROUP chat shows the chip counting the PRESENT seats the Members tab lis
 // name and a cast. The pending state is pinned as a SETTLED render (the read is HELD, never raced), then
 // released so the same mount proves the real identity still lands.
 test("while chat.getChat is unresolved the header shows a skeleton — never 'Untitled chat · 0 members'", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.getChat">();
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": hold,
@@ -97,11 +97,13 @@ test("while chat.getChat is unresolved the header shows a skeleton — never 'Un
   await expect(component.getByRole("button", { name: ANY_MEMBERS_CHIP })).toHaveCount(0);
   await expect(component.locator('[data-slot="chat-header-pending"]')).toBeVisible();
 
-  hold.release({
-    title: "Council of Two",
-    participants: [human("host"), character("Aria")],
-    viewerIsHost: true,
-  });
+  hold.release(
+    makeChatDetail({
+      title: "Council of Two",
+      participants: [human("host"), character("Aria")],
+      viewerIsHost: true,
+    }),
+  );
 
   await expect(component.getByRole("button", { name: "Members — 2" })).toBeVisible();
   await expect(component.locator('[data-slot="chat-header-pending"]')).toHaveCount(0);

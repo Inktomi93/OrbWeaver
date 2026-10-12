@@ -316,7 +316,7 @@ function stubTakeover(
   opts: {
     readonly readOnly?: boolean;
     readonly reveal?: TrpcWireOutput<"rpg.revealHidden">;
-    readonly tracker?: TrpcWireOutput<"rpg.getTrackerView"> | ReturnType<typeof trpcHold>;
+    readonly tracker?: TrpcWireOutput<"rpg.getTrackerView"> | ReturnType<typeof trpcHold<"rpg.getTrackerView">>;
     readonly game?: TrpcWireOutput<"rpg.getGame">;
     readonly messages?: TrpcWireOutput<"chat.listMessages"> | ReturnType<typeof trpcError>;
     readonly chat?: TrpcWireOutput<"chat.getChat">;
@@ -4211,7 +4211,7 @@ const HUD_BAND = '[data-slot="rpg-hud-band"]';
 const HUD_BAND_RESERVATION = `${HUD_BAND} [data-tile-reserved]`;
 
 test("#149 the band holds its box open while `getTrackerView` is in flight, and the read SHRINKS it — never pushes", async ({ mount, page }) => {
-  const tracker = trpcHold();
+  const tracker = trpcHold<"rpg.getTrackerView">();
   await stubTakeover(page, { tracker });
 
   const component = await mount(<RpgTakeoverStory />);

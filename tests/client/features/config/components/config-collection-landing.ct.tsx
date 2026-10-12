@@ -98,7 +98,7 @@ function stub(
   page: Page,
   scripts: TrpcWireOutput<"regex.listScripts"> = [SCRIPT],
   books: readonly (typeof BOOK)[] = [BOOK],
-  bookCreate: { readonly failFirst?: boolean; readonly hold?: ReturnType<typeof trpcHold> } = {},
+  bookCreate: { readonly failFirst?: boolean; readonly hold?: ReturnType<typeof trpcHold<"worldInfo.createBook">> } = {},
 ): Promise<TrpcRecorder> {
   let bookCreates = 0;
   return routeTrpc(page, {
@@ -367,7 +367,7 @@ for (const width of [NARROW_WIDTH, MEDIUM_WIDTH]) {
 }
 
 test("a create in flight cannot be submitted twice: Enter then Create makes exactly one request", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"worldInfo.createBook">();
   const trpc = await stub(page, [SCRIPT], [BOOK], { hold });
   const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
   const row = workspace.locator(CONTROL_ROW);

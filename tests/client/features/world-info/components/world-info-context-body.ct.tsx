@@ -127,7 +127,7 @@ test("a search that matches nothing says so about the TERM, and offers the way b
 });
 
 test("attachment controls lock on the one shared reverse read and expose an explicit retry after error", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"worldInfo.listAttachmentsForBook">();
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
@@ -154,7 +154,7 @@ test("attachment controls lock on the one shared reverse read and expose an expl
 });
 
 test("attachment rows withhold checked semantics until the shared read settles, then render the resolved state", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"worldInfo.listAttachmentsForBook">();
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],
@@ -178,7 +178,7 @@ test("attachment rows withhold checked semantics until the shared read settles, 
 });
 
 test("the personas section does not claim zero or empty while its target roster is pending", async ({ mount, page }) => {
-  const personasHeld = trpcHold();
+  const personasHeld = trpcHold<"persona.list">();
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.listGlobal": () => [],

@@ -163,7 +163,7 @@ test("using a chat-only row for everything writes straight through without a pre
 });
 
 test("independent connections dependencies start while the connection list is held", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"connection.list">();
   const calls = await routeTrpc(page, {
     "connection.list": held,
     "connection.listBindings": [],

@@ -116,7 +116,7 @@ test("#623: an extraction mode with an empty prompt says it charges TWICE — an
 
 test("#623: a generate IN FLIGHT carries a spinner, an elapsed count, a time expectation, and says closing is safe", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.generateImage">();
   await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": hold });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
   await cmp.getByRole("button", { name: "Generate" }).click();
@@ -132,7 +132,7 @@ test("#623: a generate IN FLIGHT carries a spinner, an elapsed count, a time exp
 
 test("#623: the mode strip is INERT mid-spend — the in-flight request already carries the old mode", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.generateImage">();
   await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": hold });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
   await cmp.getByRole("button", { name: "Generate" }).click();

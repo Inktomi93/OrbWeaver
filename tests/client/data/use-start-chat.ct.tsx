@@ -59,7 +59,7 @@ test("the Start seam creates the room, enters it, and lands the rail on Chats", 
 });
 
 test("the response seeds both room reads and confirms the message page after the native crossfade", async ({ mount, page }) => {
-  const listMessages = trpcHold();
+  const listMessages = trpcHold<"chat.listMessages">();
   await page.addInitScript(() => {
     let finish: (() => void) | undefined;
     const finished = new Promise<void>((resolve) => {
@@ -108,7 +108,7 @@ test("the response seeds both room reads and confirms the message page after the
 });
 
 test("an opening-less response seeds an empty first frame and still closes the pre-attach gap", async ({ mount, page }) => {
-  const listMessages = trpcHold();
+  const listMessages = trpcHold<"chat.listMessages">();
   const trpc = await routeTrpc(page, {
     "chat.startChat": makeStartChatResult({ chat: CREATED_CHAT }),
     "chat.listMessages": listMessages,

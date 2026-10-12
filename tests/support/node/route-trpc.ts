@@ -353,7 +353,11 @@ function isTrpcError(value: unknown): value is TrpcErrorMarker {
 
 const HOLD_MARK = Symbol("routeTrpc.hold");
 
-interface TrpcHoldMarker {
+/** What `release` accepts for one procedure: its full wire output, or a failure marker. A hold that names no
+ *  procedure (`trpcHold()`, `TPath` = `never`) releases nothing, so a held response can never be a subset. */
+type TrpcHoldRelease<TPath extends TrpcProcedurePath | undefined> = TPath extends TrpcProcedurePath ? TrpcWireOutput<TPath> | TrpcErrorMarker : never;
+
+interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined> {
   readonly [HOLD_MARK]: {
     /** Called the moment the stub intercepts a request carrying this procedure. */
     readonly onRequest: () => void;
@@ -366,7 +370,7 @@ interface TrpcHoldMarker {
   readonly requested: Promise<void>;
   /** Release the held request with this data — or a `trpcError(…)` marker to release it as a failure.
    *  Calls after the first are ignored (a re-fetch of the same procedure re-uses the settled value). */
-  readonly release: (data: unknown) => void;
+  readonly release: (data: TrpcHoldRelease<TPath>) => void;
 }
 
 /**
@@ -374,7 +378,7 @@ interface TrpcHoldMarker {
  * render as a settled, indefinitely-stable state instead of trying to catch a flash:
  *
  * ```ts
- *     const hold = trpcHold();
+ *     const hold = trpcHold<"echo">();
  *     await routeTrpc(page, { echo: hold, "tag.listTags": [] });
  *     await mount(<Story />);
  *     await hold.requested;                       // the query is in flight, held
@@ -396,11 +400,11 @@ interface TrpcHoldMarker {
  *
  * A hold that is never released simply never answers, and the test fails on its own timeout.
  */
-export function trpcHold(): TrpcHoldMarker {
+export function trpcHold<TPath extends TrpcProcedurePath = never>(): TrpcHoldMarker<TPath> {
   // `new Promise`'s executor runs SYNCHRONOUSLY, so both handles are assigned before the return below
   // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
   let onRequest!: () => void;
-  let release!: (data: unknown) => void;
+  let release!: (data: TrpcHoldRelease<TPath>) => void;
   // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const requested = new Promise<void>((resolve) => {
     onRequest = resolve;

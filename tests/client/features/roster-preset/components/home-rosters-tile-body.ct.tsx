@@ -122,7 +122,7 @@ const ROSTERS_TILE = '[data-home-tile="rosterPreset.rosters"]';
 const REMEMBERED_ROSTERS_PX = 333;
 
 test("a device with no memory reserves the tile while the library loads", async ({ mount, page }) => {
-  const list = trpcHold();
+  const list = trpcHold<"rosterPreset.count">();
   await routeTrpc(page, { "rosterPreset.count": list, "rosterPreset.list": [SPIRE], "automation.listRulePresets": [] });
 
   await mount(<HomeRostersTileStory />);
@@ -134,7 +134,7 @@ test("a device with no memory reserves the tile while the library loads", async 
 });
 
 test("a device that saw the library settle empty reserves nothing while it loads", async ({ mount, page }) => {
-  const list = trpcHold();
+  const list = trpcHold<"rosterPreset.count">();
   await routeTrpc(page, { "rosterPreset.count": list, "rosterPreset.list": [SPIRE], "automation.listRulePresets": [] });
 
   await mount(<HomeSettledHiddenRostersTileStory />);
@@ -146,7 +146,7 @@ test("a device that saw the library settle empty reserves nothing while it loads
 });
 
 test("an empty library renders no tile, and forgets the box a device remembered", async ({ mount, page }) => {
-  const list = trpcHold();
+  const list = trpcHold<"rosterPreset.count">();
   await routeTrpc(page, { "rosterPreset.count": list, "rosterPreset.list": [SPIRE], "automation.listRulePresets": [] });
 
   await mount(<HomeRememberedRostersTileStory box={REMEMBERED_ROSTERS_PX} />);

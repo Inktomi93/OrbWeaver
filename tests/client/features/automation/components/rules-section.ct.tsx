@@ -342,7 +342,7 @@ test("B4 — a FREE rule shows no offer switch at all: it can never raise the in
 });
 
 test("a same-task repeat admits one enable write, owns only its rule row, and rejection releases retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"automation.setRuleEnabled">();
   const trpc = await stub(page, { rules: [RULE, FREE_RULE], setEnabled: held });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
@@ -367,7 +367,7 @@ test("a same-task repeat admits one enable write, owns only its rule row, and re
 });
 
 test("the existing Test loading state owns only its rule row while the dry run is held", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"automation.testRule">();
   const trpc = await stub(page, { rules: [RULE, FREE_RULE], testRule: held });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
@@ -1364,9 +1364,9 @@ async function recordShifts(page: Page): Promise<void> {
 }
 
 test("#815: a full rules-editing session stays inside this surface's layout-shift budget", async ({ mount, page }) => {
-  const listHold = trpcHold();
-  const firesHold = trpcHold();
-  const testHold = trpcHold();
+  const listHold = trpcHold<"automation.listRules">();
+  const firesHold = trpcHold<"automation.listFires">();
+  const testHold = trpcHold<"automation.testRule">();
   let listCalls = 0;
   let fireCalls = 0;
   const fires: TrpcWireOutput<"automation.listFires"> = Array.from({ length: FIRE_LOG_ROWS }, (_row, index) => ({
@@ -1984,7 +1984,7 @@ test("a rule bound to a connection that is gone says it is set but not running",
 });
 
 test("the rule's connections hold a skeleton while they load, and a refused read is an error with a retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"connection.listBindings">();
   await stub(page, { ruleBindings: () => held });
   await mount(<RulesSectionStory chatId={CHAT} />);
   await openRule(page, "Illustrate the scene");

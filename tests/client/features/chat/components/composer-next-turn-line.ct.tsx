@@ -287,7 +287,7 @@ test("while the host's chat-role read is in flight the line stays away rather th
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": HOST_ROOM,
     "connection.list": [WORK_KEY],
-    "connection.resolveChatCapability": trpcHold(),
+    "connection.resolveChatCapability": trpcHold<"connection.resolveChatCapability">(),
   });
   const component = await mount(<ComposerStory />);
 

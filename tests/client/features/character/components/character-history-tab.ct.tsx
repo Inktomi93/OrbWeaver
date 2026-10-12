@@ -1,10 +1,12 @@
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterHistoryTabStory } from "../_ct-stories.tsx";
 
 test("Snapshot now admits one durable intent and rejection restores retry", async ({ mount, page }) => {
-  const first = trpcHold();
-  const retry = trpcHold();
+  const first = trpcHold<"character.snapshot">();
+  const retry = trpcHold<"character.snapshot">();
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     "character.listSnapshots": [],
@@ -30,6 +32,6 @@ test("Snapshot now admits one durable intent and rejection restores retry", asyn
   await retry.requested;
   await expect(snapshot).toBeDisabled();
   await expect.poll(() => trpc.count("character.snapshot")).toBe(2);
-  retry.release(null);
+  retry.release({ id: mintTypeId(ID_PREFIX.characterSnapshot), characterId: mintTypeId(ID_PREFIX.character), createdAt: FROZEN_AT_MS });
   await expect(snapshot).toBeEnabled();
 });

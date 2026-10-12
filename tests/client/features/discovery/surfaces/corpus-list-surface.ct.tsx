@@ -613,7 +613,7 @@ test("#537 the pane's skip link is first in DOM order and lands on the first res
 });
 
 test("independent catalog and page reads start while browse facets are held", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"discovery.characterFacets">();
   const trpc = await routeTrpc(page, {
     "discovery.characterFacets": held,
     "discovery.catalog": EMPTY_CATALOG,

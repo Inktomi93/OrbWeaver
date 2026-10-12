@@ -54,7 +54,7 @@ function routeRoom(
     attributes,
   }: {
     readonly ruleset?: RpgRuleset;
-    readonly heldRoll?: ReturnType<typeof trpcHold>;
+    readonly heldRoll?: ReturnType<typeof trpcHold<"rpg.rollDice">>;
     readonly unconnected?: boolean;
     readonly attributes?: Readonly<Record<string, number>>;
   } = {},
@@ -135,7 +135,7 @@ test("a menu roll appends the baked stamp to the draft without sending it", asyn
 });
 
 test("a held roll still inserts exactly one stamp after Escape dismisses the menu", async ({ mount, page }) => {
-  const heldRoll = trpcHold();
+  const heldRoll = trpcHold<"rpg.rollDice">();
   const trpc = await routeRoom(page, true, { heldRoll });
   const component = await mount(<RpgDiceComposerStory />);
   const composer = component.getByRole("textbox", { name: "Message" });
@@ -287,7 +287,7 @@ test("an unset ability explains how to fill the score instead of inventing a zer
 });
 
 test("a failed ability roll surfaces the failure and leaves the composer draft unchanged", async ({ mount, page }) => {
-  const heldRoll = trpcHold();
+  const heldRoll = trpcHold<"rpg.rollDice">();
   await routeRoom(page, true, { attributes: { str: 15 }, heldRoll });
   const component = await mount(
     <CtToastSurface>

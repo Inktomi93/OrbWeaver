@@ -120,8 +120,10 @@ const HOME_AMBIENT_ROUTES: TrpcRoutes<
   | "worldInfo.countBooks"
   | "regex.countScripts"
   | "rosterPreset.count"
+  | "tag.listPendingSuggestions"
 > = {
   ...CHAT_AMBIENT_ROUTES,
+  "tag.listPendingSuggestions": [],
   "character.count": 0,
   "chat.countChats": 0,
   "worldInfo.countBooks": 0,
@@ -282,7 +284,7 @@ test("on a phone, Home drops the section chips the tab bar and the You sheet alr
 // The route mounts, its identity read is already cached, and the workspace bind runs off the query cache: the cache
 // sits idle until Home mounts and issues its own reads. The boot veil must not lift in that gap.
 test("the app is not ready until Home's first reads land", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await routeTrpc(page, {
     ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chats,
@@ -1278,7 +1280,7 @@ test.describe("the phone's Characters screen with a member open", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
   test("an open member's screen keeps the section label while her name is in flight — never the census", async ({ mount, page }) => {
-    const characterGet = trpcHold();
+    const characterGet = trpcHold<"character.get">();
     await routeTrpc(page, { ...CENSUS_ROUTES, "character.get": characterGet });
     const component = await mount(<HomePageStory />);
     await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
@@ -1295,7 +1297,7 @@ test.describe("the phone's Characters screen with a member open", () => {
     await characterGet.requested;
     await expect(screenName).toHaveText("Characters");
 
-    characterGet.release({ id: ARIA.id, name: ARIA.name, greetings: [] });
+    characterGet.release(makeCharacterDetail({ id: ARIA.id, name: ARIA.name, greetings: [] }));
     await expect(screenName).toHaveText(ARIA.name);
   });
 });
@@ -1406,7 +1408,7 @@ test.describe("phone character CONTENT focus and warm retention", () => {
     const second = makeCharacterSummary({ id: "char_home_second", name: "Second character" });
     const firstCard = makeCharacterDetail({ id: ARIA.id, name: ARIA.name });
     const secondCard = makeCharacterDetail({ id: second.id, name: second.name });
-    const update = trpcHold();
+    const update = trpcHold<"character.update">();
     await routeTrpc(page, {
       ...CENSUS_ROUTES,
       ...CHARACTER_EDITOR_AMBIENT_ROUTES,
@@ -1481,7 +1483,7 @@ test("a slow Refinery list read keeps the shell mounted and only the list region
     );
   });
   await page.reload();
-  const sessions = trpcHold();
+  const sessions = trpcHold<"refinery.listSessions">();
   await routeTrpc(page, { ...SECTION_CENSUS_ROUTES, "refinery.listSessions": sessions });
   const component = await mount(<HomePagePendingStory />);
   const rail = component.locator(".shell-rail");

@@ -47,7 +47,7 @@ test("`defaultPresetId: null` is the BUILT-IN preset — no preset read fires, t
 });
 
 test("a WITHHELD settings read still yields the builtin catalog — never an empty popover", async ({ mount, page }) => {
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { "settings.getUserSettings": settings });
   try {
     const component = await mount(<PromptMacroSuggestionsStory />);

@@ -368,7 +368,7 @@ test("host: with no scripts anywhere the room keeps its own group's Attach actio
 });
 
 test("the SETTLING read renders the boundary's fallback, never a void", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.listEffectiveRegex">();
   await routeTrpc(page, {
     "chat.listEffectiveRegex": hold,
     "chat.getChat": () => CHAT_DETAIL,

@@ -140,8 +140,8 @@ test("Connected characters lists the junction read; Disconnect fires with both i
 });
 
 test("Duplicate admits one durable intent and rejection restores retry", async ({ mount, page }) => {
-  const first = trpcHold();
-  const retry = trpcHold();
+  const first = trpcHold<"persona.duplicate">();
+  const retry = trpcHold<"persona.duplicate">();
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,

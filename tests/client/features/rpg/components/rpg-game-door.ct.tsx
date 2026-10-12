@@ -22,7 +22,7 @@ function stubUpdate(page: Page, responder: TrpcResponder<"rpg.updateConfig">): P
 // SETTING now. The pins: the retired buttons are gone, the one that remains is `Turn on game mode`, and a
 // same-task double activation still admits exactly one create.
 test("the door offers ONE start action (no profile pick), admits one create per task, and releases on rejection", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"rpg.createGame">();
   const trpc = await stubCreate(page, held);
   await mount(<RpgGameDoorStory />);
 
@@ -49,7 +49,7 @@ test("the door offers ONE start action (no profile pick), admits one create per 
 });
 
 test("a same-task repeat admits one re-engage write, and rejection releases retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"rpg.updateConfig">();
   const trpc = await stubUpdate(page, held);
   await mount(<RpgGameDoorStory />);
 

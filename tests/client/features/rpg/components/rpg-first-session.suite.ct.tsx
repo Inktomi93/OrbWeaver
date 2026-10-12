@@ -12,7 +12,7 @@ import { RpgFirstSessionStory } from "../_first-session-stories.tsx";
 import { FIRST_SESSION_USER, firstSessionConfig, firstSessionTracker } from "../first-session-fixtures.ts";
 import { makeRpgGameView } from "../fixtures.ts";
 
-async function routeFirstSession(page: Page, roll?: ReturnType<typeof trpcHold>, initial = firstSessionConfig()): Promise<void> {
+async function routeFirstSession(page: Page, roll?: ReturnType<typeof trpcHold<"rpg.rollDice">>, initial = firstSessionConfig()): Promise<void> {
   let config = initial;
   const attributes: Record<string, number> = {};
   await routeTrpc(page, {
@@ -125,7 +125,7 @@ test("ability stamps stay in the same paragraph and preserve spanning formatting
 });
 
 test("a pending generation describes disabled controls and a failed roll leaves saved scores intact", async ({ mount, page }) => {
-  const roll = trpcHold();
+  const roll = trpcHold<"rpg.rollDice">();
   await routeFirstSession(page, roll);
   const component = await mount(
     <CtToastSurface>
