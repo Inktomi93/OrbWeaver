@@ -4,13 +4,14 @@
 // ops/stage.ts; the TABLE's own derivations — allocation, the TTL/strand rule, the three-probe health
 // verdict, the limits — are lib/stage-bands.ts (split when this file approached the tooling line cap,
 // docs/law/Core-Tooling-Law.md §4.3).
+import { createHash } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { stageBandForPort } from "../../floor/host/ports.ts";
 import { ENV_NO_FILE, PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
 import type { BandAccess, StageAuthMode, StageBandClaim, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
-import { LOCAL_STAGE_DIR_SUFFIX, stageRowAuth } from "../contract/stage.ts";
+import { LOCAL_STAGE_DIR_SUFFIX, rowOwner, stageRowAuth } from "../contract/stage.ts";
 
 // 12 hex — collision-safe for a dir name while staying human-scannable in logs.
 export const SHORT_SHA_LEN = 12;
@@ -58,9 +59,25 @@ export function stageRowBaseUrl(row: StageRow): string {
   return stageBaseUrl(row.vitePort);
 }
 
-export function stagePaths(root: string, sha: string, auth: StageAuthMode = "single-user"): StagePaths {
-  // A local-auth stage gets its own dir: its data root is empty and seeded, never the single-user copy.
-  const dir = join(root, STAGE_ROOT_REL, auth === "local" ? `${shortSha(sha)}${LOCAL_STAGE_DIR_SUFFIX}` : shortSha(sha));
+const OWNER_DIR_HASH_LEN = 8;
+
+/** The owner key for a caller: its checkout path, or `<checkout>#<label>` when it names its session
+ *  (`ORB_SNAP_OWNER`). Several sessions of one checkout (three reviewers on main) are told apart only by
+ *  this key, so each gets its own band row, data dir and teardown scope. */
+export function stageOwnerKey(root: string, label: string | undefined): string {
+  return label === undefined || label === "" ? root : `${root}#${label}`;
+}
+
+/** A named session's stage dir carries a hash of its owner key; the checkout's own key adds nothing, so
+ *  existing dirs keep their names. */
+function ownerDirSuffix(root: string, owner: string): string {
+  return owner === root ? "" : `-o${createHash("sha256").update(owner).digest("hex").slice(0, OWNER_DIR_HASH_LEN)}`;
+}
+
+export function stagePaths(root: string, sha: string, auth: StageAuthMode = "single-user", owner: string = root): StagePaths {
+  // A local-auth stage gets its own dir: its data root is empty and seeded, never the single-user copy. The
+  // local suffix stays LAST because `stageRowAuth` reads the auth mode off the dir's end.
+  const dir = join(root, STAGE_ROOT_REL, `${shortSha(sha)}${ownerDirSuffix(root, owner)}${auth === "local" ? LOCAL_STAGE_DIR_SUFFIX : ""}`);
   // The stage's data root is ABSOLUTE and inside the stage dir, so its db, assets and secrets live under the
   // stage regardless of the server's cwd — and go with the whole dir on teardown. The sub-paths come from the
   // server's own resolver, so the stage and its server never disagree on where the db is.
@@ -94,6 +111,7 @@ export function describeStageAgePhrase(startedAt: string, nowMs: number): string
   return age === "just now" || age === "unknown age" ? age : `${age} ago`;
 }
 
+/** `checkout` is the caller's owner key ({@link stageOwnerKey}); a row is "ours" only for the same key. */
 export function bandAccess(opts: {
   readonly row: StageRow | null;
   readonly checkout: string;
@@ -104,7 +122,7 @@ export function bandAccess(opts: {
   readonly healthy: boolean;
   readonly auth?: StageAuthMode;
 }): BandAccess {
-  if (opts.row === null || opts.row.checkout === opts.checkout) {
+  if (opts.row === null || rowOwner(opts.row) === opts.checkout) {
     return "ours";
   }
   if (!opts.bandBound) {
@@ -250,23 +268,25 @@ export function missingLauncherRefusal(stageDir: string): string {
 // plain `--stage-down` exactly as before.
 
 /** May this caller tear down the stage this row names? `refuse` ⇒ a foreign, still-in-use stage and no
- *  `--force`. Pure — `inUse` is the caller's band/heartbeat observation (a `live` sweep verdict). */
+ *  `--force`. Pure — `inUse` is the caller's band/heartbeat observation (a `live` sweep verdict). `checkout`
+ *  is the caller's owner key ({@link stageOwnerKey}). */
 export function teardownConsent(opts: {
   readonly row: StageRow | null;
   readonly checkout: string;
   readonly inUse: boolean;
   readonly force: boolean;
 }): "allow" | "refuse" {
-  if (opts.row === null || opts.row.checkout === opts.checkout || opts.force || !opts.inUse) {
+  if (opts.row === null || rowOwner(opts.row) === opts.checkout || opts.force || !opts.inUse) {
     return "allow";
   }
   return "refuse";
 }
 
-/** The F7 teardown selector: no selector means rows owned by this checkout; a named owner narrows the
- *  operation to that owner's rows. `--force` is consent, never a hidden all-foreign selector. */
-export function selectsTeardownRow(row: StageRow, checkout: string, owner: string | null): boolean {
-  return owner === null ? row.checkout === checkout : row.checkout === owner;
+/** The F7 teardown selector: no selector means the rows THIS CALLER owns (its owner key — a session in a
+ *  shared checkout never reaches a sibling session's row); a named checkout takes every row that checkout
+ *  owns, whichever session booted it. `--force` is consent, never a hidden all-foreign selector. */
+export function selectsTeardownRow(row: StageRow, callerOwner: string, checkoutSelector: string | null): boolean {
+  return checkoutSelector === null ? rowOwner(row) === callerOwner : row.checkout === checkoutSelector;
 }
 
 /** The refusal `--stage-down` prints instead of killing a sibling's working stage — names the owner and
@@ -386,10 +406,10 @@ export function stageBandClaim(url: string, checkout: string, rows: readonly Sta
   if (row === undefined) {
     return "unowned";
   }
-  if (row.checkout === checkout) {
+  if (rowOwner(row) === checkout) {
     return "ours";
   }
-  const allocatedToUs = bound !== null && bound.band === row.band && bound.sha === row.sha && bound.checkout === row.checkout;
+  const allocatedToUs = bound !== null && bound.band === row.band && bound.sha === row.sha && rowOwner(bound) === rowOwner(row);
   return allocatedToUs ? "shared" : "foreign";
 }
 

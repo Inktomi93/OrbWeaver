@@ -48,6 +48,7 @@ const currentDigest = currentGeneration(chatDigests.generationId, chatParticipan
 const currentSegment = currentGeneration(chatSegments.generationId, chatParticipants.userId, "memory");
 const currentImage = currentGeneration(imageEmbeddings.generationId, assets.ownerId, "images");
 
+// @orb-waive contract-structural-copy(DigestKeywordRow): baselined when the gate widened; burn-down item 904.
 interface DigestKeywordRow {
   readonly ownerId: UserId;
   readonly scopedCharacterId: CharacterId;
@@ -490,6 +491,7 @@ export async function readTierKDigestSpans(db: Db, ownerId?: UserId | null): Pro
     .where(gt(chatDigests.tier, 0));
 }
 
+// @orb-waive contract-structural-copy(SegmentBlockSpan): baselined when the gate widened; burn-down item 904.
 interface SegmentBlockSpan {
   readonly chatId: ChatId;
   readonly blockIdx: number;

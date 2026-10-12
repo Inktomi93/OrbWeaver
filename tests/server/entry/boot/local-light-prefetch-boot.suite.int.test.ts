@@ -9,6 +9,7 @@
 // schedule, the admin read-model, the transport — is the real production wiring. Substituting that one edge
 // is the only honest way to pin this; a real prefetch here would fetch ~3.7 GB from HuggingFace.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

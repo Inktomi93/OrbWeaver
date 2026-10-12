@@ -5,6 +5,7 @@
 // synthesize `mcp_<name>_<n>` call ids and run `execute`, and carries the terminal set on its own channel. Also
 // the history half (the system band lifts onto the dynamic prompt on the SDK arm only) and the no-api refusal.
 
+// @orb-waive-file no-test-fabrication({ instance?: { _registeredTools?: Record<string, { handler?: McpHandler }> } } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatApi } from "@orb/contracts/inference";
 import type { ChatRequest, ChatToolDefinition, ChatToolExecution, ChatTurnInput, ToolCallInput, WireTool } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";

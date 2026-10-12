@@ -4,6 +4,9 @@
 // the group-character sweep mints ONLY for group rooms lacking one (idempotent, host-owned); the signal
 // aborts cooperatively (an aborted sweep does zero work).
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ phase?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file platform-spellings(store): baselined when the gate widened; burn-down item 906.
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
@@ -17,6 +20,7 @@ import type { ResolveBackfillMemoryConfig } from "#server/domain/chat/contract/m
 import { backfillGroupCharacters, backfillMemory } from "#server/domain/chat/substrate/backfill.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
@@ -197,6 +201,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     // The shared group bucket is find-or-minted (the REAL synthetic-char id — inv 8), so the sweep resolves
     // it exactly the way the engine's post-turn trigger does (no fabricated `__group__` handle).
     const ctx = makeChatContext(db, {
+      // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
 
@@ -230,6 +235,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       summarize: fakeSummarize().op,
       embeddingsStore: store.store,
       embeddingsStoreSegments: store.storeSegments,
+      // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
@@ -310,15 +316,16 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       mintSyntheticGroupCharacter: async ({ ownerId }) => {
         await db
           .insert(characters)
-          .values({
-            id: groupCharId,
-            handle: castId<CharacterHandle>(`__group__${group}`),
-            ownerId,
-            name: "group",
-            synthetic: true,
-            contentHash: "hash_group",
-            createdAt: 0,
-          })
+          .values(
+            makeCharacter({
+              id: groupCharId,
+              handle: castId<CharacterHandle>(`__group__${group}`),
+              ownerId,
+              name: "group",
+              synthetic: true,
+              createdAt: 0,
+            }),
+          )
           .onConflictDoNothing();
         return { characterId: groupCharId };
       },
@@ -354,6 +361,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const ctx = makeChatContext(db, {
       mintSyntheticGroupCharacter: ({ chatId }) =>
+        // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
         chatId === poisoned ? Promise.reject(new Error("boom: poisoned chat")) : Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
 
@@ -435,8 +443,10 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     // The synthetic-group mint stands in for ALL per-scope work — a mint call proves the sweep reached the
     // disabled room's scope enumeration. It must fire ONLY for the enabled room.
     const mint = vi.fn(async (_args: { ownerId: UserId; chatId: ChatId }) => ({
+      // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       characterId: "character_group" as CharacterId,
     }));
+    // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint as never });
     const resolve: ResolveBackfillMemoryConfig = (hostUserId) => Promise.resolve(hostUserId === hostOff ? { mode: "off" } : {});
 
@@ -469,6 +479,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     await seedParticipant(db, { chatId: roomGood, key: "good_c2", characterId: gc2 });
 
     const ctx = makeChatContext(db, {
+      // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
     const resolve: ResolveBackfillMemoryConfig = (hostUserId) => (hostUserId === hostBad ? Promise.reject(new Error("settings boom")) : Promise.resolve({}));
@@ -742,10 +753,12 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
     const mint = vi.fn(async (_args: { ownerId: UserId; chatId: ChatId }) => ({
+      // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       characterId: "character_group" as CharacterId,
     }));
     const ctx = makeChatContext(db, {
       findSyntheticGroupCharacter: () => Promise.resolve(null),
+      // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
       mintSyntheticGroupCharacter: mint as never,
     });
 
@@ -761,7 +774,9 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     await seedRooms(host);
     const mint = vi.fn();
     const ctx = makeChatContext(db, {
+      // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
       findSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
+      // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
       mintSyntheticGroupCharacter: mint as never,
     });
 

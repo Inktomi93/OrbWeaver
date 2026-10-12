@@ -2,6 +2,8 @@
 // started with the shipped flags, from its private directory as the watchdog starts it, must be denied the
 // credentials key directly and through every workspace-package link, from its main thread and from a Worker.
 
+// @orb-waive-file no-test-fabrication([ProbeReport]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";

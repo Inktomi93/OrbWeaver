@@ -115,6 +115,7 @@ async function gatherDatabank(
   return result === null ? undefined : result.text;
 }
 
+// @orb-waive contract-structural-copy(CanonRow): baselined when the gate widened; burn-down item 904.
 /** A committed canon row, prompt-eligible (the slim shape the gather projects from `MessageView`). */
 interface CanonRow {
   readonly seq: number;

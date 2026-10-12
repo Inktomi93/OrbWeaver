@@ -5,6 +5,7 @@
 // carries update-guidance. On `folded` (R1) it DOES contribute `terminalTools`: the same 7 state tools, mounted
 // on the character turn as a write surface whose calls are read back rather than executed.
 
+// @orb-waive-file no-test-fabrication({ rpg: { scene: { location: string }; cast: { relationship: string }[]; quests: { status: string }[] } }): baselined when the gate widened to value casts; burn-down item 906.
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { RpgActorEntry, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { buildTrackerWriteGroups, gameTrackerWriteKeys, rpgTrackerDefSchema } from "@orb/contracts/rpg";

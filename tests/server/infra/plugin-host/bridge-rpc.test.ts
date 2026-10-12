@@ -1,3 +1,4 @@
+// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { vi } from "vitest";
@@ -9,7 +10,9 @@ import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
 import { isBridgeOperation } from "#server/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const CHAT = "chat_authorized00000000000000" as ChatId;
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const OTHER_CHAT = "chat_other00000000000000000" as ChatId;
 
 function authority(

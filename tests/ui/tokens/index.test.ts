@@ -101,6 +101,7 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   // COARSE — read from the generated NUMERIC companion, never by parsing the `round(up, …, 1px)` CSS
   // string the spacing family carries since #1640 (the `SNAPPED_LENGTH_BASE_PX` contract: consumers do
   // not parse the serialization). The TS map still has to CARRY the belted string, asserted below.
+  // @orb-waive no-test-fabrication(SnappedTokenPath): baselined when the gate widened to value casts; burn-down item 906.
   const coarsePx = (name: string): number => SNAPPED_LENGTH_BASE_PX[`spacing.${name}` as SnappedTokenPath];
   const coarseFloor = coarsePx("touch-target");
   expect(coarseFloor).toBeGreaterThanOrEqual(44);
@@ -142,6 +143,7 @@ test("EVERY snapped spacing token is belted on BOTH arms and is an integer px at
   expect(spacingPaths.length, "the spacing family must be in the snapped set at all (blindness tripwire)").toBeGreaterThan(20);
 
   for (const path of spacingPaths) {
+    // @orb-waive no-test-fabrication(SnappedTokenPath): baselined when the gate widened to value casts; burn-down item 906.
     const px = SNAPPED_LENGTH_BASE_PX[path as SnappedTokenPath];
     // IDENTITY AT THE DEFAULT SCALE: round(up) only stays a no-op at --font-scale 1 because the authored
     // value is an integer px at the 16px root. A fractional author would silently GROW the box today.

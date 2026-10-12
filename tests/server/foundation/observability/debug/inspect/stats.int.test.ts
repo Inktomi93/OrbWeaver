@@ -9,6 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { tableCounts } from "@orb/server/foundation/observability/debug";
 import { getTableName } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
+import { makeCharacter } from "../../../../../support/factories/character.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 test("a fresh db reports zero for every backbone table (labels = schema names)", async () => {
@@ -29,13 +30,14 @@ test("counts reflect persisted rows — exactly the seeded tables bump", async (
   await db.insert(users).values({ id: userId, handle: castId<Handle>("user_stats"), handleKey: handleKey(castId<Handle>("user_stats")) });
   await db.insert(chats).values({ id: castId<ChatId>("chat_stats_a") });
   await db.insert(chats).values({ id: castId<ChatId>("chat_stats_b") });
-  await db.insert(characters).values({
-    id: castId<CharacterId>("character_stats"),
-    handle: castId<CharacterHandle>("card-stats"),
-    ownerId: userId,
-    contentHash: "hash-stats",
-    name: "Stat",
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id: castId<CharacterId>("character_stats"),
+      handle: castId<CharacterHandle>("card-stats"),
+      ownerId: userId,
+      name: "Stat",
+    }),
+  );
 
   const counts = await tableCounts(db);
   expect(counts[getTableName(users)]).toBe(1);

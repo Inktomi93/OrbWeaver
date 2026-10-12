@@ -18,6 +18,7 @@
 //
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
+// @orb-waive-file no-test-fabrication(OrbNavMethods | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { SESSION_COOKIE } from "./actors.ts";

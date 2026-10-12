@@ -29,5 +29,6 @@ export async function importBundle(file: File): Promise<BundleImportStarted> {
   if (!response.ok) {
     await throwHttpError("importBundle", response);
   }
+  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
   return (await response.json()) as BundleImportStarted;
 }

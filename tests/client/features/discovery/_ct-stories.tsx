@@ -2,6 +2,15 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
+// @orb-waive-file testid-typed-only-stories("corpus-themes-tail"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-artifact-identity"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-door-landing"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-dossier-backs"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-finder-position"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-moment-readout"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-nav-readout"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-queue-cold"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-source-readout"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";

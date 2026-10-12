@@ -1,6 +1,8 @@
 // persistence/games — the `rpg_games` row lifecycle (docs/plans/rpg/design.md). .int: real FK. Create/read (by id
 // + by chat — game-ness resolves here) + config-patch + the config parse-on-read belt.
 
+// @orb-waive-file no-loose-id-cast({ ...liteConfig): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ statProfile: liteConfig): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { RpgGameId } from "@orb/kit/ids";

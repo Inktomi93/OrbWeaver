@@ -12,6 +12,7 @@
 // (comments and quoted strings blanked first — see below) — the caller (a `<style>` scoped under a known
 // app root, `UI-Theming-and-Content.md` §12.1) is the actual containment boundary; this validator is
 // advisory + a shell-break guard, not a sandbox.
+import { blankText } from "#strings";
 
 // ── comments and strings are NOT active CSS (#1360 item 3) ───────────────────────────────────────────
 // The three patterns below are substring tests over raw text, so before this they fired inside
@@ -27,8 +28,7 @@ const STRING_RE = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/gu;
 /** Blank out comments and quoted strings, preserving LENGTH and newlines so any position an author's
  *  editor computes from the raw text still lines up. */
 function activeCssOnly(css: string): string {
-  const blank = (match: string): string => match.replace(/[^\n]/gu, " ");
-  return css.replace(COMMENT_RE, blank).replace(STRING_RE, blank);
+  return css.replace(COMMENT_RE, blankText).replace(STRING_RE, blankText);
 }
 
 const IMPORT_RE = /@import\b/iu;

@@ -3,14 +3,16 @@
 // assetId CASCADE (deleting the depicted asset erases its provenance row); chatId SET NULL (the generation
 // outlives a deleted chat); subjectCharacterId SET NULL (the depicted character can be deleted independently).
 
+// @orb-waive-file no-test-fabrication("free"): baselined when the gate widened to value casts; burn-down item 906.
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { Db } from "@orb/db";
 import { assets, characters, chats, imageryGenerations } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
-import type { AssetId, CharacterHandle, CharacterId, ImageryGenerationId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
@@ -67,7 +69,7 @@ test("assetId CASCADE erases the provenance row; chatId + subjectCharacterId SET
   const ownerId = await seedUser(db, { id: "user_img_b" });
   const chatId = await seedChat(db, { id: "chat_img_b" });
   const characterId = castId<CharacterId>("character_img_b");
-  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-img-b"), ownerId, contentHash: "h", name: "C" });
+  await seedCharacter(db, { id: characterId, ownerId });
   const assetId = await seedAsset(db, ownerId, "asset_img_b");
   const id = castId<ImageryGenerationId>("imagery_generation_b");
 

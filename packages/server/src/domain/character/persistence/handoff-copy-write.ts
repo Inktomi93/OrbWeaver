@@ -120,6 +120,7 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
         const provenance = handoffProvenance(chatId, source.id);
         const [avatarAssetId, backgroundOverride] = await Promise.all([
           source.avatarAssetId === null ? null : ctx.copyAsset({ fromOwnerId, toOwnerId, assetId: source.avatarAssetId, kind: "avatar" }),
+          // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
           reownBackground(ctx, { fromOwnerId, toOwnerId }, source.backgroundOverride),
         ]);
         const claimed = await insertCharacterClaimingProvenance(

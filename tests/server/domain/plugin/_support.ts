@@ -5,6 +5,7 @@
 // a still-referenced bundle), the frozen clock + seeded ids, and a scriptable `PluginHostPort` fake. A separate
 // `makeSandboxPort` wires the REAL P1 `infra/plugin-host` `Sandbox` for the determinism-floor round-trip.
 
+// @orb-waive-file no-test-fabrication(PluginLogView["level"]): baselined when the gate widened to value casts; burn-down item 906.
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";

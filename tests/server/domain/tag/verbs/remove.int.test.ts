@@ -1,4 +1,5 @@
 // verb: removeTag — owner-scoped delete (NOT idempotent); junction rows cascade.
+// @subject packages/server/src/domain/tag/verbs/remove.ts
 
 import { characterTags } from "@orb/db";
 import type { TagId } from "@orb/kit/ids";

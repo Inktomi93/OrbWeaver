@@ -1,3 +1,4 @@
+// @orb-waive-file testid-typed-only-stories("ct-app-crashed"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { insightsCorpusMode } from "@orb/client/features/stats";
 import { labelsCorpusMode } from "@orb/client/features/tag";

@@ -30,6 +30,7 @@ import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 
+// @orb-waive no-inline-wire-interface(PutResult): baselined when the gate widened; burn-down item 904.
 export interface PutResult {
   hash: string;
   size: number;

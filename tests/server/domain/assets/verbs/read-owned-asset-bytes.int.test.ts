@@ -1,6 +1,7 @@
 // verb: readOwnedAssetBytes — the OWNER-GATED byte read (EC-B). Load-bearing: it round-trips the caller's
 // OWN bytes + mime through CAS, and COLLAPSES "not yours" into the same AssetNotFoundError as "missing" (no
 // foreign-existence leak, D21). Distinct from loadAssetBytes (the un-principal indexer read, tested separately).
+// @subject packages/server/src/domain/assets/verbs/read-owned-asset-bytes.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, Handle } from "@orb/kit/ids";

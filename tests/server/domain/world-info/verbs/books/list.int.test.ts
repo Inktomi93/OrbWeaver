@@ -1,5 +1,6 @@
 // verb: listBooks — owner-scoped, newest first. Load-bearing: only the caller's books surface (another
 // user's are excluded), ordered by descending createdAt.
+// @subject packages/server/src/domain/world-info/verbs/books/list.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

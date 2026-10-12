@@ -6,7 +6,9 @@
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
 
 const SETTINGS_SCHEMA =
@@ -218,3 +220,11 @@ test("mutable destructured bindings replaced by payloads do not retain schema pr
     'export function read(row: typeof settings.$inferSelect, payload: Record<string, unknown>): unknown { let { value } = row; value = payload; return value["parameters"]; }\n';
   expect(findings(reader, { "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF })).toEqual([]);
 });
+
+test(
+  "every catch, pass and refusal row holds through the production dispatcher",
+  () => {
+    expect(verifyPolicyProofs([gate])).toEqual([]);
+  },
+  scaledBudget(120_000),
+);

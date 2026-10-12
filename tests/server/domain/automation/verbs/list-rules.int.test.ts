@@ -1,5 +1,6 @@
 // verb: listRules — host-only list in position order, lazy-parse fault-isolated (a corrupt actions blob
 // degrades to [] without nuking the list).
+// @subject packages/server/src/domain/automation/verbs/list-rules.ts
 
 import { automationRules } from "@orb/db";
 import { mintTypeId } from "@orb/kit/ids";

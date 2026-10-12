@@ -4,6 +4,7 @@
 // with the WIRE-CLOSURE projection (additionalProperties:false, per the header's un-enforced-convention
 // warning), and a session pointing at a DELETED/foreign schema throws leak-free NOT_FOUND.
 
+// @orb-waive-file no-test-fabrication(Extract<StageResolution, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { StageResolution } from "#server/domain/refinery/contract/prompts.ts";
 import { resolveStageResolution } from "#server/domain/refinery/substrate/stage-resolution.ts";

@@ -3,6 +3,7 @@
 // caller's OWN assets among the requested ids (with the stored hash the client turns into `blobUrl`), and a
 // FOREIGN / unknown / gone id is simply absent (owner-scoped — no leak, no cross-user hash oracle). Empty
 // input ⇒ empty result (no query).
+// @subject packages/server/src/domain/assets/verbs/resolve-owned-asset-refs.ts
 
 import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

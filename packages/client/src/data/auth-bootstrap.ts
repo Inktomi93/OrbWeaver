@@ -51,6 +51,7 @@ async function getJson<T>(url: string): Promise<T> {
   if (!res.ok) {
     throw new Error(`${url}: HTTP ${res.status}`);
   }
+  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
   return (await res.json()) as T;
 }
 

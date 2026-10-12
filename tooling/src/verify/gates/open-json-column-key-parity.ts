@@ -539,8 +539,64 @@ export const gate = defineGate({
       expect: { messageIncludes: "cannot prove schema-row origin" },
       why: "destructuring preserves unresolved schema alternatives instead of converting them into a clean zero",
     },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\ninterface Local { value: Record<string, unknown> }\nexport function read(row: Pick<typeof settings.$inferSelect | Local, "value">): unknown { const { value } = row; return (value as Record<string, unknown>)["parameters"]; }\n',
+      },
+      expect: { messageIncludes: "cannot prove schema-row origin" },
+      why: "a projection of a union that holds a non-schema alternative is still unprovable: only a projection of exactly one schema row keeps its table",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: Omit<typeof settings.$inferSelect, "value"> & { value: Record<string, unknown> }): unknown { const { value } = row; return (value as Record<string, unknown>)["parameters"]; }\n',
+      },
+      expect: { messageIncludes: "cannot prove schema-row origin" },
+      why: "a member the Omit dropped and an intersection arm re-supplied is not the schema column: the projection no longer owns it, so the read refuses",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/lib.pick.d.ts": "export type Pick<T, K extends keyof T> = T;\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nimport type { Pick } from "./lib.pick.d.ts";\nexport function read(row: Pick<typeof settings.$inferSelect, "value">): unknown { const { value } = row; return (value as Record<string, unknown>)["parameters"]; }\n',
+      },
+      expect: { messageIncludes: "cannot prove schema-row origin" },
+      why: "a project file named like a library file does not make its Pick the TypeScript one: the declaration must belong to the program's default library files",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nconst COLUMNS = { value: settings.value };\ntype Row = typeof settings.$inferSelect;\nexport function pick(row: Pick<Row, keyof typeof COLUMNS>): unknown { const { value } = row; return (value as Record<string, unknown>)["theme"]; }\nexport function omit(row: Omit<typeof settings.$inferSelect, "other">): unknown { const { value } = row; return (value as Record<string, unknown>)["theme"]; }\n',
+      },
+      why: "a parameter typed as Pick or Omit of a table's $inferSelect (the standard-library projection, through an alias or inline) keeps the row's table, so its column read is attributed instead of refused",
+    },
     {
       mode: "types",
       files: {

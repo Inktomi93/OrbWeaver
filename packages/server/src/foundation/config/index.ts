@@ -14,4 +14,5 @@ import { ORBWEAVER_REPO_URL } from "@orb/kit/version-identity";
  *  name + URL that appear on OpenRouter's leaderboard and let it attribute/scope our traffic). Not a
  *  setting: a static build-time identity. Edit if the canonical site/name changes. */
 export const APP_NAME = "Orbweaver";
+// @orb-waive no-vanity-alias(APP_URL): baselined when the gate widened; burn-down item 906.
 export const APP_URL = ORBWEAVER_REPO_URL;

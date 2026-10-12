@@ -23,3 +23,5 @@ Each of the three suspicions is reproduced and fixed or shown not to occur, the 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Also: packages/showcase-plugins/bundles/oracle-deck/main.ts:469 still says its commands open from "the composer or the Plugins wand menu"; since 853 they open only from the composer wand. Fix the comment with a manifest version bump and regenerated release entries. Owner intent: the top-bar launcher is an extension slot for third-party unplaced commands, never a home for our own plugins.

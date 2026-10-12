@@ -28,7 +28,7 @@
 // run. `ensureStage`'s single exit publishes the bound row (`lib/stage-run-binding.ts`) and THAT is what
 // entitles the read — the guard's `shared` claim, with a printed line naming whose tree answered.
 //
-// LIFECYCLE: one stage per (checkout, sha) at .cache/snap-stage/<short-sha>/ (`pnpm install` once —
+// LIFECYCLE: one stage per (owner, sha) at .cache/snap-stage/<short-sha>[-o<owner-hash>]/ (`pnpm install` once —
 // shared store), its OWN db (seedStageData's provenance note below — a cached stage KEEPS its old db)
 // + assets symlink; boots the worktree's own stack cli on the offset band and stays WARM. A new HEAD sha
 // rebuilds (stale stage torn down first); `--fresh` forces; `--stage-down` (ops/stage-status.ts) removes.
@@ -75,8 +75,7 @@ import { stageBandPorts } from "../../floor/host/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
-import { stageRowAuth } from "../contract/stage.ts";
-import { foreignHolders, liveHoldersOf, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
+import { liveHoldersOf, otherRunHolders, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildReason, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -91,8 +90,8 @@ import {
   stageRowBaseUrl,
 } from "../lib/stage-plan.ts";
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
-import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
-import { repoRoot, resolveRef } from "./stage-git.ts";
+import { acquireStageBand, claimRow, stageRowHealth } from "./stage-census.ts";
+import { repoRoot, resolveRef, stageCallerOwner } from "./stage-git.ts";
 import { holdStageUse } from "./stage-holders.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
 import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
@@ -191,35 +190,6 @@ function seedStageHumans(paths: StagePaths, ports: StagePorts): void {
 
 // ── Orchestration ──────────────────────────────────────────────────────────────────────────────────────
 
-/** The PROVISIONAL row written inside the allocation lock, before the 55 s boot: it claims the band by
- *  name so a sibling entering the lock a millisecond later sees it occupied and takes the next one. The
- *  boot rewrites it with the real pid and the db provenance; a boot that throws clears it. */
-function claimRow(claim: {
-  readonly band: number;
-  readonly checkout: string;
-  readonly targetSha: string;
-  readonly dir: string;
-  readonly nowIso: string;
-}): StageRow {
-  const { band, targetSha, dir, nowIso } = claim;
-  const ports = stageBandPorts(band);
-  return {
-    band,
-    sha: targetSha,
-    dir,
-    serverPort: ports.server,
-    vitePort: ports.vite,
-    checkout: claim.checkout,
-    ownerPid: null,
-    startedAt: nowIso,
-    lastUsedAt: nowIso,
-    holders: [],
-    sessions: [],
-    dbProvenance: null,
-    rsyncs: 0,
-  };
-}
-
 /** A boot onto a band whose old stack may still hold the ports would fail against it, or serve the old stack:
  *  an unconfirmed stop ends this run as a tool error. */
 function refuseUnconfirmedStop(row: StageRow, stop: StageStopVerdict): void {
@@ -260,14 +230,15 @@ function bootOntoBand(input: {
   readonly root: string;
   readonly home: string;
   readonly band: number;
+  readonly owner: string;
   readonly targetSha: string;
   readonly dirty: boolean;
   readonly fresh: boolean;
   readonly auth: StageAuthMode;
   readonly stageDb: string | undefined;
 }): StageRow {
-  const { root, home, band, targetSha, dirty, auth, stageDb } = input;
-  const paths = stagePaths(root, targetSha, auth);
+  const { root, home, band, owner, targetSha, dirty, auth, stageDb } = input;
+  const paths = stagePaths(root, targetSha, auth, owner);
   const ports = stageBandPorts(band);
   assertStageSourceSupportsIsolation(root, dirty, targetSha);
   // After the staleness teardown and BEFORE this call's dir is created: whatever is still on disk that
@@ -306,6 +277,7 @@ function bootOntoBand(input: {
     serverPort: ports.server,
     vitePort: ports.vite,
     checkout: root,
+    owner,
     ownerPid: bound.kind === "read" ? stageBandPortPid(ports.server, bound.value) : null,
     startedAt: nowIso,
     // Born used: a stage booted this instant is the freshest possible, and the reaper reads THIS field.
@@ -336,7 +308,7 @@ export function ensureStage(opts: EnsureStageOpts): StageRow {
   registerStageRunBinding({ row, home, booted: resolved.booted });
   // Every caller that binds a stage holds it for its process's life (snap runs, session daemons,
   // cache:check), so no other checkout tears it down under that use.
-  holdStageUse(home, row, root, STAGE_USE_HEARTBEAT_MS);
+  holdStageUse(home, row, stageCallerOwner(root), STAGE_USE_HEARTBEAT_MS);
   return row;
 }
 
@@ -348,16 +320,6 @@ interface ResolvedStage {
   readonly booted: boolean;
 }
 
-function rebuildReason(row: StageRow, ask: { readonly targetSha: string; readonly auth: StageAuthMode; readonly fresh: boolean }): string {
-  if (ask.fresh) {
-    return "--fresh";
-  }
-  if (row.sha !== ask.targetSha || stageRowAuth(row) !== ask.auth) {
-    return `replaced by ${shortSha(ask.targetSha)} · auth ${ask.auth}`;
-  }
-  return "unhealthy";
-}
-
 function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   const dirty = opts.dirty ?? false;
   const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
@@ -365,18 +327,19 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
   const auth = opts.auth ?? "single-user";
-  const dir = stagePaths(root, targetSha, auth).dir;
+  const owner = stageCallerOwner(root);
+  const dir = stagePaths(root, targetSha, auth, owner).dir;
 
   const { allocation } = acquireStageBand({
     home,
     root,
-    checkout: root,
+    checkout: owner,
     targetSha,
     dirty,
     fresh: opts.fresh,
     nowMs,
     auth,
-    claim: (band) => claimRow({ band, checkout: root, targetSha, dir, nowIso }),
+    claim: (band) => claimRow({ band, checkout: root, owner, targetSha, dir, nowIso }),
   });
 
   if (allocation.kind === "exhausted") {
@@ -396,19 +359,29 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
     const liveHolders = liveHoldersOf(allocation.row, nowMs, holderProcessRunning);
-    const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: root, nowMs, liveHolders });
+    const decision = stageDecision({
+      targetSha,
+      row: allocation.row,
+      fresh: opts.fresh,
+      healthy,
+      auth,
+      checkout: owner,
+      nowMs,
+      liveHolders,
+      selfPid: process.pid,
+    });
     if (decision === "reuse") {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
     }
     if (decision === "refuse") {
-      throw new Error(stageRebuildRefusal(allocation.row, foreignHolders(liveHolders, root), nowMs));
+      throw new Error(stageRebuildRefusal(allocation.row, otherRunHolders(liveHolders, owner, process.pid), nowMs));
     }
     print(
-      `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${rebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,
+      `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${stageRebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,
     );
     dropStage(root, home, allocation.row);
-    writeRow(home, claimRow({ band: allocation.band, checkout: root, targetSha, dir, nowIso }));
-    return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
+    writeRow(home, claimRow({ band: allocation.band, checkout: root, owner, targetSha, dir, nowIso }));
+    return { row: bootOntoBand({ root, home, band: allocation.band, owner, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
   }
   if (allocation.kind === "reap") {
     // LAZY REAP-ON-ACQUIRE (#1163 arm a): the band was already claimed for us inside the lock, so this
@@ -430,7 +403,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     // one is still running, sees a row naming a different keeper at its next poll and RELEASES.
     recordStageReap(home, allocation.row, "acquire", nowMs);
   }
-  return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
+  return { row: bootOntoBand({ root, home, band: allocation.band, owner, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
 }
 
 /** Sweep stage dirs on THIS checkout that no row accounts for (#324): a crashed run leaves a bare

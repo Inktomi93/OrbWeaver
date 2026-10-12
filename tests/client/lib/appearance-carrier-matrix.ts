@@ -1,3 +1,4 @@
+// @orb-waive-file no-inline-types(AppearanceCarrierSnapshot): baselined when the gate widened; burn-down item 906.
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { APPEARANCE_CARRIER_MANIFEST, APPEARANCE_CARRIER_OBSERVABLES } from "#client/lib/appearance-carrier-manifest.ts";
@@ -7,6 +8,7 @@ export type AppearanceCarrierSnapshot = Record<ArmedAppearanceCarrierKey, string
 
 export function appearanceSettingsForCarrierArm(arm: 0 | 1, backgroundKindUnderTest = false): AppearanceSettings {
   const overrides = Object.fromEntries(
+    // @orb-waive no-test-fabrication(ArmedAppearanceCarrierKey[]): baselined when the gate widened to value casts; burn-down item 906.
     (Object.keys(APPEARANCE_CARRIER_OBSERVABLES) as ArmedAppearanceCarrierKey[]).map((key) => [
       key,
       APPEARANCE_CARRIER_MANIFEST[key].requiredDistinctArms[arm],
@@ -35,6 +37,7 @@ export function compareAppearanceCarrierArms(
   armA: Partial<AppearanceCarrierSnapshot>,
   armB: Partial<AppearanceCarrierSnapshot>,
 ): AppearanceCarrierMatrixVerdict {
+  // @orb-waive no-test-fabrication(ArmedAppearanceCarrierKey[]): baselined when the gate widened to value casts; burn-down item 906.
   const keys = Object.keys(APPEARANCE_CARRIER_OBSERVABLES) as ArmedAppearanceCarrierKey[];
   const findings: string[] = [];
   let compared = 0;

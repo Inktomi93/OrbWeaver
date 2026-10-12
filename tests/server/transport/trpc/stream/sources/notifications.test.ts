@@ -21,6 +21,7 @@
 // past the old bound arrives whole, a row landing mid-replay arrives exactly once, and a pump killed
 // mid-replay resumes at exactly the row it last delivered.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";
@@ -244,6 +245,7 @@ describe("the notifications room — authed is the whole gate (#1627)", () => {
     const ack = await iterator.next();
     const secondAck = await iterator.next();
     const pending = iterator.next();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     publishUserEvent(RECIPIENT, { type: "tagsChanged" });
     const live = await pending;
@@ -279,6 +281,7 @@ describe("the notifications room — a failing durable replay is a TYPED per-roo
     await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     publishUserEvent(RECIPIENT, { type: "tagsChanged" });
     frames.push(frameOf((await first).value));

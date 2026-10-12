@@ -6,7 +6,7 @@ updated: 2026-08-03
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `Constitution.md` §5 points here. The gates are LIVE: `no-inline-types` (`tooling/src/verify/gates/`), `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
+Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `Constitution.md` §5 points here. The gates are LIVE: the §7.4 table below, `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
@@ -21,7 +21,21 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **client-only view** | client | client |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
-**The gate — `no-inline-types` (ts-morph, live):** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / a sanctioned package `src/contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED. Companion: `types-in-contract` (`tooling/src/verify/gates/`) requires each feature's `contract/service.ts` to declare its exported service interface and bans exported `ReturnType<typeof fn>` for `context.ts`.
+**The rule:** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / a sanctioned package `src/contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED.
+
+**The gates (`tooling/src/verify/gates/`, ts-morph, live):**
+
+| Gate | What it judges |
+| - | - |
+| `no-inline-types` | exported type aliases and exported zod object/enum/discriminatedUnion consts in client, server, inference, tooling and tests, outside the homes: the client `data`/`forms`/`state`/`lib` tiers, `server/src/primitives`, `tooling/src/floor`, `contract/`, and the test home (`tests/support/**` and fixture or `_support` modules) |
+| `no-inline-domain-interface` | every exported interface in a server domain outside `contract/` |
+| `no-inline-wire-interface` | an exported interface named as a wire shape (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) in server, inference or client outside a home, the client `data` tier included |
+| `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
+| `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
+| `types-in-contract` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |
+| `no-loose-id-cast`, `no-mint-via-cast`, `no-test-fabrication` | casts into id brands, `as never`, and test-side cast fabrication |
+
+A structural `as T` outside those spellings, and an inline shape that copies no contract, are held by review only; no gate judges them. Wire values that cross a boundary are parsed, not cast: `wire-json-parsed-at-consumer`, `json-column-read-parsed`, `trpc-input-declarations`. The antipattern classes, their detectors and their burn-down items are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
 
 ## House TypeScript style
 

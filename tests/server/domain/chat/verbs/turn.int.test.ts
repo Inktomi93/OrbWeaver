@@ -1,3 +1,10 @@
+// @orb-waive-file no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ history: readonly { content: readonly { type: string; text?: string }[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ history: readonly { role: string; content: readonly { type: string; text?: string }[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly names: readonly string[] }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ terminalToolCalls: readonly { name: string; arguments: string }[] | null }): baselined when the gate widened to value casts; burn-down item 906.
+
+// @orb-waive-file no-loose-id-cast(stmts): baselined when the gate widened; burn-down item 906.
 import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
@@ -1323,6 +1330,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     let generations = 0;
     let arbiterEntered: () => void = () => undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const arrived = new Promise<void>((resolve) => {
       arbiterEntered = resolve;
     });
@@ -1546,6 +1554,7 @@ describe("send — auto-mode AI→AI chain", () => {
     // next chain arbitration exactly like a non-responsive box — settling only when the turn signal fires.
     let calls = 0;
     let hungEntered: () => void = () => undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const arrived = new Promise<void>((resolve) => {
       hungEntered = resolve;
     });
@@ -1604,6 +1613,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: { ...behaviorOff, customStoppingStrings: ["<END>", "\nUser:"] },
       onChatRequest: (req) => {
+        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -1619,6 +1629,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: behaviorOff,
       onChatRequest: (req) => {
+        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -1638,6 +1649,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: { ...behaviorOff, customStoppingStrings: ["<END>"] },
       onChatRequest: (req) => {
+        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -1653,6 +1665,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: behaviorOff,
       onChatRequest: (req) => {
+        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -2017,6 +2030,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
       onChatRequest: (r) => requests.push(r),
       now: () => Date.UTC(2026, 0, 15, 20, 0),
     });
+    // @orb-waive no-test-fabrication({ prompt?: { static?: string } }): baselined when the gate widened to value casts; burn-down item 906.
     const clocks = (): string[] => requests.map((r) => /CLOCK (\S+ \S+)/.exec((r as { prompt?: { static?: string } }).prompt?.static ?? "")?.[1] ?? "no clock");
     return { h, clocks };
   }
@@ -3754,6 +3768,7 @@ const MOOD_LINE_RE = /Scene tone: (\w+)\./;
 
 /** Extract the drawn tone from a captured wire request's assembled static prompt ("Scene tone: <v>."). */
 function drawnToneFrom(request: unknown): string | undefined {
+  // @orb-waive no-test-fabrication({ prompt?: { static?: string } }): baselined when the gate widened to value casts; burn-down item 906.
   const staticPrompt = (request as { prompt?: { static?: string } }).prompt?.static ?? "";
   return MOOD_LINE_RE.exec(staticPrompt)?.[1];
 }
@@ -4088,6 +4103,7 @@ test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and h
 
   // The gather's tools reached the request as the TERMINAL set (the wire's `auto`, which keeps the prose safe,
   // is `@orb/inference`'s projection of it — tests/inference/roles/chat-request.test.ts).
+  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   const req = requests[0] as TurnRequest;
   expect(req.tools?.terminal?.map((t) => t.name)).toEqual(["update_scene"]);
   expect(req.tools?.offer).toBeUndefined();
@@ -4126,6 +4142,7 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
 
   await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
 
+  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
   // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
   expect(flushes).toEqual([null]);
@@ -4168,6 +4185,7 @@ test("R2 end-to-end: a teaching contribution's declared tool name reaches the WI
 
   await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
 
+  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   const attached = requests[0] as TurnRequest;
   expect(attached.tools?.offer?.definitions.map((t) => t.name)).toEqual(["tick_clock"]);
 });
@@ -4184,6 +4202,7 @@ test("R2 end-to-end: the SAME declaration on a tools-INCAPABLE model is dropped 
 
   await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
 
+  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4194,6 +4213,7 @@ test("R2 end-to-end: NO contribution declares a name — the request carries no 
 
   await h.turn.send({ principal: principal(host), chatId, content: "hello" });
 
+  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4219,6 +4239,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   // `ChatToolSet` IS the registry's `ResolvedToolSet`, round-tripped through this seam.
   const toolOps: NonNullable<ChatContext["tools"]> = {
     resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
+    // @orb-waive no-test-fabrication(ReturnType<typeof toolUse.resolveTools>): baselined when the gate widened to value casts; burn-down item 906.
     toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
     prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
   };
@@ -4226,6 +4247,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
   await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
+  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as TurnRequest).tools?.offer?.definitions.map((t) => t.name)).toEqual(["plugin_mood_report"]);
 
   // The owner switches the plugin off between turns. `resolveTools` THROWS on an unknown name at attach, so a
@@ -4233,6 +4255,7 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   // stops naming it, and the turn ships tool-less exactly as it would for a host with no plugins at all.
   handle.unregister();
   await h.turn.send({ principal: principal(host), chatId, content: "and now?" });
+  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[1] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4261,6 +4284,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
   const requests: unknown[] = [];
   const toolOps: NonNullable<ChatContext["tools"]> = {
     resolveTools: (driverUserId, toolNames) => toolUse.resolveTools(driverUserId, toolNames),
+    // @orb-waive no-test-fabrication(ReturnType<typeof toolUse.resolveTools>): baselined when the gate widened to value casts; burn-down item 906.
     toToolDefinitions: (set) => toolUse.toToolDefinitions(set as ReturnType<typeof toolUse.resolveTools>),
     prepareExecution: () => Promise.resolve(() => Promise.resolve([])),
   };
@@ -4271,6 +4295,7 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
 
   // The wire `description` is the observable that says WHICH copy rode — the NAME is identical by construction,
   // so a resolve that picked "whoever registered first" would ship the stranger's tool into this room.
+  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   const tools = (requests[0] as TurnRequest).tools?.offer?.definitions;
   expect(tools?.map((t) => t.name)).toEqual(["plugin_mood_report"]);
   expect(tools?.[0]?.description).toBe("the host's copy");
@@ -4398,6 +4423,7 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
   // The round is fire-and-forget, so the test needs a handle on its completion: the stub resolves this once
   // its (deliberately async) work is done, which is also when the round's span ends and its bucket seals.
   let roundDone = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const rounded = new Promise<void>((resolve) => {
     roundDone = resolve;
   });
@@ -4455,6 +4481,7 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
   await seedParticipant(db, { chatId, key: "c", characterId: charA });
 
   let commitDone = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const committed = new Promise<void>((resolve) => {
     commitDone = resolve;
   });

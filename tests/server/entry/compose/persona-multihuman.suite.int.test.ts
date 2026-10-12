@@ -12,14 +12,15 @@
 // TRIGGERING human's persona) + Spine-Identity's "multi-human native" are the law these arms enforce.
 //
 // The gate is MEMBERSHIP, not the reader: a persona resolves for the room iff its OWNER is a PRESENT human
-// participant (`leftSeq IS NULL`). The departed-member arm is the cross-tenant refusal pin — it must keep
-// HEAL's semantics (an unreadable anchor falls to the active persona), and it is what forbids the widening
-// from becoming an unscoped persona read.
+// participant (`leftSeq IS NULL`), with one exception, the room's own pin, which holds after its owner leaves
+// (ADR 0315). The departed UNPINNED arm is the cross-tenant refusal pin: it forbids the pin exception from
+// widening into an unscoped persona read.
 //
 // The two observables are the host's own honesty instruments over the REAL resolver: `peekPrompt` (the bytes
 // the next turn ships) and `getMemberCard` (the card-context render). Neither runs a turn.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// @orb-waive-file no-loose-id-cast(characterId): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -96,6 +97,14 @@ async function seedRoom(db: Db, opts: { readonly hostActive: boolean; readonly a
   return { host, member, chatId, memberPersona, hostPersona };
 }
 
+/** The member leaves (kick and leave stamp `leftSeq`), so their persona leaves the room's consent set. */
+async function departMember(db: Db, room: Room): Promise<void> {
+  await db
+    .update(chatParticipants)
+    .set({ leftSeq: 5 })
+    .where(and(eq(chatParticipants.chatId, room.chatId), eq(chatParticipants.userId, room.member)));
+}
+
 /** The bytes the next real turn would ship, flattened (the host's `peekPrompt` instrument). */
 async function promptText(services: Services, host: UserId, chatId: ChatId): Promise<string> {
   const prompt = await services.chat.peekPrompt({ principal: principal(host), chatId });
@@ -155,20 +164,34 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     expect(text).not.toContain("\n\na wandering cartographer");
   });
 
-  test("REFUSAL: a DEPARTED member's persona stops resolving — the anchor falls to the active persona (HEAL semantics)", async ({ db, services }) => {
+  test("a DEPARTED member's PINNED persona holds: card {{user}} keeps the pin, the voice stays the host's seat (ADR 0315)", async ({ db, services }) => {
+    // ADR 0315 "The pin holds": the room reads its pin live through `chats.anchorPersonaId` whoever owns it, so
+    // a card never re-resolves to someone else on its own; the voice binding stays consent-gated (ADR 0250).
     const room = await seedRoom(db, { hostActive: true, anchor: "member" });
-    // The member leaves (kick/leave stamps `leftSeq`); their persona is no longer consented to this room.
-    await db
-      .update(chatParticipants)
-      .set({ leftSeq: 5 })
-      .where(and(eq(chatParticipants.chatId, room.chatId), eq(chatParticipants.userId, room.member)));
+    await departMember(db, room);
 
     const text = await promptText(services, room.host, room.chatId);
 
-    expect(text).not.toContain("Zara is my brother");
-    expect(text).not.toContain("a wandering cartographer");
-    // The pointer heals downward exactly as HEAL chose: card {{user}} falls to the host's active persona.
+    expect(text).toContain("Zara is my brother");
+    expect(text).not.toContain("Hostina is my brother");
+    expect(text).toContain("roleplay with Hostina");
+    expect(text).not.toContain("roleplay with Zara");
+    expect(text).toContain(`[${resolveProseText("chat.assembly.anchorIdentity", {})} Zara: a wandering cartographer]`);
+    // Only the pin rides: the departed seat is not a present person, so the people block never names it.
+    expect(text).not.toContain(resolveProseText("chat.group.personaHeading", {}, { name: "Zara" }));
+  });
+
+  test("REFUSAL: a DEPARTED member's UNPINNED persona stops resolving — nothing of it reaches the prompt", async ({ db, services }) => {
+    // The cross-tenant refusal the pin exception must not widen: the member's seat persona is consented to the
+    // room only while its owner is present, and the pin read returns the room's own pin (the host's), never it.
+    const room = await seedRoom(db, { hostActive: true, anchor: "host" });
+    await departMember(db, room);
+
+    const text = await promptText(services, room.host, room.chatId);
+
     expect(text).toContain("Hostina is my brother");
+    expect(text).not.toContain("Zara");
+    expect(text).not.toContain("a wandering cartographer");
   });
 
   test("the member CARD read renders card {{user}} against a member-owned anchor too (same resolver, display side)", async ({ db, services }) => {

@@ -10,6 +10,7 @@
 // because the plate asset it points at lives in the caller's own CAS partition and because a cross-user
 // background reference is a GC root nobody asked for.
 
+// @orb-waive-file no-loose-id-cast({ kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" }): baselined when the gate widened; burn-down item 906.
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";

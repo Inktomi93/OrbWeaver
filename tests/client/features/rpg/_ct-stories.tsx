@@ -10,6 +10,13 @@
 // `makeRpgContextTabs` is injected the cross-domain read channel `{ trpc, queryClient }` at the door — the
 // story mirrors that door assembly with the CT's own singletons.
 
+// @orb-waive-file testid-typed-only-stories("beat-content-committed"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("freshness-slot"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("requested-editor"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("room-kind"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rpg-notice-count"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rpg-notice-door"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rpg-notified"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";

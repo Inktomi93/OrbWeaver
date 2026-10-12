@@ -21,6 +21,7 @@ export interface ImportCharacterPort {
   readonly findByImportHash: (params: { readonly ownerId: UserId; readonly importHash: string }) => Promise<{ readonly characterId: CharacterId } | null>;
   /** The JSON-then-PNG exception of the import identity: true when the art-less row took the art. */
   readonly attachImportedArt: (params: {
+    // @orb-waive contract-structural-copy(ownerId): baselined when the gate widened; burn-down item 904.
     readonly ownerId: UserId;
     readonly characterId: CharacterId;
     readonly avatarAssetId: AssetId;
@@ -38,6 +39,7 @@ export interface ImportCharacterPort {
  *  non-HTTP caller's zip-bomb belt — the store seam rejects an over-cap blob before the CAS write. */
 export interface ImportAssetPort {
   readonly store: (params: {
+    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
     readonly principal: Principal;
     readonly bytes: Uint8Array;
     readonly kind: "avatar";
@@ -50,6 +52,7 @@ export interface ImportAssetPort {
 /** The `tag` front-door slice for author-shipped tags, applied under the importing principal. */
 export interface ImportTagPort {
   readonly attachCardTagByName: (params: {
+    // @orb-waive contract-structural-copy(ownerId): baselined when the gate widened; burn-down item 904.
     readonly ownerId: UserId;
     readonly characterId: CharacterId;
     readonly tagName: string;

@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-11
+status: doing
+updated: 2026-10-12
 priority: P3
 area: tests
+lane: wt/agent-a8458c4c4ec4f03e9
 plan: test-mirror
 ---
 
@@ -24,3 +25,5 @@ Each remaining story mint either uses the door export or carries a named isolati
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Also: every story in tests/client/features/app-shell/\_ct-stories.tsx mounts sections through CtFakeSectionRegistry, so no app-shell story mounts a real chat room, and app-shell.ct.tsx cannot route a real transcript. The 924 lane added a `shell` prop to ChatSurfaceContributorStory (tests/client/features/chat/\_ct-stories.tsx) that mounts AppShell over the real chats section, with a PluginPanelsHostStandIn publishing the flank host. Decide one home for a shell-plus-real-room story and whether the stand-in is a test-only seam or a copy of the plugin host.

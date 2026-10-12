@@ -1,5 +1,6 @@
 // Verb test: createSchedule — creates a recurring schedule (the TIME dimension); the MODE gate (bulk =
 // box-owner-only); the first run is one cadence-interval out. Deterministic: frozen T0 + a sequential minter.
+// @subject packages/server/src/domain/workloads/verbs/create-schedule.ts
 
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";

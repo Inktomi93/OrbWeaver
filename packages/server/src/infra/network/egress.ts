@@ -690,6 +690,7 @@ export interface SafeFetchOptions {
   readonly ownerConfiguredEndpoint?: boolean;
 }
 
+// @orb-waive no-inline-wire-interface(SafeFetchResult): baselined when the gate widened; burn-down item 904.
 export interface SafeFetchResult {
   /** Final response URL after safeFetch's validated redirect chain. Optional only for injected test doubles. */
   readonly url?: string;

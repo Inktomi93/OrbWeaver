@@ -124,6 +124,26 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "message-actions-row",
     why: "the item and its confirm mount in the message row's menu; message-actions-row.ct drives the offer, the disabled case and the restamp payload.",
   },
+  "art-slot": {
+    coveredBy: "message-row",
+    why: "the echo tile and whisper band render only inside a row's bubble; message-row.ct mounts the real row and asserts the band's 3:1 box, the echo tile's width and corner against the art-width token, and the speaker's fallback letter in the slot.",
+  },
+  "art-viewer-provider": {
+    coveredBy: "message-list-surface",
+    why: "the provider wraps the transcript in message-list-surface; message-list-surface.ct taps every art control in every skin and asserts the dialog opens titled with the speaker, Escape closes it and focus returns to the control.",
+  },
+  "message-row-avatar": {
+    coveredBy: "message-row",
+    why: "renderRowAvatar places the chip inside the row body; message-row.ct asserts the avatar leads the content column on an assistant row, trails it on a user row, and drops the chip where echo's tile carries the fallback.",
+  },
+  "room-flank": {
+    coveredBy: "chat-room-surface",
+    why: "the flank column and edge render only inside the room surface; chat-room-surface.ct mounts the real room with a thread-flank contribution and asserts the column's box against the flank row in both placements.",
+  },
+  "message-actions-cluster": {
+    coveredBy: "message-actions-row",
+    why: "the inline cluster split out of message-actions-row under the component-size cap; it renders only inside the settled row (message-actions-row.ct drives every button and menu item) and inside the streaming row's hidden footprint, whose width ghost-message-row.ct holds to the settled row with showModelIcon off and on.",
+  },
   "add-member-popover": {
     coveredBy: "members-panel",
     why: "#490 gave the add-member door ONE home: it anchors on the CONTEXT panel's CAST header (the character-bar twin is gone — two simultaneously-visible doors for one action), and members-panel.ct drives it.",
@@ -269,10 +289,7 @@ describe("chat component-presence ratchet", () => {
   });
 
   test("every `coveredBy` names a CT that actually exists (the coverage-through is real)", () => {
-    const dangling = Object.entries(WAIVERS)
-      .filter(([, w]) => "coveredBy" in w)
-      .filter(([, w]) => !cts.has((w as { readonly coveredBy: string }).coveredBy))
-      .map(([name, w]) => `${name} → ${(w as { readonly coveredBy: string }).coveredBy}`);
+    const dangling = Object.entries(WAIVERS).flatMap(([name, w]) => ("coveredBy" in w && !cts.has(w.coveredBy) ? [`${name} → ${w.coveredBy}`] : []));
     // A `coveredBy` pointing at a CT that no longer exists — the sub-part lost its coverage-through.
     expect(dangling, "coveredBy targets whose CT disappeared — the sub-part is now uncovered").toEqual([]);
   });

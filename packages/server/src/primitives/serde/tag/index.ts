@@ -19,6 +19,7 @@ import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/s
 export const TAG_LIBRARY_SCHEMA_KIND = "orb.tag-library";
 export const TAG_LIBRARY_SCHEMA_VERSION = 1;
 
+// @orb-waive contract-structural-copy(CanonicalTag): baselined when the gate widened; burn-down item 904.
 /** One tag as it travels in the library file: display + presentation axes only. No id (minted on
  *  import), no ownerId (stamped at write time), no createdAt (born at insert). */
 export interface CanonicalTag {

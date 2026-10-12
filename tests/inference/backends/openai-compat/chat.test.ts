@@ -14,6 +14,12 @@
 // row that spells it records the word the body carries. B6: the OpenAI-style rate-limit headers on the
 // response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
 
+// @orb-waive-file no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly json_schema: { readonly schema: Record<string, unknown>; readonly strict: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ readonly json_schema: { readonly schema: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ role?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { EFFORT_SPELLINGS, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -477,6 +483,7 @@ function orRequest(overrides: OpenAiCompatRequestOverrides = {}): OpenAiCompatCh
 function assistantRowOf(recorded: RecordedRequest): Record<string, unknown> {
   const messages = recorded.body["messages"];
   const row = Array.isArray(messages) ? messages.find((m: unknown) => (m as { role?: string }).role === "assistant") : undefined;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return (row ?? {}) as Record<string, unknown>;
 }
 
@@ -1115,11 +1122,13 @@ test("OR Anthropic history breakpoints ride the content part, never the message"
       ],
     }),
   );
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = body["messages"] as Record<string, unknown>[];
   for (const message of messages) {
     expect(message, `${String(message["role"])} row carries a message-level marker`).not.toHaveProperty("cache_control");
   }
   const marked = messages.flatMap((message, index) =>
+    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     Array.isArray(message["content"]) && (message["content"] as Record<string, unknown>[]).some((part) => part["cache_control"] !== undefined) ? [index] : [],
   );
   // system (0) plus depth 1 (a2, index 5) and depth 3 (a1, index 3).
@@ -1158,6 +1167,7 @@ test("the openrouter mandatory-reasoning 400 is peeled, stripped and replayed on
   const fetchImpl: typeof fetch = (input, init) => {
     call += 1;
     const raw = typeof init?.body === "string" ? init.body : "{}";
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
     if (call === 1) {
       return Promise.resolve(new Response(rejection, { status: 400, headers: { "content-type": "application/json" } }));
@@ -1186,6 +1196,7 @@ test("a 400 that is NOT a mandatory-reasoning refusal is NOT replayed, and reach
   const recorded: RecordedRequest[] = [];
   const fetchImpl: typeof fetch = (input, init) => {
     const raw = typeof init?.body === "string" ? init.body : "{}";
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
     return Promise.resolve(
       new Response(JSON.stringify({ error: { message: "model not found on this route", code: 400 } }), {
@@ -1374,6 +1385,7 @@ function cachedParts(messages: readonly Record<string, unknown>[]): { readonly e
     const content = message["content"];
     const parts: Record<string, unknown>[] = typeof content === "string" ? [{ type: "text", text: content }] : [];
     if (Array.isArray(content)) {
+      // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
       parts.push(...(content as Record<string, unknown>[]));
     }
     for (const { cache_control: marker, ...part } of parts) {
@@ -1419,6 +1431,7 @@ function roundCall(model: string, assistantPrefill: boolean): (history: OpenAiCo
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
   });
   return async (history) =>
+    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     (await sentBody(orRequest({ connection, tools: undefined, cacheBreakpointDepth: 1, history })))["messages"] as Record<string, unknown>[];
 }
 
@@ -1483,8 +1496,10 @@ test("OR non-Anthropic model: the round's rows pass through 1:1 with no history 
 
 /** Every content-part marker in message order: `[messageIndex, marker]`. */
 function orMarkers(body: Record<string, unknown>): readonly (readonly [number, unknown])[] {
+  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = Array.isArray(body["messages"]) ? (body["messages"] as Record<string, unknown>[]) : [];
   return messages.flatMap((message, index) =>
+    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     (Array.isArray(message["content"]) ? (message["content"] as Record<string, unknown>[]) : []).flatMap((part) =>
       part["cache_control"] === undefined ? [] : [[index, part["cache_control"]] as const],
     ),
@@ -1653,6 +1668,7 @@ test("a llama.cpp 'tools param requires --jinja flag' 400 reaches the caller as 
     (err: unknown) => err,
   );
   expect(failure).toBeInstanceOf(ProviderError);
+  // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
   const error = failure as ProviderError;
   expect(error.kind).toBe("invalid");
   expect(error.retryable).toBe(false);
@@ -1664,6 +1680,7 @@ test("a llama.cpp 'tools param requires --jinja flag' 400 reaches the caller as 
     () => null,
     (err: unknown) => err,
   );
+  // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
   expect((bare as ProviderError).message).not.toContain("tool calls are off");
 });
 

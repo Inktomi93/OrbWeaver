@@ -11,6 +11,7 @@ import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
+// @orb-waive no-vanity-alias(WHOLE_TIERS): baselined when the gate widened; burn-down item 906.
 const WHOLE_TIERS = RUNNABLE_VERIFY_TIERS;
 
 test("only positively identified GitHub-hosted full execution omits mutation measurement", async () => {
@@ -93,6 +94,7 @@ test("product is exactly the complete full roster minus instrument proofs and mu
     "browser:e2e-smoke",
     "quality:boot-chunk",
     "quality:cpd",
+    "quality:cpd-tests",
     "browser:e2e",
   ]);
   expect(product).toEqual(retained);
@@ -130,7 +132,7 @@ test("weekly owns the complete instrument battery and policy conformance without
   const weekly = stagesForTier("weekly");
   const staticNames = stagesForTier("static").map(({ name }) => name);
   expect(weekly.map(({ name }) => name).toSorted()).toEqual(
-    [...staticNames, "structure:policy-conformance", "tests:tooling", "browser:tooling-ct", "quality:cpd"].toSorted(),
+    [...staticNames, "structure:policy-conformance", "tests:tooling", "browser:tooling-ct", "quality:cpd", "quality:cpd-tests"].toSorted(),
   );
   for (const row of weekly) {
     expect(planStage(row, undefined, "weekly").argv).toEqual(row.tierArgv?.weekly ?? row.argv);
@@ -247,8 +249,8 @@ test("mutation:arid is a discoverable manual report-input tool, never an automat
   }
 });
 
-test("quality:cpd preserves the wrapped tool's clean, violation, and non-verdict exits", () => {
-  const row = stage("push", "quality:cpd");
+test.each(["quality:cpd", "quality:cpd-tests"])("%s preserves the wrapped tool's clean, violation, and non-verdict exits", (name) => {
+  const row = stage("push", name);
   expect(row.classify(0)).toBe(0);
   expect(row.classify(1)).toBe(1);
   expect(row.classify(2)).toBe(2);

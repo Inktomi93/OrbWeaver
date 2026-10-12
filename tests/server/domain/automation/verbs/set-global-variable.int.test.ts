@@ -1,4 +1,5 @@
 // verb: setGlobalVariable — owner-scoped upsert (last-write-wins), cap validation, injected-clock stamp.
+// @subject packages/server/src/domain/automation/verbs/set-global-variable.ts
 
 import { GLOBAL_VARIABLE_KEY_MAX_CHARS, GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
 import { createAutomationService, GlobalVariableInvalidError } from "@orb/server/domain/automation";

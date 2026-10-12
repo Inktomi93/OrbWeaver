@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly port: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";

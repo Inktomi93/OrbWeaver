@@ -1,4 +1,5 @@
 // Verb test: cancel — the queued→cancelled / running→cancelling transitions returned to the caller.
+// @subject packages/server/src/domain/workloads/verbs/cancel.ts
 
 import type { WorkloadStatus } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";

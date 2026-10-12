@@ -393,6 +393,7 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
  *  ordered but a no-op (see the Record). */
 const ROUTE_ORDER: readonly AnalysisOutputClass[] = ["upsertLoreEntry", "steer", "suggest", "suggestRewrite", "setVariable", "setState"];
 
+// @orb-waive contract-structural-copy(PassInputs): baselined when the gate widened; burn-down item 904.
 /** The pass's read half: current state + the fresh tip + (lore route only) the settled span. */
 interface PassInputs {
   readonly state: AnalysisState;

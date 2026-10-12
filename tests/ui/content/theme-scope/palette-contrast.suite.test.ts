@@ -109,6 +109,7 @@ const INTENT_PILL_PAIRS = [
   ["color.highlight", "color.highlight-foreground"],
 ] as const;
 
+// @orb-waive no-vanity-alias(D): baselined when the gate widened; burn-down item 906.
 // ── The clamp.ts derivation, measured from its emitted product. ─────────────────────────────────────
 const D = THEME_DERIVATION;
 /** The ramp deltas for a base — CALLED, not mirrored (#682), because a second copy of the polarity

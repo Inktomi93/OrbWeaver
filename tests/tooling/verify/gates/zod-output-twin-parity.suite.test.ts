@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+
 import { Project } from "ts-morph";
 import { vi } from "vitest";
 import { gate } from "../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";

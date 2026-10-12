@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ readonly fresh: readonly boolean[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 // The dev server's watch coverage of the SIBLING workspace packages (#2462) — a ROOT-CONFIG pin, hence a
 // flat `tests/tooling/` file (the `test-layout` gate's exempt non-mirror tier: `packages/client/vite.config.ts`
 // is not under a `src/`, so it prefix-swaps to nothing — the same standing as `vite-fs-deny.test.ts`).

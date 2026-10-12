@@ -55,6 +55,7 @@ import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
 import { cacheTokensLabel, canRevealGenerationCost } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
+// @orb-waive contract-structural-copy(MessageMetadataVisibility): baselined when the gate widened; burn-down item 904.
 /** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
  *  shape) — threaded from the surface, never a per-row query (rows stay prop-driven). */
 export interface MessageMetadataVisibility {

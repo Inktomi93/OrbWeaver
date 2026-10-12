@@ -1,12 +1,12 @@
 // This is the accepted JSON-write grammar, not a generic AST evaluator: actual same-column bases,
 // object spreads, known schema validation and field fallbacks when the client omits a member.
+import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonColumnMergeProof, JsonColumnOrigin, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { readCallReturns } from "./authored-key-set.ts";
 import { jsonColumnArrayFieldProof } from "./json-column-array-field-proof.ts";
 import { jsonColumnNormalizer, jsonColumnPropertyValue } from "./json-column-normalizer.ts";
 import { jsonColumnCallContext, jsonColumnGuardMatchesProvided, jsonStoredColumnReference, traceJsonColumnValue } from "./json-column-value-origin.ts";

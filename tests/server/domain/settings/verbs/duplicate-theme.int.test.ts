@@ -1,5 +1,6 @@
 // verb: duplicateTheme — copy-to-customize. Source = any readable row (own or seed) → a NEW owned row;
 // name defaults to "<source> copy", de-duped by numeric suffix against the caller's own names.
+// @subject packages/server/src/domain/settings/verbs/duplicate-theme.ts
 
 import { describe } from "vitest";
 import { ThemeNotFoundError } from "#server/domain/settings/contract/errors.ts";

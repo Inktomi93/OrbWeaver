@@ -3,9 +3,8 @@
 // turns a typo into a tsc error. The subject is the value SHAPE at the attribute position, read through the
 // shared `readStringValue` unwrapper so `as`/`satisfies`/parens/no-substitution templates cannot dodge it.
 //
-// FAMILY: a declared SINGLETON under its own id. `testid-liveness` is the only other testid policy and it
-// is still legacy, asks a different question (is a registry row consumed) and shares no reader; a common
-// topic is not a family, so this policy stands under its own name until that one converts.
+// FAMILY `testid-typed-only`: this policy and `testid-typed-only-stories` (CT stories, a different population and
+// a per-value waiver position) share the subject reader `lib/testid-value.ts#freeformTestidInitializer`.
 //
 // POPULATION: `@client` — the typed registry and every e2e selector
 // live there. The root is a NARROWING and mustPass[1] is the row that dies without it. The other narrowing
@@ -23,26 +22,9 @@
 // admits 1,287 and final `population` admits 1,287. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
-import { Node, SyntaxKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-
-/** Does this `data-testid` initializer carry a FREEFORM string value — a bare `="foo"` StringLiteral, or a
- *  braced `={"foo"}` / `={"foo" as string}` / a braced template literal — as opposed to the typed
- *  `={testId("key")}` call (a non-literal expression, undefined) which is the sanctioned shape. */
-function freeformTestidValue(init: Node | undefined): boolean {
-  if (init === undefined) {
-    return false;
-  }
-  if (Node.isStringLiteral(init)) {
-    return true; // bare attribute string: data-testid="foo"
-  }
-  if (!Node.isJsxExpression(init)) {
-    return false;
-  }
-  const expr = init.getExpression();
-  return expr !== undefined && readStringValue(expr) !== undefined; // braced literal (through any wrapper)
-}
+import { freeformTestidInitializer } from "../lib/testid-value.ts";
 
 export const gate = defineGate({
   id: "testid-typed-only",
@@ -62,7 +44,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.JsxAttribute],
         visit: (node) => {
-          if (Node.isJsxAttribute(node) && node.getNameNode().getText() === "data-testid" && freeformTestidValue(node.getInitializer())) {
+          if (freeformTestidInitializer(node) !== undefined) {
             ctx.report.node(node, { token: "data-testid", offset: 0 });
           }
         },

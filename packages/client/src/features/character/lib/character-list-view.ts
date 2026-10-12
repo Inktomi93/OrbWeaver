@@ -22,6 +22,7 @@
 import type { TagFolderType } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 
+// @orb-waive contract-structural-copy(RowTag): baselined when the gate widened; burn-down item 904.
 /** The tag shape the categorized fold reads (a structural subset of `TagView`). */
 export interface RowTag {
   readonly id: TagId;
@@ -32,6 +33,7 @@ export interface RowTag {
   readonly folderType: TagFolderType;
 }
 
+// @orb-waive no-inline-wire-interface(FilterableRow): baselined when the gate widened; burn-down item 904.
 /** The character shape the categorized fold reads (a structural subset of `CharacterSummary`). */
 export interface FilterableRow {
   readonly tags: readonly RowTag[];
@@ -53,6 +55,7 @@ export interface TagGroup<T> {
 /** The server's group census, structurally (the client mirrors `ListCharacterTagGroupsResult`'s shape
  *  without importing a server type — the tRPC output is inferred at the hook). */
 export interface TagGroupCensus {
+  // @orb-waive contract-structural-copy(id): baselined when the gate widened; burn-down item 904.
   readonly groups: readonly { readonly id: TagId; readonly name: string; readonly folderType: TagFolderType; readonly characters: number }[];
   readonly uncategorized: number;
 }

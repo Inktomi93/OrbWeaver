@@ -8,6 +8,7 @@
 // declaration order preserved). Optional/nullable/default/readonly wrappers are transparent. Anything else — a
 // primitive, an enum, a `.transform()` pipe (the branded-id schemas), a scalar union — is a LEAF.
 
+// @orb-waive-file no-test-fabrication(ZodDefLike): baselined when the gate widened to value casts; burn-down item 906.
 import type { z } from "zod";
 
 /** The zod v4 internal def shape this walker reads. Zod exposes `.def` publicly per node; the fields present

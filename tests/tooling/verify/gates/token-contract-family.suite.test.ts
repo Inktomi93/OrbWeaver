@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TokenRemovalBaseline } from "@orb/ui/token-contract";
@@ -49,7 +50,9 @@ test("the removal ratchet is LIVE on a real worktree — the baseline resolves r
 });
 
 test("a token present at the merge base and absent from the vault is reported as an unrecorded removal", () => {
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const previous = JSON.parse(CANONICAL.base) as Record<string, unknown>;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const spacing = previous["spacing"] as Record<string, unknown>;
   // A portable token the current vault does not carry and `removed.json` does not record. Shaped like its
   // siblings so it survives `tokenPathsFromLegacy`; the assertion is that the RATCHET names it, not that the
@@ -77,7 +80,9 @@ test("an UNAVAILABLE baseline is a diagnostic, and an EMPTY history is silent �
  *  (so the provider's git read resolves a merge base) with the vault OVERLAID to drop a token. If the policy
  *  stops handing the baseline to the validator, this test's `removed.unrecorded` disappears. */
 test("the policy's own call carries the baseline — a token dropped from the live vault is reported through the POLICY", () => {
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const vault = JSON.parse(CANONICAL.base) as Record<string, unknown>;
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const spacing = vault["spacing"] as Record<string, unknown>;
   const { tight: _dropped, ...withoutTight } = spacing;
   vault["spacing"] = withoutTight;
@@ -129,6 +134,7 @@ function driveOnDisk(scratch: string, files: Readonly<Record<string, string>>, b
 }
 
 const CANONICAL_ON_DISK = Object.fromEntries(
+  // @orb-waive no-test-fabrication(keyof typeof CANONICAL): baselined when the gate widened to value casts; burn-down item 906.
   Object.entries(TOKEN_CONTRACT_PATHS).map(([field, path]) => [path, CANONICAL[field as keyof typeof CANONICAL]]),
 ) as Readonly<Record<string, string>>;
 
@@ -164,6 +170,7 @@ test("the policy reaches a verdict on the real bundle and receipts the seven DOC
   // consumed exactly once, and the population receipt's `members` is the BUNDLE — seven documents — never
   // the token census (#2292). The census is still published, in the receipt SOURCE, where a zero is data
   // rather than the `resolved zero members` refusal that used to eat this gate's loudest finding.
+  // @orb-waive no-test-fabrication(keyof typeof CANONICAL): baselined when the gate widened to value casts; burn-down item 906.
   const overlay = Object.fromEntries(Object.entries(TOKEN_CONTRACT_PATHS).map(([field, path]) => [path, CANONICAL[field as keyof typeof CANONICAL]]));
   for (const [path, content] of Object.entries(overlay)) {
     mkdirSync(join(scratch, path, ".."), { recursive: true });

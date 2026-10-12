@@ -5,6 +5,7 @@
 // current end, in the caller's own order, without renumbering anything already there. A loop over
 // `attachGlobal` would give the same rows; these pin that it also gives the same ORDER, and that an
 // already-global script is not re-positioned by being named again.
+// @subject packages/server/src/domain/regex/verbs/attachments/bulk-set-global.ts
 
 import { globalRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

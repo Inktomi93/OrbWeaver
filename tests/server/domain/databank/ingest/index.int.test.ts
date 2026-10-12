@@ -6,6 +6,7 @@
 //   • prune-on-shrink: re-ingesting with a bigger chunkSize (fewer chunks) deletes the stranded tail rows
 //     (store-then-prune), leaving exactly the new set.
 
+// @orb-waive-file no-test-fabrication({ readonly signal?: AbortSignal } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { documentChunks, documents } from "@orb/db";

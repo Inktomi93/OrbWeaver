@@ -27,8 +27,9 @@ import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
-import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
+import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
+import { parseStageDbProvenance } from "../lib/stage-identity.ts";
 import {
   BANDS_REL,
   LEGACY_ACTIVE_REL,
@@ -38,8 +39,8 @@ import {
   stageBandRefusal,
   stageBandSharedNote,
 } from "../lib/stage-plan.ts";
-import { boundStageRow } from "../lib/stage-run-binding.ts";
-import { repoRoot } from "./stage-git.ts";
+import { boundStageRow, stageBindingRefusal } from "../lib/stage-run-binding.ts";
+import { repoRoot, stageCallerOwner } from "./stage-git.ts";
 import { holderProcessRunning } from "./stage-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -70,18 +71,6 @@ function readKeeper(value: unknown): Pick<StageRow, "keeper"> | Record<never, ne
   }
   const keeper: StageKeeper = { pid: value["pid"], armedAt: value["armedAt"] };
   return { keeper };
-}
-
-function readDbProvenance(value: unknown): StageDbProvenance | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const copiedFrom = value["copiedFrom"];
-  const copiedAt = value["copiedAt"];
-  const devDbMtimeAtCopy = value["devDbMtimeAtCopy"];
-  return typeof copiedFrom === "string" && typeof copiedAt === "string" && typeof devDbMtimeAtCopy === "string"
-    ? { copiedFrom, copiedAt, devDbMtimeAtCopy }
-    : null;
 }
 
 /** THE table's env door, read once at module load because every consumer is a FRESH PROCESS (the snap cli,
@@ -129,6 +118,7 @@ function readRow(value: unknown): StageRow | null {
     serverPort: typeof value["serverPort"] === "number" ? value["serverPort"] : 0,
     vitePort: typeof value["vitePort"] === "number" ? value["vitePort"] : 0,
     checkout,
+    ...(typeof value["owner"] === "string" ? { owner: value["owner"] } : {}),
     ownerPid: typeof value["ownerPid"] === "number" ? value["ownerPid"] : null,
     startedAt,
     // A row written before the heartbeat existed has no `lastUsedAt`. Backfill it from the boot stamp
@@ -137,7 +127,7 @@ function readRow(value: unknown): StageRow | null {
     lastUsedAt: typeof value["lastUsedAt"] === "string" ? value["lastUsedAt"] : startedAt,
     ...readHolders(value["holders"]),
     sessions: Array.isArray(value["sessions"]) ? value["sessions"].filter((name): name is string => typeof name === "string") : [],
-    dbProvenance: readDbProvenance(value["dbProvenance"]),
+    dbProvenance: parseStageDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
     ...readDeath(value["dead"]),
     ...readKeeper(value["keeper"]),
@@ -434,10 +424,13 @@ export function stageBandVerdictFor(
     readonly readBinding?: () => StageRow | null;
   } = {},
 ): { readonly claim: StageBandClaim; readonly refusal: string | null; readonly note: string | null } {
-  const checkout = opts.checkout ?? repoRoot();
-  const readTable = opts.readTable ?? ((): readonly StageRow[] => readBands(markerRoot(checkout)));
+  const root = opts.checkout ?? repoRoot();
+  const checkout = opts.checkout ?? stageCallerOwner(root);
+  const readTable = opts.readTable ?? ((): readonly StageRow[] => readBands(markerRoot(root)));
   const readBinding = opts.readBinding ?? boundStageRow;
   const rows = readTable();
-  const claim = stageBandClaim(url, checkout, rows, readBinding());
-  return { claim, refusal: stageBandRefusal(claim, url, checkout, rows), note: stageBandSharedNote(claim, url, rows) };
+  const binding = readBinding();
+  const claim = stageBandClaim(url, checkout, rows, binding);
+  const refusal = (binding === null ? null : stageBindingRefusal(url, binding, rows)) ?? stageBandRefusal(claim, url, checkout, rows);
+  return { claim, refusal, note: stageBandSharedNote(claim, url, rows) };
 }

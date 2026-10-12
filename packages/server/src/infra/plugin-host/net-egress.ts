@@ -8,6 +8,7 @@ import { safeFetch } from "../network/egress.ts";
 import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import { HOST_FN_DEADLINE_MS, PLUGIN_ASSET_MAX_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
 
+// @orb-waive no-inline-wire-interface(PluginNetResponse): baselined when the gate widened; burn-down item 904.
 /** What a guest's `net.fetch` resolves to: JSON-safe primitives only, never a live `Response`. */
 export interface PluginNetResponse {
   readonly status: number;

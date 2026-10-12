@@ -12,6 +12,7 @@ import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext 
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 
 export interface ToolUseHarness {

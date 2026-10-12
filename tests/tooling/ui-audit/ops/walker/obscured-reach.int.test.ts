@@ -94,6 +94,7 @@ test("obscured targets scan past the old cap and retain a later distinct collisi
   const auditRun = await runCli("snap", ["--file", join(scratch, "obscured-populations.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toHaveLength(2);
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({
@@ -112,6 +113,7 @@ test("obscured withholding names the exact partially visible subject and centre"
   const result = await runCli("snap", ["--file", join(scratch, "obscured-unaskable.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
 
   expect(result.code).toBe(2);
@@ -135,6 +137,7 @@ test("obscured census recentres a partially visible subject before judging its c
   const result = await runCli("snap", ["--file", join(scratch, "obscured-recentred.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
 
   expect(result.code).toBe(0);
@@ -152,6 +155,7 @@ test("obscured census keeps a null compositor answer withheld after the centre i
   const result = await runCli("snap", ["--file", join(scratch, "obscured-hit-test-null.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
+  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
 
   expect(result.code).toBe(2);

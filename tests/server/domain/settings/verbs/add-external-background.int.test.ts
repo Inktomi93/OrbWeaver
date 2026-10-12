@@ -4,6 +4,7 @@
 //     a stable `entryId` is minted (never a paintable external URL persisted).
 //   • REFUSAL: an unreachable / non-image / too-large URL throws a coded `background_unavailable`.
 //   • an empty URL is rejected before any fetch (`background_url_empty`).
+// @subject packages/server/src/domain/settings/verbs/add-external-background.ts
 
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId } from "@orb/kit/ids";
@@ -44,6 +45,7 @@ describe("addExternalBackground", () => {
 
     const err = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "https://cdn.example/not-an-image.txt" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
+    // @orb-waive no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as DomainOperationError).code).toBe("background_unavailable");
   });
 
@@ -55,6 +57,7 @@ describe("addExternalBackground", () => {
 
     const err = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "   " }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
+    // @orb-waive no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as DomainOperationError).code).toBe("background_url_empty");
   });
 });

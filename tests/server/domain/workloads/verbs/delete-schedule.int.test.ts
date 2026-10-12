@@ -1,5 +1,6 @@
 // Verb test: deleteSchedule — removes the row; F3 owner-scoping (a stranger deleting owner A's schedule →
 // leak-free NOT_FOUND, no mutation).
+// @subject packages/server/src/domain/workloads/verbs/delete-schedule.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadScheduleId } from "@orb/kit/ids";

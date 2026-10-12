@@ -18,6 +18,7 @@
 // security-executor), NOT something the docs/test lane fixes.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import "../../support/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";

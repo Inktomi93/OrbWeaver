@@ -1,6 +1,7 @@
 // verb: createScript — owner-scoped mint. Load-bearing: the row is owned by `principal.userId` (never a
 // `users` read), the BEHAVIOR lands in the JSON column while name/enabled are promoted, and every create
 // audits + emits `regexChanged`.
+// @subject packages/server/src/domain/regex/verbs/scripts/create.ts
 
 import { regexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

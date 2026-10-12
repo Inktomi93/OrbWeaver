@@ -59,7 +59,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 
 Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.
 
-Owner ruling: up to six `sonnet-executor` lanes and four Opus lanes (executor, security-executor) at once; never dispatch forge (owner). Verifier and side-eye passes may run over the cap.
+Owner ruling: at most six `sonnet-executor` lanes plus two Opus agents at once, or three Opus agents when no Sonnet lane runs. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.

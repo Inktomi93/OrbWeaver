@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(StageBandsFile): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE BAND TABLE's I/O and its concurrency (tooling/src/snap/ops/stage-marker.ts, design §3.6 / #1276) —
 // real files over a tmpdir and real child PROCESSES over the real mutex. Nothing here boots a stack: the
 // table is JSON, the lock is a directory, and the parts that need genuine parallelism get genuine
@@ -132,6 +134,13 @@ test("a row written under one checkout's table home is read back under another's
   expect(file.v).toBe(1);
 });
 
+test("a row's clone flag survives the table, so a --stage-db stage still reads as a clone", () => {
+  const home = scratchHome("clone-flag");
+  const dbProvenance = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: FROZEN_ISO, devDbMtimeAtCopy: AGED_ISO };
+  writeRow(home, row(1, { dbProvenance }));
+  expect(readBands(home)[0]?.dbProvenance).toEqual(dbProvenance);
+});
+
 test("writeRow REPLACES one band and leaves every sibling row standing — a blind overwrite would drop a lane's stage", () => {
   const home = scratchHome("replace");
   writeRow(home, row(0));
@@ -194,6 +203,7 @@ test("a holder whose stage was replaced on its band stops, and never stamps the 
       holders: [],
     });
     writeRow(home, replacement);
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 150));
     expect(readBands(home)[0]?.holders).toEqual([]);
     expect(readBands(home)[0]?.lastUsedAt).toBe(AGED_ISO);
@@ -228,6 +238,7 @@ test("a later heartbeat that cannot take the table lock is skipped without waiti
     // Beats keep firing against the held lock; a waiting beat would block this timer for its whole budget.
     // @orb-waive test-determinism(Date.now): the subject is elapsed real time — a beat that waits blocks the event loop.
     const started = Date.now();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 200));
     // @orb-waive test-determinism(Date.now): the same elapsed-time measurement's end.
     expect(Date.now() - started).toBeLessThan(2000);
@@ -382,9 +393,11 @@ withBandsLock(${JSON.stringify(home)}, () => console.log("CLAIMED"));
   const child = spawnNiced("node", [childPath], { timeoutMs: CASE_BUDGET_MS });
   try {
     for (let poll = 0; poll < 200 && !existsSync(attempted); poll += 1) {
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((done) => setTimeout(done, 25));
     }
     expect(existsSync(attempted)).toBe(true);
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((done) => setTimeout(done, CLAIM_HOLD_MS));
     expect(existsSync(lockDir), "the new lock must survive its ownerless creation window").toBe(true);
   } finally {

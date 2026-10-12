@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication({ compilerOptions?: { lib?: string[] } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ include?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 // Generated type configs derive complete files from shared world/test/ambient intent.
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -38,11 +41,13 @@ test("fresh packages and browser test kinds enter generated roots without anothe
 test("plugin author declarations and sources have separate strict runtime programs", ({ scratch }) => {
   plantBase(scratch);
   const files = deriveTypeConfigFiles(scratch);
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const sdkMain = JSON.parse(files["packages/plugin-sdk/tsconfig.author-main.json"] ?? "null") as {
     compilerOptions?: { skipLibCheck?: boolean };
     include?: string[];
   };
   const showcaseMain = JSON.parse(files["packages/showcase-plugins/tsconfig.author-main.json"] ?? "null") as { include?: string[] };
+  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const showcaseFrame = JSON.parse(files["packages/showcase-plugins/tsconfig.author-frame.json"] ?? "null") as {
     compilerOptions?: { lib?: string[] };
     include?: string[];

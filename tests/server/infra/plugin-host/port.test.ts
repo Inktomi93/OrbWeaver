@@ -5,6 +5,12 @@
 // the RESIDENT-HANDLER runtime (a guest tool registered at activation round-trips through `invoke`). The
 // composed-real router test covers the domain wiring; this is the runtime mirror + the security-gate pins.
 
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ args: unknown }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ sideEffect: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-vanity-alias(createLocalPluginHost): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
 import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginSuggestedAct } from "@orb/contracts/plugin";
@@ -69,6 +75,7 @@ const RACING_GRANTS: readonly PluginCapability[] = ["tools.register", "chat.read
 
 /** Spin the macrotask queue a few ticks so a mid-flight guest handler reaches its awaited (gated) host call. */
 function settleTicks(): Promise<void> {
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   return new Promise((resolve) => setTimeout(resolve, 20));
 }
 
@@ -135,6 +142,7 @@ async function drainGatedInvokes(fake: RacingBridge, count: number): Promise<voi
  *  macrotask ticks after the prior settles to reach its awaited host call). */
 async function waitForGate(fake: RacingBridge): Promise<void> {
   for (let spins = 0; spins < 200 && fake.gates.length === 0; spins++) {
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
@@ -143,6 +151,7 @@ async function waitForGate(fake: RacingBridge): Promise<void> {
  *  still times out into a failing assertion rather than hanging. */
 async function waitForReleases(releases: readonly unknown[], count: number): Promise<void> {
   for (let spins = 0; spins < 200 && releases.length < count; spins++) {
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
@@ -281,6 +290,7 @@ describe("port.createInstance — direct-adapter resident admission", () => {
 
     let releaseTransaction!: () => void;
     let transactionStarted = false;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const transaction = new Promise<void>((resolve) => {
       releaseTransaction = resolve;
     });
@@ -583,6 +593,7 @@ describe("port.createInstance — a failed activation with a parked host call re
     await expect(host.invoke(siblingOutcome.instance, ref, "{}", noChat)).resolves.toBe("pong");
     host.dispose(siblingOutcome.instance);
 
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     process.off("unhandledRejection", onUnhandled);
     expect(rejections).toEqual([]);
@@ -1507,6 +1518,7 @@ describe("membrane — teardown drains in-flight host calls (guest-reachable hos
   function gatedBridge(): { bridge: PluginBridge; release: (v: Record<string, string>) => void; gate: Promise<Record<string, string>> } {
     const base = fakeBridge().bridge;
     let release!: (v: Record<string, string>) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<Record<string, string>>((resolve) => {
       release = resolve;
     });
@@ -1523,6 +1535,7 @@ describe("membrane — teardown drains in-flight host calls (guest-reachable hos
     process.on("unhandledRejection", onUnhandled);
     try {
       await fn();
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((resolve) => setTimeout(resolve, 0));
     } finally {
       process.off("unhandledRejection", onUnhandled);
@@ -1636,6 +1649,7 @@ describe("membrane — host-operation liveness cancellation", () => {
     const { instance, ref } = await residentQuietTool(host, bridge, false);
     try {
       await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(HOST_FN_EXCEEDED_RE);
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((resolve) => setTimeout(resolve, 150));
       expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
     } finally {
@@ -1650,6 +1664,7 @@ describe("membrane — host-operation liveness cancellation", () => {
     expect(await host.invoke(instance, ref, "{}", noChat)).toBe("started");
     expect(witness.started).toBe(1);
     host.dispose(instance);
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 150));
     expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
   });
@@ -1664,6 +1679,7 @@ describe("membrane — host-operation liveness cancellation", () => {
 
     host.dispose(instance);
     await expect(invoked).rejects.toThrow(HOST_OPERATION_ABORTED_RE);
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
     await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(UNKNOWN_OR_DISPOSED_RE);
@@ -1715,6 +1731,7 @@ describe("port.dispose — the detached cleanup join surfaces a settle failure (
   /** Spin the macrotask queue so the detached chain (tail → settle reject → finish → propagate → withRequestSpan
    *  seal → superviseDetached's `.catch`) flushes fully before we assert on the fire-and-forget supervisor. */
   function flushDetached(): Promise<void> {
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     return new Promise((resolve) => setTimeout(resolve, 100));
   }
 

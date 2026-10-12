@@ -1,6 +1,7 @@
 // verb: listForChat — the room's attached scripts. MEMBER-readable and deliberately NOT owner-filtered: a
 // room's attachments are what every member's turns assemble against, so a member sees the host's set
 // (the `listChatBooks` ruling, D18/D64). A non-member is refused by the injected guard.
+// @subject packages/server/src/domain/regex/verbs/attachments/list-for-chat.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

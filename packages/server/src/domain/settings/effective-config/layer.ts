@@ -21,10 +21,12 @@ const HOURS_PER_DAY = 24;
 const MS_PER_DAY = MS_PER_HOUR * HOURS_PER_DAY;
 // The per-transform prompt-transform deadline (item 2) — was the PROMPT_TRANSFORM_DEADLINE_MS const.
 const PROMPT_TRANSFORM_DEADLINE_MS_FLOOR = 250;
+// @orb-waive no-vanity-alias(CATALOG_REFRESH_INTERVAL_MS_FLOOR): baselined when the gate widened; burn-down item 906.
 // The model-catalog success-refresh cadence (item 5) — was REFRESH_EVERY_MS in the catalog scheduler.
 const CATALOG_REFRESH_INTERVAL_MS_FLOOR = MS_PER_DAY;
 // The image-variant lossy-encoder quality (item 6) — byte-identical to infra/image DEFAULT_QUALITY.
 const IMAGE_VARIANT_QUALITY_FLOOR = 80;
+// @orb-waive no-vanity-alias(MAX_DATABANK_BYTES_FLOOR): baselined when the gate widened; burn-down item 906.
 // The databank single-document upload cap (item 3) — the route belt; an override may only TIGHTEN below it.
 const MAX_DATABANK_BYTES_FLOOR = DATABANK_UPLOAD_MAX_BYTES;
 

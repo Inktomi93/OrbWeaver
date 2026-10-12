@@ -22,12 +22,14 @@ describe("createRegistry", () => {
 
   test("get() throws on an id outside the vocabulary", () => {
     const registry = createRegistry("t", IDS, { a: 1, b: 2, c: 3 });
+    // @orb-waive no-test-fabrication(Id): baselined when the gate widened to value casts; burn-down item 906.
     expect(() => registry.get("bogus" as Id)).toThrow(UNKNOWN_BOGUS_RE);
   });
 
   test("has() reports membership without throwing", () => {
     const registry = createRegistry("t", IDS, { a: 1, b: 2, c: 3 });
     expect(registry.has("a")).toBe(true);
+    // @orb-waive no-test-fabrication(Id): baselined when the gate widened to value casts; burn-down item 906.
     expect(registry.has("bogus" as Id)).toBe(false);
   });
 

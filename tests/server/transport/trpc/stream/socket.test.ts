@@ -9,6 +9,7 @@
 // YIELDED. Everything else (the withheld-row gap rule §5.5, the `lag` policy's "the replay refills it" §7,
 // the reconnect story §5.3) is downstream of it.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { SessionId, SocketId, UserId } from "@orb/kit/ids";
@@ -82,6 +83,7 @@ describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
     publishChatEvent({ seq: 5, event: { type: "chatUpdated", chatId } });
     publishChatEvent({ seq: 6, event: { type: "chatUpdated", chatId } });
     publishChatEvent({ seq: 7, event: { type: "chatUpdated", chatId } });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     const first = frameOf((await iterator.next()).value);
 
@@ -135,6 +137,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     // The pump keeps replaying into the bounded queue with nobody draining it, which is the only way to
     // reach the overflow this test is about.
     await iterator.next();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 25));
 
     // Now drain until the terminal arrives: the shed already happened, so what follows is the recovery —
@@ -207,10 +210,12 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     const iterator = socket[Symbol.asyncIterator]();
     await consumeServerReady(iterator);
     await iterator.next(); // start the generator, then STALL so the queue saturates and sheds
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 25));
     // …and NOW, with the notice still sitting undelivered in the queue, the client re-attaches the room
     // (a reconnect's re-announce, or any idempotent re-attach) — which restarts the pump.
     await call.stream.attach({ socketId, ref: { channel: "chat", chatId } });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 25));
 
     const seqs: number[] = [];

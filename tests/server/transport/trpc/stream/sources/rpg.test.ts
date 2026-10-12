@@ -16,6 +16,8 @@
 //   • the probe runs PER EVENT: a refused verdict withholds that event without failing the room, and a
 //     membership lost MID-STREAM (a kick) stops delivery from the next event on.
 
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { SocketId, UserId } from "@orb/kit/ids";

@@ -1,6 +1,7 @@
 // verb: attachToCharacter — role-carrying attach + the primary-uniqueness belt (invariant #3). Load-bearing:
 // attaching a SECOND primary atomically demotes the first (exactly one primary remains); both ownership gates
 // fire (foreign character OR foreign book → NotFound); re-attach updates the role in place.
+// @subject packages/server/src/domain/world-info/verbs/attachments/attach-to-character.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

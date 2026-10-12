@@ -58,6 +58,7 @@ export async function importTree(files: readonly File[], personaCollisions: Pers
   if (!response.ok) {
     await throwHttpError("importTree", response);
   }
+  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
   return (await response.json()) as TreeImportStarted;
 }
 

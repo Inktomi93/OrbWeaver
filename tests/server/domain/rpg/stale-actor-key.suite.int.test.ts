@@ -24,6 +24,7 @@
 // migration's whole job is to name a spelling the live type system has already forgotten"), and a pin that
 // could only be written in the OLD era would not compile in this one.
 
+// @orb-waive-file no-loose-id-cast(columns): baselined when the gate widened; burn-down item 906.
 import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";

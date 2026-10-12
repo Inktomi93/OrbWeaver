@@ -11,6 +11,7 @@ import { batchMany } from "@orb/db/query";
 import type { NotificationId } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 
+// @orb-waive contract-structural-copy(NotificationInsert): baselined when the gate widened; burn-down item 904.
 /** A new notification row — the verb mints `id` + parses the closed `event` + passes its injected clock. */
 interface NotificationInsert {
   id: NotificationId;
@@ -20,6 +21,7 @@ interface NotificationInsert {
   createdAt: number;
 }
 
+// @orb-waive contract-structural-copy(NotificationRow): baselined when the gate widened; burn-down item 904.
 /** The projected stored-row shape (file-local; the verbs turn it into the `InboxView` contract). */
 interface NotificationRow {
   id: NotificationId;

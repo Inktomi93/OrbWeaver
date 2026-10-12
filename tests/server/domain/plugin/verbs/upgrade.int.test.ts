@@ -1,7 +1,10 @@
 // verb: upgrade — replace an installed plugin's bundle (02 §4). Slug-match, downgrade refusal, the re-grant
 // rule (WIDENED REACH — new caps OR new netHosts ⇒ disabled), the old-bundle reap, and enabled-state
 // preservation when no re-confirmation is needed.
+// @subject packages/server/src/domain/plugin/verbs/upgrade.ts
 
+// @orb-waive-file no-loose-id-cast(after[0]?.assetId): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(droppedId): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";

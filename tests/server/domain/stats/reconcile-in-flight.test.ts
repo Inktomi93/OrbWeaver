@@ -5,6 +5,7 @@
 // releases on BOTH settle arms (a throwing rebuild must not wedge the owner out forever), and the key is the
 // owner (one user's rebuild never blocks another's).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

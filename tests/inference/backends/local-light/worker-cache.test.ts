@@ -2,6 +2,7 @@
 // module (`_stub-model-cache.ts`): the request loop keeps turning while the worker is held, results and typed
 // failures cross the boundary intact, and a dead worker rejects its callers instead of hanging them.
 
+// @orb-waive-file no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -61,6 +62,7 @@ async function longestTickGap(work: () => Promise<unknown>): Promise<number> {
   try {
     await work();
     // One more tick lands after `work`, so a block right at its end is still measured.
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, TICK_MS * 2));
   } finally {
     clearInterval(timer);
@@ -70,6 +72,7 @@ async function longestTickGap(work: () => Promise<unknown>): Promise<number> {
 
 test("the tick gap detector sees a block on this thread", async () => {
   const gap = await longestTickGap(async () => {
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, TICK_MS * 2));
     holdThread(HOLD_MS);
   });
@@ -173,6 +176,7 @@ test("close waits out a native call in progress; the call answers, then the work
   const cache = stubCache(errors);
   const inFlight = cache.embedTexts(MODEL, [`${BLOCK_PREFIX}${String(HOLD_MS)}`]);
   // Let the call reach the worker before the close does.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, TICK_MS * 5));
   // @orb-waive test-determinism(performance.now): the SUBJECT is real elapsed time on this thread while another thread holds a model call; a frozen clock cannot see a blocked event loop.
   const started = performance.now();
@@ -191,6 +195,7 @@ test("a native call that outlasts the close wait: close returns at the bound wit
     log: { debug: noop, info: noop, warn: (_fields, message) => warnings.push(message), error: noop },
   });
   const inFlight = cache.embedTexts(MODEL, [`${BLOCK_PREFIX}${String(HOLD_MS)}`]).catch((err: unknown) => err);
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, TICK_MS * 5));
   // @orb-waive test-determinism(performance.now): the SUBJECT is real elapsed time on this thread while another thread holds a model call; a frozen clock cannot see a blocked event loop.
   const started = performance.now();

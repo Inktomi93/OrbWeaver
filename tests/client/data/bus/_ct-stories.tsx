@@ -11,6 +11,16 @@
 // gap-heal probe wraps in it too: since SSE-1 the user bus has no subscription of its own, it JOINS a room
 // on the tab's one socket, so the socket has to exist for the bus to be live at all.
 
+// @orb-waive-file testid-typed-only-stories("chat-bus-mounted"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("probe-barrier"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("remount-room"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("room-generation"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rpg-events"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rpg-heals"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rpg-pointer"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("user-bus-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("user-events"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("user-heals"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { useChatBus, useChatBusDeps, useGatedQuery, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUserBus } from "@orb/client/data";
 import type { RpgBusEvent } from "@orb/contracts/rpg";

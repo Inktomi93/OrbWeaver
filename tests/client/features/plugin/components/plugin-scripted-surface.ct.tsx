@@ -20,6 +20,8 @@
 // compiled/linted as if it were ours, and the hostile arms (an infinite loop, a tree that fails the schema) are
 // precisely the shapes a linter would refuse to let us write.
 
+// @orb-waive-file no-test-fabrication({ readonly detaching: number }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file platform-spellings(CLIENT_ALLOWED_GLOBALS): baselined when the gate widened; burn-down item 906.
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";

@@ -28,6 +28,7 @@ interface ScheduleInsert {
   readonly createdAt: number;
 }
 
+// @orb-waive contract-structural-copy(SchedulePatch): baselined when the gate widened; burn-down item 904.
 /** The mutable subset `updateSchedule` may patch (file-local; the verb builds it from the parsed input, and
  *  re-bases `nextRunAt` when the cadence changes). Every field optional — an omitted key is left unchanged. */
 interface SchedulePatch {

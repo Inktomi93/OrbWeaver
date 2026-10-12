@@ -35,6 +35,7 @@ test("a hostile accent value is DROPPED (no injected custom property)", async ({
   );
   // Check the INLINE style (what ThemeScope actually set) — computed would resolve the inherited
   // :root default. A dropped value leaves the inline custom property unset.
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(async () => await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"))).toBe("");
 });
 
@@ -552,6 +553,7 @@ test("#692 an ambient accent that ALREADY clears is not touched — the fill ren
       <span data-testid="accent-probe">x</span>
     </ThemeScope>,
   );
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(async () => await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"))).toBe("");
 });
 
@@ -620,5 +622,6 @@ test("#2424 CONTROL: an INK-ONLY scope emits no `color` — the ambient cascade 
       </ThemeScope>
     </div>,
   );
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(async () => await cmp.locator('[data-slot="theme-scope"]').evaluate((el) => (el as HTMLElement).style.color)).toBe("");
 });

@@ -1,3 +1,5 @@
+// @subject packages/server/src/domain/stats/verbs/by-model.ts
+
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
 import { createStatsService } from "#server/domain/stats/service.ts";

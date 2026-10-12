@@ -23,6 +23,7 @@ interface FailedChatResult {
   readonly error: string;
 }
 
+// @orb-waive no-inline-wire-interface(ChatImportResult): baselined when the gate widened; burn-down item 904.
 /** The `POST /api/import/chat` response body (the server's `ChatImportResult`): the REAL per-file outcome. */
 export interface ChatImportResult {
   readonly imported: readonly ImportedChatResult[];
@@ -47,5 +48,6 @@ export async function importChats(files: readonly File[]): Promise<ChatImportRes
   if (!response.ok) {
     await throwHttpError("importChats", response);
   }
+  // @orb-waive wire-json-parsed-at-consumer(json): baselined when the gate widened; burn-down item 905.
   return (await response.json()) as ChatImportResult;
 }

@@ -14,6 +14,7 @@ export interface PluginHostSeamDeps {
   readonly netEgress?: PluginNetEgress;
 }
 
+// @orb-waive contract-structural-copy(CreateInstanceInputIn): baselined when the gate widened; burn-down item 904.
 /** The serializable half of a Worker create command plus its app-owned bridge. */
 export interface CreateInstanceInputIn {
   readonly mainJs: string;
@@ -36,6 +37,7 @@ export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
   | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogLineOut[] };
 
+// @orb-waive contract-structural-copy(SnippetRunOut): baselined when the gate widened; burn-down item 904.
 /** The inline-snippet run's outcome. */
 export interface SnippetRunOut {
   readonly logLines: readonly string[];

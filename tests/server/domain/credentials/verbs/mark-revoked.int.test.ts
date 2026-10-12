@@ -1,4 +1,5 @@
 // verb: markRevoked — the RUNNER-INTERNAL revoke (no ownership check; the id IS the access token).
+// @subject packages/server/src/domain/credentials/verbs/mark-revoked.ts
 
 import { userCredentials } from "@orb/db";
 import { eq } from "drizzle-orm";

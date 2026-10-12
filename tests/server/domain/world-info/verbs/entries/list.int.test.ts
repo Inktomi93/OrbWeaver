@@ -1,5 +1,6 @@
 // verb: listEntries — entries of an owned book, by descending priority. Load-bearing: a foreign book is
 // NotFound (can't probe a foreign book's entry set); ordering is priority DESC.
+// @subject packages/server/src/domain/world-info/verbs/entries/list.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -5,7 +5,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { holdPortraitImage, layoutBox, PORTRAIT_H, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/browser/held-portrait-image.ts";
+import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_H, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/browser/held-portrait-image.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { seedActiveChat } from "../../../../support/node/seed-active-chat.ts";
 import { RoomImageDetailStory } from "../../chat/_ct-stories.tsx";
@@ -39,9 +39,7 @@ for (const vp of VIEWPORTS) {
     const cmp = await mount(<EditFlowStory assetId={assetId} chatId={chatId} url={PORTRAIT_SVG} />);
     const img = cmp.locator('[data-slot="message-media"]');
     // Barrier on the SETTLED (decoded) image — an <img> with no intrinsic size yet lays out at 0×0.
-    await expect
-      .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth / (el as HTMLImageElement).naturalHeight))
-      .toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
+    await expect.poll(() => naturalRatio(img)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
     const box = await img.boundingBox();
     expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(PORTRAIT_RATIO, RATIO_PRECISION);
   });
@@ -80,6 +78,7 @@ for (const vp of VIEWPORTS) {
     // The claim in full: the reserved box IS the true box. Release the bytes, barrier on the DECODED
     // image, and the geometry must not have moved — that identity is what "no reflow" means.
     await release();
+    // @orb-waive no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
     await expect.poll(() => source.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT_W);
     expect(await layoutBox(source)).toEqual(reserved);
   });
@@ -127,6 +126,7 @@ test("#654: the edit→detail hand-off carries the edited asset's stored dims in
   expect(reserved.h).toBeGreaterThan(MIN_RESERVED_PX);
 
   await release();
+  // @orb-waive no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(() => edited.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT_W);
   expect(await layoutBox(edited)).toEqual(reserved);
 });

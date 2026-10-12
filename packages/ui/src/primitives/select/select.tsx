@@ -12,6 +12,7 @@ import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
 import { createSelectOpeningObserver } from "./opening.ts";
 import { selectVariants } from "./variants.ts";
 
+// @orb-waive no-vanity-alias(POPUP_SIDE_OFFSET): baselined when the gate widened; burn-down item 906.
 // Breathing room between trigger and popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 

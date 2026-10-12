@@ -9,6 +9,7 @@ import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, M
 import { castId } from "@orb/kit/ids";
 import { characterListSummaries, chatListSummaries } from "@orb/server/foundation/observability/debug";
 import { freshDb } from "../../../../../support/db.ts";
+import { makeCharacter } from "../../../../../support/factories/character.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 test("chatListSummaries returns a row per chat with participant + message counts, newest-updated first", async () => {
@@ -22,7 +23,7 @@ test("chatListSummaries returns a row per chat with participant + message counts
   await db.insert(chats).values({ id: newerId, title: "Newer", updatedAt: 2000 });
 
   const characterId = castId<CharacterId>("character_for_chat_list");
-  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-for-chat"), ownerId: userId, contentHash: "h-c", name: "Cast" });
+  await db.insert(characters).values(makeCharacter({ id: characterId, handle: castId<CharacterHandle>("card-for-chat"), ownerId: userId, name: "Cast" }));
   await db.insert(chatParticipants).values([
     { id: castId<ChatParticipantId>("cp_list_1"), chatId: newerId, kind: "human", userId, role: "host", joinSeq: 0 },
     { id: castId<ChatParticipantId>("cp_list_2"), chatId: newerId, kind: "character", characterId, role: "member", joinSeq: 1 },
@@ -51,32 +52,29 @@ test("characterListSummaries returns user-facing characters newest-created first
   await db.insert(users).values({ id: userId, handle: castId<Handle>("user_char_list"), handleKey: handleKey(castId<Handle>("user_char_list")) });
 
   await db.insert(characters).values([
-    {
+    makeCharacter({
       id: castId<CharacterId>("character_list_a"),
       handle: castId<CharacterHandle>("card-a"),
       ownerId: userId,
-      contentHash: "h-a",
       name: "Aria",
       createdAt: 1000,
-    },
-    {
+    }),
+    makeCharacter({
       id: castId<CharacterId>("character_list_b"),
       handle: castId<CharacterHandle>("card-b"),
       ownerId: userId,
-      contentHash: "h-b",
       name: "Bryn",
       createdAt: 2000,
-    },
+    }),
     // The hidden per-room group-memory identity — must be filtered from a user-facing list.
-    {
+    makeCharacter({
       id: castId<CharacterId>("character_list_synth"),
       handle: castId<CharacterHandle>("__group__x"),
       ownerId: userId,
-      contentHash: "h-s",
       name: "Group",
       synthetic: true,
       createdAt: 3000,
-    },
+    }),
   ]);
 
   const rows = await characterListSummaries(db);

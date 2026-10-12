@@ -12,6 +12,7 @@
 //
 // OWNER RULING 2026-09-05 (#1598): the re-upload is NON-DESTRUCTIVE and the replace moved to an explicit
 // restore door (`restore-character-book.int.test.ts` is its mirror).
+// @subject packages/server/src/domain/import/verbs/import-character.ts
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Db } from "@orb/db";

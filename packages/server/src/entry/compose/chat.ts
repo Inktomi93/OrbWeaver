@@ -209,21 +209,22 @@ function assertNeverVoice(voice: never): never {
 }
 
 /** The persona half of the FOREIGN read: one consent-gated persona read over the anchor, the trigger's persona
- *  and every seat persona, then {@link voicePersonaFor}. Every other seat's resolved persona projects into
- *  `people` in seat order, so the block moves only on a join, a leave, a swap or a re-anchor. Personas are
+ *  and every seat persona, plus the room's pin read through `chatId`, then {@link voicePersonaFor}. Every other
+ *  seat's resolved persona projects into `people` in seat order, so the block moves only on a join, a leave, a
+ *  swap or a re-anchor. Personas are
  *  single-owned and `setActivePersona` seats only the target's own, so no two seats hold one persona. The
  *  composition root's `resolveForeignInputs` is its one production caller. */
 export function createTurnPersonaResolver(
   resolvePersonasForParticipants: ResolvePersonasForParticipants,
 ): (
-  args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
+  args: Pick<Parameters<ResolveForeignInputsOp>[0], "anchorPersonaId" | "chatId" | "humanSeats" | "presentHumanUserIds" | "runAsUserId" | "trigger" | "voice">,
 ) => Promise<ResolvedPersonas> {
   return async (args) => {
     const triggerPersonaId = args.trigger.kind === "human" ? args.trigger.personaId : null;
     const resolved = await resolvePersonasForParticipants({
+      chatId: args.chatId,
       personaIds: [args.anchorPersonaId, triggerPersonaId, ...args.humanSeats.map((seat) => seat.personaId)].flatMap((id) => (id === null ? [] : [id])),
       allowedOwnerIds: args.presentHumanUserIds,
-      heldPersonaId: args.anchorPersonaId,
     });
     const project = (personaId: PersonaId | null): ResolvedPersonas["active"] => {
       const p = personaId === null ? undefined : resolved.get(personaId);
@@ -259,6 +260,7 @@ export function createSignupMinterCheck(
   };
 }
 
+// @orb-waive no-inline-wire-interface(ChatComposeInput): baselined when the gate widened; burn-down item 904.
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
@@ -350,6 +352,7 @@ export interface ChatComposeInput {
   readonly pluginMacros?: ChatContext["pluginMacros"] | undefined;
 }
 
+// @orb-waive no-inline-wire-interface(ChatComposeResult): baselined when the gate widened; burn-down item 904.
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
  *  publish onto the chat bus (e.g. world-info). */
 export interface ChatComposeResult {
@@ -1590,7 +1593,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         ? { state: "unset" }
         : { state: "configured", connectionLabel: row.label, provider: row.providerId, providerLabel: row.providerLabel, model: row.model };
     },
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
+    resolveForeignInputs: async ({ chatId, runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 
       // A feature-supplied GM-voice preset REDIRECT (docs/plans/rpg/design.md) wins over the host's default when it
@@ -1604,7 +1607,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // both violating FINAL-Persona §A.1 in exactly the multi-human room the D16/D18 spine exists for. The
       // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
       // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
-      const turnPersonas = await resolveTurnPersonas({ runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice });
+      const turnPersonas = await resolveTurnPersonas({ chatId, runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice });
 
       const memoryConfig = withMemoryOptOut(us.memory.enabled === false, input.settings.getEffectiveConfig().memoryDefaults);
 

@@ -11,6 +11,7 @@
 // stayed BYTE-IDENTICAL — chart chrome was stale until the chart remounted. Hence the second assertion:
 // the mount id must be UNCHANGED, or a green here would only prove React threw the subtree away.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { TOKEN_POLARITY_ARMS } from "@orb/ui/tokens";

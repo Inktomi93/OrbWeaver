@@ -1,5 +1,6 @@
 // verb: listConnectedToCharacter — character-scoped, owner-gated read. Load-bearing: returns only personas
 // connected to THIS character (not the owner's other personas), newest first; a foreign character throws.
+// @subject packages/server/src/domain/persona/verbs/connection/list-connected.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";

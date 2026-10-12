@@ -3,6 +3,7 @@
 // cluster is the favorite heart, the crown and the chevron; at a coarse pointer the faint toggles stand down
 // into a ⋯ that holds only Favorite and Set/Clear default. Duplicate, Export and Delete live in the editor.
 
+// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PersonaPanelRowDenseStory, PersonaPanelRowStory } from "../_ct-stories.tsx";

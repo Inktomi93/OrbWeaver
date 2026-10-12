@@ -1,5 +1,6 @@
 // verb: removeScript — delete an owned row. The CASCADE it triggers is pinned in the attachments suite;
 // here the pins are the gate (a foreign delete is refused and leaves the row) and the emit.
+// @subject packages/server/src/domain/regex/verbs/scripts/remove.ts
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { regexScripts } from "@orb/db";

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(MirrorFamilyId): baselined when the gate widened to value casts; burn-down item 906.
+
 // The mirror door. The capability under test is that "there is no mirror here" and "there is no mirror
 // TREE" are two different answers — the distinction every consuming gate's `existsSync` cannot express.
 //

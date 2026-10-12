@@ -87,6 +87,7 @@ test("the indicator is present and tracks the active tab", async ({ mount, page 
 
 /** The transition property names the switch LAUNCHED on the indicator, in launch order. */
 function glideTransitionProperties(page: Page): Promise<readonly string[]> {
+  // @orb-waive no-test-fabrication({ __orbTabGlideProps?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   return page.evaluate(() => (globalThis as { __orbTabGlideProps?: string[] }).__orbTabGlideProps ?? []);
 }
 
@@ -117,6 +118,7 @@ test("#1069 a tab switch glides the indicator with a TRANSFORM-only transition, 
   await expect(indicator).toBeVisible();
 
   await page.evaluate(() => {
+    // @orb-waive no-test-fabrication({ __orbTabGlideProps?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
     const probe = globalThis as { __orbTabGlideProps?: string[] };
     probe.__orbTabGlideProps = [];
     document.addEventListener(

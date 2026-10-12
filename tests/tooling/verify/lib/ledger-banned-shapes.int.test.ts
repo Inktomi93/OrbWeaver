@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(BiomeConfig): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(BiomeReport): baselined when the gate widened to value casts; burn-down item 906.
+
 // The PERMANENT PIN for the D12 arm of the ledger's banned shapes. The `@orb/contracts/sessions` ban is a
 // plain module-specifier ban, so biome's native `style/noRestrictedImports` owns it completely
 // (GATE-AUTHORING §10: never mirror an enabled native lint rule) — it retired out of the old
@@ -13,6 +16,9 @@
 // real tree would red any concurrent whole-tree biome pass, and `**/__probe*` is gitignored so biome
 // (useIgnoreFile) never sees a probe planted there — measured on this tree 2026-09-05: four planted probe
 // files came back "No files were processed in the specified paths".
+// @orb-waive-file platform-spellings(EXPECTED_GROUP): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(Object): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(row): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

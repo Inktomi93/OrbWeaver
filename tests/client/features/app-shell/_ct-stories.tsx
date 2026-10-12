@@ -18,6 +18,44 @@
 // maintaining an independent stylesheet roster. At the CT's desktop viewport (1280px > 48rem) the desktop
 // icon column shows, matching production.
 
+// @orb-waive-file testid-typed-only-stories("band-composer-standin"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("band-content-pane"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("band-h1"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("band-slot"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("band-transcript"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("body-slot"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-band-content"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-body-game"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-body-map"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-body-members"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-body-scene"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-body-settings"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-body-status"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-pane-surface"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-strip-container"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctx-tab-store"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("empty-context-content"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("fake-band"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("fake-trail-widget"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("hidden-sheet-lens"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("imported"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("list-band-action"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("list-primary"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("modal-stacking-probe"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("nested-theme-preview"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("plate-ink-probe"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("primary-probe"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rail-probe"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("raise-notice"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("raise-tall-notice"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("reveal-chats-projection"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("section-band"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("sheet-lens"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("tall-modal-body"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("track-composer"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("track-row"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("trail-sheet-lens"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("width-probe"): baselined when the gate widened; burn-down item 906.
 import { useTRPC } from "@orb/client/data";
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import { chatContextTabs } from "@orb/client/features/chat";
@@ -861,10 +899,9 @@ export function YouSheetProjectionStory(): ReactElement {
       // widget renders its own lens in the block below it.
       id: "command",
       label: "Jump to…",
-      icon: Command,
       zone: "topbar.trail",
       mobile: "sheet",
-      behavior: { kind: "modal", modalId: "command" },
+      behavior: { kind: "modal", modalId: "command", icon: Command },
     },
     {
       // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).
@@ -880,7 +917,7 @@ export function YouSheetProjectionStory(): ReactElement {
       zone: "rail.nav",
       mobile: "sheet",
       order: 0,
-      behavior: { kind: "section", sectionId: "refinery" },
+      behavior: { kind: "section", sectionId: "refinery", icon: Command },
     },
   ]);
   return (

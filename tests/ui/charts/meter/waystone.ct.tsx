@@ -10,6 +10,7 @@
 //   • reduced motion REMOVES every animation while every layer still paints (static but still distinct).
 // One mount per test (mount() is once-per-test; a state change uses update()).
 
+// @orb-waive-file no-test-fabrication(SVGElement): baselined when the gate widened to value casts; burn-down item 906.
 import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
 import { Waystone } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";

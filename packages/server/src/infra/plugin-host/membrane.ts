@@ -130,6 +130,7 @@ export interface MembraneRuntime {
   readonly pending: Set<QuickJSDeferredPromise>;
   readonly collectTool: (
     reg: {
+      // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
       readonly name: string;
       readonly displayName?: string;
       readonly replayHistory?: boolean;

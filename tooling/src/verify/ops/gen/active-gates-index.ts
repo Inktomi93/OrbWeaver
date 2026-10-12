@@ -101,6 +101,8 @@ is the separate dead-code/dead-export/dead-dependency lane, live in \`pnpm check
 
 Scans \`packages/**\` (TS + TSX + CSS) for structural duplication the per-file rules can't see.
 On-demand, not pre-commit: \`pnpm cpd\` / \`pnpm cpd:report\`. Gate: 2% duplication threshold.
+\`pnpm cpd:tests\` (\`jscpd.tests.json\`) scans \`tests/\` alone with the same settings and holds its duplicated share at
+the measured ratchet in that config (Spine-Testing.md §10).
 
 ## Layer 6 — Stryker (\`stryker.config.js\` + \`stryker.gate.config.js\`) — mutation testing
 

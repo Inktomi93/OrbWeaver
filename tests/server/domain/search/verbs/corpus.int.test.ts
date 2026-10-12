@@ -1,4 +1,6 @@
 // Joint host-scoped retrieval preserves digest/segment block dedupe and content-hash collapse.
+// @subject packages/server/src/domain/search/verbs/corpus.ts
+
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";

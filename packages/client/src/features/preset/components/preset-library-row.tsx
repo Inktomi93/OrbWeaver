@@ -65,6 +65,7 @@ import { presetRowSubtitle } from "../lib/preset-row-view.ts";
  *  click into the menu that already offered it. */
 const PRESET_CLUSTER_SLOTS = 2;
 
+// @orb-waive contract-structural-copy(PresetRowItem): baselined when the gate widened; burn-down item 904.
 /** The minimal preset shape the row renders (a `PresetSummary` — tRPC-inferred at the surface). */
 interface PresetRowItem {
   readonly id: PresetId;

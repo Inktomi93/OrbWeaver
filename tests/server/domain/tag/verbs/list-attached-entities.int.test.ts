@@ -1,3 +1,6 @@
+// verb: listAttachedEntities — the destinations a label reaches, per target kind, scoped to the label's owner.
+// @subject packages/server/src/domain/tag/verbs/list-attached-entities.ts
+
 import type { TagAttachedEntity, TagTargetRef } from "@orb/contracts/tag";
 import { TAG_REACH_PREVIEW_LIMIT, TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { characterTags, personaTags, presetTags, worldBookTags } from "@orb/db";

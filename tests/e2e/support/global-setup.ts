@@ -71,11 +71,13 @@ const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringif
 /** A batch GET query against a SPECIFIC base URL (mode-scoped — globalSetup seeds each stack by its origin). */
 async function query<T>(baseUrl: string, procedure: string, input: unknown): Promise<T> {
   const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`);
+  // @orb-waive no-test-fabrication(readonly { result?: { data?: T }; error?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
   const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
     throw new Error(`e2e seed: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
   }
+  // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
   return entry.result.data as T;
 }
 
@@ -86,11 +88,13 @@ async function mutation<T>(baseUrl: string, procedure: string, input: unknown): 
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ 0: input }),
   });
+  // @orb-waive no-test-fabrication(readonly { result?: { data?: T }; error?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
   const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
     throw new Error(`e2e seed: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
   }
+  // @orb-waive no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
   return entry.result.data as T;
 }
 

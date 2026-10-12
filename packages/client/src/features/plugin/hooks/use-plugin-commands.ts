@@ -20,6 +20,8 @@ import { sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
+// @orb-waive no-inline-wire-interface(PluginCommandView): baselined when the gate widened; burn-down item 904.
+// @orb-waive contract-structural-copy(PluginCommandView): baselined when the gate widened; burn-down item 904.
 /** One registered plugin command as both surfaces read it — the wire projection, unchanged. `args` is the #791
  *  DECLARED typed-arg grammar (empty when the command declared none), read by the palette to build its typed
  *  input strip and by the composer to parse/complete `name=value`. */

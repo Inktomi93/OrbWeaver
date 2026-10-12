@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: tests
+lane: wt/agent-a9105ec4f81eb78cd
 plan: test-mirror
 ---
 
@@ -25,6 +26,6 @@ One kernel; every contrast test calls it; the diverging knee is gone; the kit su
 
 Filled at landing: what ran and where its output is.
 
-Owner ruling 2026-10-11: yes, add fixed OKLab known-answer vectors as the independent oracle for the kit colour maths. The partial branch 63a00505fb+cc1cffc47f does not carry them; the item stays open until they land.
+Owner ruling: yes, add fixed OKLab known-answer vectors as the independent oracle for the kit colour maths. The partial branch 63a00505fb+cc1cffc47f does not carry them; the item stays open until they land.
 
 Partial merged 74c87d5967 (63a00505fb, verifier CONFIRMED): every hand-copied kernel in tests/ now uses tooling/src/floor/instrument/wcag.ts node-side. Still open: (a) the owner-ruled independent OKLab known-answer vectors; palette-contrast.suite.test.ts grades the kit derivation with the kit's own oklchToSrgb/compositeSrgb, and the only independent check is the pure-red answer at tests/kit/theme-derivation/index.test.ts:200; (b) the kit's second WCAG engine (packages/kit/src/theme-derivation/index.ts:253-266) still serves tests/kit/theme-derivation/index.test.ts, accepted-base-foreground.suite.test.ts and tests/ui/content/theme-scope/clamp.test.ts; (c) stale "house oklch math" comments at palette-contrast.suite.test.ts:6 and :34-36 and tests/ui/tokens/index.test.ts:196-198; (d) the literal floors list from the lane report.

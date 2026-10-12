@@ -1,3 +1,7 @@
+// @orb-waive-file testid-typed-only-stories("draft-live-value"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("draft-save-count"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("draft-save-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("draft-server-value"): baselined when the gate widened; burn-down item 906.
 import { hashServerBaseline } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { createEntityDraftStore } from "@orb/client/state";

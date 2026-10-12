@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
+status: superseded
 updated: 2026-10-11
+superseded-by: docs/adr/0315-persona-pointers-one-writer-pin-read-through-chat.md
 ---
 
 # Persona pointers have one writer each, the default decides new chats, and the pin holds

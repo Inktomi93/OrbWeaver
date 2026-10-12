@@ -1,3 +1,6 @@
+// @orb-waive-file no-test-fabrication(MembershipReport): baselined when the gate widened to value casts; burn-down item 906.
+
+// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
 // The PERMANENT PIN for the `tests-membership` stage's #1228 triple-slash-lib-leak tripwire
 // (`findTripleSlashLibLeaks`, tooling/src/verify/ops/tests-type-membership.ts). What it defends, and why:
 //

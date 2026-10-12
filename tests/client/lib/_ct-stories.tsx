@@ -6,6 +6,38 @@
 // QueryClient (the one whose MutationCache.onError reads `meta.errorToast`), binds `notify` to a real
 // toast manager, and fires a mutation whose `meta.errorToast` message must reach a rendered toast.
 
+// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("audit-pause-animation"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("audit-pause-flaggers-settled"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("blocked-animation"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("bridge-installed"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("bridge-motion"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("bridge-ready-shared"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("carve-out-colour-card"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("carve-out-geometry-card"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("checkpoint-animation"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("cls-victim"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("dead-class-drain-receipt"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("dead-class-drain-receipts"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("dead-class-reports"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("devtool-scan-complete"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("dirty-color-transition"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("dirty-height-target"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("grace-elapsed"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("motion-flaggers-settled"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("out-of-flow-canvas"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ratified-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rearm-animation"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("reflow-target"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rescan-nudge"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("retained-chat-section"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("route-mounted"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("tsd-main-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("unreserved-img"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("virtual-row"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("waapi-animation"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("waapi-blocked-frame-order"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("waapi-effects-retired"): baselined when the gate widened; burn-down item 906.
 import { createAppQueryClient } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";

@@ -15,6 +15,7 @@
 // CT rather than a unit test for the same reason it always was: the claim is about a RENDERED first frame
 // with the config withheld.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";

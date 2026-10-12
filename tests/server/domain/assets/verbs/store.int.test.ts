@@ -6,6 +6,7 @@
 //     insert, not the CAS write, so the emit — and therefore the indexer — is never skipped for it.
 //   • `enforceMagic` rejects a mislabeled binary BEFORE it reaches CAS (invariant #6).
 //   • a card blob's CAS hash == sha-256 of the whole file (== `characters.importHash`) — invariant #10.
+// @subject packages/server/src/domain/assets/verbs/store.ts
 
 import { createHash } from "node:crypto";
 import { assets } from "@orb/db";

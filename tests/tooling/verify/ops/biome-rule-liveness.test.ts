@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ overrides: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE RULE HALF's permanent pin, rebuilt on its successor (#2074). `bd0a01d6b4` deleted
 // `biome-grant-liveness` arm six under §12.3 (a final policy may not write a file and spawn a child) and
 // deleted these controls with it, leaving the question UNASKED: path liveness proves the granted SUBJECT
@@ -199,8 +201,10 @@ test("the two failure paths do not interact: a malformed config refuses BEFORE t
     caught = error;
   }
   expect(caught).toBeInstanceOf(Error);
+  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect((caught as Error).message).toContain("biome.json did not parse as JSON");
   // V8's position detail is preserved rather than swallowed.
+  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect((caught as Error).cause).toBeInstanceOf(SyntaxError);
 });
 

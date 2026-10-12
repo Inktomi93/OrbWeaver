@@ -64,6 +64,7 @@ const TAG_SUGGESTION_SKELETON_ROWS = 1;
  *  a new defect one screen over. */
 export const HERO_ECHO_CLASS = "shell-character-hero-echo";
 
+// @orb-waive contract-structural-copy(CharacterHeroDetail): baselined when the gate widened; burn-down item 904.
 /** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {
   readonly id: CharacterId;

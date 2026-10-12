@@ -2,6 +2,7 @@
 // The split and the shelf's own reflow grids share one container step (`pairWide`); below it Home is one
 // column, hearth first. Measured with the roster library a new account is seeded with, for a full and a fresh house.
 
+// @orb-waive-file platform-spellings(children): baselined when the gate widened; burn-down item 906.
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { SEED_MANIFEST } from "@orb/default-content";

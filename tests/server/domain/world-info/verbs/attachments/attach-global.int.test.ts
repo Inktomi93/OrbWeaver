@@ -1,5 +1,6 @@
 // verb: attachGlobal — mark an owned book global. Load-bearing: the gate is plain book ownership (a foreign
 // book is NotFound); it is idempotent; the book then appears in listGlobal.
+// @subject packages/server/src/domain/world-info/verbs/attachments/attach-global.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

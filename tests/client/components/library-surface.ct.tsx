@@ -38,6 +38,7 @@ test("F-4: the state column lands at ONE x on every row, whatever each row's clu
 
 test("F-5: exactly one radio is tabbable, and it is the checked one", async ({ mount, page }) => {
   await mount(<LibraryListHarness />);
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   const tabIndexes = await page
     .getByRole("radio")
     .evaluateAll((els) => els.map((el) => ({ checked: el.getAttribute("aria-checked"), tabIndex: (el as HTMLElement).tabIndex })));
@@ -46,6 +47,7 @@ test("F-5: exactly one radio is tabbable, and it is the checked one", async ({ m
   // The group itself is not a tab stop — the roving radio is. (The container carries no `tabindex`
   // ATTRIBUTE at all, which resolves to the -1 property a non-focusable div has; asserting the property is
   // what makes this true rather than accidentally true.)
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect
     .poll(async () => await page.getByRole("radiogroup", { name: "Active preset for generation" }).evaluate((el) => (el as HTMLElement).tabIndex))
     .toBe(-1);
@@ -86,6 +88,7 @@ test("#481 arrow keys move FOCUS ONLY — a walk across the whole group commits 
 
   // The tab stop roves WITH FOCUS (not with the check): still exactly one, and it is where the user stands,
   // so tabbing out and back cannot teleport them to the checked row mid-walk.
+  // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
   const tabIndexes = await page.getByRole("radio").evaluateAll((els) => els.map((el) => (el as HTMLElement).tabIndex));
   expect(tabIndexes.filter((t) => t === 0)).toHaveLength(1);
   expect(tabIndexes[1]).toBe(0);

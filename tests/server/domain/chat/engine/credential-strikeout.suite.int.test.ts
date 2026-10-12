@@ -18,6 +18,8 @@
 // the generation actually authenticated with (never a re-resolve, which is how a rotate loses a good key); and
 // the strike is a PASSENGER — it can never alter, mask or delay the failure the caller is about to see.
 
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";

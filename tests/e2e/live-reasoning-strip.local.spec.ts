@@ -23,6 +23,7 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

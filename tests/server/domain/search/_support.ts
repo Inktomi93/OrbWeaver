@@ -60,9 +60,11 @@ import type { SearchContext, SearchService } from "#server/domain/search/index.t
 import { createSearchService } from "#server/domain/search/index.ts";
 import { generationIdOf, vectorSpaceFingerprint } from "#server/primitives/embedding-generation/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
@@ -392,17 +394,18 @@ interface SeedCharacterOverrides {
 /** Insert a flat `characters` row (the producer the card embedding + summary FK to). */
 export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_seed");
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(id),
-    ownerId: overrides.ownerId,
-    name: overrides.name ?? "Seed",
-    description: overrides.description ?? null,
-    synthetic: overrides.synthetic ?? false,
-    contentHash: "seed_content_hash",
-    avatarAssetId: overrides.avatarAssetId ?? null,
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(id),
+      ownerId: overrides.ownerId,
+      name: overrides.name ?? "Seed",
+      description: overrides.description ?? null,
+      synthetic: overrides.synthetic ?? false,
+      avatarAssetId: overrides.avatarAssetId ?? null,
+      createdAt: FROZEN_AT,
+    }),
+  );
   return id;
 }
 

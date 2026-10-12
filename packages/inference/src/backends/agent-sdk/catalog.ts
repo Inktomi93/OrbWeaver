@@ -97,6 +97,7 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
   }
 }
 
+// @orb-waive contract-structural-copy(apiKeySource): baselined when the gate widened; burn-down item 904.
 async function reduceVerifyStream(stream: Query): Promise<{ apiKeySource: string; reply: string; ok: boolean; costUsd: number }> {
   let apiKeySource = "unknown";
   let reply = "";

@@ -2,6 +2,7 @@
 // stories reach feature internals the front door doesn't re-export (the section BODIES are mounted by the
 // settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
 
+// @orb-waive-file testid-typed-only-stories("operations-connections"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider, useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
 import { TooltipProvider } from "@orb/ui/tooltip";

@@ -22,6 +22,7 @@ function buildThemePatch(
   input: UpdateThemeInput,
   now: number,
 ): {
+  // @orb-waive contract-structural-copy(name): baselined when the gate widened; burn-down item 904.
   name?: string;
   override?: ThemeOverride;
   css?: string | null;

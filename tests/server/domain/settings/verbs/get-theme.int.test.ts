@@ -1,4 +1,5 @@
 // verb: getTheme — one theme readable by this owner (own or seed); ThemeNotFoundError for missing/foreign.
+// @subject packages/server/src/domain/settings/verbs/get-theme.ts
 
 import { describe } from "vitest";
 import { ThemeNotFoundError } from "#server/domain/settings/contract/errors.ts";

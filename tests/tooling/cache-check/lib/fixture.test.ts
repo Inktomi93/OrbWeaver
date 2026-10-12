@@ -1,3 +1,4 @@
+// @orb-waive-file platform-spellings(ran): baselined when the gate widened; burn-down item 906.
 import type { CacheCase, CasePlan, ProbeStep } from "@orb/tooling/cache-check";
 import { CACHE_CASES, CASE_PLANS, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
 import { expect, test } from "../../../support/tool-fixtures.ts";
