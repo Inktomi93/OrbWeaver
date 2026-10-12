@@ -1563,14 +1563,21 @@ function maintainedRulePacks() {
       },
     },
     {
+      // The guard's operand-tail regex ends in `>\S*` and `\d*>>?&?\d*`, which overlap on `>>&1`. The two
+      // alternatives accept different digit-prefixed redirects (`2>file` matches only one), so merging them
+      // changes what the guard strips; tests/tooling/tool-guard.int.test.ts pins the behaviour.
+      files: [".claude/hooks/tool-guard.mjs"],
+      rules: { "regexp/no-dupe-disjunctions": "off" },
+    },
+    {
       // The regex guard's own test feeds it a catastrophic pattern on purpose.
-      files: ["tests/server/primitives/regex.test.ts"],
+      files: ["tests/legacy/server/primitives/regex.test.ts"],
       rules: { "regexp/no-misleading-capturing-group": "off" },
     },
     {
       // Super-linear backtracking is an attack on input the author does not control. Shipped packages parse
       // user and provider text; tooling, tests and scripts parse the repository's own bounded text.
-      files: ["tooling/**", "tests/**", "scripts/**"],
+      files: [".claude/**", "tooling/**", "tests/**", "scripts/**"],
       rules: { "regexp/no-super-linear-backtracking": "off", "regexp/no-super-linear-move": "off" },
     },
   ];
