@@ -126,7 +126,7 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 3. Record the starting HEAD before integration. Check that no whole-tree check is reading the checkout.
 4. Merge the frozen batch. Confirm HEAD moved and review conflict resolutions and shared composition changes.
 5. Commit integration changes, then record the ending HEAD. Keep the tested checkout clean.
-6. Establish complete application static evidence using `pnpm check --application` and the qualification contract in `UNIFIED-VERIFICATION-DESIGN.md` §4.4. Respect owner-directed hosted execution.
+6. Defer whole-tree static evidence to the pre-push check: run `pnpm check --application` once on main before the owner pushes, not after each train (D317). CI qualifies the push.
 7. Run `pnpm test:ratchets`, or credit matching completed broader evidence that actually includes its current member population.
 8. Run affected integration and rendered checks not established by matching lane evidence. Weekly checker proof remains independent of product qualification.
 9. Read completed artifacts from the printed slots. Return concrete failures to their owning lanes together.

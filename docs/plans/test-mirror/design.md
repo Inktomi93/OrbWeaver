@@ -25,10 +25,12 @@ Do the steps in order. A later step may run in parallel only where its row says 
 
 ### Live state
 
-- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/node/fixtures.ts` barrel. Item 899 (law rewrite, reach gate, waiver budget, and the gates for Spine-Testing section 10), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
-- In flight: item 900 core (gate extensions, baselines, catalog, `pnpm ast antipatterns`), reworked after a refuted review.
-- Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), items 914, 915, 920 and 921.
-- Next: item 890 (move copied logic to its owning layer, starting with the four widest server harnesses), item 888, item 892, item 894, item 901, item 902, then item 898 after item 887.
+- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests. Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `@orb/testkit/node/fixtures.ts` barrel. Items 888, 889 (with 476), 891, 893, 894, 903, 914, 917, 918, 921, 922, 924, 925, 929, 937, 938, 942, 947, 949 and 950. The waiver budget is keyed by application and implementation parts (item 925, `gate-runtime-standardization.md` section 5).
+- Merged, not yet closed: item 901 (`tests/support` is the world-split `@orb/testkit` package) closes when 890 moves the compose closures to their owning layer. Item 899's second half and item 900's core are merged; check each done line against the tree, then land them. Item 915 removed the verb grants; the client, module and row grant files remain.
+- In flight, each on its work item's lane: item 890 in three lanes (server rows; client, story and UI rows; contracts, inference and tooling rows), 892 with 906, 904 with 905, 923 with 945, 926 with 944, 928, 932, 939, 948 and 887.
+- Waiting: 946 after 906; 952 after 923; 898 after 887; 951 after the test lanes above merge, as one codemod commit.
+- Next phase: [test-foundation](../test-foundation/design.md). It owns the server harness rebuild, so item 890 stops at its verifier fixes and its remaining server harness rows move there, and one code-facts engine for codemods, `pnpm ast` and the gates.
+- Every lane gets a fresh-context verifier before merge. A verifier finding about the item is fixed in that item; an unrelated one becomes a new item.
 
 ### Rules that hold during the work
 

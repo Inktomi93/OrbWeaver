@@ -17,9 +17,6 @@
 // of its own. Their old home, `tests/client/features/settings/_ct-stories.tsx`, reached `ConfigHostStory`
 // across a directory; here it is a local function.
 
-// @orb-waive-file testid-typed-only-stories("looks-narrow-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("looks-tail"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("scrolling-host"): baselined when the gate widened; burn-down item 906.
 import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";
@@ -39,6 +36,7 @@ import {
 import { placeholderConfigGroups, realConfigGroups } from "@orb/testkit/browser/ct-config-groups.ts";
 import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -196,7 +194,7 @@ export function ConfigHostInScrollingHostStory({ target = "appearance" }: { read
     <CtDataProviders>
       <CtRealConfigSectionRegistry>
         <TooltipProvider>
-          <div data-testid="scrolling-host" style={{ height: 560, overflowY: "auto", position: "relative", width: 600 }}>
+          <div data-testid={storyTestId("scrollingHost")} style={{ height: 560, overflowY: "auto", position: "relative", width: 600 }}>
             <div style={{ height: "100%" }}>
               <ConfigContentSurface groups={groups} />
             </div>
@@ -418,7 +416,7 @@ export function LooksSectionNarrowStory(): ReactElement {
   return (
     <CtDataProviders>
       <TooltipProvider>
-        <div data-testid="looks-narrow-host" style={{ overflow: "visible", width: 430 }}>
+        <div data-testid={storyTestId("looksNarrowHost")} style={{ overflow: "visible", width: 430 }}>
           <AppearanceLooksSection />
         </div>
       </TooltipProvider>
@@ -441,7 +439,7 @@ export function LooksSectionReopenStory(): ReactElement {
         <TooltipProvider>
           <div style={{ width: 760 }}>
             <AppearanceLooksSection />
-            <div data-testid="looks-tail" style={{ height: 8 }} />
+            <div data-testid={storyTestId("looksTail")} style={{ height: 8 }} />
           </div>
         </TooltipProvider>
       </CtDataProviders>

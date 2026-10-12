@@ -19,7 +19,7 @@ import { readConcurrencyProfile } from "../../floor/host/concurrency-profile.ts"
 import type { PortOwner } from "../../floor/host/platform.ts";
 import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../floor/host/ports.ts";
-import type { StageAllocation, StageAuthMode, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
+import type { StageBandAcquireInput, StageBandAcquisition, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
 import { allocateStageBand, isSharedReuseCandidate, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";
 import { liveSessionNames } from "./session-registry.ts";
@@ -153,17 +153,7 @@ export function claimRow(claim: {
  *  `claim` is the caller's row-builder for the band it was given (the boot has not happened yet, so the row
  *  it writes is provisional — ops/stage.ts rewrites it with the real pid once the stack is up, and clears
  *  it if the boot throws). */
-export function acquireStageBand(input: {
-  readonly home: string;
-  readonly root: string;
-  readonly checkout: string;
-  readonly targetSha: string;
-  readonly dirty: boolean;
-  readonly fresh: boolean;
-  readonly nowMs: number;
-  readonly auth: StageAuthMode;
-  readonly claim: (band: number) => StageRow;
-}): { readonly allocation: StageAllocation; readonly views: readonly StageBandView[] } {
+export function acquireStageBand(input: StageBandAcquireInput): StageBandAcquisition {
   return withBandsLock(input.home, () => {
     const rows = readBands(input.home);
     const views = stageBandViews({ rows, root: input.root, checkout: input.checkout, targetSha: input.targetSha, nowMs: input.nowMs });

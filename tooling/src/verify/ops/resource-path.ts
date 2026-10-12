@@ -19,6 +19,7 @@
 import { lstatSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { runGit } from "../../floor/git/git.ts";
 import { ignoredBuildOutputClassifier } from "../../floor/prose/prose-references.ts";
 import type { ResourceLoad } from "../contract/resource.ts";
 import type { AuthoredPathIdentity, AuthoredPathIndex, AuthoredPathSelectorForm } from "../contract/resource-path.ts";
@@ -103,8 +104,9 @@ function identify(rootAbs: string, rootReal: string, selector: string, ignoredBu
   return link.isSymbolicLink() ? linkIdentity(rootReal, subject) : nodeIdentity(subject, link);
 }
 
-/** Resolve every demanded selector. The partition is TOTAL: one identity per distinct selector, always. */
-export function loadAuthoredPaths(root: string, selectors: readonly string[]): ResourceLoad<AuthoredPathIndex> {
+/** Resolve every demanded selector. The partition is TOTAL: one identity per distinct selector, always.
+ *  `git` is the injected Git door the ignored-output classifier queries through; the provider passes none. */
+export function loadAuthoredPaths(root: string, selectors: readonly string[], git?: typeof runGit): ResourceLoad<AuthoredPathIndex> {
   const distinct = [...new Set(selectors)].toSorted((left, right) => left.localeCompare(right));
   if (distinct.length === 0) {
     return { status: "empty", paths: [], members: 0, reason: "authored-path identity was demanded for zero selectors" };
@@ -121,7 +123,7 @@ export function loadAuthoredPaths(root: string, selectors: readonly string[]): R
       reason: `invocation root cannot be resolved: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
-  const ignoredBuildOutput = ignoredBuildOutputClassifier(rootAbs);
+  const ignoredBuildOutput = ignoredBuildOutputClassifier(rootAbs, git);
   const identities = distinct.map((selector) => identify(rootAbs, rootReal, selector, ignoredBuildOutput));
   // `paths` stays EMPTY on purpose. A demand door owns no population, and publishing the selectors it just
   // judged as resource paths would put a dead or escaping selector into the policy's effective population —

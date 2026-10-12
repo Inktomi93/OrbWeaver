@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-12
 priority: P1
 area: tests
-lane: wt/agent-a8fdee6ee7df93483
+blocked: on 890
 plan: test-mirror
 ---
 
@@ -23,5 +23,7 @@ Tests sit outside the cake with access to everything and no rule to use what the
 The testkit package exists with node, browser and iso exports and no root entry; each world compiles under its own program and the direction rule fires on a planted node-to-browser import; the copied server compose closures named in the test-mirror plan are moved to their owning layer and called by both sides; the two door exceptions are explicit rules with planted pins; Core-0 and Spine-Testing describe the shape.
 
 ## Evidence
+
+Package merged in d114fd2610 and de4ba441f2 and verified. Closes when item 890 moves the copied compose closures to their owning layer.
 
 Filled at landing: what ran and where its output is.

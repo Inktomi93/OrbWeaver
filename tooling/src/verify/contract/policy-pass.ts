@@ -186,7 +186,8 @@ export interface PolicyPassInput {
   /** Fixture overlays/parser injection cannot override this invocation's root or reuse a prior host. */
   readonly resourceOptions?: Omit<ResourceHostOptions, "root">;
   readonly reviewedGrants: readonly ReviewedGateGrant[];
-  /** The committed waiver ratchet; only the structure and scoped command runners pass it. */
+  /** The committed waiver ratchet; only the structure and scoped command runners pass it. The pass judges the
+   *  application part when `applicationPaths` is set, and both parts otherwise. */
   readonly waiverBudget?: WaiverBudget;
   readonly failOnWarnings: boolean;
 }

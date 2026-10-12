@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: doing
+status: blocked
 updated: 2026-10-12
 priority: P2
 area: tooling
-lane: wt/agent-a63768b4c4e7202f1
+blocked: on 954
 plan: test-mirror
 ---
 
@@ -23,5 +23,7 @@ Owner ruling: judge by type and declaration; a field-name overlap threshold is a
 test-hand-shape flags a hand shape whose annotated or passed value has a production type it diverges from or copies, the overlap threshold is gone, WireCapture-style drift still flags, and an unrelated generic row passes.
 
 ## Evidence
+
+Five legs on branch wt/agent-a63768b4c4e7202f1 did not converge: the declaration arm flags coincidental option shapes, and the binding arm costs several minutes. The redesign moves to item 954, one shape-relation fact in the floor shared with `pnpm ast respell` and `contract-structural-copy`.
 
 Filled at landing: what ran and where its output is.

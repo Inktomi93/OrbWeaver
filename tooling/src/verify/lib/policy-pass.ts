@@ -89,7 +89,10 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     ordinaryWaiverSources: waiverCarriers.sources,
     ownerResults: policies.map(authorityOwnerResult),
     reviewedGrants: input.reviewedGrants,
-    ...(input.waiverBudget === undefined ? {} : { waiverBudget: input.waiverBudget }),
+    // The selection fixes the judged population; no caller can name one its pass did not walk.
+    ...(input.waiverBudget === undefined
+      ? {}
+      : { waiverBudget: { population: input.applicationPaths === undefined ? "repository" : "application", budget: input.waiverBudget } }),
     failOnWarnings: input.failOnWarnings,
   });
   const sortedErrors = toolErrors.toSorted(
