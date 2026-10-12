@@ -6,20 +6,17 @@
 // one consumer (`gates/freeze-provenance-write-pairing.ts`) covers it transitively through its own rows;
 // this file is the reader's own, so the boundary survives a change to that policy.
 
+import { MINI_DRIZZLE_ORM_PATH, MINI_DRIZZLE_ORM_SOURCE } from "@orb/testkit/node/mini-drizzle-orm.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import { readDrizzleWriteTable } from "../../../../tooling/src/floor/code-facts/drizzle-write-chain.ts";
 
-// The write verbs are drizzle's only when drizzle-orm declares them, so every fixture carries a drizzle module.
-const DRIZZLE_SOURCE =
-  "export declare class Db {\n  insert(table: unknown): Db;\n  update(table: unknown): Db;\n  delete(table: unknown): Db;\n  where(condition: unknown): Db;\n" +
-  "  values(value: object): Db;\n  set(value: object): Db;\n}\n";
 const PRELUDE = 'import { messageVariants } from "@orb/db";\nimport type { Db } from "drizzle-orm";\ndeclare const db: Db;\n';
 
 function sourceOf(files: Readonly<Record<string, string>>, entry = "use.ts"): SourceFile {
   const project = new Project({ useInMemoryFileSystem: true });
-  project.createSourceFile("/repo/node_modules/drizzle-orm/index.ts", DRIZZLE_SOURCE);
+  project.createSourceFile(`/repo/${MINI_DRIZZLE_ORM_PATH}`, MINI_DRIZZLE_ORM_SOURCE);
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`/repo/${path}`, source);
   }

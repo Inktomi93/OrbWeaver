@@ -13,6 +13,7 @@ export declare class Builder {
 export declare class Db {
   insert(t: unknown): Builder;
   update(t: unknown): Builder;
+  delete(t: unknown): Builder;
   select(shape?: unknown): { from(t: unknown): unknown[] };
   run(statement: unknown): unknown;
   execute(statement: unknown): unknown;
