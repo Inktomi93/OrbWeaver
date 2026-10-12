@@ -3,6 +3,7 @@ import { characterProvenanceOf } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 
@@ -11,8 +12,6 @@ import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 // the branded `CharacterId`/`TagId` — those brands are compile-time only and `routeTrpc` fulfills raw
 // JSON, so a plain string is the honest wire shape) — the same "fixtures are plain literals, not the
 // support/factories DB-row builders" precedent `features/chat/fixtures.ts` documents.
-
-const FROZEN_AT = 1_750_000_000_000;
 
 /** #865 — what a card with no import URL and no shipped creator mark reads as. Named (rather than inlined)
  *  so the widened-literal spread inside {@link makeCharacterSummary}'s `base` keeps the closed union. */
@@ -116,7 +115,7 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     importedFrom: null,
     importHash: null,
     contentHash: "hash_ct_1",
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
     avatarHash: null,
     tags: [],
     ...overrides,
@@ -144,7 +143,7 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     themeOverride: null,
     avatarAssetId: null,
     avatarHash: null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
     tokenSize: 42,
     tags: [],
     elevatorPitch: null,

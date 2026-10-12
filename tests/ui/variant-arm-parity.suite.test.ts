@@ -24,8 +24,8 @@ import { DESIGN_AUDIT_RULE_IDS } from "@orb/tooling/ui-audit";
 import { describe } from "vitest";
 import { expect, test } from "../support/fixtures.ts";
 import { introspectTv, JUDGED_RULES, OUT_OF_SCOPE_RULES, VARIANT_ARM_STORY_DEFS, WITHHELD_RULES, WITHHELD_VARIANT_SOURCES } from "./variant-arm-matrix.def.ts";
+import { STORY_KEYS } from "./variant-arm-matrix.fixtures.ts";
 import { inactiveClassification } from "./variant-arm-matrix.gather.ts";
-import { STORY_KEYS } from "./variant-arm-matrix.keys.ts";
 import type { DiscoveredTv } from "./variant-arm-matrix.plan.ts";
 import { armPlanFor, buildParityReport, unplannedValues } from "./variant-arm-matrix.plan.ts";
 

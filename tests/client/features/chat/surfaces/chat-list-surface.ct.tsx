@@ -21,7 +21,7 @@
 // real. `chat.getChat` ONLY — the owner refused warming `chat.listMessages` too (the measured trade is in
 // `use-prefetch-room.ts`); the map's `listMessages` row rides along because the two are one feed.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
@@ -1073,7 +1073,7 @@ const NO_MOVE_PX = 1;
 test("Arm B: the strip RESERVES its box while its reads are in flight — the search field does not move on arrival", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   await page.route("**/api/trpc/**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, PENDING_HOLD_MS));
+    await sleep(PENDING_HOLD_MS);
     await route.fallback();
   });
 

@@ -5,6 +5,7 @@ import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
@@ -19,7 +20,7 @@ for (const recovery of ["live", "lag", "reconnect"] as const) {
       seq: 1,
       readAt: 1_750_000_000_001,
       dismissedAt: null,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
       actionable: true,
     };
     const historical: InboxView = {

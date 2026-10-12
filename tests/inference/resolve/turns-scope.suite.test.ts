@@ -3,10 +3,11 @@
 // refuses what the floor folds (`@ai-sdk/google` throws on a system message after the first turn). Resolved
 // through the real runtime, so the scope is proven where the capability is built.
 
-// @orb-waive-file no-loose-id-cast(credentialId): baselined when the gate widened; burn-down item 906.
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, turnsLevelFor } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
+import type { UserCredentialId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
@@ -28,7 +29,7 @@ async function generationFor(args: {
     providerId: args.providerId,
     model: args.model,
     baseUrl: args.baseUrl ?? null,
-    ...(credentialId === null ? {} : { credentialId: credentialId as never }),
+    ...(credentialId === null ? {} : { credentialId: castId<UserCredentialId>(credentialId) }),
   });
   stores.connections.rows.set(row.id, row);
   const secrets = new Map(credentialId === null ? [] : [[credentialId, fakeApiKeySecret("sk-test")]]);

@@ -23,10 +23,10 @@ import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
-const NOW = 1_750_000_000_000;
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const PUBLIC_CALLBACK = "https://app.example/api/auth/oidc/callback";
 const LOOPBACK_CALLBACK = "http://localhost:8788/api/auth/oidc/callback";
@@ -73,7 +73,7 @@ interface Flow {
 
 async function flow(): Promise<Flow> {
   const db = await freshDb();
-  const now = (): number => NOW;
+  const now = (): number => FROZEN_AT_MS;
   const sessions = createSessionsService({ db, now, sessionSecret: PEPPER, seedUserConnections: () => Promise.resolve() });
   const ownerClaim = createOwnerClaimCode();
   const claims = { current: claimsFor("owner") };

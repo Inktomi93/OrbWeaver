@@ -6,15 +6,16 @@ import type { QueryClient } from "@tanstack/react-query";
 import { bootReads } from "./boot-reads.ts";
 import { perfMeasureFromLoad } from "./perf-marks.ts";
 
-const READY_ATTR = "data-app-ready";
+/** The `<html>` attribute the signal stamps; the readiness CTs select on it through this constant. */
+export const READY_ATTR = "data-app-ready";
 // The grace before the first "no initial reads at all" check. An app that never fetches is ready here.
 const READY_GRACE_MS = 3000;
 // The hard ceiling. Past this the flag goes up REGARDLESS so no waiter ever hangs — but it goes up carrying
 // `degraded`, because at that point the reads have NOT settled and the flag is no longer a settle claim.
 const READY_CEILING_MS = 20_000;
 /** `data-app-ready` values. Presence means "stop waiting"; the VALUE is whether that was a real settle. */
-const READY_SETTLED = "";
-const READY_DEGRADED = "degraded";
+export const READY_SETTLED = "";
+export const READY_DEGRADED = "degraded";
 
 /** Resolves at initial settlement or the bounded degraded fallback. The DOM marker can later recover
  * from degraded; the dev bridge exposes this same one-shot Promise. */

@@ -28,6 +28,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../../fixtures.ts";
@@ -43,16 +44,7 @@ const BAND_DOOR = /New at the top of the list/u;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-/** A FROZEN reference instant (`test-determinism` — no ambient `Date.now()` in a test). Every fixture below
- *  is an offset from it, so the shelves' ORDER and the "· N chats" stamps are the same on every run.
- *
- *  The one thing this cannot pin is the week's-additions foot line: it compares `createdAt` against
- *  `timeLib.now()`, which is the browser's real clock inside the mounted app and has no injection seam in a
- *  CT (`timeLib` is a module singleton). Rows anchored here are years old, so that line is deliberately
- *  ABSENT from these mounts and takes its rendered receipt from `snap --isolated` instead — stating the
- *  limit rather than reaching for an ambient clock that would make every other pin here time-dependent. */
-const FROZEN_AT = 1_750_000_000_000;
-const NOW = FROZEN_AT;
+const NOW = FROZEN_AT_MS;
 
 function character(name: string, overrides: Partial<CharacterSummaryFixture> = {}): CharacterSummaryFixture {
   return makeCharacterSummary({ id: `char_${name.toLowerCase().replaceAll(" ", "_")}`, name, ...overrides });

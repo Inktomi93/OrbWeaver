@@ -14,10 +14,10 @@
 // straight from the server as ground truth, and some drive a turn via chat.send with an explicit
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
-// @orb-waive-file no-inline-types(ActorRefInput): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
 import type { ContextLimitKind } from "@orb/contracts/chat";
 import type { ResponseCacheSettings } from "@orb/contracts/preset";
+import type { RpgActorRef } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
@@ -928,20 +928,13 @@ export function setFeatureKnobs(
 // the deterministic proofs that a landed write is FE=BE=DB consistent for EVERY plane, without depending on the
 // small 8B decomposing that plane (the honest-arms ceiling, plan-for-small-hardware). ──
 
-/** An actor ref as the wire union accepts it (`rpgActorRefSchema`). `kind` stays `string` (no-inline-union-
- *  redecl posture); the spec passes the homed literal. */
-export type ActorRefInput =
-  | { readonly kind: "character"; readonly characterId: CharacterId }
-  | { readonly kind: "user"; readonly userId: UserId }
-  | { readonly kind: "npc"; readonly npcKey: string };
-
 /** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
  *  className/attributes/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
  *  its ONLY write door). (`poolDefs` retired with the tracked-field unification — trackers are host-defined
  *  through `rpg.updateConfig.patch.trackers`, never through a sheet patch.) */
 export function patchSheet(
   chatId: ChatId,
-  actorRef: ActorRefInput,
+  actorRef: RpgActorRef,
   patch: {
     readonly className?: string;
     readonly attributes?: Readonly<Record<string, number>>;

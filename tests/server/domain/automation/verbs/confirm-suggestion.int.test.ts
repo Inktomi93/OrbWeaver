@@ -13,6 +13,7 @@
 // It drives the REAL dispatch with the REAL arm executors over a real db: the only fake is the injected
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
@@ -768,11 +769,7 @@ describe("#1425 the confirmed fire row and the rule stamp land together or not a
 describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", () => {
   test("the confirm's arm starts only after the bus event's arm finishes -- no interleave", async () => {
     const order: string[] = [];
-    let releaseBus = (): void => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const busHeld = new Promise<void>((done) => {
-      releaseBus = done;
-    });
+    const { promise: busHeld, resolve: releaseBus } = Promise.withResolvers<void>();
     const base = await ruleFixture();
     const { ops, turns } = capturingOps(base.ctx.ops);
     const realArm = createArmExecutors({
@@ -844,16 +841,14 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     // 2. Park a bus event inside the bookkeeping arm.
     hold = busHeld;
     const bus = fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
 
     // 3. The host says yes WHILE that arm is parked.
     const confirm = fixture.svc.confirmSuggestion({
       principal: principal(fixture.host),
       suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
     });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     releaseBus();
     await Promise.all([bus, confirm]);
 

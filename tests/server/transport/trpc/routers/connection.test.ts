@@ -10,6 +10,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ConnectionService, ConnectionView } from "@orb/server/domain/connection";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
@@ -257,8 +258,8 @@ describe("connection rows — the strict output boundary", () => {
     modelCheck: "unchecked",
     allowBackground: false,
     promptCache: null,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     providerLabel: "OpenRouter",
     tasks: ["chat"],
   };

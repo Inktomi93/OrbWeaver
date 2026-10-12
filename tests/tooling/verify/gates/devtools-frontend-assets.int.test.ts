@@ -8,14 +8,13 @@
 // nothing forever — silent-because-dead reading exactly like silent-because-clean. The two arms below are a
 // virtual OVERLAY on the real root: the clean one asserts the live verdict and the receipt census, the
 // broken one asserts the policy REPORTS on the real subject.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { DEVTOOLS_CLOSURE_PIN, DEVTOOLS_CLOSURE_ROOT } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
-import { gate as devtoolsFrontendAssets } from "../../../../tooling/src/verify/gates/devtools-frontend-assets.ts";
+import { gate } from "../../../../tooling/src/verify/gates/devtools-frontend-assets.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -35,8 +34,8 @@ function liveMemberCount(directory = CLOSURE_ROOT): number {
 
 function runOverReal(overlay: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
   return runPolicyPass({
-    knownPolicies: [devtoolsFrontendAssets],
-    policies: [devtoolsFrontendAssets],
+    knownPolicies: [gate],
+    policies: [gate],
     root: REPO_ROOT,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     resourceOptions: { overlay },
@@ -46,7 +45,7 @@ function runOverReal(overlay: Readonly<Record<string, string>>): ReturnType<type
 }
 
 test("devtools-frontend-assets keeps its three-arm proofs", () => {
-  expect(verifyPolicyProofs([devtoolsFrontendAssets])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("the policy reaches a verdict on the REAL vendored closure and receipts the members it measured", () => {

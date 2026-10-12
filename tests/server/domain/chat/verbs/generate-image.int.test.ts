@@ -4,8 +4,6 @@
 // image (D51 — never stored blocks), and `messageCommitted` is emitted. The op is a stub (chat can't import
 // domain/imagery); the mapping imagery→chat lives at the composition root, not here.
 
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -23,7 +21,7 @@ import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
+import { makeHarness } from "../../assets/_support.ts";
 import { FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -85,17 +83,14 @@ describe("generateImage", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
 
     let arrivals = 0;
-    let release: (() => void) | undefined;
-    const together = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: together, resolve: release } = Promise.withResolvers<void>();
     const calls: string[] = [];
     const ctx = makeChatContext(db, {
       generatePicture: async (p) => {
         calls.push(p.prompt ?? "");
         arrivals += 1;
         if (arrivals === 2) {
-          release?.();
+          release();
         }
         await together;
         const assetId = await seedGeneratedAsset(host, p.prompt ?? "none");
@@ -209,7 +204,7 @@ describe("generateImage", () => {
 
     await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "shared view" });
 
-    const harness = await makeAssetsHarness(db);
+    const harness = await makeHarness(db);
     onTestFinished(harness.cleanup);
     if (generatedAssetId === undefined) {
       throw new Error("the generated asset id was not captured");
@@ -258,7 +253,7 @@ describe("generateImage", () => {
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
     await generateImage({ principal: principal(member), chatId, mode: "free", prompt: "a lantern" });
     const picture = castId<AssetId>("asset_room-only");
-    const harness = await makeAssetsHarness(db);
+    const harness = await makeHarness(db);
     onTestFinished(harness.cleanup);
     const assetsService = createAssetsService(harness.ctx);
 

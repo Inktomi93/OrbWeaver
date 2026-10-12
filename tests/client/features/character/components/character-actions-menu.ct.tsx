@@ -11,6 +11,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterActionsMenuStory } from "../_ct-stories.tsx";
@@ -19,8 +20,6 @@ import { CharacterActionsMenuStory } from "../_ct-stories.tsx";
 const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const OPEN_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 const MINTED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
-
-const FROZEN_AT = 1_750_000_000_000;
 
 /** One roster row about this card, at a chosen status. The summary shape `refinery.listSessions` serves. */
 function rosterRow(id: string, status: TrpcWireOutput<"refinery.listSessions">[number]["status"]): TrpcWireOutput<"refinery.listSessions">[number] {
@@ -33,8 +32,8 @@ function rosterRow(id: string, status: TrpcWireOutput<"refinery.listSessions">[n
     status,
     iterationCount: 0,
     latestVerdict: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 

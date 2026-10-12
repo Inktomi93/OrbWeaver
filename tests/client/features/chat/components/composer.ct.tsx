@@ -14,8 +14,8 @@
 
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { IMAGE_GEN_SPENDS_NOW, IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, sendUnavailableReason } from "@orb/client/lib";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -1099,10 +1099,7 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
   // Hold chat.send so the commit signal can be driven (draft clears) BEFORE the send rejects. The
   // failure must NOT resurrect the already-committed-and-cleared text (the old restore bug this design
   // removes). Registered BEFORE routeTrpc (LIFO); intercepts only chat.send.
-  let releaseSend: (() => void) | undefined;
-  const sendHeld = new Promise<void>((resolve) => {
-    releaseSend = resolve;
-  });
+  const { promise: sendHeld, resolve: releaseSend } = Promise.withResolvers<void>();
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
@@ -1129,7 +1126,7 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
   // Now the send rejects (a post-commit generation failure). The cleared draft must STAY cleared — no
   // restore. Wait for the mutation to settle (its busy state clears) before the final draft assertion;
   // Send itself stays DISABLED because the draft is now empty (`!canSubmitText`), which is correct.
-  releaseSend?.();
+  releaseSend();
   await expect(component.getByRole("button", { name: "Send message" })).not.toHaveAttribute("aria-busy", "true");
   await expect(textarea).toHaveValue("");
 });
@@ -1741,7 +1738,7 @@ for (const viewport of [
           ceilingTokens: 32_768,
           ceilingEstimated: false,
           limit: null,
-          reserveOutputTokens: 2048,
+          reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
           droppedCount: 0,
           compactSummary: null,
         }),

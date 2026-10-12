@@ -1,5 +1,4 @@
-// @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
-import { seedCharacter as seedCharacterRow } from "../../../../support/factories/character.ts";
+import { seedCharacter } from "../../../../support/factories/character.ts";
 // persistence/queries — owner-scoped reads + the avatar LEFT JOIN + the card parse-seam. Load-bearing: the
 // ownership predicate lives in the WHERE (a non-owner read returns undefined, never another user's row);
 // listOwnedCharactersWithAvatar EXCLUDES synthetic rows (invariant 3); detailOf surfaces the joined avatar
@@ -1027,8 +1026,8 @@ test("an out-of-range score heals ALONE (the 1-10 tightening never costs the ana
 
 test("set-based activity preserves selected-variant MAX clock, resume ties and distinct departed room seats", async ({ db }) => {
   const owner = await seedUser(db);
-  const busy = await seedCharacterRow(db, { ownerId: owner, name: "Busy", description: "Stored card prose.".repeat(3000), createdAt: 100 });
-  const never = await seedCharacterRow(db, { ownerId: owner, name: "Never", createdAt: 200 });
+  const busy = await seedCharacter(db, { ownerId: owner, name: "Busy", description: "Stored card prose.".repeat(3000), createdAt: 100 });
+  const never = await seedCharacter(db, { ownerId: owner, name: "Never", createdAt: 200 });
   const roomA = mintTypeId(ID_PREFIX.chat);
   const roomB = mintTypeId(ID_PREFIX.chat);
   await seedSeatedChat(db, { chatId: roomA, ownerId: owner, characterId: busy.id, recencyAt: 7000 });

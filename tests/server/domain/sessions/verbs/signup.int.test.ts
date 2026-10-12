@@ -9,12 +9,12 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const ADMITS = sql`1 = 1`;
 const REFUSES = sql`1 = 0`;
 
@@ -32,36 +32,36 @@ async function rowsFor(handle: Handle): Promise<(typeof users.$inferSelect)[]> {
 
 describe("sessions.signupUserStatement", () => {
   test("an admitted statement inserts a user-role human with the hash under the minted id", async () => {
-    const { userId, statement } = svc.signupUserStatement({ handle: castId<Handle>("friend"), passwordHash: "scrypt$x", at: AT, admission: ADMITS });
+    const { userId, statement } = svc.signupUserStatement({ handle: castId<Handle>("friend"), passwordHash: "scrypt$x", at: FROZEN_AT_MS, admission: ADMITS });
     expect(await statement).toEqual([{ id: userId }]);
     expect(await rowsFor(castId<Handle>("friend"))).toEqual([
-      expect.objectContaining({ id: userId, role: "user", kind: "human", enabled: true, passwordHash: "scrypt$x", externalId: null, createdAt: AT }),
+      expect.objectContaining({ id: userId, role: "user", kind: "human", enabled: true, passwordHash: "scrypt$x", externalId: null, createdAt: FROZEN_AT_MS }),
     ]);
   });
 
   test("a refused admission writes nothing", async () => {
-    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("friend"), passwordHash: "scrypt$x", at: AT, admission: REFUSES });
+    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("friend"), passwordHash: "scrypt$x", at: FROZEN_AT_MS, admission: REFUSES });
     expect(await statement).toEqual([]);
     expect(await rowsFor(castId<Handle>("friend"))).toHaveLength(0);
   });
 
   test("a handle held in another case writes nothing", async () => {
     await seedUser(db, { handle: castId<Handle>("Friend") });
-    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("fRIEND"), passwordHash: "scrypt$x", at: AT, admission: ADMITS });
+    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("fRIEND"), passwordHash: "scrypt$x", at: FROZEN_AT_MS, admission: ADMITS });
     expect(await statement).toEqual([]);
     expect(await rowsFor(castId<Handle>("fRIEND"))).toHaveLength(0);
   });
 
   test("a confusable of a held handle writes nothing, even when it lands after the pre-check", async () => {
     await seedUser(db, { handle: castId<Handle>("host") });
-    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("h0st"), passwordHash: "scrypt$x", at: AT, admission: ADMITS });
+    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("h0st"), passwordHash: "scrypt$x", at: FROZEN_AT_MS, admission: ADMITS });
     expect(await statement).toEqual([]);
     expect(await rowsFor(castId<Handle>("h0st"))).toHaveLength(0);
   });
 
   test("each call mints a fresh id", () => {
-    const first = svc.signupUserStatement({ handle: castId<Handle>("a1"), passwordHash: "h", at: AT, admission: ADMITS });
-    const second = svc.signupUserStatement({ handle: castId<Handle>("a2"), passwordHash: "h", at: AT, admission: ADMITS });
+    const first = svc.signupUserStatement({ handle: castId<Handle>("a1"), passwordHash: "h", at: FROZEN_AT_MS, admission: ADMITS });
+    const second = svc.signupUserStatement({ handle: castId<Handle>("a2"), passwordHash: "h", at: FROZEN_AT_MS, admission: ADMITS });
     expect(first.userId).not.toBe(second.userId);
   });
 });

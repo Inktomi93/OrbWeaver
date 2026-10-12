@@ -19,6 +19,7 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -77,9 +78,9 @@ function workloadRowBase(id = "workload_ct_1"): WorkloadRowBase {
     dependsOn: null,
     error: null,
     progress: null,
-    scheduledAt: 1_750_000_000_000,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    scheduledAt: FROZEN_AT_MS,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 

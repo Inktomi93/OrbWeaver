@@ -1,7 +1,3 @@
-// @orb-waive-file no-loose-id-cast(details): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ kind: "bogus", source: "bogus-kind", resources: 1 }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ root: otherRoot }): baselined when the gate widened; burn-down item 906.
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -93,6 +89,7 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
   const valid = counted("valid-policy");
   // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
   const unbranded = { ...valid, id: "unbranded-policy", family: "unbranded-policy" } as GatePolicy;
+  // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const invalid = defineGate({
     ...valid,
     id: "invalid-policy",
@@ -504,6 +501,7 @@ test("semantic and resource receipt failures remain visible and withhold their o
   const bogus = policy("bogus-receipt", {
     authority: "ordinary",
     // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an unknown evaluation result
+    // @orb-waive no-loose-id-cast({ kind: "bogus", source: "bogus-kind", resources: 1 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "bogus", source: "bogus-kind", resources: 1 } as never) }),
   });
 
@@ -526,7 +524,7 @@ test("node reports require an exact in-range token and offset pair", () => {
   const withDetails = (id: string, details: object): GatePolicy =>
     policy(id, {
       create: (ctx) => ({
-        visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (node) => ctx.report.node(node, details as never) }],
+        visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (node) => ctx.report.node(node, details) }],
       }),
     });
   const invalid = [
@@ -1553,6 +1551,7 @@ test("resource injection cannot substitute a different root with the same relati
   const result = run([gate], projectOf({}), {
     root,
     // @orb-waive no-test-fabrication(never): deliberate type-erasure to test report handling of non-file findings
+    // @orb-waive no-loose-id-cast({ root: otherRoot }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     resourceOptions: { root: otherRoot } as never,
   });
   expect(names).toEqual(["root-a"]);

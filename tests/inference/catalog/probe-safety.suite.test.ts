@@ -3,8 +3,9 @@
 // at once. And neither new fetch follows a redirect (host pin #25): a 3xx would replay the transport headers and
 // a POST body to another origin, and that origin's answer would decide the shared detect cache.
 
-// @orb-waive-file no-loose-id-cast("ollama"): baselined when the gate widened; burn-down item 906.
+import type { ProviderId } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
+import { castId } from "@orb/kit/ids";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
 import { detectServer } from "#inference/catalog/detect.ts";
 import { fetchEndpointModels } from "#inference/catalog/endpoint.ts";
@@ -39,7 +40,7 @@ test("listing an Ollama server's models for the add flow renders none of them", 
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: ollamaRecording(chats) }));
   const listing = await runtime.catalogs.models({
     principal: principal(newUserId()),
-    providerId: "ollama" as never,
+    providerId: castId<ProviderId>("ollama"),
     secret: { credentialId: null },
     baseUrl: BASE_URL,
   });

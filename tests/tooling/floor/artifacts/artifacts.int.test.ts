@@ -16,10 +16,10 @@
 // THE PLANTED CONTROL IS THE PRE-FIX WRITER. The last case replays exactly what every instrument used to do
 // — stub to a FIXED path, work, final to the same FIXED path — driven the same way, and asserts that one
 // run's artifact is destroyed. Without it, the green arm below would only prove that two runs both exited.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
@@ -151,7 +151,7 @@ async function leaderRunId(root: string, leading: Promise<CliResult>): Promise<s
         `the leading \`verify structure\` child exited (code ${exited.code}) before writing an in-flight marker — there is no ordering to wait on.\n${exited.stderr}`,
       );
     }
-    await new Promise((resolve) => setTimeout(resolve, MARKER_POLL_MS));
+    await sleep(MARKER_POLL_MS);
   }
 }
 

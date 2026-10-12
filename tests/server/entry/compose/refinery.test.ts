@@ -12,7 +12,6 @@
 //   • the per-user prose resolver is CALLER-SCOPED — it reads the settings of the userId it is handed, and
 //     it is the SAME function object in both halves (one home for the resolution).
 
-// @orb-waive-file platform-spellings(WORKLOAD_KEYS): baselined when the gate widened; burn-down item 906.
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { SCORE_MAX, SCORE_MIN } from "@orb/contracts/refinery";
 import type { UserSettings } from "@orb/contracts/settings";
@@ -76,7 +75,7 @@ describe("buildRefinery — the queue's actor gets a SMALLER bundle than the ser
   test("the workload half closes over exactly the six library-pass deps — no minters, no clock, no apply ops", () => {
     const { refineryWorkloads } = buildRefinery(harness().deps);
 
-    expect(Object.keys(refineryWorkloads).sort()).toStrictEqual([...WORKLOAD_KEYS].sort());
+    expect(Object.keys(refineryWorkloads).sort()).toStrictEqual(WORKLOAD_KEYS.toSorted());
   });
 
   test("neither the apply-path character verbs nor an id minter leak into the workload bundle", () => {

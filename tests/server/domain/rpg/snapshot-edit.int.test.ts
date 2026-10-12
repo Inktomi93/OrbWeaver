@@ -7,7 +7,7 @@
 // stale turn's patches were rebased onto whatever was head at execution time instead of being refused as
 // superseded. The pin holds the section open, advances the beat inside that window, and asserts the refusal.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Db } from "@orb/db";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -22,7 +22,7 @@ import { expect, handTarget, seedLiteGame, seedMessage, target, test } from "./_
 /** Let the PRE-SECTION precheck the old shape ran reach its own queue slot before the beat advances — without
  *  this window the test would be racing the very ordering it is about. */
 const PRECHECK_WINDOW_MS = 50;
-const settle = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, PRECHECK_WINDOW_MS));
+const settle = (): Promise<void> => sleep(PRECHECK_WINDOW_MS);
 
 /** The game row the fold takes — loaded, never fabricated (it FKs the seeded chat). */
 async function gameRow(db: Db, chatId: ChatId, gameId: RpgGameId): Promise<RpgGameRow> {

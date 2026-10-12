@@ -15,9 +15,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
-
-const FROZEN_AT = 1_750_000_000_000;
 
 /** The viewer this module's ambient reads describe — a plain `user`-role account, the un-privileged arm
  *  every non-permission CT assumes. Module-local on purpose: the two routes below are the surface, and an
@@ -46,6 +45,6 @@ export const VIEWER_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "settings.getUser
     schemaVersion: 1,
     config: DEFAULT_USER_SETTINGS,
     configUnreadable: null,
-    updatedAt: FROZEN_AT,
+    updatedAt: FROZEN_AT_MS,
   },
 };

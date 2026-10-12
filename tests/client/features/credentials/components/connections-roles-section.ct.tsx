@@ -245,11 +245,7 @@ const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, mem
 /** Hold `connection.setBinding` open; the returned fn lets it through. Registered AFTER routeTrpc so it wins
  *  the route, then `fallback()`s into the stub once released. */
 async function gateTheWrite(page: Page): Promise<() => void> {
-  let release = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
   await page.route(SET_BINDING_ROUTE, async (route) => {
     await held;
     await route.fallback();
@@ -706,11 +702,7 @@ test("a pick whose embedder the server is still checking says so on its row unti
 // Before the confirm the server sizes the change; a pick must not look ignored meanwhile.
 test("a pick says it is checking from the moment the server is asked what it would rebuild", async ({ mount, page }) => {
   await stubPane(page, { reindexPreview: STORED_REBUILD });
-  let releasePreview = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const previewHeld = new Promise<void>((resolve) => {
-    releasePreview = resolve;
-  });
+  const { promise: previewHeld, resolve: releasePreview } = Promise.withResolvers<void>();
   await page.route(/embedSpaceChangePreview/, async (route) => {
     await previewHeld;
     await route.fallback();

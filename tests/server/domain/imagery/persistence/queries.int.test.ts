@@ -13,12 +13,12 @@ import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, 
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findReusableGeneration, insertGenerationStatement, readProvenanceByAsset } from "#server/domain/imagery/persistence/queries.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 const PROVIDER_ID = providerIdSchema.parse("openrouter");
 
 let db: Db;
@@ -75,7 +75,7 @@ describe("insertGenerationStatement", () => {
           costUsd: 0.05,
           usage: makeGenerationUsage(0.05),
           edited: false,
-          createdAt: FROZEN_AT,
+          createdAt: FROZEN_AT_MS,
         }),
       ]),
     );
@@ -130,7 +130,7 @@ describe("insertGenerationStatement", () => {
           costUsd: null,
           usage: makeGenerationUsage(null),
           edited: false,
-          createdAt: FROZEN_AT,
+          createdAt: FROZEN_AT_MS,
         }),
       ]),
     );
@@ -203,9 +203,9 @@ describe("findReusableGeneration", () => {
   test("matches on (owner, subject, mode, identityHash) — the newest generation, all its images", async () => {
     const owner = await seedUser(castId<Handle>("owner"));
     // An older single-image generation, then a newer 3-image generation (shared createdAt).
-    await seedGeneration({ owner, generationId: "g_old", assetId: castId<AssetId>("asset_old"), createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g_old", assetId: castId<AssetId>("asset_old"), createdAt: FROZEN_AT_MS });
     for (let i = 0; i < 3; i += 1) {
-      await seedGeneration({ owner, generationId: `g_new_${i}`, assetId: castId<AssetId>(`asset_new_${i}`), createdAt: FROZEN_AT + 1000 });
+      await seedGeneration({ owner, generationId: `g_new_${i}`, assetId: castId<AssetId>(`asset_new_${i}`), createdAt: FROZEN_AT_MS + 1000 });
     }
 
     const hits = await lookup(owner, HASH);
@@ -216,14 +216,14 @@ describe("findReusableGeneration", () => {
 
   test("a changed identity hash misses (no reuse)", async () => {
     const owner = await seedUser(castId<Handle>("owner"));
-    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT_MS });
     expect(await lookup(owner, "different_hash")).toHaveLength(0);
   });
 
   test("cross-owner isolation — a match under another owner is never returned", async () => {
     const owner = await seedUser(castId<Handle>("owner"));
     const other = await seedUser(castId<Handle>("other"));
-    await seedGeneration({ owner: other, generationId: "g_other", assetId: castId<AssetId>("asset_other"), createdAt: FROZEN_AT });
+    await seedGeneration({ owner: other, generationId: "g_other", assetId: castId<AssetId>("asset_other"), createdAt: FROZEN_AT_MS });
     expect(await lookup(owner, HASH)).toHaveLength(0);
   });
 });
@@ -231,7 +231,7 @@ describe("findReusableGeneration", () => {
 describe("readProvenanceByAsset", () => {
   test("returns the provenance for an owned generated asset", async () => {
     const owner = await seedUser(castId<Handle>("owner"));
-    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT_MS });
     const prov = await readProvenanceByAsset(db, owner, castId<AssetId>("asset_1"));
     const { costUsd, ...usage } = makeGenerationUsage(0.02);
     expect(prov).toMatchObject({
@@ -250,7 +250,7 @@ describe("readProvenanceByAsset", () => {
   test("a foreign owner reads null (no cross-owner provenance leak)", async () => {
     const owner = await seedUser(castId<Handle>("owner"));
     const other = await seedUser(castId<Handle>("other"));
-    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT_MS });
     expect(await readProvenanceByAsset(db, other, castId<AssetId>("asset_1"))).toBeNull();
   });
 

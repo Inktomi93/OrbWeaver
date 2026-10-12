@@ -1,8 +1,7 @@
 // The knip negative-pattern liveness stage in both directions: a literal negation naming an untracked path
 // reds and names the pattern by workspace; one naming a tracked file passes; a wildcard negation over an
 // absent directory is out of scope. The last case judges the real knip.ts against the real git index.
-// @orb-waive-file no-vanity-alias(config): baselined when the gate widened; burn-down item 906.
-import { config as knipConfig } from "../../../../knip.ts";
+import { config } from "../../../../knip.ts";
 import { judgeKnipNegatives, knipNegativeReport } from "../../../../tooling/src/verify/ops/knip-negative-liveness.ts";
 import { loadTrackedFiles } from "../../../../tooling/src/verify/ops/resource-tracked.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -39,7 +38,7 @@ test("the real knip.ts names only tracked files in its literal negations", ({ re
   if (tracked.status !== "ready") {
     throw new Error(`git index unreadable: ${tracked.reason}`);
   }
-  const outcome = judgeKnipNegatives(knipConfig, new Set(tracked.value.repoPaths));
+  const outcome = judgeKnipNegatives(config, new Set(tracked.value.repoPaths));
   expect(outcome.dead).toEqual([]);
   expect(outcome.wildcard).toBeGreaterThan(0);
 });

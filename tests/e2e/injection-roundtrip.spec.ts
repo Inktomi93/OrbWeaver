@@ -18,6 +18,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextSections } from "../support/node/open-context-sections.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
+import { WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 /** From an open chat, reach the Injections editor. IA UPDATE (panel-redesign consolidation): the ⋯ menu's
  *  "Injections…" jump and the standalone Injections meta-tab are BOTH gone — an option with a context-panel
@@ -34,7 +35,7 @@ async function openInjectionsTab(page: Page): Promise<void> {
   await openContextTab(page, "This chat");
   await openContextSections(page, "Injections");
   await expect(page.getByRole("button", { name: "Add injection" })).toBeVisible({
-    timeout: 10_000,
+    timeout: WAIT_UI_MS,
   });
 }
 
@@ -91,7 +92,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
 
   // Type the marker into the new (last) Content field and blur to trigger the autosave write.
   const content = page.getByRole("textbox", { name: "Content" }).last();
-  await expect(content).toBeVisible({ timeout: 5000 });
+  await expect(content).toBeVisible({ timeout: WAIT_SHORT_MS });
   const saveResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.setChatInjection") && r.status() < 500);
   await content.fill(marker);
   await content.blur();
@@ -105,7 +106,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   await openInjectionsTab(page);
   // 15s, not 5s: `contentValues` now WALKS the per-row disclosures before it can read anything, so the first
   // poll iteration costs a press per persisted row on top of the suspended `chat.listChatInjections` read.
-  await expect.poll(async (): Promise<readonly string[]> => contentValues(page), { timeout: 15_000 }).toContain(marker);
+  await expect.poll(async (): Promise<readonly string[]> => contentValues(page), { timeout: WAIT_SURFACE_MS }).toContain(marker);
 
   // ── Remove: delete the row whose Content == marker. Content fields + "Remove injection" buttons share
   //    DOM order (one per Section), so the marker's index in the values maps to its Remove button. This is
@@ -122,5 +123,5 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   await waitForAppReady(page);
   await reopenFirstChat(page);
   await openInjectionsTab(page);
-  await expect.poll(async (): Promise<readonly string[]> => contentValues(page), { timeout: 15_000 }).not.toContain(marker);
+  await expect.poll(async (): Promise<readonly string[]> => contentValues(page), { timeout: WAIT_SURFACE_MS }).not.toContain(marker);
 });

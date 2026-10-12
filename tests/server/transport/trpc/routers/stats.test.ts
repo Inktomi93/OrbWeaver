@@ -9,6 +9,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { LatencyStats, LeaderboardRow, StatsService } from "@orb/server/domain/stats";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
@@ -55,8 +56,8 @@ describe("stats.leaderboard — sort wire-through", () => {
 describe("stats.timeseries — window wire-through", () => {
   test("passes epoch-ms bounds to the service, scoped to the principal", async () => {
     const timeseries = vi.fn<StatsService["timeseries"]>(async () => []);
-    await caller(ctxWith({ timeseries })).stats.timeseries({ from: 1_750_000_000_000, to: 1_750_000_900_000 });
-    expect(timeseries).toHaveBeenCalledWith(OWNER, { from: 1_750_000_000_000, to: 1_750_000_900_000 });
+    await caller(ctxWith({ timeseries })).stats.timeseries({ from: FROZEN_AT_MS, to: 1_750_000_900_000 });
+    expect(timeseries).toHaveBeenCalledWith(OWNER, { from: FROZEN_AT_MS, to: 1_750_000_900_000 });
   });
 
   test("rejects a calendar-day string bound at the wire boundary", async () => {

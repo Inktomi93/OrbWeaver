@@ -9,11 +9,11 @@ import { logger } from "@orb/server/foundation/observability";
 import { afterEach, beforeEach, describe } from "vitest";
 import { __resetEffectiveConfigCache, getEffectiveConfig, reloadEffectiveConfig } from "#server/domain/settings/effective-config/cache.ts";
 import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const originalLevel = logger.level;
 
 beforeEach(() => {
@@ -37,7 +37,7 @@ describe("effective-config cache", () => {
 
   test("reload reflects the stored override AND rebinds logger.level (the load-bearing knob)", async () => {
     const db = await freshDb();
-    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT);
+    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, FROZEN_AT_MS);
     const cfg = await reloadEffectiveConfig(db);
     expect(cfg.logLevel).toBe("debug");
     expect(getEffectiveConfig().logLevel).toBe("debug");
@@ -47,7 +47,7 @@ describe("effective-config cache", () => {
   test("the assembled SettingsService reload boundary rebuilds the effective cache", async () => {
     const db = await freshDb();
     const { svc } = makeHarness(db);
-    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT);
+    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, FROZEN_AT_MS);
 
     const cfg = await svc.reloadEffectiveConfig();
 
@@ -58,7 +58,7 @@ describe("effective-config cache", () => {
 
   test("reload flows a stored maxImageBytes override to the sync getter (the imagery-cap read path)", async () => {
     const db = await freshDb();
-    await writeAppOverride(db, { maxImageBytes: 20_000_000, schemaVersion: 2 }, AT);
+    await writeAppOverride(db, { maxImageBytes: 20_000_000, schemaVersion: 2 }, FROZEN_AT_MS);
     const cfg = await reloadEffectiveConfig(db);
     expect(cfg.maxImageBytes).toBe(20_000_000);
     // The sync getter the compose `fetchImage` binding reads at call time returns the live override.

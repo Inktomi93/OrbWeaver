@@ -12,6 +12,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -42,7 +43,7 @@ type AttachmentView = TrpcWireOutput<"databank.listAttachments">;
 function attachmentView(characters: AttachmentView["characters"]): AttachmentView {
   return {
     global: true,
-    chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Aveline"], at: 1_750_000_000_000 }],
+    chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Aveline"], at: FROZEN_AT_MS }],
     characters,
   };
 }

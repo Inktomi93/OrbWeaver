@@ -4,7 +4,6 @@
 // wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-// @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
@@ -66,13 +65,13 @@ import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts
 import { subscribeChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "#server/transport/trpc/notifications-bus.ts";
 import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testModelId } from "../../../support/inference-identities.ts";
 import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
-import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { seedTurns } from "../../domain/chat/memory/_support.ts";
 import { makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
 
@@ -1214,7 +1213,7 @@ describe("automation generate_image forwards diffusion params through the compos
 // Search reads one generation only once cards, memory and documents all complete it. These run the real sweeps
 // over the real graph (local-light encoder, no summarize connection) and prove memory completes, so search answers.
 describe("search when the memory scope can build no digests (0215)", () => {
-  const RunAt = 1_750_000_000_000;
+  const RunAt = FROZEN_AT_MS;
 
   async function searchAnswers(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<number> {
     const answer = await result.services.search.search({
@@ -1284,7 +1283,7 @@ describe("search when the memory scope can build no digests (0215)", () => {
       principal: principal(owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
-    const aria = await seedChatCharacter(db, owner, "aria");
+    const aria = await seedCharacter(db, owner, "aria");
     const room = await seedChat(db, "room_no_summarizer");
     await seedParticipant(db, { chatId: room, key: "h", userId: owner, role: "host" });
     await seedParticipant(db, { chatId: room, key: "c", characterId: aria });

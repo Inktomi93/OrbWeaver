@@ -1,4 +1,3 @@
-// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { vi } from "vitest";
@@ -83,6 +82,7 @@ test("a broker fetch is walled by the app's own netHosts; the frame carries no h
   } satisfies PluginEgressBridge;
   const target = {
     // @orb-waive no-test-fabrication(never): dispatch of the net ops reaches only `netEgress`; the domain bridge is never dereferenced, so any touch throws. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
     bridge: {} as never,
     netEgress: createPluginNetEgress(["api.allowed.test"], egressBridge),
   };

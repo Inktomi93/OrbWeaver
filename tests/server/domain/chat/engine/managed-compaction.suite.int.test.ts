@@ -10,6 +10,7 @@
 // delta on a resuming SDK session, hosted-verified); the fit-drop arm is the reactive backstop. Single-flight; an unchanged
 // coverage point never re-fires; a failed/empty generation leaves the marker untouched.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AssembleContext, ChatBusEvent, VariantMetadata } from "@orb/contracts/chat";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -245,8 +246,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const outcome = await engine.runTurn(prepOf(chatId, AGENT_SDK, { intent: {}, assembleContext: presetCtx({ compaction: { mode: "managed" } }) }));
     expect(outcome.aborted).toBe(false);
 
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(markerCalls).toHaveLength(0);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.compactSummary).toBeNull();
@@ -613,8 +613,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const outcome = await engine.runTurn(prepOf(chatId, STATELESS, { intent: { compaction: { mode: "managed" }, maxContextTokens: SMALL_CAP } }));
     expect(outcome.aborted).toBe(false);
 
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(markerCalls).toHaveLength(0);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.compactSummary).toBeNull();
@@ -627,8 +626,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const outcome = await engine.runTurn(prepOf(chatId, AGENT_SDK, { intent: { compaction: { mode: "auto" }, maxContextTokens: SMALL_CAP } }));
     expect(outcome.aborted).toBe(false);
 
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(markerCalls).toHaveLength(0);
   });
 
@@ -639,8 +637,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const outcome = await engine.runTurn(prepOf(chatId, AGENT_SDK, { intent: { compaction: { mode: "managed" } } }));
     expect(outcome.aborted).toBe(false);
 
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(markerCalls).toHaveLength(0);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.compactSummary).toBeNull();
@@ -707,11 +704,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     // A GATED marker generation: it blocks until released, so we can observe how many run CONCURRENTLY.
     let running = 0;
     let maxConcurrent = 0;
-    let release: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>();
     const gatedRunChatTurn: ChatContext["runChatTurn"] = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
         running += 1;
@@ -742,11 +735,9 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     // Two turns back-to-back; the first's compaction is still gated when the second fires.
     await engine.runTurn(prepOf(chatId, AGENT_SDK, cap));
     await engine.runTurn(prepOf(chatId, AGENT_SDK, cap));
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    release?.();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await sleep(30);
+    release();
+    await sleep(30);
 
     // The single-flight Set held it to ONE concurrent marker build for the chat.
     expect(maxConcurrent).toBeLessThanOrEqual(1);

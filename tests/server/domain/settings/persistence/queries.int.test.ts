@@ -27,16 +27,15 @@ import {
   writeAppOverride,
   writeUserConfig,
 } from "#server/domain/settings/persistence/queries.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
-
 // Insert a raw `user_settings` row with a crafted (possibly legacy/corrupt) blob + version column.
 async function insertRaw(db: Db, userId: UserId, schemaVersion: number, config: Record<string, unknown>): Promise<void> {
   // @orb-waive no-test-fabrication(unknown): deliberate legacy/corrupt-config probe helper — see the doc comment above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  await db.insert(userSettings).values({ userId, schemaVersion, config: config as unknown as UserSettings, updatedAt: AT });
+  await db.insert(userSettings).values({ userId, schemaVersion, config: config as unknown as UserSettings, updatedAt: FROZEN_AT_MS });
 }
 
 describe("readUserSettings", () => {
@@ -87,8 +86,8 @@ describe("ensureUserSettings / writeUserConfig", () => {
   test("ensureUserSettings is idempotent (one row after two calls)", async () => {
     const db = await freshDb();
     const u = await seedUser(db, { id: "user_u" });
-    await ensureUserSettings(db, u, AT);
-    await ensureUserSettings(db, u, AT);
+    await ensureUserSettings(db, u, FROZEN_AT_MS);
+    await ensureUserSettings(db, u, FROZEN_AT_MS);
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(1);
   });
 
@@ -96,10 +95,10 @@ describe("ensureUserSettings / writeUserConfig", () => {
     const db = await freshDb();
     const u = await seedUser(db, { id: "user_u" });
     const before = await readUserSettings(db, u);
-    await writeUserConfig(db, u, { ...before.config, memory: { enabled: true } }, AT + 5);
+    await writeUserConfig(db, u, { ...before.config, memory: { enabled: true } }, FROZEN_AT_MS + 5);
     const after = await readUserSettings(db, u);
     expect(after.config.memory.enabled).toBe(true);
-    expect(after.updatedAt).toBe(AT + 5);
+    expect(after.updatedAt).toBe(FROZEN_AT_MS + 5);
     expect(after.schemaVersion).toBeGreaterThan(0);
   });
 
@@ -109,8 +108,8 @@ describe("ensureUserSettings / writeUserConfig", () => {
     const currentId = mintTypeId(ID_PREFIX.asset);
     const libraryId = mintTypeId(ID_PREFIX.asset);
     await db.insert(assets).values([
-      { id: currentId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "current", uploadedAt: AT },
-      { id: libraryId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "library", uploadedAt: AT },
+      { id: currentId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "current", uploadedAt: FROZEN_AT_MS },
+      { id: libraryId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "library", uploadedAt: FROZEN_AT_MS },
     ]);
     const before = await readUserSettings(db, u);
     const config: UserSettings = {
@@ -125,7 +124,7 @@ describe("ensureUserSettings / writeUserConfig", () => {
     };
     await db.delete(assets).where(eq(assets.id, libraryId));
 
-    const err = await writeUserConfig(db, u, config, AT + 5).catch((e: unknown) => e);
+    const err = await writeUserConfig(db, u, config, FROZEN_AT_MS + 5).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("background_unavailable");
@@ -141,10 +140,10 @@ describe("ensureUserSettings / writeUserConfig", () => {
     // A plain object the final schema REJECTS (schemaVersion must be a positive int, and it carries no
     // per-field `.catch`) — the parse walk degrades the WHOLE blob to defaults.
     await insertRaw(db, u, 8, { schemaVersion: -5, memory: { enabled: true } });
-    await expect(writeUserConfig(db, u, DEFAULT_USER_SETTINGS, AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+    await expect(writeUserConfig(db, u, DEFAULT_USER_SETTINGS, FROZEN_AT_MS + 5)).rejects.toBeInstanceOf(DomainOperationError);
     const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, u));
     expect(row?.config).toEqual({ schemaVersion: -5, memory: { enabled: true } });
-    expect(row?.updatedAt).toBe(AT);
+    expect(row?.updatedAt).toBe(FROZEN_AT_MS);
   });
 });
 
@@ -152,7 +151,7 @@ describe("global KV + app-override row", () => {
   test("readGlobalSetting is null for a missing key; upsert round-trips", async () => {
     const db = await freshDb();
     expect(await readGlobalSetting(db, "k")).toBeNull();
-    const view = await upsertGlobalSetting(db, "k", { a: 1 }, AT);
+    const view = await upsertGlobalSetting(db, "k", { a: 1 }, FROZEN_AT_MS);
     expect(view.value).toEqual({ a: 1 });
     expect((await readGlobalSetting(db, "k"))?.value).toEqual({ a: 1 });
   });
@@ -160,10 +159,10 @@ describe("global KV + app-override row", () => {
   test("readAppOverrideRaw is undefined until writeAppOverride lands", async () => {
     const db = await freshDb();
     expect(await readAppOverrideRaw(db)).toBeUndefined();
-    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT);
+    await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, FROZEN_AT_MS);
     expect(await readAppOverrideRaw(db)).toEqual({ logLevel: "debug", schemaVersion: 2 });
     // …and an override row that lands normally is still re-writable (the guard is not "refuse everything").
-    await writeAppOverride(db, { logLevel: "info", schemaVersion: 2 }, AT + 1);
+    await writeAppOverride(db, { logLevel: "info", schemaVersion: 2 }, FROZEN_AT_MS + 1);
     expect(await readAppOverrideRaw(db)).toEqual({ logLevel: "info", schemaVersion: 2 });
   });
 
@@ -172,8 +171,8 @@ describe("global KV + app-override row", () => {
   // override the box had.
   test("writeAppOverride REFUSES over an unreadable override row (#471)", async () => {
     const db = await freshDb();
-    await upsertGlobalSetting(db, APP_SETTINGS_KEY, "not-an-object", AT);
-    await expect(writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+    await upsertGlobalSetting(db, APP_SETTINGS_KEY, "not-an-object", FROZEN_AT_MS);
+    await expect(writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, FROZEN_AT_MS + 5)).rejects.toBeInstanceOf(DomainOperationError);
     expect(await readAppOverrideRaw(db)).toBe("not-an-object");
   });
 });
@@ -196,10 +195,10 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     const u = await seedUser(db, { id: "user_kind" });
     const cardId = mintTypeId(ID_PREFIX.asset);
     // The user's OWN card asset: the ownership half passes, the kind half must not.
-    await db.insert(assets).values({ id: cardId, ownerId: u, kind: "card", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    await db.insert(assets).values({ id: cardId, ownerId: u, kind: "card", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: FROZEN_AT_MS });
     const before = await readUserSettings(db, u);
 
-    const err = await writeUserConfig(db, u, pinning(before.config, cardId), AT + 5).catch((e: unknown) => e);
+    const err = await writeUserConfig(db, u, pinning(before.config, cardId), FROZEN_AT_MS + 5).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("background_unavailable");
@@ -210,10 +209,10 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     const db = await freshDb();
     const u = await seedUser(db, { id: "user_kind_ok" });
     const bgId = mintTypeId(ID_PREFIX.asset);
-    await db.insert(assets).values({ id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    await db.insert(assets).values({ id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: FROZEN_AT_MS });
     const before = await readUserSettings(db, u);
 
-    await writeUserConfig(db, u, pinning(before.config, bgId), AT + 5);
+    await writeUserConfig(db, u, pinning(before.config, bgId), FROZEN_AT_MS + 5);
 
     expect((await readUserSettings(db, u)).config.appearance.backgroundAssetId).toBe(bgId);
   });
@@ -224,8 +223,8 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     const bgId = mintTypeId(ID_PREFIX.asset);
     const avatarId = mintTypeId(ID_PREFIX.asset);
     await db.insert(assets).values([
-      { id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "bg", uploadedAt: AT },
-      { id: avatarId, ownerId: u, kind: "avatar", mime: "image/png", size: 1, hash: "avatar", uploadedAt: AT },
+      { id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "bg", uploadedAt: FROZEN_AT_MS },
+      { id: avatarId, ownerId: u, kind: "avatar", mime: "image/png", size: 1, hash: "avatar", uploadedAt: FROZEN_AT_MS },
     ]);
     const before = await readUserSettings(db, u);
     const config: UserSettings = {
@@ -236,7 +235,7 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
       },
     };
 
-    await expect(writeUserConfig(db, u, config, AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+    await expect(writeUserConfig(db, u, config, FROZEN_AT_MS + 5)).rejects.toBeInstanceOf(DomainOperationError);
   });
 
   test("a refused FIRST write leaves NO user_settings row (the predicate precedes the seed)", async () => {
@@ -246,7 +245,7 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     // Nothing owns this id — the write must be refused, and refusing must not materialize a defaults row.
     const missing = mintTypeId(ID_PREFIX.asset);
 
-    await expect(writeUserConfig(db, u, pinning(before.config, missing), AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+    await expect(writeUserConfig(db, u, pinning(before.config, missing), FROZEN_AT_MS + 5)).rejects.toBeInstanceOf(DomainOperationError);
 
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(0);
     expect((await readUserSettings(db, u)).updatedAt).toBe(0);
@@ -257,11 +256,13 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     const mine = await seedUser(db, { id: "user_asker" });
     const theirs = await seedUser(db, { id: "user_other" });
     const theirBg = mintTypeId(ID_PREFIX.asset);
-    await db.insert(assets).values({ id: theirBg, ownerId: theirs, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    await db
+      .insert(assets)
+      .values({ id: theirBg, ownerId: theirs, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: FROZEN_AT_MS });
     const before = await readUserSettings(db, mine);
 
     // Receipt taken AS `user_asker` (the pinned id belongs to `user_other`).
-    await expect(writeUserConfig(db, mine, pinning(before.config, theirBg), AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+    await expect(writeUserConfig(db, mine, pinning(before.config, theirBg), FROZEN_AT_MS + 5)).rejects.toBeInstanceOf(DomainOperationError);
 
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, mine))).toHaveLength(0);
   });
@@ -274,14 +275,14 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     const { db, hold } = await freshHeldDb();
     const u = await seedUser(db, { id: "user_race" });
     const bgId = mintTypeId(ID_PREFIX.asset);
-    await db.insert(assets).values({ id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    await db.insert(assets).values({ id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: FROZEN_AT_MS });
     const before = await readUserSettings(db, u);
     // Hold the seed INSERT into `user_settings` (the OLD shape's unconditional seed; the NEW shape's
     // guarded `insert().select()` — both start `insert into "user_settings"`), so the asset can be deleted
     // AFTER the pre-write check already passed but BEFORE the seed/guard statement actually executes.
     const insert = hold(/insert into "user_settings"/iu);
 
-    const write = writeUserConfig(db, u, pinning(before.config, bgId), AT + 5);
+    const write = writeUserConfig(db, u, pinning(before.config, bgId), FROZEN_AT_MS + 5);
     await insert.reached;
     await db.delete(assets).where(eq(assets.id, bgId));
     insert.release();

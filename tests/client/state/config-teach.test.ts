@@ -4,7 +4,6 @@
 // The DERIVED-POPULATION arm — the sweep over the REAL door's leaves, never a hand list — rides the
 // live-door mirror in `config-section-partition.test.ts` (one mirror list serves both door asserts).
 
-// @orb-waive-file no-loose-id-cast("not-a-group"): baselined when the gate widened; burn-down item 906.
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution, ConfigSettingRef, SettingTeachDecl } from "@orb/client/state";
 import { assertTeachHonesty, isTeachNone } from "@orb/client/state";
@@ -56,6 +55,7 @@ describe("assertTeachHonesty", () => {
 
   test("PLANTED RED: a related ref that resolves to nothing throws, in all three flavours", () => {
     // A deliberately wrong group id (`as never` — unspellable in the union): the arm under test IS the resolution failure.
+    // @orb-waive no-loose-id-cast("not-a-group"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "not-a-group" as never, sub: "x", setting: "y" }])))).toThrow(UNKNOWN_GROUP);
     expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "appearance", sub: "no-such-sub", setting: "y" }])))).toThrow(UNRENDERED_SUB);
     expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "appearance", sub: "t-sub", setting: "no-such-leaf" }])))).toThrow(

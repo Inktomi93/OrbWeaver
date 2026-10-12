@@ -2,9 +2,8 @@
 // snapshot's array and CLEARS its `quests.<id>` lock (the symmetric grammar — no ghost lock). Not-found on a
 // missing id. Asserted at the resolved snapshot.
 
-// @orb-waive-file no-loose-id-cast("q_ghost"): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, RpgQuestId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
@@ -33,6 +32,8 @@ describe("deleteQuest", () => {
 
   test("deleting a nonexistent quest is a not-found", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    await expect(h.service.deleteQuest({ principal: principal(castId<Handle>("host")), chatId, questId: "q_ghost" as never })).rejects.toThrow(NOT_FOUND_RE);
+    await expect(h.service.deleteQuest({ principal: principal(castId<Handle>("host")), chatId, questId: castId<RpgQuestId>("q_ghost") })).rejects.toThrow(
+      NOT_FOUND_RE,
+    );
   });
 });

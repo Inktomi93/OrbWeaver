@@ -53,12 +53,12 @@ import { beforeEach, describe } from "vitest";
 import { appendGenerationObservation, createGenerationObservationSession } from "#server/domain/chat/persistence/generation-observation.ts";
 import { createExportChatBundle } from "#server/domain/export/verbs/export-chat-bundle.ts";
 import { applyStatsDelta } from "#server/domain/stats/index.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 const CHAT_ID = castId<ChatId>("chat_bundle");
 
 let db: Db;
@@ -98,11 +98,11 @@ async function seedRoom(
     metadata: { roomOverrides: { scenario: "the frontier" } },
     variableValues: { mood: "grim" },
     runtimeVariables: { mood: "STALE-DERIVED" },
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   await db.insert(chatParticipants).values([
-    { id: castId<ChatParticipantId>("chat_participant_h"), chatId: CHAT_ID, kind: "human", userId: host, role: "host", joinSeq: 0, joinedAt: FROZEN_AT },
+    { id: castId<ChatParticipantId>("chat_participant_h"), chatId: CHAT_ID, kind: "human", userId: host, role: "host", joinSeq: 0, joinedAt: FROZEN_AT_MS },
     {
       id: castId<ChatParticipantId>("chat_participant_c"),
       chatId: CHAT_ID,
@@ -110,15 +110,15 @@ async function seedRoom(
       characterId,
       role: "member",
       joinSeq: 1,
-      joinedAt: FROZEN_AT,
+      joinedAt: FROZEN_AT_MS,
     },
   ]);
   const messageId = castId<MessageId>("message_bundle_1");
-  await db.insert(messages).values({ id: messageId, chatId: CHAT_ID, seq: 1, role: "assistant", characterId, createdAt: FROZEN_AT });
+  await db.insert(messages).values({ id: messageId, chatId: CHAT_ID, seq: 1, role: "assistant", characterId, createdAt: FROZEN_AT_MS });
   const variantIds = [castId<MessageVariantId>("variant_bundle_0"), castId<MessageVariantId>("variant_bundle_1")];
   await db
     .insert(messageVariants)
-    .values(variantIds.map((id, i) => ({ id, messageId, idx: i, content: `take ${i}`, tokensIn: 10 + i, tokensOut: i + 1, createdAt: FROZEN_AT })));
+    .values(variantIds.map((id, i) => ({ id, messageId, idx: i, content: `take ${i}`, tokensIn: 10 + i, tokensOut: i + 1, createdAt: FROZEN_AT_MS })));
   await db.update(messages).set({ selectedVariantId: variantIds[1] }).where(eq(messages.id, messageId));
   await db.insert(chatInjections).values({
     id: castId("chat_injection_b"),
@@ -128,7 +128,7 @@ async function seedRoom(
     role: "system",
     content: "Stay wry.",
     order: 1,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return { characterId, messageId, variantIds };
 }
@@ -145,7 +145,7 @@ describe("exportChatBundle — the host gate is the jsonl arm's, restated", () =
       userId: member,
       role: "member",
       joinSeq: 2,
-      joinedAt: FROZEN_AT,
+      joinedAt: FROZEN_AT_MS,
     });
     const exportBundle = verb();
 
@@ -171,7 +171,7 @@ describe("exportChatBundle — the fidelity planes", () => {
       model: "gemini-3.1-pro-preview",
       provider: "google",
       wire: "google-generative-ai",
-      observedAt: FROZEN_AT,
+      observedAt: FROZEN_AT_MS,
       modelCalls: 1,
       contextWindow: null,
       maxOutputTokens: 2048,
@@ -182,7 +182,7 @@ describe("exportChatBundle — the fidelity planes", () => {
       terminalReason: null,
       generationId: null,
     });
-    const ctx = { db, now: () => FROZEN_AT, applyStatsDelta };
+    const ctx = { db, now: () => FROZEN_AT_MS, applyStatsDelta };
     expect(await appendGenerationObservation(ctx, parent, { ordinal: 0, funderUserId: host, connectionId: null, leg })).toBe(true);
     const before = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
     expect(before.pendingGenerationObservations?.map((fact) => fact.leg.costUsd)).toEqual([0.125]);
@@ -206,7 +206,7 @@ describe("exportChatBundle — the fidelity planes", () => {
             .where(eq(messageVariants.id, variantId)),
         ),
       );
-      applyStatsDelta(statements, db, variantUsageLegDelta({ ownerId: host, characterId, leg, selected: true, sign: 1, now: FROZEN_AT }));
+      applyStatsDelta(statements, db, variantUsageLegDelta({ ownerId: host, characterId, leg, selected: true, sign: 1, now: FROZEN_AT_MS }));
       await db.batch(batchMany(statements));
     } finally {
       gate.release();
@@ -232,7 +232,7 @@ describe("exportChatBundle — the fidelity planes", () => {
       model: "gemini-3.1-pro-preview",
       provider: "google",
       wire: "google-generative-ai",
-      observedAt: FROZEN_AT + 1,
+      observedAt: FROZEN_AT_MS + 1,
       modelCalls: 1,
       contextWindow: null,
       maxOutputTokens: 2048,
@@ -266,14 +266,14 @@ describe("exportChatBundle — the fidelity planes", () => {
         connectionAttributionProvenance: "recorded",
         sourceMessageId: null,
         sourceVariantId: null,
-        observedAt: FROZEN_AT + 2,
+        observedAt: FROZEN_AT_MS + 2,
       },
     ]);
     const file = await verb()({ principal: principal(host), chatId: CHAT_ID });
     const bundle = must(file);
     expect(bundle.pendingGenerationObservations).toEqual([
       { turnIndex: 0, ordinal: 0, sourceMessageIndex: 0, sourceVariantIdx: 1, leg },
-      { turnIndex: 1, ordinal: 0, sourceMessageIndex: null, sourceVariantIdx: null, leg: { ...leg, observedAt: FROZEN_AT + 2 } },
+      { turnIndex: 1, ordinal: 0, sourceMessageIndex: null, sourceVariantIdx: null, leg: { ...leg, observedAt: FROZEN_AT_MS + 2 } },
     ]);
     const serialized = JSON.stringify(bundle.pendingGenerationObservations);
     for (const privateId of [funder, connectionId, turnId, standaloneTurn, CHAT_ID, messageId, ...variantIds]) {
@@ -296,7 +296,7 @@ describe("exportChatBundle — the fidelity planes", () => {
     expect(bundle.metadata).toEqual({ roomOverrides: { scenario: "the frontier" } });
     expect(bundle.variableValues).toEqual({ mood: "grim" });
     expect(bundle.characterHandles).toEqual(["aria"]);
-    expect(bundle.injections).toEqual([{ position: "in_chat", depth: 4, role: "system", content: "Stay wry.", order: 1, createdAt: FROZEN_AT }]);
+    expect(bundle.injections).toEqual([{ position: "in_chat", depth: 4, role: "system", content: "Stay wry.", order: 1, createdAt: FROZEN_AT_MS }]);
     // The SELECTED variant is the pointer's, not "the last one" by luck.
     expect(bundle.messages[0]?.selectedIdx).toBe(1);
     expect(bundle.messages[0]?.speakerHandle).toBe("aria");
@@ -315,8 +315,8 @@ describe("exportChatBundle — the fidelity planes", () => {
       { id: castId<TagId>("tag_theirs"), ownerId: other, name: "theirs-only" },
     ]);
     await db.insert(chatTags).values([
-      { chatId: CHAT_ID, tagId: castId<TagId>("tag_mine"), ownerId: host, createdAt: FROZEN_AT },
-      { chatId: CHAT_ID, tagId: castId<TagId>("tag_theirs"), ownerId: other, createdAt: FROZEN_AT },
+      { chatId: CHAT_ID, tagId: castId<TagId>("tag_mine"), ownerId: host, createdAt: FROZEN_AT_MS },
+      { chatId: CHAT_ID, tagId: castId<TagId>("tag_theirs"), ownerId: other, createdAt: FROZEN_AT_MS },
     ]);
 
     const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
@@ -345,8 +345,8 @@ describe("exportChatBundle — the fidelity planes", () => {
       status: "active",
       sessionNumber: 3,
       config: rpgGameConfigSchema.parse({}),
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     });
     // Anchored to the SECOND swipe — a projection that assumed variant 0 would pass a one-swipe fixture.
     await db.insert(rpgSnapshots).values({
@@ -356,7 +356,7 @@ describe("exportChatBundle — the fidelity planes", () => {
       variantId: variantIds[1] as MessageVariantId,
       location: "the broken bridge",
       committed: 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
 
     const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));

@@ -1,11 +1,11 @@
 // backends/local-light/model-cache — the REAL transformers.js loader, offline (`allowRemoteModels: false`) over a
 // throwaway file cache: failed loads are recorded per model id for the availability verdict.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { afterAll } from "vitest";
 import type { LocalLightModelCache } from "#inference/backends/local-light/model-cache.ts";
@@ -68,7 +68,7 @@ test("an already-aborted signal: the wait rejects as aborted and the work's late
   process.on("unhandledRejection", onUnhandled);
   try {
     load.reject(new Error("the load failed after the caller stopped waiting"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     expect(unhandled).toEqual([]);
   } finally {
     process.off("unhandledRejection", onUnhandled);

@@ -41,6 +41,7 @@ import {
   openGroupBehaviorSection,
   openMemberRowMenu,
 } from "./support/chat-room.ts";
+import { WAIT_ROUND_TRIP_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import type { RosterSeat } from "./support/trpc.ts";
 import {
   addCharacterToChat,
@@ -111,9 +112,9 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     // chat bus (`chatUpdated` → getChat refetch), with NO reload.
     await addCharacterToChat(chat.id, characters.characterIds[1] ?? castId<CharacterId>(""));
 
-    await expect.poll(async () => (await characterChipNames(page)).length, { timeout: 15_000 }).toBe(2);
+    await expect.poll(async () => (await characterChipNames(page)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);
     expect(await characterChipNames(page)).toEqual(expect.arrayContaining([CHARACTERS[0].name, CHARACTERS[1].name]));
-    await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible({ timeout: WAIT_UI_MS });
     // …and the group-behavior controls arrive with it, live, inside the "This chat" tab.
     await openGroupBehaviorSection(page);
 
@@ -139,9 +140,9 @@ test("removing a character through the Members row menu drops the seat server-si
     await page.getByRole("menuitem", { name: `Remove ${CHARACTERS[1].name} from chat` }).click();
 
     // Server truth first: the seat is gone from the PRESENT roster (leftSeq-stamped out).
-    await expect.poll(async () => (await characterSeats(chat.id)).map((s) => s.displayName), { timeout: 15_000 }).toEqual([CHARACTERS[0].name]);
+    await expect.poll(async () => (await characterSeats(chat.id)).map((s) => s.displayName), { timeout: WAIT_SURFACE_MS }).toEqual([CHARACTERS[0].name]);
     // …and the room re-reads it: back below the group floor, so the character bar unmounts.
-    await expect.poll(async () => characterChips(page).count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(async () => characterChips(page).count(), { timeout: WAIT_SURFACE_MS }).toBe(0);
   } finally {
     await deleteChat(chat.id).catch(() => null);
     await characters.cleanup();
@@ -183,7 +184,7 @@ test("group config round-trips through the Group-behavior section: output / spea
           const config = await getGroupConfig(chat.id);
           return { output: config.output, policy: config.policy, speakerTags: config.speakerTags, visibility: config.memberCardVisibility };
         },
-        { timeout: 20_000 },
+        { timeout: WAIT_ROUND_TRIP_MS },
       )
       .toEqual({ output: "narrator", policy: "pooled", speakerTags: false, visibility: "full" });
     // The narrator arm carries NO cardScope (the narrator ⇒ merged constraint is unrepresentable, not
@@ -219,7 +220,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await page.getByRole("button", { name: "Advanced", exact: true }).click();
     await page.getByRole("switch", { name: "Each character sees only their own card" }).click();
 
-    await expect.poll(async () => (await getGroupConfig(chat.id)).cardScope, { timeout: 20_000 }).toBe("scoped");
+    await expect.poll(async () => (await getGroupConfig(chat.id)).cardScope, { timeout: WAIT_ROUND_TRIP_MS }).toBe("scoped");
 
     await page.reload();
     await openChatByTitle(page, title);
@@ -261,13 +262,15 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     await openMemberRowMenu(page, CHARACTERS[0].name);
     await page.getByRole("menuitem", { name: "Talkativeness…" }).click();
     const slider = page.getByRole("slider", { name: `Talkativeness: ${CHARACTERS[0].name}` });
-    await expect(slider).toBeVisible({ timeout: 10_000 });
+    await expect(slider).toBeVisible({ timeout: WAIT_UI_MS });
     await slider.press("ArrowLeft");
     await slider.press("ArrowLeft");
 
     // Both knobs land on their OWN seat and neither bleeds into the other: ALPHA got lighter but stayed
     // unmuted, BRAVO got muted at its untouched default weight.
-    await expect.poll(async () => seatFor(await characterSeats(chat.id), alphaId)?.talkativeness ?? null, { timeout: 20_000 }).toBeLessThan(baselineWeight);
+    await expect
+      .poll(async () => seatFor(await characterSeats(chat.id), alphaId)?.talkativeness ?? null, { timeout: WAIT_ROUND_TRIP_MS })
+      .toBeLessThan(baselineWeight);
     const knobbed = await characterSeats(chat.id);
     expect(seatFor(knobbed, alphaId)?.disabled).toBe(false);
     expect(seatFor(knobbed, bravoId)?.disabled).toBe(true);
@@ -279,12 +282,12 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openContextTab(page, "Members");
-    await expect(page.getByRole("button", { name: rowActionsName(CHARACTERS[1].name), exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: rowActionsName(CHARACTERS[1].name), exact: true })).toBeVisible({ timeout: WAIT_SURFACE_MS });
     const persisted = (await getChatDetail(chat.id)).participants;
     expect(seatFor(persisted, bravoId)?.disabled).toBe(true);
     expect(seatFor(persisted, alphaId)?.talkativeness).toBe(alphaWeight);
     // The muted seat is legible as muted in the row's accessible NAME (member-rows.ts `rowAccessibleName`).
-    await expect(page.getByRole("button", { name: `${CHARACTERS[1].name} — character, muted` })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: `${CHARACTERS[1].name} — character, muted` })).toBeVisible({ timeout: WAIT_UI_MS });
   } finally {
     await deleteChat(chat.id).catch(() => null);
     await characters.cleanup();

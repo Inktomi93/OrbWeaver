@@ -5,6 +5,7 @@
 // write lands both hold: the cache takes each write at once and the second is built from the first.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -59,7 +60,7 @@ async function routeTwoPluginRoom(page: Page, settings: SettingsRoutes): Promise
       ceilingTokens: 32_768,
       ceilingEstimated: false,
       limit: null,
-      reserveOutputTokens: 2048,
+      reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       droppedCount: 0,
       compactSummary: null,
     }),

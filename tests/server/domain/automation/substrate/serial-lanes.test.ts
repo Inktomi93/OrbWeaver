@@ -4,17 +4,13 @@
 // failure nor wedges its lane, and a drained lane is deleted (the Map is bounded by ACTIVE keys, not by every
 // key ever seen — an unbounded Map keyed by chatId is a memory leak on a long-lived server).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { describe } from "vitest";
 import { activeLaneCount, runInLane } from "#server/domain/automation/substrate/serial-lanes.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A promise a test resolves by hand — the only way to hold a job open across an assertion. */
 function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
-  let resolve!: () => void;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
+  const { promise, resolve } = Promise.withResolvers<void>();
   return { promise, resolve };
 }
 

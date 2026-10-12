@@ -5,15 +5,15 @@
 // the RESIDENT-HANDLER runtime (a guest tool registered at activation round-trips through `invoke`). The
 // composed-real router test covers the domain wiring; this is the runtime mirror + the security-gate pins.
 
-// @orb-waive-file no-vanity-alias(createLocalPluginHost): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import {
-  createLocalPluginHost as createPluginHost,
+  createLocalPluginHost,
   EVENT_QUEUE_DEPTH,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
@@ -70,8 +70,7 @@ const RACING_GRANTS: readonly PluginCapability[] = ["tools.register", "chat.read
 
 /** Spin the macrotask queue a few ticks so a mid-flight guest handler reaches its awaited (gated) host call. */
 function settleTicks(): Promise<void> {
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  return new Promise((resolve) => setTimeout(resolve, 20));
+  return sleep(20);
 }
 
 /** The concurrency-belt witness bridge: `getVariables` blocks on a per-call gate the test releases (opening the
@@ -112,7 +111,10 @@ function racingBridge(): RacingBridge {
 }
 
 /** Activate a RESIDENT instance whose one tool is the racing witness (await a hung host call, then requestTurn). */
-async function residentRaceTool(host: ReturnType<typeof createPluginHost>, bridge: PluginBridge): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
+async function residentRaceTool(
+  host: ReturnType<typeof createLocalPluginHost>,
+  bridge: PluginBridge,
+): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
   const outcome = await host.createInstance({ mainJs: RACING_TOOL_SRC, grants: [...RACING_GRANTS], bridge, chat: noChat });
   if (!outcome.ok) {
     throw new Error(`activation failed: ${outcome.error}`);
@@ -137,8 +139,7 @@ async function drainGatedInvokes(fake: RacingBridge, count: number): Promise<voi
  *  macrotask ticks after the prior settles to reach its awaited host call). */
 async function waitForGate(fake: RacingBridge): Promise<void> {
   for (let spins = 0; spins < 200 && fake.gates.length === 0; spins++) {
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await sleep(5);
   }
 }
 
@@ -146,8 +147,7 @@ async function waitForGate(fake: RacingBridge): Promise<void> {
  *  still times out into a failing assertion rather than hanging. */
 async function waitForReleases(releases: readonly unknown[], count: number): Promise<void> {
   for (let spins = 0; spins < 200 && releases.length < count; spins++) {
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await sleep(5);
   }
 }
 
@@ -155,8 +155,8 @@ async function waitForReleases(releases: readonly unknown[], count: number): Pro
  *  under the gate ceiling: one MORE activation over an already-full pool settles immediately (refused,
  *  never queued) rather than joining the held set. */
 async function assertOverflowRefused(
-  host: ReturnType<typeof createPluginHost>,
-  input: Parameters<ReturnType<typeof createPluginHost>["createInstance"]>[0],
+  host: ReturnType<typeof createLocalPluginHost>,
+  input: Parameters<ReturnType<typeof createLocalPluginHost>["createInstance"]>[0],
 ): Promise<void> {
   let overflowSettled = false;
   const overflowPromise = host.createInstance(input).then((outcome) => {
@@ -179,7 +179,7 @@ async function assertOverflowRefused(
  *  split out alongside `assertOverflowRefused` for the same complexity-budget reason. */
 async function releaseAndDrain(
   releases: readonly (() => void)[],
-  held: readonly Promise<Awaited<ReturnType<ReturnType<typeof createPluginHost>["createInstance"]>>>[],
+  held: readonly Promise<Awaited<ReturnType<ReturnType<typeof createLocalPluginHost>["createInstance"]>>>[],
 ): Promise<PluginInstance[]> {
   for (const release of releases) {
     release();
@@ -204,8 +204,8 @@ function makeSeams(): HostSeams {
 }
 
 /** A production-shaped host over deterministic seams. */
-function makeHost(): ReturnType<typeof createPluginHost> {
-  return createPluginHost(makeSeams());
+function makeHost(): ReturnType<typeof createLocalPluginHost> {
+  return createLocalPluginHost(makeSeams());
 }
 
 describe("port.createInstance — direct-adapter resident admission", () => {
@@ -283,12 +283,8 @@ describe("port.createInstance — direct-adapter resident admission", () => {
       }
     }
 
-    let releaseTransaction!: () => void;
     let transactionStarted = false;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const transaction = new Promise<void>((resolve) => {
-      releaseTransaction = resolve;
-    });
+    const { promise: transaction, resolve: releaseTransaction } = Promise.withResolvers<void>();
     const transactionalBridge: PluginBridge = {
       ...base,
       storage: {
@@ -588,8 +584,7 @@ describe("port.createInstance — a failed activation with a parked host call re
     await expect(host.invoke(siblingOutcome.instance, ref, "{}", noChat)).resolves.toBe("pong");
     host.dispose(siblingOutcome.instance);
 
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     process.off("unhandledRejection", onUnhandled);
     expect(rejections).toEqual([]);
   });
@@ -1512,11 +1507,7 @@ describe("membrane — teardown drains in-flight host calls (guest-reachable hos
   /** A bridge whose `chat.getVariables` blocks on an external gate — the caller releases it AFTER teardown. */
   function gatedBridge(): { bridge: PluginBridge; release: (v: Record<string, string>) => void; gate: Promise<Record<string, string>> } {
     const base = fakeBridge().bridge;
-    let release!: (v: Record<string, string>) => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<Record<string, string>>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<Record<string, string>>();
     const bridge: PluginBridge = { ...base, chat: { ...base.chat, getVariables: () => gate } };
     return { bridge, release, gate };
   }
@@ -1530,8 +1521,7 @@ describe("membrane — teardown drains in-flight host calls (guest-reachable hos
     process.on("unhandledRejection", onUnhandled);
     try {
       await fn();
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await sleep(0);
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
@@ -1613,7 +1603,7 @@ describe("membrane — host-operation liveness cancellation", () => {
   }
 
   async function residentQuietTool(
-    host: ReturnType<typeof createPluginHost>,
+    host: ReturnType<typeof createLocalPluginHost>,
     bridge: PluginBridge,
     fireAndForget: boolean,
   ): Promise<{
@@ -1644,8 +1634,7 @@ describe("membrane — host-operation liveness cancellation", () => {
     const { instance, ref } = await residentQuietTool(host, bridge, false);
     try {
       await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(HOST_FN_EXCEEDED_RE);
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await sleep(150);
       expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
     } finally {
       host.dispose(instance);
@@ -1659,8 +1648,7 @@ describe("membrane — host-operation liveness cancellation", () => {
     expect(await host.invoke(instance, ref, "{}", noChat)).toBe("started");
     expect(witness.started).toBe(1);
     host.dispose(instance);
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await sleep(150);
     expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
   });
 
@@ -1674,8 +1662,7 @@ describe("membrane — host-operation liveness cancellation", () => {
 
     host.dispose(instance);
     await expect(invoked).rejects.toThrow(HOST_OPERATION_ABORTED_RE);
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(witness).toEqual({ started: 1, aborted: 1, sideEffects: 0 });
     await expect(host.invoke(instance, ref, "{}", noChat)).rejects.toThrow(UNKNOWN_OR_DISPOSED_RE);
   });
@@ -1708,7 +1695,7 @@ describe("port.dispose — the detached cleanup join surfaces a settle failure (
 
   /** Activate a resident whose one tool fires a never-settling host call fire-and-forget then returns — after the
    *  invoke returns, that host op is still in flight, forcing dispose down the detached teardown join. */
-  async function residentWithPendingHostOp(host: ReturnType<typeof createPluginHost>, bridge: PluginBridge): Promise<PluginInstance> {
+  async function residentWithPendingHostOp(host: ReturnType<typeof createLocalPluginHost>, bridge: PluginBridge): Promise<PluginInstance> {
     const main =
       "orb.host(1).tools.register({ name: 'leak', description: 'd', parameters: { type: 'object', properties: {} }, handler: async () => { const h = orb.host(1); h.chat.getVariables(h.chat.current()); return 'ok'; } });";
     const outcome = await host.createInstance({ mainJs: main, grants: ["tools.register", "chat.read"], bridge, chat: noChat });
@@ -1726,8 +1713,7 @@ describe("port.dispose — the detached cleanup join surfaces a settle failure (
   /** Spin the macrotask queue so the detached chain (tail → settle reject → finish → propagate → withRequestSpan
    *  seal → superviseDetached's `.catch`) flushes fully before we assert on the fire-and-forget supervisor. */
   function flushDetached(): Promise<void> {
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    return new Promise((resolve) => setTimeout(resolve, 100));
+    return sleep(100);
   }
 
   test("a settleHostOperations REJECTION on the deferred teardown path is OBSERVED (superviseDetached logs it), and finish runs once", {
@@ -1968,7 +1954,7 @@ describe("port.invoke — per-instance FIFO serialization (concurrency belt on t
 describe("the invocation SETTLEMENT deadline through the port (the FIFO wedge + the snippet leak)", () => {
   /** A resident instance carrying a hanging handler + a healthy one, on a TIGHT settlement wall. */
   async function residentHangTool(
-    host: ReturnType<typeof createPluginHost>,
+    host: ReturnType<typeof createLocalPluginHost>,
   ): Promise<{ instance: PluginInstance; hang: PluginHandlerRef; ok: PluginHandlerRef }> {
     const { bridge } = fakeBridge();
     const main = `
@@ -2231,7 +2217,7 @@ function gatedStorageBridge(): { bridge: PluginBridge; open: () => void } {
 }
 
 async function floatingResident(
-  host: ReturnType<typeof createPluginHost>,
+  host: ReturnType<typeof createLocalPluginHost>,
   bridge: PluginBridge,
   label?: string,
 ): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
@@ -2373,7 +2359,7 @@ describe("the resident-handler args channel is JSON DATA, never guest SOURCE (#6
     });
     'ok';`;
 
-  async function witness(host: ReturnType<typeof createPluginHost>, bridge: PluginBridge): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
+  async function witness(host: ReturnType<typeof createLocalPluginHost>, bridge: PluginBridge): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
     const outcome = await host.createInstance({ mainJs: witnessSrc, grants: ["tools.register"], bridge, chat: noChat });
     if (!outcome.ok) {
       throw new Error(`activation failed: ${outcome.error}`);

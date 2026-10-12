@@ -20,7 +20,6 @@
 // the next turn ships) and `getMemberCard` (the card-context render). Neither runs a turn.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-// @orb-waive-file no-loose-id-cast(characterId): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -175,12 +174,14 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
   test("the member CARD read renders card {{user}} against a member-owned anchor too (same resolver, display side)", async ({ db, services }) => {
     const room = await seedRoom(db, { hostActive: true, anchor: "member" });
     const characterId = (await db.select({ id: characters.id }).from(characters).limit(1))[0]?.id;
-    expect(characterId).toBeDefined();
+    if (characterId === undefined) {
+      throw new Error("the seeded room has no character row");
+    }
 
     const card = await services.chat.getMemberCard({
       principal: principal(room.member),
       chatId: room.chatId,
-      characterId: characterId as never,
+      characterId,
     });
 
     expect(card.description).toBe("Zara is my brother");

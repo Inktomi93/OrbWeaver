@@ -1,4 +1,3 @@
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ServerResponse } from "node:http";
 import { afterEach, vi } from "vitest";
 import viteConfig from "../../packages/client/vite.config.ts";
@@ -40,12 +39,7 @@ async function configuredPlugin(name: string): Promise<ConfiguredPlugin> {
 }
 
 function deferred(): { readonly promise: Promise<void>; reject: (cause: Error) => void; resolve: () => void } {
-  let rejectPromise: (cause: Error) => void = () => undefined;
-  let resolvePromise: () => void = () => undefined;
-  const promise = new Promise<void>((resolve, reject) => {
-    rejectPromise = reject;
-    resolvePromise = resolve;
-  });
+  const { promise, reject: rejectPromise, resolve: resolvePromise } = Promise.withResolvers<void>();
   return { promise, reject: rejectPromise, resolve: resolvePromise };
 }
 

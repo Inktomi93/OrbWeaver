@@ -5,10 +5,9 @@
 // default-applying accessors. Plus a few
 // compile-time shape pins for representative param/result/view types.
 
-// @orb-waive-file no-loose-id-cast("alex"): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "#server/domain/chat/contract/metadata.ts";
 import type { CreateInviteParams, RedeemInviteParams, SendParams } from "#server/domain/chat/contract/params.ts";
@@ -178,7 +177,7 @@ describe("representative contract shapes", () => {
       principal: {
         userId: "u_1" as UserId,
         role: "user",
-        handle: "alex" as never,
+        handle: castId<Handle>("alex"),
         externalId: null,
         via: "cookie",
       },

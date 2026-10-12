@@ -21,7 +21,7 @@
 // (`route.fallback()`) to routeTrpc for everything else — including answering the attach mutations, which
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request } from "@playwright/test";
@@ -166,7 +166,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       // handler is async, so "not answering yet" IS a live stream from the client's point of view.
       const deadline = Date.now() + HANDSHAKE_TIMEOUT_MS;
       while (attached.length < awaitAttaches && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, HANDSHAKE_POLL_MS));
+        await sleep(HANDSHAKE_POLL_MS);
       }
       // Dropped connections omit `return` → EOF → the link reconnects under the scripted process identity.
       const clean = closeStream && connects > dropConnectionCount;

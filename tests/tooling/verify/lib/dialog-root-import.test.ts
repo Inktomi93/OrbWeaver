@@ -1,15 +1,14 @@
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
-import { gate as ordinary } from "../../../../tooling/src/verify/gates/dialog-via-composite.ts";
+import { gate } from "../../../../tooling/src/verify/gates/dialog-via-composite.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/dialog-family";
-const POLICIES = [ordinary];
+const POLICIES = [gate];
 const PRODUCT_MARKERS = [
   "packages/client/src/features/app-shell/components/modal-host.tsx",
   "packages/client/src/features/chat/anchors/join-invite-dialog.tsx",

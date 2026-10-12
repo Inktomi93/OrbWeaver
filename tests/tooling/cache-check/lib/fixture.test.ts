@@ -1,4 +1,3 @@
-// @orb-waive-file platform-spellings(ran): baselined when the gate widened; burn-down item 906.
 import type { CacheCase, CasePlan, ProbeStep } from "@orb/tooling/cache-check";
 import { CACHE_CASES, CASE_PLANS, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -32,7 +31,7 @@ test("every room writes its prefix with a committed line and a generate; only th
 test("the selected cases run once each, grouped one chat per room, with the deep note last in its room", () => {
   const runs = roomRuns(CACHE_CASES);
   const ran: CacheCase[] = runs.flatMap((r) => [...r.cases]);
-  expect([...ran].sort()).toEqual([...CACHE_CASES].sort());
+  expect(ran.toSorted((a, b) => a.localeCompare(b))).toEqual(CACHE_CASES.toSorted((a, b) => a.localeCompare(b)));
   expect(runs.map((r) => r.room)).toEqual(["solo", "per-speaker", "narrator"]);
   const solo = runs.find((r) => r.room === "solo")?.cases ?? [];
   expect(solo.at(-1)).toBe("deep-note");

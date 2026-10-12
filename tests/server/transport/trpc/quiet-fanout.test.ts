@@ -13,7 +13,6 @@
 // if it returns false. The `fan()` helper below is that call shape and nothing else, so an arm here cannot
 // pass by testing a different policy than the emit surface applies.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -98,15 +97,11 @@ describe("quiet-fanout — the ROOM plane (chatId, entity) pairs", () => {
 
   test("a room fan from OUTSIDE the scope is never silenced, even for a room the run is touching", async () => {
     delivered = [];
-    let release = (): void => {
-      // Replaced synchronously by the promise executor below.
-    };
+    const { promise: held, resolve: release } = Promise.withResolvers<void>();
     const bulk = withQuietBulkFanout(async () => {
       fan(ROOM_A, "character");
       fan(ROOM_A, "character");
-      await new Promise<void>((resolve) => {
-        release = resolve;
-      });
+      await held;
     });
     await Promise.resolve();
     // The async-context scoping rationale, on the room plane: a HUMAN editing that same seated card from

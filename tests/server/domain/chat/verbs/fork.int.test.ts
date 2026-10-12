@@ -4,10 +4,6 @@
 // becomes host while other humans are NOT auto-joined (D16 chokepoint — FLAG[fork-humans]), and `chatCreated`
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ChatReasoningPart } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
@@ -32,7 +28,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
-import { makeHarness as makeExportHarness } from "../../export/_support.ts";
+import { makeHarness } from "../../export/_support.ts";
 import {
   addVariant,
   makeChatContext,
@@ -956,7 +952,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         ]),
       );
       expect((await loadCanonHistory(db, chat.id))[0]?.toolCalls).toEqual([expectedFirst, expectedSecond]);
-      const exported = await createExportChatBundle(makeExportHarness(db).ctx)({ principal: principal(forker), chatId: chat.id });
+      const exported = await createExportChatBundle(makeHarness(db).ctx)({ principal: principal(forker), chatId: chat.id });
       if (exported === null) {
         throw new Error("fork host export was refused");
       }
@@ -1036,6 +1032,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       // the pre-join canon rides `static` (the assembled history the fit-pass kept). Only the blob's PRESENCE
       // in the copy is under test — the copy path reads no field of it.
       // @orb-waive no-test-fabrication(never): an AssembledPrompt stand-in whose fields the copy path never reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
       const snapshot = {
         static: "PRE-JOIN CANON: the vault code is 4417.",
         dynamic: `He smiles. ${lie} "Nothing," he says.`,
@@ -1069,6 +1066,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
       const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs." });
       // @orb-waive no-test-fabrication(never): only the blob's PRESENCE is under test; `trace` is never read by the copy path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
       const snapshot = { static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} } as never;
       await db
         .update(messageVariants)
@@ -1206,6 +1204,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .update(messageVariants)
         .set({
           // @orb-waive no-test-fabrication(never): an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+          // @orb-waive no-loose-id-cast({ static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
           promptSnapshot: { static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} } as never,
           // The host-gated wire trio's other two members: the initiator's per-send knobs (note the
           // `advanced.claudeEnv` escape hatch + the free-text compaction instructions) and the draw record.

@@ -8,6 +8,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeResolvedView } from "../../../support/factories/resolved-connection.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
@@ -86,7 +87,6 @@ export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");
  *  asserts it, and homed HERE (not on the story module) because a `.ct.tsx` may import only components
  *  from a story module (Playwright's CT transform double-declares a mixed value+component import). */
 export const SLASH_LOCKED_REASON = "Locked in this room — join it first.";
-const FROZEN_AT = 1_750_000_000_000;
 
 /** The viewer's one connection row in the ambient feed — the row their chat role resolves to. */
 const AMBIENT_CONNECTION = {
@@ -106,8 +106,8 @@ const AMBIENT_CONNECTION = {
   allowBackground: true,
   promptCache: null,
   tasks: ["chat"],
-  createdAt: FROZEN_AT,
-  updatedAt: FROZEN_AT,
+  createdAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
 } as const satisfies TrpcWireOutput<"connection.list">[number];
 
 /**
@@ -153,7 +153,7 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
     schemaVersion: 1,
     config: DEFAULT_USER_SETTINGS,
     configUnreadable: null,
-    updatedAt: FROZEN_AT,
+    updatedAt: FROZEN_AT_MS,
   },
   // The viewer's active preset resolves by name against the library; the defaults above seed `null` (the
   // built-in), so an EMPTY library is the honest companion and the read pipeline runs for real.
@@ -266,7 +266,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     characterId: null,
     personaId: null,
     excludedFromPrompt: false,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
     editedAt: null,
     selectedVariantId: castId<MessageVariantId>("mv_ct_1"),
     selectedVariantIdx: 0,
@@ -354,8 +354,8 @@ export function makeChatSummary(overrides: Partial<ScopedChatSummaryFixture> = {
     title: "A grand adventure",
     starred: false,
     archived: false,
-    lastMessageAt: FROZEN_AT,
-    viewerLastTurnAt: FROZEN_AT,
+    lastMessageAt: FROZEN_AT_MS,
+    viewerLastTurnAt: FROZEN_AT_MS,
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
     filterCharacterIds: [],
@@ -364,8 +364,8 @@ export function makeChatSummary(overrides: Partial<ScopedChatSummaryFixture> = {
     isGame: false,
     gamePaused: false,
     viewerRole: "host",
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }

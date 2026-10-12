@@ -1136,7 +1136,6 @@ test("without a bg image, flat stays truly flat — no scrim, no blur (don't scr
 // answers with its own chip; every other skin answers with the container. ALL EIGHT skins, BOTH roles —
 // the coverage #167 minted, asserted through the anatomy #288 left.
 const ACTIONS_ROW = '[data-slot="message-actions-row"]';
-const ALL_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const;
 
 /** The header's own fill if it paints one, else its container's — i.e. what a reader actually sees behind
  *  the speaker name. Returns the painted ancestor's fill + blur, so the assertion survives either anatomy. */
@@ -1165,7 +1164,7 @@ function expectAnchoredOverArt(surface: { readonly bg: string; readonly backdrop
   expect({ ...surface, anchored: alpha === 1 || surface.backdrop !== "none" }).toMatchObject({ anchored: true });
 }
 
-for (const style of ALL_CHAT_STYLES) {
+for (const style of THEME_CHAT_STYLES) {
   test(`${style} over a bg image: the ASSISTANT name row's nearest backdrop is a real surface, not the raw photo`, async ({ mount }) => {
     const component = await mount(
       <div data-has-bg-image="">
@@ -1662,7 +1661,7 @@ function headerBodyGeometry(component: Locator): Promise<HeaderBodyGeometry> {
   });
 }
 
-const INSIDE_CHAT_STYLES = ALL_CHAT_STYLES.filter((style) => style !== "tide");
+const INSIDE_CHAT_STYLES = THEME_CHAT_STYLES.filter((style) => style !== "tide");
 
 for (const coarse of [false, true] as const) {
   test.describe(`inside header-to-body gap, ${coarse ? "coarse" : "fine"} pointer`, () => {
@@ -2598,9 +2597,7 @@ test.describe("#220 coarse name band", () => {
 // (`bubbleLayout: "trains"` — N per-paragraph pills), and its ST reference also puts the name above the
 // train, so it keeps the sibling row + the #167 chip. That split is declared in the skin table
 // (`RowSkin.headerPlacement`), which is why this loop is driven off the same axis as the #113 one.
-const HEADER_INSIDE_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple"] as const;
-
-for (const style of HEADER_INSIDE_STYLES) {
+for (const style of INSIDE_CHAT_STYLES) {
   test(`#288 ${style}: the name row is INSIDE the message container, not a sibling above it`, async ({ mount }) => {
     test.skip(style === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(<MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);

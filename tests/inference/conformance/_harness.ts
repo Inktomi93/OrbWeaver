@@ -25,8 +25,6 @@
 // fixture already built — and has reached a real listening vLLM engine on this box once. Every arm here
 // therefore builds its OWN services with the fake already in `deps`. No arm needs a credential; none may.
 
-// @orb-waive-file no-inline-types(ConformanceTask): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-inline-types(SkipReason): baselined when the gate widened; burn-down item 906.
 import type { Capability, GenerationCapability, Task, Wire } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, EMBEDDING_FLOOR, WIRE_DEFS } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -62,12 +60,12 @@ const CONFORMANCE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
  *  never a per-backend roster; `applicability.suite.test.ts` pins the driver table against it so a wire that
  *  grows a served task cannot quietly fall out of the matrix. */
 export const CONFORMANCE_TASKS = ["chat", "structured", "embed"] as const satisfies readonly Task[];
-export type ConformanceTask = (typeof CONFORMANCE_TASKS)[number];
+type ConformanceTask = (typeof CONFORMANCE_TASKS)[number];
 
 /** Why a conformance cell did not run. `unserved` is the ONLY admissible reason — every other member means
  *  the harness lost coverage while still reading green, which is exactly what this suite must not do. */
 const SKIP_REASONS = ["unserved", "unbuilt", "no-driver"] as const;
-export type SkipReason = (typeof SKIP_REASONS)[number];
+type SkipReason = (typeof SKIP_REASONS)[number];
 
 /** The wires in a stable order — `WIRE_DEFS`' own key order, so a new wire joins every matrix by existing. */
 export const CONFORMANCE_WIRES: readonly Wire[] = Object.freeze(Object.keys(WIRE_DEFS) as Wire[]);

@@ -49,13 +49,13 @@ import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth
 import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** The compact ID token standing in for what the IdP returned at the callback. Nothing under test parses
  *  it; its BYTES are the assertion — a mangled hint is one authentik rejects. */
 const ID_TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.round-trip-signature-not-verified";
-const NOW = 1_750_000_000_000;
 const COOKIE_NAME = "__Host-orb_session";
 const APP_HOST = "app.example";
 const CALLBACK_URI = `https://${APP_HOST}/api/auth/oidc/callback`;
@@ -71,7 +71,14 @@ const PROXY_PEER = { incoming: { socket: { remoteAddress: "127.0.0.1", remotePor
 /** #867 — the PKCE/state transaction the authorize leg minted; the callback consumes it single-use. Its
  *  `redirectUri` is the allowlisted callback the exchange must be presented, whatever origin the request
  *  arrives on. */
-const TX: OidcTransaction = { state: "st-1", codeVerifier: "cv-1", nonce: "nonce-1", redirectUri: CALLBACK_URI, createdAt: NOW, inviteTokenHash: null };
+const TX: OidcTransaction = {
+  state: "st-1",
+  codeVerifier: "cv-1",
+  nonce: "nonce-1",
+  redirectUri: CALLBACK_URI,
+  createdAt: FROZEN_AT_MS,
+  inviteTokenHash: null,
+};
 /** The claims the fake exchange yields — a usable username AND the stable subject `oidcSessionIdentity`
  *  requires. `alice` is the seeded row, so provisioning binds the subject onto it. */
 // biome-ignore lint/style/useNamingConvention: OIDC claim names are wire-fixed snake_case (OIDC Core).
@@ -109,15 +116,15 @@ beforeEach(async () => {
     .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
   sessions = createSessionsService({
     db,
-    now: (): number => NOW,
+    now: (): number => FROZEN_AT_MS,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: (): number => NOW, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db, now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: () => undefined }),
   });
   app = new Hono();
   const deps: AuthRoutesDeps = {
     sessions,
     sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
-    now: (): number => NOW,
+    now: (): number => FROZEN_AT_MS,
     db,
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,

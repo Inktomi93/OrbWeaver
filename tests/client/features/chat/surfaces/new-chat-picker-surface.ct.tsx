@@ -6,6 +6,7 @@
 // character past the hundredth card could not be found here at all while she sat in the library.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -321,7 +322,7 @@ const PREVIEW_FIT_STUB = {
   ceilingTokens: 32_768,
   ceilingEstimated: false,
   limit: null,
-  reserveOutputTokens: 2048,
+  reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   droppedCount: 0,
   compactSummary: null,
 };

@@ -1,7 +1,5 @@
 // The final policy runtime's one scope boundary: Git defines authored/current/change identity, TypeScript
 // defines program membership, and every request resolves to the same validated manifest shape.
-// @orb-waive-file no-loose-id-cast(request): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ kind: "whole", extra: true }): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -145,6 +143,7 @@ test("asserted scopes refuse empty, duplicate, missing, ignored, malformed, trav
     expect(() => resolvePolicyScope(scratch, request), JSON.stringify(request)).toThrow();
   }
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test scope resolution with an invalid execution value
+  // @orb-waive no-loose-id-cast({ kind: "whole", extra: true }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   expect(() => resolvePolicyScope(scratch, { kind: "whole", extra: true } as never)).toThrow(/scope request/i);
 });
 
@@ -363,6 +362,7 @@ test("unknown request-key diagnostics are sorted and independent of insertion or
   plantRepo(scratch);
   const message = (request: object): string => {
     try {
+      // @orb-waive no-loose-id-cast(request): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       resolvePolicyScope(scratch, request as never);
     } catch (error) {
       return error instanceof Error ? error.message : String(error);

@@ -1,4 +1,3 @@
-// @orb-waive-file no-vanity-alias(seedUser): baselined when the gate widened; burn-down item 906.
 import type { CorpusSource } from "@orb/contracts/search";
 import { chatSegments, embedGenerations, messages } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
@@ -9,16 +8,16 @@ import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { createMessageWindow } from "#server/domain/chat/verbs/message-window.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal } from "../../../../support/factories/principal.ts";
-import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
+import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedChatSegment, vec } from "../../search/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, seedChat, seedMessage, seedParticipant } from "../_support.ts";
 
 interface SourceWindowFixture {
   readonly db: Awaited<ReturnType<typeof freshDb>>;
-  readonly host: Awaited<ReturnType<typeof seedUserRow>>["id"];
-  readonly member: Awaited<ReturnType<typeof seedUserRow>>["id"];
-  readonly outsider: Awaited<ReturnType<typeof seedUserRow>>["id"];
+  readonly host: Awaited<ReturnType<typeof seedUser>>["id"];
+  readonly member: Awaited<ReturnType<typeof seedUser>>["id"];
+  readonly outsider: Awaited<ReturnType<typeof seedUser>>["id"];
   readonly chatId: Awaited<ReturnType<typeof seedChat>>;
   readonly source: Extract<CorpusSource, { kind: "segment" }>;
   readonly read: ReturnType<typeof createMessageWindow>;
@@ -26,9 +25,9 @@ interface SourceWindowFixture {
 }
 async function setup(): Promise<SourceWindowFixture> {
   const db = await freshDb();
-  const host = (await seedUserRow(db, { handle: castId<Handle>("window-host") })).id;
-  const member = (await seedUserRow(db, { handle: castId<Handle>("window-member") })).id;
-  const outsider = (await seedUserRow(db, { handle: castId<Handle>("window-outsider") })).id;
+  const host = (await seedUser(db, { handle: castId<Handle>("window-host") })).id;
+  const member = (await seedUser(db, { handle: castId<Handle>("window-member") })).id;
+  const outsider = (await seedUser(db, { handle: castId<Handle>("window-outsider") })).id;
   const chatId = await seedChat(db, "source-room", { id: mintTypeId(ID_PREFIX.chat) });
   await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
   await seedParticipant(db, { chatId, key: "member", userId: member, joinSeq: 24, joinHistoryVisibility: "from-join" });

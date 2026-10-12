@@ -2,12 +2,11 @@
 // (not the handle), owner-scoped, blind to synthetic group identities, and returns every same-named card so
 // the caller can refuse an ambiguity.
 
-// @orb-waive-file no-vanity-alias(FROZEN_AT_MS): baselined when the gate widened; burn-down item 906.
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
-import { FROZEN_AT_MS as FROZEN_AT } from "../../../../support/clock.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedRawCharacter, seedUser } from "../_support.ts";
@@ -28,8 +27,8 @@ describe("findByName", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const newer = await seedRawCharacter(db, { id: "character_newer", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT + 1 });
-    const older = await seedRawCharacter(db, { id: "character_older", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT });
+    const newer = await seedRawCharacter(db, { id: "character_newer", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT_MS + 1 });
+    const older = await seedRawCharacter(db, { id: "character_older", ownerId: owner, name: "Elias Thorn", createdAt: FROZEN_AT_MS });
     await seedRawCharacter(db, { id: "character_foreign", ownerId: other, name: "Elias Thorn" });
     await seedRawCharacter(db, { id: "character_group", ownerId: owner, name: "Elias Thorn", synthetic: true });
 

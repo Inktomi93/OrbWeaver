@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCharacters, startChat } from "./support/trpc.ts";
 
 const USER_DISPLAY_NAME = "You";
@@ -50,8 +51,8 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
 
     // Drive one turn so a USER row exists too (greeting seeds only an assistant row).
     await typeAndSend(page.getByRole("textbox", { name: "Message" }), "Reply with exactly: names-probe-ok");
-    await expect(page.locator('[data-slot="message-row"][data-role="user"]').first()).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[data-slot="message-row"][data-role="assistant"]').last()).toContainText(NON_WS, { timeout: 120_000 });
+    await expect(page.locator('[data-slot="message-row"][data-role="user"]').first()).toBeVisible({ timeout: WAIT_SETTLE_MS });
+    await expect(page.locator('[data-slot="message-row"][data-role="assistant"]').last()).toContainText(NON_WS, { timeout: WAIT_LIVE_TURN_MS });
 
     // Speaker names: assistant row shows the CHARACTER, user row shows the persona/user display name.
     expect(await speakerNameText(page, "assistant")).toContain(characterName);
@@ -60,7 +61,7 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
     // ── Rename the CHAT: the TITLE propagates, the row SPEAKER names do not change. ──
     const newTitle = `e2e-names-${Date.now()}`;
     await renameOpenChat(page, newTitle);
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 
     // Title changed; speaker names unaffected.
     expect(await speakerNameText(page, "assistant")).toContain(characterName);
@@ -70,7 +71,7 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
     await page.reload();
     await reopenFirstChat(page);
     // The renamed title persisted (DB truth) and the speaker names are still DB-true.
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
     expect(await speakerNameText(page, "assistant")).toContain(characterName);
     expect(await speakerNameText(page, "user")).toContain(USER_DISPLAY_NAME);
   } finally {

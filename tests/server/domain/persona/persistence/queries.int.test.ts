@@ -5,7 +5,6 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
-// @orb-waive-file no-loose-id-cast(overrides.metadata): baselined when the gate widened; burn-down item 906.
 import { chats, personas } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -20,12 +19,11 @@ import {
   loadPersonasForOwners,
   loadPinnedPersonaView,
 } from "#server/domain/persona/persistence/queries.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
-
-const FROZEN_AT = 1_750_000_000_000;
 
 async function seedPersonaRow(
   db: Awaited<ReturnType<typeof freshDb>>,
@@ -39,9 +37,10 @@ async function seedPersonaRow(
     name: "P",
     description: "d",
     avatarAssetId: overrides.avatarAssetId ?? null,
+    // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     metadata: overrides.metadata as never,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }

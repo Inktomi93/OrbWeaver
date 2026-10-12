@@ -6,18 +6,26 @@
 // the character→refinery edge one-way), so it lives here, where both namespaces are importable.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import { characterCardSchema } from "@orb/contracts/character";
+import { characterCardSchema, GREETINGS_MAX, TEXT_MAX } from "@orb/contracts/character";
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import {
   appendedRewrites,
+  CRITIQUE_CHAR_BACKSTOP,
+  CRITIQUE_TOKEN_MAX,
   DEFAULT_REFINERY_STAGE_CONFIG,
+  ENTRIES_MAX,
+  GREETING_INDEX_MAX,
   GREETING_SLOTS_MAX,
+  HOST_PROSE_MAX_CHARS,
   isAppendedRewrite,
   isClearedRewrite,
+  LIST_MAX,
+  NOTE_MAX,
   payloadSchemaFor,
   REFINABLE_FIELDS,
   REFINERY_STAGE_PAYLOADS,
   REFINERY_STAGES,
+  REWRITE_TEXT_MAX,
   refineryAnalyzePayloadSchema,
   refineryCustomRunConfigSchema,
   refineryCustomStageConfigSchema,
@@ -30,6 +38,7 @@ import {
   refinerySessionNameSchema,
   refinerySessionSummarySchema,
   refineryStageConfigSchema,
+  SESSION_NAME_MAX,
 } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // The PRODUCTION estimator the contract's token cap is measured by — imported so the fixtures below assert
@@ -39,33 +48,18 @@ import { expectTypeOf } from "vitest";
 import type { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
-// The 1-10 rubric's probe values + the card TEXT_MAX twin (contracts/character caps text fields at
-// 100 000 — an applied rewrite must satisfy `character.update`, so the payload pins the same cap).
+// The 1-10 rubric's probe values.
 const SCORE_BELOW_MIN = 0;
 const SCORE_ABOVE_MAX = 11;
-const CARD_TEXT_MAX = 100_000;
 const CREATED_AT = 1_700_000_000_000;
 const UPDATED_AT = 1_700_100_000_000;
 
-// The model-authored-payload ceilings (security pass 2026-08-08, gap 1). The constants are unexported in the contract, so every
-// one is pinned BEHAVIORALLY at-cap/over-cap, the REWRITE_TEXT_MAX precedent above.
+// The model-authored-payload ceilings (security pass 2026-08-08, gap 1), each pinned at-cap and over-cap through the
+// contract's own constant.
 //
 // CRITIQUE PROSE IS DUAL-BOUND (owner ruling 2026-08-08 — "we are thinking in chars but it needs to be
 // tokens ... I have cards that are like 4k"): a 4 000-TOKEN product cap measured by the ONE production
 // estimator (`@orb/kit/tokens`), plus a derived CHAR backstop. Both are pinned behaviorally here.
-const CRITIQUE_TOKEN_MAX = 4000;
-// 4 × the token cap. QuadChars charges a printable-ASCII run 1 token per 4 chars and every other codepoint
-// 1 token, so 4 is the MOST chars a token can ever buy — which makes this the exact char envelope of the
-// token cap (it rejects nothing the token cap accepts) rather than an independent number.
-const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * 4;
-const NOTE_MAX = 500;
-const LIST_MAX = 50;
-const ENTRIES_MAX = 108;
-const GREETING_INDEX_MAX = 99;
-const GUIDANCE_MAX = 4000;
-const SESSION_NAME_MAX = 200;
-// The card ceiling the two greeting-addressed caps are twins of (characterCardSchema.greetings).
-const CARD_GREETINGS_MAX = 100;
 
 // Canonical typeid suffix (valid crockford base32) — deterministic fixtures, no minting in tests.
 const SESSION_ID = "refinery_session_01h455vb4pex5vsknk084sn02q";
@@ -164,8 +158,9 @@ test("scores hold the 1-10 rubric at the zod belt (0 and 11 rejected, fractional
 });
 
 test("rewrite text caps at the card TEXT_MAX twin; an EMPTY STRING is still not a clear", () => {
-  const at = { fields: [{ field: "description", text: "x".repeat(CARD_TEXT_MAX) }] };
-  const over = { fields: [{ field: "description", text: "x".repeat(CARD_TEXT_MAX + 1) }] };
+  expect(REWRITE_TEXT_MAX).toBe(TEXT_MAX);
+  const at = { fields: [{ field: "description", text: "x".repeat(TEXT_MAX) }] };
+  const over = { fields: [{ field: "description", text: "x".repeat(TEXT_MAX + 1) }] };
   const empty = { fields: [{ field: "description", text: "" }] };
   expect(refineryRewritePayloadSchema.safeParse(at).success).toBe(true);
   expect(refineryRewritePayloadSchema.safeParse(over).success).toBe(false);
@@ -275,8 +270,8 @@ test("isAppendedRewrite and isClearedRewrite recognise exactly their own arm", (
 
 test("GREETING_SLOTS_MAX is the CARD's greetings ceiling (the append belt's cap twin)", () => {
   // The apply belt refuses an append at this count rather than building a patch `character.update` would
-  // throw on — so the two sides must agree, and the card constant is unexported (pinned by behavior).
-  expect(GREETING_SLOTS_MAX).toBe(CARD_GREETINGS_MAX);
+  // throw on — so the two sides must agree.
+  expect(GREETING_SLOTS_MAX).toBe(GREETINGS_MAX);
   expect(GREETING_SLOTS_MAX).toBe(GREETING_INDEX_MAX + 1);
 });
 
@@ -286,7 +281,7 @@ test("the card contract accepts an at-cap description (the cap twin holds on bot
   const card = {
     name: "T",
     greetings: [],
-    description: "x".repeat(CARD_TEXT_MAX),
+    description: "x".repeat(TEXT_MAX),
     personality: null,
     scenario: null,
     exampleMessages: null,
@@ -306,7 +301,7 @@ test("the card contract accepts an at-cap description (the cap twin holds on bot
     refinery: null,
   };
   expect(characterCardSchema.safeParse(card).success).toBe(true);
-  expect(characterCardSchema.safeParse({ ...card, description: "x".repeat(CARD_TEXT_MAX + 1) }).success).toBe(false);
+  expect(characterCardSchema.safeParse({ ...card, description: "x".repeat(TEXT_MAX + 1) }).success).toBe(false);
 });
 
 // ── Model-authored payload ceilings (security pass gap 1) ───────────────────────────────────────────────
@@ -442,9 +437,8 @@ test("the selection DELTA distinguishes absent (keep) from null (every greeting)
   expect(refinerySelectionSchema.safeParse({ fields: [], greetingIndexes: null }).success).toBe(false);
 });
 
-// The behavioral twin of the greeting caps: an index of GREETING_INDEX_MAX is exactly the last slot the
-// CARD can hold, so the payload can address every real greeting and no phantom one. Both constants are
-// unexported on their own sides — this pin is what makes a future card-side change red here.
+// The twin of the greeting caps: an index of GREETING_INDEX_MAX is exactly the last slot the CARD can hold, so the
+// payload can address every real greeting and no phantom one. This pin is what makes a future card-side change red here.
 test("the greeting index ceiling is the card's greetings ceiling minus one", () => {
   const card = {
     name: "T",
@@ -467,18 +461,18 @@ test("the greeting index ceiling is the card's greetings ceiling minus one", () 
     avatarAssetId: null,
     refinery: null,
   };
-  expect(characterCardSchema.safeParse({ ...card, greetings: Array.from({ length: CARD_GREETINGS_MAX }, () => ({ text: "g" })) }).success).toBe(true);
-  expect(characterCardSchema.safeParse({ ...card, greetings: Array.from({ length: CARD_GREETINGS_MAX + 1 }, () => ({ text: "g" })) }).success).toBe(false);
-  expect(GREETING_INDEX_MAX).toBe(CARD_GREETINGS_MAX - 1);
-  expect(ENTRIES_MAX).toBe(REFINABLE_FIELDS.length - 1 + CARD_GREETINGS_MAX);
+  expect(characterCardSchema.safeParse({ ...card, greetings: Array.from({ length: GREETINGS_MAX }, () => ({ text: "g" })) }).success).toBe(true);
+  expect(characterCardSchema.safeParse({ ...card, greetings: Array.from({ length: GREETINGS_MAX + 1 }, () => ({ text: "g" })) }).success).toBe(false);
+  expect(GREETING_INDEX_MAX).toBe(GREETINGS_MAX - 1);
+  expect(ENTRIES_MAX).toBe(REFINABLE_FIELDS.length - 1 + GREETINGS_MAX);
 });
 
 // ── Host-authored free text that reaches a model (security pass gap 4) ──────────────────────────────────
 
 test("session guidance caps at the model-facing prose ceiling", () => {
   expect(refineryGuidanceSchema.safeParse("keep her mean").success).toBe(true);
-  expect(refineryGuidanceSchema.safeParse("x".repeat(GUIDANCE_MAX)).success).toBe(true);
-  expect(refineryGuidanceSchema.safeParse("x".repeat(GUIDANCE_MAX + 1)).success).toBe(false);
+  expect(refineryGuidanceSchema.safeParse("x".repeat(HOST_PROSE_MAX_CHARS)).success).toBe(true);
+  expect(refineryGuidanceSchema.safeParse("x".repeat(HOST_PROSE_MAX_CHARS + 1)).success).toBe(false);
 });
 
 test("session name is bounded (the roster row's label, host-authored)", () => {
@@ -494,9 +488,9 @@ test("selection enforces unique fields + unique non-negative greeting indexes", 
   expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: [1, 1] }).success).toBe(false);
   expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: [-1] }).success).toBe(false);
   // The selection is bounded too — it is stored AND it drives how much card text rides the stage prompt.
-  expect(
-    refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: Array.from({ length: CARD_GREETINGS_MAX + 1 }, (_, i) => i) }).success,
-  ).toBe(false);
+  expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: Array.from({ length: GREETINGS_MAX + 1 }, (_, i) => i) }).success).toBe(
+    false,
+  );
 });
 
 // ── The cross-namespace pin (the reason this test file exists in this shape) ────────────────────────────

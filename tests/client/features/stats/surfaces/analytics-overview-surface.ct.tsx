@@ -1,22 +1,23 @@
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+
 // CT: the Analytics OVERVIEW dashboard's RECOMPUTE affordance — the client half of the direct
 // `stats.reconcile` twin (the queue keeps the all-owners bulk sweep). Drives the PRODUCTION path: the five
 // suspense reads seed the dashboard, the button fires the real mutation, and the settle invalidates the
 // stats router root so the freshness line re-reads. Asserts the wire actually fires — a "Recompute now"
 // button that renders but dispatches nothing is exactly the failure this covers.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { readCanvasBandInk, solidColumns } from "../../../../support/browser/canvas-ink.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceShortStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 import { ACCOUNTING_CASES } from "../fixtures.ts";
 
-const COMPUTED_AT = 1_750_000_000_000;
 /** A four-digit year — the tell that the `title=` carries the ABSOLUTE stamp, whatever the runner's locale. */
 const ABSOLUTE_STAMP = /\d{4}/;
 /** The exact failure mode #296 covers: a field-name drift leaves the rendered value literally "undefined". */
@@ -50,7 +51,7 @@ const WRAPPED = {
   costUsd: 1.25,
   genTimeMs: 90_000,
   topCharacter: null,
-  firstChatAt: COMPUTED_AT - 400 * 86_400_000,
+  firstChatAt: FROZEN_AT_MS - 400 * 86_400_000,
   avgSwipeDepth: 1.44,
   swipeRate: 0.25,
 };
@@ -107,7 +108,7 @@ for (const width of [320, 720] as const) {
     for (const accounting of ACCOUNTING_CASES) {
       test(`accounting provenance: ${accounting.name}`, async ({ mount, page }) => {
         await routeTrpc(page, {
-          "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+          "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
           "stats.overview": () => ({
             ...OVERVIEW,
             tokensIn: accounting.tokens,
@@ -147,12 +148,12 @@ const MOMENTUM_LOPSIDED = [replies(FALLING_CHARACTER, "Kate", MID_JULY, 184), re
 
 test("the dashboard's Recompute now button fires stats.reconcile", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
-    "stats.reconcile": () => ({ owners: 1, characters: 3, buckets: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
+    "stats.reconcile": () => ({ owners: 1, characters: 3, buckets: 4, models: 2, computedAt: FROZEN_AT_MS + 1000 }),
   });
 
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -173,7 +174,7 @@ test("the dashboard's Recompute now button fires stats.reconcile", async ({ moun
 // produces is visible where every other economics figure is.
 test("the Tokens and cost band renders the reasoning WINDOW beside the reasoning rate", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -196,7 +197,7 @@ test("the Tokens and cost band renders the reasoning WINDOW beside the reasoning
 // a drift in the wire shape or the fold fails HERE instead of in a screenshot nobody looked at.
 test("the Rhythm band renders the timeline fixture's real values, never 'undefined'", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -221,7 +222,7 @@ test("the Rhythm band renders the timeline fixture's real values, never 'undefin
 // input was 1.9%. The denominator is now tokensIn, and it says so in the label.
 test("the cache tile names its denominator and reports the INPUT share, not a constant", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => ({ ...OVERVIEW, cacheHitRate: 0.019_36 }),
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -239,7 +240,7 @@ test("the cache tile names its denominator and reports the INPUT share, not a co
 // `0 tok`, `$0.00` — three assertions about measurements that never happened.
 test("an unmeasured figure renders an em dash, never a zero", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => ({ ...OVERVIEW, cacheHitRate: null, tokensIn: null, tokensOut: null }),
     "stats.wrapped": () => ({ ...WRAPPED, costUsd: null }),
     "stats.timeseries": () => TIMELINE,
@@ -262,7 +263,7 @@ test("an unmeasured figure renders an em dash, never a zero", async ({ mount, pa
 // 30.2M words of unselected swipes were excluded with no mention, right beside a "Swipes" tile.
 test("the Words definition and the swipe-word exclusion are stated where they are rendered", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -279,7 +280,7 @@ test("the Words definition and the swipe-word exclusion are stated where they ar
 // prose ("Updated 4h ago"). One vocabulary per column: prose months, and the exact stamp in `title=`.
 test("the momentum band names its months and the freshness line carries the absolute stamp", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -308,7 +309,7 @@ const CANVAS_SETTLE_MS = 400;
 
 test("Rising and Falling share ONE value scale and read as different intents (P1d)", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -325,7 +326,7 @@ test("Rising and Falling share ONE value scale and read as different intents (P1
   await expect(falling.getByRole("table", { name: "Falling" }).getByRole("cell").first()).toHaveText("-184");
   await expect(rising.getByRole("table", { name: "Rising" }).getByRole("cell").first()).toHaveText("+10");
 
-  await new Promise((resolve) => setTimeout(resolve, CANVAS_SETTLE_MS));
+  await sleep(CANVAS_SETTLE_MS);
   const risingBand = await readCanvasBandInk(rising.locator("canvas"), 0.4, 0.6);
   const fallingBand = await readCanvasBandInk(falling.locator("canvas"), 0.4, 0.6);
   const risingBar = solidColumns(risingBand).length;
@@ -358,12 +359,12 @@ async function holdReconcile(page: Page): Promise<() => void> {
 
 test("the button is disabled while its own recompute is in flight", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
-    "stats.reconcile": () => ({ owners: 1, characters: 3, buckets: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
+    "stats.reconcile": () => ({ owners: 1, characters: 3, buckets: 4, models: 2, computedAt: FROZEN_AT_MS + 1000 }),
   });
   const release = await holdReconcile(page);
 
@@ -381,7 +382,7 @@ test("the button is disabled while its own recompute is in flight", async ({ mou
 
 test("a raced recompute (CONFLICT) renders the honest notice, not a failure", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -416,7 +417,7 @@ test("a raced recompute (CONFLICT) renders the honest notice, not a failure", as
 // in this pane — which is exactly how the settings pane acquired it.
 test("no absolutely-positioned box escapes the analytics overview scroller (the containing-block pin)", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -434,7 +435,7 @@ test("no absolutely-positioned box escapes the analytics overview scroller (the 
 // affordance verbatim ("Show list panel", the topbar toggle) rather than "open the list" (WCAG 2.5.3).
 test("the top-character subtitle names the real affordance while collapsed and drops it once the list is docked", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => ({ ...WRAPPED, topCharacter: { name: "Aveline", assistantTurns: 12 } }),
     "stats.timeseries": () => TIMELINE,
@@ -459,7 +460,7 @@ test("the top-character subtitle names the real affordance while collapsed and d
 // surfaces own their scroll axis, unlike Corpus's CONTENT-level owner — see the surface's header comment).
 test("the overview dashboard's content region carries a non-zero inset (#1200)", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -503,7 +504,7 @@ const readRememberedBox = (page: Page, surfaceId: string): Promise<number> =>
 
 test("#1727 the overview surface scrolls past the fold AND remembers its settled box under `analytics.overview`", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.freshness": () => ({ computedAt: FROZEN_AT_MS, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
@@ -537,7 +538,7 @@ test("#1727 the overview surface scrolls past the fold AND remembers its settled
 
 test("an activity rollup without any replies has no reasoning ratio", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.freshness": { computedAt: FROZEN_AT_MS, stale: false, hasData: true },
     "stats.overview": { ...OVERVIEW, assistantTurns: 0, swipes: 0, reasoningRate: 0 },
     "stats.wrapped": { ...WRAPPED, replies: 0, swipes: 0 },
     "stats.timeseries": TIMELINE,
@@ -560,7 +561,7 @@ function figureValue(scope: Locator, label: string): Locator {
 // sample each must read as unrecorded rather than the 0 an empty denominator divides to.
 test("All-time totals render the first chat, the swiped share and the swipe depth, with em dashes when there is no sample", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.freshness": { computedAt: FROZEN_AT_MS, stale: false, hasData: true },
     "stats.overview": OVERVIEW,
     "stats.wrapped": WRAPPED,
     "stats.timeseries": TIMELINE,
@@ -574,7 +575,7 @@ test("All-time totals render the first chat, the swiped share and the swipe dept
 
 test("with no re-rolled reply and no replies, the swipe figures read unrecorded", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.freshness": { computedAt: FROZEN_AT_MS, stale: false, hasData: true },
     "stats.overview": { ...OVERVIEW, variantMessages: 0 },
     "stats.wrapped": { ...WRAPPED, replies: 0, swipeRate: 0, avgSwipeDepth: 0, firstChatAt: null },
     "stats.timeseries": TIMELINE,
@@ -597,7 +598,7 @@ const MONTH_EDGE = [
 
 async function routeMonthEdge(page: Page): Promise<void> {
   await routeTrpc(page, {
-    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.freshness": { computedAt: FROZEN_AT_MS, stale: false, hasData: true },
     "stats.overview": OVERVIEW,
     "stats.wrapped": WRAPPED,
     "stats.timeseries": TIMELINE,

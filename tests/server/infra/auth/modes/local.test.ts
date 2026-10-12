@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeAuthConfig as cfg, headers } from "../_support.ts";
+import { headers, makeAuthConfig } from "../_support.ts";
 
 // `local` mode resolver — post-D40 a pure null-returner at the infra layer: the seam validates the cookie
 // via `sessions.validate` BEFORE `resolve`, so infra never reads it (the cookie modes contribute nothing
@@ -16,16 +15,16 @@ const COOKIE = { cookie: "__Host-orb_session=t" };
 
 describe("resolveLocal", () => {
   test("no cookie → null", async () => {
-    expect(await resolveLocal(headers(), cfg(), {})).toBeNull();
+    expect(await resolveLocal(headers(), makeAuthConfig(), {})).toBeNull();
   });
 
   test("our cookie present → STILL null (infra doesn't read cookies post-D40; the seam owns it)", async () => {
-    expect(await resolveLocal(headers(COOKIE), cfg(), {})).toBeNull();
+    expect(await resolveLocal(headers(COOKIE), makeAuthConfig(), {})).toBeNull();
   });
 
   test("the outcome is invariant under `config` (the resolver ignores its config arg)", async () => {
-    const a = await resolveLocal(headers(COOKIE), cfg({ fallback: "deny" }), {});
-    const b = await resolveLocal(headers(COOKIE), cfg({ fallback: "owner", defaultHandle: "someone-else" }), {});
+    const a = await resolveLocal(headers(COOKIE), makeAuthConfig({ fallback: "deny" }), {});
+    const b = await resolveLocal(headers(COOKIE), makeAuthConfig({ fallback: "owner", defaultHandle: "someone-else" }), {});
     expect(a).toEqual(b);
     expect(a).toBeNull();
   });

@@ -11,12 +11,12 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const MINTED = castId<UserId>("user_minted");
 
 let db: Db;
@@ -36,16 +36,23 @@ const isUniqueViolation = (err: unknown): boolean => isConstraintViolation(err)?
 
 describe("sessions.localUserInsertStatement", () => {
   test("the executed mint stores a human with the hash and the handle's key, the handle unfolded", async () => {
-    const statement = svc.localUserInsertStatement({ id: MINTED, handle: castId<Handle>("Émile"), role: "admin", passwordHash: "scrypt$x", at: AT });
+    const statement = svc.localUserInsertStatement({ id: MINTED, handle: castId<Handle>("Émile"), role: "admin", passwordHash: "scrypt$x", at: FROZEN_AT_MS });
     expect(await statement).toEqual([{ id: MINTED }]);
     expect(await rowOf(MINTED)).toEqual(
-      expect.objectContaining({ handle: "Émile", handleKey: handleKey("Émile"), role: "admin", kind: "human", passwordHash: "scrypt$x", createdAt: AT }),
+      expect.objectContaining({
+        handle: "Émile",
+        handleKey: handleKey("Émile"),
+        role: "admin",
+        kind: "human",
+        passwordHash: "scrypt$x",
+        createdAt: FROZEN_AT_MS,
+      }),
     );
   });
 
   test("a handle whose key another row holds is a unique violation, and nothing is written", async () => {
     await seedUser(db, { handle: castId<Handle>("host") });
-    const statement = svc.localUserInsertStatement({ id: MINTED, handle: castId<Handle>("HOST"), role: "user", passwordHash: "scrypt$x", at: AT });
+    const statement = svc.localUserInsertStatement({ id: MINTED, handle: castId<Handle>("HOST"), role: "user", passwordHash: "scrypt$x", at: FROZEN_AT_MS });
     await expect(Promise.resolve(statement)).rejects.toSatisfy(isUniqueViolation);
     expect(await rowOf(MINTED)).toBeUndefined();
   });
@@ -54,17 +61,17 @@ describe("sessions.localUserInsertStatement", () => {
 describe("sessions.renameUserHandle", () => {
   test("the key moves with the handle, so the old handle is free for another account", async () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner-old") });
-    await svc.renameUserHandle(owner.id, castId<Handle>("Owner-New"), AT);
-    expect(await rowOf(owner.id)).toEqual(expect.objectContaining({ handle: "Owner-New", handleKey: handleKey("Owner-New"), updatedAt: AT }));
+    await svc.renameUserHandle(owner.id, castId<Handle>("Owner-New"), FROZEN_AT_MS);
+    expect(await rowOf(owner.id)).toEqual(expect.objectContaining({ handle: "Owner-New", handleKey: handleKey("Owner-New"), updatedAt: FROZEN_AT_MS }));
 
-    const reuse = svc.localUserInsertStatement({ id: MINTED, handle: castId<Handle>("owner-old"), role: "user", passwordHash: "scrypt$x", at: AT });
+    const reuse = svc.localUserInsertStatement({ id: MINTED, handle: castId<Handle>("owner-old"), role: "user", passwordHash: "scrypt$x", at: FROZEN_AT_MS });
     expect(await reuse).toEqual([{ id: MINTED }]);
   });
 
   test("a rename onto a key another row holds is a unique violation, and the row keeps its handle and key", async () => {
     await seedUser(db, { handle: castId<Handle>("root") });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await expect(svc.renameUserHandle(owner.id, castId<Handle>("ROOT"), AT)).rejects.toSatisfy(isUniqueViolation);
+    await expect(svc.renameUserHandle(owner.id, castId<Handle>("ROOT"), FROZEN_AT_MS)).rejects.toSatisfy(isUniqueViolation);
     expect(await rowOf(owner.id)).toEqual(expect.objectContaining({ handle: "owner", handleKey: handleKey("owner") }));
   });
 });

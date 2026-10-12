@@ -4,12 +4,12 @@
 // box: healthz reports 503 and the listener stops accepting. env is stubbed BEFORE the dynamic import so
 // `foundation/env` parses the throwaway config (it is frozen at module load).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { versionIdentity } from "@orb/server/foundation/version";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -54,9 +54,7 @@ async function waitForHealthz(url: string): Promise<Response> {
       const res = await fetch(url);
       return res;
     } catch {
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, POLL_DELAY_MS);
-      });
+      await sleep(POLL_DELAY_MS);
     }
   }
   throw new Error("healthz listener never came up");

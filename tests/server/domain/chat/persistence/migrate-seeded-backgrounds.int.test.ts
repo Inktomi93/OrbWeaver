@@ -15,11 +15,11 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { migrateSeededRoomBackgrounds } from "#server/domain/chat/persistence/migrate-seeded-backgrounds.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const SHIPPED_SLUG = "morgatha-bg";
 const DELETED_SLUG = "granite-valley";
 const PLATE: ThemeBackground = canonicalBackgroundSource({
@@ -54,7 +54,7 @@ test("class 1 — a still-shipped slug becomes the HOST's own plate asset", asyn
   const db = await freshDb();
   const chatId = await roomWithLegacyBackground(db, "keeps", "keeps", SHIPPED_SLUG);
 
-  expect(await migrateSeededRoomBackgrounds(db, castId("user_keeps"), resolver, AT)).toBe(1);
+  expect(await migrateSeededRoomBackgrounds(db, castId("user_keeps"), resolver, FROZEN_AT_MS)).toBe(1);
 
   const after = await readBackground(db, chatId);
   expect(after?.["kind"]).toBe("asset");
@@ -66,7 +66,7 @@ test("class 2 — a deleted placeholder slug clears to `none` with no smuggled a
   const db = await freshDb();
   const chatId = await roomWithLegacyBackground(db, "drops", "drops", DELETED_SLUG);
 
-  expect(await migrateSeededRoomBackgrounds(db, castId("user_drops"), resolver, AT)).toBe(1);
+  expect(await migrateSeededRoomBackgrounds(db, castId("user_drops"), resolver, FROZEN_AT_MS)).toBe(1);
 
   const after = await readBackground(db, chatId);
   expect(after?.["kind"]).toBe("none");
@@ -84,7 +84,7 @@ test("the REST of the room's metadata survives the rewrite (it is a key edit, no
   });
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
 
-  expect(await migrateSeededRoomBackgrounds(db, host, resolver, AT)).toBe(1);
+  expect(await migrateSeededRoomBackgrounds(db, host, resolver, FROZEN_AT_MS)).toBe(1);
 
   const rows = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1);
   const metadata = rows[0]?.metadata as { background?: Record<string, unknown>; roomOverrides?: Record<string, unknown> } | null;
@@ -101,11 +101,11 @@ test("scope is the HOST — a room this user only SITS in is not rewritten under
   await seedParticipant(db, { chatId, key: "g", userId: guest, role: "member" });
 
   // The guest's own pass reaches nothing: they host no room. D18 — membership is not authority.
-  expect(await migrateSeededRoomBackgrounds(db, guest, resolver, AT)).toBe(0);
+  expect(await migrateSeededRoomBackgrounds(db, guest, resolver, FROZEN_AT_MS)).toBe(0);
   expect((await readBackground(db, chatId))?.["kind"]).toBe("seeded");
 
   // The HOST's pass is the one that rewrites it, pointing at the host's own plate asset.
-  expect(await migrateSeededRoomBackgrounds(db, castId("user_realhost"), resolver, AT)).toBe(1);
+  expect(await migrateSeededRoomBackgrounds(db, castId("user_realhost"), resolver, FROZEN_AT_MS)).toBe(1);
   expect((await readBackground(db, chatId))?.["kind"]).toBe("asset");
 });
 
@@ -113,6 +113,6 @@ test("idempotent by its own predicate — a second pass rewrites nothing", async
   const db = await freshDb();
   await roomWithLegacyBackground(db, "twice", "twice", SHIPPED_SLUG);
 
-  expect(await migrateSeededRoomBackgrounds(db, castId("user_twice"), resolver, AT)).toBe(1);
-  expect(await migrateSeededRoomBackgrounds(db, castId("user_twice"), resolver, AT + 1)).toBe(0);
+  expect(await migrateSeededRoomBackgrounds(db, castId("user_twice"), resolver, FROZEN_AT_MS)).toBe(1);
+  expect(await migrateSeededRoomBackgrounds(db, castId("user_twice"), resolver, FROZEN_AT_MS + 1)).toBe(0);
 });

@@ -136,3 +136,12 @@ test("canonical dictionaries and the named malformed-wire escape remain supporte
   await routeTrpc(page, { "chat.getRuntimeVariables": { scene: 42 } });
   expectTypeOf(routeTrpc(page, { health: malformedOrForwardTrpcWire({ ok: true, forwardField: 1 }) })).toEqualTypeOf<Promise<TrpcRecorder>>();
 });
+
+declare const recorder: TrpcRecorder;
+
+test("the recorder counts by procedure path, so a misspelled procedure fails typecheck instead of counting zero", () => {
+  expectTypeOf(recorder.count).parameter(0).toEqualTypeOf<TrpcProcedurePath>();
+  expectTypeOf(recorder.count("chat.listMessages")).toBeNumber();
+  // @ts-expect-error — a procedure the AppRouter does not have.
+  recorder.count("chat.listMesages");
+});

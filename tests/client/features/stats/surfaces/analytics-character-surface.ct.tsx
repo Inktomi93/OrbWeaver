@@ -4,6 +4,7 @@
 // overview's pinned pattern uncovered on this twin).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
@@ -36,8 +37,8 @@ const CHARACTER_STATS: TrpcWireOutput<"stats.character"> = {
   reasoningRate: 0.1,
   contentChars: 40_000,
   firstChatAt: 1_740_000_000_000,
-  lastActivityAt: 1_750_000_000_000,
-  computedAt: 1_750_000_000_000,
+  lastActivityAt: FROZEN_AT_MS,
+  computedAt: FROZEN_AT_MS,
   reasoningMs: 4500,
   costUsd: 0.5,
   cacheReadTokens: 0,

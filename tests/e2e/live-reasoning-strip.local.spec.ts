@@ -23,7 +23,7 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -106,7 +106,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     const memberLive = collectChatRoomFrames({ baseUrl: origin, headers: member.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     // Give both sockets a beat to go live before the turn (the room's live listener attaches on connect).
-    await new Promise((r) => setTimeout(r, 1500));
+    await sleep(1500);
     await host.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
 
     // Both collections must have SEEN the reply commit: the member's arm below is all absence assertions, which a

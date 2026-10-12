@@ -2,6 +2,7 @@
 // old index, and only a forced sweep refills it. The lazy write path is the one no binding write sees: a re-point
 // to a row whose key is revoked switches nothing, and the first write after the key is fixed does.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
@@ -660,8 +661,7 @@ function heldProbe(): {
     // Answer as soon as the overlapping write has landed, or once it is clear it is waiting for this one.
     releaseWhen: async (landed): Promise<void> => {
       for (let look = 0; look < OVERLAP_LOOKS && !(await landed()); look += 1) {
-        // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-        await new Promise((resolve) => setTimeout(resolve, OVERLAP_LOOK_MS));
+        await sleep(OVERLAP_LOOK_MS);
       }
       released.resolve();
     },
@@ -897,8 +897,7 @@ async function settlesWhileHeld(write: Promise<unknown>): Promise<boolean> {
     },
   );
   for (let look = 0; look < OVERLAP_LOOKS && !settled.done; look += 1) {
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, OVERLAP_LOOK_MS));
+    await sleep(OVERLAP_LOOK_MS);
   }
   return settled.done;
 }
@@ -1242,8 +1241,7 @@ describe("an edit that cannot move the index never dials the bound embedder", ()
       }),
     );
     for (let look = 0; look < OVERLAP_LOOKS && host.dials(d) === 0; look += 1) {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, OVERLAP_LOOK_MS));
+      await sleep(OVERLAP_LOOK_MS);
     }
     expect(host.dials(d), "the re-point is dialing its new host").toBeGreaterThan(0);
     const renamed = d.h.svc.update({ principal: d.principal, connectionId: unrelated, patch: { label: "renamed" } });

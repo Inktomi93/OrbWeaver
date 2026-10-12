@@ -6,6 +6,7 @@
 // affordances gated exactly as the server re-gates them.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
@@ -56,8 +57,8 @@ function scheduleRow(overrides: Partial<ScheduleRow> = {}): ScheduleRow {
     nextRunAt: 1_750_000_100_000,
     lastRunAt: null,
     enabled: true,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }

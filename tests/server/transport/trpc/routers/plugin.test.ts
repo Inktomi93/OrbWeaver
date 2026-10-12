@@ -7,6 +7,7 @@ import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PluginService, PluginSurfaceView, PluginView } from "@orb/server/domain/plugin";
 import { describe, vi } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
@@ -30,8 +31,8 @@ const VIEW: PluginView = {
   builtAgainst: null,
   description: "A fixture plugin.",
   lastError: null,
-  installedAt: 1_750_000_000_000,
-  updatedAt: 1_750_000_000_000,
+  installedAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
 };
 
 const SURFACE: PluginSurfaceView = { id: "clocks", anchor: "settings", title: "Clocks", tier: "static", pluginId: PLUGIN_ID };

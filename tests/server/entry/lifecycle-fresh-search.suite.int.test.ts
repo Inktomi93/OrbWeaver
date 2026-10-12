@@ -3,10 +3,10 @@
 // default. Search reads only a generation whose cards, memory and documents scopes all landed, so boot has to
 // schedule those sweeps itself; nothing else would. The embed path is the offline scripted cache.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { fakeLocalLightCache } from "@orb/tooling/seed";
 import { afterAll, vi } from "vitest";
@@ -61,9 +61,7 @@ test(
     const base = `http://localhost:${String(address.port)}`;
     let reply = await searchCharacters(base);
     for (let attempt = 0; reply.error?.data?.reason === REINDEXING && attempt < POLL_ATTEMPTS; attempt += 1) {
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, POLL_DELAY_MS);
-      });
+      await sleep(POLL_DELAY_MS);
       reply = await searchCharacters(base);
     }
     expect(reply.error).toBeUndefined();

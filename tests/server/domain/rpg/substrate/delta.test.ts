@@ -6,13 +6,10 @@
 // monolith edit — the P1 seam). The swipe-consistency + hand-edit-source classes ride the gather int test (a
 // flush→read ROUND-TRIP, not a pure peek) — they live in chat-ops/gather.int.test.ts.
 
-// @orb-waive-file no-loose-id-cast("q1"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast("q_missing_key"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast("usr_1"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(null): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(status): baselined when the gate widened; burn-down item 906.
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { DeltaContext } from "#server/domain/rpg/contract/delta.ts";
 import { buildDeltaBlock, definePlaneDiff, PLANE_DIFF_RENDERERS, RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "#server/domain/rpg/substrate/delta.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -206,10 +203,10 @@ test("present characters — joined and left the scene (presence keys; the NAME 
 });
 
 test("quests — status flip and objective progress, matched by id", () => {
-  const q = (status: string, done: number): RpgSnapshotState["quests"][number] => ({
-    id: "q_missing_key" as never,
+  const q = (status: RpgSnapshotState["quests"][number]["status"], done: number): RpgSnapshotState["quests"][number] => ({
+    id: castId<RpgQuestId>("q_missing_key"),
     name: "The Missing Key",
-    status: status as never,
+    status,
     description: "",
     objectives: [
       { id: "o1", text: "a", completed: done >= 1 },
@@ -236,7 +233,7 @@ test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", (
     location: "The Rusty Anchor",
     actorState: [member("mari", "Mari")],
     presentCharacters: ["npc:mari"],
-    quests: [{ id: "q1" as never, name: "Find the ledger", status: "active", description: "", objectives: [] }],
+    quests: [{ id: castId<RpgQuestId>("q1"), name: "Find the ledger", status: "active", description: "", objectives: [] }],
   });
   const out = buildDeltaBlock(null, cur, ctx());
   expect(out).toContain(RPG_SCENE_OPENS_HEADING);
@@ -258,8 +255,7 @@ test("SCENE OPENS names a PARTICIPANT actor by her display name — never her ra
     location: "The Ford",
     actorState: [
       {
-        // @orb-waive no-loose-id-cast("char_kael"): baselined when the gate widened; burn-down item 906.
-        actorRef: { kind: "character", characterId: "char_kael" as never },
+        actorRef: { kind: "character", characterId: castId<CharacterId>("char_kael") },
         volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
       },
       member("mira", "Mira"),
@@ -277,7 +273,7 @@ test("SCENE OPENS falls back to the GENERIC label when the participant map has n
   const cur = state({
     location: "The Ford",
     actorState: [
-      { actorRef: { kind: "user", userId: "usr_1" as never }, volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" } },
+      { actorRef: { kind: "user", userId: castId<UserId>("usr_1") }, volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" } },
     ],
     presentCharacters: ["user:usr_1"],
   });
@@ -336,6 +332,7 @@ test("HEAL (§2.7.4) — a malformed plane degrades its line, the block still re
     actorState: [
       {
         ...castVolatile("kael", { wallet: [{ name: "gold", amount: 25 }] }),
+        // @orb-waive no-loose-id-cast(null): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
         volatile: { ...castVolatile("kael").volatile, wallet: [{ name: "gold", amount: 25 }], conditions: null as never },
       },
     ],
@@ -420,8 +417,7 @@ test("ambient — a long rest fires all three time arms together (date + day + t
 test("participant names — a character-kind actor names via the participant map, not the generic label (fold-in #5)", () => {
   const hp = def({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", max: 20 });
   const kael = (value: number): RpgSnapshotState["actorState"][number] => ({
-    // @orb-waive no-loose-id-cast("char_kael"): baselined when the gate widened; burn-down item 906.
-    actorRef: { kind: "character", characterId: "char_kael" as never },
+    actorRef: { kind: "character", characterId: castId<CharacterId>("char_kael") },
     volatile: { trackerValues: { hp: reading(value) }, conditions: [], inventory: [], wallet: [], status: "" },
   });
   const out = buildDeltaBlock(

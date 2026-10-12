@@ -13,10 +13,10 @@
 // form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's ROSTER_STUB. Every
 // value crosses the routeTrpc JSON boundary as a plain object.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
@@ -160,7 +160,7 @@ const PREVIEW = {
   budget: {
     ceilingTokens: 8192,
     ceilingEstimated: false,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     limit: { kind: "window", tokens: 8192 },
     totalTokens: 120,
     sources: [
@@ -440,10 +440,7 @@ async function seedCapabilityHint(page: Page, multiHumanCapable: boolean): Promi
 /** Hold `/api/auth/config` in flight; the returned fn lands the deployment's answer when the test wants it.
  *  The window under test is the one where it has NOT landed. */
 async function holdAuthConfig(page: Page): Promise<(capable: boolean) => void> {
-  let land: ((capable: boolean) => void) | undefined;
-  const answered = new Promise<boolean>((resolve) => {
-    land = resolve;
-  });
+  const { promise: answered, resolve: land } = Promise.withResolvers<boolean>();
   await page.route("**/api/auth/config", async (route) => {
     const multiHumanCapable = await answered;
     await route.fulfill({
@@ -460,7 +457,7 @@ async function holdAuthConfig(page: Page): Promise<(capable: boolean) => void> {
       }),
     });
   });
-  return (capable: boolean): void => land?.(capable);
+  return (capable: boolean): void => land(capable);
 }
 
 test("a device that REMEMBERS a multi-human deployment paints People before the config lands (#1627)", async ({ mount, page }) => {
@@ -830,7 +827,7 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
       ceilingTokens: 32_768,
       ceilingEstimated: false,
       limit: null,
-      reserveOutputTokens: 2048,
+      reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       droppedCount: 0,
       compactSummary: null,
     },

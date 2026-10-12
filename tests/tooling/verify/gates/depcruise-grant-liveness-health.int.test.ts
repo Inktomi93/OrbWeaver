@@ -16,7 +16,6 @@
 // gate-authority.test.ts` owns them ("invalid coordinates, not-applicable findings, blank identities…"),
 // which is the control proving this fix came from moving the arm to an authority that admits it, never from
 // weakening the check the arm used to trip.
-// @orb-waive-file platform-spellings(PACKAGE_MANIFESTS): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -109,7 +108,7 @@ test("the BUDGET arm prints its own message, with no authority tool error and no
   // real-tree anchor the arm requires.
   // The manifest roster this fixture plants IS the sibling's declared subject set — asserted rather than
   // assumed, so a new workspace package reds here by name instead of surfacing as a mystery tool error.
-  expect([...PACKAGE_MANIFESTS].sort()).toEqual(Object.values(PACKAGE_RESOURCE_PATHS).sort());
+  expect(PACKAGE_MANIFESTS.toSorted()).toEqual(Object.values(PACKAGE_RESOURCE_PATHS).sort());
   plantRepo(scratch, 99);
   const result = drive(scratch);
 

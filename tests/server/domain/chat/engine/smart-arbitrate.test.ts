@@ -7,6 +7,7 @@
 // Plus CANCELLATION: the turn's AbortSignal reaches the call, and an abort is `aborted:true`, never a degrade.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
+import { TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
@@ -24,7 +25,7 @@ const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: ci
 function candidate(k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCandidate {
   return {
     ref: charRef(k),
-    talkativeness: over.talkativeness ?? 0.5,
+    talkativeness: over.talkativeness ?? TALKATIVENESS_DEFAULT,
     disabled: over.disabled ?? false,
     leftSeq: over.leftSeq ?? null,
   };

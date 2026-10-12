@@ -22,12 +22,11 @@
 //        warning severity. The OWNER'S NUMBER is deliberately NOT pinned — see that test's comment.
 //   §4.6 the CONVERSION DIFFERENTIAL, both sides nonzero: the legacy descriptor's live set over the REAL
 //        tree, replayed through the converted reader.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as overArtPlateArm } from "../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
+import { gate } from "../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
 import { judgeStylesheets } from "../../../../tooling/src/verify/lib/over-art-plate.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -46,8 +45,8 @@ function pass(scratch: string, files: Readonly<Record<string, string>>): PolicyP
     writeFileSync(absolute, text);
   }
   return runPolicyPass({
-    knownPolicies: [overArtPlateArm],
-    policies: [overArtPlateArm],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     resourceOptions: { overlay: files },
@@ -75,7 +74,7 @@ function populationRefusal(fragment: string): Record<string, unknown> {
 }
 
 test("over-art-plate-arm keeps its declared proofs", () => {
-  expect(verifyPolicyProofs([overArtPlateArm])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("§4.2 — the exact waiver at the SELECTOR SUBJECT suppresses, waives one, and alarms not at all", ({ scratch }) => {
@@ -139,8 +138,8 @@ test("THE BAR IS BACK — a new unpaired glass surface REDS at error, never warn
   // planted glass surface is stamped `error` (not warning, not silence).
   const result = pass(scratch, { ...KEEP, [ANCHOR]: COMPOSER_RULE });
 
-  expect(overArtPlateArm.severity).toBe("error");
-  expect(overArtPlateArm.authority).toBe("ordinary");
+  expect(gate.severity).toBe("error");
+  expect(gate.authority).toBe("ordinary");
   expect(result.authority.effectiveFindings.map(({ token, severity }) => [token, severity])).toEqual([['[data-slot="composer"]', "error"]]);
 });
 

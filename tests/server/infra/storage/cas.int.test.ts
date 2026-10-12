@@ -10,14 +10,13 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
 import { afterEach, beforeEach, describe } from "vitest";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_A = castId<UserId>("user_alpha");
 const OWNER_B = castId<UserId>("user_beta");
 const BYTES = new TextEncoder().encode("orbweaver-cas-fixture-bytes");
 const OTHER_BYTES = new TextEncoder().encode("a-different-blob-entirely");
-// A fixed injected wall-clock (epoch-ms) — never the ambient clock (determinism).
-const NOW = 1_750_000_000_000;
 const SHARD_A_END = 2;
 const SHARD_B_END = 4;
 
@@ -46,7 +45,7 @@ afterEach(async () => {
 describe("round-trip + dedup", () => {
   test("putBytes stores under the sha-256; read/exists/verify round-trip", async () => {
     const cas = createCas(root);
-    const res = await cas.putBytes(OWNER_A, BYTES, NOW);
+    const res = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
 
     expect(res.created).toBe(true);
     expect(res.hash).toBe(sha256Hex(BYTES));
@@ -59,8 +58,8 @@ describe("round-trip + dedup", () => {
 
   test("a second identical put within the owner dedups (created:false), no duplicate blob", async () => {
     const cas = createCas(root);
-    const first = await cas.putBytes(OWNER_A, BYTES, NOW);
-    const second = await cas.putBytes(OWNER_A, BYTES, NOW);
+    const first = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
+    const second = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
 
     expect(first.created).toBe(true);
     expect(second.created).toBe(false);
@@ -72,7 +71,7 @@ describe("round-trip + dedup", () => {
 describe("the per-user path (D21)", () => {
   test("blobPath is <root>/<owner>/<ab>/<cd>/<hash> and the blob lands there", async () => {
     const cas = createCas(root);
-    const { hash } = await cas.putBytes(OWNER_A, BYTES, NOW);
+    const { hash } = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
 
     const expected = join(root, "user_alpha", hash.slice(0, SHARD_A_END), hash.slice(SHARD_A_END, SHARD_B_END), hash);
     expect(cas.blobPath(OWNER_A, hash)).toBe(expected);
@@ -83,7 +82,7 @@ describe("the per-user path (D21)", () => {
 describe("owner isolation (D21 — no cross-user oracle)", () => {
   test("one owner's blob is invisible to another (exists:false, read rejects)", async () => {
     const cas = createCas(root);
-    const { hash } = await cas.putBytes(OWNER_A, BYTES, NOW);
+    const { hash } = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
 
     expect(await cas.exists(OWNER_B, hash)).toBe(false);
     await expect(cas.read(OWNER_B, hash)).rejects.toThrow();
@@ -92,8 +91,8 @@ describe("owner isolation (D21 — no cross-user oracle)", () => {
 
   test("the same bytes under two owners coexist as two distinct blobs (both created)", async () => {
     const cas = createCas(root);
-    const a = await cas.putBytes(OWNER_A, BYTES, NOW);
-    const b = await cas.putBytes(OWNER_B, BYTES, NOW);
+    const a = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
+    const b = await cas.putBytes(OWNER_B, BYTES, FROZEN_AT_MS);
 
     expect(a.hash).toBe(b.hash); // same content → same hash
     expect(a.created).toBe(true);
@@ -107,7 +106,7 @@ describe("owner isolation (D21 — no cross-user oracle)", () => {
 describe("remove + verify", () => {
   test("remove deletes the blob and is idempotent", async () => {
     const cas = createCas(root);
-    const { hash } = await cas.putBytes(OWNER_A, BYTES, NOW);
+    const { hash } = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
 
     await cas.remove(OWNER_A, hash);
     expect(await cas.exists(OWNER_A, hash)).toBe(false);
@@ -116,7 +115,7 @@ describe("remove + verify", () => {
 
   test("verify is false for a missing blob and catches silent corruption", async () => {
     const cas = createCas(root);
-    const { hash } = await cas.putBytes(OWNER_A, BYTES, NOW);
+    const { hash } = await cas.putBytes(OWNER_A, BYTES, FROZEN_AT_MS);
 
     expect(await cas.verify(OWNER_A, sha256Hex(OTHER_BYTES))).toBe(false); // missing
 

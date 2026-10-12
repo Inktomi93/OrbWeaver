@@ -15,11 +15,11 @@ import {
   upsertPendingSignup,
 } from "#server/domain/sessions/persistence/pending-signups.ts";
 import { insertPendingSignupUserStatement } from "#server/domain/sessions/persistence/users.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const AT = 1_750_000_000_000;
 const TTL = 600_000;
 const ADMITS = sql`1 = 1`;
 
@@ -38,8 +38,8 @@ async function seedPending(secretHash: string, name = "friend"): Promise<void> {
     groups: ["g"],
     inviteTokenHash: "invite",
     idToken: null,
-    createdAt: AT,
-    expiresAt: AT + TTL,
+    createdAt: FROZEN_AT_MS,
+    expiresAt: FROZEN_AT_MS + TTL,
   });
 }
 
@@ -51,7 +51,7 @@ function account(name: string, email: string | null): Parameters<typeof insertPe
     email,
     role: "user",
     enabled: true,
-    at: AT,
+    at: FROZEN_AT_MS,
   };
 }
 
@@ -60,18 +60,20 @@ describe("persistence/pending-signups", () => {
     await seedPending("h1");
     await seedPending("h2");
     expect(await db.select().from(oidcPendingSignups)).toHaveLength(1);
-    expect(await selectLivePendingSignup(db, "h1", AT)).toBeUndefined();
-    expect((await selectLivePendingSignup(db, "h2", AT))?.groups).toEqual(["g"]);
-    expect(await selectLivePendingSignup(db, "h2", AT + TTL)).toBeUndefined();
+    expect(await selectLivePendingSignup(db, "h1", FROZEN_AT_MS)).toBeUndefined();
+    expect((await selectLivePendingSignup(db, "h2", FROZEN_AT_MS))?.groups).toEqual(["g"]);
+    expect(await selectLivePendingSignup(db, "h2", FROZEN_AT_MS + TTL)).toBeUndefined();
   });
 
   test("the take gates the account insert: a live take writes the account, a missed take writes nothing", async () => {
     await seedPending("h1");
     const hit = await db.batch(
-      batchMany([takePendingSignupStatement(db, "h1", AT), insertPendingSignupUserStatement(db, account("friend", "friend@example.test"), ADMITS)]),
+      batchMany([takePendingSignupStatement(db, "h1", FROZEN_AT_MS), insertPendingSignupUserStatement(db, account("friend", "friend@example.test"), ADMITS)]),
     );
     expect([(hit[0] as readonly object[]).length, (hit[1] as readonly object[]).length]).toEqual([1, 1]);
-    const miss = await db.batch(batchMany([takePendingSignupStatement(db, "h1", AT), insertPendingSignupUserStatement(db, account("again", null), ADMITS)]));
+    const miss = await db.batch(
+      batchMany([takePendingSignupStatement(db, "h1", FROZEN_AT_MS), insertPendingSignupUserStatement(db, account("again", null), ADMITS)]),
+    );
     expect([(miss[0] as readonly object[]).length, (miss[1] as readonly object[]).length]).toEqual([0, 0]);
   });
 
@@ -79,7 +81,7 @@ describe("persistence/pending-signups", () => {
     await seedPending("h1");
     await seedUser(db, { handle: castId<Handle>("other"), email: "friend@example.test" });
     const results = await db.batch(
-      batchMany([takePendingSignupStatement(db, "h1", AT), insertPendingSignupUserStatement(db, account("friend", "friend@example.test"), ADMITS)]),
+      batchMany([takePendingSignupStatement(db, "h1", FROZEN_AT_MS), insertPendingSignupUserStatement(db, account("friend", "friend@example.test"), ADMITS)]),
     );
     expect((results[1] as readonly object[]).length).toBe(0);
     expect(
@@ -100,10 +102,10 @@ describe("persistence/pending-signups", () => {
       groups: [],
       inviteTokenHash: "invite",
       idToken: null,
-      createdAt: AT + TTL,
-      expiresAt: AT + 2 * TTL,
+      createdAt: FROZEN_AT_MS + TTL,
+      expiresAt: FROZEN_AT_MS + 2 * TTL,
     });
-    expect(await deleteExpiredPendingSignups(db, AT + TTL)).toBe(1);
+    expect(await deleteExpiredPendingSignups(db, FROZEN_AT_MS + TTL)).toBe(1);
     expect((await db.select().from(oidcPendingSignups)).map((row) => row.secretHash)).toEqual(["h2"]);
   });
 });

@@ -3,7 +3,6 @@
 // only by the owners of its enabled installs (D147); each owner's claim binds the id to that owner's own
 // definition (D265), so one user can neither block nor shadow another's; restart reloads durable rows.
 
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
@@ -22,7 +21,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
-import { makeHarness as makeConnectionHarness } from "../../connection/_support.ts";
+import { makeHarness } from "../../connection/_support.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 const PROVIDER: ProviderDef = {
@@ -49,7 +48,7 @@ async function lastErrorOf(db: Db, pluginId: PluginId): Promise<string | null | 
 
 test("valid activation is discoverable across restart; disable and uninstall clean the last active contribution", async () => {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db);
+  const connection = await makeHarness(db);
   const plugin = makePluginHarness(db, {
     providers: {
       activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -65,7 +64,7 @@ test("valid activation is discoverable across restart; disable and uninstall cle
   expect(await provider(connection)).toBeUndefined();
   await plugin.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   expect(await provider(connection)).toMatchObject({ provider: { id: PROVIDER.id, label: PROVIDER.label } });
-  const restarted = await makeConnectionHarness(db);
+  const restarted = await makeHarness(db);
   expect(await provider(restarted)).toMatchObject({ provider: { id: PROVIDER.id, label: PROVIDER.label } });
 
   await plugin.service.setEnabled({ caller, pluginId: installed.id, enabled: false });
@@ -81,7 +80,7 @@ test("valid activation is discoverable across restart; disable and uninstall cle
 
 test("identical definitions share one row; a changed definition is refused only for its own owner", async () => {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db);
+  const connection = await makeHarness(db);
   const plugin = makePluginHarness(db, {
     providers: {
       activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -147,13 +146,13 @@ const vendorBundle = (host: string): Uint8Array =>
 describe("a squatted plugin provider id blocks and shadows nobody else", () => {
   async function squatWorld(): Promise<{
     readonly db: Db;
-    readonly connection: Awaited<ReturnType<typeof makeConnectionHarness>>;
+    readonly connection: Awaited<ReturnType<typeof makeHarness>>;
     readonly enable: (who: UserId, host: string) => Promise<PluginId>;
     readonly squatter: UserId;
     readonly victim: UserId;
   }> {
     const db = await freshDb();
-    const connection = await makeConnectionHarness(db);
+    const connection = await makeHarness(db);
     const plugin = makePluginHarness(db, {
       providers: {
         activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -188,7 +187,7 @@ describe("a squatted plugin provider id blocks and shadows nobody else", () => {
 
     const id = vendorProvider(GENUINE_HOST).id;
     expect(w.connection.runtime.providers.registry.get(id, w.victim)?.baseUrl).toBe(`https://${GENUINE_HOST}/v1`);
-    const restarted = await makeConnectionHarness(w.db);
+    const restarted = await makeHarness(w.db);
     expect(restarted.runtime.providers.registry.get(id, w.victim)?.baseUrl).toBe(`https://${GENUINE_HOST}/v1`);
   });
 });
@@ -205,7 +204,7 @@ test("an invalid provider row is rejected by the bundle trust edge before persis
 
 test("restart reconciliation removes a crash-window contribution from an errored plugin", async () => {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db);
+  const connection = await makeHarness(db);
   const plugin = makePluginHarness(db, {
     providers: {
       activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -232,7 +231,7 @@ test("restart reconciliation removes a crash-window contribution from an errored
   );
   expect(await linkedClaims(db)).toBe(1);
 
-  const restarted = await makeConnectionHarness(db);
+  const restarted = await makeHarness(db);
   const available = await restarted.svc.providersAvailable({ principal: caller });
   expect(available.find((row) => row.provider.id === PROVIDER.id)).toBeUndefined();
   expect(await linkedClaims(db)).toBe(0);
@@ -241,17 +240,9 @@ test("restart reconciliation removes a crash-window contribution from an errored
 
 test("uninstall waits for an in-flight enable and removes its guest and provider state", async () => {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db);
-  let publishReached!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const reached = new Promise<void>((resolve) => {
-    publishReached = resolve;
-  });
-  let releasePublish!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const hold = new Promise<void>((resolve) => {
-    releasePublish = resolve;
-  });
+  const connection = await makeHarness(db);
+  const { promise: reached, resolve: publishReached } = Promise.withResolvers<void>();
+  const { promise: hold, resolve: releasePublish } = Promise.withResolvers<void>();
   const plugin = makePluginHarness(db, {
     providers: {
       activate: async (rows, origin): Promise<void> => {
@@ -287,7 +278,7 @@ test("uninstall waits for an in-flight enable and removes its guest and provider
 
 test("an owner's retained connection never follows its provider id to another definition", async () => {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db);
+  const connection = await makeHarness(db);
   const plugin = makePluginHarness(db, {
     providers: {
       activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -400,7 +391,7 @@ function relayStream(url: string): Promise<Response> | null {
 }
 const PROVIDER_UNKNOWN = { code: CONNECTION_OP_CODES.providerUnknown };
 
-type ConnectionHarness = Awaited<ReturnType<typeof makeConnectionHarness>>;
+type ConnectionHarness = Awaited<ReturnType<typeof makeHarness>>;
 
 async function relayWorld(): Promise<{
   readonly db: Db;
@@ -410,7 +401,7 @@ async function relayWorld(): Promise<{
   readonly relayRequests: () => readonly { readonly url: string; readonly headers: Record<string, string> }[];
 }> {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
+  const connection = await makeHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
   const plugin = makePluginHarness(db, {
     providers: {
       activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -528,7 +519,7 @@ describe("a plugin provider is scoped to the owners of its enabled installs", ()
 
   test("an admin-distributed provider plugin serves each recipient once THEY enable their own copy", async () => {
     const db = await freshDb();
-    const connection = await makeConnectionHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
+    const connection = await makeHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
     const admin = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("relay-admin") }));
     const ann = principalFor(await seedUser(db, { handle: castId<Handle>("relay-ann") }));
     const bo = principalFor(await seedUser(db, { handle: castId<Handle>("relay-bo") }));

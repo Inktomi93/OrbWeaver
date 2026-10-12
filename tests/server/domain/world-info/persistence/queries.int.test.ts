@@ -11,7 +11,6 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
-// @orb-waive-file no-loose-id-cast(overrides.metadata): baselined when the gate widened; burn-down item 906.
 import type { EntryView } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
 import type { Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -20,11 +19,11 @@ import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEnt
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { listBookEntries, loadOwnedBook, loadOwnedEntry, toBookView, toEntryView } from "#server/domain/world-info/persistence/queries.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 type DbHandle = Awaited<ReturnType<typeof freshDb>>;
 
 /** First row, or fail the test — keeps `!` (noNonNullAssertion) out of the assertions. */
@@ -38,7 +37,7 @@ function only<T>(rows: T[]): T {
 
 async function seedBook(db: DbHandle, ownerId: UserId, id: string): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(id);
-  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "B", createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "B", createdAt: FROZEN_AT_MS });
   return bookId;
 }
 
@@ -55,8 +54,9 @@ async function seedEntry(
     content: "c",
     keys: overrides.keys ?? null,
     priority: overrides.priority ?? 0,
+    // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     metadata: overrides.metadata as never,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   return entryId;
 }

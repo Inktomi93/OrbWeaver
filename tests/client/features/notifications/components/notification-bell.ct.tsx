@@ -9,13 +9,13 @@
 //
 // The bell button is addressed by ROLE + accessible name (its aria-label carries the unread count) —
 // deliberate: the name IS the a11y contract (see the component header for why no testid rides it).
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -60,7 +60,7 @@ function inviteRow(overrides: Partial<InboxRowOf<"invite">> = {}): InboxRowOf<"i
     // The server's #1799 verdict, which the CLIENT never re-derives: an invite the chat domain still holds
     // open. Overridable per test — an invite settled elsewhere comes back `false` with its row still there.
     actionable: true,
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     ...overrides,
   };
 }
@@ -78,7 +78,7 @@ function consentRow(pendingCount: number, overrides: Partial<InboxRowOf<"plugins
     // A standing ask is actionable by construction — its producer RETRACTS the row the moment the last
     // plugin is answered, so an ACTIVE consent row is a live ask (`notifications/substrate/actionable.ts`).
     actionable: true,
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     ...overrides,
   };
 }
@@ -93,7 +93,7 @@ function disabledRow(pluginId: PluginId, seq: number): InboxRowOf<"plugin-disabl
     readAt: null,
     dismissedAt: null,
     actionable: false,
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
   };
 }
 
@@ -116,8 +116,8 @@ function installedPlugin(id: PluginId, name: string): TrpcWireOutput<"plugin.lis
     builtAgainst: null,
     description: "A fixture plugin.",
     lastError: null,
-    installedAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    installedAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 
@@ -130,7 +130,7 @@ function kickedRow(): InboxRowOf<"kicked"> {
     readAt: null,
     dismissedAt: null,
     actionable: false,
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
   };
 }
 
@@ -153,7 +153,7 @@ function liveArrivalFrame(): StreamFrame {
       seq: 1,
       readAt: null,
       dismissedAt: null,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
     },
   };
 }
@@ -200,7 +200,7 @@ function handoffAcceptedRow(): InboxRowOf<"handoff-accepted"> {
     readAt: null,
     dismissedAt: null,
     actionable: false,
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
   };
 }
 
@@ -373,10 +373,7 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
   // scripted arrival frame can be fully processed (invalidate → second list fetch queued) before that first
   // fetch settles — TanStack Query then just marks the in-flight query stale instead of issuing a second
   // fetch, so the refetch silently never happens under heavy parallel CPU contention.
-  let releaseStream: (() => void) | undefined;
-  const initialSettled = new Promise<void>((resolve) => {
-    releaseStream = resolve;
-  });
+  const { promise: initialSettled, resolve: releaseStream } = Promise.withResolvers<void>();
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
     if (accept.includes("text/event-stream")) {
@@ -389,7 +386,7 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
 
   // The initial (empty) inbox has rendered — safe to let the stream through.
   await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
-  releaseStream?.();
+  releaseStream();
 
   // The scripted stream frame lands → onData invalidates → the refetch surfaces the unread badge.
   await expect(page.getByRole("button", { name: "Notifications (1 unread)" })).toBeVisible();
@@ -445,7 +442,7 @@ test("the sheet lens marks the inbox read ON MOUNT — the phone has no 'open' e
 test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": () => ({ items: [inviteRow({ readAt: 1_750_000_000_000 })], nextCursor: null }),
+    "notifications.list": () => ({ items: [inviteRow({ readAt: FROZEN_AT_MS })], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 0 }),
   });
   await routeInboxStream(page, []);
@@ -1083,7 +1080,7 @@ test.describe("pending rows are marked, not merely painted (#1799)", () => {
       readAt: null,
       dismissedAt: null,
       actionable: false,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
     };
   }
 

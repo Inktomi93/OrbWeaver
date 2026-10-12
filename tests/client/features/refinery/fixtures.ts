@@ -10,9 +10,9 @@
 // fixture deterministic across calls within a run (`test-determinism`).
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
 const DEFAULT_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const DEFAULT_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
@@ -29,8 +29,8 @@ export function makeRefinerySessionSummary(overrides: Partial<RefinerySessionSum
     status: "active",
     iterationCount: 0,
     latestVerdict: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }

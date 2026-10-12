@@ -1,4 +1,3 @@
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { PluginHostBusyError, WarmRuntimePool } from "#server/infra/plugin-host/warm-runtime-pool.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -85,10 +84,7 @@ test("a broker failure rejects queued work and a discarded cold start leaves cap
 
 test("removing a pinned logical plugin retires its runtime immediately and makes late release inert", async () => {
   let retired = false;
-  let finishRetire!: () => void;
-  const retiring = new Promise<void>((resolve) => {
-    finishRetire = resolve;
-  });
+  const { promise: retiring, resolve: finishRetire } = Promise.withResolvers<void>();
   const target = { id: "disabled" };
   const pool = new WarmRuntimePool<Target>(
     1,

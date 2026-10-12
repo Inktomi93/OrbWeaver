@@ -3,10 +3,6 @@
 // DISJOINT, and every claimed namespace's remaining keys are claimed or CITED. The last test is the REAL
 // door's registry against the REAL contract defaults — the pre-image of the boot-time throw.
 
-// @orb-waive-file no-loose-id-cast("appearance"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast("one"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast("rateLimitsExtra"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(sectionName): baselined when the gate widened; burn-down item 906.
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
@@ -49,6 +45,7 @@ function defaults(namespaces: Record<string, Record<string, unknown>>): Defaults
 }
 
 function claiming(id: string, sectionName: string, keys: readonly string[]): ConfigSectionContribution {
+  // @orb-waive no-loose-id-cast(sectionName): baselined when the gate widened; burn-down item 906.
   return { ...section(id), owns: { tier: "user", section: sectionName as never, keys } };
 }
 
@@ -117,16 +114,15 @@ describe("assertSettingsKeyPartition", () => {
   });
 
   test("an APP-tier claim never collides with a same-named USER-tier key", () => {
+    // @orb-waive no-loose-id-cast("one"): baselined when the gate widened; burn-down item 906.
     const app: ConfigSectionContribution = { ...section("app"), owns: { tier: "app", keys: ["one" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"]), app]);
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), NO_CITES)).not.toThrow();
   });
 
   test("two APP-tier sections claiming one key throw", () => {
-    // @orb-waive no-loose-id-cast("rateLimits"): baselined when the gate widened; burn-down item 906.
-    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits" as never] } };
-    // @orb-waive no-loose-id-cast("rateLimits"): baselined when the gate widened; burn-down item 906.
-    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimits" as never] } };
+    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits"] } };
+    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimits"] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(OVERLAP_ONE_TWO);
   });
@@ -158,8 +154,8 @@ describe("assertSettingsKeyPartition", () => {
   // A key that merely PREFIXES another is not nested (`rateLimitsExtra` ≠ inside `rateLimits`) — the
   // check keys on the dot, never on a bare string prefix.
   test("a sibling key sharing a name PREFIX is not a nesting conflict", () => {
-    // @orb-waive no-loose-id-cast("rateLimits"): baselined when the gate widened; burn-down item 906.
-    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits" as never] } };
+    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits"] } };
+    // @orb-waive no-loose-id-cast("rateLimitsExtra"): baselined when the gate widened; burn-down item 906.
     const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimitsExtra" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).not.toThrow();
@@ -190,6 +186,7 @@ describe("assertSettingsKeyPartition", () => {
 
   test("a cite in a namespace NO section claims throws — an inert cite", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
+    // @orb-waive no-loose-id-cast("appearance"): baselined when the gate widened; burn-down item 906.
     const cites = [{ section: "appearance" as never, key: "density", reason: "still pane-owned" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 }, appearance: { density: "x" } }), cites)).toThrow(CITE_INERT);
   });

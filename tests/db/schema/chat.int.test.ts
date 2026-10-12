@@ -17,6 +17,7 @@ import {
   MESSAGE_ASSET_ORIGINS,
   MESSAGE_KINDS,
   PARTICIPANT_KINDS,
+  TALKATIVENESS_DEFAULT,
   TOKEN_PROVENANCES,
 } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
@@ -602,7 +603,7 @@ test("a human participant (userId only) and a character participant (characterId
   const human = rows.find((r) => r.kind === "human");
   expect(human?.userId).toBe(ownerId);
   expect(human?.characterId).toBeNull();
-  expect(human?.talkativeness).toBeCloseTo(0.5);
+  expect(human?.talkativeness).toBeCloseTo(TALKATIVENESS_DEFAULT);
   expect(human?.disabled).toBe(false);
   expect(human?.leftSeq).toBeNull();
   // The D16 column default: an unset policy grants the FULL room history (owner ruling — inviting someone

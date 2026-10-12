@@ -22,9 +22,6 @@
 // source with only the `started_at` column added, not a build error. The `reapHusk` arms could not be
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
-// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [] }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hello there friend." }] }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hi." }] }): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -209,6 +206,7 @@ describe("claim — the one-way, idempotent stamp", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     // @orb-waive no-test-fabrication(never): startChat reads exactly one card field on this path (`greetings[0]`, absent here) — a full CharacterCard literal is twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-loose-id-cast({ name: "Aria", greetings: [] }): baselined when the gate widened; burn-down item 906.
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve({ name: "Aria", greetings: [] } as never) });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
@@ -282,6 +280,7 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
       // @orb-waive no-test-fabrication(never): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hello there friend." }] }): baselined when the gate widened; burn-down item 906.
       getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hello there friend." }] } as never),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);
@@ -309,6 +308,7 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
       // @orb-waive no-test-fabrication(never): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hi." }] }): baselined when the gate widened; burn-down item 906.
       getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hi." }] } as never),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);

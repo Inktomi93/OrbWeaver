@@ -11,12 +11,12 @@ import { describe } from "vitest";
 import type { PinnedGeneration } from "#server/domain/embeddings/contract/service.ts";
 import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { StoreHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedUser } from "../_support.ts";
 
-const NOW = 1_750_000_000_000;
 const STALE_MODEL = "old-embed-model-v0";
 
 async function seedHarnessGeneration(ownerId: UserId, harness: StoreHarness): Promise<PinnedGeneration> {
@@ -46,7 +46,7 @@ async function seedDetachedGeneration(db: Db, ownerId: UserId, model: string): P
       connectionRef: castId<UserConnectionId>(`fixture:${model}`),
       fingerprint: `fixture:${model}`,
       space: model,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     })
     .onConflictDoNothing();
   return id;
@@ -77,7 +77,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: STALE_MODEL,
       generationId: staleGenerationId,
       dim: EMBED_DIM,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     });
     await upsertChatSegment(db, {
       id: castId<ChatSegmentId>("chat_segment_new"),
@@ -92,7 +92,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: EMBED_MODEL,
       generationId: generation.id,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     await db.insert(chatDigests).values({
       id: castId<ChatDigestId>("chat_digest_old"),
@@ -109,7 +109,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: STALE_MODEL,
       generationId: staleGenerationId,
       dim: EMBED_DIM,
-      createdAt: NOW,
+      createdAt: FROZEN_AT_MS,
     });
     await upsertChatDigest(db, {
       id: castId<ChatDigestId>("chat_digest_new"),
@@ -126,7 +126,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: EMBED_MODEL,
       generationId: generation.id,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
     // The harness's roleClients.embedModel is EMBED_MODEL — the active space the purge scopes against.
@@ -158,7 +158,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: EMBED_MODEL,
       generationId: generation.id,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
     });
     await upsertChatDigest(db, {
       id: castId<ChatDigestId>("chat_digest_active"),
@@ -175,7 +175,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: EMBED_MODEL,
       generationId: generation.id,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
     const svc = createEmbeddingsService(harness.ctx);

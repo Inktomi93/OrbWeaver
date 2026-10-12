@@ -4,13 +4,6 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
-// @orb-waive-file no-loose-id-cast(Snapshot): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ roll: 9 }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ static: 42 }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(await): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(expected): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(hers): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(shown): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
@@ -633,7 +626,7 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     expect(items[0]?.lastMessageAt).toBe(9000);
     // The list is non-increasing in the DISPLAYED clock — sort key === display key, over the whole page.
     const shown = items.map((c) => c.lastMessageAt ?? c.updatedAt);
-    expect(shown).toStrictEqual([...shown].sort((a, b) => b - a));
+    expect(shown).toStrictEqual(shown.toSorted((a, b) => b - a));
   });
 
   test("a new message re-sorts the room to the top on the NEXT read — no chat-row write required", async () => {
@@ -776,8 +769,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     // EXACTLY once each: a tie-blind keyset returns the same page forever or jumps a whole tied run.
     expect(walked.length).toBe(seeded.length);
     expect(new Set(walked).size).toBe(seeded.length);
-    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
-    expect([...walked].sort()).toEqual([...seeded].sort());
+    expect(walked.toSorted((a, b) => a.localeCompare(b))).toEqual(seeded.toSorted((a, b) => a.localeCompare(b)));
   });
 
   test("`beforeRecencyAt` is exclusive and keeps every tied row below the boundary reachable exactly once", async () => {
@@ -810,8 +802,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     expect(walked).toHaveLength(expected.length);
     expect(new Set(walked).size).toBe(expected.length);
-    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
-    expect([...walked].sort()).toEqual([...expected].sort());
+    expect(walked.toSorted((a, b) => a.localeCompare(b))).toEqual(expected.toSorted((a, b) => a.localeCompare(b)));
     expect(walked).not.toContain(atBoundary[0]);
     expect(walked).not.toContain(above[0]);
     expect(walked).not.toContain(displayedAbove);
@@ -924,7 +915,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const hers = await listChats({ principal: principal(me), characterId: her, limit: 50 });
 
-    expect([...hers.items.map((c) => c.id)].sort()).toEqual([sheLeft, withHer].sort());
+    expect(hers.items.map((c) => c.id).toSorted()).toEqual([sheLeft, withHer].sort());
     expect(hers.totalCount).toBe(2);
     expect(hers.items.map((c) => c.id)).not.toContain(withHim);
   });
@@ -996,7 +987,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const found = async (q: string): Promise<readonly ChatId[]> =>
-      [...(await listChats({ principal: principal(me), search: q, limit: 50 })).items.map((c) => c.id)].sort();
+      (await listChats({ principal: principal(me), search: q, limit: 50 })).items.map((c) => c.id).toSorted();
 
     // Case-insensitive across all three arms — the user types what they remember, not what was stored.
     expect(await found("ashen")).toEqual([byBody, byTitle].sort());
@@ -2950,6 +2941,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs." });
       // The engine writes a full `AssembledPrompt` here; the read PROJECTS it through `sentPromptSchema`, so
       // only the projected fields are under test (`trace` is dropped by design — asserted below).
+      // @orb-waive no-loose-id-cast(Snapshot): baselined when the gate widened; burn-down item 906.
       const blob = Snapshot as never; // An AssembledPrompt stand-in; the read projects it.
       await db
         .update(messageVariants)
@@ -3062,6 +3054,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const chatId = await seedRoom("wire_bad_freeze", host);
       const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "x" });
       // @orb-waive no-test-fabrication(never): deliberate invalid-input probe of the parse seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ roll: 9 }): baselined when the gate widened; burn-down item 906.
       const garbage = { roll: 9 } as never;
       await db
         .update(messageVariants)
@@ -3081,6 +3074,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       // A garbage blob is exactly what the read seam exists to bound: `$type<>` is a compile-time claim, and
       // the bytes at rest are untyped JSON that a prior schema version (or a hand edit) can have written.
       // @orb-waive no-test-fabrication(never): deliberate invalid-input probe of the parse seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ static: 42 }): baselined when the gate widened; burn-down item 906.
       const garbage = { static: 42 } as never;
       await db
         .update(messageVariants)

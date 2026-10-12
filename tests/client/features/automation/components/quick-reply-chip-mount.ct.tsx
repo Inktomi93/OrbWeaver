@@ -14,10 +14,11 @@
 // it runs FIRST (LIFO). `route` is never `abort`ed here. Every assertion barriers on a SETTLED rendered state
 // (the chip visible, the send recorded, the composer's value) — never a draft-state read.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -63,7 +64,7 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<Tr
       ceilingTokens: 32_768,
       ceilingEstimated: false,
       limit: null,
-      reserveOutputTokens: 2048,
+      reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       droppedCount: 0,
       compactSummary: null,
     }),
@@ -83,7 +84,7 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<Tr
   await page.route("**/api/trpc/**", async (route) => {
     if ((route.request().headers()["accept"] ?? "").includes("text/event-stream")) {
       for (let i = 0; i < MAX_ATTACH_POLLS && !socket.attachedChannels().some((key) => key.startsWith("automation:")); i += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 25));
+        await sleep(25);
       }
     }
     await route.fallback();

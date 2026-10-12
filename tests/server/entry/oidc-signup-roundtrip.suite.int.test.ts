@@ -24,11 +24,11 @@ import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joi
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import { freshDb } from "../../support/db.ts";
 import { seedChat, seedUser } from "../../support/factories/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
-const NOW = 1_750_000_000_000;
 const MINUTE_MS = 60_000;
 const PENDING_TTL_MS = 10 * MINUTE_MS;
 const PEPPER = "test-session-secret-at-least-32-chars-long";
@@ -68,7 +68,7 @@ async function flow(
   opts: { readonly requireApproval?: boolean; readonly maxUses?: number; readonly inviteTtlMs?: number; readonly discreetLogin?: boolean } = {},
 ): Promise<Flow> {
   const db = await freshDb();
-  const clock = { now: NOW };
+  const clock = { now: FROZEN_AT_MS };
   const now = (): number => clock.now;
   const room = await seedChat(db, { withHost: true });
   const host = room.hostUserId;
@@ -82,11 +82,11 @@ async function flow(
     chatId: room.id,
     tokenHash: hashInvite(RAW_INVITE),
     maxUses: opts.maxUses ?? 3,
-    expiresAt: NOW + (opts.inviteTtlMs ?? 60 * MINUTE_MS),
+    expiresAt: FROZEN_AT_MS + (opts.inviteTtlMs ?? 60 * MINUTE_MS),
     allowSignup: true,
     createdByUserId: host,
     mintMode: "oidc",
-    createdAt: NOW,
+    createdAt: FROZEN_AT_MS,
   });
   const seeded: UserId[] = [];
   const announced: ChatId[] = [];
@@ -367,7 +367,7 @@ describe("the pending preview and confirm", () => {
   test("a forced login with a planted invite and no confirm leaves no account after the reaper runs", async () => {
     const f = await flow();
     await pendingJoin(f);
-    await createOidcStore(f.db, () => f.clock.now).deleteExpired(NOW + PENDING_TTL_MS);
+    await createOidcStore(f.db, () => f.clock.now).deleteExpired(FROZEN_AT_MS + PENDING_TTL_MS);
     expect(await f.db.select().from(oidcPendingSignups)).toHaveLength(0);
     expect(await usersBySubject(f, "friend")).toHaveLength(0);
   });

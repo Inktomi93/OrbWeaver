@@ -10,7 +10,6 @@
 // and the 430px push-detail arm → the app-shell's one-shell rule owns pane geometry now (app-shell.ct.tsx;
 // `ConfigMobileListStory` pins the LIST-is-the-screen half).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -1404,6 +1403,7 @@ test("UNREADABLE SETTINGS — the pane says so once, the footer stops saying Sav
   await expect(avatars).not.toHaveAttribute("aria-checked", before ?? "");
   // The negative-assertion WINDOW — a real-timer sleep evaluated in the page (`page.waitForTimeout` is
   // biome-banned, `noPlaywrightWaitForTimeout`; this is the house idiom the prose-cap pin above uses).
+  // @orb-waive platform-spellings(Promise): browser-side code (page.evaluate or a mounted fixture) — node:timers/promises does not exist in the page and the gate's browser carve-out covers packages/client and packages/ui only; ends when the gate carves out test code that runs in the page.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
   // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
   // plus the full debounce window, so the read IS settled at this line.

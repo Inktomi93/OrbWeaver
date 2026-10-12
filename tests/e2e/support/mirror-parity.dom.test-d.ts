@@ -18,7 +18,7 @@
 //       typo, a missed rename, or a field the contract deleted (this is how the retired `sheet.poolDefs`
 //       surfaced when this file landed).
 //     `keyof` over a UNION only sees the SHARED keys, so a union-typed contract is pinned ARM BY ARM
-//     (`GroupConfig`, `RpgActorRef`).
+//     (`GroupConfig`).
 //
 //  2. The VALUE axis — a field whose TYPE drifted, checked structurally through the whole nested shape:
 //     • READ views: `expectTypeOf<Contract>().toExtend<Mirror>()`. The mirror's deliberate widenings stay
@@ -39,7 +39,6 @@ import type { ConnectionBinding, ResolvedConnectionView, RoutableTask, Unavailab
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import type {
   RpgActorIdentity,
-  RpgActorRef,
   RpgActorVolatile,
   RpgClockTime,
   RpgConfigView,
@@ -62,7 +61,6 @@ import type { UserSettings as ContractUserSettings, UserSettingsSection } from "
 import { expectTypeOf, test } from "vitest";
 import type {
   ActivePresetConfig,
-  ActorRefInput,
   AppearanceThemeSettings,
   CanonMessage,
   CompactionIntent,
@@ -217,17 +215,6 @@ test("GameView / ConfigView mirror the member + host game reads", () => {
     >
   >(keys<ConfigView, RpgConfigView>());
   expectTypeOf<RpgConfigView>().toExtend<ConfigView>();
-});
-
-test("ActorRefInput mirrors RpgActorRef ARM BY ARM (a union's `keyof` only sees the shared keys)", () => {
-  pin<Complete>(keys<Extract<ActorRefInput, { kind: "character" }>, Extract<RpgActorRef, { kind: "character" }>>());
-  pin<Complete>(keys<Extract<ActorRefInput, { kind: "user" }>, Extract<RpgActorRef, { kind: "user" }>>());
-  pin<Complete>(keys<Extract<ActorRefInput, { kind: "npc" }>, Extract<RpgActorRef, { kind: "npc" }>>());
-  // Every contract arm is representable by the mirror input (the branded ids widen to `string`), and the arm
-  // vocabulary itself is pinned — a NEW ref arm (full's reserved `{kind:"libraryNpc"}`) fails here, not in a
-  // live spec.
-  expectTypeOf<RpgActorRef>().toExtend<ActorRefInput>();
-  expectTypeOf<ActorRefInput["kind"]>().toEqualTypeOf<RpgActorRef["kind"]>();
 });
 
 test("JournalEntry / RevealView mirror the journal + host-reveal reads", () => {

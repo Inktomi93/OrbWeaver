@@ -3,7 +3,6 @@
 // and CANCELLATION — an abort mid-sweep must still settle the rollups for every owner already written,
 // because a re-run is a read-only census and can never heal them.
 
-// @orb-waive-file platform-spellings(OWNERS): baselined when the gate widened; burn-down item 906.
 import type { ImportedTokenUsageCandidate } from "@orb/contracts/chat";
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -106,7 +105,7 @@ describe("createBackfillTokenUsage — cancellation", () => {
     expect(written).toHaveLength(3);
     // …and the three promoted rows' owners were settled anyway — the rollups are not left describing the
     // pre-promotion provenance forever.
-    expect(reconcileImportStats.mock.calls.map((c) => c[0].ownerId).sort()).toEqual([...OWNERS].sort());
+    expect(reconcileImportStats.mock.calls.map((c) => c[0].ownerId).sort()).toEqual(OWNERS.toSorted());
   });
 
   test("an abort BEFORE any write reconciles nothing (the settlement is scoped to what actually changed)", async () => {

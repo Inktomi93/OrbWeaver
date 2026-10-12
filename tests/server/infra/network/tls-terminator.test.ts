@@ -2,15 +2,16 @@
 // for 127.0.0.1, verified by the client against that certificate, forwarding to a recording http upstream: the app
 // must see this hop's facts about the socket, never the visitor's own forwarding headers.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { KeyObject } from "node:crypto";
 import { generateKeyPairSync, X509Certificate } from "node:crypto";
 import type { IncomingHttpHeaders, Server } from "node:http";
 import { createServer } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { AddressInfo } from "node:net";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { TLSSocket } from "node:tls";
 import { connect as tlsConnect } from "node:tls";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { TlsTerminator } from "@orb/server/infra/network";
 import { startTlsTerminator } from "@orb/server/infra/network";
 import { afterEach, describe } from "vitest";
@@ -151,8 +152,8 @@ describe("startTlsTerminator", () => {
         "x-real-ip": "10.0.0.6",
         forwarded: "for=10.0.0.7;proto=http",
         "x-forwarded-host": "evil.example",
-        connection: "x-orb-csrf, close",
-        "x-orb-csrf": "1",
+        connection: `${CSRF_HEADER}, close`,
+        [CSRF_HEADER]: "1",
       },
     });
     const headers = seen[0]?.headers ?? {};
@@ -162,7 +163,7 @@ describe("startTlsTerminator", () => {
     expect(headers.forwarded).toBeUndefined();
     expect(headers["x-forwarded-host"]).toBeUndefined();
     // A header the visitor named in Connection is hop-by-hop and stops here.
-    expect(headers["x-orb-csrf"]).toBeUndefined();
+    expect(headers[CSRF_HEADER]).toBeUndefined();
   });
 
   test("Host is always the visitor's, even when the visitor lists it in Connection; a request with no Host is refused", async () => {
@@ -252,9 +253,7 @@ function raw(port: number, pair: Pair, bytes: string): Promise<string> {
 
 // Lets the app finish reading whatever the hop wrote before the test reads what it parsed.
 function settleUpstream(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 150);
-  });
+  return sleep(150);
 }
 
 const SMUGGLED = "GET /smuggled HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";

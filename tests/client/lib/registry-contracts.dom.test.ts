@@ -2,7 +2,6 @@
 // the M3 correctness core: when-filtering, own-then-contributor declared order, the duplicate-id THROW at
 // mint construction, null-state passthrough, and actions binding.
 
-// @orb-waive-file platform-spellings(crowned): baselined when the gate widened; burn-down item 906.
 import { createAppQueryClient, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { automationActivityTab } from "@orb/client/features/automation";
 import { chatContextTabs } from "@orb/client/features/chat";
@@ -240,7 +239,7 @@ describe("the meta rail's crowned set", () => {
     expect(crowned.length).toBeGreaterThan(0);
     // Sorted on both sides: the fixture declares a SET, and the rail's ORDER is the door's assembly order,
     // which is a separate axis with its own pins.
-    expect([...crowned].sort()).toEqual([...CT_META_RAIL_CROWNED_IDS].sort());
+    expect(crowned.toSorted()).toEqual([...CT_META_RAIL_CROWNED_IDS].sort());
   });
 
   test("each crowned id belongs to a tab that still exists and is still crowned by its own owner", () => {

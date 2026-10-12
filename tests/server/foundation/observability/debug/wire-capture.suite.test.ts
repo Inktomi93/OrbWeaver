@@ -14,11 +14,11 @@
 // `tests/server/foundation/env/index.test.ts` uses, extended to reimport the observability barrel (which
 // transitively reimports env) rather than env alone.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
@@ -177,7 +177,7 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       warnings: [],
     });
     // Spill is fire-and-forget (a chained promise); give the microtask queue a turn to run it.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
 
     expect(rename).toHaveBeenCalledTimes(1);
     expect(appendFile).toHaveBeenCalledTimes(1);

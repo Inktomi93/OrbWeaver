@@ -9,9 +9,6 @@
 // inflated `assistantTurns` and no swipe ever counted (F1); gen-time was never stamped (F2); and
 // `maxContextTokens` was dropped on the live path (F6). If any of those regress, `toEqual` drifts.
 
-// @orb-waive-file no-loose-id-cast(REPLY): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(receiptTurn): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(thinkingTurn): baselined when the gate widened; burn-down item 906.
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -395,7 +392,7 @@ describe("engine stats — gen-time is populated on the live path (F2)", () => {
         t += 1000;
         return v;
       },
-      runChatTurn: REPLY as never,
+      runChatTurn: REPLY,
       applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
         deltas.push(delta);
       },
@@ -467,7 +464,7 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
       now: () => t,
-      runChatTurn: thinkingTurn as never,
+      runChatTurn: thinkingTurn,
       applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
         deltas.push(delta);
       },
@@ -540,7 +537,7 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
         };
       })();
 
-    const ctx = makeChatContext(db, { now: () => t, runChatTurn: receiptTurn as never, applyStatsDelta: (): void => undefined });
+    const ctx = makeChatContext(db, { now: () => t, runChatTurn: receiptTurn, applyStatsDelta: (): void => undefined });
     const engine = createTurnEngine(ctx, {
       emit: (): Promise<void> => Promise.resolve(),
       holder: "replica-1",

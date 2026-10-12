@@ -9,7 +9,7 @@
 //   • IDEMPOTENT / NO-DOWNGRADE: a re-run refreshes the summary in place and never flips an ACCEPTED tag
 //     back to pending. SYNTHETIC group characters are excluded.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { RoleClients, StructuredOptions, SummarizeInput } from "@orb/contracts/role-clients";
 import { characterSummaries, characterTags, tags as tagsTable } from "@orb/db";
@@ -95,7 +95,7 @@ function makeDistillProbe(cfg: { readonly batchReply: (userPrompt: string) => st
     try {
       // A macrotask barrier so sibling retries in the same wave pile up BEFORE any resolves — that peak is
       // what a lost concurrency bound (a naive Promise.all over the whole batch) would blow past.
-      await new Promise((r) => setTimeout(r, 5));
+      await sleep(5);
       const text = cfg.retry ? await cfg.retry(prompt) : "";
       return { items: [{ text, usage }], model: "probe" };
     } finally {

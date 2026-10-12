@@ -547,20 +547,12 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const assetId = await seedAsset(db, host, "siblingreplay");
     const chatId = await seedChat(db, "stale-sibling", { metadata: { background: bg({ kind: "asset", assetId, assetHash: "hash", mime: "image/png" }) } });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    let reachedResolve: (() => void) | undefined;
-    let releaseResolve: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const reached = new Promise<void>((resolve) => {
-      reachedResolve = resolve;
-    });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const release = new Promise<void>((resolve) => {
-      releaseResolve = resolve;
-    });
+    const { promise: reached, resolve: reachedResolve } = Promise.withResolvers<void>();
+    const { promise: release, resolve: releaseResolve } = Promise.withResolvers<void>();
     const staleParticipants = createParticipants(makeChatContext(db), {
       emit,
       claimChat: async () => {
-        reachedResolve?.();
+        reachedResolve();
         await release;
       },
     });
@@ -569,7 +561,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const clearingParticipants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     await clearingParticipants.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "none" }) });
     expect(await deleteAssetRowIfUnreferenced(db, host, assetId)).toBe(true);
-    releaseResolve?.();
+    releaseResolve();
 
     await expect(writing).rejects.toMatchObject({ code: "background_unavailable" });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -1333,11 +1325,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     });
 
     let arrivals = 0;
-    let release!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const bothLoaded = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: bothLoaded, resolve: release } = Promise.withResolvers<void>();
     // @orb-waive no-test-fabrication(unknown): minimal RPG handoff fixture — only handoffRekeyActors is reached by this retry barrier. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffRekeyActors: async (): Promise<void> => {

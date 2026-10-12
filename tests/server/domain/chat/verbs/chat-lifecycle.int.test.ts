@@ -3,6 +3,7 @@
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
 
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
@@ -139,16 +140,8 @@ describe("chat-row flags (host-only)", () => {
   // fire-and-forget emit's rejection was UNHANDLED — the node process exited for every user. The fix is both
   // halves: `delete` ABORTS the room's turns (source) and the bus emit is TOTAL (floor).
   test("deleting a chat mid-turn: the streaming turn is aborted, the post-delete delta is dropped (no unhandled rejection), and the process survives", async () => {
-    let sawFirstDelta!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const streaming = new Promise<void>((resolve) => {
-      sawFirstDelta = resolve;
-    });
-    let deleteDone!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const deleted = new Promise<void>((resolve) => {
-      deleteDone = resolve;
-    });
+    const { promise: streaming, resolve: sawFirstDelta } = Promise.withResolvers<void>();
+    const { promise: deleted, resolve: deleteDone } = Promise.withResolvers<void>();
     // The scripted role stream, PARKED mid-turn: chunk 1 streams while the chat is alive, chunk 2 + the
     // terminal `final` only resume AFTER the chat row is gone — the exact interleaving that crashed.
     async function* gatedStream(): AsyncGenerator<TurnStreamChunk> {
@@ -186,8 +179,7 @@ describe("chat-row flags (host-only)", () => {
     deleteDone();
     const outcome = await sending;
     // Let any rejection the fire-and-forget emits produced reach the process handler.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await sleep(20);
     process.off("unhandledRejection", onUnhandled);
 
     // THE bug: a single racing emit must never reach the process as an unhandled rejection.

@@ -7,21 +7,20 @@
 // registry no longer holds, an ordinary "I switched my plugin off" would become a FAILED TURN. These pins are
 // what say it cannot.
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
+import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { defOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const ALICE = makePrincipal(castId("user_alice"), { handle: castId("alice") });
-const BOB = makePrincipal(castId("user_bob"), { handle: castId("bob") });
+const ALICE = principal(castId("user_alice"), { handle: castId("alice") });
+const BOB = principal(castId("user_bob"), { handle: castId("bob") });
 
 const allowAll: Can = (() => undefined) as Can;
 

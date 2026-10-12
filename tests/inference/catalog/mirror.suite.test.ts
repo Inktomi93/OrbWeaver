@@ -54,12 +54,8 @@ test("warm prefers a valid snapshot, caches it, and invalidate forces a live ref
 });
 
 test("concurrent cold warms share one fetch, and a failed warm is held briefly, then retried", async () => {
-  let resolveFetch: ((value: string[]) => void) | undefined;
-  let markFetchStarted: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const fetchStarted = new Promise<void>((resolve) => {
-    markFetchStarted = resolve;
-  });
+  const { promise: fetchStarted, resolve: markFetchStarted } = Promise.withResolvers<void>();
+  const { promise: fetched, resolve: resolveFetch } = Promise.withResolvers<string[]>();
   let fetches = 0;
   let now = 5000;
   const warnings: unknown[] = [];
@@ -74,18 +70,15 @@ test("concurrent cold warms share one fetch, and a failed warm is held briefly, 
   });
   const pending = (): Promise<string[]> => {
     fetches += 1;
-    markFetchStarted?.();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    return new Promise((resolve) => {
-      resolveFetch = resolve;
-    });
+    markFetchStarted();
+    return fetched;
   };
 
   const first = mirror.warm(pending, NO_PROVIDER_SECRETS);
   const second = mirror.warm(pending, NO_PROVIDER_SECRETS);
   await fetchStarted;
   expect(fetches).toBe(1);
-  resolveFetch?.(["shared"]);
+  resolveFetch(["shared"]);
   await expect(Promise.all([first, second])).resolves.toEqual([
     { ok: true, value: ["shared"] },
     { ok: true, value: ["shared"] },
@@ -138,12 +131,8 @@ test("an invalidate drops a held failure, so the next warm asks the server again
 // coalesced onto it never receives that secret, even when the provider reflected it into the error.
 test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced caller shares that scrubbed reason", async () => {
   const dialingSecret = "sk-owner-a-0123456789abcdef";
-  let rejectFetch: ((err: Error) => void) | undefined;
-  let markFetchStarted: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const fetchStarted = new Promise<void>((resolve) => {
-    markFetchStarted = resolve;
-  });
+  const { promise: fetchStarted, resolve: markFetchStarted } = Promise.withResolvers<void>();
+  const { promise: failingFetch, reject: rejectFetch } = Promise.withResolvers<string[]>();
   const mirror = createMirror({
     key: "daemon-models",
     schema: rowsSchema,
@@ -154,17 +143,14 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
     },
   });
   const pending = (): Promise<string[]> => {
-    markFetchStarted?.();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    return new Promise((_resolve, reject) => {
-      rejectFetch = reject;
-    });
+    markFetchStarted();
+    return failingFetch;
   };
 
   const dialer = mirror.warm(pending, resolvedScrubSet({ credential: { secret: dialingSecret }, transport: null }));
   const coalesced = mirror.warm(pending, NO_PROVIDER_SECRETS);
   await fetchStarted;
-  rejectFetch?.(new Error(`HTTP 401 — token ${dialingSecret} is not authorized`));
+  rejectFetch(new Error(`HTTP 401 — token ${dialingSecret} is not authorized`));
   const [first, second] = await Promise.all([dialer, coalesced]);
 
   expect(second).toEqual(first);
@@ -174,12 +160,8 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
 });
 
 test("a warm in flight when the mirror is invalidated does not publish its stale answer, and the next warm fetches fresh", async () => {
-  let release: ((value: string[]) => void) | undefined;
-  let markStarted: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const started = new Promise<void>((resolve) => {
-    markStarted = resolve;
-  });
+  const { promise: staleFetch, resolve: release } = Promise.withResolvers<string[]>();
+  const { promise: started, resolve: markStarted } = Promise.withResolvers<void>();
   const writes: string[] = [];
   const mirror = createMirror({
     key: "models",
@@ -198,17 +180,14 @@ test("a warm in flight when the mirror is invalidated does not publish its stale
     },
   });
   const stale = mirror.warm(() => {
-    markStarted?.();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    return new Promise<string[]>((resolve) => {
-      release = resolve;
-    });
+    markStarted();
+    return staleFetch;
   }, NO_PROVIDER_SECRETS);
   await started;
   mirror.invalidate();
   // A warm after the invalidate must not coalesce onto the one that will not publish.
   expect(await mirror.warm(() => Promise.resolve(["fresh"]), NO_PROVIDER_SECRETS)).toEqual({ ok: true, value: ["fresh"] });
-  release?.(["stale"]);
+  release(["stale"]);
   await stale;
   expect(mirror.get()).toEqual(["fresh"]);
   expect(writes).toEqual([JSON.stringify({ fetchedAt: 5000, value: ["fresh"] })]);
@@ -217,17 +196,13 @@ test("a warm in flight when the mirror is invalidated does not publish its stale
 test("a snapshot write still in flight when the mirror is invalidated is taken back, so a later failed fetch cannot serve it", async () => {
   const stored = new Map<string, string>();
   let finishWrite: (() => void) | undefined;
-  let markWriting: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const writing = new Promise<void>((resolve) => {
-    markWriting = resolve;
-  });
+  const { promise: writing, resolve: markWriting } = Promise.withResolvers<void>();
   const snapshotStore = {
     read: (key: string): Promise<string | null> => Promise.resolve(stored.get(key) ?? null),
     // The write lands only when released, as a slow store would.
     write: (key: string, value: string): Promise<void> =>
       new Promise<void>((resolve) => {
-        markWriting?.();
+        markWriting();
         finishWrite = (): void => {
           stored.set(key, value);
           resolve();

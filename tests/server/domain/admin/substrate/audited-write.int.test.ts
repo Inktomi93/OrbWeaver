@@ -15,11 +15,10 @@ import { castId } from "@orb/kit/ids";
 import { and, eq, ne } from "drizzle-orm";
 import { describe } from "vitest";
 import { commitAuditedWrite } from "#server/domain/admin/substrate/audited-write.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { auditActions, liveSessionIds, makeHarness, seedLiveSession, seedUser, withBrokenAudit } from "../_support.ts";
-
-const AT = 1_750_000_000_000;
 
 const entry = { actorUserId: null, action: "admin.probe", entityType: "user", entityId: "user_t" } as const;
 
@@ -31,10 +30,10 @@ describe("commitAuditedWrite", () => {
     await seedLiveSession(db, target);
 
     const rows = await commitAuditedWrite(h.ctx, {
-      write: db.update(users).set({ role: "admin", updatedAt: AT }).where(eq(users.id, target)).returning({ id: users.id }),
+      write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
       entry,
-      at: AT,
-      tails: [h.ctx.sessions.revokeAllForUserStatement(target, AT)],
+      at: FROZEN_AT_MS,
+      tails: [h.ctx.sessions.revokeAllForUserStatement(target, FROZEN_AT_MS)],
     });
 
     expect(rows).toEqual([{ id: target }]);
@@ -56,9 +55,9 @@ describe("commitAuditedWrite", () => {
 
     await expect(
       commitAuditedWrite(h.ctx, {
-        write: db.update(users).set({ role: "admin", updatedAt: AT }).where(eq(users.id, target)).returning({ id: users.id }),
+        write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
         entry,
-        at: AT,
+        at: FROZEN_AT_MS,
         tails: [brokenTail],
       }),
     ).rejects.toThrow();
@@ -75,9 +74,9 @@ describe("commitAuditedWrite", () => {
 
     await expect(
       commitAuditedWrite(withBrokenAudit(h.ctx, db), {
-        write: db.update(users).set({ role: "admin", updatedAt: AT }).where(eq(users.id, target)).returning({ id: users.id }),
+        write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
         entry,
-        at: AT,
+        at: FROZEN_AT_MS,
       }),
     ).rejects.toThrow();
 
@@ -94,11 +93,11 @@ describe("commitAuditedWrite", () => {
     const rows = await commitAuditedWrite(h.ctx, {
       write: db
         .update(users)
-        .set({ role: "user", updatedAt: AT })
+        .set({ role: "user", updatedAt: FROZEN_AT_MS })
         .where(and(eq(users.id, owner), ne(users.role, "owner")))
         .returning({ id: users.id }),
       entry,
-      at: AT,
+      at: FROZEN_AT_MS,
     });
 
     expect(rows).toEqual([]);
@@ -113,10 +112,10 @@ describe("commitAuditedWrite", () => {
 
     // No live sessions: the kick tail matches 0 rows, exactly as it does for a signed-out target.
     const rows = await commitAuditedWrite(h.ctx, {
-      write: db.update(users).set({ role: "admin", updatedAt: AT }).where(eq(users.id, target)).returning({ id: users.id }),
+      write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
       entry,
-      at: AT,
-      tails: [h.ctx.sessions.revokeAllForUserStatement(target, AT)],
+      at: FROZEN_AT_MS,
+      tails: [h.ctx.sessions.revokeAllForUserStatement(target, FROZEN_AT_MS)],
     });
 
     expect(rows).toEqual([{ id: target }]);

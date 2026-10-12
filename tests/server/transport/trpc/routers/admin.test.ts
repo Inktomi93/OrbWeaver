@@ -3,13 +3,12 @@
 // producer that starts returning an extra column fails the call instead of shipping it. The verbs' own gates are
 // their unit tests.
 
-// @orb-waive-file no-loose-id-cast(edge): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(long): baselined when the gate widened; burn-down item 906.
 import type { UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AdminService, AdminUserView } from "@orb/server/domain/admin";
 import { describe, vi } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
@@ -36,8 +35,8 @@ const USER_VIEW: AdminUserView = {
   enabled: true,
   kind: "human",
   ownerHandle: null,
-  createdAt: 1_750_000_000_000,
-  updatedAt: 1_750_000_000_000,
+  createdAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
 };
 
 describe("admin.createUser handle length", () => {
@@ -47,14 +46,14 @@ describe("admin.createUser handle length", () => {
   test("a handle over 64 code points answers BAD_REQUEST and the verb never runs", async () => {
     createUser.mockClear();
     const long = `a${COMBINING_MARKS.repeat(16)}`;
-    await expect(admin().createUser({ handle: long as never, password: "correct-horse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(admin().createUser({ handle: long, password: "correct-horse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(createUser).not.toHaveBeenCalled();
   });
 
   test("control: a handle of exactly 64 code points reaches the verb", async () => {
     createUser.mockClear();
     const edge = `${"a".repeat(63)}\u{1D400}`;
-    await admin().createUser({ handle: edge as never, password: "correct-horse" });
+    await admin().createUser({ handle: edge, password: "correct-horse" });
     expect(createUser).toHaveBeenCalledOnce();
   });
 });
@@ -135,10 +134,10 @@ describe("admin user and session reads — the strict output boundary", () => {
       id: mintTypeId(ID_PREFIX.session),
       userId: USER_VIEW.id,
       expiresAt: 1_750_000_100_000,
-      lastSeenAt: 1_750_000_000_000,
+      lastSeenAt: FROZEN_AT_MS,
       revokedAt: null,
       userAgent: null,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
     };
     const listSessions = vi.fn<AdminService["listSessions"]>(async () => [{ ...session, tokenHash: "planted-token-hash" }]);
     const clean = vi.fn<AdminService["listSessions"]>(async () => [session]);

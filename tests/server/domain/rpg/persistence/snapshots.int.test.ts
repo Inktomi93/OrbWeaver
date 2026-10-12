@@ -5,12 +5,10 @@
 // exercised in isolation, in fall-through order, and with the two arms INTERLEAVED (the case that did not
 // exist before D124 and is the whole risk surface of the reshape).
 
-// @orb-waive-file no-loose-id-cast("not-an-array"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(`message_${opts.chatId}_${opts.seq}`): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(opts.chatId): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
-import type { ChatId, MessageVariantId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
@@ -38,7 +36,7 @@ beforeEach(async () => {
 
 /** Insert a committed snapshot keyed to a variant, carrying a marker location. */
 async function seedSnapshot(opts: {
-  gameId: string;
+  gameId: RpgGameId;
   chatId: ChatId;
   seq: number;
   variantId: MessageVariantId;
@@ -48,9 +46,8 @@ async function seedSnapshot(opts: {
 }): Promise<void> {
   await insertSnapshot(db, {
     id: snapshotId(opts.key),
-    // @orb-waive no-loose-id-cast(opts.gameId): baselined when the gate widened; burn-down item 906.
-    gameId: opts.gameId as never,
-    messageId: `message_${opts.chatId}_${opts.seq}` as never,
+    gameId: opts.gameId,
+    messageId: castId<MessageId>(`message_${opts.chatId}_${opts.seq}`),
     variantId: opts.variantId,
     location: opts.location,
     committed: opts.committed ?? 1,
@@ -334,6 +331,7 @@ describe("parse-on-read corruption belt", () => {
     // Poison the quests column past the schema (a string where an array of quest objects belongs).
     await db
       .update(rpgSnapshots)
+      // @orb-waive no-loose-id-cast("not-an-array"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ quests: "not-an-array" as never })
       .where(eq(rpgSnapshots.variantId, variantId));
 
@@ -396,13 +394,12 @@ describe("write-boundary structural backstop (stickler F1)", () => {
 // order stamp. These tests pin the order the ladder now decides, in both walks.
 
 /** Write a hand row carrying a marker location; `now` drives the createdAt tie-break inside one as-of slot. */
-async function seedHandRow(opts: { gameId: string; chatId: ChatId; key: string; location: string; now?: number }): Promise<void> {
+async function seedHandRow(opts: { gameId: RpgGameId; chatId: ChatId; key: string; location: string; now?: number }): Promise<void> {
   await writeHandSnapshot(
     db,
     { ...emptyState(), location: opts.location },
     null,
-    // @orb-waive no-loose-id-cast(opts.gameId): baselined when the gate widened; burn-down item 906.
-    handTarget({ gameId: opts.gameId as never, chatId: opts.chatId as never, key: opts.key, now: opts.now ?? FROZEN_AT }),
+    handTarget({ gameId: opts.gameId, chatId: opts.chatId, key: opts.key, now: opts.now ?? FROZEN_AT }),
   );
 }
 

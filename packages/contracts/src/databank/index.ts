@@ -121,15 +121,15 @@ export type DocumentListCursor = z.infer<typeof documentListCursorSchema>;
 
 // Chunk/retrieval bounds — named (contracts enforce no-magic-numbers). ST-derived defaults:
 // 2500-char chunks, 0% overlap, ≤5 KB whole-file, k=5, minScore 0.25.
-const CHUNK_SIZE_MIN = 200;
+export const CHUNK_SIZE_MIN = 200;
 const CHUNK_SIZE_MAX = 20_000;
-const CHUNK_SIZE_DEFAULT = 2500;
-const OVERLAP_PERCENT_MAX = 50;
+export const CHUNK_SIZE_DEFAULT = 2500;
+export const OVERLAP_PERCENT_MAX = 50;
 const WHOLE_FILE_THRESHOLD_MAX = 100_000;
-const WHOLE_FILE_THRESHOLD_DEFAULT = 5120;
+export const WHOLE_FILE_THRESHOLD_DEFAULT = 5120;
 const RETRIEVAL_K_MAX = 50;
-const RETRIEVAL_K_DEFAULT = 5;
-const MIN_SCORE_DEFAULT = 0.25;
+export const RETRIEVAL_K_DEFAULT = 5;
+export const MIN_SCORE_DEFAULT = 0.25;
 
 // ── chunk params (the wire twin of @orb/kit/chunk's ChunkParams; pinned by ChunkParamsPin below) ─────────
 export const chunkParamsSchema = z.object({

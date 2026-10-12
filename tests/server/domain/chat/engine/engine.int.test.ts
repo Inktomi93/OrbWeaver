@@ -4,7 +4,7 @@
 // RETURNS the aborted outcome — an abort is an outcome, not an exception), and the pre-start belt refusals
 // (locked — the budget/consent belts were retired by @orb/inference §14 F11/F13).
 
-// @orb-waive-file no-loose-id-cast(stmts): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -324,20 +324,12 @@ describe("createTurnEngine — happy path", () => {
 
   test("owns the delta drain: terminal success cannot overtake a held delta emit", async () => {
     const chatId = await seedChat(db, "delta-order");
-    let releaseDelta: (() => void) | undefined;
-    let markDeltaStarted: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const deltaStarted = new Promise<void>((resolve) => {
-      markDeltaStarted = resolve;
-    });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const heldDelta = new Promise<void>((resolve) => {
-      releaseDelta = resolve;
-    });
+    const { promise: deltaStarted, resolve: markDeltaStarted } = Promise.withResolvers<void>();
+    const { promise: heldDelta, resolve: releaseDelta } = Promise.withResolvers<void>();
     const h = harness(db, {
       emit: (event): Promise<void> => {
         if (event.type === "delta") {
-          markDeltaStarted?.();
+          markDeltaStarted();
           return heldDelta;
         }
         return Promise.resolve();
@@ -354,7 +346,7 @@ describe("createTurnEngine — happy path", () => {
     expect(types(h.events)).not.toContain("messageCommitted");
     expect(types(h.events)).not.toContain("turnCompleted");
 
-    releaseDelta?.();
+    releaseDelta();
     await turn;
     expect(types(h.events).indexOf("delta")).toBeLessThan(types(h.events).indexOf("turnCompleted"));
   });
@@ -1057,34 +1049,22 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
   test("a generation failure emits turnAborted(error) THEN rethrows; lock released", async () => {
     const chatId = await seedChat(db, "a");
-    let releaseDelta: (() => void) | undefined;
-    let markDeltaStarted: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const deltaStarted = new Promise<void>((resolve) => {
-      markDeltaStarted = resolve;
-    });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const heldDelta = new Promise<void>((resolve) => {
-      releaseDelta = resolve;
-    });
-    let markProviderFailed: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const providerFailed = new Promise<void>((resolve) => {
-      markProviderFailed = resolve;
-    });
+    const { promise: deltaStarted, resolve: markDeltaStarted } = Promise.withResolvers<void>();
+    const { promise: heldDelta, resolve: releaseDelta } = Promise.withResolvers<void>();
+    const { promise: providerFailed, resolve: markProviderFailed } = Promise.withResolvers<void>();
     // A partial stream then a mid-flight failure (the realistic error path).
     const throwing: ChatContext["runChatTurn"] = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
         await Promise.resolve();
         yield { kind: "text", text: "partial" };
-        markProviderFailed?.();
+        markProviderFailed();
         throw new Error("model exploded");
       })();
     const h = harness(db, {
       runChatTurn: throwing,
       emit: (event): Promise<void> => {
         if (event.type === "delta") {
-          markDeltaStarted?.();
+          markDeltaStarted();
           return heldDelta;
         }
         return Promise.resolve();
@@ -1107,7 +1087,7 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
     expect(settled).toBe(false);
     expect(types(h.events)).not.toContain("turnAborted");
 
-    releaseDelta?.();
+    releaseDelta();
     await expect(turn).rejects.toThrow("model exploded");
 
     const aborted = h.events.find((e) => e.type === "turnAborted");
@@ -1413,14 +1393,14 @@ describe("createTurnEngine — F3: new-slot seq-collision retry (lock-free gener
     const racedDb = new Proxy(db, {
       get(target, prop, receiver) {
         if (prop === "batch") {
-          return async (stmts: unknown) => {
+          return async (stmts: Parameters<Db["batch"]>[0]) => {
             if (!tripped) {
               tripped = true;
               const claimed = (await loadMaxMessageSeq(db, chatId)) + 1;
               await seedMessage(db, chatId, claimed, { content: "racer" });
               throw new Error("SQLITE_CONSTRAINT: UNIQUE constraint failed: messages.chat_id, seq");
             }
-            return (target as Db).batch(stmts as never);
+            return (target as Db).batch(stmts);
           };
         }
         const value = Reflect.get(target, prop, receiver);
@@ -1577,11 +1557,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
   test("the rpg turn-abort staging clear opens its OWN request trace", async () => {
     initTracing();
     const chatId = await seedChat(db, "rpg-abort-trace");
-    let clearDone: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const cleared = new Promise<void>((resolve) => {
-      clearDone = resolve;
-    });
+    const { promise: cleared, resolve: clearDone } = Promise.withResolvers<void>();
     // The abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent in
     // tests/server/domain/chat/verbs/turn.int.test.ts).
     // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
@@ -1617,11 +1593,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
     await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     await seedParticipant(db, { chatId, key: "aria", characterId: char });
-    let buildDone: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const built = new Promise<void>((resolve) => {
-      buildDone = resolve;
-    });
+    const { promise: built, resolve: buildDone } = Promise.withResolvers<void>();
     const h = harness(db, {
       generateSegments: async () => {
         await Promise.resolve();
@@ -1688,11 +1660,7 @@ describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never 
 
   test("…PLANTED CONTROL: a RESOLVING rpg turn-abort clear logs nothing", async () => {
     const chatId = await seedChat(db, "rpg-abort-hook-quiet");
-    let clearDone: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const cleared = new Promise<void>((resolve) => {
-      clearDone = resolve;
-    });
+    const { promise: cleared, resolve: clearDone } = Promise.withResolvers<void>();
     // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnAborted: async () => {
@@ -1725,16 +1693,8 @@ const HEARTBEAT_TTL = 90;
 /** A provider whose stream blocks at `final` until `release()` is called — holds the turn open so a heartbeat
  *  (and a concurrent lock steal) can land mid-generation. */
 function gatedProvider(): { runChatTurn: ChatContext["runChatTurn"]; started: Promise<void>; release: () => void } {
-  let markStarted!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const started = new Promise<void>((r) => {
-    markStarted = r;
-  });
-  let unblock!: () => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const gate = new Promise<void>((r) => {
-    unblock = r;
-  });
+  const { promise: started, resolve: markStarted } = Promise.withResolvers<void>();
+  const { promise: gate, resolve: unblock } = Promise.withResolvers<void>();
   const runChatTurn: ChatContext["runChatTurn"] = () =>
     (async function* (): AsyncGenerator<TurnStreamChunk> {
       markStarted();
@@ -2210,8 +2170,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
 
     await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet }));
     // The flush is fire-and-forget on a detached root — let the task queue drain.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
 
     // The calls handed to rpg are PASS 1's. The recovery pass rode tool-less, so its own channel is null;
     // returning that would silently drop the beat's state, which is the bug this feature exists to fix.
@@ -2238,8 +2197,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
     const h = harness(db, { rpg });
 
     await h.engine.runTurn(prepOf(chatId, { connection: floor, intent: { maxContextTokens: 16_384 } }));
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
 
     expect(seen[0]).toMatchObject({ generation: { context: { window: 16_384 } } });
   });

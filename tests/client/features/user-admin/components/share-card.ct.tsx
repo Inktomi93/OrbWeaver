@@ -10,6 +10,7 @@ import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
@@ -640,13 +641,12 @@ test.describe("at the narrowest content width", () => {
 
 const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
 const HOUR_MS = 3_600_000;
-const ISSUED_AT = 1_750_000_000_000;
 const ACTIVE: IpCertificateStatus = {
   state: "active",
   setting: SETTING,
   url: "https://81.2.69.160",
-  notAfter: ISSUED_AT + 160 * HOUR_MS,
-  renewAt: ISSUED_AT + 80 * HOUR_MS,
+  notAfter: FROZEN_AT_MS + 160 * HOUR_MS,
+  renewAt: FROZEN_AT_MS + 80 * HOUR_MS,
   renewalFailure: null,
 };
 const FAILED: IpCertificateStatus = {

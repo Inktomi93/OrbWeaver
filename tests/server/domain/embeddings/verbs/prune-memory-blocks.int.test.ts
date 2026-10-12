@@ -20,11 +20,10 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedUser } from "../_support.ts";
-
-const NOW = 1_750_000_000_000;
 
 async function seedVectorParents(db: Db, ownerId: UserId): Promise<EmbedGenerationId> {
   const harness = makeStoreHarness(db);
@@ -72,7 +71,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
         speakerCharacterIds: [],
       });
     }
@@ -108,7 +107,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
 
@@ -144,7 +143,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
         speakerCharacterIds: [],
       });
     }
@@ -179,7 +178,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       model: EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
-      now: NOW,
+      now: FROZEN_AT_MS,
       speakerCharacterIds: [],
     });
     await db.insert(chatDigestSpeakers).values({ digestId, characterId: scopedCharacterId });
@@ -210,7 +209,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
       });
     }
 
@@ -256,7 +255,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         model: EMBED_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        now: FROZEN_AT_MS,
       });
     }
 

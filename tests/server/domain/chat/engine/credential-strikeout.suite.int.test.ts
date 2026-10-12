@@ -18,7 +18,7 @@
 // the generation actually authenticated with (never a re-resolve, which is how a rotate loses a good key); and
 // the strike is a PASSENGER — it can never alter, mask or delay the failure the caller is about to see.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -456,7 +456,7 @@ describe("the compaction arms strike too — they burn the same credential on th
 
     await engine.runTurn(prepOf(chatId, { connection: AGENT_SDK_BYO, intent: MANAGED }));
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(strikes).toEqual([]);
   });
 });

@@ -13,6 +13,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { buildTurnMacroContext, renderHistoryMacros, renderMacros, resolveGuidedActionText, resolveNudgeText } from "#server/domain/chat/assembly/macros.ts";
 import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
@@ -104,7 +105,7 @@ describe("renderMacros", () => {
   });
 
   test("determinism: a pinned nowMs makes {{date}} stable + format-correct", () => {
-    const ctx = ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" });
+    const ctx = ctxOf({ nowMs: FROZEN_AT_MS, timezone: "UTC" });
     const a = renderMacros("{{date}}", ctx, null);
     const b = renderMacros("{{date}}", ctx, null);
     expect(a).toBe(b);

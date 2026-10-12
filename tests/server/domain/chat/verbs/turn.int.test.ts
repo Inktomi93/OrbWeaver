@@ -1,4 +1,3 @@
-// @orb-waive-file no-loose-id-cast(stmts): baselined when the gate widened; burn-down item 906.
 import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
@@ -623,7 +622,7 @@ describe("send — user-row seq collision retry (U1: the seq TOCTOU is allocated
     const racedDb = new Proxy(db, {
       get(target, prop, receiver) {
         if (prop === "batch") {
-          return async (stmts: unknown) => {
+          return async (stmts: Parameters<Db["batch"]>[0]) => {
             if (!tripped) {
               tripped = true;
               const claimed = (await loadMaxMessageSeq(db, chatId)) + 1;
@@ -634,7 +633,7 @@ describe("send — user-row seq collision retry (U1: the seq TOCTOU is allocated
               });
               throw new Error("SQLITE_CONSTRAINT: UNIQUE constraint failed: messages.chat_id, seq");
             }
-            return (target as Db).batch(stmts as never);
+            return (target as Db).batch(stmts);
           };
         }
         const value = Reflect.get(target, prop, receiver);
@@ -1323,11 +1322,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   test("an abort mid-arbitration ends the turn: no fallback speaker, no generation, no degrade warning", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     let generations = 0;
-    let arbiterEntered: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const arrived = new Promise<void>((resolve) => {
-      arbiterEntered = resolve;
-    });
+    const { promise: arrived, resolve: arbiterEntered } = Promise.withResolvers<void>();
     const h = harness(db, names, {
       onChatRequest: () => {
         generations += 1;
@@ -1547,11 +1542,7 @@ describe("send — auto-mode AI→AI chain", () => {
     // The arbiter answers the FIRST arbitrations (human round → aria, chain iter 1 → bryn), then HANGS on the
     // next chain arbitration exactly like a non-responsive box — settling only when the turn signal fires.
     let calls = 0;
-    let hungEntered: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const arrived = new Promise<void>((resolve) => {
-      hungEntered = resolve;
-    });
+    const { promise: arrived, resolve: hungEntered } = Promise.withResolvers<void>();
     const structured: SpeakerArbiter["structured"] = (_inputs, opts): Promise<SummarizeResult> => {
       calls += 1;
       const pick = calls === 1 ? "aria" : "bryn";
@@ -4400,11 +4391,7 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
 
   // The round is fire-and-forget, so the test needs a handle on its completion: the stub resolves this once
   // its (deliberately async) work is done, which is also when the round's span ends and its bucket seals.
-  let roundDone = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const rounded = new Promise<void>((resolve) => {
-    roundDone = resolve;
-  });
+  const { promise: rounded, resolve: roundDone } = Promise.withResolvers<void>();
   // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
@@ -4458,11 +4445,7 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
   await seedParticipant(db, { chatId, key: "c", characterId: charA });
 
-  let commitDone = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const committed = new Promise<void>((resolve) => {
-    commitDone = resolve;
-  });
+  const { promise: committed, resolve: commitDone } = Promise.withResolvers<void>();
   // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),

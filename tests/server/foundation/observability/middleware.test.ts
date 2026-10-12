@@ -6,7 +6,6 @@
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
 
-// @orb-waive-file no-loose-id-cast(ctx): baselined when the gate widened; burn-down item 906.
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing, logger, observability, observabilityErrorHandler, recentRequests } from "@orb/server/foundation/observability";
@@ -273,6 +272,7 @@ describe("observabilityErrorHandler (the thrown-request path)", () => {
     // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await (observability as unknown as MiddlewareFn)(ctx, (): Promise<void> => Promise.resolve());
 
+    // @orb-waive no-loose-id-cast(ctx): baselined when the gate widened; burn-down item 906.
     await observabilityErrorHandler(new Error("handler-blew-up"), ctx as never);
 
     const records = recentRequests(200).filter((r) => r.id === incomingId);

@@ -12,7 +12,7 @@
 // own copy. Every one of them was RED against the pre-fix source (measured 2026-08-24, cb-rules-section).
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -1307,9 +1307,7 @@ interface ShiftLedger {
  *  right: a poll on the page clock is this same sleep wearing a condition). Doubles as the
  *  PerformanceObserver's delivery barrier. */
 async function letInputWindowLapse(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, INPUT_WINDOW_LAPSE_MS);
-  });
+  await sleep(INPUT_WINDOW_LAPSE_MS);
 }
 
 /** Start recording. `buffered: true` so anything already emitted this document replays into the store. */

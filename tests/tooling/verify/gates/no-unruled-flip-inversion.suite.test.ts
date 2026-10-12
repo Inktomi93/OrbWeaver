@@ -13,9 +13,8 @@
 // whole exception class. Only one of them writes a transform (the shell's push is CSS-owned), so the grant
 // table carries exactly one row — asserted below against the policy id rather than a literal count, so
 // amending §1.5 moves one place and reds here if the halves drift apart.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
-import { gate as flip } from "../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
+import { gate } from "../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -23,7 +22,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/no-unruled-flip-inversion";
 const RULED_SITE = "packages/ui/src/primitives/tabs/tabs.tsx";
-const FLIP_GRANTS = REVIEWED_GRANTS.filter((grant) => grant.policyId === flip.id);
+const FLIP_GRANTS = REVIEWED_GRANTS.filter((grant) => grant.policyId === gate.id);
 
 /** The ruled site's own shape, reduced to the three lines that make it a FLIP: write, flush, clear. */
 const GLIDE_SOURCE =
@@ -38,11 +37,11 @@ function passOf(files: Readonly<Record<string, string>>, reviewedGrants: typeof 
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [flip], policies: [flip], root: ROOT, project, reviewedGrants, failOnWarnings: false });
+  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants, failOnWarnings: false });
 }
 
 test("the DECLARED proofs hold, including the reviewed-grant identity witness", () => {
-  expect(verifyPolicyProofs([flip])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("§1.5's exception list and the grant table are ONE ruling: exactly the transform-writing member is ruled", () => {

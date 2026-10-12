@@ -4,7 +4,6 @@
 // cascade on delete; the emitted bus event; and the runOnEdit regex re-apply on `editMessage`. The
 // verbs are reached through the BUNDLE `createEdit(ctx, {emit, resolveForeignInputs})`.
 
-// @orb-waive-file no-loose-id-cast({ name: "Aria", avatarAssetId: null, regexScripts: [] }): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -191,6 +190,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
     });
     const ctx = makeChatContext(db, {
       // @orb-waive no-test-fabrication(never): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ name: "Aria", avatarAssetId: null, regexScripts: [] }): baselined when the gate widened; burn-down item 906.
       getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
     });
     const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });

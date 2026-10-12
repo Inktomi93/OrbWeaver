@@ -2,13 +2,13 @@
 // The split and the shelf's own reflow grids share one container step (`pairWide`); below it Home is one
 // column, hearth first. Measured with the roster library a new account is seeded with, for a full and a fresh house.
 
-// @orb-waive-file platform-spellings(children): baselined when the gate widened; burn-down item 906.
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
@@ -20,12 +20,12 @@ const ROOM_PREVIEW =
 const ROOMS = Array.from({ length: 8 }, (_unused, index) =>
   makeChatSummary({
     id: `chat_balance_${String(index)}`,
-    lastMessageAt: 1_750_000_000_000 - index,
+    lastMessageAt: FROZEN_AT_MS - index,
     // A real opening line: the hero clamps it to two lines, which is the height a lived-in hearth has.
     lastMessagePreview: ROOM_PREVIEW,
     participantNames: ["Wren"],
     title: `Room ${String(index)}`,
-    updatedAt: 1_750_000_000_000 - index,
+    updatedAt: FROZEN_AT_MS - index,
   }),
 );
 const FACES = Array.from({ length: 6 }, (_unused, index) => makeCharacterSummary({ id: `character_balance_${String(index)}`, name: `Face ${String(index)}` }));
@@ -120,7 +120,7 @@ function measure(page: Page): Promise<BalanceMetrics> {
       const children = [...(column?.children ?? [])]
         .map((child) => ({ rect: child.getBoundingClientRect(), id: child.getAttribute("data-home-tile") ?? child.tagName.toLowerCase() }))
         .filter((entry) => entry.rect.height > 0);
-      const sorted = [...children].sort((a, b) => a.rect.top - b.rect.top);
+      const sorted = children.toSorted((a, b) => a.rect.top - b.rect.top);
       const gaps = sorted.slice(1).map((entry, index) => entry.rect.top - (sorted[index]?.rect.bottom ?? entry.rect.top));
       return {
         contentBottom: Math.max(...sorted.map((entry) => entry.rect.bottom), 0),

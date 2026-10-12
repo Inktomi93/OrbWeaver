@@ -4,7 +4,6 @@
 // breaks the flag, THIS goes red before any editor silently starts flagging pristine forms dirty.
 // Headless FormApi (form-core re-export) — no DOM, no React.
 
-// @orb-waive-file no-loose-id-cast(form): baselined when the gate widened; burn-down item 906.
 import { FormApi } from "@tanstack/react-form";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -19,6 +18,7 @@ function headlessForm(): FormApi<Values, never, never, never, never, never, neve
     defaultValues: { name: "", avatarAssetId: null } satisfies Values,
   });
   form.mount();
+  // @orb-waive no-loose-id-cast(form): baselined when the gate widened; burn-down item 906.
   return form as never;
 }
 

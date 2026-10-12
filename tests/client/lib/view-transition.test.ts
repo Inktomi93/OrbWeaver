@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { afterEach, describe, vi } from "vitest";
 import { __resetViewTransition, runAfterViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -48,11 +49,7 @@ describe("withViewTransition", () => {
   });
 
   test("defers follow-up work until this task's visual transition has finished", async () => {
-    let finish: (() => void) | undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const finished = new Promise<void>((resolve) => {
-      finish = resolve;
-    });
+    const { promise: finished, resolve: finish } = Promise.withResolvers<void>();
     const effect = vi.fn();
     vi.stubGlobal("matchMedia", () => ({ matches: false }));
     vi.stubGlobal("document", {
@@ -67,7 +64,7 @@ describe("withViewTransition", () => {
     runAfterViewTransition(effect);
 
     expect(effect).not.toHaveBeenCalled();
-    finish?.();
+    finish();
     await finished;
     await Promise.resolve();
     expect(effect).toHaveBeenCalledOnce();
@@ -75,15 +72,11 @@ describe("withViewTransition", () => {
 
   test("carries deferred work through a skipped transition to its superseding transition", async () => {
     const abort = Object.assign(new Error("transition skipped"), { name: "AbortError" });
-    let finishSecond: (() => void) | undefined;
     let skipFirst: (() => void) | undefined;
     const firstFinished = new Promise<void>((_, reject) => {
       skipFirst = (): void => reject(abort);
     });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const secondFinished = new Promise<void>((resolve) => {
-      finishSecond = resolve;
-    });
+    const { promise: secondFinished, resolve: finishSecond } = Promise.withResolvers<void>();
     let starts = 0;
     const effect = vi.fn();
     vi.stubGlobal("matchMedia", () => ({ matches: false }));
@@ -101,8 +94,7 @@ describe("withViewTransition", () => {
     withViewTransition(() => undefined);
     runAfterViewTransition(effect);
     // The first transition's destination hold must be over before a second one can supersede it.
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await sleep(20);
     withViewTransition(() => undefined);
     // Starting the second transition is what skips the first.
     skipFirst?.();
@@ -110,7 +102,7 @@ describe("withViewTransition", () => {
     await Promise.resolve();
 
     expect(effect).not.toHaveBeenCalled();
-    finishSecond?.();
+    finishSecond();
     await secondFinished;
     await Promise.resolve();
 

@@ -8,7 +8,6 @@
 // The auth config is stubbed at the network (`page.route`) — the backdrop reads it through the real
 // query layer.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { WeavePoint } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
@@ -129,10 +128,7 @@ test("the first-run arm drives the HALF-WOVEN backdrop (mode→web map, B4)", as
 
 test("the sign-in card keeps the same top edge while auth config resolves", async ({ mount, page }) => {
   const cfg = config({});
-  let releaseConfig: (() => void) | undefined;
-  const held = new Promise<void>((resolve) => {
-    releaseConfig = resolve;
-  });
+  const { promise: held, resolve: releaseConfig } = Promise.withResolvers<void>();
   await page.route("**/api/auth/config", async (route) => {
     await held;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(cfg) });
@@ -148,7 +144,7 @@ test("the sign-in card keeps the same top edge while auth config resolves", asyn
       return loadingTop;
     })
     .toBeGreaterThanOrEqual(0);
-  releaseConfig?.();
+  releaseConfig();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   await expect.poll(async () => Math.abs(((await card.boundingBox())?.y ?? Number.POSITIVE_INFINITY) - (loadingTop ?? 0))).toBeLessThanOrEqual(1);
 });

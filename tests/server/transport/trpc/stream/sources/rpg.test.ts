@@ -16,7 +16,7 @@
 //   • the probe runs PER EVENT: a refused verdict withholds that event without failing the room, and a
 //     membership lost MID-STREAM (a kick) stops delivery from the next event on.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { SocketId, UserId } from "@orb/kit/ids";
@@ -116,7 +116,7 @@ describe("the per-yield membership probe is what protects the game's events", ()
     // Park the pump in its live loop before publishing (the bus tail attaches inside the pump — publishing
     // ahead of the park is the same race the real feed has).
     const firstYield = iterator.next();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     publishRpgEvent(GAME_CHANGED); // probe 1: NOT a member — withheld, and the room does NOT fail
     publishRpgEvent(QUEST_CHANGED); // probe 2: a member — delivered
     const first = await firstYield;

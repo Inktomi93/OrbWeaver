@@ -17,6 +17,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
@@ -64,10 +65,10 @@ const RECENT_DOCUMENTS = 4;
 const FIRST_BOOT_ROOMS = Array.from({ length: RECENTS_LIMIT }, (_unused, index) =>
   makeChatSummary({
     id: `chat_boot_${String(index)}`,
-    lastMessageAt: 1_750_000_000_000 - index,
+    lastMessageAt: FROZEN_AT_MS - index,
     participantNames: ["Wren"],
     title: `Room ${String(index)}`,
-    updatedAt: 1_750_000_000_000 - index,
+    updatedAt: FROZEN_AT_MS - index,
   }),
 );
 const FIRST_BOOT_FACES = Array.from({ length: QUICK_PICKS_FACES }, (_unused, index) =>
@@ -1723,12 +1724,12 @@ const HERO_SEAT = makeSeatPortrait("char_hearth", "Wren", "hash_hearth_portrait"
 const ART_ROOMS = [
   makeChatSummary({
     id: "chat_hearth_art",
-    lastMessageAt: 1_750_000_000_000,
+    lastMessageAt: FROZEN_AT_MS,
     filterCharacterIds: ["char_hearth"],
     participantNames: ["Wren"],
     participantPortraits: [HERO_SEAT],
     title: "The Ashen Spire",
-    updatedAt: 1_750_000_000_000,
+    updatedAt: FROZEN_AT_MS,
   }),
   ...FIRST_BOOT_ROOMS.slice(1),
 ];

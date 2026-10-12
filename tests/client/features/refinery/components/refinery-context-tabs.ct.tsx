@@ -13,6 +13,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
@@ -22,7 +23,6 @@ import { RefineryDoorStory, RunsTabBodyStory, SetupTabBodyStory, VersionsTabBody
 const SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const SCORE_SCHEMA_ID: RefinerySchemaId = mintTypeId(ID_PREFIX.refinerySchema);
-const FROZEN_AT = 1_750_000_000_000;
 
 const CARD = makeCharacterDetail({ id: CHARACTER_ID, name: "Zephyrine Vale" });
 
@@ -56,8 +56,8 @@ function sessionView(): RefinerySessionView {
     rewriteDecisions: {},
     guidance: null,
     iterationCount: 1,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
 }
 
@@ -78,8 +78,8 @@ function schemaLibrary(): TrpcWireOutput<"refinery.listSchemas"> {
       stage: "score",
       version: 1,
       schema: SCORE_SCHEMA,
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     },
   ];
 }

@@ -22,6 +22,7 @@ import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
+import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc.ts";
 
 interface ContextFitPreview {
@@ -70,8 +71,8 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
 
     await gotoChatsList(page);
     await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
-    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+    await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);
 
     // ── P2: point the user's default preset at a tiny ceiling → the line appears WITH NO MODEL TURN. ──
@@ -94,7 +95,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
       });
 
       // The API preview now reports a REAL mid-transcript boundary under the preset ceiling…
-      await expect.poll(async () => (await previewFit(chatId)).boundaryMessageId, { timeout: 15_000, intervals: [200, 500, 1000] }).not.toBeNull();
+      await expect.poll(async () => (await previewFit(chatId)).boundaryMessageId, { timeout: WAIT_SURFACE_MS, intervals: [200, 500, 1000] }).not.toBeNull();
       const knobbed = await previewFit(chatId);
       const apiBoundary = knobbed.boundaryMessageId;
       expect(canon.findIndex((c) => c.id === apiBoundary)).toBeGreaterThan(0);
@@ -105,7 +106,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
       // no reload, no turn). The boundary row is addressed by its KNOWN id via the identity-scoped `messageRow()`
       // locator (#10 — the intended debut over the prior manual `data-message-id` read); the divider is its
       // immediately-preceding sibling.
-      await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: 15_000 });
+      await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
       expect(apiBoundary).not.toBeNull();
       const boundaryRow = messageRow(page, castId<MessageId>(apiBoundary ?? ""));
       await expect(boundaryRow).toHaveCount(1);

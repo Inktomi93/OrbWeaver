@@ -7,7 +7,6 @@
 // mock app + context: the belt CHAIN is captured per route, business tests drive the final handler directly,
 // and the guard is exercised on its own (its 401/403/next behavior is the CSRF pin).
 
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import type { StoredAsset } from "@orb/contracts/assets";
 import { DOCUMENT_DESTINATION_FORM_FIELD } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
@@ -30,7 +29,7 @@ import { createDatabankService } from "#server/domain/databank/index.ts";
 import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { createSeededIds } from "../../../support/ids.ts";
-import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
+import { makeHarness } from "../../domain/assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedUser } from "../../domain/databank/_support.ts";
 import { buildDocx, buildEpub, buildPdf } from "../../infra/extraction/_fixtures.ts";
 
@@ -487,7 +486,7 @@ async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly
   onTestFinished(() => closeDb(db));
   await runMigrations(db, "packages/db/src/migrations");
   const ownerId = await seedUser(db, { handle: castId<Handle>("doc_owner") });
-  const assets = await makeAssetsHarness(db);
+  const assets = await makeHarness(db);
   onTestFinished(assets.cleanup);
   const h = makeDatabankHarness(db, {
     extractor: { op: createExtractText(), version: EXTRACTOR_VERSION },

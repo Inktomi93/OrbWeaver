@@ -14,6 +14,7 @@
 //   • EVERY channel in the wire vocabulary is a real room (S4 closed the fold), so there is no longer any
 //     room reachable by two transports — nor a placeholder that refuses because its procedure still exists.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
@@ -74,8 +75,7 @@ async function collect(socket: AsyncIterable<unknown>, count: number, drive: () 
   // The first pull starts the generator (its setup slice runs synchronously), THEN the events fire — so the
   // pumps are attached before anything is published and nothing races into a gap.
   const first = iterator.next();
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await sleep(0);
   await drive();
   const frames: StreamFrame[] = [frameOf((await first).value)];
   for (let i = 1; i < count; i++) {
@@ -152,8 +152,7 @@ describe("one socket, N rooms", () => {
     const socket = await call.stream.connect({ socketId });
     const iterator = (socket as AsyncIterable<unknown>)[Symbol.asyncIterator]();
     const first = iterator.next();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     publishUserEvent(MEMBER, { type: "tagsChanged" });
     const one = await first;
     const two = await iterator.next();

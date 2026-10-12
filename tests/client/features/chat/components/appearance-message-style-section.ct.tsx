@@ -7,6 +7,7 @@
 // the test agree with the code by construction and prove nothing.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
@@ -116,7 +117,7 @@ for (const style of ["Flat", "Hush"] as const) {
 }
 
 for (const light of [false, true]) {
-  for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
+  for (const style of THEME_CHAT_STYLES) {
     test("schematic " + style + " " + (light ? "light" : "dark") + " preserves role anatomy", async ({ mount, page }, testInfo) => {
       await stub(page);
       await mount(

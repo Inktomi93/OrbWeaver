@@ -8,7 +8,6 @@
 // Every negative assertion below ships its POSITIVE CONTROL in the same test: `overlap` is proven to FIND
 // a collision on a planted input before it is trusted to report none on the real one. A bare empty array
 // is "I could not measure", never "there is nothing there".
-// @orb-waive-file platform-spellings(designExclusions): baselined when the gate widened; burn-down item 906.
 import {
   CT_VITE_PORT,
   DEV_PORTS,
@@ -51,7 +50,7 @@ test("the band range clears every port the design names by number", () => {
   expect(overlap(designExclusions, STAGE_BAND_PORT_NUMBERS)).toEqual([]);
   // …and the same literals really are the rows this module declares — an exclusion list that had drifted
   // from the registry would clear the bands for free.
-  expect(overlap(designExclusions, RESERVED_PORT_NUMBERS).sort((a, b) => a - b)).toEqual([...designExclusions].sort((a, b) => a - b));
+  expect(overlap(designExclusions, RESERVED_PORT_NUMBERS).sort((a, b) => a - b)).toEqual(designExclusions.toSorted((a, b) => a - b));
 });
 
 test("the reserved table declares each port exactly once", () => {

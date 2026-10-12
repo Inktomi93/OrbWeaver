@@ -19,6 +19,7 @@ import type { DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcInput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AddChatDocumentDialogStory } from "../_ct-stories.tsx";
@@ -35,8 +36,8 @@ const TREATISE = {
   charCount: 4200,
   chunkCount: 12,
   embeddedCount: 12,
-  createdAt: 1_750_000_000_000,
-  updatedAt: 1_750_000_000_000,
+  createdAt: FROZEN_AT_MS,
+  updatedAt: FROZEN_AT_MS,
 } satisfies TrpcWireOutput<"databank.list">["items"][number];
 
 const LEDGER = { ...TREATISE, id: castId<DocumentId>("document_00000000000000000012"), name: "The Ashfen Ledger", byteSize: 93_901 };

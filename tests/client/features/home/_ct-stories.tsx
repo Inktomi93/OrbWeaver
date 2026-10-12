@@ -178,11 +178,7 @@ export function HomeSplitPressureStory(): ReactElement {
 // (surface-box-store), so this story pre-seeds a remembered box for a tile whose body suspends until
 // the test releases it — the shape of a real boot, where localStorage already holds the last settled box.
 
-let releaseSlowBody: () => void = (): void => undefined;
-// @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-const slowBodyReady: Promise<void> = new Promise<void>((resolve) => {
-  releaseSlowBody = resolve;
-});
+const { promise: slowBodyReady, resolve: releaseSlowBody } = Promise.withResolvers<void>();
 
 /** Suspends until the story's "Settle" button fires, then renders a body of EXACTLY the remembered height
  *  — i.e. the tile settles where it settled last boot, which is the case the reservation is built for. */
@@ -209,7 +205,7 @@ rememberSurfaceBox("slow", RESERVED_TILE_PX);
 export function HomeTileReserveStory(): ReactElement {
   return (
     <CtDataProviders>
-      <Button intent="secondary" onClick={releaseSlowBody}>
+      <Button intent="secondary" onClick={(): void => releaseSlowBody()}>
         Settle
       </Button>
       <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", RESERVE_TILES)} />
@@ -224,11 +220,7 @@ export function HomeTileReserveStory(): ReactElement {
 // The tile DECLARES the row count its own read renders, so the loading box and the settled box are the
 // same skeleton geometry and the tile below it never moves.
 
-let releaseFirstBootBody: () => void = (): void => undefined;
-// @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-const firstBootBodyReady: Promise<void> = new Promise<void>((resolve) => {
-  releaseFirstBootBody = resolve;
-});
+const { promise: firstBootBodyReady, resolve: releaseFirstBootBody } = Promise.withResolvers<void>();
 
 /** Suspends until "Settle", then renders EXACTLY the fallback's own shape at the declared row count — so
  *  any movement of the tile below is the reservation being wrong, never the story's own geometry. */
@@ -247,7 +239,7 @@ const FIRST_BOOT_TILES: readonly HomeTileContribution[] = [
 export function HomeTileFirstBootStory(): ReactElement {
   return (
     <CtDataProviders>
-      <Button intent="secondary" onClick={releaseFirstBootBody}>
+      <Button intent="secondary" onClick={(): void => releaseFirstBootBody()}>
         Settle
       </Button>
       <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", FIRST_BOOT_TILES)} />

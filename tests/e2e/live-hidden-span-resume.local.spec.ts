@@ -27,7 +27,7 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -102,7 +102,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     // durable seq of the opener chunk (the cursor the member will resume from). The host fires the turn
     // themselves, so no host-presence defer applies.
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
-    await new Promise((resolve) => setTimeout(resolve, PRESENCE_SETTLE_MS));
+    await sleep(PRESENCE_SETTLE_MS);
     await host.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
     const hostValues = requireSatisfied(await hostLive, "host live");
 

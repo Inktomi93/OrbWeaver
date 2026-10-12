@@ -29,6 +29,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList } from "./support/chat-room.ts";
+import { WAIT_STREAM_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import {
   claudeSubConnection,
   getChatBinding,
@@ -81,7 +82,7 @@ test("managed compaction fires on the bound model, the divider carries the compa
 
     // ── P1: the post-turn managed-compaction hook (fire-and-forget) rebuilt the marker on the chat's model.
     // Poll the API preview until the compactSummary lands (the generation is async off the reply). ──
-    await expect.poll(async () => (await previewContextFit(chatId)).compactSummary, { timeout: 60_000, intervals: [500, 1000, 2000] }).not.toBeNull();
+    await expect.poll(async () => (await previewContextFit(chatId)).compactSummary, { timeout: WAIT_STREAM_MS, intervals: [500, 1000, 2000] }).not.toBeNull();
     const covered = await previewContextFit(chatId);
     expect(covered.compactSummary).toBeTruthy();
     // The marker is stored on the chat row (portable, carry-forward), not merely computed in the preview.
@@ -91,15 +92,15 @@ test("managed compaction fires on the bound model, the divider carries the compa
     // ── The DOM divider shows the MEMORY FACT + a working PEEK. ──
     await gotoChatsList(page);
     await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
-    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
     const divider = page.locator('[data-slot="context-boundary-divider"]');
-    await expect(divider).toHaveCount(1, { timeout: 15_000 });
+    await expect(divider).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
     await expect(divider).toContainText(COMPACTED_INTO_SUMMARY);
 
     // The peek popup reveals the stored marker text (portals outside the row → asserted on the page).
     await expect(page.locator('[data-slot="compact-summary-text"]')).toHaveCount(0);
     await page.locator('[data-slot="compact-summary-peek"]').click();
-    await expect(page.locator('[data-slot="compact-summary-text"]')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-slot="compact-summary-text"]')).toBeVisible({ timeout: WAIT_UI_MS });
     const peeked = (await page.locator('[data-slot="compact-summary-text"]').textContent()) ?? "";
     expect(peeked.trim().length).toBeGreaterThan(0);
 
@@ -214,7 +215,7 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
 
     // The marker landed (managed compaction fired on the stable-cap session — via the pre-turn or post-turn arm as the
     // usage arc crossed the threshold).
-    await expect.poll(async () => (await previewContextFit(chatId)).compactSummary, { timeout: 60_000, intervals: [500, 1000, 2000] }).not.toBeNull();
+    await expect.poll(async () => (await previewContextFit(chatId)).compactSummary, { timeout: WAIT_STREAM_MS, intervals: [500, 1000, 2000] }).not.toBeNull();
 
     // The shrinkage proof (recall- AND disposition-independent): with the marker covering a span, the DOMAIN fit over
     // the marker-EXCLUDED shaped history DROPS the covered/older turns — droppedCount>0 and the boundary sits ABOVE the

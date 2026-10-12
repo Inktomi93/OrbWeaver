@@ -304,8 +304,7 @@ test("budget mode: the effort level picks the budget when none is set, and an ex
   const cap = generation({ reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 63_000 } } });
   const budgetFor = (effort: UserIntent["effort"]): number | undefined => resolveChat({ effort } satisfies UserIntent, cap).reasoning.budgetTokens;
   const ladder = (["minimal", "low", "medium", "high", "xhigh", "max"] as const).map(budgetFor);
-  // @orb-waive platform-spellings(ladder): baselined when the gate widened; burn-down item 906.
-  expect(ladder).toEqual([...ladder].sort((a, b) => (a ?? 0) - (b ?? 0)));
+  expect(ladder).toEqual(ladder.toSorted((a, b) => (a ?? 0) - (b ?? 0)));
   expect(new Set(ladder).size).toBe(ladder.length);
   expect(budgetFor("low")).toBeLessThan(8000);
   expect(budgetFor("max")).toBe(63_000);
@@ -388,8 +387,7 @@ test("an effort level on a model whose budget range starts near zero gets a budg
   const flash = generation({ reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1, max: 24_576 } } });
   expect(resolveChat({ effort: "low" } satisfies UserIntent, flash).reasoning.budgetTokens).toBeGreaterThanOrEqual(1024);
   const ladder = (["minimal", "low", "medium", "high", "xhigh", "max"] as const).map((effort) => resolveChat({ effort }, flash).reasoning.budgetTokens ?? 0);
-  // @orb-waive platform-spellings(ladder): baselined when the gate widened; burn-down item 906.
-  expect(ladder).toEqual([...ladder].sort((a, b) => a - b));
+  expect(ladder).toEqual(ladder.toSorted((a, b) => a - b));
   expect(ladder.at(-1)).toBe(24_576);
 });
 

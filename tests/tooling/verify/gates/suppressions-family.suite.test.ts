@@ -18,10 +18,9 @@
 //     `tests/tooling/verify/lib/gate-authority.test.ts` ("distinct reviewed identities each consume one exact
 //     grant"), so it is CITED here rather than re-planted — what this file proves is that this policy's
 //     finding granularity cannot produce that state in the first place.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
-import { gate as suppressions } from "../../../../tooling/src/verify/gates/suppressions.ts";
+import { gate } from "../../../../tooling/src/verify/gates/suppressions.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -34,7 +33,7 @@ function passOf(files: Readonly<Record<string, string>>, grants: readonly Review
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [suppressions], policies: [suppressions], root: ROOT, project, reviewedGrants: grants, failOnWarnings: false });
+  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: grants, failOnWarnings: false });
 }
 
 function grant(subject: string, operation: string): ReviewedGateGrant {
@@ -56,14 +55,14 @@ const TWO_SITES = {
 } as const;
 
 test("the policy's own declared proofs hold through the production dispatcher", () => {
-  expect(verifyPolicyProofs([suppressions])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("the migration's shape is the thing under test: reviewed-grant, error, entire-population, singleton family", () => {
   // The tripwire on every assumption the arms below rest on. Flipping authority would add an inline waiver
   // door this policy deliberately does not have (a `biome-ignore` is FOREIGN syntax, never an Orb waiver);
   // flipping `execution` would let a scoped run stale every grant whose sites sat outside the selection.
-  expect([suppressions.id, suppressions.family, suppressions.authority, suppressions.severity, suppressions.execution]).toEqual([
+  expect([gate.id, gate.family, gate.authority, gate.severity, gate.execution]).toEqual([
     "suppressions",
     "suppressions",
     "reviewed-grant",

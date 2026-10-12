@@ -12,6 +12,7 @@
 // ref key, not an orphan `npc:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, Handle, MessageVariantId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -423,11 +424,8 @@ test("FLUSH BARRIER: a fast re-send BLOCKS on the prior in-flight flush, then as
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   // HOLD turn 1's flush in-flight: the state-round gate blocks until we release it.
-  let releaseFlush = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseFlush = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseFlush } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
 
   // Turn 1 completes — register + await the flush, but it hangs on the gate. Fire-and-forget (as the engine does).
   const flush1 = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
@@ -465,11 +463,8 @@ test("FLUSH BARRIER: register is SYNCHRONOUS — an IMMEDIATE re-send (no await 
   await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  let releaseFlush = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseFlush = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseFlush } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
 
   // NO await between these two — the immediate-resend timing. `register` must have already run (synchronously,
   // before onTurnCompleted's first await) so the gather kicked off on the very next line sees the entry.
@@ -944,11 +939,8 @@ test("LOCK TRAIL (fold): a hand edit landing MID-FLIGHT suppresses the replay �
   await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls);
   // The host edits the panel WHILE the round runs — a hand row at this same beat, auto-locking `location`.
@@ -1050,11 +1042,8 @@ test("#78 (fold): a hand item edit landing MID-FLIGHT pins that field alone — 
   };
 
   const { messageId, variantId } = await seedMessage(db, chatId, 2000, { role: "assistant" });
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls);
   // The host renames the item WHILE the round runs — a hand row at this beat, pinning that ONE field.
@@ -1098,8 +1087,7 @@ function untilRoundStarted(calls: readonly unknown[]): Promise<void> {
     if (attemptsLeft === 0) {
       return Promise.reject(new Error("the state round never started — the cancel would not have been mid-round"));
     }
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    return new Promise((resolve) => setTimeout(resolve, 5)).then(() => poll(attemptsLeft - 1));
+    return sleep(5).then(() => poll(attemptsLeft - 1));
   };
   return poll(400);
 }
@@ -1116,11 +1104,8 @@ test("MID-ROUND cancel: the running round's own signal fires and the flush write
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0;
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls); // the round is suspended with its model call outstanding
 
@@ -1159,11 +1144,8 @@ test("cancel is OWNER-SCOPED: another member's Stop leaves this round alone and 
   await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls);
 
@@ -1199,11 +1181,8 @@ test("a cancelled round still holds the FLUSH BARRIER until it unwinds (the stal
   await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  let releaseRound = (): void => undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
-    releaseRound = resolve;
-  });
+  const { promise: stateRoundGate, resolve: releaseRound } = Promise.withResolvers<void>();
+  h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls);
   h.chatOps.cancelStateRounds(chatId, HOST_USER);

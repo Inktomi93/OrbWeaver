@@ -9,7 +9,6 @@
 // classifier and could turn a cancel into a RETRY), and the fact that a cancelled round still holds the barrier
 // until it unwinds.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgFlushBarrier } from "@orb/server/domain/rpg";
@@ -23,12 +22,7 @@ const OTHER: UserId = castId<UserId>("user_other");
 
 /** A promise + its resolve/reject handles — the test controls exactly when a "flush" settles. */
 function deferred(): { promise: Promise<void>; resolve: () => void; reject: (e: unknown) => void } {
-  let resolve = (): void => undefined;
-  let reject = (_e: unknown): void => undefined;
-  const promise = new Promise<void>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
   return { promise, resolve, reject };
 }
 

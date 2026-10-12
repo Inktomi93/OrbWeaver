@@ -4,7 +4,6 @@
 // asserted here is the CLAIM the grouping makes about the data: which pairs collapse, which must not, and
 // that a collapsed pair never also appears as its own row.
 
-// @orb-waive-file platform-spellings(cliques): baselined when the gate widened; burn-down item 906.
 import { groupIdenticalArt } from "#client/features/discovery/lib/corpus-duplicate-groups.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -17,7 +16,7 @@ test("a fully-connected identical clique collapses to ONE group and leaves no pa
   const pairs = [pair("a", "b", 1), pair("a", "c", 1), pair("a", "d", 1), pair("b", "c", 1), pair("b", "d", 1), pair("c", "d", 1)];
   const { cliques, pairs: leftover } = groupIdenticalArt(pairs);
   expect(cliques).toHaveLength(1);
-  expect([...(cliques[0]?.memberIds ?? [])].sort()).toEqual(["a", "b", "c", "d"]);
+  expect((cliques[0]?.memberIds ?? []).toSorted()).toEqual(["a", "b", "c", "d"]);
   // Every one of the six rows is inside the group, so none survives as its own row.
   expect(leftover).toHaveLength(0);
 });

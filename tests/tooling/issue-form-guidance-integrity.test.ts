@@ -1,8 +1,7 @@
-// @orb-waive-file no-vanity-alias(test): baselined when the gate widened; burn-down item 906.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseDocument } from "yaml";
-import { expect, test as issueTest } from "../support/tool-fixtures.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const FORMS_DIR = join(ROOT, ".github", "ISSUE_TEMPLATE");
@@ -55,7 +54,7 @@ function issueForms(): readonly IssueForm[] {
     });
 }
 
-issueTest("issue ingress offers only the public bug forms, each with required fields", () => {
+test("issue ingress offers only the public bug forms, each with required fields", () => {
   const templates = readdirSync(FORMS_DIR)
     .filter((filename) => filename.endsWith(".yml"))
     .sort();

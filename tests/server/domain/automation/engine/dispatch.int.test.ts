@@ -614,16 +614,8 @@ describe("#1419 a confirm-first arm stops the chain", () => {
 describe("the fire reservation admits exactly one of two overlapping dispatches", () => {
   test("a second dispatch entered while the first holds its reservation is budget_refused, and no second arm runs", async () => {
     const base = await ruleFixture();
-    const entered = { resolve: (): void => undefined, promise: Promise.resolve() };
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    entered.promise = new Promise<void>((done) => {
-      entered.resolve = done;
-    });
-    const release = { resolve: (): void => undefined, promise: Promise.resolve() };
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    release.promise = new Promise<void>((done) => {
-      release.resolve = done;
-    });
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
     let attempts = 0;
     const ctx: AutomationContext = {
       ...base.ctx,

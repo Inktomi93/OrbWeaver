@@ -22,11 +22,13 @@
 
 import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { READY_ATTR, READY_SETTLED } from "#client/lib/app-ready-signal.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
@@ -179,7 +181,7 @@ const PREVIEW_FIT_STUB = {
   ceilingTokens: 32_768,
   ceilingEstimated: false,
   limit: null,
-  reserveOutputTokens: 2048,
+  reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   droppedCount: 0,
   compactSummary: null,
 };
@@ -286,10 +288,10 @@ test("the app is not ready until Home's first reads land", async ({ mount, page 
   });
   await mount(<HomePageReadinessStory />);
   await chats.requested;
-  await expect(page.locator("html")).not.toHaveAttribute("data-app-ready");
+  await expect(page.locator("html")).not.toHaveAttribute(READY_ATTR);
 
   chats.release(chatListResponder([])({}));
-  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+  await expect(page.locator("html")).toHaveAttribute(READY_ATTR, READY_SETTLED);
   await expect(page.locator('[data-home-tile="chat.masthead"] [aria-busy]')).toHaveCount(0);
 });
 

@@ -3,6 +3,7 @@ import vm from "node:vm";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { unzipSync } from "fflate";
+import { FROZEN_AT_MS } from "../support/clock.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 async function familiarGuest(missing: readonly string[] = []): Promise<{
@@ -33,7 +34,7 @@ async function familiarGuest(missing: readonly string[] = []): Promise<{
   let destination: string | null = null;
   let attached = false;
   let status = 200;
-  let now = 1_750_000_000_000;
+  let now = FROZEN_AT_MS;
   let handler: ((fact: { message: { content: string } }) => Promise<void>) | undefined;
   const context = vm.createContext({});
   vm.runInContext(AMBIENT_STUBS, context);

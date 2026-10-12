@@ -1,7 +1,6 @@
 // The D48 generate_image tool projection. Unit test (no db): the registered def's
 // shape + the handler's arg→param mapping onto the injected generatePicture op, and the non-chat refusal.
 
-// @orb-waive-file no-loose-id-cast(def?.argsSchema): baselined when the gate widened; burn-down item 906.
 import { IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";
 import type { AssetId, ChatId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -76,7 +75,10 @@ describe("generate_image tool", () => {
   test("the args schema projects to JSON Schema (no unrepresentable transform — the D48 registry requirement)", () => {
     const [def] = imageryToolDefinitions({ generatePicture: fakeGeneratePicture().op });
     // The registry computes this at register(); the strict-parse subjectCharacterId transform would throw here.
-    expect(() => projectJsonSchema(def?.argsSchema as never)).not.toThrow();
+    if (def === undefined) {
+      throw new Error("imageryToolDefinitions registered no tool");
+    }
+    expect(() => projectJsonSchema(def.argsSchema)).not.toThrow();
   });
 
   test("maps args onto GeneratePictureParams (caller/chat from exec) + returns the asset ids", async () => {

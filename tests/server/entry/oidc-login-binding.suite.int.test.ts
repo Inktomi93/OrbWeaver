@@ -18,10 +18,10 @@ import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE, SESSION_COOKIE_N
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { beforeEach, describe } from "vitest";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
-const NOW = 1_750_000_000_000;
 const APP_HOST = "app.example";
 const CALLBACK_URI = `https://${APP_HOST}/api/auth/oidc/callback`;
 // biome-ignore lint/style/useNamingConvention: `authorization_endpoint` is the OIDC discovery field name.
@@ -45,7 +45,7 @@ beforeEach(async () => {
   await db
     .insert(users)
     .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
-  const now = (): number => NOW;
+  const now = (): number => FROZEN_AT_MS;
   sessions = createSessionsService({
     db,
     now,

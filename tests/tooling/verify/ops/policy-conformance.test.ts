@@ -1,5 +1,3 @@
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] }): baselined when the gate widened; burn-down item 906.
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -9,7 +7,7 @@ import { SyntaxKind } from "ts-morph";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as verifyRegistryParity } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
+import { gate } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
 import { POLICY_CONFORMANCE_TEMP_PREFIX, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -217,8 +215,7 @@ test("the invocation boundary refuses invalid policy sets before any example run
   const duplicate = sourcePolicy("a-counted");
   // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   const unbranded = { ...counted, id: "z-unbranded", family: "z-unbranded" } as GatePolicy;
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test conformance handling of an invalid proof row
-  const invalid = defineGate({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] } as never);
+  const invalid = defineGate({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] });
 
   expect(() => verifyPolicyProofs([])).toThrow(/nonempty|policy/i);
   expect(() => verifyPolicyProofs([counted, duplicate])).toThrow(/duplicate.*a-counted/i);
@@ -280,7 +277,7 @@ test("a countFrom row names a driver the policy's own module declares, and an un
   // the carrier is a live corpus policy that declares one — mutating a COPY of its descriptor keeps the module
   // on disk untouched and never plants anything. The positive arm is that policy's own rows, which the stage
   // already runs; the negative arm is the same row naming a driver the module binds nowhere.
-  const declared: readonly GatePolicyProof[] = verifyRegistryParity.mustFlag;
+  const declared: readonly GatePolicyProof[] = gate.mustFlag;
   const rows = declared.map((row, index) => ({ row, index })).filter(({ row }) => row.expect?.countFrom !== undefined);
   expect(rows.length).toBeGreaterThan(0);
   const [first] = rows;
@@ -288,9 +285,9 @@ test("a countFrom row names a driver the policy's own module declares, and an un
     throw new Error("unreachable: asserted above");
   }
   const forged = defineGate({
-    ...verifyRegistryParity,
+    ...gate,
     mustFlag: [{ ...first.row, expect: { ...first.row.expect, countFrom: "NO_SUCH_DRIVER" } }],
-    mustPass: verifyRegistryParity.mustPass.slice(0, 1),
+    mustPass: gate.mustPass.slice(0, 1),
     // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
   const failures = verifyPolicyProofs([forged]);

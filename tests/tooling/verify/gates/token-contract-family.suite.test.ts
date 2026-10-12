@@ -1,4 +1,3 @@
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TokenRemovalBaseline } from "@orb/ui/token-contract";
@@ -6,7 +5,7 @@ import { readTokenContractTexts, readTokenRemovalBaseline, validateTokenContract
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
-import { gate as tokensContract } from "../../../../tooling/src/verify/gates/tokens-contract.ts";
+import { gate } from "../../../../tooling/src/verify/gates/tokens-contract.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -15,7 +14,7 @@ const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$
 const CANONICAL = readTokenContractTexts(join(REPO_ROOT, "packages/ui"));
 
 test("tokens-contract keeps its three-arm proofs", () => {
-  expect(verifyPolicyProofs([tokensContract])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 /** THE REMOVAL RATCHET, PINNED FOR THE FIRST TIME (#2182 — `26f167a43d`'s own subject line; this cited
@@ -83,8 +82,8 @@ test("the policy's own call carries the baseline — a token dropped from the li
   const { tight: _dropped, ...withoutTight } = spacing;
   vault["spacing"] = withoutTight;
   const result = runPolicyPass({
-    knownPolicies: [tokensContract],
-    policies: [tokensContract],
+    knownPolicies: [gate],
+    policies: [gate],
     root: REPO_ROOT,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     resourceOptions: { overlay: { [TOKEN_CONTRACT_PATHS.base]: `${JSON.stringify(vault, null, 2)}\n` } },
@@ -120,8 +119,8 @@ function driveOnDisk(scratch: string, files: Readonly<Record<string, string>>, b
     writeFileSync(join(scratch, path), Buffer.from(raw));
   }
   return runPolicyPass({
-    knownPolicies: [tokensContract],
-    policies: [tokensContract],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     reviewedGrants: [],
@@ -171,8 +170,8 @@ test("the policy reaches a verdict on the real bundle and receipts the seven DOC
     writeFileSync(join(scratch, path), content);
   }
   const result = runPolicyPass({
-    knownPolicies: [tokensContract],
-    policies: [tokensContract],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     resourceOptions: { overlay },

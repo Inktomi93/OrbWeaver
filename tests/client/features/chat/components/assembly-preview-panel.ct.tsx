@@ -4,6 +4,7 @@
 // source with its count, the drill-in reveals that source's assembled text, plain-chat vs game-chat row sets,
 // the a11y model (text is the datum, the bar is hidden), plus the error + retry paths.
 
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
@@ -387,7 +388,13 @@ test("a window-bound room names the window, the reply reserve and the safety mar
   await routeTrpc(page, {
     "chat.previewAssembly": () => ({
       ...PREVIEW_ASSEMBLY_DATA,
-      budget: { ...PLAIN_BUDGET, totalTokens: 3662, ceilingTokens: 4300, reserveOutputTokens: 2048, limit: { kind: "window" as const, tokens: 8192 } },
+      budget: {
+        ...PLAIN_BUDGET,
+        totalTokens: 3662,
+        ceilingTokens: 4300,
+        reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+        limit: { kind: "window" as const, tokens: 8192 },
+      },
     }),
     "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
   });
@@ -406,7 +413,13 @@ test("a reply reserve at or above the limit shows no ratio against a one-token r
   await routeTrpc(page, {
     "chat.previewAssembly": () => ({
       ...PREVIEW_ASSEMBLY_DATA,
-      budget: { ...PLAIN_BUDGET, totalTokens: 1658, ceilingTokens: 1, reserveOutputTokens: 2048, limit: { kind: "cap" as const, tokens: 2000 } },
+      budget: {
+        ...PLAIN_BUDGET,
+        totalTokens: 1658,
+        ceilingTokens: 1,
+        reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+        limit: { kind: "cap" as const, tokens: 2000 },
+      },
     }),
     "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
   });

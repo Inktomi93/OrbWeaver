@@ -10,12 +10,12 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { sql } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
-const FROZEN_AT = 1_750_000_000_000;
 
 // The #1478.5 "reachable Unreachable" shape in a second home (#1576): `insertGalleryItem` and the
 // post-insert `galleryItemViewById` re-read are two SEPARATE statements with no transaction between them.
@@ -50,7 +50,7 @@ describe("addToGallery", () => {
       hash: asset.hash,
       mime: PNG,
       subjectCharacterId: character,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     });
     expect(view.galleryItemId).toBeDefined();
   });

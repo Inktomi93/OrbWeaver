@@ -6,7 +6,6 @@
 // unregister leaves no ghost tool. #677 adds the PER-INSTALLER partition: the same namespaced name is held once
 // per installing user, so the collision is scoped to one shelf and a deactivation touches only that shelf.
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_WIRE_NAME_MAX } from "@orb/contracts/plugin";
@@ -20,14 +19,14 @@ import { TOOL_NAME_RE } from "#server/domain/tool-use/contract/params.ts";
 import type { PluginToolSpec, ToolCallRecord, ToolExecutionContext } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, ToolNameCollisionError } from "#server/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
+import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { defOf, execOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const INSTALLER = makePrincipal(castId("user_installer"), { handle: castId("installer") });
-const STRANGER = makePrincipal(castId("user_stranger"), { handle: castId("stranger") });
+const INSTALLER = principal(castId("user_installer"), { handle: castId("installer") });
+const STRANGER = principal(castId("user_stranger"), { handle: castId("stranger") });
 
 const allowAll: Can = (() => undefined) as Can;
 

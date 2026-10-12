@@ -5,6 +5,7 @@
 
 import { ROOM_PICTURES_NOTE } from "@orb/client/lib";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
@@ -259,7 +260,7 @@ const COMPOSER_CONTRIBUTION_ROUTES = {
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   },

@@ -69,7 +69,7 @@ import { recordRender } from "#client/lib/render-stats.ts";
 import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
 import { APP_BLOCKING_MARKS } from "../../support/iso/app-blocking-receipt.ts";
 import { blockMainThread } from "../../support/node/block-main-thread.ts";
-import type { SelectOpeningTestCase } from "./select-opening-cases.ts";
+import type { SelectOpeningTestCase } from "./select-opening-cases.fixtures.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT

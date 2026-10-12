@@ -1,9 +1,9 @@
 // Shared network stubs and rows for the gallery CTs (the dialog, its add-picker and its upload zone). Every
 // suite mounts `CharacterGalleryDialogStory`, whose character is `character_ct_gallery` named "Aria".
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Page } from "@playwright/test";
+import type { AuthConfig } from "#client/data/auth-config.ts";
 import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 type GalleryRow = TrpcWireOutput<"assets.listGallery">[number];
@@ -74,13 +74,8 @@ export const NOT_AN_IMAGE = { name: "notes.txt", mimeType: "text/plain", content
 
 /** Serve the upload caps with a small image cap; the other caps are irrelevant to this dialog. */
 export async function capImageUploads(page: Page): Promise<void> {
-  await page.route("**/api/auth/config", (route) =>
-    route.fulfill({
-      json: {
-        uploads: { ...DEFAULT_UPLOAD_CAPS, image: IMAGE_CAP_BYTES },
-      },
-    }),
-  );
+  const config = { uploads: { ...DEFAULT_UPLOAD_CAPS, image: IMAGE_CAP_BYTES } } satisfies Pick<AuthConfig, "uploads">;
+  await page.route("**/api/auth/config", (route) => route.fulfill({ json: config }));
 }
 
 /** How the stubbed upload route answers: a stored asset, or a refusal with the server's reason. */
@@ -106,10 +101,7 @@ export interface HeldUploads {
 
 export async function holdUploads(page: Page): Promise<HeldUploads> {
   let count = 0;
-  let release = (): void => undefined;
-  const released = new Promise<void>((resolve) => {
-    release = resolve;
-  });
+  const { promise: released, resolve: release } = Promise.withResolvers<void>();
   await page.route(UPLOAD_ROUTE, async (route) => {
     count += 1;
     await released;

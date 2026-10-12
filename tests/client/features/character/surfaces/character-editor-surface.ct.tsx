@@ -20,6 +20,7 @@ import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../
 import { expectCircle } from "../../../../support/browser/expect-circle.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcFixtureOutput, TrpcInput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
@@ -535,7 +536,7 @@ const OVERVIEW_CHATS: readonly ScopedChatSummaryFixture[] = [
     isGame: false,
     gamePaused: false,
     viewerRole: "host",
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     updatedAt: 1_750_000_100_000,
   },
   {
@@ -553,7 +554,7 @@ const OVERVIEW_CHATS: readonly ScopedChatSummaryFixture[] = [
     isGame: false,
     gamePaused: false,
     viewerRole: "host",
-    createdAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
     updatedAt: 1_750_000_200_000,
   },
 ];

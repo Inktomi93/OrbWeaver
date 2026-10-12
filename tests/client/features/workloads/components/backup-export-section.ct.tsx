@@ -18,6 +18,7 @@ import type { Page } from "@playwright/test";
 // geometry instead of a re-spelled threshold pair (see the F13 block at the foot of this file).
 import type { Finding } from "../../../../../tooling/src/ui-audit/contract/findings.ts";
 import { checkRowVoid } from "../../../../../tooling/src/ui-audit/lib/checks-structure.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
@@ -201,7 +202,7 @@ test("import: a bundle workload's flattened notes render beside the count summar
 // The finished `import-bundle` result carries the import's span (its scope handle). With Memory on, the report
 // offers to build those chats' memory, sized by the server's count for that span, and only the confirm's yes starts
 // the run; with Memory off there is no offer. The handle is two numbers however many chats the import wrote.
-const IMPORTED_SPAN: ImportWindow = { from: 1_750_000_000_000, to: 1_750_000_002_000 };
+const IMPORTED_SPAN: ImportWindow = { from: FROZEN_AT_MS, to: 1_750_000_002_000 };
 async function finishImportWith(page: Page, memoryScope: ImportWindow): Promise<void> {
   await page.route("**/api/import/bundle", async (route) => {
     await route.fulfill({ status: 202, headers: { "content-type": "application/json" }, body: JSON.stringify({ workloadId: "workload_ct_import_chats" }) });

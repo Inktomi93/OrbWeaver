@@ -1,6 +1,8 @@
 import type { DocOrigin, IngestPhase, ScraperKind } from "@orb/contracts/databank";
 import {
   bankHealthViewSchema,
+  CHUNK_SIZE_DEFAULT,
+  CHUNK_SIZE_MIN,
   chatDocumentVisibilitySchema,
   chunkParamsSchema,
   DOC_ORIGINS,
@@ -11,13 +13,18 @@ import {
   documentViewSchema,
   INGEST_PHASES,
   ingestPhaseSchema,
+  MIN_SCORE_DEFAULT,
+  OVERLAP_PERCENT_MAX,
+  RETRIEVAL_K_DEFAULT,
   reindexModeSchema,
   reindexScopeSchema,
   SCRAPER_KINDS,
   STALE_INGEST_MS,
   scraperKindSchema,
+  WHOLE_FILE_THRESHOLD_DEFAULT,
 } from "@orb/contracts/databank";
 import { mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("DOC_ORIGINS is exactly the pinned origin axis [upload, web, youtube, wiki, text]", () => {
@@ -82,19 +89,19 @@ test("STALE_INGEST_MS is the pinned 5-minute in-flight threshold", () => {
 });
 
 test("chunkParamsSchema.parse({}) yields the documented ST-derived defaults (the kit-shape twin's contract)", () => {
-  expect(chunkParamsSchema.parse({})).toEqual({ chunkSize: 2500, overlapPercent: 0, wholeFileThreshold: 5120 });
+  expect(chunkParamsSchema.parse({})).toEqual({ chunkSize: CHUNK_SIZE_DEFAULT, overlapPercent: 0, wholeFileThreshold: WHOLE_FILE_THRESHOLD_DEFAULT });
 });
 
-test("chunkParamsSchema enforces its bounds (min chunk 200, overlap 0–50)", () => {
-  expect(chunkParamsSchema.safeParse({ chunkSize: 199 }).success).toBe(false);
-  expect(chunkParamsSchema.safeParse({ overlapPercent: 51 }).success).toBe(false);
+test("chunkParamsSchema enforces its chunk-size floor and overlap ceiling", () => {
+  expect(chunkParamsSchema.safeParse({ chunkSize: CHUNK_SIZE_MIN - 1 }).success).toBe(false);
+  expect(chunkParamsSchema.safeParse({ overlapPercent: OVERLAP_PERCENT_MAX + 1 }).success).toBe(false);
   expect(chunkParamsSchema.parse({ chunkSize: 400, overlapPercent: 10 })).toMatchObject({ chunkSize: 400, overlapPercent: 10 });
 });
 
 test("databankSettingsSchema.parse({chunk:{},retrieval:{}}) nests the chunk + retrieval defaults", () => {
   expect(databankSettingsSchema.parse({ chunk: {}, retrieval: {} })).toEqual({
-    chunk: { chunkSize: 2500, overlapPercent: 0, wholeFileThreshold: 5120 },
-    retrieval: { k: 5, minScore: 0.25, rerank: false },
+    chunk: { chunkSize: CHUNK_SIZE_DEFAULT, overlapPercent: 0, wholeFileThreshold: WHOLE_FILE_THRESHOLD_DEFAULT },
+    retrieval: { k: RETRIEVAL_K_DEFAULT, minScore: MIN_SCORE_DEFAULT, rerank: false },
   });
 });
 
@@ -128,8 +135,8 @@ test("documentViewSchema accepts a well-formed view and rejects a bad origin", (
     charCount: 42,
     chunkCount: 3,
     embeddedCount: 3,
-    createdAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   };
   expect(documentViewSchema.parse(view)).toMatchObject({ name: "notes.md", origin: "text" });
   expect(documentViewSchema.safeParse({ ...view, origin: "pdf" }).success).toBe(false);

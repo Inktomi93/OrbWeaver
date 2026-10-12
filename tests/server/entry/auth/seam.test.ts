@@ -19,6 +19,7 @@
 // what reaches every owner- and admin-gated tRPC surface, so "who does this arm admit" is the whole boundary.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -448,7 +449,7 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
   vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
 
-  const withHeader = await seam.resolvePrincipal(new Headers({ "x-orb-csrf": "1" }), { transport: "http" });
+  const withHeader = await seam.resolvePrincipal(new Headers({ [CSRF_HEADER]: "1" }), { transport: "http" });
   const without = await seam.resolvePrincipal(new Headers(), { transport: "http" });
 
   expect(withHeader.csrfHeaderPresent).toBe(true);

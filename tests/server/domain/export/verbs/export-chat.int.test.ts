@@ -4,9 +4,6 @@
 // the parentChatId → main_chat round-trip (note_prompt is one-way now — the room author's-note override was
 // retired 2026-08-01); the txt format.
 
-// @orb-waive-file no-loose-id-cast(actor.characterId ?? null): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(args.characterId ?? null): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(over.metadata ?? null): baselined when the gate widened; burn-down item 906.
 import type { MessageKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -17,12 +14,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createExportChat } from "#server/domain/export/verbs/export-chat.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
-
-const FROZEN_AT = 1_750_000_000_000;
 
 let db: Db;
 beforeEach(async () => {
@@ -45,9 +41,9 @@ async function seedChatRow(
     anchorPersonaId: over.anchorPersonaId ?? null,
     parentChatId: over.parentChatId ?? null,
     // The typed metadata blob (tests inject raw — the read seam tolerates it).
-    metadata: (over.metadata ?? null) as never,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
+    metadata: over.metadata ?? null,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
   return id;
 }
@@ -62,10 +58,10 @@ async function seedMember(
     chatId,
     kind: actor.userId !== undefined ? "human" : "character",
     userId: actor.userId ?? null,
-    characterId: (actor.characterId ?? null) as never,
+    characterId: actor.characterId ?? null,
     role: actor.role ?? "member",
     joinSeq: 0,
-    joinedAt: FROZEN_AT,
+    joinedAt: FROZEN_AT_MS,
     // leftSeq set = a DEPARTED row (leave horizon stamped); null = present.
     leftSeq: actor.leftSeq ?? null,
   });
@@ -93,10 +89,10 @@ async function seedSlot(args: {
     seq: args.seq,
     role: args.role,
     ...(args.kind === undefined ? {} : { kind: args.kind }),
-    characterId: (args.characterId ?? null) as never,
+    characterId: args.characterId ?? null,
     personaId: args.personaId ?? null,
     authorUserId: args.authorUserId ?? null,
-    createdAt: FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
   });
   const ids = args.variantContents.map((_c, i) => castId<MessageVariantId>(`variant_${args.key}_${i}`));
   await db.insert(messageVariants).values(
@@ -107,7 +103,7 @@ async function seedSlot(args: {
       content,
       model: testModelId(`m${i}`),
       tokensOut: i + 1,
-      createdAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
     })),
   );
   const chosen = ids[args.selectedIdx ?? ids.length - 1];
@@ -163,8 +159,8 @@ describe("exportChat — the D26/D28 assembly", () => {
       ownerId: host,
       name: "Alex",
       description: "d",
-      createdAt: FROZEN_AT,
-      updatedAt: FROZEN_AT,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
     });
     const parentId = await seedChatRow("parent");
     await db.update(chats).set({ importedFrom: "origin.jsonl" }).where(eq(chats.id, parentId));

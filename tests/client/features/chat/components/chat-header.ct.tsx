@@ -9,6 +9,7 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
@@ -229,7 +230,7 @@ const STAMPED_TITLE = "Hikari — Oct 3, 2026";
 function roomRoutes(title: string, viewerIsHost = true): Parameters<typeof routeTrpc>[1] {
   return {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": () => ({ title, participants: [human("host"), character("Hikari")], viewerIsHost, createdAt: 1_750_000_000_000 }),
+    "chat.getChat": () => ({ title, participants: [human("host"), character("Hikari")], viewerIsHost, createdAt: FROZEN_AT_MS }),
     "chat.listMessages": () => makeMessagesPage([]),
     "chat.updateTitle": null,
   };
@@ -353,7 +354,7 @@ test("a solo room's header carries the character's face; a group room's faces li
       title: "Council",
       participants: [human("host"), character("Aria"), character("Bolt")],
       viewerIsHost: true,
-      createdAt: 1_750_000_000_000,
+      createdAt: FROZEN_AT_MS,
     }),
     "chat.listMessages": () => makeMessagesPage([]),
   });

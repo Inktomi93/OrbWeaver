@@ -5,7 +5,7 @@
 import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";
 import { batchMany } from "@orb/db/query";
-import type { RpgCheckpointId } from "@orb/kit/ids";
+import type { MessageId, RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -27,8 +27,7 @@ describe("create + list", () => {
     const snap = await insertSnapshot(db, {
       id: snapshotId("s1"),
       gameId,
-      // @orb-waive no-loose-id-cast(`message_${chatId}_1`): baselined when the gate widened; burn-down item 906.
-      messageId: `message_${chatId}_1` as never,
+      messageId: castId<MessageId>(`message_${chatId}_1`),
       variantId,
       location: "camp",
       committed: 1,
@@ -52,8 +51,7 @@ describe("restore", () => {
     const base = await insertSnapshot(db, {
       id: snapshotId("s1"),
       gameId,
-      // @orb-waive no-loose-id-cast(`message_${chatId}_1`): baselined when the gate widened; burn-down item 906.
-      messageId: `message_${chatId}_1` as never,
+      messageId: castId<MessageId>(`message_${chatId}_1`),
       variantId: first.variantId,
       location: "camp",
       committed: 1,
@@ -98,8 +96,7 @@ describe("the RESTRICT belt", () => {
     const snap = await insertSnapshot(db, {
       id: snapshotId("s1"),
       gameId,
-      // @orb-waive no-loose-id-cast(`message_${chatId}_1`): baselined when the gate widened; burn-down item 906.
-      messageId: `message_${chatId}_1` as never,
+      messageId: castId<MessageId>(`message_${chatId}_1`),
       variantId,
       location: "camp",
       committed: 1,

@@ -5,18 +5,20 @@
 
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { auditRenderedTextContrast, pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorstLegalArtRoomStory, WorstLegalArtThemePairsStory } from "../_contrast-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 const AA_NORMAL = 4.5;
 
-function routeRoom(page: Page): Promise<{ readonly count: (path: string) => number }> {
+function routeRoom(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.previewContextFit": () => ({
@@ -25,7 +27,7 @@ function routeRoom(page: Page): Promise<{ readonly count: (path: string) => numb
       ceilingTokens: 32_768,
       ceilingEstimated: false,
       limit: null,
-      reserveOutputTokens: 2048,
+      reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       droppedCount: 0,
       compactSummary: null,
     }),

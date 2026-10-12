@@ -20,6 +20,7 @@
 //     automation's kickable membership, which is re-derived per pump start), and re-reading would turn a
 //     reaped row's disappearance into a `roomFailed` on a tail that pre-fold simply went quiet.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -94,8 +95,7 @@ async function openWorkloadRoom(ctx: Context, workloadId: WorkloadId, opts: { re
  *  real tail has too. */
 async function nextFrameAfter(iterator: AsyncIterator<unknown>, emit: () => void): Promise<StreamFrame> {
   const pending = iterator.next();
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await sleep(0);
   emit();
   return frameOf((await pending).value);
 }
@@ -226,8 +226,7 @@ describe("the gate runs at attach ONLY — deliberately, not by omission", () =>
     await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     const event = progressEvent(run, 60, nextAt());
     emitWorkloadEvent(event);
     publishUserEvent(OWNER, { type: "tagsChanged" });

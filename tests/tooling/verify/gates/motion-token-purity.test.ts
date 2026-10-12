@@ -16,12 +16,11 @@
 //        suppression cannot also carry a waiver. That is why the reduced-motion floor is a POPULATION
 //        CARVE-OUT here rather than a waived site, and the pin below is what stops a future reader
 //        "simplifying" the carve-out into a marker that cannot bind.
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as motionTokenPurity } from "../../../../tooling/src/verify/gates/motion-token-purity.ts";
+import { gate } from "../../../../tooling/src/verify/gates/motion-token-purity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -36,8 +35,8 @@ function pass(scratch: string, files: Readonly<Record<string, string>>): PolicyP
     writeFileSync(absolute, text);
   }
   return runPolicyPass({
-    knownPolicies: [motionTokenPurity],
-    policies: [motionTokenPurity],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     resourceOptions: { overlay: files },
@@ -47,7 +46,7 @@ function pass(scratch: string, files: Readonly<Record<string, string>>): PolicyP
 }
 
 test("motion-token-purity keeps its declared proofs", () => {
-  expect(verifyPolicyProofs([motionTokenPurity])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("§4.2 — the exact waiver at the reported literal suppresses, waives one, and alarms not at all", ({ scratch }) => {

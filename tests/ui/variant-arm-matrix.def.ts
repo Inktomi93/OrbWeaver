@@ -97,7 +97,7 @@ import { textareaVariants } from "#ui/primitives/textarea/variants.ts";
 import { toggleVariants } from "#ui/primitives/toggle/variants.ts";
 // Imported beside the re-export below because shapes in THIS file use them (a bare `export … from`
 // re-exports without binding locally — the contract/samples.ts lesson).
-import type { StoryKey, ThemeArm } from "./variant-arm-matrix.keys.ts";
+import type { StoryKey, ThemeArm } from "./variant-arm-matrix.fixtures.ts";
 
 /** The runtime introspection surface of a tv() result (typed by tailwind-variants' own TVReturnType —
  *  dist/types.d.ts:180-184 declares `variants`/`defaultVariants` on the component). Values are class
@@ -124,7 +124,7 @@ export function introspectTv(candidate: unknown, name: string): TvIntrospection 
 
 export interface VariantArmStoryDef {
   /** Story key — the keys-module vocabulary; renderers `satisfies Record<StoryKey, …>`, so def ↔
-   *  renderer drift is a COMPILE error (the three-way pin, variant-arm-matrix.keys.ts). */
+   *  renderer drift is a COMPILE error (the three-way pin, variant-arm-matrix.fixtures.ts). */
   readonly key: StoryKey;
   /** Source path relative to packages/ui/src — the parity suite joins this against the disk census. */
   readonly source: string;
@@ -286,8 +286,8 @@ export const WITHHELD_VARIANT_SOURCES: Readonly<Record<string, string>> = {
 
 // The theme axis is homed in the keys module (the pure vocabulary home) — re-exported here so the
 // suite's population imports stay one door.
-export type { ThemeArm } from "./variant-arm-matrix.keys.ts";
-export { THEME_ARMS } from "./variant-arm-matrix.keys.ts";
+export type { ThemeArm } from "./variant-arm-matrix.fixtures.ts";
+export { THEME_ARMS } from "./variant-arm-matrix.fixtures.ts";
 
 /** A REAL product defect the matrix found, pinned two-sided until its owning fix lands: the suite stays
  *  green on the KNOWN defect (this is not an allowlist — any OTHER finding still reds), AND the row

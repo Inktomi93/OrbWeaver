@@ -3,8 +3,6 @@
 // typed conflict, position normalization (sparse wire positions → dense 0..n-1), the groupConfig
 // parse-at-write, and the `rosterPresetsChanged` user-bus emit.
 
-// @orb-waive-file no-loose-id-cast({ output: "narrator", bogusKnob: true }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ ruleset: "gurps" }): baselined when the gate widened; burn-down item 906.
 import { rosterPresetMembers, rosterPresets } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -131,6 +129,7 @@ describe("create", () => {
           name: "Garbage",
           description: "",
           // @orb-waive no-test-fabrication(never): a deliberately MALFORMED blob — the verb-seam refusal is this test's subject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+          // @orb-waive no-loose-id-cast({ output: "narrator", bogusKnob: true }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
           groupConfig: { output: "narrator", bogusKnob: true } as never,
           members: [memberSpec(c, 0)],
         },
@@ -279,6 +278,7 @@ describe("create — the game template", () => {
           name: "Bad game",
           description: "",
           // @orb-waive no-test-fabrication(never): a deliberately unknown ruleset — the verb-seam refusal is this test's subject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+          // @orb-waive no-loose-id-cast({ ruleset: "gurps" }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
           game: { ruleset: "gurps" } as never,
           members: [memberSpec(c, 0)],
         },

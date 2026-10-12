@@ -1,13 +1,12 @@
-// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as verifyRegistryParity } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
+import { gate } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REGISTRY } from "../../../../tooling/src/verify/lib/registry.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const policies = [verifyRegistryParity] as const;
+const policies = [gate] as const;
 
 test("third resource layout policy keeps its two-sided proofs", () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
@@ -35,8 +34,8 @@ test("third resource layout policy keeps its two-sided proofs", () => {
  *  declaration that stopped being consumed reads here as a missing receipt rather than as a quiet pass. */
 function parityPass(scratch: string, overlay: Readonly<Record<string, string>>): PolicyPassResult {
   return runPolicyPass({
-    knownPolicies: [verifyRegistryParity],
-    policies: [verifyRegistryParity],
+    knownPolicies: [gate],
+    policies: [gate],
     root: scratch,
     project: new Project({ skipAddingFilesFromTsConfig: true }),
     resourceOptions: { overlay },
@@ -72,7 +71,7 @@ function populationRefusal(fragment: string): Record<string, unknown> {
  *  complete membership, independent of row order or why text, without a second hand-maintained roster.
  *  Only the input is reused: each regression keeps its own independent finding expectations. */
 function manifest(extraScripts: Readonly<Record<string, string>>): string {
-  const healthy = verifyRegistryParity.mustPass.at(0);
+  const healthy = gate.mustPass.at(0);
   if (healthy === undefined) {
     throw new Error("verify-registry-parity has no healthy root-manifest proof");
   }

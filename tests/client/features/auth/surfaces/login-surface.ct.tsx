@@ -5,6 +5,7 @@
 // the OIDC SSO button + the local credential form. Router-free (LoginBody takes `config` + a stub
 // `onDone`), so no memory-router harness is needed.
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -20,7 +21,7 @@ async function stubSignupPreview(page: Page, live: boolean, room: object = ROOM)
   const bodies: unknown[] = [];
   await page.route("**/api/auth/signup/preview", async (route) => {
     bodies.push(route.request().postDataJSON());
-    expect(route.request().headers()["x-orb-csrf"]).toBe("1");
+    expect(route.request().headers()[CSRF_HEADER]).toBe("1");
     if (live) {
       await route.fulfill({ status: 200, json: room });
       return;
@@ -166,7 +167,7 @@ test("local + a stashed invite on a multi-human box → the signup form, posting
   let posted: unknown = null;
   await page.route("**/api/auth/signup", async (route) => {
     posted = route.request().postDataJSON();
-    expect(route.request().headers()["x-orb-csrf"]).toBe("1");
+    expect(route.request().headers()[CSRF_HEADER]).toBe("1");
     await route.fulfill({ status: 200, json: { ok: true, chatId: ROOM_ID } });
   });
   const preview = await stubSignupPreview(page, true);

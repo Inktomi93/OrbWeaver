@@ -9,6 +9,7 @@ import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { unzipSync } from "fflate";
 import { ExtensionsSectionStory, PluginConfigurationStory } from "../client/features/plugin/_ct-stories.tsx";
+import { FROZEN_AT_MS } from "../support/clock.ts";
 import type { TrpcInput, TrpcWireOutput } from "../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../support/node/route-trpc.ts";
 
@@ -48,7 +49,7 @@ async function configuredBundle(slug: string): Promise<{
   context["orb"] = {
     host: (): Record<string, unknown> => ({
       grants: manifest.capabilities,
-      clock: { nowEpochMs: (): number => 1_750_000_000_000 },
+      clock: { nowEpochMs: (): number => FROZEN_AT_MS },
       events: { on: (): void => undefined },
       log: { info: (): void => undefined, warn: (): void => undefined },
       storage: {
@@ -94,8 +95,8 @@ async function configuredBundle(slug: string): Promise<{
     builtAgainst: null,
     description: manifest.description ?? null,
     lastError: null,
-    installedAt: 1_750_000_000_000,
-    updatedAt: 1_750_000_000_000,
+    installedAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   } satisfies TrpcWireOutput<"plugin.list">[number];
   return {
     states,

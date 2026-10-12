@@ -5,7 +5,6 @@
 // D16 live clamp over real `chat_participants` rows now live at
 // `tests/server/transport/trpc/stream/sources/chat.int.test.ts`.
 
-// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -38,7 +37,7 @@ import {
   seedPendingTurn,
   seedUser,
 } from "../../../domain/chat/_support.ts";
-import { caller, principal as callerPrincipal, makeContext } from "../_support.ts";
+import { caller, makeContext, principal } from "../_support.ts";
 
 /** Owner-scoped `getCard` fake mirroring the real one (D28) — `addCharacterToChat` resolves the card only
  *  for its OWNER (a foreign character reads as missing, leak-free). */
@@ -87,7 +86,7 @@ describe("chat.getChatLineage — the fork ancestry through the real router, gat
 
     const getChatLineage = lineageRead();
     const as = (userId: UserId): ReturnType<typeof caller> =>
-      caller(makeContext({ auth: callerPrincipal("user", { userId }), services: { chat: { getChatLineage } } }));
+      caller(makeContext({ auth: principal("user", { userId }), services: { chat: { getChatLineage } } }));
 
     expect((await as(host).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([parent, fork]);
     expect((await as(forkGuest).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([fork]);
@@ -108,7 +107,7 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
       emit: () => Promise.resolve(),
     });
     const hostCtx = makeContext({
-      auth: callerPrincipal("user", { userId: host }),
+      auth: principal("user", { userId: host }),
       services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
     });
 
@@ -141,11 +140,11 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
       emit: () => Promise.resolve(),
     });
     const hostCtx = makeContext({
-      auth: callerPrincipal("user", { userId: host }),
+      auth: principal("user", { userId: host }),
       services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
     });
     const memberCtx = makeContext({
-      auth: callerPrincipal("user", { userId: member }),
+      auth: principal("user", { userId: member }),
       services: { chat: { removeCharacterFromChat: roster.removeCharacterFromChat } },
     });
 
@@ -201,7 +200,7 @@ describe("chat turns render the time macros in the viewer's zone — wire → ve
   }
 
   function hostCaller(chat: ChatScenario): ReturnType<typeof caller> {
-    return caller(makeContext({ auth: callerPrincipal("user", { userId: chat.host }), services: { chat: chat.turn } }));
+    return caller(makeContext({ auth: principal("user", { userId: chat.host }), services: { chat: chat.turn } }));
   }
 
   test("send renders the viewer's zone; an unknown zone renders UTC, never the server's own zone", async () => {

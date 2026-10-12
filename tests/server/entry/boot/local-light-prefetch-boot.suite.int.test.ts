@@ -9,11 +9,11 @@
 // schedule, the admin read-model, the transport — is the real production wiring. Substituting that one edge
 // is the only honest way to pin this; a real prefetch here would fetch ~3.7 GB from HuggingFace.
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { LocalLightModelCache } from "@orb/inference";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -72,9 +72,7 @@ async function pollUntil<T>(attempt: () => Promise<T | null>): Promise<T> {
     if (value !== null) {
       return value;
     }
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, POLL_DELAY_MS);
-    });
+    await sleep(POLL_DELAY_MS);
   }
   throw new Error("condition never became true");
 }

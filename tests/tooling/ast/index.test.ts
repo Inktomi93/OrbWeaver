@@ -11,8 +11,6 @@
 // `deps:orphan-ratchet` also reads — so that suite pins the six liveness sets identical with the edge flag
 // off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
-// @orb-waive-file no-vanity-alias(REPO_ROOT): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(byName): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ModuleResolutionKind, Project } from "ts-morph";
@@ -76,7 +74,7 @@ import {
 } from "../../../tooling/src/ast/index.ts";
 import { respellNearCandidatesFor } from "../../../tooling/src/ast/lib/respell-near-analysis.ts";
 import { assignabilityChecker, respellHitsFor } from "../../../tooling/src/ast/lib/respell-shapes.ts";
-import { REPO_ROOT as AST_REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
+import { REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
 import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -446,7 +444,7 @@ describe("ast prodonly lens (tooling entry points)", () => {
   });
 
   test("the root build-version launcher is a declared TypeScript entry", () => {
-    expect(scriptEntryPaths(AST_REPO_ROOT)).toContain("scripts/build-version-stamp.ts");
+    expect(scriptEntryPaths(REPO_ROOT)).toContain("scripts/build-version-stamp.ts");
   });
 
   test("a missing literal Node/TS script target refuses instead of disappearing from the entry graph", () => {
@@ -458,7 +456,7 @@ describe("ast prodonly lens (tooling entry points)", () => {
     const project = new Project({
       useInMemoryFileSystem: true,
       compilerOptions: {
-        baseUrl: AST_REPO_ROOT,
+        baseUrl: REPO_ROOT,
         moduleResolution: ModuleResolutionKind.Bundler,
         paths: { "#lazy-target": ["packages/client/src/internal/lazy-target.ts"] },
       },
@@ -471,7 +469,7 @@ describe("ast prodonly lens (tooling entry points)", () => {
       "packages/client/src/internal/unused.ts": "export const unused = true;",
     };
     for (const [path, text] of Object.entries(files)) {
-      project.createSourceFile(`${AST_REPO_ROOT}/${path}`, text);
+      project.createSourceFile(`${REPO_ROOT}/${path}`, text);
     }
     const flags = parseFlags(["--json"]);
     const lines: string[] = [];
@@ -529,7 +527,7 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
       "packages/client/src/substitution.worker.ts": "export const mustStayUnreachable = true;",
     };
     for (const [path, text] of Object.entries(files)) {
-      project.createSourceFile(`${AST_REPO_ROOT}/${path}`, text);
+      project.createSourceFile(`${REPO_ROOT}/${path}`, text);
     }
 
     const lines: string[] = [];
@@ -565,7 +563,7 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
       "packages/inference/src/internal/index.ts": "export const analysisOnlyRoot = true;",
     };
     for (const [path, text] of Object.entries(files)) {
-      project.createSourceFile(`${AST_REPO_ROOT}/${path}`, text);
+      project.createSourceFile(`${REPO_ROOT}/${path}`, text);
     }
     const lines: string[] = [];
     const release = installOutputSink({ line: (line) => lines.push(line), warn: () => undefined });
@@ -2949,7 +2947,7 @@ describe("ast apisurface lens (package-boundary classification)", () => {
     expect(byName.get("publicTypeOnly")?.klass).toBe("public");
     expect(byName.get("publicTypeOnly")?.typeOnly).toBe(false);
     // …and the consuming packages are BOTH named (client + server), sorted.
-    expect([...(byName.get("publicTypeOnly")?.consumers ?? [])].sort(byString)).toEqual(["client", "server"]);
+    expect((byName.get("publicTypeOnly")?.consumers ?? []).toSorted(byString)).toEqual(["client", "server"]);
   });
 
   test("the UNUSED arm equals `collectOrphanCandidates` on the same project (taken verbatim, never re-derived)", () => {

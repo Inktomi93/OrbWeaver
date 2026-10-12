@@ -11,8 +11,10 @@
 // `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `identities` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -48,7 +50,7 @@ const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
     ceilingTokens: 32_768,
     ceilingEstimated: false,
     limit: null,
-    reserveOutputTokens: 2048,
+    reserveOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     droppedCount: 0,
     compactSummary: null,
   }),
@@ -194,8 +196,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     if (req.method() === "POST" && req.url().includes("chat.send")) {
-      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await sleep(150);
     }
     await route.fallback();
   });
@@ -232,11 +233,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
 // settles — the typed value must be intact (a remount would have lost all but nothing, since the old
 // suspended composer never mounted until settle; either way a regression drops the text).
 test("#13: typing while listMessages is in flight survives the room settle — no composer remount eats keystrokes", async ({ mount, page }) => {
-  let releaseList: (() => void) | undefined;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const listHeld = new Promise<void>((resolve) => {
-    releaseList = resolve;
-  });
+  const { promise: listHeld, resolve: releaseList } = Promise.withResolvers<void>();
   // Hold listMessages via a route that BLOCKS on the release gate before falling through to routeTrpc
   // (registered AFTER routeTrpc ⇒ runs FIRST, LIFO; delegates the actual envelope + batch framing to
   // routeTrpc's fallback so the wire shape stays correct) — the room settle is under test control.
@@ -261,7 +258,7 @@ test("#13: typing while listMessages is in flight survives the room settle — n
 
   // Now the room settles — the transcript resolves and renders. A remount here (the regressed shape)
   // would blow away the typed value; the stable element keeps it.
-  releaseList?.();
+  releaseList();
   await expect(component.getByText("Well met, traveller.")).toBeVisible();
   await expect(textarea).toHaveValue("Reply immediately");
   // Focus survived too (the same element was never torn down).

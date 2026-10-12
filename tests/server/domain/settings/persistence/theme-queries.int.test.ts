@@ -18,11 +18,11 @@ import {
   updateOwnedTheme,
   upsertSeedTheme,
 } from "#server/domain/settings/persistence/theme-queries.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const OVERRIDE: ThemeOverride = { accent: "oklch(0.7 0.14 250)" };
 
 function themeId(n: number): ThemeId {
@@ -36,8 +36,8 @@ async function insertOwned(db: Db, id: ThemeId, ownerId: UserId, name: string): 
     name,
     override: OVERRIDE,
     css: null,
-    createdAt: AT,
-    updatedAt: AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
 }
 
@@ -48,8 +48,8 @@ async function insertSeed(db: Db, id: ThemeId, name: string): Promise<void> {
     name,
     override: OVERRIDE,
     css: null,
-    createdAt: AT,
-    updatedAt: AT,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
   });
 }
 
@@ -84,7 +84,7 @@ describe("updateOwnedTheme / deleteOwnedTheme — seeds are un-mutable BY CONSTR
     const db = await freshDb();
     const a = await seedUser(db, { id: "user_a" });
     await insertSeed(db, themeId(1), "Hearth");
-    const result = await updateOwnedTheme(db, themeId(1), a, { name: "Hacked", updatedAt: AT });
+    const result = await updateOwnedTheme(db, themeId(1), a, { name: "Hacked", updatedAt: FROZEN_AT_MS });
     expect(result).toBeUndefined();
   });
 
@@ -102,7 +102,7 @@ describe("updateOwnedTheme / deleteOwnedTheme — seeds are un-mutable BY CONSTR
     await insertOwned(db, themeId(2), a, "Mine");
     const updated = await updateOwnedTheme(db, themeId(2), a, {
       name: "Renamed",
-      updatedAt: AT + 1,
+      updatedAt: FROZEN_AT_MS + 1,
     });
     expect(updated?.name).toBe("Renamed");
     expect(await deleteOwnedTheme(db, themeId(2), a)).toBe(true);
@@ -154,8 +154,8 @@ describe("upsertSeedTheme — idempotent + non-clobbering", () => {
       name: "Hearth",
       override: { accent: "oklch(0.9 0.2 30)" },
       css: null,
-      createdAt: AT,
-      updatedAt: AT + 10,
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS + 10,
     });
     const a = await seedUser(db, { id: "user_a" });
     const rows = await listReadableThemes(db, a);

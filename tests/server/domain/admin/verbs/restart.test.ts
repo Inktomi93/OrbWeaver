@@ -9,10 +9,10 @@ import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import { createRestart } from "#server/domain/admin/verbs/restart.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { principal } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const CURRENT_INSTANCE = "20000000-0000-4000-8000-000000000002";
 const PREVIOUS_INSTANCE = "20000000-0000-4000-8000-000000000001";
 
@@ -24,7 +24,7 @@ function harness(supervised: boolean): {
   let restarts = 0;
   const audits: AuditEntry[] = [];
   const restart = createRestart({
-    now: () => AT,
+    now: () => FROZEN_AT_MS,
     audit: (entry): Promise<void> => {
       audits.push(entry);
       return Promise.resolve();

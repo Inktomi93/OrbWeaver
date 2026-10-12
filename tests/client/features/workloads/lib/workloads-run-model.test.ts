@@ -10,6 +10,7 @@ import {
   isWaitingOnDependencies,
   parseRunAt,
 } from "#client/features/workloads/lib/workloads-run-model.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-local → epoch ms", () => {
@@ -22,7 +23,7 @@ test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-lo
 });
 
 test("isDeferredWorkload: queued + scheduledAt well past createdAt; not for a near/non-deferred or non-queued row", () => {
-  const createdAt = 1_750_000_000_000;
+  const createdAt = FROZEN_AT_MS;
   // A user-deferred run: scheduledAt minutes+ ahead of createdAt.
   expect(isDeferredWorkload({ status: "queued", createdAt, scheduledAt: createdAt + 600_000 })).toBe(true);
   // A normal run: scheduledAt ≈ createdAt (within the insert-latency lead) → NOT deferred.

@@ -16,6 +16,7 @@ import { assemblePrompt, assemblePromptWithSlices, previewSection } from "#serve
 import { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
 import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "#server/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 let sectionSeq = 0;
@@ -276,7 +277,7 @@ describe("assemblePrompt — section walk", () => {
 
   test("a volatile macro ({{date}}) in a STATIC section is reported as a cache-buster", () => {
     const config = configOf([literal("today is {{date}}", { role: "system" }), marker({ marker: "chat_history" })]);
-    const out = assemblePrompt(config, ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" }));
+    const out = assemblePrompt(config, ctxOf({ nowMs: FROZEN_AT_MS, timezone: "UTC" }));
     expect(out.trace.staticCacheBusters).toContain("date");
   });
 
@@ -812,7 +813,7 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
 /** A char field that is non-blank at SOURCE and renders to pure whitespace. */
 const RENDERS_BLANK = " {{getvar::__unset__}} ";
 /** A fixed instant + zone so `{{date}}`/`{{time}}` resolve rather than passing through verbatim. */
-const CLOCK = { nowMs: 1_750_000_000_000, timezone: "UTC" } as const;
+const CLOCK = { nowMs: FROZEN_AT_MS, timezone: "UTC" } as const;
 
 /** A per-turn user-macro registry exposing exactly one NON-volatile macro, `{{mood}}` → "grim". */
 function moodRegistry(): MacroRegistry {

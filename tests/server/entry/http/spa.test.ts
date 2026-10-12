@@ -8,6 +8,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { brotliCompressSync, brotliDecompressSync, gunzipSync, gzipSync, zstdCompressSync, zstdDecompressSync } from "node:zlib";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { registerSpa, resolveSpaDistDir, securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe } from "vitest";
@@ -280,7 +281,7 @@ describe("registerSpa", () => {
 
   test.each(["POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])("a %s to an /api/* miss never gets the app page", async (method) => {
     for (const path of ["/api/trpc/notifications.list,plugin.listCommands", "/api", "/api/"]) {
-      const res = await app.request(path, { method, headers: { ...NAV_HEADERS, "x-orb-csrf": "1" } });
+      const res = await app.request(path, { method, headers: { ...NAV_HEADERS, [CSRF_HEADER]: "1" } });
       expect(res.headers.get("content-type") ?? "").not.toContain("text/html");
       expect(await res.text()).not.toContain("<!doctype");
     }

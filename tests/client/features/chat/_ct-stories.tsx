@@ -283,6 +283,7 @@ import {
   CtRealSectionRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
 import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "../../../support/browser/ct-door.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
@@ -3598,8 +3599,6 @@ export function RoomImageDetailStory({ reservedSrc }: RoomImageDetailStoryProps)
 
 // ── Metadata / cost stories (WS3) ─────────────────────────────────────────────────────────────────
 
-const FROZEN_META_AT = 1_750_000_000_000;
-
 /** `MessageMetadataRow` over a fully-populated `MessageView`, the visibility toggles supplied by the
  *  `.ct.tsx` — proving the datum-gating matrix (toggle ⋀ datum-present) + the `·` separators + the
  *  render-nothing-when-empty floor. Wrapped in `CtDataProviders` because a revealed cost datum's
@@ -3616,8 +3615,8 @@ export function MessageMetadataRowStory({
     tokensOut: 128,
     tokensIn: 64,
     tokenProvenance: "measured",
-    genStartedAt: FROZEN_META_AT,
-    genFinishedAt: FROZEN_META_AT + 3400,
+    genStartedAt: FROZEN_AT_MS,
+    genFinishedAt: FROZEN_AT_MS + 3400,
     generationId: null,
     ...message,
   });

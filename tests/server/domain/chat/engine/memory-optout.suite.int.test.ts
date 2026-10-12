@@ -8,7 +8,7 @@
 // `mode:"off"` (no summarizer call, no digest rows) — while an enabled turn still builds. Drives the REAL
 // engine + REAL `generateDigests`/`generateSegments` (not fixture twins).
 
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -135,7 +135,7 @@ describe("createTurnEngine — D293 memory opt-out on the BUILD side (TASK #54)"
 
     // The fire-and-forget build is GATED OUT entirely when mode:off — flush any pending microtasks and confirm
     // no summarizer call and no digest rows landed (both the gate AND the build's own mode:off no-op protect).
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     expect(h.summarize.calls).toHaveLength(0);
     const rows = await db.select().from(chatDigests);
     expect(rows).toHaveLength(0);

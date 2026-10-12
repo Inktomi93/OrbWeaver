@@ -1,7 +1,6 @@
 // @instrument-proof: every completed Snap run after slot open creates one immutable versioned run index,
 // prints a bounded receipt card, and can be read browser-free by absolute path, exact id, or local latest.
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
-// @orb-waive-file platform-spellings(paths): baselined when the gate widened; burn-down item 906.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/floor/artifacts/artifact-out";
@@ -1005,7 +1004,7 @@ test("a slot holds one diagnostic artifact per capture — distinct names, a rep
   expect(index.diagnostics.records.total).toBe(3);
   // Attribution is per ARTIFACT: a raw channel row that named only the first file would credit cell v02's
   // records to cell v01's evidence.
-  expect(index.diagnostics.rawChannels?.map((row) => row.artifact).sort()).toEqual([...paths].sort());
+  expect(index.diagnostics.rawChannels?.map((row) => row.artifact).sort()).toEqual(paths.toSorted());
 });
 
 test("composite findings correlate the same unsafe-port failure across diagnostics, core capture, and session HAR without inventing tag ownership", async ({

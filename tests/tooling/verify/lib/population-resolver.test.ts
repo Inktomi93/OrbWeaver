@@ -140,7 +140,7 @@ test.describe("compilePopulation", () => {
 
   test("validates the expression once at compile time and each path at predicate time", () => {
     // @orb-waive no-test-fabrication(never): malformed runtime data proves compilation validates before producing a predicate. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // @orb-waive no-loose-id-cast({ in: [] }): baselined when the gate widened; burn-down item 906.
+    // @orb-waive no-loose-id-cast({ in: [] }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     expect(() => compilePopulation({ in: [] } as never)).toThrow(/population/i);
     const compiled = compilePopulation("@client");
     expect(() => compiled("/packages/client/src/file.ts")).toThrow(/path/i);
@@ -249,7 +249,7 @@ test.describe("resolvePopulation", () => {
 
   test("validates the expression even when the candidate set is empty", () => {
     // @orb-waive no-test-fabrication(never): the malformed runtime input deliberately violates PopulationExpr to prove the JS boundary refuses it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // @orb-waive no-loose-id-cast({ in: [] }): baselined when the gate widened; burn-down item 906.
+    // @orb-waive no-loose-id-cast({ in: [] }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     expect(() => resolvePopulation({ in: [] } as never, [])).toThrow(/population/i);
   });
 

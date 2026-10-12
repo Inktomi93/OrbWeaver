@@ -29,6 +29,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { revealActionName } from "#ui/lib/action-names.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   createLiteGame,
   deleteChat,
@@ -82,7 +83,7 @@ async function openGamePanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** The greeting assistant row id (the durable row `startChat` seeded) — the deterministic edit target for the
@@ -142,10 +143,10 @@ test("P3 deception: a planted lie is host-revealed (eye + standing-lie inventory
     await openContextTab(page, "Status");
     // The truth sits behind its reveal gate, out of the DOM until the host asks for it.
     const veiled = page.locator('[data-slot="rpg-veiled-section"]');
-    await expect(veiled).toBeVisible({ timeout: 15_000 });
+    await expect(veiled).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(veiled).not.toContainText("he is the smuggler the guards seek");
     await veiled.getByRole("button", { name: revealActionName("the truth for Thornwick") }).click();
-    await expect(veiled).toContainText("he is the smuggler the guards seek", { timeout: 15_000 });
+    await expect(veiled).toContainText("he is the smuggler the guards seek", { timeout: WAIT_SURFACE_MS });
 
     // ── The trust-boundary floor (host side): the lie bytes ride the HOST's own canon read verbatim (the host
     // reads hidden — a member never would). The RENDER filter hides the raw tag from the host transcript prose,
@@ -187,7 +188,7 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
 
     // ── FE: the ImmersiveCard chrome renders (the tierB lifecycle) — title band present, sandboxed body. ──
     const card = page.locator('[data-slot="immersive-card"]').first();
-    await expect(card).toBeVisible({ timeout: 20_000 });
+    await expect(card).toBeVisible({ timeout: WAIT_ROUND_TRIP_MS });
     await expect(card.locator('[data-slot="immersive-card-title"]')).toContainText(CARD_TITLE);
 
     // The body is a SANDBOXED iframe (scripts-off): `sandbox=""` — the null-origin, no-scripts wall (§4.2). The
@@ -204,15 +205,15 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
     // ── LIFECYCLE: view-raw toggles the exact stored source into a code echo (the "read the code" arm). ──
     await card.getByRole("button", { name: "View raw source" }).click();
     const raw = card.locator('[data-slot="immersive-card-raw"]');
-    await expect(raw).toBeVisible({ timeout: 5000 });
+    await expect(raw).toBeVisible({ timeout: WAIT_SHORT_MS });
     await expect(raw).toContainText(CARD_MARKER);
     // Toggle back to rendered (the button label flips to "Show rendered card").
     await card.getByRole("button", { name: "Show rendered card" }).click();
-    await expect(raw).toBeHidden({ timeout: 5000 });
+    await expect(raw).toBeHidden({ timeout: WAIT_SHORT_MS });
 
     // EXPAND: the lightbox opens at full size, labelled by the card title (§4.7).
     await card.getByRole("button", { name: "Open card fullscreen" }).click();
-    await expect(page.locator('[data-slot="immersive-card-lightbox-body"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-slot="immersive-card-lightbox-body"]')).toBeVisible({ timeout: WAIT_SHORT_MS });
     await page.keyboard.press("Escape");
 
     // ── FE (Scene archive): the Scene tab lists the card by title (rpg-card-archive — the visible-transcript
@@ -220,7 +221,7 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
     await openGamePanel(page);
     await openContextTab(page, "Scene");
     const archive = page.locator('[data-slot="rpg-card-archive"]');
-    await expect(archive).toBeVisible({ timeout: 15_000 });
+    await expect(archive).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(archive).toContainText(CARD_TITLE);
 
     expect(await fetchDebugErrors()).toEqual([]);
@@ -259,13 +260,13 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
 
     // ── FE: the choices block renders numbered clickable buttons (message-choices). ──
     const choices = page.locator('[data-slot="message-choices"]').first();
-    await expect(choices).toBeVisible({ timeout: 20_000 });
+    await expect(choices).toBeVisible({ timeout: WAIT_ROUND_TRIP_MS });
     const optionButton = choices.getByRole("button", { name: new RegExp(CHOICE_OPTION.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")) });
     await expect(optionButton).toBeVisible();
 
     // The greeting is the ONLY assistant row before the click — the "a fresh reply landed" comparand.
     const assistantRows = page.locator('[data-slot="message-row"][data-role="assistant"]');
-    await expect(assistantRows).toHaveCount(1, { timeout: 15_000 });
+    await expect(assistantRows).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
 
     // ── CLICK → SEND: clicking the option sends its TEXT as the user's next turn (a choice IS a user turn).
     // The proof it fired the send: a user row carrying the option text lands in canon (DB) AND renders (FE),
@@ -273,16 +274,16 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
     await optionButton.click();
     await expect
       .poll(async () => (await listCanon(chatId)).some((m) => m.role === "user" && m.content.includes(CHOICE_OPTION)), {
-        timeout: 120_000,
+        timeout: WAIT_LIVE_TURN_MS,
         intervals: [1000],
       })
       .toBe(true);
     // FE: the sent choice renders as a user row in the transcript (DOM ↔ canon parity for the send).
-    await expect(page.locator('[data-slot="message-row"][data-role="user"]').filter({ hasText: CHOICE_OPTION })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-slot="message-row"][data-role="user"]').filter({ hasText: CHOICE_OPTION })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 
     // The reply STARTED — a SECOND assistant row (beyond the greeting) streams back. The choice drove a real
     // turn end-to-end (a fresh generation, not the pre-existing greeting row satisfying the assertion).
-    await expect(assistantRows).toHaveCount(2, { timeout: 120_000 });
+    await expect(assistantRows).toHaveCount(2, { timeout: WAIT_LIVE_TURN_MS });
   } finally {
     await cleanup();
   }
@@ -338,7 +339,7 @@ test("P5 plot: the snapshot plot plane renders on the act rail, advances, and a 
     // (● I ◉ II ○ III) — it does NOT render every act's title as text. Assert the current act title + the
     // story title (the embered-act witness — act 2's "The Hunt", not act 1's "Arrival").
     const rail = page.locator('[data-slot="rpg-act-rail"]');
-    await expect(rail).toBeVisible({ timeout: 15_000 });
+    await expect(rail).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(rail).toContainText("The Hunt"); // act 2's title, the embered current act
     await expect(rail).toContainText("The Rusted Gate"); // the story title
 

@@ -1,8 +1,6 @@
 // persistence/games — the `rpg_games` row lifecycle (docs/plans/rpg/design.md). .int: real FK. Create/read (by id
 // + by chat — game-ness resolves here) + config-patch + the config parse-on-read belt.
 
-// @orb-waive-file no-loose-id-cast({ ...liteConfig): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ statProfile: liteConfig): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { RpgGameId } from "@orb/kit/ids";
@@ -59,6 +57,7 @@ describe("parse-on-read corruption belt", () => {
     await db
       .update(rpgGames)
       // @orb-waive no-test-fabrication(never): invalid-input probe — poisons the config blob past its schema to prove parse-on-read throws Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ statProfile: liteConfig): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ config: { statProfile: liteConfig().statProfile, lite: { steeringNote: "x".repeat(600) } } as never })
       .where(eq(rpgGames.id, id));
     await expect(findGameById(db, id)).rejects.toThrow(CORRUPT_RE);
@@ -73,6 +72,7 @@ describe("parse-on-read corruption belt", () => {
     await db
       .update(rpgGames)
       // @orb-waive no-test-fabrication(never): retired-value probe — a blob written before the mode was deleted Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // @orb-waive no-loose-id-cast({ ...liteConfig): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ config: { ...liteConfig(), extractionMode: "a-mode-that-no-longer-exists" } as never })
       .where(eq(rpgGames.id, id));
 

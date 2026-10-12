@@ -68,6 +68,7 @@ import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
 import { VersionsTabBody } from "#client/features/refinery/components/refinery-context-tabs.tsx";
 import { CtAppDataProviders, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 export interface RefineryDataStoryProps {
@@ -451,7 +452,6 @@ const RAMP_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
  *  is decided BY ID: the run a session was merely opened on must not be mistaken for the one that landed. */
 const RAMP_OPENED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
 const RAMP_LANDED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
-const RAMP_FROZEN_AT = 1_750_000_000_000;
 
 /** One settled fixed SCORE run on the wire shape `listRuns` returns — the pane's whole input. */
 function scoreRun(id: PayloadLaneRun["id"], overallScore: number): PayloadLaneRun {
@@ -465,7 +465,7 @@ function scoreRun(id: PayloadLaneRun["id"], overallScore: number): PayloadLaneRu
     durationMs: 23_600,
     sourceRunId: null,
     strippedKeys: [],
-    createdAt: RAMP_FROZEN_AT,
+    createdAt: FROZEN_AT_MS,
     stage: "score",
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: { fieldScores: [], overallScore, priorityImprovements: [], summary: "A solid card." },

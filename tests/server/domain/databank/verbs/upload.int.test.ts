@@ -3,7 +3,6 @@
 // re-upload of identical bytes dedups (duplicate/skipped, extraction NOT re-run); an empty extraction surfaces
 // the `empty-extraction` warning as DATA (not a throw).
 
-// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
@@ -16,7 +15,7 @@ import type { DatabankContext, DatabankService } from "#server/domain/databank/c
 import { createDatabankService } from "#server/domain/databank/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
+import { makeHarness } from "../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
 const BYTES = new TextEncoder().encode("# Notes\n\nThe keeper mends the vellum each dawn.");
@@ -28,7 +27,7 @@ const MISMATCH_RE = /mismatch/iu;
 /** The databank service over the harness ctx but with the REAL `assets.store` (real CAS + the enforceMagic
  *  sniff belt) swapped in for the default fake — the ONE seam DBK-A fixes. */
 async function withRealAssetsStore(db: Db): Promise<DatabankService> {
-  const assetsH = await makeAssetsHarness(db);
+  const assetsH = await makeHarness(db);
   onTestFinished(assetsH.cleanup);
   const assets = createAssetsService(assetsH.ctx);
   const ctx: DatabankContext = { ...makeDatabankHarness(db).ctx, assetsStore: assets.store };

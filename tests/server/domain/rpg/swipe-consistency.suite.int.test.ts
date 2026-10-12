@@ -7,7 +7,6 @@
 //
 // This is the "hardest-won" machinery: total swipe consistency across every panel plane, from ONE mechanism.
 
-// @orb-waive-file no-loose-id-cast(await findSnapshotByVariant): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb/kit/ids";
@@ -189,9 +188,13 @@ describe("the ratification pin — the HAND plane rides ALONGSIDE the swipe, nev
     await selectVariant(messageId, variantA);
     // The host then hand-corrects the location. PRE-D124 this minted a blank assistant slot to key the
     // correction; now it is a message-less hand row stamped as-of the tail slot.
+    const selected = await findSnapshotByVariant(db, variantA);
+    if (selected === undefined) {
+      throw new Error("the selected variant has no snapshot to correct");
+    }
     await writeHandSnapshot(
       db,
-      { ...snapshotRowToState((await findSnapshotByVariant(db, variantA)) as never), location: "the host's corrected hall" },
+      { ...snapshotRowToState(selected), location: "the host's corrected hall" },
       null,
       handTarget({ gameId, chatId, key: "hand_correction", now: FROZEN_AT + 1 }),
     );

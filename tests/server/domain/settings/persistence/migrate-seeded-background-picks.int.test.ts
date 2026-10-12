@@ -26,11 +26,11 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { migrateSeededBackgroundPicks } from "#server/domain/settings/persistence/migrate-seeded-background-picks.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
-const AT = 1_750_000_000_000;
 const SHIPPED_SLUG = "niko-bg";
 const DELETED_SLUG = "misty-highlands";
 
@@ -66,7 +66,7 @@ async function seedLegacyPick(db: Db, userId: UserId, slug: string): Promise<voi
       ...DEFAULT_USER_SETTINGS,
       appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundImageKind: "seeded", backgroundSeededId: slug },
     } as unknown as UserSettings,
-    updatedAt: AT,
+    updatedAt: FROZEN_AT_MS,
   });
 }
 
@@ -80,7 +80,7 @@ async function readAppearance(db: Db, userId: UserId): Promise<Record<string, un
  *  migration must satisfy rather than bypass. */
 async function seedPlateAsset(db: Db, ownerId: UserId): Promise<string> {
   const id = mintTypeId(ID_PREFIX.asset);
-  await db.insert(assets).values({ id, ownerId, kind: "background", mime: "image/jpeg", size: 1, hash: "hash_niko_plate", uploadedAt: AT });
+  await db.insert(assets).values({ id, ownerId, kind: "background", mime: "image/jpeg", size: 1, hash: "hash_niko_plate", uploadedAt: FROZEN_AT_MS });
   return id;
 }
 
@@ -112,7 +112,7 @@ test("class 1 — a STILL-SHIPPED plate slug becomes that user's own asset pick,
   const plateAssetId = await seedPlateAsset(db, u);
   await seedLegacyPick(db, u, SHIPPED_SLUG);
 
-  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), AT + 1)).toBe(1);
+  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), FROZEN_AT_MS + 1)).toBe(1);
 
   const appearance = await readAppearance(db, u);
   expect(appearance["backgroundImageKind"]).toBe("asset");
@@ -127,7 +127,7 @@ test("class 2 — a DELETED placeholder slug clears to `none` and carries no ass
   const plateAssetId = await seedPlateAsset(db, u);
   await seedLegacyPick(db, u, DELETED_SLUG);
 
-  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), AT + 1)).toBe(1);
+  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), FROZEN_AT_MS + 1)).toBe(1);
 
   const appearance = await readAppearance(db, u);
   expect(appearance["backgroundImageKind"]).toBe("none");
@@ -148,10 +148,10 @@ test("class 3 — a row that never carried `seeded` is not read, let alone rewri
       ...DEFAULT_USER_SETTINGS,
       appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundImageKind: "asset", backgroundAssetId: own, backgroundAssetHash: "hash_niko_plate" },
     },
-    updatedAt: AT,
+    updatedAt: FROZEN_AT_MS,
   });
 
-  expect(await migrateSeededBackgroundPicks(db, u, resolver(own), AT + 1)).toBe(0);
+  expect(await migrateSeededBackgroundPicks(db, u, resolver(own), FROZEN_AT_MS + 1)).toBe(0);
   const appearance = await readAppearance(db, u);
   expect(appearance["backgroundAssetId"]).toBe(own);
 });
@@ -162,11 +162,11 @@ test("it is idempotent by its own predicate — a second pass rewrites nothing",
   const plateAssetId = await seedPlateAsset(db, u);
   await seedLegacyPick(db, u, SHIPPED_SLUG);
 
-  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), AT + 1)).toBe(1);
+  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), FROZEN_AT_MS + 1)).toBe(1);
   // No marker column decides this: the rewritten row's raw kind is no longer `"seeded"`, so the predicate
   // that selects it cannot match it again. A second source of truth could disagree with the data; this
   // cannot.
-  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), AT + 2)).toBe(0);
+  expect(await migrateSeededBackgroundPicks(db, u, resolver(plateAssetId), FROZEN_AT_MS + 2)).toBe(0);
 });
 
 test("the whole-corpus sweep (`ownerId === null`) reaches every user, and each resolves against their OWN plate", async () => {
@@ -182,8 +182,8 @@ test("the whole-corpus sweep (`ownerId === null`) reaches every user, and each r
   // is lifted into the caller's own CAS partition. A migration that pointed both users at one asset would
   // mint a cross-user reference nobody asked for.
   const perUser = (userId: UserId): ((slug: string) => Promise<ThemeBackground | null>) => resolver(userId === a ? plateA : plateB);
-  expect(await migrateSeededBackgroundPicks(db, a, perUser(a), AT + 1)).toBe(1);
-  expect(await migrateSeededBackgroundPicks(db, null, perUser(b), AT + 1)).toBe(1);
+  expect(await migrateSeededBackgroundPicks(db, a, perUser(a), FROZEN_AT_MS + 1)).toBe(1);
+  expect(await migrateSeededBackgroundPicks(db, null, perUser(b), FROZEN_AT_MS + 1)).toBe(1);
 
   expect((await readAppearance(db, a))["backgroundAssetId"]).toBe(plateA);
   expect((await readAppearance(db, b))["backgroundAssetId"]).toBe(plateB);

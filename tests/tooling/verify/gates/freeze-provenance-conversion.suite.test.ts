@@ -13,7 +13,6 @@
 //      suppressing (the assertion a `mustPass` row cannot make);
 //   3. §4.5 REFUSAL — the health policy withholds rather than inventing a verdict when its declared fact
 //      cannot be read, and stays silent when its real-tree anchor is absent.
-// @orb-waive-file platform-spellings(hits): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as freezeProvenance } from "../../../../tooling/src/verify/gates/freeze-provenance-write-pairing.ts";
@@ -41,7 +40,7 @@ interface Hit {
 }
 
 function sortHits(hits: readonly Hit[]): readonly Hit[] {
-  return [...hits].sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line);
+  return hits.toSorted((left, right) => left.file.localeCompare(right.file) || left.line - right.line);
 }
 
 interface FinalRun {

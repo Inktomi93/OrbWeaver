@@ -2,8 +2,6 @@
 // (KV + the #802 fetched-asset links cascade) → reap the bundle asset AND the covers this install was
 // retaining. The end state is zero rows, zero KV, zero bundle bytes, and no orphaned plugin art.
 
-// @orb-waive-file no-loose-id-cast(sharedId): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast(soloId): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, pluginKv } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
@@ -191,14 +189,17 @@ test("uninstall reaps the plugin's BUNDLE-SHIPPED images too — but never one a
   const sharedId = firstMap.find((entry) => entry.path === "ui/assets/shared.png")?.assetId;
   const soloId = firstMap.find((entry) => entry.path === "ui/assets/solo.gif")?.assetId;
   const secondMap = await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: second.id });
+  if (sharedId === undefined || soloId === undefined) {
+    throw new Error("the install produced no asset links");
+  }
   expect(secondMap[0]?.assetId).toBe(sharedId); // the CAS deduped — one blob, two holders
 
   await h.service.uninstall({ caller: principalFor(alice), pluginId: first.id });
 
   // The sole-held sprite is reaped with the install; the shared one survives because the second plugin's link
   // still references it (`reapIfOrphan` re-checks the WHOLE registry per id).
-  expect(h.storedBytes.has(soloId as never)).toBe(false);
-  expect(h.storedBytes.has(sharedId as never)).toBe(true);
+  expect(h.storedBytes.has(soloId)).toBe(false);
+  expect(h.storedBytes.has(sharedId)).toBe(true);
   expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, first.id))).toEqual([]);
   expect(await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: second.id })).toHaveLength(1);
 });

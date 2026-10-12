@@ -1,5 +1,3 @@
-// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file no-loose-id-cast({ ...fact, extra: true }): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -93,6 +91,7 @@ test("shared fact descriptors are branded, exact, and restricted to entire-popul
   expect(() => assertGateFactDescriptor(fact)).not.toThrow();
   expect(() => assertGateFactDescriptor({ ...fact })).toThrow(/defineFact|brand/i);
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid gate shape
+  // @orb-waive no-loose-id-cast({ ...fact, extra: true }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   expect(() => assertGateFactDescriptor(defineFact({ ...fact, extra: true } as never))).toThrow(/unknown.*extra/i);
 
   const policy = defineGate({
@@ -157,7 +156,7 @@ test("an installed-package request declares a closed MODE, and `file` is require
   // makes each one a type error, which is the stronger enforcement tier. The casts reach past it to prove
   // the RUNTIME backstop, which is what actually judges a loaded module the compiler never saw.
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid gate shape
-  // @orb-waive no-loose-id-cast([request]): baselined when the gate widened; burn-down item 906.
+  // @orb-waive no-loose-id-cast([request]): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
   // A `text` request with no file would read nothing; an `ast` request with one carries a file nobody reads.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "text" }))).toThrow(/file.*nonempty|unknown property/i);
@@ -542,6 +541,7 @@ test("resource proof file identity comes from descriptor declarations rather tha
 
 /** A minimal valid policy to hang a `mustRefuse` arm on, one field at a time. */
 function refusingPolicy(mustRefuse: unknown): unknown {
+  // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   return defineGate({
     id: "refuse-shape",
     family: "refuse-shape",
@@ -631,7 +631,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
     expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [request] }))).not.toThrow();
   }
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
-  // @orb-waive no-loose-id-cast([request]): baselined when the gate widened; burn-down item 906.
+  // @orb-waive no-loose-id-cast([request]): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "d-ledgers" }))).toThrow(/id is unknown for ledger/i);

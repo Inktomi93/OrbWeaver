@@ -418,18 +418,8 @@ interface TrpcHoldMarker {
  * A hold that is never released simply never answers, and the test fails on its own timeout.
  */
 export function trpcHold(): TrpcHoldMarker {
-  // `new Promise`'s executor runs SYNCHRONOUSLY, so both handles are assigned before the return below
-  // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
-  let onRequest!: () => void;
-  let release!: (data: unknown) => void;
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const requested = new Promise<void>((resolve) => {
-    onRequest = resolve;
-  });
-  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-  const released = new Promise<unknown>((resolve) => {
-    release = resolve;
-  });
+  const { promise: requested, resolve: onRequest } = Promise.withResolvers<void>();
+  const { promise: released, resolve: release } = Promise.withResolvers<unknown>();
   return { [HOLD_MARK]: { onRequest, released }, requested, release };
 }
 
@@ -483,8 +473,8 @@ export interface TrpcRecorder {
    *  landed (a settled count poll, a web-first barrier): inside a poll it fails the test on the first attempt if the
    *  call is still in flight. */
   readonly requireLastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>;
-  /** How many times a procedure was called. */
-  readonly count: (proc: string) => number;
+  /** How many times a procedure was called; the path is checked against the AppRouter, so a misspelled procedure fails typecheck. */
+  readonly count: (proc: TrpcProcedurePath) => number;
   /**
    * Procedures the mounted tree REQUESTED that this call did not stub, first-seen order (header, #629).
    * They were answered `null`, which is not a view — a suspending reader throws on it and its
@@ -587,7 +577,7 @@ export async function routeTrpc<const TRoutes extends object>(
       }
       return recorded.at(-1) as TrpcInput<P>;
     },
-    count: (proc): number => (calls.get(proc) ?? []).length,
+    count: (proc: TrpcProcedurePath): number => (calls.get(proc) ?? []).length,
     unstubbed: (): string[] => [...unstubbed],
   };
 }

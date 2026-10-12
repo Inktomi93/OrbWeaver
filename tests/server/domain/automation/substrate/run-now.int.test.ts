@@ -3,7 +3,7 @@
 // fact (no real event), and a `transform_draft` rule (which registers into the pipeline and never dispatches
 // a terminal) resolves to `null` rather than a fabricated fire.
 
-// @orb-waive-file no-loose-id-cast([{ not: "an arm" }]): baselined when the gate widened; burn-down item 906.
+import { setTimeout as sleep } from "node:timers/promises";
 import { automationFires, automationRules } from "@orb/db";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
@@ -60,9 +60,8 @@ async function seedEnabledRule(
 async function corruptActions(fixture: Awaited<ReturnType<typeof ruleFixture>>, ruleId: AutomationRuleId): Promise<void> {
   await fixture.db
     .update(automationRules)
-    // @orb-waive no-test-fabrication(never): the A5 CORRUPT-BLOB state is by definition a value no schema admits — a typed factory Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // could not produce it, and it is exactly the invalid input the disable-on-corrupt path exists to answer.
-    .set({ actions: [{ not: "an arm" }] as never })
+    .set({ actions: [{ not: "an arm" }] })
     .where(eq(automationRules.id, ruleId));
 }
 
@@ -141,11 +140,7 @@ describe("dispatchRuleNow", () => {
 // same value. Same defect, different door.
 describe("#1565 Run now and the bus door queue on ONE lane", () => {
   function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
-    let resolve!: () => void;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const promise = new Promise<void>((done) => {
-      resolve = done;
-    });
+    const { promise, resolve } = Promise.withResolvers<void>();
     return { promise, resolve };
   }
 
@@ -184,11 +179,9 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
 
     // The bus event enters first and parks inside its arm; the host presses Run now while it is parked.
     const bus = svc.handleEvent({ type: "messageCommitted", chatId: base.chatId, messageId });
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     const manual = dispatchRuleNow(ctx, rule, base.chatId, base.host);
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await sleep(0);
     gate.resolve();
     await Promise.all([bus, manual]);
 

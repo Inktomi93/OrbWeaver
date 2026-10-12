@@ -7,8 +7,8 @@ import { APPEARANCE_CARRIER_OBSERVABLES } from "#client/lib/appearance-carrier-m
 import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/node/chat-and-inbox-reads-empty.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { AppearanceCarrierStory } from "../features/app-shell/_ct-stories.tsx";
-import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
-import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
+import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.fixtures.ts";
+import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.fixtures.ts";
 
 function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnapshot>> {
   return page.evaluate((observables): Partial<AppearanceCarrierSnapshot> => {

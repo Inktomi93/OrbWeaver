@@ -12,11 +12,10 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { selectOwnedReferencedAssetIds } from "#server/domain/assets/persistence/asset-refs.ts";
 import { loadOwnedAssetForExport, selectInlineReferencedContents } from "#server/domain/assets/persistence/portable-refs.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
-
-const NOW = 1_750_000_000_000;
 
 async function seedAsset(
   db: Db,
@@ -36,7 +35,7 @@ async function seedAsset(
     mime: spec.mime ?? "image/png",
     size: 4,
     hash: spec.hash,
-    uploadedAt: NOW,
+    uploadedAt: FROZEN_AT_MS,
   });
   return id;
 }

@@ -4,8 +4,6 @@
 // input is the canonical `BulkImportChatInput` (`@orb/contracts/chat`); the ST→canonical mapping is import's
 // job (tested there), so these fixtures are chat-native.
 
-// @orb-waive-file no-loose-id-cast({ opening: "greet-all", group: { output: "not-a-mode" } }): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
@@ -467,17 +465,14 @@ describe("createBulkImportChats", () => {
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const attachment = await seedAsset(db, { ownerId: owner.id });
     let arrivals = 0;
-    let release: (() => void) | undefined;
-    const together = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: together, resolve: release } = Promise.withResolvers<void>();
     const heldContext: ChatImportContext = {
       ...importCtx(db, owner.id),
       filterExistingAssetIds: async (_ownerId, assetIds) => {
         expect(assetIds).toEqual([attachment.id]);
         arrivals += 1;
         if (arrivals === 2) {
-          release?.();
+          release();
         }
         await together;
         return [];
@@ -891,8 +886,7 @@ describe("createBulkImportChats", () => {
           ...chatInput("Meta.jsonl"),
           // `opening` is a valid sub-blob; the deliberately-bogus `group.output` must heal to absent WITHOUT
           // taking `opening` with it — that is `parseChatMetadata`'s fault isolation, not a second spelling here.
-          // @orb-waive no-test-fabrication(never): the bogus `group.output` IS the probe — a well-typed value cannot express the malformed sub-blob whose isolation this test pins. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-          metadata: { opening: "greet-all", group: { output: "not-a-mode" } } as never,
+          metadata: { opening: "greet-all", group: { output: "not-a-mode" } },
         },
       ],
     });

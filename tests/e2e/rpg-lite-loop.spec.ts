@@ -36,13 +36,15 @@
 // SEED (owner rule): NEVER seed the "Mira" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
+import type { RpgActorRef } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
-import type { ActorRefInput, TrackerActor, TrackerView } from "./support/trpc.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_RPG_ROUND_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import type { TrackerActor, TrackerView } from "./support/trpc.ts";
 import {
   abortTurn,
   addJournalEntry,
@@ -102,11 +104,11 @@ async function openGamePanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */
-function characterRef(view: TrackerView, characterId: CharacterId): ActorRefInput {
+function characterRef(view: TrackerView, characterId: CharacterId): RpgActorRef {
   const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
@@ -177,7 +179,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     await openNewestChat(page);
     await openGamePanel(page);
     await openContextTab(page, "Scene");
-    await expect(page.locator('[data-slot="rpg-scene-tab"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-slot="rpg-scene-tab"]')).toBeVisible({ timeout: WAIT_SURFACE_MS });
 
     // ── HAND-WRITE every plane over the API (each door is deterministic — no model). ──
     const ref = characterRef(before, characterId);
@@ -298,7 +300,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     const scene = page.locator('[data-slot="rpg-scene-tab"]');
     // Ambient location AT REST: a static-text edit button carrying the value (host canEditShared).
     const locationRest = scene.getByRole("button", { name: "Location value" });
-    await expect(locationRest).toContainText("Ashfell Night Market", { timeout: 15_000 });
+    await expect(locationRest).toContainText("Ashfell Night Market", { timeout: WAIT_SURFACE_MS });
     // CLICK → the inline input appears, seeded with the value (the click-to-reveal proof), Escape closes.
     await locationRest.click();
     const locationField = scene.getByRole("textbox", { name: "Location value" });
@@ -321,7 +323,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     // Status tab: the hero's className + pool + condition render on the actor row.
     await openContextTab(page, "Status");
     const status = page.locator('[data-slot="rpg-status-tab"]');
-    await expect(status).toContainText("Thornwick", { timeout: 15_000 });
+    await expect(status).toContainText("Thornwick", { timeout: WAIT_SURFACE_MS });
     await expect(status).toContainText("Ranger");
     await expect(status).toContainText("Mana");
     await expect(status).toContainText("Chilled");
@@ -405,8 +407,8 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
 
     // HOP RESULT (the turn ran): a real assistant row streams back with non-empty content.
     const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-    await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
-    await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
+    await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
+    await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
 
     // STEERING PROOF: the reminder carried the pre-seeded state into the provider prompt. On the local-engine
     // connection the backend is `vllm` (chat-completions), so the capture body is the openai-compat `messages` array
@@ -452,7 +454,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
             errorCount: (await fetchDebugErrors()).length,
           });
         },
-        { timeout: 75_000, intervals: [1500] },
+        { timeout: WAIT_RPG_ROUND_MS, intervals: [1500] },
       )
       .toBe(true);
 
@@ -463,8 +465,8 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     // parity assertion, both 8B outcomes covered.
     await openContextTab(page, "Scene");
     const sceneTab = page.locator('[data-slot="rpg-scene-tab"]');
-    await expect(sceneTab).toBeVisible({ timeout: 15_000 });
-    await expect(sceneTab.getByRole("button", { name: "Location value" })).toContainText(after.ambient?.location ?? "", { timeout: 15_000 });
+    await expect(sceneTab).toBeVisible({ timeout: WAIT_SURFACE_MS });
+    await expect(sceneTab.getByRole("button", { name: "Location value" })).toContainText(after.ambient?.location ?? "", { timeout: WAIT_SURFACE_MS });
 
     // The canon + chat-DB witness: the narration + reply committed as durable rows; no error ring entry (the
     // HARD invariant — the loop ran clean regardless of whether the 8B decomposed a plane this run).
@@ -500,15 +502,15 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
     await typeAndSend(composer, STATE_CHANGE_NARRATION);
 
     const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-    await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
-    await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
+    await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
+    await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
 
     // Poll the tracker until the flush barrier settles (the tool round is a post-commit call). The KEY
     // invariant (the W1 canon-corruption backstop): whatever the tool round wrote, the snapshot read-back is
     // WELL-FORMED — a getTrackerView that RESOLVES proves the assembled snapshot passed the contract validation
     // before insert; a corrupt row would throw here. A cheap round that writes nothing is an accepted 8B
     // ceiling, NOT a defect — so we assert well-formedness (resolves + roster intact), never a specific write.
-    await expect.poll(async () => (await getTrackerView(chatId)).actors.length, { timeout: 30_000, intervals: [1500] }).toBeGreaterThan(0);
+    await expect.poll(async () => (await getTrackerView(chatId)).actors.length, { timeout: WAIT_SETTLE_MS, intervals: [1500] }).toBeGreaterThan(0);
     const canon = await listCanon(chatId);
     expect(canon.some((m) => m.role === "assistant" && NON_WHITESPACE.test(m.content))).toBe(true);
     expect(await fetchDebugErrors()).toEqual([]);

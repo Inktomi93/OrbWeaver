@@ -11,7 +11,6 @@
 // under packages/*/src on the real tree would red any concurrent whole-tree biome/knip/tsc pass, and
 // `**/__probe*` is gitignored so biome (useIgnoreFile) never sees a probe planted there. The zero on the
 // local-binding body rides the SAME invocation as the nine-global body: a bare zero is never a verdict.
-// @orb-waive-file platform-spellings(DENIED_GLOBALS): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -163,7 +162,7 @@ describe("biome.json browser-purity override (#1312): noRestrictedGlobals over u
     }
     expect(rule.level).toBe("error");
     const denied = rule.options?.deniedGlobals ?? {};
-    expect(Object.keys(denied).sort()).toEqual([...DENIED_GLOBALS].sort());
+    expect(Object.keys(denied).sort()).toEqual(DENIED_GLOBALS.toSorted());
     for (const [name, message] of Object.entries(denied)) {
       expect(message, `${name}'s message must say why tsc does not catch it`).toMatch(/tsc/);
     }

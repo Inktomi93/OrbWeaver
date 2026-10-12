@@ -4,6 +4,7 @@
 // owns the shape: no room ⇒ rows are not switches and the head says who new chats start as; the glyphs' reveal
 // and order; the Edit door; the account foot; the keyboard grammar.
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -486,7 +487,7 @@ test("Log out reaches the bound document host after the CSRF-protected revoke", 
   await stub(page);
   await stubAuth(page, "local");
   await page.route("**/api/auth/logout", (route) => {
-    csrfHeader = route.request().headers()["x-orb-csrf"];
+    csrfHeader = route.request().headers()[CSRF_HEADER];
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ endSessionUrl: "/signed-out" }) });
   });
   await page.route(

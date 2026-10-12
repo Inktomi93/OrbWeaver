@@ -47,11 +47,7 @@ describe("getOrBuildFieldIndex", () => {
   test("CONCURRENT misses for one owner share ONE build", async () => {
     const owner = castId<UserId>("user_field_index_concurrent");
     // The load parks here until every caller has arrived, which is what makes the misses genuinely concurrent.
-    let release: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>();
     const load = vi.fn(async () => {
       await gate;
       return [card("character_aria", "Aria")];
@@ -99,11 +95,7 @@ describe("evictFieldIndex", () => {
   // hold the card the eviction was for.
   test("a build in flight when the owner is evicted is not cached", async () => {
     const owner = castId<UserId>("user_field_index_evict_in_flight");
-    let release: () => void = () => undefined;
-    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>();
     const load = vi.fn(async () => {
       await gate;
       return [card("character_aria", "Aria")];

@@ -9,8 +9,6 @@
 // with no active observer (only the optional refetch needs one) — so this needs no mounted query,
 // no network: `createTrpcClient()` never fires a request until something actually queries.
 
-// @orb-waive-file no-loose-id-cast(seeded): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { __resetBusDupBursts } from "@orb/client/lib";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
@@ -54,10 +52,7 @@ function setup(): ReturnType<typeof createInvalidation> & {
 }
 
 function holdNativeTransition(): { readonly finish: () => void; readonly finished: Promise<void> } {
-  let finish: (() => void) | undefined;
-  const finished = new Promise<void>((resolve) => {
-    finish = resolve;
-  });
+  const { promise: finished, resolve: finish } = Promise.withResolvers<void>();
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   vi.stubGlobal("document", {
     querySelector: () => null,
@@ -67,7 +62,7 @@ function holdNativeTransition(): { readonly finish: () => void; readonly finishe
     },
   });
   withViewTransition(() => undefined);
-  return { finish: (): void => finish?.(), finished };
+  return { finish: (): void => finish(), finished };
 }
 
 function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): boolean {
@@ -94,9 +89,7 @@ test("the inherited world-book cache follows room consent, persona switches and 
  *  ONE home for the seed (the `as never` payload is irrelevant to this seam — only key MATCHING is). */
 function seedReads(queryClient: QueryClient, keys: Iterable<readonly unknown[]>): void {
   for (const key of keys) {
-    // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-    queryClient.setQueryData([...key], [] as never);
+    queryClient.setQueryData([...key], []);
   }
 }
 
@@ -646,9 +639,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         spaceStatus: trpc.search.spaceStatus.queryKey(),
       };
       for (const key of Object.values(keys)) {
-        // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-        // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-        queryClient.setQueryData([...key], [] as never);
+        queryClient.setQueryData([...key], []);
       }
 
       invalidateUser(userEventOf(type));
@@ -672,9 +663,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
     // turn takes, so if the stats row rode only the lifecycle branch the dashboard would still never move.
     const stats = trpc.stats.overview.queryKey();
     for (const key of [chatList, character, chatGet, stats]) {
-      // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-      queryClient.setQueryData([...key], [] as never);
+      queryClient.setQueryData([...key], []);
     }
 
     invalidateUser({ type: "chatsChanged" });
@@ -719,9 +708,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.sessions.me.queryKey(),
     ];
     for (const key of roots) {
-      // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-      queryClient.setQueryData([...key], [] as never);
+      queryClient.setQueryData([...key], []);
     }
 
     invalidateAllUserRoots();
@@ -793,9 +780,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry (the chat/
       // user belt idiom — the read types are heterogeneous objects, so the sanctioned `[] as never` seed).
       for (const key of Object.values(keys)) {
-        // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-        // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-        queryClient.setQueryData([...key], [] as never);
+        queryClient.setQueryData([...key], []);
       }
 
       invalidateRpg(RPG_EVENTS[type]);
@@ -816,9 +801,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       trpc.rpg.listTurnToolCalls.queryKey({ chatId: CHAT_ID }),
     ];
     for (const key of keys) {
-      // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-      queryClient.setQueryData([...key], [] as never);
+      queryClient.setQueryData([...key], []);
     }
 
     gapHealRpg(CHAT_ID);
@@ -897,9 +880,7 @@ describe("invalidation — the wave collapse (what a wave SPENDS)", () => {
     const personaKey = trpc.persona.list.queryKey();
     for (const key of [listTagsKey, personaKey]) {
       // Seeding an empty cache entry so invalidation STATE is observable.
-      // @orb-waive no-test-fabrication(never): cache seed; the test asserts isInvalidated only, never the data bytes Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      // @orb-waive no-loose-id-cast([]): baselined when the gate widened; burn-down item 906.
-      queryClient.setQueryData([...key], [] as never);
+      queryClient.setQueryData([...key], []);
     }
 
     invalidateFilters([trpc.persona.list.pathFilter(), trpc.tag.listTags.pathFilter()]);
@@ -924,7 +905,7 @@ describe("invalidation — the bus half applies the `view` carrier", () => {
       messages: [makeMessageView({ id: MESSAGE_ID, chatId: CHAT_ID, content: "old variant" })],
       identities: [],
     };
-    queryClient.setQueryData([...key], seeded as never);
+    queryClient.setQueryData([...key], seeded);
 
     invalidate({
       type: "messageCommitted",

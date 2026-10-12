@@ -13,6 +13,7 @@ import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 // the same `#state` selection the leaderboard writes.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
@@ -38,7 +39,7 @@ const MODEL_ROW = {
 const LATENCY = { avgTtftMs: 300, p50TtftMs: 280, p90TtftMs: 800, avgGenMs: 1200, p50GenMs: 1000, p90GenMs: 2400 };
 
 function personaRow(name: string, messageCount: number): TrpcWireOutput<"stats.personaUsage">[number] {
-  return { personaId: `persona_${name}`, name, chatCount: 2, messageCount, tokensOut: null, tokensOutProvenance: "unrecorded", lastUsedAt: 1_750_000_000_000 };
+  return { personaId: `persona_${name}`, name, chatCount: 2, messageCount, tokensOut: null, tokensOutProvenance: "unrecorded", lastUsedAt: FROZEN_AT_MS };
 }
 
 test("the Models tab says WHOSE numbers these are when a character is drilled", async ({ mount, page }) => {

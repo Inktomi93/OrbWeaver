@@ -1,5 +1,6 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RestoredDetailStory } from "../_ct-stories.tsx";
 
@@ -23,7 +24,7 @@ test("an imagery-only restore completion replaces cached NULL with same-asset pr
             subjectCharacterId: null,
             identityHash: null,
             edited: false,
-            createdAt: 1_750_000_000_000,
+            createdAt: FROZEN_AT_MS,
             usage: {
               servedModel: null,
               tokensIn: null,
