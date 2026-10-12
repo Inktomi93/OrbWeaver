@@ -4,7 +4,7 @@ status: blocked
 updated: 2026-10-12
 priority: P1
 area: tests
-blocked: on 890
+blocked: on 964
 plan: test-mirror
 ---
 
@@ -24,6 +24,6 @@ The testkit package exists with node, browser and iso exports and no root entry;
 
 ## Evidence
 
-Package merged in d114fd2610 and de4ba441f2 and verified. Closes when item 890 moves the copied compose closures to their owning layer.
+Package merged in d114fd2610 and de4ba441f2 and verified. Item 890 closed; the copied compose closures move to their owning domains under item 964, so this closes with 964.
 
 Filled at landing: what ran and where its output is.
