@@ -13,13 +13,13 @@
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
 import { pluginsInstalledSection } from "@orb/client/features/plugin";
-import { createContributorRegistry } from "@orb/client/lib";
 import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
 import { ChromeRegistryProvider, closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */
@@ -127,8 +127,16 @@ export function NotificationBellDestinationStory(): ReactElement {
   );
 }
 
-const notificationChrome = createContributorRegistry<ChromeEntry>("chrome", [notificationsChrome]);
-const installedPlugins = createContributorRegistry<ConfigSectionContribution>("config-sections", [pluginsInstalledSection]);
+const notificationChrome = isolationRegistry<ChromeEntry>(
+  "chrome",
+  "keeps the notifications entry as the only chrome widget so the You drawer holds just the inbox",
+  [notificationsChrome],
+);
+const installedPlugins = isolationRegistry<ConfigSectionContribution>(
+  "config-sections",
+  "keeps the installed-plugins section apart from the install and distribute sections that share its anchor",
+  [pluginsInstalledSection],
+);
 
 function PhonePluginNoticeBody(): ReactElement {
   const modal = useOpenModal();

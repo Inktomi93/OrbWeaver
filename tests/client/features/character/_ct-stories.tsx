@@ -40,7 +40,6 @@ import {
   CharacterTrustTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
 import {
   clearCharacterSelection,
   selectCharacter,
@@ -71,11 +70,16 @@ import {
   CtDataProviders,
   CtRealSectionRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 // The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
-// main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
-const NO_DETAIL_CONTRIBUTORS = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
+// the door's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
+const NO_DETAIL_CONTRIBUTORS = isolationRegistry<CharacterDetailContribution>(
+  "character-detail",
+  "stands in for the door's empty character-detail registry, which the compose module keeps private, so the editor renders without a review-section wrapper",
+  [],
+);
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
 
@@ -240,7 +244,11 @@ export function CharacterDetailContributorStory({ visible }: CharacterDetailCont
     when: () => visible,
     body: (): ReactElement => <div data-testid="ct-fake-detail-section">fake review card</div>,
   };
-  const detailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", [fakeSection]);
+  const detailContributors = isolationRegistry<CharacterDetailContribution>(
+    "character-detail",
+    "replaces the door's empty roster with one fake contribution so the seam is proven to render and gate it",
+    [fakeSection],
+  );
   return (
     <CtDataProviders>
       <CtCharacterContributorSectionRegistry detailContributors={detailContributors}>

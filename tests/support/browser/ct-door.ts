@@ -12,3 +12,5 @@ export {
   toolRenderers,
 } from "#client/compose/contributors.ts";
 export { homeTiles } from "#client/compose/home-tiles.ts";
+// The boot stamp is a door function, not a registry; a story that exercises it takes it from here too.
+export { stampAppearanceBootHint } from "#client/compose/stamp-appearance-boot-hint.ts";

@@ -9,7 +9,6 @@
 // @orb-waive-file testid-typed-only-stories("list-override"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("new-chat-intent"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("room-invite-request"): baselined when the gate widened; burn-down item 906.
-import { stampAppearanceBootHint } from "#client/compose/stamp-appearance-boot-hint.ts";
 import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "#client/state/corpus-mode-store.ts";
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
@@ -250,7 +249,7 @@ import type { ReactElement } from "react";
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
-import { chromeWidgets } from "../../support/browser/ct-door.ts";
+import { chromeWidgets, stampAppearanceBootHint } from "../../support/browser/ct-door.ts";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through

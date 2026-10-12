@@ -1,14 +1,16 @@
 // Policy: ct-config-mirror-parity — the browser-CT door mirrors the production door, membership AND order.
-// Families: config sections, home tiles, chat surfaces, tool renderers, slash commands, palette sources,
-// corpus context tabs and chrome widgets (each read from `ct-door.ts` against its `compose/` list) plus the
-// config groups. A CT export that IS the production declaration passes; a hand list must match row for row.
+// Families: config sections, home tiles, chat surfaces, tool renderers, slash commands, palette sources, corpus
+// context tabs, chrome widgets and config groups; a CT export that IS the production declaration passes, a hand
+// list must match row for row. A story module mints a door registry only through `isolationRegistry` with a reason.
 // A singleton: the mirrors are one CT composition contract and share no meaningful reader with another policy.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
+import { readStringValue } from "../lib/ast-read.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
+import { referencesModuleExport } from "../lib/symbol-reference.ts";
 
 const COMPOSE = "packages/client/src/compose";
 const DOOR_SECTIONS = `${COMPOSE}/config-sections.ts`;
@@ -18,14 +20,29 @@ const DOOR_GROUPS = `${COMPOSE}/authed-app.tsx`;
 const CT_DOOR = "tests/support/browser/ct-door.ts";
 const CT_GROUPS = "tests/support/browser/ct-config-groups.ts";
 const CT_PROVIDERS = "tests/support/browser/ct-data-providers.tsx";
+const CT_ISOLATION = "tests/support/browser/ct-isolation.ts";
 const CHROME_REGISTRY = "realChromeRegistry";
+/** The story modules: the underscore-prefixed modules and the `*.fixtures.tsx` modules under `tests/client`. */
+const STORY_ROOT = "tests/client/";
+const STORY_MODULES = [`${STORY_ROOT}**/_*.tsx`, `${STORY_ROOT}**/*.fixtures.tsx`] as const;
+/** Production files that mint registries: the door lists a story must not re-mint. */
+const DOOR_REGISTRY_FILES: ReadonlySet<string> = new Set([DOOR_SECTIONS, DOOR_TILES, DOOR_CONTRIBUTORS, DOOR_GROUPS]);
+const MINT = "createContributorRegistry";
+const ISOLATE = "isolationRegistry";
+/** Fewer words than this cannot name what a story isolates. */
+const MIN_ISOLATES_WORDS = 3;
+const CLIENT_LIB_MODULE = /^(?:@orb\/client\/lib|#client\/lib(?:\/index\.ts|\/registry\.ts)?|#lib)$/u;
+const ISOLATION_MODULE = /(?:^|\/)ct-isolation\.ts$/u;
 
 const MESSAGE =
   "the browser-CT door has drifted from the production door: every registry the CT mounts must be the production " +
   "declaration or list the same rows in the same order (config sections by (anchor, nav.id, contribution id), config " +
   "groups by (group key, canonical export), every other list by its member expression). " +
-  `The mirrors are ${CT_DOOR} and ${CT_GROUPS}; the harness ${CT_PROVIDERS} must consume them, never re-list a door registry.`;
-const FIX = `re-export the production declaration from ${CT_DOOR} instead of listing it; a derived section address is \`anchor\` plus \`nav.id\`, never the contribution id.`;
+  `The mirrors are ${CT_DOOR} and ${CT_GROUPS}; the harness ${CT_PROVIDERS} must consume them, never re-list a door registry. ` +
+  `A story module takes a door registry from ${CT_DOOR}, or declares a deliberate subset with isolationRegistry(name, isolates, members) from ${CT_ISOLATION}.`;
+const FIX =
+  `re-export the production declaration from ${CT_DOOR} instead of listing it; a derived section address is \`anchor\` plus \`nav.id\`, never the contribution id. ` +
+  "In a story, replace a hand-minted door registry with the door export or isolationRegistry whose `isolates` text names what the story keeps apart.";
 
 type RowReader = (declaration: VariableDeclaration) => readonly string[];
 
@@ -221,6 +238,16 @@ function proofFiles(overrides: Partial<Readonly<Record<string, string>>> = {}): 
   };
 }
 
+const STORY_PATH = "tests/client/features/probe/_ct-stories.tsx";
+const MINT_IMPORT = 'import { createContributorRegistry } from "@orb/client/lib";\n';
+const ISOLATION_IMPORT = 'import { isolationRegistry } from "../../../../support/browser/ct-isolation.ts";\n';
+const ISOLATES = "keeps the probe tile apart from the production launcher grid";
+
+/** The clean proof tree plus one story-side module. */
+function storyFiles(source: string, path: string = STORY_PATH): Readonly<Record<string, string>> {
+  return proofFiles({ [path]: source });
+}
+
 type Required = (path: string) => SourceFile;
 type Report = (node: MorphNode, message: string) => void;
 
@@ -256,10 +283,90 @@ function checkGroups(required: Required, report: Report): void {
   }
 }
 
-/** What the harness file declares that the policy judges, gathered by the visitor (no gate-owned walk). */
+/** What the files the policy judges declare, gathered by the visitor (no gate-owned walk). */
 interface HarnessFacts {
   readonly registryCalls: CallExpression[];
   chromeWidgets: PropertyAssignment | undefined;
+  /** Registry mints in the production door files: the names a story may not re-mint. */
+  readonly doorMints: CallExpression[];
+  /** Registry mints in story modules. */
+  readonly storyMints: CallExpression[];
+  /** `isolationRegistry` calls in story modules: the named isolation exceptions. */
+  readonly isolations: CallExpression[];
+}
+
+function isRegistryMint(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  return callee.getText() === MINT || referencesModuleExport(callee, MINT, (specifier) => CLIENT_LIB_MODULE.test(specifier));
+}
+
+function isIsolationCall(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  return callee.getText() === ISOLATE || referencesModuleExport(callee, ISOLATE, (specifier) => ISOLATION_MODULE.test(specifier));
+}
+
+function literalArgument(call: CallExpression, index: number): string | undefined {
+  const argument = call.getArguments()[index];
+  return argument === undefined ? undefined : readStringValue(argument);
+}
+
+/** Sorts one call into the facts the policy judges, by the file it sits in. */
+function gatherCall(facts: HarnessFacts, path: string, call: CallExpression): void {
+  if (DOOR_REGISTRY_FILES.has(path)) {
+    if (isRegistryMint(call)) {
+      facts.doorMints.push(call);
+    }
+  } else if (path === CT_PROVIDERS) {
+    if (call.getExpression().getText() === MINT) {
+      facts.registryCalls.push(call);
+    }
+  } else if (path.startsWith(STORY_ROOT)) {
+    if (isRegistryMint(call)) {
+      facts.storyMints.push(call);
+    } else if (isIsolationCall(call)) {
+      facts.isolations.push(call);
+    }
+  }
+}
+
+/** The `widgets` property of the harness's real chrome assembly. */
+function isChromeWidgets(node: MorphNode): node is PropertyAssignment {
+  return (
+    Node.isPropertyAssignment(node) &&
+    node.getName() === "widgets" &&
+    node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() === CHROME_REGISTRY
+  );
+}
+
+/** Stories take a door registry from the door or declare an isolation subset; they never mint one unnamed. */
+function checkStories(facts: HarnessFacts, report: Report): void {
+  const doorNames = new Set(facts.doorMints.flatMap((call) => literalArgument(call, 0) ?? []));
+  if (doorNames.size === 0) {
+    throw new Error("the production door files mint no literal-named registry, so no story mint can be judged");
+  }
+  for (const call of facts.storyMints) {
+    const name = literalArgument(call, 0);
+    if (name === undefined) {
+      report(call, "a story mints a registry whose name is not an authored string, so it cannot be told from a door registry.");
+    } else if (doorNames.has(name)) {
+      report(
+        call,
+        `a story mints the "${name}" door registry by hand; take it from ${CT_DOOR} or declare the subset with ${ISOLATE}(name, isolates, members).`,
+      );
+    }
+  }
+  for (const call of facts.isolations) {
+    const name = literalArgument(call, 0);
+    const isolates = literalArgument(call, 1);
+    if (name === undefined || !doorNames.has(name)) {
+      report(call, `${ISOLATE} names a registry that is not a door registry; mint it with ${MINT}.`);
+    } else if (isolates === undefined || isolates.trim().split(/\s+/u).length < MIN_ISOLATES_WORDS) {
+      report(
+        call,
+        `${ISOLATE} for "${name}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATES_WORDS}+ words what the story keeps apart from the production roster.`,
+      );
+    }
+  }
 }
 
 /** The harness consumes the mirror: no door registry is minted by hand, and the real chrome assembly takes the door's widget list. */
@@ -283,7 +390,10 @@ export const gate = defineGate({
   family: "ct-config-mirror-parity",
   authority: "hard",
   severity: "error",
-  population: { in: ["@client", "@tests"], under: [DOOR_SECTIONS, DOOR_TILES, DOOR_CONTRIBUTORS, DOOR_GROUPS, CT_DOOR, CT_GROUPS, CT_PROVIDERS] },
+  population: {
+    in: ["@client", "@tests"],
+    under: [DOOR_SECTIONS, DOOR_TILES, DOOR_CONTRIBUTORS, DOOR_GROUPS, CT_DOOR, CT_GROUPS, CT_PROVIDERS, ...STORY_MODULES],
+  },
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -292,23 +402,17 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const files = new Map<string, SourceFile>();
-    const harness: HarnessFacts = { registryCalls: [], chromeWidgets: undefined };
+    const harness: HarnessFacts = { registryCalls: [], chromeWidgets: undefined, doorMints: [], storyMints: [], isolations: [] };
     return {
       visitFile: (source) => files.set(ctx.relativePath(source), source),
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression, SyntaxKind.PropertyAssignment],
           visit: (node, source) => {
-            if (ctx.relativePath(source) !== CT_PROVIDERS) {
-              return;
-            }
-            if (Node.isCallExpression(node) && node.getExpression().getText() === "createContributorRegistry") {
-              harness.registryCalls.push(node);
-            } else if (
-              Node.isPropertyAssignment(node) &&
-              node.getName() === "widgets" &&
-              node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() === CHROME_REGISTRY
-            ) {
+            const path = ctx.relativePath(source);
+            if (Node.isCallExpression(node)) {
+              gatherCall(harness, path, node);
+            } else if (path === CT_PROVIDERS && isChromeWidgets(node)) {
               harness.chromeWidgets = node;
             }
           },
@@ -326,6 +430,7 @@ export const gate = defineGate({
         const doorRegistryNames = checkFamilies(required, report);
         checkGroups(required, report);
         checkHarness(required, harness, doorRegistryNames, report);
+        checkStories(harness, report);
       },
     };
   },
@@ -430,6 +535,57 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "must assemble `widgets: chromeWidgets`" },
       why: "the real chrome assembly takes the door's widget list, never a hand array that drops the plugin and bug-report widgets",
     },
+    {
+      mode: "types",
+      files: storyFiles(`${MINT_IMPORT}export const tiles = createContributorRegistry("home-tiles", [tileA]);\n`),
+      expect: { count: 1, messageIncludes: 'a story mints the "home-tiles" door registry by hand' },
+      why: "a story that re-lists a production door registry mounts a roster the product does not ship; it takes the door export or names an isolation subset",
+    },
+    {
+      mode: "types",
+      files: storyFiles('import { createContributorRegistry as mint } from "@orb/client/lib";\nexport const renderers = mint("tool-renderers", []);\n'),
+      expect: { count: 1, messageIncludes: 'a story mints the "tool-renderers" door registry by hand' },
+      why: "an aliased import binds the same factory: renaming the mint must not hide it",
+    },
+    {
+      mode: "types",
+      files: storyFiles('import * as lib from "@orb/client/lib";\nexport const commands = lib.createContributorRegistry("slash-commands", []);\n'),
+      expect: { count: 1, messageIncludes: 'a story mints the "slash-commands" door registry by hand' },
+      why: "a namespace member call reaches the same factory without an import specifier to subscribe to",
+    },
+    {
+      mode: "types",
+      files: storyFiles(
+        `${MINT_IMPORT}export const sections = createContributorRegistry("config-sections", []);\n`,
+        "tests/client/components/probe.fixtures.tsx",
+      ),
+      expect: { count: 1, messageIncludes: 'a story mints the "config-sections" door registry by hand' },
+      why: "a fixtures module mounts stories exactly as an underscore-prefixed story module does",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${MINT_IMPORT}const NAME = "home-tiles";\nexport const tiles = createContributorRegistry(NAME, [tileA]);\n`),
+      expect: { count: 1, messageIncludes: "name is not an authored string" },
+      why: "a computed registry name cannot be told from a door registry, so it is refused rather than passed",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${ISOLATION_IMPORT}export const tiles = isolationRegistry("home-tiles", "tile", [tileA]);\n`),
+      expect: { count: 1, messageIncludes: "has no `isolates` text" },
+      why: "an isolation exception without a reason that names what is isolated is an unexplained hand list",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${ISOLATION_IMPORT}const WHY = "${ISOLATES}";\nexport const tiles = isolationRegistry("home-tiles", WHY, [tileA]);\n`),
+      expect: { count: 1, messageIncludes: "has no `isolates` text" },
+      why: "the reason is read from the authored call, so a constant the reader cannot see is refused",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${ISOLATION_IMPORT}export const own = isolationRegistry("story-only-registry", "${ISOLATES}", []);\n`),
+      expect: { count: 1, messageIncludes: "names a registry that is not a door registry" },
+      why: "an isolation exception exists only for a door registry; any other registry is minted plainly",
+    },
   ],
   mustPass: [
     {
@@ -443,6 +599,28 @@ export const gate = defineGate({
         [CT_DOOR]: ctDoor({ toolRenderers: "memberA, memberB" }),
       }),
       why: "a hand list identical to the production list in membership and order is clean",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${ISOLATION_IMPORT}export const tiles = isolationRegistry("home-tiles", "${ISOLATES}", [tileA]);\n`),
+      why: "a named isolation subset with a reason that says what it isolates is the sanctioned exception",
+    },
+    {
+      mode: "types",
+      files: storyFiles(
+        `import { isolationRegistry as isolate } from "../../../../support/browser/ct-isolation.ts";\nexport const tiles = isolate("home-tiles", "${ISOLATES}", [tileA]);\n`,
+      ),
+      why: "an aliased isolation import is the same named exception",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${MINT_IMPORT}export const own = createContributorRegistry("story-only-registry", [memberA]);\n`),
+      why: "a registry the production door does not mint is the story's own, whatever list it holds",
+    },
+    {
+      mode: "types",
+      files: storyFiles(`${MINT_IMPORT}export const tiles = createContributorRegistry("home-tiles", [tileA]);\n`, "tests/client/features/probe/probe.ct.tsx"),
+      why: "a spec file is not a story module: the duplicate-id throw is asserted on the factory itself",
     },
   ],
 });
