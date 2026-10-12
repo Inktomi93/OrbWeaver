@@ -1,3 +1,4 @@
+import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +29,7 @@ function fixture(run: (root: string) => void): void {
   }
 }
 
-function check(root: string, baseline = true): ReturnType<typeof spawnSync<string>> {
+function check(root: string, baseline = true): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [KNIP, "--production", "--strict", "--no-progress", ...(baseline ? ["--preprocessor", PREPROCESSOR] : [])], {
     cwd: root,
     encoding: "utf8",

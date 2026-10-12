@@ -12,8 +12,9 @@ function keyOf(cwd: string, issue: Issue): string {
 }
 
 function readBaseline(path: string): readonly string[] {
-  const baseline: readonly string[] = JSON.parse(readFileSync(path, "utf8"));
-  if (!Array.isArray(baseline) || baseline.some((key) => typeof key !== "string") || new Set(baseline).size !== baseline.length) {
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  const baseline = Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string") : [];
+  if (!Array.isArray(parsed) || baseline.length !== parsed.length || new Set(baseline).size !== baseline.length) {
     throw new Error(`${KNIP_BASELINE} must contain unique issue keys`);
   }
   return baseline;

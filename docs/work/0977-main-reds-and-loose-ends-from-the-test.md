@@ -37,4 +37,4 @@ Remaining findings: legacy disposal and typed-lint errors; maintained classes ab
 
 Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/check-structure.json`. Other findings and authority alarms remain unresolved. Repair product, security or checker defects, not waivers or disposable legacy suites. Preserve useful cases for the rebuild.
 
-Scoped root compilation on the legacy-boundary branch reports unchanged typing errors in `knip-baseline.config.ts:15` and `tests/tooling/knip-production-baseline.test.ts:31`. Repair these maintained checker defects; they are not legacy-suite polish.
+Knip baseline typing defects are corrected on main: JSON validation derives a checked string array, and the CLI proof uses Node's declared spawn result type. The focused native Knip controls and root compiler program pass. This does not establish a fresh production liveness verdict.
