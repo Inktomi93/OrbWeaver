@@ -2,49 +2,16 @@
 // variant's content, the agent-sdk session-cache frame count, and recent bus events. The "did it actually
 // land in the DB?" check the log/trace rings can't answer.
 
-import type { ParticipantKind } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ChatInspection } from "@orb/contracts/debug";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries } from "@orb/db";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { asc, count, desc, eq } from "drizzle-orm";
 
 const RECENT_EVENT_LIMIT = 50;
 
-/** One roster member (the kind shape + the resolved character name when it's a character). */
-export interface InspectedParticipant {
-  id: string;
-  kind: ParticipantKind;
-  role: ParticipantRole;
-  userId: UserId | null;
-  characterId: CharacterId | null;
-  characterName: string | null;
-}
-
-/** One message slot flattened with its selected variant's content/provenance (D26). */
-export interface InspectedMessage {
-  id: MessageId;
-  seq: number;
-  role: string;
-  authorUserId: UserId | null;
-  characterId: CharacterId | null;
-  personaId: PersonaId | null;
-  selectedVariantId: MessageVariantId | null;
-  excludedFromPrompt: boolean;
-  content: string | null;
-  model: string | null;
-  provider: string | null;
-}
-
-/** The full chat inspection (foundation-internal; returned as JSON by /api/_debug/db/chat/:id). */
-export interface ChatInspection {
-  found: boolean;
-  chat: typeof chats.$inferSelect | null;
-  participants: InspectedParticipant[];
-  messages: InspectedMessage[];
-  sessionFrameCount: number;
-  recentEvents: (typeof chatEvents.$inferSelect)[];
-}
+type InspectedParticipant = ChatInspection["participants"][number];
+type InspectedMessage = ChatInspection["messages"][number];
 
 const NOT_FOUND: ChatInspection = {
   found: false,

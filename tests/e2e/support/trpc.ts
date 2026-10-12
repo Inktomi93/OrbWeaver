@@ -16,6 +16,9 @@
 
 import process from "node:process";
 import type { ContextFitPreview } from "@orb/contracts/chat";
+import type { ChatInspection, WireCapture } from "@orb/contracts/debug";
+import { chatInspectionSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
+import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
@@ -212,20 +215,7 @@ export function removeCharacter(characterId: CharacterId): Promise<unknown> {
 
 // ── TASK-24: the four-layer round-trip fidelity harness support. Reads each of the four layers as WIRE
 // ground truth (FE settings/preset · ASSEMBLE peek/shape-trace · WIRE provider body · DB canon). The tRPC reads are
-// derived from the router; the `/api/_debug/*` routes below are Hono routes, so their shapes stay declared here. ──
-
-/** ONE captured provider request body (foundation `wire-capture.ts`) — the backend's OWN wire vocabulary
- *  (openai-compat body | agent-sdk query input; see the recorder header). `body` is left `unknown`-keyed:
- *  the harness asserts backend-specific fields (`messages`/`max_tokens` for vllm; `prompt`/`maxTokens` for
- *  agent-sdk). The provider axis is `providerId` — the server's field name — and `fetchWireCaptures` filters on it. */
-export interface WireCapture {
-  readonly chatId?: ChatId;
-  readonly api: string;
-  readonly wire: string;
-  readonly providerId: string;
-  readonly model: string;
-  readonly body: Record<string, unknown>;
-}
+// derived from the router; the `/api/_debug/*` reads are parsed with their `@orb/contracts/debug` schemas. ──
 
 /** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures — presents the
  *  operator token, see `debugHeaders`). Newest-first. The capture seam must be ENABLED (WIRE_CAPTURE=on) for
@@ -236,8 +226,7 @@ export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promi
   if (!res.ok) {
     throw new Error(`e2e wire-captures read failed (${res.status})`);
   }
-  const body = (await res.json()) as { readonly captures?: readonly WireCapture[] };
-  return body.captures ?? [];
+  return wireCapturesResponseSchema.parse(await res.json()).captures;
 }
 
 /** Read the content-free SHAPE trace (chat.getShapeTrace — host-gated): per-stage ROW COUNTS, never content.
@@ -757,22 +746,14 @@ export function wireMessagesText(capture: WireCapture): string {
 // the turn produced (canon rows + bus events). The rpg FLIGHT RECORDER is a different instrument and is wired
 // for this harness since #1493 (`fetchRpgTraces` below; RPG_TRACE=on in support/modes.ts). ──
 
-/** The chat-inspection subset the exhaustive spec cross-checks against (`/api/_debug/db/chat/:id`). A Hono
- *  route with no `@orb/contracts` home (the server's `ChatInspection` embeds drizzle rows), so it stays declared here. */
-export interface ChatDbInspection {
-  readonly found: boolean;
-  readonly messages: readonly { readonly seq: number; readonly role: string; readonly content: string | null }[];
-  readonly recentEvents: readonly { readonly type: string }[];
-}
-
 /** Read the DB inspection for a chat (`/api/_debug/db/chat/:id`, host-gated debug route). The independent DB
  *  witness that the turn's rows + bus events landed (distinct from the tRPC read path). */
-export async function inspectChatDb(chatId: ChatId): Promise<ChatDbInspection> {
+export async function inspectChatDb(chatId: ChatId): Promise<ChatInspection> {
   const res = await fetch(`${BASE_URL}/api/_debug/db/chat/${chatId}`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e db/chat read failed (${res.status})`);
   }
-  return (await res.json()) as ChatDbInspection;
+  return chatInspectionSchema.parse(await res.json());
 }
 
 /** The debug error ring (`/api/_debug/errors`) — a non-empty list under a "successful" action is the
@@ -786,17 +767,6 @@ export async function fetchDebugErrors(): Promise<readonly unknown[]> {
   return body.errors ?? [];
 }
 
-/** One record from the rpg flight recorder (`/api/_debug/rpg/traces`, `domain/rpg/contract/trace.ts`). The
- *  `phase` is the only field a harness reads — `flush` is the event that means THE EXTRACTION SETTLED and
- *  the write boundary ran, which is the one observable that separates "the model produced an empty delta"
- *  from "the flush has not happened yet" (#1493). A Hono route with no `@orb/contracts` home (the type lives in
- *  the rpg domain contract), so it stays declared here. */
-export interface RpgTraceRecord {
-  readonly seq: number;
-  readonly at: number;
-  readonly event: { readonly phase: string; readonly droppedReason?: string };
-}
-
 /** Read a chat's rpg trace ring. REQUIRES `RPG_TRACE=on` in the stack's env (the harness sets it per mode in
  *  support/modes.ts); without it the route is not even registered and this throws rather than reporting a
  *  clean empty ring — "the recorder is off" must never read as "the flush never happened". */
@@ -805,8 +775,7 @@ export async function fetchRpgTraces(chatId: ChatId): Promise<readonly RpgTraceR
   if (!res.ok) {
     throw new Error(`e2e rpg/traces read failed (${res.status}) — is RPG_TRACE=on for this stack? An unwired recorder has no route.`);
   }
-  const body = (await res.json()) as { readonly events?: readonly RpgTraceRecord[] };
-  return body.events ?? [];
+  return rpgTracesResponseSchema.parse(await res.json()).events;
 }
 
 /** Delete message slots (`chat.deleteMessages`) — the sad-path "deleted turn" driver. */

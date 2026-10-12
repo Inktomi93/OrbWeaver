@@ -339,6 +339,8 @@ export {
   updateSceneArgsSchema,
   upsertQuestArgsSchema,
 } from "./tools.ts";
+export type { RpgFlushOutcome, RpgTraceEvent, RpgTraceRecord } from "./trace.ts";
+export { RPG_FLUSH_OUTCOMES, rpgTraceEventSchema, rpgTraceRecordSchema } from "./trace.ts";
 export type {
   RpgTrackerAppliesTo,
   RpgTrackerCarrier,

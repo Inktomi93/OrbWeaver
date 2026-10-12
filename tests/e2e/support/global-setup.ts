@@ -28,8 +28,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import process from "node:process";
-import type { ModelListing } from "@orb/contracts/inference";
-import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import type { Browser, Request } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
 import { APP_READY_ATTRIBUTE, openNewestChat, waitForAppReady } from "./chat-room.ts";
@@ -49,7 +48,7 @@ import { probeTarget, targetRefusal } from "./target-guard.ts";
 // TYPE-ONLY: `trpc.ts` is bound to the single-user origin at runtime, while this module seeds each mode by
 // its OWN origin — importing the create-input SHAPE keeps the literal below under that file's mirror pin
 // without borrowing its client.
-import type { NewConnection } from "./trpc.ts";
+import type { NewConnection, TrpcOutput, TrpcPath } from "./trpc.ts";
 
 // A deterministic anchor card authored only when the library is empty (a wiped-and-latched DB).
 const ANCHOR_HANDLE = "e2e-anchor";
@@ -62,41 +61,37 @@ const ANCHOR = {
 // The title that claims the seeded chat out of husk state (see `ensureChat`).
 const SEED_CHAT_TITLE = "E2E seed chat";
 
-interface CharacterListPage {
-  readonly items: readonly { readonly id: CharacterId; readonly handle: CharacterHandle }[];
-}
-
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
 
 /** A batch GET query against a SPECIFIC base URL (mode-scoped — globalSetup seeds each stack by its origin). */
-async function query<T>(baseUrl: string, procedure: string, input: unknown): Promise<T> {
+async function query<TPath extends TrpcPath>(baseUrl: string, procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
   const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`);
-  const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
+  const body = (await res.json()) as readonly { result?: { data?: TrpcOutput<TPath> }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
     throw new Error(`e2e seed: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
   }
-  return entry.result.data as T;
+  return entry.result.data as TrpcOutput<TPath>;
 }
 
 /** A batch mutation against a SPECIFIC base URL (the owner-fallback seam ⇒ no cookie/CSRF needed). */
-async function mutation<T>(baseUrl: string, procedure: string, input: unknown): Promise<T> {
+async function mutation<TPath extends TrpcPath>(baseUrl: string, procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
   const res = await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ 0: input }),
   });
-  const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
+  const body = (await res.json()) as readonly { result?: { data?: TrpcOutput<TPath> }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
     throw new Error(`e2e seed: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
   }
-  return entry.result.data as T;
+  return entry.result.data as TrpcOutput<TPath>;
 }
 
 /** Ensure ≥1 character exists; return the id of a usable one (prefer the anchor, else the first present). */
 async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
-  const page = await query<CharacterListPage>(baseUrl, "character.list", {});
+  const page = await query(baseUrl, "character.list", {});
   const anchor = page.items.find((c) => c.handle === ANCHOR_HANDLE);
   if (anchor !== undefined) {
     return anchor.id;
@@ -105,7 +100,7 @@ async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
   if (first !== undefined) {
     return first.id;
   }
-  const created = await mutation<{ readonly id: CharacterId }>(baseUrl, "character.create", { input: ANCHOR });
+  const created = await mutation(baseUrl, "character.create", { input: ANCHOR });
   return created.id;
 }
 
@@ -113,18 +108,12 @@ async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
  *  `chat.startChat` mints a husk, which every Chats list hides; the title write claims it. `totalCount`
  *  counts the same husk-free scope the list renders. */
 async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<void> {
-  const listed = await query<{ readonly totalCount: number }>(baseUrl, "chat.listChats", {});
+  const listed = await query(baseUrl, "chat.listChats", {});
   if (listed.totalCount > 0) {
     return;
   }
-  const started = await mutation<{ readonly chat: { readonly id: ChatId } }>(baseUrl, "chat.startChat", { characterIds: [characterId] });
+  const started = await mutation(baseUrl, "chat.startChat", { characterIds: [characterId] });
   await mutation(baseUrl, "chat.updateTitle", { chatId: started.chat.id, title: SEED_CHAT_TITLE });
-}
-
-/** A `user_connections` row as this seed reads it back (`connection.list` / `connection.create`). */
-interface SeededConnection {
-  readonly id: string;
-  readonly label: string;
 }
 
 /** The row to author, with its model resolved the way the PANE resolves one (§7.4): ask the endpoint's own
@@ -136,7 +125,7 @@ interface SeededConnection {
 async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
   // `connection.draftCatalogModels` NEVER throws for a failed dial (it comes back `listed: false` + a reason), so
   // the seed branches on it instead of guarding it.
-  const listing = await mutation<ModelListing>(baseUrl, "connection.draftCatalogModels", {
+  const listing = await mutation(baseUrl, "connection.draftCatalogModels", {
     providerId: E2E_LOCAL_ENGINE_PROVIDER,
     baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
   });
@@ -181,7 +170,7 @@ async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
  */
 async function pinChatConnection(baseUrl: string, fixtureBaseUrl?: string): Promise<void> {
   if (fixtureBaseUrl !== undefined) {
-    const row = await mutation<SeededConnection>(baseUrl, "connection.create", {
+    const row = await mutation(baseUrl, "connection.create", {
       label: "e2e scripted default",
       providerId: "custom-openai",
       credentialId: null,
@@ -194,10 +183,8 @@ async function pinChatConnection(baseUrl: string, fixtureBaseUrl?: string): Prom
     }
     return;
   }
-  const existing = (await query<readonly SeededConnection[]>(baseUrl, "connection.list", undefined)).find(
-    (connection) => connection.label === E2E_LOCAL_ENGINE_LABEL,
-  );
-  const row = existing ?? (await mutation<SeededConnection>(baseUrl, "connection.create", await engineConnectionInput(baseUrl)));
+  const existing = (await query(baseUrl, "connection.list", undefined)).find((connection) => connection.label === E2E_LOCAL_ENGINE_LABEL);
+  const row = existing ?? (await mutation(baseUrl, "connection.create", await engineConnectionInput(baseUrl)));
   for (const task of ["chat", "summarize"]) {
     await mutation(baseUrl, "connection.setBinding", { task, connectionId: row.id });
   }

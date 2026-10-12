@@ -23,6 +23,7 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
+import type { MessageView } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -40,7 +41,11 @@ const STREAM_TIMEOUT_MS = 60_000;
 /** Did any collected stream value carry a reasoning byte — a `reasoning`-kind delta OR a non-null
  *  `view.reasoning`? The member's stream must have NONE on a deception game. */
 function hasReasoning(values: readonly StreamValue[]): boolean {
-  return values.some((v) => (v.event.delta?.kind === "reasoning" && (v.event.delta.text?.length ?? 0) > 0) || (v.event.view?.reasoning ?? null) !== null);
+  return values.some(
+    (v) =>
+      (v.event.type === "delta" && v.event.delta.kind === "reasoning" && v.event.delta.text.length > 0) ||
+      ("view" in v.event && (v.event.view?.reasoning ?? null) !== null),
+  );
 }
 
 /** The serialized stream — the exact bytes a devtools-open viewer would see. The lie truth must be absent for
@@ -54,6 +59,11 @@ function streamBytes(values: readonly StreamValue[]): string {
  *  once the reply commit lands both channels have flowed past this viewer. */
 function replyCommit(values: readonly StreamValue[]): StreamValue | undefined {
   return values.find((v) => v.event.type === "messageCommitted" && (v.event.view?.content ?? "").includes(FIXTURE_COVER_MARKER));
+}
+
+/** The message view a `messageCommitted` value carries. */
+function committedView(value: StreamValue | undefined): MessageView | undefined {
+  return value?.event.type === "messageCommitted" ? value.event.view : undefined;
 }
 
 /** Stop once the turn's reply commit has landed for this viewer (its content carries the cover marker). */
@@ -149,14 +159,14 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     // Cross-check the at-commit body view: the member's REPLY row exists (they see the turn happened, cover
     // prose intact) but its content is lie-stripped and its reasoning is null — the durable member truth. The
     // HOST's same reply row carries the reasoning verbatim.
-    const memberReplyCommit = replyCommit(memberReplay);
+    const memberReplyCommit = committedView(replyCommit(memberReplay));
     expect(memberReplyCommit).toBeDefined();
-    expect(memberReplyCommit?.event.view?.reasoning ?? null).toBeNull();
-    expect(memberReplyCommit?.event.view?.content ?? "").toContain(FIXTURE_COVER_MARKER);
-    expect(memberReplyCommit?.event.view?.content ?? "").not.toContain(FIXTURE_LIE_TRUTH);
+    expect(memberReplyCommit?.reasoning ?? null).toBeNull();
+    expect(memberReplyCommit?.content ?? "").toContain(FIXTURE_COVER_MARKER);
+    expect(memberReplyCommit?.content ?? "").not.toContain(FIXTURE_LIE_TRUTH);
 
-    const hostReplyCommit = replyCommit(hostReplay);
-    expect(hostReplyCommit?.event.view?.reasoning ?? "").toContain(FIXTURE_LIE_TRUTH);
+    const hostReplyCommit = committedView(replyCommit(hostReplay));
+    expect(hostReplyCommit?.reasoning ?? "").toContain(FIXTURE_LIE_TRUTH);
   } finally {
     await host.mutation("character.remove", { characterId: character.id });
     await restoreProvider?.();

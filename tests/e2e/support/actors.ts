@@ -20,6 +20,8 @@
 //
 // Procedure results are typed by the router through `trpc.ts`'s `TrpcOutput`, so no wire shape is declared here.
 
+import type { AuthMe } from "@orb/contracts/identity";
+import { authMeSchema } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
@@ -51,17 +53,10 @@ export interface ActorClient {
   readonly expectError: (procedure: string, input: unknown, kind: "query" | "mutation") => Promise<{ readonly status: number; readonly body: string }>;
   /** The resolved principal for THIS actor's headers (`GET /api/auth/me`) — the mode-agnostic whoami: who did
    *  the seam resolve this request AS, and at what role. `authenticated:false` for an unresolved caller. */
-  readonly whoami: () => Promise<Whoami>;
+  readonly whoami: () => Promise<AuthMe>;
   /** This actor's identifying headers (cookie / signed-JWT proxy headers), for a caller that must speak the
    *  wire directly AS this actor — the SSE consumer (`collectChatRoomFrames`) attaches the member's own chat room. */
   readonly headers: Readonly<Record<string, string>>;
-}
-
-/** The `GET /api/auth/me` shape — the seam's resolved principal (handle + role), or unauthenticated. */
-interface Whoami {
-  readonly authenticated: boolean;
-  readonly handle: Handle | null;
-  readonly role: string | null;
 }
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
@@ -107,12 +102,12 @@ function makeActorClient(baseUrl: string, headers: Readonly<Record<string, strin
     return { status: res.status, body: await res.text() };
   }
 
-  async function whoami(): Promise<Whoami> {
+  async function whoami(): Promise<AuthMe> {
     const res = await fetch(`${baseUrl}/api/auth/me`, { headers });
     if (!res.ok) {
       throw new Error(`actor whoami failed (${res.status})`);
     }
-    return (await res.json()) as Whoami;
+    return authMeSchema.parse(await res.json());
   }
 
   return { query, mutation, expectError, whoami, headers };
