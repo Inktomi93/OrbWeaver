@@ -104,11 +104,10 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
-import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { storeLookalikeProof, zustandProof } from "./_proof/zustand.ts";
 
 const FACTORY_PERSISTED_STORE = "packages/client/src/state/create-persisted-store.ts";
@@ -162,7 +161,7 @@ function isPersistCall(node: Node, aliases: ReadonlySet<string>): node is CallEx
   // produces NO ImportSpecifier for `persistAliasesOf` to see, so an identifier-only prefilter dropped the
   // whole namespace class before the origin check — the gate went quiet on the middleware it exists to judge.
   // The identity question is unchanged: `readPackageExportOrigin` still has to place the callee in zustand.
-  const name = TsNode.isIdentifier(callee) ? callee.getText() : readMemberAccess(callee)?.name;
+  const name = TsNode.isIdentifier(callee) ? callee.getText() : staticMemberAccess(callee)?.name;
   if (name === undefined || !(aliases.has(name) || PERSIST_NAMES.has(name))) {
     return false;
   }

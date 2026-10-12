@@ -197,7 +197,7 @@ export const gate = defineGate({
       mode: "source",
       files: { "tests/tooling/bracket.test.ts": 'test["only"]("stub", () => {\n  const x = 1;\n});\n' },
       expect: { count: 1, line: 1, token: "test" },
-      why: 'THE BRACKET SPELLING OF A MODIFIER (#2353): `test["only"]` is an ElementAccessExpression, so a chain walk keyed on `PropertyAccessExpression` alone stopped seeing it and a stub spelled this way was judged by NEITHER test policy — five of this policy\'s own mustFlag fixtures went silent under the mechanical respelling. The member is read through `lib/symbol-reference.ts#readMemberAccess`; the token is the chain ROOT because `test["only"]` is not a plain dotted callee',
+      why: 'THE BRACKET SPELLING OF A MODIFIER (#2353): `test["only"]` is an ElementAccessExpression, so a chain walk keyed on `PropertyAccessExpression` alone stopped seeing it and a stub spelled this way was judged by NEITHER test policy — five of this policy\'s own mustFlag fixtures went silent under the mechanical respelling. The member is read through `floor/code-facts/reference-fact.ts#staticMemberAccess`; the token is the chain ROOT because `test["only"]` is not a plain dotted callee',
     },
     {
       mode: "source",

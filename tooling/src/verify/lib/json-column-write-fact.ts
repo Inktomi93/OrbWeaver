@@ -1,13 +1,14 @@
 // Shared JSON-column writer analysis. Gate policies consume this reader instead of discovering or walking the compiler project.
 // ARM A — the row-derived taint analysis of `.set()` writers — is `json-column-writers.ts` (split out at the
 // size cap 2026-09-18); ARM B (guard dominance) and the fact stay here.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Block, CallExpression, SourceFile, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import type { JsonColumnWriter } from "./json-column-writers.ts";
 import { collectJsonWritersByColumn, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable } from "./json-column-writers.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 
@@ -227,7 +228,7 @@ function versionedSetArg(
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   schema: SchemaModel,
 ): { readonly arg: TsNode | undefined; readonly cols: ReadonlySet<string>; readonly table: string } | undefined {
-  const callee = readMemberAccess(call.getExpression());
+  const callee = staticMemberAccess(call.getExpression());
   if (callee === undefined) {
     return;
   }

@@ -1,11 +1,12 @@
 // Policy: query-freshness-coverage — every client-observed tRPC query needs a reachable invalidation
 // row or an exact central reviewed grant documenting its independent freshness driver. The shared fact
 // follows only the canonical createInvalidation + Invalidation seam and one-hop invalidation siblings.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { queryFreshnessFact } from "../lib/query-freshness-fact.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 export const QUERY_FRESHNESS_OPERATION = "uncovered-query-freshness";
 const MESSAGE =
@@ -28,8 +29,8 @@ function anchorOf(node: MorphNode, key: string): { readonly node: MorphNode; rea
   if (offset >= 0) {
     return { node, token: key, offset };
   }
-  const terminal = readMemberAccess(node);
-  const procedure = terminal === undefined ? undefined : readMemberAccess(terminal.receiver);
+  const terminal = staticMemberAccess(node);
+  const procedure = terminal === undefined ? undefined : staticMemberAccess(terminal.receiver);
   const nameNode = procedure === undefined ? node : procedure.nameNode;
   return { node: nameNode, token: nameNode.getText(), offset: 0 };
 }
@@ -82,7 +83,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/components/x.tsx": 'export const q = trpc["ghost"]["frozenRead"]["queryOptions"]({});\n',
       },
       expect: { count: 1, token: '"frozenRead"' },
-      why: 'THE SAME UNCOVERED READ, BRACKET-SPELLED (#2353). Two things had to move together: `lib/query-freshness-fact.ts` now reads every chain hop through `readMemberAccess`, and the ANCHOR stopped assuming the authored text contains the dotted key — `trpc["ghost"]["frozenRead"]["queryOptions"]` does not, so `indexOf` would have handed `report.node` an offset of -1 and turned a newly-visible finding into a tool error. The SUBJECT stays `ghost.frozenRead`, so one reviewed grant covers a key in either spelling',
+      why: 'THE SAME UNCOVERED READ, BRACKET-SPELLED (#2353). Two things had to move together: `lib/query-freshness-fact.ts` now reads every chain hop through `staticMemberAccess`, and the ANCHOR stopped assuming the authored text contains the dotted key — `trpc["ghost"]["frozenRead"]["queryOptions"]` does not, so `indexOf` would have handed `report.node` an offset of -1 and turned a newly-visible finding into a tool error. The SUBJECT stays `ghost.frozenRead`, so one reviewed grant covers a key in either spelling',
     },
     {
       mode: "types",

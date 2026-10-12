@@ -200,7 +200,7 @@ export const gate = defineGate({
           'import { z } from "zod";\nexport const notificationEventSchema = z.discriminatedUnion("type", [\n  z["object"]({ type: z["literal"]("invite"), password: z["string"]() }),\n]);\n',
       },
       expect: { count: 1, token: "password", messageIncludes: "credential/secret" },
-      why: 'THE SAME ARM, BRACKET-SPELLED (#2353). `scanSchemaExpr` required a `PropertyAccessExpression` callee, so `z["object"]({ … })` was not a builder at all: the arm refused, the union contributed ZERO wire keys, and the credential search ran over an empty population while the policy reported nothing. A reader that stops RECOGNISING a schema stops judging it — the widening is in `lib/bus-payload-fact.ts` through `readMemberAccess`, never in this policy',
+      why: 'THE SAME ARM, BRACKET-SPELLED (#2353). `scanSchemaExpr` required a `PropertyAccessExpression` callee, so `z["object"]({ … })` was not a builder at all: the arm refused, the union contributed ZERO wire keys, and the credential search ran over an empty population while the policy reported nothing. A reader that stops RECOGNISING a schema stops judging it — the widening is in `lib/bus-payload-fact.ts` through `staticMemberAccess`, never in this policy',
     },
     {
       mode: "types",

@@ -1,7 +1,7 @@
 // Trace the actual persisted producer through Drizzle reads, callable bodies, immutable aliases,
 // selected object/array projections and proved schema normalizers. An annotated Row alone is identity.
 import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -11,7 +11,6 @@ import { unwrapExpression } from "./ast-read.ts";
 import { readDrizzleClientCall } from "./drizzle-client-call.ts";
 import { jsonColumnNormalizer, jsonColumnPropertyValue } from "./json-column-normalizer.ts";
 import { schemaRowOriginIdentity } from "./open-json-row-origin.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 const CALLER: JsonColumnOrigin = { kind: "caller" };
 const MISSING: JsonColumnOrigin = { kind: "missing" };
@@ -47,9 +46,9 @@ function producerCall(call: import("ts-morph").CallExpression, context: JsonColu
   let table: SchemaTable | undefined;
   let projection: MorphNode | undefined;
   let output: JsonColumnOrigin | undefined;
-  const result = readMemberAccess(call.getExpression())?.name === "get" ? "row" : "rows";
+  const result = staticMemberAccess(call.getExpression())?.name === "get" ? "row" : "rows";
   while (Node.isCallExpression(current)) {
-    const member = readMemberAccess(current.getExpression());
+    const member = staticMemberAccess(current.getExpression());
     if (member === undefined || readDrizzleClientCall(current).kind !== "drizzle") {
       return;
     }
@@ -177,7 +176,7 @@ function traceNormalizer(
 }
 
 function traceCallableBody(call: import("ts-morph").CallExpression, path: readonly string[], context: JsonColumnOriginContext): readonly JsonColumnOrigin[] {
-  const member = readMemberAccess(call.getExpression());
+  const member = staticMemberAccess(call.getExpression());
   const opaqueInputs = [...call.getArguments(), ...(member === undefined ? [] : [member.receiver])];
   if (
     member?.name === "parse" &&
@@ -256,7 +255,7 @@ function traceEntered(node: MorphNode, path: readonly string[], context: JsonCol
   if (Node.isElementAccessExpression(node) && Node.isNumericLiteral(node.getArgumentExpression())) {
     return traceJsonColumnValue(node.getExpression(), [ARRAY_ITEM, ...path], context);
   }
-  const member = readMemberAccess(node);
+  const member = staticMemberAccess(node);
   return member === undefined ? [CALLER] : traceJsonColumnValue(member.receiver, [member.name, ...path], context);
 }
 
@@ -308,7 +307,7 @@ function incomingField(node: MorphNode, path: readonly string[], context: JsonCo
     const input = current.getArguments()[0];
     return input === undefined ? undefined : incomingField(input, path, context, next);
   }
-  const member = readMemberAccess(current);
+  const member = staticMemberAccess(current);
   if (member !== undefined) {
     return incomingField(member.receiver, [member.name, ...path], context, next);
   }
@@ -381,7 +380,7 @@ function providedField(node: MorphNode, expected: IncomingField, context: JsonCo
   // captured field must still be this exact receiver/member, not an unrelated optional axis.
   const captures = returns.trace.origin
     .getDescendants()
-    .filter((child) => readMemberAccess(child) !== undefined)
+    .filter((child) => staticMemberAccess(child) !== undefined)
     .map((child) => incomingField(child, [], bodyContext))
     .filter((field) => field !== undefined);
   return (

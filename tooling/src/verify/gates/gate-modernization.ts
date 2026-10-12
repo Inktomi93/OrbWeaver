@@ -20,6 +20,8 @@
 // population. Successor evidence: the loader's refusal plus `lib/policy-validation.ts` at load (arm A's
 // half) and `dangling-refs` / `dangling-ref-citations` (arm C's citation half). The retirement changed
 // the evidence plane from `resource` (documents) to `syntax` and re-moded every proof row.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -27,7 +29,6 @@ import { defineGate } from "../contract/policy.ts";
 import type { GateModernizationModuleSyntax } from "../lib/gate-modernization-fact.ts";
 import { GATE_MODERNIZATION_POPULATION, gateModernizationFact, readGateModernizationFacts } from "../lib/gate-modernization-fact.ts";
 import { finalDescriptorOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 /** A sibling gate module imports its family-mate as `./<name>.ts` — both modules are top-level in `gates/`. */
@@ -266,13 +267,13 @@ function hoppedDeclarationReadsTypes(sf: SourceFile, name: string, seen: Set<str
 
 /** Every member NAME read off the namespace binding `alias`, outside this module's own import declarations
  *  — the namespace spelling's answer to `referencedNames`. Member reads go through the shared
- *  `readMemberAccess`, so `ns.typeOf`, `ns["typeOf"]` and `ns[KEY]` with a same-file `const KEY` all name
+ *  `staticMemberAccess`, so `ns.typeOf`, `ns["typeOf"]` and `ns[KEY]` with a same-file `const KEY` all name
  *  the same member. */
 function namespaceMemberNames(node: Node, alias: string, out: Set<string>): void {
   if (TsNode.isImportDeclaration(node)) {
     return;
   }
-  const read = readMemberAccess(node);
+  const read = staticMemberAccess(node);
   if (read !== undefined && TsNode.isIdentifier(read.receiver) && read.receiver.getText() === alias) {
     out.add(read.name);
   }

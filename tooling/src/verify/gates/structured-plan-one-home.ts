@@ -7,10 +7,9 @@
 // contracts and kit source outside the inference contract folder and outside tests.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { resolveModuleMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { STRUCTURED_VEHICLES_NAME, structuredVehiclesFact } from "../lib/structured-vehicles-fact.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { WIRE_SCHEMA_ENGINE } from "../lib/wire-schema-vocabulary-fact.ts";
 
 /** Names that spell a structured request: the scrub, its violation readers, and the forced-choice capability reads.
@@ -70,7 +69,7 @@ function toolChoiceName(node: MorphNode): MorphNode | undefined {
     return node.getNameNode();
   }
   const left = Node.isBinaryExpression(node) && node.getOperatorToken().getKind() === SyntaxKind.EqualsToken ? node.getLeft() : undefined;
-  const read = left === undefined ? undefined : readMemberAccess(left);
+  const read = left === undefined ? undefined : staticMemberAccess(left);
   return read?.name === TOOL_CHOICE ? read.nameNode : undefined;
 }
 

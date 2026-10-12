@@ -43,6 +43,8 @@
 // `population` admits 1,302 (the bare harness dispatch was 7,144). legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
@@ -51,7 +53,6 @@ import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 const ANCHOR_FN = "configAnchorId";
 const OPERATION = "config-anchor-stamp";
@@ -140,7 +141,7 @@ export const gate = defineGate({
         return;
       }
       const expression = call.getExpression();
-      return Node.isIdentifier(expression) ? expression.getText() : readMemberAccess(expression)?.name;
+      return Node.isIdentifier(expression) ? expression.getText() : staticMemberAccess(expression)?.name;
     };
 
     return {

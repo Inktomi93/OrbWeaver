@@ -2,9 +2,11 @@
 // from bus-payload-fact.ts (tooling-size, #1584 residue). Everything here reads a zod builder EXPRESSION,
 // never a named type declaration (that stays in the front door as scanBusDecl/walkDecl); the front door
 // imports these, this leaf imports only from bus-payload-fact-resolve.ts.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { MemberReference } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node as N } from "ts-morph";
-import type { MemberRead } from "../contract/symbol-reference.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { CollectorState, WalkFrame } from "./bus-payload-fact-resolve.ts";
 import {
@@ -17,7 +19,6 @@ import {
   UNRESOLVED_SCHEMA_TOKEN,
   UNSUPPORTED_TOKEN,
 } from "./bus-payload-fact-resolve.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 /** Resolve an identifier naming a schema const to its INITIALIZER, inside the population only — the
  *  value-side twin of `resolveNamedTypes`. */
@@ -33,7 +34,7 @@ function resolveSchemaInit(nameNode: MorphNode, state: CollectorState): MorphNod
 /** A `{ ...base.shape }` spread — the third sanctioned imported shape, RESOLVED. Any other spread is
  *  refused: it would otherwise be dropped silently, the same omission `getProperties()` makes. */
 function scanSchemaSpread(prop: MorphNode, expression: MorphNode, frame: WalkFrame): void {
-  const spread = readMemberAccess(unwrapExpression(expression));
+  const spread = staticMemberAccess(unwrapExpression(expression));
   if (spread !== undefined && spread.name === "shape") {
     scanSchemaExpr(spread.receiver, true, { ...frame, origin: "inherited" });
     return;
@@ -89,7 +90,7 @@ function scanSchemaIdentifier(expr: MorphNode, strict: boolean, frame: WalkFrame
 
 /** Dispatch one `<recv>.<method>(…)` schema builder. An unmodeled method in an ARM position is REFUSED —
  *  which is how `.loose()`/`.passthrough()`/`.catchall()` are refused (they admit unknown keys). */
-function scanSchemaCall(expr: MorphNode, callee: MemberRead, strict: boolean, frame: WalkFrame): void {
+function scanSchemaCall(expr: MorphNode, callee: MemberReference, strict: boolean, frame: WalkFrame): void {
   const method = callee.name;
   const args = N.isCallExpression(expr) ? expr.getArguments() : [];
   if (method === "object") {
@@ -126,7 +127,7 @@ function scanSchemaExpr(node: MorphNode, strict: boolean, frame: WalkFrame): voi
     scanSchemaIdentifier(expr, strict, frame);
     return;
   }
-  const callee = N.isCallExpression(expr) ? readMemberAccess(expr.getExpression()) : undefined;
+  const callee = N.isCallExpression(expr) ? staticMemberAccess(expr.getExpression()) : undefined;
   if (callee !== undefined) {
     scanSchemaCall(expr, callee, strict, frame);
     return;

@@ -4,6 +4,7 @@
 // `json-column-write-fact.ts` at the size cap (2026-09-18); ARM B (guard dominance) and the fact stay there
 // and reuse `collectWriters`. One-way: this module imports nothing from it.
 import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, FunctionDeclaration, ObjectLiteralExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
@@ -12,7 +13,6 @@ import { proveJsonColumnMerge } from "./json-column-merge-proof.ts";
 import { jsonColumnCallContext } from "./json-column-value-origin.ts";
 import { tableFromReference } from "./schema-fact-resolve.ts";
 import { schemaDeclarationKey } from "./schema-fact-value.ts";
-import { readMemberAccess } from "./symbol-reference.ts";
 
 /** The producer scope both arms judge: a write outside the domain tier is wiring, never a writer. */
 export const DOMAIN_DIR = "/packages/server/src/domain/";
@@ -29,7 +29,7 @@ export function updatedTable(setCallee: TsNode, schema: SchemaModel, chainVerb =
   let table: string | undefined;
   while (table === undefined) {
     const call = Node.isCallExpression(cur) ? cur : undefined;
-    const member = readMemberAccess(call?.getExpression() ?? cur);
+    const member = staticMemberAccess(call?.getExpression() ?? cur);
     if (member === undefined) {
       break;
     }
@@ -136,7 +136,7 @@ function jsonTableOf(
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
   schema: SchemaModel,
 ): { readonly table: string; readonly cols: ReadonlySet<string> } | undefined {
-  const callee = readMemberAccess(call.getExpression());
+  const callee = staticMemberAccess(call.getExpression());
   if (callee?.name !== "set") {
     return;
   }

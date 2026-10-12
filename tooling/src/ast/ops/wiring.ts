@@ -1,6 +1,7 @@
 // unwired (tRPC procedures no client consumes) + clientgap (server-only client-facing shapes).
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { collectAppRouterOutputProvenance } from "../lib/app-router-provenance.ts";
@@ -28,7 +29,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // kind: `trpc.ns.proc` (PropertyAccess), `trpc.ns["proc"]` and `trpc["ns"].proc` (ElementAccess), and the
 // optional-chained `trpc?.ns?.proc`. A dot-only matcher is the "property read has THREE shapes" false clean
 // applied to a whole lens: ONE consumer written with brackets reads as an unwired verb, and the natural fix
-// (delete it) would break the client. {@link memberReadOf} normalizes all four to `(object, name)` so the
+// (delete it) would break the client. `staticMemberAccess` normalizes all four to `(receiver, name)` so the
 // pair matcher below sees one shape. (Optional chaining needs no special case — ts-morph models `a?.b` as a
 // PropertyAccessExpression with a question-dot token — but it IS covered by a planted control in the
 // self-test, because "needs no special case" is a claim that must be provable, not assumed.)
@@ -165,30 +166,16 @@ export function collectClientConsumed(project: SourceCorpus, valid: Set<string>)
   return consumed;
 }
 
-/** ONE value-level member read as `(object, name)`, whatever spelling it wears: `x.name`, `x?.name`,
- *  `x["name"]`. Undefined for a computed element access (`x[key]`) — that names no procedure statically, and
- *  guessing one would be a fabricated consumer. */
-export function memberReadOf(node: Node): { object: Node; name: string } | undefined {
-  if (Node.isPropertyAccessExpression(node)) {
-    return { object: node.getExpression(), name: node.getName() };
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return;
-  }
-  const arg = node.getArgumentExpression();
-  return arg !== undefined && Node.isStringLiteral(arg) ? { object: node.getExpression(), name: arg.getLiteralText() } : undefined;
-}
-
 /** A `X.<ns>.<proc>` access marks `<ns>.<proc>` consumed; a `X.<proc>` access whose tail is a known loose
- *  root procedure marks that bare name consumed. Both hops go through {@link memberReadOf}, so a bracket or
+ *  root procedure marks that bare name consumed. Both hops go through `staticMemberAccess`, so a bracket or
  *  optional-chained spelling of either hop counts exactly like the dot form. */
 function markConsumedFromAccess(node: Node, valid: Set<string>, looseProcs: Set<string>, consumed: Set<string>): void {
-  const outer = memberReadOf(node);
+  const outer = staticMemberAccess(node);
   if (outer === undefined) {
     return;
   }
   const proc = outer.name;
-  const inner = memberReadOf(outer.object);
+  const inner = staticMemberAccess(outer.receiver);
   if (inner !== undefined) {
     const full = `${inner.name}.${proc}`;
     if (valid.has(full)) {

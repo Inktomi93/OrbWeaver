@@ -5,7 +5,7 @@
 //
 // THE SUBJECT IS THE READ, NOT ITS SPELLING (#1506): `form.state.values` and `form["state"]["values"]` are
 // the same dependency and the same defect, so the member chain is read through `lib/symbol-reference.ts`
-// (`readMemberAccess`), never `PropertyAccessExpression.getText()`.
+// (`staticMemberAccess`), never `PropertyAccessExpression.getText()`.
 //
 // THE SANCTIONED INVERSION: the legacy shape visited `useEffect(...)` calls and then `deps.forEachDescendant`
 // over the second-argument array literal — a private descendant walk the final query boundary forbids. The
@@ -16,7 +16,7 @@
 // THE CALL HALF IS SPELLING-INVARIANT TOO (#1951, 2026-09-11). The callee used to have to be a bare
 // `Identifier`, so `React.useEffect(fn, [form.state.values])` — the same hook, the same per-keystroke
 // re-render — was never judged. That is #1506's hole on the other side of the call, so it is closed with
-// #1506's own reader: `readMemberAccess` recognises `React.useEffect` and `React["useEffect"]` alike.
+// #1506's own reader: `staticMemberAccess` recognises `React.useEffect` and `React["useEffect"]` alike.
 // MEASURED BEFORE WIDENING, both languages (`ts` and `tsx` are different grammars, so both were run):
 // `ast-grep -p '$NS.useEffect($$$ARGS)'` → 0 sites; `-p 'useEffect($A, $B, $C)'` → 0 sites; the positive
 // control `-p 'useEffect($A, $B)'` → 197 sites (53 ts + 144 tsx), and a literal `\.useEffect\(` grep
@@ -24,7 +24,7 @@
 // rather than waiting for one to be written. The ARITY requirement is the opposite case and stays — see
 // `isInUseEffectDeps`, where it is a discriminator with its own pinning row, not a blind spot.
 //
-// FAMILY: a declared SINGLETON under its own id. `lib/symbol-reference.ts#readMemberAccess` is a shared
+// FAMILY: a declared SINGLETON under its own id. `floor/code-facts/reference-fact.ts#staticMemberAccess` is a shared
 // PRIMITIVE (the member-chain reader a dozen policies ride), not a family reader, and no sibling asks
 // whether a form read sits in a `useEffect` dep array.
 // POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: () => true` is exactly the declared `of: "all"`.
@@ -42,17 +42,19 @@
 // OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess } from "../lib/symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS } from "../lib/symbol-reference.ts";
 
 /** The member chain a node reads, innermost-last: `a.b["c"]` → ["c", "b"]. Stops at the first link that is
  *  not a member access, so the receiver's own text never enters the comparison. */
 function memberChain(node: Node): readonly string[] {
   const chain: string[] = [];
   let current: Node = node;
-  for (let read = readMemberAccess(current); read !== undefined; read = readMemberAccess(current)) {
+  for (let read = staticMemberAccess(current); read !== undefined; read = staticMemberAccess(current)) {
     chain.push(read.name);
     current = read.receiver;
   }
@@ -74,7 +76,7 @@ function isFormStateReference(node: Node): boolean {
  *  Measured 2026-09-11 (#1951): ZERO member-form call sites exist on the tree, so this widening adds no
  *  finding today; it closes the escape rather than waiting for one. */
 function isUseEffectCallee(callee: Node): boolean {
-  return MorphNode.isIdentifier(callee) ? callee.getText() === "useEffect" : readMemberAccess(callee)?.name === "useEffect";
+  return MorphNode.isIdentifier(callee) ? callee.getText() === "useEffect" : staticMemberAccess(callee)?.name === "useEffect";
 }
 
 /** Does this occurrence sit inside the second-argument array literal of a `useEffect(fn, deps)` call, at
@@ -175,7 +177,7 @@ export const gate = defineGate({
       mode: "source",
       files: { "src/some-component.tsx": 'React["useEffect"](() => {}, [myForm.store]);\n' },
       expect: { count: 1, token: "myForm.store" },
-      why: "#1951 through #1506's lens: the BRACKET spelling of the same namespace callee. The call half is read with `readMemberAccess`, the identical shared reader the subject half uses, so no third spelling of the hook can hide",
+      why: "#1951 through #1506's lens: the BRACKET spelling of the same namespace callee. The call half is read with `staticMemberAccess`, the identical shared reader the subject half uses, so no third spelling of the hook can hide",
     },
     {
       mode: "source",

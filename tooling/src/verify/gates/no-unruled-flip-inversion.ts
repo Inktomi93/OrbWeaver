@@ -26,10 +26,12 @@
 // scannedFileCount=6441 — and `tsx` — 2 matches, scannedFileCount=1414 — corroborated by a literal `rg`).
 // COUPLED SITE: the §1.5 exception list is the ruling of record. Amend the list and the grant together,
 // never one alone.
+
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { MEMBER_ACCESS_KINDS, readMemberAccess, readsMemberNamed } from "../lib/symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const TRANSFORM = "transform";
 const STYLE = "style";
@@ -56,17 +58,17 @@ const FIX =
   "one without the other.";
 
 /** The authored name slice of a `transform` write whose receiver is a `style` read — EVERY spelling of both
- *  halves, through the shared `readMemberAccess`: `x.style.transform`, `x.style["transform"]`,
+ *  halves, through the shared `staticMemberAccess`: `x.style.transform`, `x.style["transform"]`,
  *  `x["style"].transform`, `x?.style?.transform`, and a same-file `const KEY = "transform"` hop. A
  *  dot-only reader here is the #1506 spelling hole, and the gate-spelling-twins census reds it. */
 function styleWriteTarget(left: MorphNode): MorphNode | undefined {
-  const read = readMemberAccess(left);
+  const read = staticMemberAccess(left);
   if (read === undefined || read.name !== TRANSFORM) {
     return;
   }
   // The receiver is deliberately unconstrained beyond its NAME — `node.style`, `ref.current.style` and
   // `this.el.style` are one shape and one defect.
-  return readMemberAccess(read.receiver)?.name === STYLE ? read.nameNode : undefined;
+  return staticMemberAccess(read.receiver)?.name === STYLE ? read.nameNode : undefined;
 }
 
 /** The nearest enclosing function-like body, which is the window the write and its flush share. */
