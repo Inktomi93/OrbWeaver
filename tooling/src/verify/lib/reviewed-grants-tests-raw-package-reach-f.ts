@@ -230,11 +230,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_F: readonly ReviewedGateGra
   "tests/server/domain/rpg/tools/dice.test.ts": ["#server/domain/rpg/tools/dice.ts"],
   "tests/server/domain/rpg/tools/index.int.test.ts": ["#server/domain/rpg/index.ts", "#server/domain/tool-use/index.ts"],
   "tests/server/domain/rpg/verbs/checkpoint/create-checkpoint.int.test.ts": ["#server/domain/rpg/persistence/checkpoints.ts"],
-  "tests/server/domain/rpg/verbs/checkpoint/restore-checkpoint.int.test.ts": [
-    "#server/domain/chat/contract/context.ts",
-    "#server/domain/chat/verbs/post-narrator-message.ts",
-    "#server/domain/rpg/persistence/snapshots.ts",
-  ],
+  "tests/server/domain/rpg/verbs/checkpoint/restore-checkpoint.int.test.ts": ["#server/domain/rpg/persistence/snapshots.ts"],
   "tests/server/domain/rpg/verbs/dismiss-actor.int.test.ts": [
     "#server/domain/rpg/contract/service.ts",
     "#server/domain/rpg/persistence/games.ts",

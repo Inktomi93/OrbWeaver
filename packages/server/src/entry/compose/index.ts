@@ -26,6 +26,7 @@ export type { ImageRefAssets } from "./resolve-image-ref.ts";
 export { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 export type { DeleteReachCapture } from "./room-reach.ts";
 export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
+export { createRpgRestorePost } from "./rpg.ts";
 export type { ServicesDeps, ServicesResult, ShareComposeDeps } from "./services.ts";
 export { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "./services.ts";
 export { buildSideGenParams } from "./side-gen-params.ts";

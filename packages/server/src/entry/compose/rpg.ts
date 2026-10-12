@@ -106,13 +106,14 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { can } from "#domain/admin";
 import type { CharacterImportProvenance, CharacterService } from "#domain/character";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "#domain/character";
-import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
+import type { ChatService, PostNarratorMessage, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type {
   ActorRefIndex,
   ImportRpgGame,
   RpgContext,
   RpgCopyPresetToUser,
+  RpgPostNarratorMessage,
   RpgResolvePresetOwned,
   RpgResolveViewerVisibility,
   RpgRunExtraction,
@@ -331,6 +332,12 @@ function buildPromoteToCharacter(deps: RpgComposeDeps): RpgContext["promoteToCha
 export function rpgPromotionProvenance(chatId: ChatId, sourceActorKey: string): CharacterImportProvenance {
   const importedFrom = `rpg-promotion:v1:${chatId}:${sourceActorKey}`;
   return { importedFrom, importHash: sha256Hex(importedFrom) };
+}
+
+/** Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids, and
+ *  chat owns the narrator batch that commits and emits it. The two domains never construct each other's rows. */
+export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage {
+  return (chatId, content, buildSnapshotStatement) => post(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement });
 }
 
 // @orb-waive no-inline-wire-interface(RpgComposeResult): baselined when the gate widened; burn-down item 904.
@@ -2196,10 +2203,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveParticipants: deps.rpgChatOps.resolveRpgParticipants,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
     promoteToCharacter: buildPromoteToCharacter(deps),
-    // Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids;
-    // chat owns the existing narrator batch and commits/emits. The two domains never construct each other's rows.
-    postNarratorMessage: (chatId, content, buildSnapshotStatement) =>
-      deps.rpgChatOps.postNarratorMessage(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement }),
+    postNarratorMessage: createRpgRestorePost(deps.rpgChatOps.postNarratorMessage),
     resolvePresetOwned: deps.resolvePresetOwned,
     copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.
