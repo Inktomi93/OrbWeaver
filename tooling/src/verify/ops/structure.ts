@@ -53,9 +53,6 @@ import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } 
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
-import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { z } from "zod";
-import type { WaiverBudget } from "../contract/gate-authority.ts";
 import type { GateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { PolicyCommandRequest, PolicyInspectionPlan, PolicyRunPlan } from "../contract/policy-plan.ts";
@@ -77,7 +74,7 @@ import { structureConsole } from "../lib/structure-console.ts";
 import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
 import { parseStructureTombstone, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
 import { policyTimingAlarms } from "../lib/timing.ts";
-import { WAIVER_BUDGET, WAIVER_BUDGET_ENV } from "../lib/waiver-budget.ts";
+import { waiverBudgetForRun } from "../lib/waiver-budget-for-run.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -206,14 +203,6 @@ function keepProbeFindings(): boolean {
   return process.env["ORB_GATE_FIXTURES"] === "1";
 }
 
-const budgetRows = z.record(z.string(), z.number().int().nonnegative());
-const injectedBudget = z.strictObject({ application: budgetRows, implementation: budgetRows });
-
-function waiverBudgetForRun(): WaiverBudget {
-  const injected = processEnvValue(WAIVER_BUDGET_ENV);
-  return injected === undefined ? WAIVER_BUDGET : injectedBudget.parse(JSON.parse(injected));
-}
-
 /** THE EXPLICIT VOID (#2167 clause 2). The operator knows a published slot is not evidence — it overlapped a
  *  planter, it was taken under a load kill, its premise died — and no re-derivation from the artifact alone
  *  can say so. This writes that judgement INTO the slot, which is the only place a future reader will look.
@@ -302,6 +291,7 @@ async function runStructurePopulation(
     return tombstoneSlot(root, tombstone);
   }
   const command = parseStructurePolicyCommand(argv);
+  const waiverBudget = waiverBudgetForRun(root);
   let cachedContext: ProjectContext | undefined;
   const context = (): ProjectContext => {
     cachedContext ??= projectCtx(root);
@@ -337,7 +327,7 @@ async function runStructurePopulation(
     corpus,
     plan,
     reviewedGrants: reviewedGrantsFor(corpus.gates),
-    waiverBudget: waiverBudgetForRun(),
+    waiverBudget,
   });
   if (!executed.ok) {
     process.stderr.write(`check:structure: TOOL ERROR — ${executed.message}\n`);

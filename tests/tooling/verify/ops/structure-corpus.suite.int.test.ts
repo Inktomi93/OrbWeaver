@@ -317,6 +317,12 @@ test("a planted budget that differs from what the tree waives alarms: a rise say
   expect(await budgetAlarms({ [ORDINARY]: 2 })).toMatchObject([{ budget: 2, count: 1, message: expect.stringContaining("lower its rows") }]);
 });
 
+test("the injected budget is refused on the real repository root, before any run slot opens", { timeout: RUN_TIMEOUT_MS }, async ({ repoRoot, runCli }) => {
+  const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({}), () => runCli("verify", ["structure"], { cwd: repoRoot, timeoutMs: RUN_TIMEOUT_MS }));
+  await expect(res).toExitWith(3);
+  expect(res.stderr).toContain(WAIVER_BUDGET_ENV);
+});
+
 // ── 8-9. the loader's refusals at the door ─────────────────────────────────────────────────────────────────
 
 test("an unbranded lookalike in the corpus is a load refusal (exit 2, the in-flight stub), naming the module and the reason", {
