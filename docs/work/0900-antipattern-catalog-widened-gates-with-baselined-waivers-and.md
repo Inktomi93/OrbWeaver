@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-11
+status: open
+updated: 2026-10-12
 priority: P1
 area: tooling
-lane: wt/agent-ab0e2158680e32c8f
 plan: test-mirror
 ---
 
@@ -23,5 +22,7 @@ Owner: the gates are named for rules they only partly enforce, and green runs hi
 The catalog exists and every entry names a live detector; the widened gates run hard with a committed baseline; a planted new hit fails while the baselined ones pass; the waiver ratchet fails when any gate's waived count rises; pnpm ast antipatterns runs over a scope and reports by class; Spine-Testing section 10 and the active-gates registry cite the catalog; every package has a declared internal cake with pinned rules; every enforcement claim in the law names a gate that enforces it as written.
 
 ## Evidence
+
+Core merged: catalog, widened gates with baselines, waiver ratchet and `pnpm ast antipatterns` (lane branch fully merged). Remaining: check the per-package internal cake rules and that every enforcement claim names its gate, then land. Burn-downs live in 904, 905, 906 and 952.
 
 Filled at landing: what ran and where its output is.
