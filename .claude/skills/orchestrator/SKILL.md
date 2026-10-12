@@ -61,6 +61,8 @@ Run at most three lanes at once. Raise the cap only on an explicit owner ruling,
 
 Owner ruling: at most six `sonnet-executor` lanes plus two Opus agents at once, or three Opus agents when no Sonnet lane runs. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
 
+Owner ruling for Codex: run at most six lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and gate-heavy runs through the primary agent; extra lanes do not authorize concurrent heavy checks.
+
 - Let over-cap lanes finish. Never refill above the cap.
 - Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.
 - Before the first dispatch or whole-tree run of a session, do the pre-flight below.

@@ -24,7 +24,9 @@ The recorded production inventory is fully adjudicated in package/domain batches
 
 ## Evidence
 
-Native production Knip completes on `d4f3734dc1` with additional composition-facade findings and a stale baseline entry. This is a findings verdict, not deletion approval. The custom typed inventory attempts use the wrong runtime and fail without a complete artifact; they do not establish failure of shipped AST commands. The memory work item owns invocation and retention diagnosis. Preserve codemod preparation; apply no candidate or baseline change from incomplete evidence.
+Native production Knip completes on `292d99464e` with additional composition-facade findings and no stale baseline entries. Its exit 1 reports findings, not a tool error. The baseline remains unchanged. Correctly invoked shipped API-surface output also completes; its older source population supplies candidates, not current absence proof. The memory work item owns measurement limitations.
+
+The grouped native projection completes across its full world roster for the stable client, DB and kit candidates. It reuses matching completed worlds and runs only the unfinished descriptors. The resumed timing artifact records exit 0 and maximum RSS 2,690,324 KiB without swaps. Exact origin sets and raw consumer routes precede symbol adjudication; this is not a liveness verdict. Preserve supported APIs and uncertain namespace, dynamic and re-export consumers. Exclude the active composition lane's contract and binding changes. Package edits remain held until the exact selectors and decisions are reviewed.
 
 Use existing `pnpm ast apisurface` results for package-boundary consumption and alias-resolved origin identity. Use `rot`, `dead` and their existing collectors for chains, type-only value references and namespace consumption. These report candidates: scripts/tooling can count as public consumers there, but cannot establish application production use.
 

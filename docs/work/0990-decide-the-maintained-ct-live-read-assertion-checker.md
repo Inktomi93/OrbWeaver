@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
+status: doing
 updated: 2026-10-12
 priority: P2
 area: tooling
+lane: codex/ct-checker-990
 plan: test-foundation
 ---
 

@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Adjudicate the legacy migration forks: test-layout uses LEGACY_FILE_CEILING rather than an exact shrinking file set; test-reach credits tests/legacy; jscpd.tests.json includes legacy; the CI qualification generation must distinguish the changed job population; script consumers import legacy test helpers. Keep legacy regression cases in CI while strict gates judge rebuilt tests.
+Close probe dependencies on legacy helpers after exact filename admission, strict reach, CPD exclusion and CI qualification are implemented. Keep legacy regression cases in CI while strict gates judge rebuilt tests.
 
 ## Why
 
@@ -23,10 +23,10 @@ Each fork has a recorded ruling and matching enforcement or a scoped follow-up. 
 
 ## Evidence
 
-Landed at `c9d9b81bd0`: strict reach excludes legacy evidence, CPD excludes legacy, and qualification uses `product-v4` with correct singleton group identity. Legacy CI jobs and regression files remain unchanged. Focused checker tests and affected native compiler checks pass. Independent named, dynamic-import and republished-binding controls confirm the corrected provenance reader, including strict positive and noncall controls. Filename enforcement and probe ownership remain open.
+Strict reach, CPD exclusion and `product-v4` qualification landed at `c9d9b81bd0`. Legacy CI jobs and regression files remain unchanged. Focused controls and affected native programs pass.
 
-Exact shrinking filenames remain unresolved: current resources expose current membership, not historical membership. The active leg builds a shared native Git path-history reader for layout admission and document ID allocation. It must satisfy the resource vocabulary's independent-consumer and proof conditions, not extend current-file resources silently. Keep the ceiling until exact admission is proven, then remove its redundant count checks with successor controls. Do not add a private path baseline.
+Exact monotonic filename admission landed at `77c0d01ec8`, from `55c7d2d541`. The shared Git reader also supplies document ID allocation. Layout admission rejects new, replacement and returning paths across history, merges and the candidate index. Retained edits and deletion remain allowed. Git acquisition failures withhold authority; the count ceiling is removed.
 
-Script consumers are `reranker-live`, `ollama-window`, `gemini-capabilities`, `caching` and `smart-picker-live`. Their imported inference rigs contain copied rules and fabricated values. Replace them through real probe composition or a genuinely shared transport helper, not by moving fake harnesses into testkit. Record source-specific follow-ups before closure.
+Matching filename controls pass across runs `491334`, `535623` and `575638`. The selected full-population layout run `552631` completes without findings, errors or withholding. Independent review confirms the combined composition, citation and legacy-boundary changes. This review is complete; probe changes form a separate assignment.
 
-Spine-Testing section 2 distinguishes strict reach from other presence and test-id populations. The active lane owns the Git-boundary admission design and its isolated controls. This partial leg does not close the item.
+Remaining consumers are `reranker-live`, `ollama-window`, `gemini-capabilities`, `caching` and `smart-picker-live`. The active security lane owns their source-specific adjudication. Replace copied inference rigs through real production operations, or identify the missing composition seam. Extract a shared transport helper only when actual independent consumers justify it. Do not move fake harnesses into testkit. Record scoped follow-ups for unresolved dependencies before closure.
