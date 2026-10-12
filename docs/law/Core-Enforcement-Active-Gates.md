@@ -355,9 +355,9 @@ in its own module header, never restated here.
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
 | `test-no-stubs` | — | hard/error | @tests | stub test contains no assertions… |
-| `test-presence-client` | mirror-index | hard/error | @client,@ui\* | client data/forms/state primitive has… |
+| `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |
 | `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
-| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@tests | a presence-gated module is reached by… |
+| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |

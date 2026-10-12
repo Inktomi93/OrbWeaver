@@ -1,20 +1,27 @@
 // Which product modules the test tree reaches (docs/law/Spine-Testing.md §5). A test reaches a module when the
 // test, or a test-tree helper it imports (a story, a harness, a fixture), names one of the module's value
 // exports through an import, a re-export, a barrel chain or a dynamic import, or when the test declares the
-// module in an `@subject` header. A module the same file mocks is faked, so a binding imported from it is not
-// reach. Reach stops at the first product module: a composition root that wires a verb reaches the root.
-import { posix } from "node:path";
+// module in an `@subject` header. A module the same file mocks is faked, so a binding that resolves to it is not
+// reach, whichever module the import names. A test kind reaches only the source extensions it holds. A call of an
+// imported export is recorded for the names a caller asks about. Reach stops at the first product module: a
+// composition root that wires a verb reaches the root.
 import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, Symbol as MorphSymbol, SourceFile, TypeChecker } from "ts-morph";
-import { Node, SyntaxKind, ts } from "ts-morph";
-import type { TestFamily } from "../../floor/testing/test-kinds.ts";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import type { TestFamily, TestKindDefinition } from "../../floor/testing/test-kinds.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
+import {
+  destructuredNames,
+  importedValueNames,
+  isTypeDeclaration,
+  moduleClosure,
+  namespaceMembers,
+  specifierPath,
+  subjectHeader,
+} from "./test-reach-syntax.ts";
 
 const TEST_ROOT = "tests/";
-const SUBJECT_RE = /@subject[\t ]+(\S+)/gu;
 /** `vi` members that replace a module's exports for the file that calls them. */
 const VI_MOCK_MEMBERS: ReadonlySet<string> = new Set(["mock", "doMock"]);
-/** The root `package.json` imports map: `#<package>/<path>` is `packages/<package>/src/<path>`. */
-const SUBPATH_IMPORT_RE = /^#([a-z][a-z-]*)\/(.+)$/u;
 const SPECIFIER_SUFFIXES: readonly string[] = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
 
 /** One `@subject` declaration, kept whether or not its path names a real module so a stale header can red. */
@@ -27,6 +34,8 @@ export interface DeclaredSubject {
 export interface TestReach {
   /** Product module path to the families of the tests that reach it. */
   readonly reachedBy: ReadonlyMap<string, ReadonlySet<TestFamily>>;
+  /** Product module path, then an exported name a test calls, to the families of the tests that call it. Only names asked about. */
+  readonly calledBy: ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<TestFamily>>>;
   readonly declared: readonly DeclaredSubject[];
   /** Registered test files walked, and distinct (test-side file, product module) references resolved. */
   readonly tests: number;
@@ -39,51 +48,37 @@ interface WalkInput {
   readonly checker: TypeChecker;
   /** The modules whose reach is being asked about; every other resolved declaration is ignored. */
   readonly isSubject: (path: string) => boolean;
+  /** Module path to the declared export names whose calls are recorded in `TestReach.calledBy`. */
+  readonly calls?: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-// Every path reachable from `starts` through `targetsOf`.
-function moduleClosure(starts: readonly string[], targetsOf: (path: string) => readonly string[]): ReadonlySet<string> {
-  const reached = new Set<string>();
-  const pending = [...starts];
-  while (pending.length > 0) {
-    const path = pending.pop();
-    if (path === undefined || reached.has(path)) {
-      continue;
-    }
-    reached.add(path);
-    pending.push(...targetsOf(path));
-  }
-  return reached;
+/** What one test-side file references: the subject modules it reaches and the asked-about names it calls. */
+interface FileReach {
+  readonly modules: ReadonlySet<string>;
+  readonly called: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-// The `@subject` paths in a file's leading comment block.
-function subjectHeader(sourceFile: SourceFile): readonly string[] {
-  const text = sourceFile.getFullText();
-  const out: string[] = [];
-  for (const range of ts.getLeadingCommentRanges(text, 0) ?? []) {
-    for (const match of text.slice(range.pos, range.end).matchAll(SUBJECT_RE)) {
-      const path = match[1];
-      if (path !== undefined) {
-        out.push(path);
-      }
-    }
-  }
-  return out;
+/** One file's walk. `mocked` holds the modules the file replaces; every resolved declaration is checked against it. */
+interface Scan {
+  readonly file: SourceFile;
+  readonly mocked: ReadonlySet<SourceFile>;
+  readonly modules: Set<string>;
+  readonly called: Map<string, Set<string>>;
 }
 
-function isTypeDeclaration(declaration: MorphNode): boolean {
-  return Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration) || Node.isTypeParameterDeclaration(declaration);
-}
+const NO_REACH: FileReach = { modules: new Set(), called: new Map() };
 
 class Walker {
   private readonly pathByAbsolute: ReadonlyMap<string, string>;
   private readonly fileByPath: ReadonlyMap<string, SourceFile>;
-  private readonly referenceCache = new Map<string, ReadonlySet<string>>();
+  private readonly referenceCache = new Map<string, FileReach>();
   private readonly helperCache = new Map<string, readonly string[]>();
   private readonly input: WalkInput;
+  private readonly askedNames: ReadonlySet<string>;
 
   constructor(input: WalkInput) {
     this.input = input;
+    this.askedNames = new Set([...(input.calls?.values() ?? [])].flatMap((names) => [...names]));
     this.pathByAbsolute = new Map(input.files.map((file) => [file.getFilePath(), input.relativePath(file)]));
     this.fileByPath = new Map(input.files.map((file) => [input.relativePath(file), file]));
   }
@@ -116,55 +111,63 @@ class Walker {
     return helpers;
   }
 
-  /** The subject modules one test-side file references by value. */
-  referencesOf(path: string): ReadonlySet<string> {
+  /** The subject modules one test-side file references by value, and the asked-about names it calls. */
+  referencesOf(path: string): FileReach {
     const cached = this.referenceCache.get(path);
     if (cached !== undefined) {
       return cached;
     }
-    const out = new Set<string>();
     const file = this.fileByPath.get(path);
-    if (file !== undefined) {
-      const mocked = this.mockedModules(file);
-      this.collectImports(file, mocked, out);
-      this.collectReExports(file, out);
-      this.collectDynamicImports(file, mocked, out);
-    }
-    this.referenceCache.set(path, out);
-    return out;
+    const reach = file === undefined ? NO_REACH : this.scan(file);
+    this.referenceCache.set(path, reach);
+    return reach;
   }
 
-  private addDeclarations(declarations: readonly MorphNode[], out: Set<string>): void {
+  private scan(file: SourceFile): FileReach {
+    const scan: Scan = { file, mocked: this.mockedModules(file), modules: new Set(), called: new Map() };
+    this.collectImports(scan);
+    this.collectReExports(scan);
+    this.collectDynamicImports(scan);
+    this.collectCalls(scan);
+    return { modules: scan.modules, called: scan.called };
+  }
+
+  /** A declaration in a module the file mocks is a fake wherever the import that reached it points. */
+  private isFaked(declaration: MorphNode, scan: Scan): boolean {
+    return isTypeDeclaration(declaration) || scan.mocked.has(declaration.getSourceFile());
+  }
+
+  private addDeclarations(declarations: readonly MorphNode[], scan: Scan): void {
     for (const declaration of declarations) {
-      if (isTypeDeclaration(declaration)) {
+      if (this.isFaked(declaration, scan)) {
         continue;
       }
       const path = this.pathOf(declaration.getSourceFile());
       if (path !== undefined && this.input.isSubject(path)) {
-        out.add(path);
+        scan.modules.add(path);
       }
     }
   }
 
-  private addSymbol(symbol: MorphSymbol | undefined, out: Set<string>): void {
-    if (symbol === undefined) {
-      return;
-    }
-    const target = symbol.isAlias() ? this.input.checker.getAliasedSymbol(symbol) : symbol;
-    this.addDeclarations(target?.getDeclarations() ?? [], out);
+  private resolved(symbol: MorphSymbol | undefined): MorphSymbol | undefined {
+    return symbol?.isAlias() === true ? this.input.checker.getAliasedSymbol(symbol) : symbol;
   }
 
-  private addExportsNamed(module: SourceFile, names: readonly string[], out: Set<string>): void {
+  private addSymbol(symbol: MorphSymbol | undefined, scan: Scan): void {
+    this.addDeclarations(this.resolved(symbol)?.getDeclarations() ?? [], scan);
+  }
+
+  private addExportsNamed(module: SourceFile, names: readonly string[], scan: Scan): void {
     const exported = module.getExportedDeclarations();
     for (const name of names) {
-      this.addDeclarations(exported.get(name) ?? [], out);
+      this.addDeclarations(exported.get(name) ?? [], scan);
     }
   }
 
-  private addModule(module: SourceFile | undefined, out: Set<string>): void {
+  private addModule(module: SourceFile | undefined, scan: Scan): void {
     const path = this.pathOf(module);
     if (path !== undefined && this.input.isSubject(path)) {
-      out.add(path);
+      scan.modules.add(path);
     }
   }
 
@@ -174,13 +177,14 @@ class Walker {
     for (const call of file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const callee = call.getExpression();
       const [argument] = call.getArguments();
-      if (argument === undefined || !Node.isStringLiteral(argument) || !Node.isPropertyAccessExpression(callee)) {
+      if (argument === undefined || !Node.isPropertyAccessExpression(callee)) {
         continue;
       }
       if (callee.getExpression().getText() !== "vi" || !VI_MOCK_MEMBERS.has(callee.getName())) {
         continue;
       }
-      const module = this.moduleOfLiteral(file, argument.getLiteralText(), undefined);
+      const specifier = this.constantSpecifier(argument);
+      const module = specifier === undefined ? undefined : this.moduleOfLiteral(file, specifier, undefined);
       if (module !== undefined) {
         mocked.add(module);
       }
@@ -188,64 +192,161 @@ class Walker {
     return mocked;
   }
 
-  private collectImports(file: SourceFile, mocked: ReadonlySet<SourceFile>, out: Set<string>): void {
-    for (const declaration of file.getImportDeclarations()) {
+  /** The module specifier a `vi.mock` argument spells: a string literal, or a `const` (possibly imported) bound to one. */
+  private constantSpecifier(node: MorphNode): string | undefined {
+    if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
+      return node.getLiteralText();
+    }
+    if (Node.isAsExpression(node) || Node.isSatisfiesExpression(node) || Node.isParenthesizedExpression(node) || Node.isAwaitExpression(node)) {
+      return this.constantSpecifier(node.getExpression());
+    }
+    if (Node.isCallExpression(node) && node.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+      const [argument] = node.getArguments();
+      return argument === undefined ? undefined : this.constantSpecifier(argument);
+    }
+    if (!Node.isIdentifier(node)) {
+      return;
+    }
+    const declaration = this.resolved(node.getSymbol())?.getValueDeclaration();
+    if (
+      declaration === undefined ||
+      !Node.isVariableDeclaration(declaration) ||
+      declaration.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const
+    ) {
+      return;
+    }
+    const initializer = declaration.getInitializer();
+    return initializer === undefined ? undefined : this.constantSpecifier(initializer);
+  }
+
+  private collectImports(scan: Scan): void {
+    for (const declaration of scan.file.getImportDeclarations()) {
       const module = declaration.getModuleSpecifierSourceFile();
-      if (!(declaration.isTypeOnly() || (module !== undefined && mocked.has(module)))) {
-        this.collectImport(file, declaration, module, out);
+      if (!(declaration.isTypeOnly() || (module !== undefined && scan.mocked.has(module)))) {
+        this.collectImport(scan, declaration, module);
       }
     }
   }
 
-  private collectImport(file: SourceFile, declaration: ImportDeclaration, module: SourceFile | undefined, out: Set<string>): void {
+  private collectImport(scan: Scan, declaration: ImportDeclaration, module: SourceFile | undefined): void {
     const defaultImport = declaration.getDefaultImport();
     if (defaultImport !== undefined) {
-      this.addSymbol(defaultImport.getSymbol(), out);
+      this.addSymbol(defaultImport.getSymbol(), scan);
     }
     for (const specifier of declaration.getNamedImports()) {
       if (!specifier.isTypeOnly()) {
-        this.addSymbol((specifier.getAliasNode() ?? specifier.getNameNode()).getSymbol(), out);
+        this.addSymbol((specifier.getAliasNode() ?? specifier.getNameNode()).getSymbol(), scan);
       }
     }
     const namespace = declaration.getNamespaceImport();
     if (namespace !== undefined && module !== undefined) {
-      this.addExportsNamed(module, namespaceMembers(file, namespace.getText()), out);
+      this.addExportsNamed(module, namespaceMembers(scan.file, namespace.getText()), scan);
     }
   }
 
-  private collectReExports(file: SourceFile, out: Set<string>): void {
-    for (const declaration of file.getExportDeclarations()) {
+  private collectReExports(scan: Scan): void {
+    for (const declaration of scan.file.getExportDeclarations()) {
       const module = declaration.getModuleSpecifierSourceFile();
       if (module === undefined || declaration.isTypeOnly()) {
         continue;
       }
       const named = declaration.getNamedExports();
       if (named.length === 0) {
-        this.addExportsNamed(module, [...module.getExportedDeclarations().keys()], out);
+        this.addExportsNamed(module, [...module.getExportedDeclarations().keys()], scan);
         continue;
       }
       this.addExportsNamed(
         module,
         named.filter((specifier) => !specifier.isTypeOnly()).map((specifier) => specifier.getNameNode().getText()),
-        out,
+        scan,
       );
     }
   }
 
   /** `import("x")`: the specifier is the edge, so the module itself counts. A destructured dynamic import also
    *  resolves its names, which carries reach through a barrel. */
-  private collectDynamicImports(file: SourceFile, mocked: ReadonlySet<SourceFile>, out: Set<string>): void {
-    for (const call of file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+  private collectDynamicImports(scan: Scan): void {
+    for (const call of scan.file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const [argument] = call.getArguments();
       if (argument === undefined || !Node.isStringLiteral(argument) || call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
         continue;
       }
-      const module = this.moduleOfLiteral(file, argument.getLiteralText(), argument);
-      if (module === undefined || mocked.has(module)) {
+      const module = this.moduleOfLiteral(scan.file, argument.getLiteralText(), argument);
+      if (module === undefined || scan.mocked.has(module)) {
         continue;
       }
-      this.addModule(module, out);
-      this.addExportsNamed(module, destructuredNames(call), out);
+      this.addModule(module, scan);
+      this.addExportsNamed(module, destructuredNames(call), scan);
+    }
+  }
+
+  /** A call whose callee is an imported binding, or a member of an imported namespace, resolves to the export it
+   *  names. Only a callee an import binds is resolved, which keeps the checker off every other call. */
+  private collectCalls(scan: Scan): void {
+    if (this.input.calls === undefined || this.input.calls.size === 0) {
+      return;
+    }
+    const values = importedValueNames(scan.file);
+    for (const call of scan.file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const callee = call.getExpression();
+      if (Node.isIdentifier(callee) && values.has(callee.getText()) && !this.bindsFake(callee, scan)) {
+        this.addCalled(callee, scan, false);
+      } else if (Node.isPropertyAccessExpression(callee) && this.askedNames.has(callee.getName()) && !this.bindsFake(callee.getExpression(), scan)) {
+        this.addCalled(callee.getNameNode(), scan, true);
+      }
+    }
+  }
+
+  /** Whether a call's binding is a fake rather than the module: imported from a module the file mocks, awaited from
+   *  such a dynamic import, or a local value built as an object literal that is only typed as the module. Judged by
+   *  the binding's declaration, never by its type. */
+  private bindsFake(binding: MorphNode, scan: Scan): boolean {
+    if (Node.isAsExpression(binding) || Node.isSatisfiesExpression(binding) || Node.isParenthesizedExpression(binding) || Node.isAwaitExpression(binding)) {
+      return this.bindsFake(binding.getExpression(), scan);
+    }
+    if (Node.isObjectLiteralExpression(binding)) {
+      return true;
+    }
+    if (Node.isCallExpression(binding) && binding.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+      const specifier = this.constantSpecifier(binding);
+      const module = specifier === undefined ? undefined : this.moduleOfLiteral(scan.file, specifier, undefined);
+      return module !== undefined && scan.mocked.has(module);
+    }
+    if (!Node.isIdentifier(binding)) {
+      return false;
+    }
+    return (binding.getSymbol()?.getDeclarations() ?? []).some((declaration) => {
+      const imported = declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+      if (imported !== undefined) {
+        const module = imported.getModuleSpecifierSourceFile();
+        return module !== undefined && scan.mocked.has(module);
+      }
+      const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+      return initializer !== undefined && this.bindsFake(initializer, scan);
+    });
+  }
+
+  /** A member call (`ns.f()`, `(await import("x")).f()`) resolves through the receiver's type, so the receiver can be
+   *  any value of a module's type that `bindsFake` did not reject. The resolved declaration must be a top-level
+   *  export of its module, which keeps a same-named method of an exported object or interface from counting. */
+  private addCalled(callee: MorphNode, scan: Scan, member: boolean): void {
+    const target = this.resolved(callee.getSymbol());
+    const name = target?.getName();
+    for (const declaration of target?.getDeclarations() ?? []) {
+      const path = this.isFaked(declaration, scan) ? undefined : this.pathOf(declaration.getSourceFile());
+      if (path === undefined || name === undefined || this.input.calls?.get(path)?.has(name) !== true) {
+        continue;
+      }
+      if (
+        !member ||
+        declaration
+          .getSourceFile()
+          .getExportedDeclarations()
+          .get(name)
+          ?.some((exported) => exported === declaration) === true
+      ) {
+        scan.called.set(path, (scan.called.get(path) ?? new Set<string>()).add(name));
+      }
     }
   }
 
@@ -264,40 +365,11 @@ class Walker {
   }
 }
 
-function namespaceMembers(file: SourceFile, local: string): readonly string[] {
-  return file
-    .getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)
-    .filter((access) => access.getExpression().getText() === local)
-    .map((access) => access.getName());
-}
-
-/** `const { a, b: c } = await import("x")` names `a` and `b`. */
-function destructuredNames(call: MorphNode): readonly string[] {
-  const holder = call.getParentWhile((parent) => Node.isAwaitExpression(parent) || Node.isParenthesizedExpression(parent)) ?? call;
-  const declaration = holder.getParent();
-  if (declaration === undefined || !Node.isVariableDeclaration(declaration)) {
-    return [];
-  }
-  const binding = declaration.getNameNode();
-  if (!Node.isObjectBindingPattern(binding)) {
-    return [];
-  }
-  return binding.getElements().map((element) => (element.getPropertyNameNode() ?? element.getNameNode()).getText());
-}
-
-/** A repo-relative path for a relative or `#<package>/` specifier; `undefined` for a bare package name. */
-function specifierPath(from: string, specifier: string): string | undefined {
-  if (specifier.startsWith(".")) {
-    return posix.normalize(posix.join(posix.dirname(from), specifier));
-  }
-  const subpath = SUBPATH_IMPORT_RE.exec(specifier);
-  return subpath === null ? undefined : `packages/${subpath[1] ?? ""}/src/${subpath[2] ?? ""}`;
-}
-
 /** Walk every registered test file under `tests/` and record which subject modules it reaches, and with which family. */
 export function testReach(input: WalkInput): TestReach {
   const walker = new Walker(input);
   const reachedBy = new Map<string, Set<TestFamily>>();
+  const calledBy = new Map<string, Map<string, Set<TestFamily>>>();
   const declared: DeclaredSubject[] = [];
   let tests = 0;
   let references = 0;
@@ -309,24 +381,47 @@ export function testReach(input: WalkInput): TestReach {
       continue;
     }
     tests += 1;
-    const family = classification.definition.family;
+    const { definition } = classification;
     for (const subject of subjectHeader(sourceFile)) {
-      declared.push({ test: path, subject, family });
+      declared.push({ test: path, subject, family: definition.family });
     }
     for (const sidePath of moduleClosure([path], (next) => walker.helpersOf(next))) {
-      const modules = walker.referencesOf(sidePath);
+      const reach = walker.referencesOf(sidePath);
       if (!counted.has(sidePath)) {
         counted.add(sidePath);
-        references += modules.size;
+        references += reach.modules.size;
       }
-      record(reachedBy, modules, family);
+      record(reachedBy, calledBy, reach, definition);
     }
   }
-  return { reachedBy, declared, tests, references };
+  return { reachedBy, calledBy, declared, tests, references };
 }
 
-function record(reachedBy: Map<string, Set<TestFamily>>, modules: ReadonlySet<string>, family: TestFamily): void {
-  for (const module of modules) {
-    reachedBy.set(module, (reachedBy.get(module) ?? new Set<TestFamily>()).add(family));
+/** A test kind holds the source extensions its definition lists; a module of another extension is not reached by it. */
+function holdsSource(definition: TestKindDefinition, module: string): boolean {
+  return definition.sourceExtensions.some((extension) => module.endsWith(extension));
+}
+
+function record(
+  reachedBy: Map<string, Set<TestFamily>>,
+  calledBy: Map<string, Map<string, Set<TestFamily>>>,
+  reach: FileReach,
+  definition: TestKindDefinition,
+): void {
+  const { family } = definition;
+  for (const module of reach.modules) {
+    if (holdsSource(definition, module)) {
+      reachedBy.set(module, (reachedBy.get(module) ?? new Set<TestFamily>()).add(family));
+    }
+  }
+  for (const [module, names] of reach.called) {
+    if (!holdsSource(definition, module)) {
+      continue;
+    }
+    const byName = calledBy.get(module) ?? new Map<string, Set<TestFamily>>();
+    calledBy.set(module, byName);
+    for (const name of names) {
+      byName.set(name, (byName.get(name) ?? new Set<TestFamily>()).add(family));
+    }
   }
 }
