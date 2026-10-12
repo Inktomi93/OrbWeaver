@@ -18,7 +18,7 @@ Fake-heavy domain harnesses copy product logic, so they drift and every fix need
 
 ## Done when
 
-The root exists with every edge injectable; one domain suite runs on it with the same case list and a production mutant turning it red; its old harness is deleted; no compose closure holds a rule a test would need.
+The root exists with every edge injectable; one domain suite runs on it with the same case list and a production mutant turning it red; its old harness is deleted; no compose closure holds a rule a test would need. A composed-real test drives the memory prune through the host wiring with a resolvable embed generation, so a stubbed host read turns it red.
 
 ## Evidence
 
