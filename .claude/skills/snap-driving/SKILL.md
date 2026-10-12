@@ -138,6 +138,10 @@ are JSON).
 - `--scale <css|device|n>`: the css default is one image pixel per CSS pixel, half the image tokens on
   a hi-dpi context; raise it only for a human reader. `--mobile` and `--viewport` compose. Read the
   `RESULT` line's `device=<pointer>:dpr<n>:<WxH>` token before trusting any geometry number.
+- **Measure a route or section fade with `--motion-goto <target>`.** Plain `--motion` after a `--goto` opens its
+  window after the navigation and resets the evidence, so the fade is gone (`frames-raw=0/0`). `--motion-goto`
+  opens the trace first and runs the `--goto` inside it. It takes the place of `--motion` (one window per run) and
+  does not combine with `--filmstrip` or `--matrix`.
 - `--probe` voids every motion/CLS number in the run: it floors animations from first paint, which
   kills the FLIP transitions that keep track changes CLS-free, so the harness manufactures
   layout-shift findings (`PROBE-NEUTERED-MOTION` on the run). Take motion/CLS evidence without it.
@@ -245,6 +249,11 @@ after it bound the band. Never
 hand-kill stage pids; that strands registry ownership instead of releasing the band. When the band is
 occupied and you need a private pair, point snap at a private stack with `--base
 http://localhost:<port>`.
+
+**A full table is a queue, not a poll loop.** Add `--stage-wait <min>` to the stage command: a detached waiter holds
+a ticket, boots the stage in ticket order when a band frees, and keeps going if you stop. Run the same command
+again and it resumes the same ticket; it exits 2 (`STAGE WAIT EXPIRED`) when the deadline passes. Never sleep-poll
+`--stage-status` for a band.
 
 The multi-user fixture (`--contexts N` / `--as <handle>`) is a sidecar on its own pair (server `:8790`
 / vite `:5175`, roster `owner`, `member`). snap never boots it; `pnpm fixture up` is an operator call.

@@ -158,6 +158,11 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
       "clone a database file (and its -wal/-shm and the assets/ beside its db/) into a rebuilt stage instead of the dev db; implies --isolated and --fresh",
   },
   "--stage-owner": { group: "Where", summary: "names the checkout for a checkout-wide or cross-checkout --stage-down" },
+  "--stage-wait": {
+    group: "Where",
+    summary: "queue for a stage for up to <min> minutes when none can be had; a detached waiter boots it in order and the wait survives this process",
+  },
+  "--stage-waiter": { group: "Where", summary: "the stage wait queue's waiter entry — spawned by --stage-wait, never typed by an operator" },
   "--stage-keeper": { group: "Where", summary: "the band idle timer's own entry — spawned by snap, never typed by an operator" },
   "--force": { group: "Where", summary: "confirmation half of --stage-down --stage-owner and --session-close on a foreign live session" },
   // Session family (ops/flags-session.ts)

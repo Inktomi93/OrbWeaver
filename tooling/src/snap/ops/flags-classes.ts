@@ -73,6 +73,8 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--session-ttl",
   "--stage-owner",
   "--stage-keeper",
+  "--stage-wait",
+  "--stage-waiter",
   ...armFlagsOfKind("required-value"),
 ]);
 

@@ -90,6 +90,7 @@ import {
   stageRowBaseUrl,
 } from "../lib/stage-plan.ts";
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
+import { StageBusyError } from "../lib/stage-wait-plan.ts";
 import { acquireStageBand, claimRow, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef, stageCallerOwner } from "./stage-git.ts";
 import { holdStageUse } from "./stage-holders.ts";
@@ -345,7 +346,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   if (allocation.kind === "exhausted") {
     // Exit-2 class: nothing was measured, and the text names every row with its idle age so the operator
     // can see which lane holds what (§3.6). ops/guards.ts turns the throw into the printed STAGE ERROR.
-    throw new Error(allocation.refusal);
+    throw new StageBusyError(allocation.refusal);
   }
   if (allocation.kind === "shared-reuse") {
     print(
@@ -374,7 +375,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
     }
     if (decision === "refuse") {
-      throw new Error(stageRebuildRefusal(allocation.row, otherRunHolders(liveHolders, owner, process.pid), nowMs));
+      throw new StageBusyError(stageRebuildRefusal(allocation.row, otherRunHolders(liveHolders, owner, process.pid), nowMs));
     }
     print(
       `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${stageRebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,

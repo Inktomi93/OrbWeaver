@@ -16,7 +16,7 @@ const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
  *  because an operator typing one would be starting a background process by hand rather than asking for
  *  evidence (`ops/flag-grammar.ts` INTERNAL_FLAGS). A SET rather than one hardcoded name, so the next such
  *  entry is one row here rather than a silently-wrong equality. */
-const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
+const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper", "--stage-waiter"]);
 vi.setConfig({ testTimeout: scaledBudget(15_000) });
 
 function grammarCode(grammar: ReturnType<typeof snapFlagDescriptors>[number]["grammar"]): "B" | "V" | "O" {

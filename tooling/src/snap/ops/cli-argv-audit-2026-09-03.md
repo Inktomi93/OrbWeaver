@@ -231,6 +231,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--matrix` | `B` | call orchestration; run the derived rated matrix | matrix owner; composes scenario | no synonym | owned | KEEP |
 | `--mobile` | `B` | boot environment; mobile device preset | outer | same slot as viewport/wide/desktop, different value | owned | KEEP |
 | `--motion` | `O,L` selector | analyzer; motion audit | checkpoint/arm | not OS reduced-motion setting | owned | KEEP |
+| `--motion-goto` | `V,L` target | analyzer; motion audit whose measured input is a `--goto` run inside the trace | checkpoint/arm | takes the place of `--motion` (one window per run) | owned | KEEP |
 | `--motion-no-throttle` | `B` | analyzer modifier | checkpoint/arm | child of motion | owned | KEEP; refused without `--motion` |
 | `--motion-window` | `V,L` milliseconds | analyzer modifier | checkpoint/arm | child of motion | owned | KEEP; refused without `--motion` |
 | `--network` | `V,L` profile | boot environment; network emulation | outer | `fast-3g` is an intentional value alias for DevTools' retired name, not flag alias | owned | KEEP |
@@ -268,6 +269,8 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--stream-settle` | `V,L` seconds | call settle policy; fixed streaming-surface settle | checkpoint | not requests capture | owned | KEEP; old `--sse` refuses by name |
 | `--stage-down` | `B` | admin; stop stage | exclusive | `--force` and `--stage-owner` modifiers | owned | KEEP |
 | `--stage-keeper` | `V,L` band index | internal band idle-timer process (#1163 arm b); polls one row and tears its stage down through the `--stage-down` path | internal only; spawned by `ensureStage`, refused beside any other mode | no public synonym | internal | KEEP internal |
+| `--stage-wait` | `V,L` minutes | stage policy; queue a ticket for a busy table and let a detached waiter boot the stage in order | outer; implies isolated; refused beside the stage admin modes and `--session` | no synonym | owned | KEEP |
+| `--stage-waiter` | `V,L` ticket id | internal stage wait queue waiter process | internal only; spawned by `--stage-wait`, refused beside any other mode | no public synonym | internal | KEEP internal |
 | `--stage-status` | `B` | admin; stage status | exclusive | no alias | owned | KEEP |
 | `--stage-sweep` | `B` | admin; prune stages | exclusive | no selector; `--stage-owner` belongs only to stage-down | owned | KEEP |
 | `--strict-console` | `B` | boot/call evidence policy; console failures fatal | outer/session boot | no alias | owned | KEEP |

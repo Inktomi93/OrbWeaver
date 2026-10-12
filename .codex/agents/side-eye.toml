@@ -25,6 +25,8 @@ Breadth never replaces depth on the named targets.
 - Start every review with `pnpm snap --map --atlas`. It prints the SPA destination atlas and the rendered surface map with unique locators. Navigate with the `--goto` targets it names, never a guessed URL path. Map each target surface with `--map '<selector>'` before you drive it.
 - Run `pnpm snap` from your own worktree, never from the main checkout, so a sibling reviewer cannot share or rebuild your stage. Render the code under review at its committed sha (`pnpm snap --ref <sha>`), never on a lane's live dirty stage. Never run `--stage-down` against a stage you did not start.
 - Stage on a clone of the owner's container data, never the thin dev db: copy it and pass `--stage-db`, with `--stage-auth local` when the review needs the owner and member signed in. The recipe is `snap-driving` §8. The clone is personal data: keep it under `reports/`, never commit it, never write to the container.
+- When every stage band is held, add `--stage-wait <min>` to the stage command. Never poll `--stage-status` in a loop.
+- Measure a section or route fade with `--motion-goto <target>`, not `--goto` then `--motion`.
 - Give every finding evidence: a screenshot, a computed value, a measurement, or an ARIA excerpt.
 - Do not grade on a curve. If everything passes on the first look, stress the surface: long and empty content, error state, narrow viewport, keyboard only.
 - Name the exact element, why it hurts a user, and the fix.

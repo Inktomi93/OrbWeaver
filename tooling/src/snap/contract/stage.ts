@@ -415,6 +415,12 @@ export interface StageArgs {
    *  through ops/stage-keeper.ts, never typed by an operator. It polls that band's row and tears the stage
    *  down through the `--stage-down` path once nothing has used it for the TTL. null = not a keeper. */
   stageKeeper: number | null;
+  /** `--stage-wait <min>`: when no stage can be had now, queue a ticket and let a detached waiter boot it in
+   *  order, for up to this many minutes. The wait survives the caller stopping; the same command resumes it.
+   *  Implies --isolated. null = fail at once on a busy table. */
+  stageWait: number | null;
+  /** `--stage-waiter <ticket>`: the queue waiter's own entry, spawned by `--stage-wait`, never typed. */
+  stageWaiter: string | null;
   /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
    *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
   stageOwner: string | null;

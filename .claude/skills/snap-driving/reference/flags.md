@@ -41,6 +41,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--stage-owner <value>` | names the checkout for a checkout-wide or cross-checkout --stage-down |
 | `--stage-status` | the shared stage-band table: owner, checkout, ref, age, sessions, db provenance |
 | `--stage-sweep` | reap stages idle past the TTL and prune orphan dirs |
+| `--stage-wait <value>` | queue for a stage for up to <min> minutes when none can be had; a detached waiter boots it in order and the wait survives this process |
 | `--visitor` | send relay headers so a loopback stack serves a signed-out visitor, not its owner |
 | `--wait <value>` | after app readiness, require this selector to become visible before anything else runs |
 
@@ -147,6 +148,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--lighthouse <value>` | Lighthouse (accessibility + best-practices + seo) on this run's settled page; not with --cascade |
 | `--lighthouse-mode <value>` | default snapshot audits the page as your tape left it; navigation reloads first and loses the drive |
 | `--motion [selector]` | one motion window: LoAF, CLS, compositor-dirty animations, dropped frames |
+| `--motion-goto <value>` | one motion window around a --goto target: the trace opens first, then the navigation runs inside it |
 | `--motion-no-throttle` | disable the --motion CPU throttle (drop rates stay advisory only off a hardware rate posture) |
 | `--motion-window <value>` | --motion window length in ms (default 2500) |
 | `--perf` | per-step LoAF/long-task attribution, input delay, rAF gaps and CLS over the action tape |

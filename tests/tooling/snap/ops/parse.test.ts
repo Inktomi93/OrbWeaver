@@ -42,7 +42,7 @@ function runSnap(args: readonly string[]): SpawnSyncReturns<string> {
 
 /** Snap's own spawned child entries — accepted, but hidden from the printed grammar and the generated
  *  index (`ops/flag-grammar.ts` INTERNAL_FLAGS). A SET, so a second such entry is one row here. */
-const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
+const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper", "--stage-waiter"]);
 
 function undocumentedAcceptedFlags(): string[] {
   const documented = new Set(snapFlagDescriptors().map((row) => row.flag));

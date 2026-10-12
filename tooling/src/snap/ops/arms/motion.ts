@@ -61,6 +61,7 @@ import { motionFactState, motionStatus, motionTimingPolicy } from "../../lib/mot
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
+import { navigateInsideWindow } from "./motion-nav.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -125,14 +126,15 @@ async function measureMotionAction(
     opts: Args;
     ctx: ArmActionContext;
     selector: string | null;
+    goto: string | null;
     ratePosture: SnapRatePosture;
   }>,
 ): Promise<MotionMeasurement> {
-  const { session, opts, ctx, selector, ratePosture } = input;
+  const { session, opts, ctx, selector, goto, ratePosture } = input;
   const page = ctx.page;
   // Both hints ride the same rule (lib/motion-gaps.ts): they explain a run that ALREADY could not measure,
   // and neither is a parse-time refusal. `hints` is empty on a clean window.
-  const hints = [motionQueueHint(opts, ctx.actionIndex), motionPrecedingInputHint(opts, ctx.actionIndex, selector)].filter(
+  const hints = [motionQueueHint(opts, ctx.actionIndex), motionPrecedingInputHint(opts, ctx.actionIndex, selector ?? goto)].filter(
     (hint): hint is EvidenceGap => hint !== null,
   );
   const gap = apparatusGap({ url: page.url(), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
@@ -148,7 +150,12 @@ async function measureMotionAction(
     const environment = await readBrowserEnvironment(page, session.environmentContract);
     const measuredClick = await prepareMeasuredClick(page, selector);
     await settleAndReset(page, selector, ctx.actionIndex);
-    const raw = await runAudit(page, cdp, { selector, windowMs: opts.motionWindowMs }, measuredClick);
+    const raw = await runAudit(
+      page,
+      cdp,
+      { selector, windowMs: opts.motionWindowMs, ...(goto === null ? {} : { measuredNav: (): Promise<boolean> => navigateInsideWindow(page, goto) }) },
+      measuredClick,
+    );
     const data: AuditData = {
       ...raw,
       environment,
@@ -255,6 +262,17 @@ export const MOTION_ARM = {
       },
     },
     {
+      flag: "--motion-goto",
+      kind: "required-value",
+      pageTargetable: false,
+      group: "Measure",
+      summary: "one motion window around a --goto target: the trace opens first, then the navigation runs inside it",
+      handler: (args, rest): void => {
+        args.motion = true;
+        pushStep(args, { kind: "motion-click", selector: null, goto: rest.shift() ?? "", page: 0 });
+      },
+    },
+    {
       flag: "--motion-window",
       kind: "required-value",
       pageTargetable: false,
@@ -289,6 +307,9 @@ export const MOTION_ARM = {
                           Reach inputs written BEFORE it (--wheel-burst, --click, ...) run before the
                           window opens and their evidence is reset, so this arm never measures their
                           cost — for that use --perf, or --cpu-profile for self time.
+  --motion-goto <target>  like --motion, but the measured input is a --goto target: Snap opens the trace, THEN
+                          navigates inside it, so a route or section fade is in the window. Replaces --motion
+                          (one window per run); it does not combine with --filmstrip or --matrix.
   --motion-window <ms>    measured observation window (default 2500)
   --motion-no-throttle    disable motion's default 4x CPU throttle. Dropped-frame rates are advisory only
                           when this run's RATE POSTURE is not "hardware" — headless is NOT structurally
@@ -315,7 +336,14 @@ export const MOTION_ARM = {
             return null;
           }
           measuredCount += 1;
-          measurement = await measureMotionAction({ session, opts, ctx, selector: ctx.action.action.selector, ratePosture: await shared.ratePosture });
+          measurement = await measureMotionAction({
+            session,
+            opts,
+            ctx,
+            selector: ctx.action.action.selector,
+            goto: ctx.action.action.goto ?? null,
+            ratePosture: await shared.ratePosture,
+          });
           return { handled: true, failures: measurement.data?.stepFailed === true ? 1 : 0 };
         },
         afterAction: (): Promise<void> => Promise.resolve(),
