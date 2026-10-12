@@ -14,7 +14,7 @@
 // at all — so the inset goes on the same element that already owns the scroll here, not one level up.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { formatUsd } from "@orb/kit/strings";
+import { formatSignedDelta, formatUsd } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -44,7 +44,6 @@ import {
   formatDurationMs,
   formatMs,
   formatPercent,
-  formatSignedDelta,
   formatThroughput,
   IMPORTED_ACTIVITY_NOTE,
   LATENCY_LABELS,

@@ -2,6 +2,7 @@
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { isTypeWorldSource } from "@orb/tooling/floor/compiler/project-worlds";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { PolicyProgramMembership } from "../contract/policy-scope.ts";
@@ -77,7 +78,7 @@ export function nativeProgramRoots(root: string, program: PolicyProgramMembershi
   for (const file of files) {
     const absolute = isAbsolute(file) ? file : join(configDir, file);
     const rel = relative(root, absolute);
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || rel.includes(`${sep}node_modules${sep}`)) {
+    if (!isWithinRoot(root, resolve(absolute), { sep }) || rel.includes(`${sep}node_modules${sep}`)) {
       continue;
     }
     const posix = rel.split(sep).join("/");

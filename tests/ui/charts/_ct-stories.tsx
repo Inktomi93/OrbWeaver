@@ -12,6 +12,7 @@
 // @orb-waive-file testid-typed-only-stories("accepted-chart-panel"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("contextual-chart-panel"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("midlight-chart-panel"): baselined when the gate widened; burn-down item 906.
+import { formatSignedDelta } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import type { OrbChartOption, OrbEChartsInstance } from "@orb/ui/chart";
 import { Chart } from "@orb/ui/chart";
@@ -205,11 +206,6 @@ export function RejectedContextualChartCasesStory(): ReactElement {
  *  so ~240px is the width the owner's two-column Momentum band actually renders at on a laptop. */
 const NARROW_HOST_PX = 240;
 
-/** `formatSignedDelta`'s shape (the analytics view-model) — the sign lives ONLY in this label. */
-function signedDelta(value: number): string {
-  return value > 0 ? `+${value}` : String(value);
-}
-
 /** A wide bar-end label: the token counts the Models tab formats, at the width they actually take. */
 function tokenCount(value: number): string {
   return `${value} tokens`;
@@ -248,7 +244,7 @@ export function ShortSeriesBarListStory(): ReactElement {
         { id: "c", label: "Imai", value: 3 },
       ]}
       label="Rising"
-      valueFormatter={signedDelta}
+      valueFormatter={formatSignedDelta}
     />
   );
 }

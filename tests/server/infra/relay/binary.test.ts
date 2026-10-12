@@ -2,13 +2,13 @@
 // serves planted bytes, so no test touches the network; the tgz arm runs the real system tar on a planted archive.
 
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CloudflaredPackaging, CloudflaredPin, ExtractTgz, RelayAssetFetch } from "@orb/server/infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, extractTgzWithTar } from "@orb/server/infra/relay";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
 
@@ -34,16 +34,12 @@ async function tempDir(): Promise<string> {
   return dir;
 }
 
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
 // The real pin with this box's target pointed at planted bytes; every other field is the shipped shape.
 function pinFor(bytes: Uint8Array, packaging: CloudflaredPackaging = "binary"): CloudflaredPin {
   return {
     ...CLOUDFLARED_PIN,
     releaseBase: "https://relay.example.invalid/download",
-    assets: { ...CLOUDFLARED_PIN.assets, [TARGET]: { file: "cloudflared-planted", packaging, bytes: bytes.byteLength, sha256: sha256(bytes) } },
+    assets: { ...CLOUDFLARED_PIN.assets, [TARGET]: { file: "cloudflared-planted", packaging, bytes: bytes.byteLength, sha256: sha256Hex(bytes) } },
   };
 }
 

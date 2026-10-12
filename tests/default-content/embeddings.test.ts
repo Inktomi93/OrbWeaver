@@ -1,14 +1,13 @@
-import { createHash } from "node:crypto";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { findSeedEmbedding, readSeedAvatar } from "@orb/default-content";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SPACE = localLightEmbedSpaceTag(DEFAULT_EMBED_MODEL, "q8");
-const hash = (content: string | Uint8Array): string => createHash("sha256").update(content).digest("hex");
 
 test("every shipped card projection and avatar has a complete normalized vector in the default space", async () => {
   const sources: { kind: string; content: string | Uint8Array }[] = DEFAULT_CHARACTER_CARDS.map(({ input }) => ({
@@ -29,7 +28,7 @@ test("every shipped card projection and avatar has a complete normalized vector 
     sources.push({ kind: "image-raw", content: avatar.bytes });
   }
   for (const source of sources) {
-    const digest = hash(source.content);
+    const digest = sha256Hex(source.content);
     const found = findSeedEmbedding(digest, SPACE, source.kind);
     expect(found, `${source.kind}:${digest}`).not.toBeNull();
     expect(found?.vector.length).toBe(BUILT_IN_EMBED_DIMS);

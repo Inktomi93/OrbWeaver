@@ -10,11 +10,11 @@
 // `set_widget_value`, `presentUpsert.customFields`) into a captured `real-cheap-toolround.json`, so it can no
 // longer measure the surface we ship. THIS harness drives the REAL exported builders — the tool parameters
 // come from `constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs)` (R5a condition enum + R6
-// grouped per-actor tracker keys + establish-when-unset), the descriptions from `buildRpgToolDescriptions`
+// grouped per-actor tracker keys + establish-when-unset), the tools from `buildToolRoundWireTools`
 // (R2 templates rendered against THIS game), the teaching from `composePlaneTeaching`, the reminder from the
 // production `buildLiteReminder`, and the apply from the production `extractionToStateDelta`. What is
-// re-spelled here (and ONLY this) are the three private compose-layer wrappers a probe cannot import:
-// `buildToolRoundWireTools`, `toolRoundSystem`, `extractionSystem`/`refEnumerationLines`. They are mirrored
+// re-spelled here (and ONLY this) are the private compose-layer prompt wrappers a probe cannot import:
+// `toolRoundSystem`, `extractionSystem`/`refEnumerationLines`. They are mirrored
 // line-for-line from `packages/server/src/entry/compose/rpg.ts`; if that file moves, this drifts.
 //
 // THE THREE ARMS ARE THREE ENFORCEMENT CLASSES ON THIS BACKEND (§4f), not one mechanism three ways:
@@ -38,13 +38,14 @@ import type {
   RpgExtraction,
   RpgGameConfig,
   RpgQuestView,
+  RpgStateRoundTool,
   RpgSnapshotState,
   RpgTrackerCarrier,
   RpgTrackerEntry,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
 import {
-  buildRpgToolDescriptions,
+  buildToolRoundWireTools,
   buildTrackerWriteGroups,
   composePlaneTeaching,
   constrainExtractionSchema,
@@ -52,7 +53,6 @@ import {
   gameTrackerWriteKeys,
   malformedToolCalls,
   RPG_JOURNAL_TYPES,
-  RPG_NO_CHANGES_TOOL,
   RPG_PROFILE_FREEFORM,
   rpgActorEntrySchema,
   rpgExtractionSchema,
@@ -188,43 +188,8 @@ function refsFor(state: RpgSnapshotState, config: RpgGameConfig): ExtractionRefs
 
 // ── the three private compose wrappers, MIRRORED (see the file header) ──────────────────────────────────
 
-interface WireTool {
-  readonly name: string;
-  readonly description: string;
-  readonly parameters: Record<string, unknown>;
-}
-
-/** MIRROR of `buildToolRoundWireTools` (compose/rpg.ts:674). */
-function wireTools(refs: ExtractionRefs, config: RpgGameConfig): WireTool[] {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs) as {
-    properties?: Record<string, { items?: Record<string, unknown> }>;
-  };
-  const itemSchemaOf = (field: string): Record<string, unknown> | undefined => {
-    const node = constrained.properties?.[field];
-    return node === undefined ? undefined : (node.items ?? { type: "object" });
-  };
-  const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
-  const descriptions = buildRpgToolDescriptions({ config, refs });
-  const describe = (name: string): string => descriptions.get(name) ?? "";
-  const tools: WireTool[] = [
-    { name: "update_party", description: describe("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
-    { name: "update_inventory", description: describe("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
-    { name: "update_scene", description: describe("update_scene"), parameters: sceneSchema },
-  ];
-  const trackerParams = itemSchemaOf("trackers");
-  if (trackerParams !== undefined) {
-    tools.push({ name: "set_tracker", description: describe("set_tracker"), parameters: trackerParams });
-  }
-  tools.push(
-    { name: "upsert_quest", description: describe("upsert_quest"), parameters: itemSchemaOf("quests") ?? { type: "object" } },
-    { name: "add_journal_entry", description: describe("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
-    {
-      name: RPG_NO_CHANGES_TOOL,
-      description: "Call ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  );
-  return tools;
+function wireTools(refs: ExtractionRefs, config: RpgGameConfig): RpgStateRoundTool[] {
+  return buildToolRoundWireTools(refs, config, {});
 }
 
 /** MIRROR of `refEnumerationLines` (compose/rpg.ts:442). */

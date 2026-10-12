@@ -11,6 +11,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { afterEach } from "vitest";
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
@@ -47,15 +48,6 @@ afterEach(() => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 test("a broker with a live Worker exits when its inherited watchdog channel disappears", { timeout: 30_000 }, async () => {
   directory = mkdtempSync(join(tmpdir(), "orb-broker-supervision-"));
   supervisor = spawn(process.execPath, ["-e", STUB_SUPERVISOR, BROKER_ENTRY, directory], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
@@ -64,11 +56,11 @@ test("a broker with a live Worker exits when its inherited watchdog channel disa
   ];
   brokerPid = message.brokerPid;
   expect(message.response).toMatchObject({ ok: true, value: { ok: true } });
-  expect(isAlive(brokerPid)).toBe(true);
+  expect(pidAlive(brokerPid)).toBe(true);
   supervisor.kill("SIGKILL");
   await once(supervisor, "exit");
-  while (isAlive(brokerPid)) {
+  while (pidAlive(brokerPid)) {
     await sleep(20);
   }
-  expect(isAlive(brokerPid)).toBe(false);
+  expect(pidAlive(brokerPid)).toBe(false);
 });

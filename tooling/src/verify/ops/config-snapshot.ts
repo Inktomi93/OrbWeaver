@@ -3,10 +3,11 @@
 // The ESLint flat-config MODEL and its selector counterfactuals are `lib/eslint-selector-model.ts` (split out
 // at the size cap 2026-09-18); the three runner entry points, their loaders and the argv door stay here.
 import { existsSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { resolve, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { ConfigArray } from "@eslint/config-array";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
@@ -279,8 +280,7 @@ function eslintTrackedPaths(root: string, supplied?: readonly string[]): EslintT
       throw new Error(`config-snapshot ESLint tracked path is absent from the transaction: ${path}`);
     }
     const canonical = realpathSync(target);
-    const rel = relative(root, canonical);
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    if (!isWithinRoot(root, canonical, { sep })) {
       throw new Error(`config-snapshot ESLint tracked path is not a contained transaction file: ${path}`);
     }
     (statSync(canonical).isFile() ? paths : excludedNonFilePaths).push(path);

@@ -28,7 +28,8 @@
 //   • ENTRIES-MAP — the orphan ratchet's `{ "note": "…", "entries": { "<subject>": "<reason>" } }`, where a
 //     row is one membership (count 1) carrying its reason as its `why`.
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { isPlainObject } from "../browser/page-validate.ts";
 import { execNicedSync } from "../process/proc.ts";
 
@@ -203,14 +204,12 @@ export function citeResolves(root: string, cite: string): boolean {
   }
   const rootAbs = resolve(root);
   const candidate = resolve(rootAbs, path);
-  const lexicalRel = relative(rootAbs, candidate);
-  if (lexicalRel === ".." || lexicalRel.startsWith(`..${sep}`) || isAbsolute(lexicalRel) || !existsSync(candidate)) {
+  if (!(isWithinRoot(rootAbs, candidate, { sep }) && existsSync(candidate))) {
     return false;
   }
   const realRoot = realpathSync(rootAbs);
   const realCandidate = realpathSync(candidate);
-  const physicalRel = relative(realRoot, realCandidate);
-  return physicalRel !== ".." && !physicalRel.startsWith(`..${sep}`) && !isAbsolute(physicalRel);
+  return isWithinRoot(realRoot, realCandidate, { sep });
 }
 
 /** The `(D debt · R ratified)` half every consumer prints beside an admitted total — ONE spelling, so the

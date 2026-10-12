@@ -22,6 +22,7 @@
 import type { GenerationCapability, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { isPlainObject } from "@orb/kit/guards";
 import { castId } from "@orb/kit/ids";
 import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -208,13 +209,9 @@ function fableRequest(mandatory: boolean, model = "claude-fable-5-1"): Anthropic
   return turnRequest({ connection, params: { effort: "none" }, tools: undefined });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function thinkingTypeOf(recorded: RecordedRequest | undefined): unknown {
   const thinking = recorded?.body["thinking"];
-  return isRecord(thinking) ? thinking["type"] : undefined;
+  return isPlainObject(thinking) ? thinking["type"] : undefined;
 }
 
 async function recordedTurn(

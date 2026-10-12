@@ -20,3 +20,8 @@
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/** The value when it is a finite number, else `null`: the read for a number off a parsed blob that may be missing, a string or `NaN`. */
+export function finiteNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
