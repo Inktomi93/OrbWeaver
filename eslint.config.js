@@ -1530,8 +1530,7 @@ function maintainedRulePacks() {
         "zod/consistent-import": "off",
         // Style: schema variable naming is Biome's `useNamingConvention` territory.
         "zod/consistent-schema-var-name": "off",
-        // A real modernization (`z.number().int()` becomes `z.int()`) over a wave too wide for this change.
-        "zod/no-number-schema-with-int": "off",
+        "zod/no-number-schema-with-int": "error",
       },
     },
     {

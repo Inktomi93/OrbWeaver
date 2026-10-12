@@ -60,7 +60,7 @@ const wireTagSchema = z
     color2: z.string().nullish().catch(null),
     source: tagSourceSchema.nullish().catch(null),
     folderType: tagFolderTypeSchema.catch("NONE"),
-    sortOrder: z.number().int().nullish().catch(null),
+    sortOrder: z.int().nullish().catch(null),
     isHiddenOnCard: z.boolean().catch(false),
   })
   .transform(

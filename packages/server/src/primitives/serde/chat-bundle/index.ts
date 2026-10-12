@@ -227,25 +227,25 @@ export interface PortableChat {
 
 // ── the wire schemas ──────────────────────────────────────────────────────────────────────────────────────
 
-const nullableIndex = z.number().int().nonnegative().nullish().catch(null);
-const index = z.number().int().nonnegative();
+const nullableIndex = z.int().nonnegative().nullish().catch(null);
+const index = z.int().nonnegative();
 
 const wireVariantSchema = z
   .object({
-    idx: z.number().int().nonnegative(),
+    idx: z.int().nonnegative(),
     content: z.string(),
     model: z.string().nullish().catch(null),
     provider: z.string().nullish().catch(null),
-    tokensIn: z.number().int().nullish().catch(null),
-    tokensOut: z.number().int().nullish().catch(null),
+    tokensIn: z.int().nullish().catch(null),
+    tokensOut: z.int().nullish().catch(null),
     // NOT refined against the token axes — the contradiction is RESOLVED on read, in `variantFromWire`.
     // See {@link resolveTokenProvenance} for why a contradictory pair is a live durable row and not a
     // malformed file.
     tokenProvenance: tokenProvenanceSchema.optional(),
     reasoning: z.string().nullish().catch(null),
-    ttftMs: z.number().int().nullish().catch(null),
-    genStartedAt: z.number().int().nullish().catch(null),
-    genFinishedAt: z.number().int().nullish().catch(null),
+    ttftMs: z.int().nullish().catch(null),
+    genStartedAt: z.int().nullish().catch(null),
+    genFinishedAt: z.int().nullish().catch(null),
     // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
     // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
     // Same trade the spine's "drop" row policy makes one level up.
@@ -264,18 +264,18 @@ const wireMessageSchema = z.object({
   kind: messageKindSchema.catch("standard"),
   speakerHandle: z.string().nullish().catch(null),
   personaName: z.string().nullish().catch(null),
-  createdAt: z.number().int(),
-  selectedIdx: z.number().int().nonnegative().catch(0),
+  createdAt: z.int(),
+  selectedIdx: z.int().nonnegative().catch(0),
   variants: z.array(wireVariantSchema),
 });
 
 const wireInjectionSchema = z.object({
   position: z.enum(CHAT_INJECTION_POSITIONS),
-  depth: z.number().int().catch(0),
+  depth: z.int().catch(0),
   role: messageRoleSchema,
   content: z.string(),
-  order: z.number().int().nullish().catch(null),
-  createdAt: z.number().int(),
+  order: z.int().nullish().catch(null),
+  createdAt: z.int(),
 });
 
 // The record's own contract type carries no zod schema (it is produced, never parsed, in live code), so the
@@ -293,9 +293,9 @@ const wireRecordedToolCallSchema = z.object({
 const wireRpgSchema = z.object({
   mode: rpgGameModeSchema,
   status: rpgGameStatusSchema,
-  sessionNumber: z.number().int().positive().catch(1),
+  sessionNumber: z.int().positive().catch(1),
   config: rpgGameConfigSchema,
-  createdAt: z.number().int(),
+  createdAt: z.int(),
   // A foreign handle is opaque carriage until the import verb resolves it against the owner's canonical
   // library. Keep the wire value unbranded here; the lookup boundary validates the real handle contract.
   sheets: z.array(z.object({ characterHandle: z.string().min(1).nullish().catch(null), sheet: rpgSheetSchema })),
@@ -305,7 +305,7 @@ const wireRpgSchema = z.object({
       variantIdx: nullableIndex,
       asOfMessageIndex: nullableIndex,
       committed: z.boolean().catch(false),
-      createdAt: z.number().int(),
+      createdAt: z.int(),
       state: rpgSnapshotStateSchema,
     }),
   ),
@@ -318,7 +318,7 @@ const wireRpgSchema = z.object({
       messageIndex: nullableIndex,
       variantIdx: nullableIndex,
       sourceMessageIndex: nullableIndex,
-      createdAt: z.number().int(),
+      createdAt: z.int(),
     }),
   ),
   turnToolCalls: z.array(
@@ -326,7 +326,7 @@ const wireRpgSchema = z.object({
       messageIndex: index,
       variantIdx: index,
       calls: z.array(wireRecordedToolCallSchema),
-      createdAt: z.number().int(),
+      createdAt: z.int(),
     }),
   ),
   checkpoints: z.array(
@@ -334,19 +334,19 @@ const wireRpgSchema = z.object({
       snapshotIndex: index,
       label: z.string(),
       trigger: rpgCheckpointTriggerSchema,
-      createdAt: z.number().int(),
+      createdAt: z.int(),
     }),
   ),
 });
 
 const wireChatSchema = z.object({
   title: z.string().catch(""),
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
+  createdAt: z.int(),
+  updatedAt: z.int(),
   starred: z.boolean().catch(false),
   archived: z.boolean().catch(false),
   compactSummary: z.string().nullish().catch(null),
-  compactedAtSeq: z.number().int().nullish().catch(null),
+  compactedAtSeq: z.int().nullish().catch(null),
   metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
   variableValues: z.record(z.string(), z.string()).nullish().catch(null),
   userMacroValues: userMacroValuesSchema.nullish().catch(null),

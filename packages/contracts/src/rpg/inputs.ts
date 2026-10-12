@@ -78,11 +78,11 @@ export const rpgUpdateConfigInputSchema = z.object({
       deception: z.boolean().optional(),
       omniscience: z.boolean().optional(),
       hiddenContentReveal: z.boolean().optional(),
-      recentBeatsKeepLast: z.number().int().min(0).optional(),
+      recentBeatsKeepLast: z.int().min(0).optional(),
       // The card knobs (teaching gate, interactivity ask, keep-last-X wire) — omit keeps; a passed value replaces.
       immersiveHtml: z.boolean().optional(),
       immersiveHtmlInteractive: z.boolean().optional(),
-      cardKeepLastX: z.number().int().min(0).optional(),
+      cardKeepLastX: z.int().min(0).optional(),
       // The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the choice-click behavior + the wand
       // Plot submenu gate. Omit keeps; a passed value replaces.
       cyoa: z.boolean().optional(),
@@ -98,8 +98,8 @@ export const rpgUpdateConfigInputSchema = z.object({
       extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).optional(),
       // The state round's vehicle (`auto` | `tools` | `structured`). Omit keeps.
       stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).optional(),
-      extractionWindowTokens: z.number().int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
-      reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
+      extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
+      reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
       // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE write
       // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
       // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
@@ -127,7 +127,7 @@ export const rpgPatchSheetInputSchema = z.object({
     // profile's range floor). The `null` arm is not decoration: `updateConfig` refuses to REMOVE an attribute
     // any sheet still references, so without an explicit clear a filled-in key would pin its attribute into the
     // profile forever.
-    attributes: z.record(z.string(), z.number().int().nullable()).optional(),
+    attributes: z.record(z.string(), z.int().nullable()).optional(),
     // The per-actor TRACKER EXCEPTIONS (the unification's applicability model): tracker KEYS this actor is
     // granted beyond its carrier class, and keys revoked from it. Omit keeps; a passed array REPLACES it.
     // Tracker DEFS are not here — they home once in `config.trackers` (`updateConfig` is their door).
@@ -137,7 +137,7 @@ export const rpgPatchSheetInputSchema = z.object({
     // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). No TURN can
     // write it (absent from the extraction schema + tool args); the only other door is the host born-state
     // round (`populateFromCharacter`), which fills it once, from the card, while it is still null.
-    level: z.number().int().min(0).nullable().optional(),
+    level: z.int().min(0).nullable().optional(),
   }),
 });
 
@@ -321,8 +321,8 @@ export const RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT = 200;
 /** `listJournal` — the paged lineage-projected archive (member). */
 export const rpgListJournalInputSchema = z.object({
   chatId: chatIdField,
-  limit: z.number().int().min(1).max(RPG_JOURNAL_LIST_MAX_LIMIT).optional(),
-  offset: z.number().int().min(0).optional(),
+  limit: z.int().min(1).max(RPG_JOURNAL_LIST_MAX_LIMIT).optional(),
+  offset: z.int().min(0).optional(),
 });
 
 /** `rpg.listTurnToolCalls` — the recorded-turn window (TOOLCALLS-INVISIBLE, arm A). No `offset`: the client
@@ -334,7 +334,7 @@ export const rpgListJournalInputSchema = z.object({
  *  asking for something other than what it says. */
 export const rpgListTurnToolCallsInputSchema = z.object({
   chatId: chatIdField,
-  turnLimit: z.number().int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
+  turnLimit: z.int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });
 
 // Public post-parse faces for the transport schemas above. These are the branded/defaulted values the

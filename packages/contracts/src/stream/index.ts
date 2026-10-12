@@ -134,7 +134,7 @@ export type StreamConnectInput = z.output<typeof streamConnectInputSchema>;
 export const streamAttachInputSchema = z.object({
   socketId: brandedId<SocketId>(),
   ref: streamRoomRefSchema,
-  sinceSeq: z.number().int().min(0).nullish(),
+  sinceSeq: z.int().min(0).nullish(),
 });
 /** @public twin: streamAttachInputSchema */
 export type StreamAttachInput = z.output<typeof streamAttachInputSchema>;

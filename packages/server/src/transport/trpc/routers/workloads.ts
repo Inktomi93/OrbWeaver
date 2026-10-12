@@ -125,7 +125,7 @@ export const workloadsRouter = t.router({
           // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask
           // is a BAD_REQUEST naming the bound, never an unbounded run-history fetch (`WORKLOAD_LIST_MAX_LIMIT`).
           // The persistence hard cap is the internal-caller backstop.
-          limit: z.number().int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
+          limit: z.int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
         })
         .optional(),
     )

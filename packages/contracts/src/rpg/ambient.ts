@@ -33,9 +33,9 @@ const MINUTE_MAX = 59;
  *  Lite sets the time via the `TIME_OF_DAY` label; full's engine sets it directly. Reading the label back is
  *  {@link clockTimeOfDay} — the ONE guard, so no consumer re-decides what "this clock has no time" means. */
 export const rpgClockTimeSchema = z.object({
-  day: z.number().int().min(1),
-  hour: z.number().int().min(0).max(HOUR_MAX).nullable(),
-  minute: z.number().int().min(0).max(MINUTE_MAX).nullable(),
+  day: z.int().min(1),
+  hour: z.int().min(0).max(HOUR_MAX).nullable(),
+  minute: z.int().min(0).max(MINUTE_MAX).nullable(),
 });
 export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
 

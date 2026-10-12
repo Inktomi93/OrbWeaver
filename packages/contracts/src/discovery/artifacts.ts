@@ -117,7 +117,7 @@ export const visualArchetypeSchema = z.strictObject({
   label: z.string(),
   genre: z.string().nullable(),
   tone: z.string().nullable(),
-  analysedMembers: z.number().int().nonnegative(),
+  analysedMembers: z.int().nonnegative(),
   artStyle: z.string().nullable(),
   palette: z.string().nullable(),
   mood: z.string().nullable(),

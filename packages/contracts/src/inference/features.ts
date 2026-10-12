@@ -199,23 +199,23 @@ export const endpointFeaturesSchema = z.object({
    *  (`"30m"`, `"-1m"` = until the server stops). Absent ⇒ the server's default. */
   keepAlive: z.string().min(1).optional(),
   /** Ollama's native route: the prompt batch size (`options.num_batch`); a change reloads the model. */
-  numBatch: z.number().int().positive().optional(),
+  numBatch: z.int().positive().optional(),
   /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
   pricing: tokenPricingSchema.optional(),
   /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */
   concurrency: z
     .object({
-      embed: z.number().int().positive().optional(),
-      imageEmbed: z.number().int().positive().optional(),
-      summarize: z.number().int().positive().max(SUMMARIZE_CONCURRENCY_MAX).optional(),
+      embed: z.int().positive().optional(),
+      imageEmbed: z.int().positive().optional(),
+      summarize: z.int().positive().max(SUMMARIZE_CONCURRENCY_MAX).optional(),
     })
     .optional(),
   /** The #187 per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item
    *  POST reach ~1M tokens and head-of-line-block every other caller. Server-specific, so a feature. */
-  embedBatch: z.object({ maxTokens: z.number().int().positive(), floorTokensPerSec: z.number().positive() }).optional(),
+  embedBatch: z.object({ maxTokens: z.int().positive(), floorTokensPerSec: z.number().positive() }).optional(),
   /** The row's request deadline: the embed POST's deadline base, and the idle ceiling (the longest a turn may go
    *  without a received chunk) of every HTTP chat turn and of an agent-sdk side-generation turn. */
-  requestTimeoutMs: z.number().int().positive().optional(),
+  requestTimeoutMs: z.int().positive().optional(),
 });
 export type EndpointFeatures = z.infer<typeof endpointFeaturesSchema>;
 

@@ -396,27 +396,27 @@ type GenerationKnobSchemas = {
 
 // ONE place per numeric bound — no split source between server/client (client accepts → server rejects).
 export const generationKnobSchemas = {
-  thinkingBudgetTokens: z.number().int().positive().optional(),
-  maxOutputTokens: z.number().int().positive().optional(),
-  maxContextTokens: z.number().int().positive().optional(),
+  thinkingBudgetTokens: z.int().positive().optional(),
+  maxOutputTokens: z.int().positive().optional(),
+  maxContextTokens: z.int().positive().optional(),
   temperature: z.number().min(TEMPERATURE_MIN).max(TEMPERATURE_MAX).optional(),
   topP: z.number().min(TOP_P_MIN).max(TOP_P_MAX).optional(),
-  topK: z.number().int().nonnegative().optional(),
+  topK: z.int().nonnegative().optional(),
   minP: z.number().min(MIN_P_MIN).max(MIN_P_MAX).optional(),
   topA: z.number().min(TOP_A_MIN).max(TOP_A_MAX).optional(),
   frequencyPenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   presencePenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   repetitionPenalty: z.number().min(REPETITION_PENALTY_MIN).max(REPETITION_PENALTY_MAX).optional(),
-  repetitionPenaltyRange: z.number().int().nonnegative().optional(),
+  repetitionPenaltyRange: z.int().nonnegative().optional(),
   typicalP: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
   topNSigma: z.number().nonnegative().optional(),
   xtcProbability: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
   xtcThreshold: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
   dryMultiplier: z.number().nonnegative().optional(),
   dryBase: z.number().min(DRY_BASE_MIN).optional(),
-  dryAllowedLength: z.number().int().nonnegative().optional(),
-  dryPenaltyLastN: z.number().int().nonnegative().optional(),
-  mirostatMode: z.number().int().nonnegative().max(MIROSTAT_MODE_MAX).optional(),
+  dryAllowedLength: z.int().nonnegative().optional(),
+  dryPenaltyLastN: z.int().nonnegative().optional(),
+  mirostatMode: z.int().nonnegative().max(MIROSTAT_MODE_MAX).optional(),
   mirostatTau: z.number().nonnegative().optional(),
   mirostatEta: z.number().nonnegative().optional(),
   dynatempRange: z.number().nonnegative().optional(),
@@ -425,10 +425,10 @@ export const generationKnobSchemas = {
   smoothingCurve: z.number().min(SMOOTHING_CURVE_MIN).optional(),
   adaptiveTarget: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
   adaptiveDecay: z.number().min(PROBABILITY_MIN).max(ADAPTIVE_DECAY_MAX).optional(),
-  minKeep: z.number().int().nonnegative().optional(),
-  seed: z.number().int().optional(),
+  minKeep: z.int().nonnegative().optional(),
+  seed: z.int().optional(),
   compactionThresholdPct: z.number().min(COMPACTION_THRESHOLD_MIN).max(COMPACTION_THRESHOLD_MAX).optional(),
-  compactionVerbatimTail: z.number().int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
+  compactionVerbatimTail: z.int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
 } as const satisfies GenerationKnobSchemas;
 
 // `z.strictObject` rejects unknown keys (a typo'd knob is a real bug; `.catch({})` at the params field bounds
@@ -663,7 +663,7 @@ export const guidedActionConfigSchema = z.object({
    *  `.default()`) ⇒ 0, which is the depth the guided injection candidate has always used — so every stored
    *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
    *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
-  depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
+  depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 }) satisfies z.ZodType<{ readonly prompt: string; readonly role: MessageRole; readonly depth?: number | undefined }>;
 
 export const guidedActionsSchema = z.object({
@@ -916,8 +916,8 @@ const triggerSchema = z.array(z.enum(GENERATION_TYPES)).max(GENERATION_TYPES.len
 /** Absolute-depth placement (ST `injection_position: ABSOLUTE`). Depth 0 = the tail; N = N turns back.
  *  Ceiling shared with `@orb/kit/injection.MAX_INJECTION_DEPTH` (one source of truth). */
 const injectSchema = z.object({
-  depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH),
-  order: z.number().int().min(INJECT_ORDER_MIN).max(INJECT_ORDER_MAX).optional(),
+  depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH),
+  order: z.int().min(INJECT_ORDER_MIN).max(INJECT_ORDER_MAX).optional(),
 });
 type SectionInject = z.infer<typeof injectSchema>;
 
@@ -2356,7 +2356,7 @@ const formatStringsSchema = z.object({
 });
 
 export const promptConfigSchema = z.object({
-  schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
+  schemaVersion: z.int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
   sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
   // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
   // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.

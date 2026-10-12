@@ -31,7 +31,7 @@ export const rerankOnnxSchema = z.object({
 export type RerankOnnx = z.infer<typeof rerankOnnxSchema>;
 
 export const rerankCapabilitySchema = z.object({
-  maxInputTokens: z.number().int().positive(),
+  maxInputTokens: z.int().positive(),
   input: z.array(modalitySchema),
   instructionAware: z.boolean(),
   windowEstimated: z.boolean().optional(),

@@ -66,7 +66,7 @@ export const BROWSE_DEFAULT_LIMIT = 60;
 export const browseCursorSchema = z.discriminatedUnion("sort", [
   z.object({
     sort: z.literal("recent"),
-    createdAt: z.number().int(),
+    createdAt: z.int(),
     characterId: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
@@ -91,7 +91,7 @@ export const CARD_NOT_DISTILLABLE_REASON = "card_not_distillable";
 
 /** compute-themes: the k-means theme pass. `k` is an optional per-run cluster count; precedence is
  *  param → `UserSettings.workloads.computeThemesK` → discovery's own floor, resolved in the contribution. */
-export const computeThemesWorkloadParams = z.object({ k: z.number().int().positive().optional() });
+export const computeThemesWorkloadParams = z.object({ k: z.int().positive().optional() });
 export type ComputeThemesWorkloadParams = z.infer<typeof computeThemesWorkloadParams>;
 
 /** find-duplicates: the near-dup analytics pass. `threshold` is an optional per-run raw-COSINE floor for
@@ -732,11 +732,11 @@ export const themeDriftThemeSchema = z.strictObject({
 }) satisfies z.ZodType<ThemeDriftTheme>;
 
 export const themeDriftBucketSchema = z.strictObject({
-  bucketStart: z.number().int(),
+  bucketStart: z.int(),
   themes: z.array(themeDriftThemeSchema),
 }) satisfies z.ZodType<ThemeDriftBucket>;
 
-export const themeTimelineBucketSchema = z.strictObject({ bucketStart: z.number().int(), count: z.number() }) satisfies z.ZodType<ThemeTimelineBucket>;
+export const themeTimelineBucketSchema = z.strictObject({ bucketStart: z.int(), count: z.number() }) satisfies z.ZodType<ThemeTimelineBucket>;
 
 export const forgottenGemSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),

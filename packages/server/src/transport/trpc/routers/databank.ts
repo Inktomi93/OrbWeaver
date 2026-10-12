@@ -81,7 +81,7 @@ export const databankRouter = t.router({
         // match nothing, and an unbounded `like` argument is a request-size hole.
         search: z.string().max(NAME_MAX).optional(),
         phase: ingestPhaseSchema.optional(),
-        limit: z.number().int().min(LIMIT_MIN).max(LIMIT_MAX).optional(),
+        limit: z.int().min(LIMIT_MIN).max(LIMIT_MAX).optional(),
         cursor: documentListCursorSchema.nullish(),
       }),
     )

@@ -138,7 +138,7 @@ export const automationRouter = t.router({
   // The fire-log debug surface (host-only, newest first) — the "why didn't my rule fire" answer.
   listFires: authedProcedure
     .output(z.array(fireViewSchema))
-    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
+    .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule), limit: z.int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.automation.listFires({
         principal: ctx.auth,
@@ -153,7 +153,7 @@ export const automationRouter = t.router({
   // NOT_FOUND, exactly like `listRules`. Same page ceiling as `listFires`.
   listChatActivity: authedProcedure
     .output(z.array(fireViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.automation.listChatActivity({
         principal: ctx.auth,
@@ -175,7 +175,7 @@ export const automationRouter = t.router({
 
   // The owner-wide fire-rate cap (#1430) mirrors the domain verb's authoritative ceiling at the wire edge.
   setOwnerBudgets: authedProcedure
-    .input(z.object({ maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional() }))
+    .input(z.object({ maxFiresPerHour: z.int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.setOwnerBudgets({
         principal: ctx.auth,

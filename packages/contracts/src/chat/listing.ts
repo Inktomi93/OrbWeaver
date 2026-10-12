@@ -26,7 +26,7 @@ export const CHAT_LIST_MAX_LIMIT = 100;
  *  while the list sorted on the row stamp; the field is renamed rather than reused because a cursor whose
  *  name no longer describes its column is how the next reader re-derives it from the wrong one. */
 export const chatListCursorSchema = z.object({
-  recencyAt: z.number().int(),
+  recencyAt: z.int(),
   id: typeIdSchema(ID_PREFIX.chat),
 });
 export type ChatListCursor = z.infer<typeof chatListCursorSchema>;

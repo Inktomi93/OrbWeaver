@@ -201,7 +201,7 @@ function envBool(fallback: boolean): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodB
 /** A positive safe integer read from env without widening the accepted spelling to exponents or decimals. */
 function positiveSafeIntegerEnv(fallback: number): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodNumber>> {
   return z
-    .codec(z.string().regex(/^[1-9]\d*$/u), z.number().int().positive().max(Number.MAX_SAFE_INTEGER), {
+    .codec(z.string().regex(/^[1-9]\d*$/u), z.int().positive().max(Number.MAX_SAFE_INTEGER), {
       decode: Number,
       encode: String,
     })

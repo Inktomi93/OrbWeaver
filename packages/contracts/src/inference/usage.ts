@@ -33,8 +33,8 @@ const usd = z.number().nonnegative();
 export const RESPONSE_CACHE_STATUSES = ["hit", "miss"] as const;
 export const responseCacheSchema = z.strictObject({
   status: z.enum(RESPONSE_CACHE_STATUSES),
-  ageSeconds: z.number().int().nonnegative().nullable(),
-  ttlSeconds: z.number().int().nonnegative().nullable(),
+  ageSeconds: z.int().nonnegative().nullable(),
+  ttlSeconds: z.int().nonnegative().nullable(),
   sourceGenerationId: brandedId<ProviderGenerationId>().nullable(),
 });
 export type ResponseCache = z.infer<typeof responseCacheSchema>;
@@ -69,19 +69,19 @@ export const costUsageSchema = z.strictObject({
 export type CostUsage = Readonly<z.infer<typeof costUsageSchema>>;
 
 export const tokenUsageSchema = z.strictObject({
-  tokensIn: z.number().int().nonnegative().nullable(),
-  tokensOut: z.number().int().nonnegative().nullable(),
-  cacheReadTokens: z.number().int().nonnegative().nullable(),
+  tokensIn: z.int().nonnegative().nullable(),
+  tokensOut: z.int().nonnegative().nullable(),
+  cacheReadTokens: z.int().nonnegative().nullable(),
   /** Billable cache-creation count, which may overlap cached reads; not physical writes or storage fees. */
-  cacheWriteTokens: z.number().int().nonnegative().nullable(),
-  reasoningTokens: z.number().int().nonnegative().nullable(),
+  cacheWriteTokens: z.int().nonnegative().nullable(),
+  reasoningTokens: z.int().nonnegative().nullable(),
 });
 export type TokenUsage = Readonly<z.infer<typeof tokenUsageSchema>>;
 
 /** Provider-reported modality subsets. Lists may be partial; never derive totals from their sum. */
 export const tokenDetailsSchema = z.strictObject({
-  input: z.array(z.strictObject({ modality: modalitySchema, tokens: z.number().int().nonnegative() })).optional(),
-  output: z.array(z.strictObject({ modality: modalitySchema, tokens: z.number().int().nonnegative() })).optional(),
+  input: z.array(z.strictObject({ modality: modalitySchema, tokens: z.int().nonnegative() })).optional(),
+  output: z.array(z.strictObject({ modality: modalitySchema, tokens: z.int().nonnegative() })).optional(),
 });
 export type TokenDetails = z.infer<typeof tokenDetailsSchema>;
 
@@ -102,10 +102,10 @@ export const generationUsageLegSchema = generationUsageSchema.extend({
   model: brandedId<ModelId>(),
   provider: providerIdSchema,
   wire: wireSchema,
-  observedAt: z.number().int().nonnegative(),
-  contextWindow: z.number().int().nonnegative().nullable(),
-  maxOutputTokens: z.number().int().nonnegative().nullable(),
-  modelCalls: z.number().int().nonnegative().nullable(),
+  observedAt: z.int().nonnegative(),
+  contextWindow: z.int().nonnegative().nullable(),
+  maxOutputTokens: z.int().nonnegative().nullable(),
+  modelCalls: z.int().nonnegative().nullable(),
   durationApiMs: z.number().nonnegative().nullable(),
   ttftMs: z.number().nonnegative().nullable(),
   finishReason: normalizedFinishReasonSchema.nullable(),

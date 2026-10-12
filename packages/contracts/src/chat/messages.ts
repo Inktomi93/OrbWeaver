@@ -247,7 +247,7 @@ const contentSignatureSnapshotSchema = z.object({
       z.object({
         // @orb-waive no-raw-id(toolCallId): provider-emitted opaque call id retained verbatim for signed wire replay (D48). Ends if providers use Orbweaver TypeIDs.
         toolCallId: z.string(),
-        callOrdinal: z.number().int().nonnegative().optional(),
+        callOrdinal: z.int().nonnegative().optional(),
         thoughtSignature: z.string().optional(),
         openrouter: chatReasoningPartSchema.shape.meta.unwrap().shape.openrouter,
         reasoningParts: z.array(chatReasoningPartSchema).optional(),
@@ -441,9 +441,9 @@ export interface ToolCallRecord {
 
 const toolCallRecordInputSchema = z.object({
   turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
-  callOrdinal: z.number().int().nonnegative().optional(),
-  exchangeOrdinal: z.number().int().nonnegative().optional(),
-  exchangeTextEnd: z.number().int().nonnegative().optional(),
+  callOrdinal: z.int().nonnegative().optional(),
+  exchangeOrdinal: z.int().nonnegative().optional(),
+  exchangeTextEnd: z.int().nonnegative().optional(),
   // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
   toolCallId: z.string(),
   name: z.string(),
@@ -459,7 +459,7 @@ const toolCallRecordInputSchema = z.object({
   hidden: z.boolean().optional(),
   deleted: z.boolean().optional(),
   /** UTF-16 position in stored canon, rebased together with the body on a member view. */
-  textOffset: z.number().int().nonnegative().optional(),
+  textOffset: z.int().nonnegative().optional(),
 });
 
 function toolCallRecordOf(record: z.output<typeof toolCallRecordInputSchema>): ToolCallRecord {
@@ -584,7 +584,7 @@ export interface MessageView {
 // own, so it widens reach, never authority (the verb's author-or-host belt is unchanged).
 export const reattributeScopeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("messages"), messageIds: z.array(typeIdSchema(ID_PREFIX.message)) }),
-  z.object({ kind: z.literal("mine"), fromSeq: z.number().int().min(SEQ_MIN).optional() }),
+  z.object({ kind: z.literal("mine"), fromSeq: z.int().min(SEQ_MIN).optional() }),
 ]);
 
 export type ReattributeScope = z.infer<typeof reattributeScopeSchema>;

@@ -16,8 +16,8 @@ export interface ImportWindow {
 /** The span as a stored result carries it: shape only. A coherence refine here would brick an already-stored row
  *  on read, so `from <= to` is checked where a span is accepted as input ({@link importWindowSchema}). */
 export const storedImportWindowSchema = z.strictObject({
-  from: z.number().int().nonnegative(),
-  to: z.number().int().nonnegative(),
+  from: z.int().nonnegative(),
+  to: z.int().nonnegative(),
 }) satisfies z.ZodType<ImportWindow>;
 
 /** The span as a run's input: a span that ends before it starts is refused. */

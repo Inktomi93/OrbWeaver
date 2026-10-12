@@ -1060,8 +1060,8 @@ export const automationRuleEditableSchema = z.strictObject({
   predicateCel: z.string().nullable().optional(),
   actions: z.array(automationActionViewSchema).min(AUTOMATION_ACTION_ARMS_MIN).max(AUTOMATION_ACTION_ARMS_MAX),
   matchAutomationEvents: z.boolean().default(false),
-  cooldownSeconds: z.number().int().nonnegative().default(0),
-  maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_RULE_MAX_FIRES_PER_HOUR).default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
+  cooldownSeconds: z.int().nonnegative().default(0),
+  maxFiresPerHour: z.int().min(0).max(AUTOMATION_RULE_MAX_FIRES_PER_HOUR).default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
 });
 export type AutomationRuleEditable = z.infer<typeof automationRuleEditableSchema>;
 

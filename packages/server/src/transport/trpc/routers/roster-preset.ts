@@ -32,11 +32,11 @@ export const rosterPresetRouter = t.router({
     .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) }))
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.remove({ principal: ctx.auth, presetId: input.presetId })),
 
-  count: authedProcedure.output(z.number().int().nonnegative()).query(({ ctx }) => ctx.services.rosterPreset.count({ principal: ctx.auth })),
+  count: authedProcedure.output(z.int().nonnegative()).query(({ ctx }) => ctx.services.rosterPreset.count({ principal: ctx.auth })),
 
   list: authedProcedure
     .output(z.array(rosterPresetSummarySchema))
-    .input(z.object({ limit: z.number().int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional())
+    .input(z.object({ limit: z.int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.rosterPreset.list({ principal: ctx.auth, ...(input?.limit === undefined ? {} : { limit: input.limit }) })),
 
   get: authedProcedure

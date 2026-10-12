@@ -26,10 +26,10 @@ import type { SeatKnobs } from "./roster.ts";
 /** Normalized completed facts travel by local transcript position, never by private funding or connection ids. */
 export const pendingGenerationObservationInputSchema = z
   .object({
-    turnIndex: z.number().int().nonnegative(),
-    ordinal: z.number().int().nonnegative(),
-    sourceMessageIndex: z.number().int().nonnegative().nullable(),
-    sourceVariantIdx: z.number().int().nonnegative().nullable(),
+    turnIndex: z.int().nonnegative(),
+    ordinal: z.int().nonnegative(),
+    sourceMessageIndex: z.int().nonnegative().nullable(),
+    sourceVariantIdx: z.int().nonnegative().nullable(),
     leg: generationUsageLegSchema,
   })
   .superRefine((row, ctx) => {

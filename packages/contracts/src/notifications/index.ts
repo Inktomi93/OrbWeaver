@@ -180,7 +180,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     recipientUserId: recipientUserIdSchema,
     /** How many of the recipient's installed plugins are standing on their answer, at emission. The
      *  consent surface is the live truth; this is what the row says while it waits. */
-    pendingCount: z.number().int().min(1),
+    pendingCount: z.int().min(1),
   }),
 ]);
 

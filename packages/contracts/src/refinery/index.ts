@@ -223,7 +223,7 @@ export const refinableFieldSchema = z.enum(REFINABLE_FIELDS) satisfies z.ZodType
 // the bounds are the same question in either direction, and a second spelling is a bound that drifts.
 const selectionFieldsSchema = z.array(refinableFieldSchema).refine((fields) => new Set(fields).size === fields.length, "selection fields must be unique");
 const selectionGreetingIndexesSchema = z
-  .array(z.number().int().min(0).max(GREETING_INDEX_MAX))
+  .array(z.int().min(0).max(GREETING_INDEX_MAX))
   .max(GREETING_INDEXES_MAX)
   .refine((idxs) => new Set(idxs).size === idxs.length, "greeting indexes must be unique");
 
@@ -339,7 +339,7 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
 export const refineryCustomRunConfigSchema = z.object({
   kind: z.literal("custom"),
   schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
-  schemaVersion: z.number().int().min(1),
+  schemaVersion: z.int().min(1),
   schema: z.record(z.string(), z.unknown()),
 });
 export type RefineryCustomRunConfig = z.infer<typeof refineryCustomRunConfigSchema>;
@@ -371,7 +371,7 @@ export type RefineryStagePayloadConfig =
  *  the invariant's one enforcement consumer is R1's apply/render belt. */
 const refineryFieldScoreSchema = z.object({
   field: refinableFieldSchema,
-  greetingIndex: z.number().int().min(0).max(GREETING_INDEX_MAX).optional(),
+  greetingIndex: z.int().min(0).max(GREETING_INDEX_MAX).optional(),
   score: z.number().min(SCORE_MIN).max(SCORE_MAX),
   strengths: critiqueProseSchema,
   weaknesses: critiqueProseSchema,
@@ -390,7 +390,7 @@ export type RefineryScorePayload = z.infer<typeof refineryScorePayloadSchema>;
  *  `field === "greetings"` (see refineryFieldScoreSchema). */
 const rewriteFieldTarget = {
   field: refinableFieldSchema,
-  greetingIndex: z.number().int().min(0).max(GREETING_INDEX_MAX).optional(),
+  greetingIndex: z.int().min(0).max(GREETING_INDEX_MAX).optional(),
 };
 
 /** One rewritten field — a THREE-ARM union: replace the text, EMPTY the field, or APPEND a new greeting.
@@ -618,18 +618,18 @@ const refineryRunBaseSchema = z.object({
   id: typeIdSchema(ID_PREFIX.refineryRun),
   sessionId: typeIdSchema(ID_PREFIX.refinerySession),
   /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
-  iteration: z.number().int().min(0),
+  iteration: z.int().min(0),
   /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
    *  null beats a sentinel spelling (the anti-sniffing law). */
   model: brandedId<ModelId>().nullable(),
   /** Provider-reported usage, or null when the backend reports none (stats parity). */
-  promptTokens: z.number().int().min(0).nullable(),
-  outputTokens: z.number().int().min(0).nullable(),
+  promptTokens: z.int().min(0).nullable(),
+  outputTokens: z.int().min(0).nullable(),
   /** The run's WALL TIME in ms — the Runs ledger's third economic column beside the two token counts
    *  (`qwen3-32b · 4 210 in / 512 out · 6.1s`). Measured by the injected clock across the whole stage
    *  pass, so it includes prompt assembly and the bounded structured retry, which is what a user
    *  comparing two runs actually waited. Never null: a run that produced a row took some time. */
-  durationMs: z.number().int().min(0),
+  durationMs: z.int().min(0),
   /** The DAG PARENT: the run whose output this one CONSUMED — an analyze names the rewrite it judged, a
    *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
    *  read no prior run.
@@ -648,7 +648,7 @@ const refineryRunBaseSchema = z.object({
    *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
    *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
   strippedKeys: z.array(z.string()),
-  createdAt: z.number().int(),
+  createdAt: z.int(),
 });
 
 /** A custom run's payload on the wire: shape-valid against its EMBEDDED schema at write AND at the read
@@ -711,10 +711,10 @@ export const refinerySessionSummarySchema = z.object({
   characterAvatarHash: z.string().nullable(),
   name: refinerySessionNameSchema.nullable(),
   status: refinerySessionStatusSchema,
-  iterationCount: z.number().int().min(0),
+  iterationCount: z.int().min(0),
   latestVerdict: refineryVerdictSchema.nullable(),
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
+  createdAt: z.int(),
+  updatedAt: z.int(),
 });
 export type RefinerySessionSummary = z.infer<typeof refinerySessionSummarySchema>;
 

@@ -396,7 +396,7 @@ const rpgEffectiveDeliverySchema = z.strictObject({
   path: z.enum(RPG_DELIVERY_PATHS),
   fallbackReason: z.enum(RPG_FOLD_FALLBACK_REASONS).nullable(),
   structuredUnavailable: z.boolean(),
-  stateRoundOverflow: z.strictObject({ connectionId: typeIdSchema(ID_PREFIX.userConnection), windowTokens: z.number().int() }).nullable(),
+  stateRoundOverflow: z.strictObject({ connectionId: typeIdSchema(ID_PREFIX.userConnection), windowTokens: z.int() }).nullable(),
 }) satisfies z.ZodType<RpgEffectiveDelivery>;
 export const rpgGameViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.rpgGame),

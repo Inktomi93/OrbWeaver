@@ -363,7 +363,7 @@ export const pluginManifestSchema = z
     name: z.string().min(1).max(NAME_MAX),
     // The plugin's OWN semver (display + upgrade ordering), distinct from `hostVersion` (the membrane major).
     version: z.string().regex(SEMVER_RE),
-    hostVersion: z.number().int().positive(), // structural major; lifecycle parsing checks the served tuple
+    hostVersion: z.int().positive(), // structural major; lifecycle parsing checks the served tuple
     entry: z.literal(PLUGIN_MAIN_ENTRY), // ONE fixed entry file in the bundle (the guest has no module loader)
     /** The OPTIONAL Tier-C client entry. Present ⇒ the bundle carries a third
      *  zip entry, `ui.js`, which runs in the BROWSER's QuickJS worker for the plugin's `tier:"scripted"`

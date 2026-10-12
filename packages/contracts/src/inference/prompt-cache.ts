@@ -41,7 +41,7 @@ export const promptCacheSettingsSchema = z.object({
    * every turn that is never read, so a user can push the breakpoint deeper and never shallower than the
    * admin floor. A turn SHAPE gave no depth places no history breakpoint whatever this says.
    */
-  historyDepth: z.number().int().min(PROMPT_CACHE_DEPTH_MIN).max(PROMPT_CACHE_DEPTH_CEIL).nullable(),
+  historyDepth: z.int().min(PROMPT_CACHE_DEPTH_MIN).max(PROMPT_CACHE_DEPTH_CEIL).nullable(),
   /** Requested TTL; a fixed route TTL overrides it with a warning. All markers in one turn use the same applied value. */
   ttl: z.enum(PROMPT_CACHE_TTLS),
 });

@@ -252,7 +252,7 @@ export const pluginRouter = t.router({
     .query(({ ctx }) => ctx.services.plugin.listDistributedPlugins({ caller: ctx.auth })),
 
   getLog: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, limit: z.number().int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() }))
+    .input(z.object({ pluginId: pluginIdSchema, limit: z.int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() }))
     .output(z.array(pluginLogViewSchema).readonly())
     .query(({ ctx, input }) =>
       ctx.services.plugin.getLog({ caller: ctx.auth, pluginId: input.pluginId, ...(input.limit !== undefined ? { limit: input.limit } : {}) }),

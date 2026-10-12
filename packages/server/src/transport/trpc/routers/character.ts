@@ -51,7 +51,7 @@ export const characterRouter = t.router({
         .extend({
           sort: characterListSortSchema.optional(),
           cursor: characterListCursorSchema.optional(),
-          limit: z.number().int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
+          limit: z.int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
         })
         .optional(),
     )
@@ -70,7 +70,7 @@ export const characterRouter = t.router({
     ),
 
   count: authedProcedure
-    .output(z.number().int().nonnegative())
+    .output(z.int().nonnegative())
     .input(characterCensusInputSchema.optional())
     .query(({ ctx, input }) =>
       ctx.services.character.count({

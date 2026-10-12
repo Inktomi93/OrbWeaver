@@ -243,9 +243,9 @@ export const refinerySchemaSummarySchema = z.object({
   name: z.string(),
   description: z.string(),
   stage: refinerySchemaStageSchema,
-  version: z.number().int().min(1),
+  version: z.int().min(1),
   schema: rawSchemaNode,
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
+  createdAt: z.int(),
+  updatedAt: z.int(),
 });
 export type RefinerySchemaSummary = z.infer<typeof refinerySchemaSummarySchema>;

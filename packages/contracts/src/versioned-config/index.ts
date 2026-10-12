@@ -137,7 +137,7 @@ export interface VersionedConfig<T> {
   readonly currentVersion: number;
 }
 
-const versionProbeSchema = z.object({ schemaVersion: z.number().int().optional() });
+const versionProbeSchema = z.object({ schemaVersion: z.int().optional() });
 
 /**
  * The version the walk STARTS from: the externally-recorded version (a storage column) beats the in-blob

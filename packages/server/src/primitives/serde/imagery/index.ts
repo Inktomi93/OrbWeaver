@@ -18,7 +18,7 @@ const serde = defineJsonObjectSerde<PortableImageryCall, PortableImageryCall>({
   schemaKind: IMAGERY_SCHEMA_KIND,
   schemaVersion: IMAGERY_SCHEMA_VERSION,
   bodySchema: portableImageryCallSchema
-    .safeExtend({ schemaKind: z.literal(IMAGERY_SCHEMA_KIND), schemaVersion: z.number().int().positive() })
+    .safeExtend({ schemaKind: z.literal(IMAGERY_SCHEMA_KIND), schemaVersion: z.int().positive() })
     .transform(({ execution, images }): PortableImageryCall => ({ execution, images })),
   toWire: canonicalCall,
   fromWire: canonicalCall,
