@@ -2399,6 +2399,26 @@
       }
     },
     {
+      "includes": ["packages/client/src/features/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noRestrictedElements": {
+              "level": "error",
+              "options": {
+                "elements": {
+                  "img": "Raw `<img>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3).",
+                  "video": "Raw `<video>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3).",
+                  "audio": "Raw `<audio>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3).",
+                  "source": "Raw `<source>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [".claude/hooks/**"],
       "linter": {
         "rules": {

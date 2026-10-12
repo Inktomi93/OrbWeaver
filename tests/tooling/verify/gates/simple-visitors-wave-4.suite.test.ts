@@ -1,8 +1,7 @@
-// The standing conformance + differential net for the fourth SIMPLE-tier wave (#1584/#1943): four pure
+// The standing conformance + differential net for the fourth SIMPLE-tier wave (#1584/#1943): three pure
 // syntax policies converted from free-form `visitFile`/descendant-walk descriptors into kind-indexed
 // `defineGate` visitors with all state moved into `create`.
 //
-//   no-default-props                        — a plain member-name match, unchanged shape.
 //   test-no-stubs                           — state moved into per-file test/assertion lists, reconciled
 //                                              by node-range containment in `evaluate` (never a private
 //                                              descendant walk).
@@ -26,7 +25,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { zustandProof } from "../../../../tooling/src/verify/gates/_proof/zustand.ts";
-import { gate as noDefaultProps } from "../../../../tooling/src/verify/gates/no-default-props.ts";
 import { gate as noFormStateInUseeffect } from "../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as noRawZustandPersist } from "../../../../tooling/src/verify/gates/no-raw-zustand-persist.ts";
 import { gate as persistPartializeAndTotalMigrate } from "../../../../tooling/src/verify/gates/persist-partialize-and-total-migrate.ts";
@@ -36,7 +34,7 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 
 const ROOT = "/simple-visitors-wave-4";
 
-const FAMILY: readonly GatePolicy[] = [noDefaultProps, testNoStubs, noFormStateInUseeffect, persistPartializeAndTotalMigrate];
+const FAMILY: readonly GatePolicy[] = [testNoStubs, noFormStateInUseeffect, persistPartializeAndTotalMigrate];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -55,34 +53,24 @@ test("the converted fourth-wave policies pass their production proof runtime", (
 });
 
 // ---------------------------------------------------------------------------------------------------
-// ORDINARY MARKER IDENTITY: no-default-props and no-form-state-in-useeffect are both ordinary. A marker
-// naming THIS finding's own policy at its own position suppresses it; a marker naming a DIFFERENT known
-// ordinary policy at the same position must not.
+// ORDINARY MARKER IDENTITY: no-form-state-in-useeffect and persist-partialize-and-total-migrate are both
+// ordinary. A marker naming THIS finding's own policy at its own position suppresses it; a marker naming a
+// DIFFERENT known ordinary policy at the same position must not.
 // ---------------------------------------------------------------------------------------------------
-test("a correctly-addressed ordinary waiver on no-default-props suppresses the finding", () => {
-  const waived = passOf(noDefaultProps, {
-    "packages/ui/src/MyComponent.tsx":
-      "// @orb-waive no-default-props(defaultProps): temporary legacy interop, tracked in #0000.\nMyComponent.defaultProps = { id: 1 };\n",
-  });
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
 test("a waiver naming a DIFFERENT known ordinary policy at the same position suppresses nothing", () => {
   const mismatched = runPolicyPass({
-    knownPolicies: [noDefaultProps, noFormStateInUseeffect],
-    policies: [noDefaultProps, noFormStateInUseeffect],
+    knownPolicies: [noFormStateInUseeffect, persistPartializeAndTotalMigrate],
+    policies: [noFormStateInUseeffect, persistPartializeAndTotalMigrate],
     root: ROOT,
     project: projectOf({
-      "packages/ui/src/MyComponent.tsx":
-        "// @orb-waive no-form-state-in-useeffect(defaultProps): wrong policy id entirely.\nMyComponent.defaultProps = { id: 1 };\n",
+      "src/some-component.tsx":
+        "// @orb-waive persist-partialize-and-total-migrate(form.state.values): wrong policy id entirely.\nuseEffect(() => {}, [form.state.values]);\n",
     }),
     reviewedGrants: [],
     failOnWarnings: false,
   });
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.effectiveFindings[0]?.policyId).toBe("no-default-props");
+  expect(mismatched.authority.effectiveFindings[0]?.policyId).toBe("no-form-state-in-useeffect");
 });
 
 test("the ordinary waiver door on persist-partialize-and-total-migrate is REACHABLE — the #1954 defect", () => {

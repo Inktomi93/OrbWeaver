@@ -20,7 +20,6 @@ import { gate as dialogViaComposite } from "../../../../../tooling/src/verify/ga
 import { gate as homeTileRegistryCompleteness } from "../../../../../tooling/src/verify/gates/home-tile-registry-completeness.ts";
 import { gate as modalBodyNotPlaceholder } from "../../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
-import { gate as noArrayLiteralQuerykey } from "../../../../../tooling/src/verify/gates/no-array-literal-querykey.ts";
 import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 import { gate as noInlineInvalidateOutsideSeam } from "../../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
@@ -160,11 +159,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Not co-located",
-  },
-  {
-    policy: noArrayLiteralQuerykey,
-    overlays: [add(`${CHAT_LIB}/liveness-query-key.ts`, 'export const q = { queryKey: ["liveness", 1] };\n')],
-    messageIncludes: "inline array-literal queryKey",
   },
   {
     policy: noFakeDisabledId,

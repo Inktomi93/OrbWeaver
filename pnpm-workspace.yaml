@@ -382,7 +382,7 @@ catalog:
   "@tanstack/react-form": ^1.33.5
   zustand: ^5.0.15
   # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
-  # options-proxy (`trpc.x.y.queryOptions()`) IS the queryKey factory (gate no-array-literal-querykey).
+  # options-proxy (`trpc.x.y.queryOptions()`) IS the queryKey factory (the `no-restricted-syntax` selector in eslint.config.js).
   "@trpc/client": ^11.19.0
   "@trpc/tanstack-react-query": ^11.19.0
   # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed

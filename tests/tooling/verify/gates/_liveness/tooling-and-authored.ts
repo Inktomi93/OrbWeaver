@@ -15,7 +15,6 @@ import { gate as danglingRefs } from "../../../../../tooling/src/verify/gates/da
 import { gate as evaluateNoScopeCapture } from "../../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as memberCardClamped } from "../../../../../tooling/src/verify/gates/member-card-clamped.ts";
 import { gate as noContextProvider } from "../../../../../tooling/src/verify/gates/no-context-provider.ts";
-import { gate as noDecorators } from "../../../../../tooling/src/verify/gates/no-decorators.ts";
 import { gate as noDirectUseform } from "../../../../../tooling/src/verify/gates/no-direct-useform.ts";
 import { gate as noForwardRef } from "../../../../../tooling/src/verify/gates/no-forward-ref.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
@@ -107,11 +106,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Context.Provider",
-  },
-  {
-    policy: noDecorators,
-    overlays: [add("packages/server/src/liveness-decorator.ts", "@Injectable()\nclass LivenessService {}\nexport const service = LivenessService;\n")],
-    messageIncludes: "decorators are not erasable",
   },
   {
     policy: noDirectUseform,

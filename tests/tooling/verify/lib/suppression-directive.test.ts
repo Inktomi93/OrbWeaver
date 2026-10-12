@@ -50,7 +50,7 @@ describe("readDirectiveComment", () => {
   });
 
   test("does not recognise the Orb waiver vocabulary — the two grammars are separate homes by ruling", () => {
-    expect(readDirectiveComment("// @orb-waive no-array-literal-querykey(queryKey): why")).toBeNull();
+    expect(readDirectiveComment("// @orb-waive no-static-staletime(staleTime): why")).toBeNull();
   });
 });
 

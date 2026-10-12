@@ -41,9 +41,11 @@
 //
 //   5. @typescript-eslint/no-deprecated (type-aware) — makes the doctrine's `@deprecated` tag a gate.
 //
-//   6. Custom no-restricted-syntax — client only, LIVE (`packages/client/src/state/` is populated). Two
-//      selector sets: the zustand escape-hatch guard, and the COMPOSE-ONLY KEYSTONE (no className/style on
-//      a raw intrinsic element). Flat config REPLACES this rule per file, so the keystone block re-lists.
+//   6. Custom no-restricted-syntax — LIVE (`packages/client/src/state/` is populated). Selector sets: the
+//      client-only zustand escape-hatch guard, the COMPOSE-ONLY KEYSTONE (no className/style on a raw
+//      intrinsic element), and the syntax bans (decorators, `defaultProps`, inline `queryKey` arrays) over
+//      the populations of the structural gates they replaced. Flat config REPLACES this rule per file, so
+//      the later blocks re-list the layers beneath them.
 //
 //   7. eslint-plugin-react-web-api — eslint-react's LEAK family: a Web-API subscription created in a
 //      component that outlives it (listener/interval/timeout/fetch/IntersectionObserver/ResizeObserver
@@ -88,6 +90,7 @@ import reactWebApi from "eslint-plugin-react-web-api";
 import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import tsdoc from "eslint-plugin-tsdoc";
 import tseslint from "typescript-eslint";
+import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -356,6 +359,35 @@ const NO_STYLE_ON_INTRINSIC = {
   selector: `${INTRINSIC_EL} > JSXAttribute[name.name='style']`,
   message: "No inline style on a raw HTML element in a feature — styling lives in @orb/ui, tokens only (UI-Arch §1.1).",
 };
+// SYNTAX BANS, each over the population of the structural gate it replaced. The selector sets are layered
+// (authored → shipped → client) because a later `no-restricted-syntax` block replaces an earlier one per file.
+const NO_DECORATORS = {
+  selector: "Decorator",
+  message:
+    "Decorators are not erasable syntax — tsx/node type-stripping has no decorator runtime (a runtime error) and the erasableSyntaxOnly flag does not catch them. Use function composition or a zod schema (Spine-TypeScript-and-Patterns.md §5).",
+};
+const NO_DEFAULT_PROPS = {
+  selector: ":matches(MemberExpression[computed=false][property.type='Identifier'], JSXMemberExpression)[property.name='defaultProps']",
+  message: "defaultProps is deprecated in modern React — use default parameters in the component signature instead.",
+};
+// An inline `queryKey: [...]` array diverges from the key the tRPC options proxy mints. esquery cannot recurse,
+// so the `as`/`satisfies` wrapper chain around the array literal is unrolled to a fixed depth.
+const QUERY_KEY_PROPERTY = "Property[computed=false][key.type='Identifier'][key.name='queryKey']";
+const QUERY_KEY_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression)";
+const QUERY_KEY_WRAPPER_DEPTH = 8;
+const NO_ARRAY_LITERAL_QUERYKEY = {
+  selector: Array.from({ length: QUERY_KEY_WRAPPER_DEPTH + 1 }, (_, depth) =>
+    [QUERY_KEY_PROPERTY, ...Array.from({ length: depth }, () => QUERY_KEY_WRAPPER), "ArrayExpression"].join(" > "),
+  ).join(", "),
+  message:
+    "Inline array-literal queryKey — client query keys are 100% tRPC-proxy-derived (trpc.<router>.<proc>.queryKey()/.queryFilter()/.pathFilter()); a hand-written key array silently diverges from the reader/invalidator's key (UI-Gates-and-Lessons.md §11.1).",
+};
+const AUTHORED_SYNTAX = [NO_DECORATORS];
+const SHIPPED_SYNTAX = [...AUTHORED_SYNTAX, NO_DEFAULT_PROPS];
+const CLIENT_SYNTAX = [...SHIPPED_SYNTAX, NO_ARRAY_LITERAL_QUERYKEY];
+/** Source globs of a population root, derived from the gate runtime's own root table so the two cannot drift. */
+const rootSources = (...refs) => refs.flatMap((ref) => POPULATION_ROOTS[ref].map((root) => `${root}**/*.{ts,tsx}`));
+const AUTHORED_SRC = POPULATION_SETS["@authored"].flatMap((ref) => rootSources(ref));
 
 export default tseslint.config(
   {
@@ -933,6 +965,31 @@ export default tseslint.config(
     },
   },
   {
+    // The st-goldens rig's own tracked scripts are browser-world TypeScript the root program does not own, so they
+    // match no parser block above. A syntactic parse is all the decorator ban below needs from them.
+    files: ["scripts/probes/st-goldens/**/*.ts"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { sourceType: "module" },
+    },
+  },
+  {
+    // Syntax bans over the population of the structural gate each one replaced (the layering is at
+    // NO_DECORATORS above). A decorator is legal nowhere: every authored tree runs on the type-stripping
+    // runtime. Flat config REPLACES `no-restricted-syntax` per file, so the blocks below that win for a
+    // file re-list the layer beneath them.
+    files: AUTHORED_SRC,
+    rules: { "no-restricted-syntax": ["error", ...AUTHORED_SYNTAX] },
+  },
+  {
+    files: [UI_SRC, ...rootSources("@server")],
+    rules: { "no-restricted-syntax": ["error", ...SHIPPED_SYNTAX] },
+  },
+  {
+    files: [CLIENT_SRC],
+    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
+  },
+  {
     // Zustand escape-hatch guard. Outside client state/, components/routes may not call
     // `useFooStore.setState(...)`/`.getState()` on the store's static API — those bypass the action
     // seam. The canonical `useFooStore((s) => s.foo)` selector usage is unaffected. LIVE, and has been
@@ -944,7 +1001,7 @@ export default tseslint.config(
     files: [CLIENT_SRC],
     ignores: ["packages/client/src/state/**"],
     rules: {
-      "no-restricted-syntax": ["error", NO_STORE_STATICS],
+      "no-restricted-syntax": ["error", NO_STORE_STATICS, ...CLIENT_SYNTAX],
     },
   },
   {
@@ -966,7 +1023,7 @@ export default tseslint.config(
       "packages/client/src/components/weave-glyph.tsx",
     ],
     rules: {
-      "no-restricted-syntax": ["error", NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC],
+      "no-restricted-syntax": ["error", NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX],
     },
   },
 );

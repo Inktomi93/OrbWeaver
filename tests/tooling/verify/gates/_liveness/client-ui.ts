@@ -26,7 +26,6 @@ import { gate as fetchFnInFeatures } from "../../../../../tooling/src/verify/gat
 import { gate as formFactoryForMultifield } from "../../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as listRowAdoption } from "../../../../../tooling/src/verify/gates/list-row-adoption.ts";
 import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
-import { gate as noExternalMediaWithoutGate } from "../../../../../tooling/src/verify/gates/no-external-media-without-gate.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
 import { gate as noInteractiveRoleInFeatures } from "../../../../../tooling/src/verify/gates/no-interactive-role-in-features.ts";
 import { gate as noManualAutosaveFlush } from "../../../../../tooling/src/verify/gates/no-manual-autosave-flush.ts";
@@ -201,11 +200,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "shared-selection pointer",
-  },
-  {
-    policy: noExternalMediaWithoutGate,
-    overlays: [add(`${CHAT}/components/liveness-media.tsx`, 'export const LivenessMedia = <img src="bad" alt="" />;\n')],
-    messageIncludes: "raw <img>",
   },
   {
     policy: noFormResetInAutosaveHealth,

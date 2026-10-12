@@ -20,7 +20,6 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 import { PRODUCT_STYLESHEETS } from "../../../../../tooling/src/verify/contract/css-family.ts";
 import { gate as cssVarDefinedHealth } from "../../../../../tooling/src/verify/gates/css-var-defined-health.ts";
 import { gate as noCallerUserId } from "../../../../../tooling/src/verify/gates/no-caller-user-id.ts";
-import { gate as noDefaultProps } from "../../../../../tooling/src/verify/gates/no-default-props.ts";
 import { gate as noHandwrittenWireJsonSchema } from "../../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
 import { gate as noInlinePackageInterface } from "../../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../../tooling/src/verify/gates/no-inline-types.ts";
@@ -97,13 +96,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "is forbidden (D19)",
-  },
-  {
-    policy: noDefaultProps,
-    overlays: [
-      add("packages/ui/src/liveness-default.tsx", `const LivenessDefault = () => <div />;\nLivenessDefault.${["default", "Props"].join("")} = { id: 1 };\n`),
-    ],
-    messageIncludes: "defaultProps is deprecated",
   },
   {
     policy: noHandwrittenWireJsonSchema,
