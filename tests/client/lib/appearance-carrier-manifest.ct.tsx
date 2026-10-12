@@ -72,10 +72,12 @@ test("#935 every armed appearance key changes its declared real carrier across t
   const captureArm = async (appearance: AppearanceSettings, arm: string): Promise<Partial<AppearanceCarrierSnapshot>> => {
     await routeAppearance(page, appearance, arm);
     const component = await mount(<AppearanceCarrierStory />);
+    // Barrier on the settings having landed. `avatarSize` alone is vacuous for arm B (its value is the schema
+    // default, so it matches before the query answers); `chatStyle` is non-default on B, so the pair holds for both arms.
     // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     await expect
       .poll(async () => JSON.parse((await page.getByRole("region", { name: "CT Appearance hook snapshot" }).textContent()) ?? "{}") as Record<string, unknown>)
-      .toMatchObject({ avatarSize: appearance.avatarSize });
+      .toMatchObject({ avatarSize: appearance.avatarSize, chatStyle: appearance.chatStyle });
     const snapshot = await readCarrierSnapshot(page);
     await component.unmount();
     return snapshot;
