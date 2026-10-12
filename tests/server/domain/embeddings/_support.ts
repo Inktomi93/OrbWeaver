@@ -46,6 +46,7 @@ import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 
 /** The test embed space `(model, dim)`. Small dim keeps vectors cheap; the model strings are the space tag. */

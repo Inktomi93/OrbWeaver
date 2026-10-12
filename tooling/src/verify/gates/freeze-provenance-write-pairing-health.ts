@@ -66,7 +66,7 @@
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { GUARDED_TABLE, TRIPLE, WRITE_POPULATION, writeChainVerdict } from "../lib/freeze-provenance.ts";
+import { DRIZZLE_DB_FIXTURE, GUARDED_TABLE, TRIPLE, WRITE_POPULATION, writeChainVerdict } from "../lib/freeze-provenance.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 /** Present on every real run, inside the policy's own population, needed by no example that is not
@@ -170,6 +170,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         [ANCHOR]: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id") });\n',
       },
       expect: { count: 1, messageIncludes: "anywhere, so the guarded columns cannot be derived" },
@@ -178,6 +179,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         [ANCHOR]:
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const messageVariants = sqliteTable("message_variants", { content: text("content"), rawContent: text("raw_content") });\n',
       },
@@ -187,6 +189,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         [ANCHOR]:
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const messageVariants = sqliteTable("message_variants", { content: text("content"), rawContent: text("raw_content"), macroFreezes: text("macro_freezes") });\n',
       },
@@ -204,6 +207,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         [ANCHOR]:
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const messageVariants = sqliteTable("message_variants", { content: text("content"), rawContent: text("raw_content"), macroFreezes: text("macro_freezes") });\n',
         "packages/server/src/domain/chat/persistence/x.ts":
@@ -217,6 +221,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...DRIZZLE_DB_FIXTURE,
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id") });\n',
       },

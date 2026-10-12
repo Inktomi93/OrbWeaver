@@ -89,6 +89,7 @@ export const GUEST_MAX_STACK_BYTES = 262_144;
  *  lengthens how long a hung invocation holds its context. */
 export const HOST_FN_DEADLINE_MS = 5000;
 
+// @orb-waive no-vanity-alias(PLUGIN_AUTHORITY_TAIL_MS): baselined when the gate widened; burn-down item 906.
 /** How long a command authority stays live in the parent after its command returned while a bridge call posted
  *  under it is still pending: the host-pumped continuation window `PLUGIN_CONTINUATION_WINDOW_MS` names in the
  *  contract. An action handler returns at once and floats its wire work, so the late case is a chain of host

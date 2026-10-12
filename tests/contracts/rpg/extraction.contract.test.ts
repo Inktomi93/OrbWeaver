@@ -557,6 +557,7 @@ test("EXT-4b: the PROJECTION re-requires journal[].type (prevention where the ba
   expect(rpgExtractionSchema.safeParse({ journal: [{ content: "kindless" }] }).success).toBe(true);
 });
 
+// @orb-waive no-vanity-alias(NO_REFS): baselined when the gate widened; burn-down item 906.
 // ── EXTRACTION_PLANE_PROMPTS — the §1.6 per-plane prompt-fragment registry + its RATCHET ─────────────────
 const NO_REFS: ExtractionRefs = BARE_REFS;
 const baseConfig = (): RpgGameConfig => rpgGameConfigSchema.parse({});

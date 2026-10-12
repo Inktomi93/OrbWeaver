@@ -16,6 +16,7 @@ import { getLog } from "#foundation/observability";
 const LOG_COMPONENT = "workload-schedule-scheduler";
 
 const MS_PER_MINUTE = 60_000;
+// @orb-waive no-vanity-alias(DEFAULT_CHECK_INTERVAL_MS): baselined when the gate widened; burn-down item 906.
 // The decision cadence — how often the tick scans for due schedules. A minute is fine: the finest schedule
 // cadence is hourly, so a minute of latency on "due" is negligible, and the scan is one indexed select.
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_MINUTE;

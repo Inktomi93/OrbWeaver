@@ -7,13 +7,18 @@
 // this file is the reader's own, so the boundary survives a change to that policy.
 import type { Node, SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
-import { readDrizzleWriteTable } from "../../../../tooling/src/verify/lib/drizzle-write-target.ts";
+import { readDrizzleWriteTable } from "../../../../tooling/src/floor/code-facts/drizzle-write-chain.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const PRELUDE = 'import { messageVariants } from "@orb/db";\ndeclare const db: D;\n';
+// The write verbs are drizzle's only when drizzle-orm declares them, so every fixture carries a drizzle module.
+const DRIZZLE_SOURCE =
+  "export declare class Db {\n  insert(table: unknown): Db;\n  update(table: unknown): Db;\n  delete(table: unknown): Db;\n  where(condition: unknown): Db;\n" +
+  "  values(value: object): Db;\n  set(value: object): Db;\n}\n";
+const PRELUDE = 'import { messageVariants } from "@orb/db";\nimport type { Db } from "drizzle-orm";\ndeclare const db: Db;\n';
 
 function sourceOf(files: Readonly<Record<string, string>>, entry = "use.ts"): SourceFile {
   const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile("/repo/node_modules/drizzle-orm/index.ts", DRIZZLE_SOURCE);
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`/repo/${path}`, source);
   }
@@ -70,7 +75,8 @@ test("follows a hoisted builder local and a same-module factory that returns one
 
 test("follows a factory through its IMPORT, and a wrapper that carries the builder in an ARGUMENT", () => {
   const sf = sourceOf({
-    "b.ts": 'import { messageVariants } from "@orb/db";\ndeclare const db: D;\nexport const updater = () => db.update(messageVariants);\n',
+    "b.ts":
+      'import { messageVariants } from "@orb/db";\nimport type { Db } from "drizzle-orm";\ndeclare const db: Db;\nexport const updater = () => db.update(messageVariants);\n',
     "use.ts": `${PRELUDE}import { updater } from "./b.ts";\nexport const receiver = updater();\nexport const wrapped = run(db.update(messageVariants));\n`,
   });
 
@@ -95,6 +101,16 @@ test("a foreign `.set` chain resolves to NO WRITE CHAIN rather than to a refusal
   );
 
   expect([table(receiver(sf)), table(receiver(sf, "fluent"))]).toEqual(["<no-write-chain>", "<no-write-chain>"]);
+});
+
+test("a verb on an object drizzle does not declare is NO WRITE CHAIN, and a receiver the checker cannot bind is a refusal", () => {
+  const sf = one(
+    "declare const store: { update(table: unknown): { set(value: object): void } };\nexport const receiver = store.update(messageVariants);\n" +
+      "declare const unbound: Mystery;\nexport const unknown = unbound.update(messageVariants);\n",
+  );
+
+  expect(table(receiver(sf))).toBe("<no-write-chain>");
+  expect(refusal(receiver(sf, "unknown")).reason).toBe("missing");
 });
 
 test("REFUSES a write verb that names no table at all", () => {

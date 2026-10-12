@@ -57,6 +57,7 @@ export interface RefineryHarness {
   readonly advance: (ms: number) => void;
 }
 
+// @orb-waive no-vanity-alias(TEST_SUMMARIZER_MODEL): baselined when the gate widened; burn-down item 906.
 export const TEST_SUMMARIZER_MODEL = FAKE_SUMMARIZE_MODEL;
 
 /** The owner's default-preset params the harness answers with (the top rung of the side-gen posture ladder). */

@@ -262,6 +262,7 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
   }
 });
 
+// @orb-waive no-vanity-alias(DISPATCHER_MODULES): baselined when the gate widened; burn-down item 906.
 // ═══ THE ENVELOPE IS COMPLETE OVER THE EMITTERS, NOT ONLY OVER THE CONSTANTS (#2155, forge recommendation #4;
 // REWRITTEN AT THE INTEGRATION REVIEW, and the rewrite is the lesson) ═══
 //

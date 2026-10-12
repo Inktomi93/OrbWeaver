@@ -97,6 +97,7 @@ export const REFINERY_FORGE_ARM_DEFAULT: RefineryForgeArm = "single";
 export const FORGE_FIELD_TYPES = ["string", "number", "integer", "boolean"] as const;
 export type ForgeFieldType = (typeof FORGE_FIELD_TYPES)[number];
 
+// @orb-waive no-vanity-alias(REFINERY_FORGE_MAX_FIELDS): baselined when the gate widened; burn-down item 906.
 /** Leaf rows one design may carry. The cap is the belt's per-object property cap read as a whole-document
  *  budget: a design spreads its leaves across nested objects, so this can only ever be tighter. */
 export const REFINERY_FORGE_MAX_FIELDS = REFINERY_SCHEMA_MAX_PROPERTIES;

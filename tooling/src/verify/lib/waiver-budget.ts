@@ -63,7 +63,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "no-test-fabrication": 358,
   "no-unruled-flip-inversion": 1,
   "no-untyped-soft-ref": 13,
-  "no-vanity-alias": 27,
+  "no-vanity-alias": 171,
   "nullable-column-inequality": 1,
   "one-principal-mint-population": 4,
   "over-art-plate-arm": 1,

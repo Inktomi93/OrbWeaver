@@ -75,8 +75,11 @@ export function hashPluginBundle(bytes: Uint8Array): PluginBundleHash {
   return pluginBundleHashSchema.parse(sha256Hex(bytes));
 }
 
+// @orb-waive no-vanity-alias(MANIFEST_ENTRY): baselined when the gate widened; burn-down item 906.
 const MANIFEST_ENTRY = PLUGIN_MANIFEST_ENTRY;
+// @orb-waive no-vanity-alias(MAIN_ENTRY): baselined when the gate widened; burn-down item 906.
 const MAIN_ENTRY = PLUGIN_MAIN_ENTRY;
+// @orb-waive no-vanity-alias(UI_ENTRY): baselined when the gate widened; burn-down item 906.
 const UI_ENTRY = PLUGIN_UI_ENTRY;
 /** The three legal NAMED bundle entries. `ui.js` is OPTIONAL (U4); the other two are required. The fourth
  *  entry class — `ui/assets/<name>` (#820) — is a PATTERN, not a name, and is admitted by
@@ -100,9 +103,11 @@ function isBundleAssetEntry(name: string): boolean {
   return PLUGIN_UI_ASSET_ENTRY_RE.test(name);
 }
 
+// @orb-waive no-vanity-alias(MAX_MAIN_JS_BYTES): baselined when the gate widened; burn-down item 906.
 /** The DECOMPRESSED cap for either guest script entry (`main.js`, `ui.js`) — one pre-bundled ES script per
  *  guest, bounded by the one contracts-owned {@link PLUGIN_SCRIPT_ENTRY_MAX_BYTES}. */
 const MAX_MAIN_JS_BYTES = PLUGIN_SCRIPT_ENTRY_MAX_BYTES;
+// @orb-waive no-vanity-alias(MAX_MANIFEST_JSON_BYTES): baselined when the gate widened; burn-down item 906.
 /** The DECOMPRESSED `manifest.json` cap — a tiny metadata doc; 64 KiB is generous for the manifest shape. */
 const MAX_MANIFEST_JSON_BYTES = PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
 

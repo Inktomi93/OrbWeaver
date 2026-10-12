@@ -1628,14 +1628,27 @@ export declare function sqliteTable<T>(name: string, cols: T): T & { $inferSelec
 export declare function text(name: string): string;
 export declare function integer(name: string): number;
 export declare function stamp(name: string): { default: (v: number) => number };
-export declare const db: {
-  insert: (t: unknown) => { values: (v: unknown) => { onConflictDoUpdate: (c: unknown) => void } };
-  update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => void } };
-  select: () => { from: (t: unknown) => unknown[] };
-  run: (statement: unknown) => unknown;
-  execute: (statement: unknown) => unknown;
-  batch: (statements: readonly unknown[]) => unknown;
-};
+import type { Db } from "drizzle-orm";
+export declare const db: Db;
+`;
+
+// A write verb is drizzle's only when drizzle-orm declares it, so the mini client's builders live in a drizzle-orm module.
+const MINI_DRIZZLE_ORM = `
+export declare class Builder {
+  values(v: unknown): Builder;
+  set(v: unknown): Builder;
+  where(w: unknown): Builder;
+  select(query: unknown): Builder;
+  onConflictDoUpdate(c: unknown): Builder;
+}
+export declare class Db {
+  insert(t: unknown): Builder;
+  update(t: unknown): Builder;
+  select(shape?: unknown): { from(t: unknown): unknown[] };
+  run(statement: unknown): unknown;
+  execute(statement: unknown): unknown;
+  batch(statements: readonly unknown[]): unknown;
+}
 `;
 
 const WIDGET_SCHEMA = `
@@ -1655,6 +1668,7 @@ export const widgets = sqliteTable("widgets", {
 /** Only the mini-schema counts as the schema dir — the lens's own SCHEMA_DIR constant is a path substring. */
 const COLUMN_FILES: Record<string, string> = {
   "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+  "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM,
   "packages/db/src/schema/widgets.ts": WIDGET_SCHEMA,
   "packages/server/src/domain/widget/queries.ts": `
 import { db } from "../../../../db/src/drizzle";
@@ -1696,6 +1710,7 @@ describe("ast columns lens (drizzle consumption)", () => {
   test("test and tool reads/writes do not make an otherwise-unused production column look healthy", () => {
     const project = projectOf({
       "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM,
       "packages/db/src/schema/widgets.ts": WIDGET_SCHEMA,
       "tests/db/widgets.test.ts": `
 import { db } from "../../packages/db/src/drizzle";
@@ -1723,6 +1738,7 @@ export function seed(): unknown {
   test("table-level write evidence separates a consumed producerless table from empty, opaque, raw, and named writers", () => {
     const project = projectOf({
       "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const producerless = sqliteTable("producerless", { seen: text("seen") });
@@ -1764,6 +1780,7 @@ db.insert(producerless).values({ seen: "fixture-only" });
   test("raw INSERT evidence requires an executing database sink", () => {
     const project = projectOf({
       "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const inertTagged = sqliteTable("inert_tagged", { seen: text("seen") });
@@ -1803,6 +1820,7 @@ db.batch([batchedStatement]);
   test("table identity does not cross-contaminate same-named schema exports", () => {
     const project = projectOf({
       "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM,
       "packages/db/src/schema/a.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const events = sqliteTable("a_events", { aValue: text("a_value") });
@@ -1831,6 +1849,7 @@ export function useA(): unknown {
   test("a full-table select reaches a producerless table without fabricating named-column reads", () => {
     const project = projectOf({
       "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+      "node_modules/drizzle-orm/index.ts": MINI_DRIZZLE_ORM,
       "packages/db/src/schema/tables.ts": `
 import { sqliteTable, text } from "../drizzle";
 export const selected = sqliteTable("selected", { value: text("value") });
@@ -1929,6 +1948,27 @@ export function copy(): void {
     expect(byName.get("origin")?.writes).toHaveLength(2);
     expect(byName.get("ghost")?.writes).toEqual([]);
     expect([...audit.opaqueTables.keys()]).toEqual([]);
+  });
+
+  test("a write through a hoisted builder counts, and a same-named method on a non-drizzle object does not", () => {
+    const project = projectOf({
+      ...COLUMN_FILES,
+      "packages/server/src/domain/widget/hoisted.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { widgets } from "../../../../db/src/schema/widgets";
+declare const store: { update(table: unknown): { set(value: object): void } };
+export function hoisted(): void {
+  const query = db.update(widgets);
+  query.set({ ghost: "x" });
+}
+export function foreign(): void {
+  store.update(widgets).set({ origin: "never written" });
+}
+`,
+    });
+    const byName = new Map(collectColumnCandidates(project, collectSchemaTables(project)).candidates.map((candidate) => [candidate.column.jsProp, candidate]));
+    expect(byName.get("ghost")?.writes).toHaveLength(1);
+    expect(byName.get("origin")?.writes).toHaveLength(1);
   });
 
   test("a positional insert-select marks the target table opaque instead of inventing destination columns", () => {

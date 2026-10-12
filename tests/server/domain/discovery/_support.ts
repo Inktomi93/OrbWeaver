@@ -68,6 +68,7 @@ const STATS_NOW = 1_700_000_000_000;
 // The injected writeHubScores op type (not re-exported from the front door — derive it from the ctx).
 type WriteHubScores = DiscoveryContext["writeHubScores"];
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 /** A fixed epoch-ms (the frozen clock instant — stable timestamp assertions). */
 export const FROZEN_AT = FROZEN_AT_MS;
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */

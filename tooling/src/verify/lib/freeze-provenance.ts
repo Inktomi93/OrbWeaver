@@ -17,9 +17,18 @@
 // `no-write-chain` is a call with no Drizzle write verb in it at all (`map.set(…)`) — the boundary that
 // stops the fail-closed posture from redding every `.set()`.
 
+import { readDrizzleWriteTable } from "@orb/tooling/floor/code-facts/drizzle-write-chain";
 import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
-import { readDrizzleWriteTable } from "./drizzle-write-target.ts";
+
+/** Proof fixtures only: the drizzle-orm declarations behind a fixture's `db: D`. A write verb is drizzle's when
+ *  drizzle-orm declares it, so a fixture whose `db` has no declared type names no write chain. */
+export const DRIZZLE_DB_FIXTURE: Readonly<Record<string, string>> = {
+  "node_modules/drizzle-orm/index.d.ts":
+    "export declare class Db {\n  insert(table: unknown): Db;\n  update(table: unknown): Db;\n  values(value: unknown): Db;\n  set(value: unknown): Db;\n" +
+    "  where(condition: unknown): Db;\n  onConflictDoUpdate(config: unknown): Db;\n}\n",
+  "packages/server/src/domain/chat/persistence/drizzle-db.d.ts": 'type D = import("drizzle-orm").Db;\n',
+};
 
 /** The Drizzle declaration every guarded write goes through, and the two homes that prove a binding IS it. */
 export const GUARDED_TABLE = "messageVariants";

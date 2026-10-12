@@ -105,6 +105,7 @@ interface ChatSettingsHostControlsContribution {
   readonly body: (state: ChatSettingsSectionState) => ReactNode;
 }
 
+// @orb-waive no-vanity-alias(ChatSettingsSectionContribution): baselined when the gate widened; burn-down item 906.
 /** A "This chat" SECTION contribution (§6c) — a discriminated union BY ANCHOR (the
  *  {@link ChatSurfaceContribution} shape). One arm today; the `anchor` literal narrows `when`/`body` to
  *  their own state at every call site with zero casts. */
@@ -243,6 +244,7 @@ interface CharacterDetailSectionsContribution {
   readonly body: (state: CharacterDetailState) => ReactNode;
 }
 
+// @orb-waive no-vanity-alias(CharacterDetailContribution): baselined when the gate widened; burn-down item 906.
 /** A character-detail contribution (§6c) — a discriminated union BY ANCHOR (the M8 `ChatSurfaceContribution`
  *  shape). One arm today; a new anchor is one `CHARACTER_DETAIL_ANCHORS` entry + one named arm added to
  *  this union, and the `anchor` literal narrows `when`/`body` to its own state at every call site with

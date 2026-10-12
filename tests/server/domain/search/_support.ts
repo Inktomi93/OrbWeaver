@@ -63,6 +63,7 @@ import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */

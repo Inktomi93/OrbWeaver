@@ -27,6 +27,7 @@ import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const WIRE_PROC = "chat.getVariantWire";
 const WIRE_ITEM = "View wire trace…";
+// @orb-waive no-vanity-alias(MENU_TRIGGER): baselined when the gate widened; burn-down item 906.
 const MENU_TRIGGER = MESSAGE_ACTIONS_MENU_NAME;
 
 /** Only the token datum on — the wire item is gated by AUTHORITY, not by an appearance toggle, so the row

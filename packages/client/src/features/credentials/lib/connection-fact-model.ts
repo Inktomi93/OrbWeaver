@@ -49,7 +49,9 @@ import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
+// @orb-waive no-vanity-alias(grouped): baselined when the gate widened; burn-down item 906.
 export const grouped = formatGrouped;
+// @orb-waive no-vanity-alias(tokens): baselined when the gate widened; burn-down item 906.
 export const tokens = formatTokens;
 
 // ── the Advanced tier: ONE fact-row grammar for both blocks ────────────────────────────────────────────

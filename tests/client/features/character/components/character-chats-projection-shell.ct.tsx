@@ -67,6 +67,7 @@ const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 /** Every per-row kebab, by the shape of its name ("Chat actions for <subject>"). */
 const ANY_ROW_MENU = /^Chat actions for /;
+// @orb-waive no-vanity-alias(FROZEN_NOW): baselined when the gate widened; burn-down item 906.
 /** The page clock the stamp test pins — never an ambient wall-clock read (test-determinism gate). */
 const FROZEN_NOW = FROZEN_AT_MS;
 const HOUR_MS = 3_600_000;
