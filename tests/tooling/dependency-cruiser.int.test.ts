@@ -358,6 +358,14 @@ function writeAllFixtures(): void {
   // testkit-app-router-bridge: the kit takes AppRouter from the server root as a type; a value edge is the violation.
   fx("tests/support/node/__dc/router-type.ts", `import type { AppRouter } from "../../../../packages/server/src/index.ts";\nexport type R = AppRouter;\n`);
   fx("tests/support/node/__dc/router-value.ts", `import { AppRouter } from "../../../../packages/server/src/index.ts";\nexport const r = AppRouter;\n`);
+  // testkit-tooling-doors: the kit may enter a tool's front door or the floor, never a tool's internals.
+  fx("tooling/src/__dc_tb/index.ts", VAL);
+  fx("tooling/src/floor/process/__dc_floor.ts", VAL);
+  fx(
+    "tests/support/node/__dc/tool-door.ts",
+    `import "../../../../tooling/src/__dc_tb/index.ts";\nimport "../../../../tooling/src/floor/process/__dc_floor.ts";\n`,
+  );
+  fx("tests/support/node/__dc/tool-internal.ts", `import "../../../../tooling/src/__dc_tb/ops/y.ts";\n`);
   // tooling-no-testkit: a tool importing the test kit.
   fx("tooling/src/__dc_ta/testkit.ts", `import "../../../tests/support/iso/clock.ts";\n`);
 
@@ -578,6 +586,8 @@ test("the test kit reaches the server root only as the type-only AppRouter bridg
   expect(bridge).toEqual(["tests/support/node/__dc/router-value.ts"]);
   const tooling = allViolations.filter((violation) => violation.rule.name === "tooling-no-testkit").map((violation) => violation.from);
   expect(tooling).toEqual(["tooling/src/__dc_ta/testkit.ts"]);
+  const doors = allViolations.filter((violation) => violation.rule.name === "testkit-tooling-doors").map((violation) => violation.from);
+  expect(doors).toEqual(["tests/support/node/__dc/tool-internal.ts"]);
 });
 
 test("helper worlds reject node→browser and type-only iso→node while preserving same-world type imports", () => {

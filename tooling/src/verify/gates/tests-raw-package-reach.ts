@@ -1,7 +1,7 @@
 // Gate: tests-raw-package-reach — a raw `#<package>/<path>` reach from a test enters a package's internals past its
 // declared entries, so a test follows a refactor only by edit; each one needs a reviewed grant (Core-0 §5).
-// Arms: import · re-export · import() · vi.mock-family calls · DECLARED LIMITS: a type position import (`import("#x")`
-// inside a type) is not a module edge here; the test kit cannot resolve the root map, so tsc refuses it there.
+// Arms: import · re-export · import() in a value or type position · vi.mock-family calls · DECLARED LIMITS: a raw
+// spelling read as a plain string is no module edge; the test kit cannot resolve the root map, so tsc refuses it there.
 // FAMILY: tests-package-subpath, tooling/src/verify/lib/test-import-door.ts#testModuleSpecifier.
 // POPULATION: every test-tree file; one finding per (test file, raw specifier) is the grant identity.
 import { Node, SyntaxKind } from "ts-morph";
@@ -35,7 +35,7 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression],
+          kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression, SyntaxKind.ImportType],
           visit: (node, sourceFile) => {
             const literal = testModuleSpecifier(node);
             if (literal === undefined || !Node.isStringLiteral(literal)) {
@@ -78,6 +78,14 @@ export const gate = defineGate({
       },
       expect: { count: 4, messageIncludes: "This reaches packages/kit/src/ids/index.ts." },
       why: "the vi.mock, re-export, import() and require arms reach a package's files the same way, and a raw spelling of a module's own index file is still a raw reach",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/client/data/auth.test.ts": 'export type Me = import("#client/data/auth-bootstrap.ts").AuthMe;\nexport const m: Me | undefined = undefined;\n',
+      },
+      expect: { count: 1, token: '"#client/data/auth-bootstrap.ts"', messageIncludes: "This reaches packages/client/src/data/auth-bootstrap.ts." },
+      why: "a type-position `import()` couples the test to the internal file exactly as a declaration does; cut the ImportType arm and this row finds nothing",
     },
   ],
   mustPass: [

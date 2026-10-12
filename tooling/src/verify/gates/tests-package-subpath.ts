@@ -1,6 +1,6 @@
 // Gate: tests-package-subpath — a test never climbs by relative path into a package's src or, from outside it, into
 // the test kit (Core-0-Architecture-and-Structure.md §5): a package is entered through its declared entries, the kit
-// through `@orb/testkit/<world>/<path>`. Arms: import · re-export · import() · vi.mock-family calls.
+// through `@orb/testkit/<world>/<path>`. Arms: import · re-export · import() in a value or type position · vi.mock-family calls.
 // DECLARED LIMITS: a path read as data (a CSS or JSON file) and a package-root file are not module imports into src.
 // FAMILY: tests-package-subpath — the module-specifier reader `lib/test-import-door.ts#testModuleSpecifier`, shared with `tests-raw-package-reach`.
 import { Node, SyntaxKind } from "ts-morph";
@@ -29,7 +29,7 @@ export const gate = defineGate({
   create: (ctx) => ({
     visitors: [
       {
-        kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression],
+        kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression, SyntaxKind.ImportType],
         visit: (node, sourceFile) => {
           const literal = testModuleSpecifier(node);
           if (literal === undefined || !Node.isStringLiteral(literal)) {
@@ -63,6 +63,14 @@ export const gate = defineGate({
       },
       expect: { count: 3 },
       why: "the vi.mock, re-export and import() arms: each spelling reaches the same internals",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/client/lib/z.test.ts": 'export type Z = import("../../../packages/client/src/lib/z.ts").Z;\nexport const z: Z | undefined = undefined;\n',
+      },
+      expect: { count: 1, token: '"../../../packages/client/src/lib/z.ts"', messageIncludes: "Use the public entry of @orb/client." },
+      why: "a type-position `import()` climbs into the source as a declaration does; cut the ImportType arm and this row finds nothing",
     },
     {
       mode: "source",

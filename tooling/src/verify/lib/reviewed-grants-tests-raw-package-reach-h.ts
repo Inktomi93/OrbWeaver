@@ -25,4 +25,8 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_H: readonly ReviewedGateGra
     "#ui/primitives/textarea/variants.ts",
     "#ui/primitives/toggle/variants.ts",
   ],
+  "tests/client/data/stale-session.test.ts": ["#client/data/stale-session.ts"],
+  "tests/client/lib/session-channel.test.ts": ["#client/lib/session-channel.ts"],
+  "tests/e2e/event-sequence.spec.ts": ["#client/state/active-chat-store.ts"],
+  "tests/server/infra/plugin-host/_platform-proof.ts": ["#server/infra/plugin-host/process-runtime.ts"],
 });

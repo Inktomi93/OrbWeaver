@@ -308,9 +308,11 @@ contract internals — `tooling-no-provider-families`. The package FRONT DOOR is
 not.
 
 **The test kit sits beside tooling.** `@orb/testkit` (`tests/support`, §5) is a package above the cake.
-It may import any app package and tooling's floor, such as the contrast and timing engines. Nothing in
-`packages/**` imports it (`not-to-test`), and tooling never imports it (`tooling-no-testkit`), so a tool's verdict
-never depends on a test fixture.
+It may import any app package and tooling's public doors: a tool's front door (`@orb/tooling/<tool>`) and the
+floor modules (`@orb/tooling/floor/*`), such as the contrast and timing engines. A tool's internals stay closed to it
+(`testkit-tooling-doors`). Tests, the test runner configs (`playwright-ct.config.ts`, `playwright/`) and scripts
+import the kit. Nothing in `packages/**` imports it (`not-to-test`), and tooling never imports it
+(`tooling-no-testkit`), so a tool's verdict never depends on a test fixture.
 
 **The five-slot tool template** (`tooling/src/<tool>/` — the domain template's tooling twin; learn one,
 know all):
@@ -347,7 +349,7 @@ did not change when the fleet moved.
 | ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
 | every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `floor/instrument/instruments.ts`) |
 | `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
-| `packages/**` and `tooling/**` ⇏ the test kit | `not-to-test` · `tooling-no-testkit` |
+| `packages/**` and `tooling/**` ⇏ the test kit; the kit enters tooling only through its public doors | `not-to-test` · `tooling-no-testkit` · `testkit-tooling-doors` |
 
 **Two fleet-wide doors, both in `floor/cli/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
 toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:

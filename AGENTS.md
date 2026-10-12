@@ -50,7 +50,7 @@ Each `packages/*/package.json` declares its workspace deps, and an undeclared im
 - `plugin-toolchain`: author-time only; TypeScript is its runtime dependency. Standalone templates declare `plugin-sdk` separately for editor types.
 - `server`: `contracts`, `db`, `default-content`, `inference`, `kit`, `showcase-plugins`.
 - `client`: `contracts`, `kit`, `ui`. Type-only: `server` (the tRPC `AppRouter` bridge, a `devDependency`).
-- `testkit` (`tests/support`, above the cake beside `tooling`): any app package and `tooling`'s floor. Only tests and scripts import it, through its `iso`, `node` and `browser` world subpaths.
+- `testkit` (`tests/support`, above the cake beside `tooling`): any app package and `tooling`'s public doors (a tool's `index.ts`, the floor). Only tests, the test runner configs and scripts import it, through its `iso`, `node` and `browser` world subpaths.
 
 Inside `packages/server/src/`, imports flow down only: `entry` → `transport` → `domain` → `infra` →
 `foundation` → `primitives`. `.dependency-cruiser.cjs` enforces the tier order (`pnpm depcruise`). A change

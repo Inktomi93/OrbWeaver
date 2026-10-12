@@ -24,11 +24,15 @@ interface PackageFileReach {
 /** Where a relative specifier climbs to when it leaves its legal tree. */
 type RelativeClimb = ({ readonly kind: "package" } & PackageFileReach) | { readonly kind: "testkit"; readonly door: string };
 
-/** The string literal in a module position: an import or re-export declaration, `import()`, or a vi.mock-family or
+/** The string literal in a module position: an import or re-export declaration, `import()` in a value or type position, or a vi.mock-family or
  *  `require` call. Anything else (a path read as data, a fixture source string) is not a module edge. */
 export function testModuleSpecifier(node: MorphNode): MorphNode | undefined {
   if (Node.isImportDeclaration(node) || Node.isExportDeclaration(node)) {
     return node.getModuleSpecifier();
+  }
+  if (Node.isImportTypeNode(node)) {
+    const argument = node.getArgument();
+    return Node.isLiteralTypeNode(argument) ? argument.getLiteral() : undefined;
   }
   if (!Node.isCallExpression(node)) {
     return;
