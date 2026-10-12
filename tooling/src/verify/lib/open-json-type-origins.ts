@@ -1,6 +1,6 @@
 // Type-node origin reading for the open-json parity fact: which schema table, if any, a declared row type
 // (`typeof t.$inferSelect`, a standard-library projection of it, a union, intersection or array of them) denotes.
-import type { Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
+import type { SourceFile, Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 
 /** Keep every contributing source type and origin until TypeScript narrows the actual read. */
@@ -9,10 +9,12 @@ export interface RowOrigin {
   readonly kind: "schema" | "plain" | "unresolved";
   readonly table?: TsNode | undefined;
   readonly partitionType?: Type | undefined;
+  /** A `Pick`/`Omit` projection: members of the row are absent, so a sibling arm may re-supply one. */
+  readonly dropsMembers?: boolean | undefined;
 }
 
-export function origin(kind: RowOrigin["kind"], sourceType: Type, table?: TsNode): RowOrigin {
-  return { sourceType, kind, table };
+export function origin(kind: RowOrigin["kind"], sourceType: Type, table?: TsNode, dropsMembers = false): RowOrigin {
+  return { sourceType, kind, table, dropsMembers };
 }
 
 function aliasBody(typeNode: TsNode): { readonly body: TsNode; readonly generic: boolean } | undefined {
@@ -32,25 +34,28 @@ export function schemaTableIn(origins: readonly RowOrigin[]): TsNode | undefined
 
 // TypeScript's own projections of an object type keep every kept field's type, so a projected row is still a row.
 const ROW_PROJECTIONS: ReadonlySet<string> = new Set(["Pick", "Omit", "Readonly", "Partial", "Required", "NonNullable"]);
+const MEMBER_DROPPING_PROJECTIONS: ReadonlySet<string> = new Set(["Pick", "Omit"]);
 
-/** `Pick<Row, K>` and its kin, declared by the standard library: the projection of a schema row keeps that row's
+/** `Pick<Row, K>` and its kin, declared by the program's default library files: the projection of a schema row keeps that row's
  *  table. Only a first argument that is exactly one schema row qualifies; any other argument stays unprovable. */
+/** The compiler's own verdict on a default library file; a project file that is merely named `lib.*.d.ts` is not one. */
+function isDefaultLibraryFile(sourceFile: SourceFile): boolean {
+  return sourceFile.getProject().getProgram().compilerObject.isSourceFileDefaultLibrary(sourceFile.compilerNode);
+}
+
 function projectedRowOrigins(typeNode: TypeReferenceNode, seen: ReadonlySet<TsNode>): readonly RowOrigin[] | undefined {
   const symbol = typeNode.getTypeName().getSymbol();
   const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations().filter(Node.isTypeAliasDeclaration) ?? [];
   const declaration = declarations.length === 1 ? declarations[0] : undefined;
   const first = typeNode.getTypeArguments()[0];
-  if (
-    declaration === undefined ||
-    first === undefined ||
-    !ROW_PROJECTIONS.has(declaration.getName()) ||
-    !/^lib\..*\.d\.ts$/u.test(declaration.getSourceFile().getBaseName())
-  ) {
+  if (declaration === undefined || first === undefined || !ROW_PROJECTIONS.has(declaration.getName()) || !isDefaultLibraryFile(declaration.getSourceFile())) {
     return;
   }
   const rows = typeOrigins(first, new Set(seen));
   const row = rows.length === 1 ? rows[0] : undefined;
-  return row?.kind === "schema" && row.table !== undefined ? [origin("schema", typeNode.getType(), row.table)] : undefined;
+  return row?.kind === "schema" && row.table !== undefined
+    ? [origin("schema", typeNode.getType(), row.table, MEMBER_DROPPING_PROJECTIONS.has(declaration.getName()))]
+    : undefined;
 }
 
 function referenceRowOrigins(typeNode: TypeReferenceNode, seen: ReadonlySet<TsNode>): readonly RowOrigin[] {
@@ -106,7 +111,9 @@ function intersectionOrigins(typeNode: TsNode, seen: ReadonlySet<TsNode>): reado
   }
   const parts = typeNode.getTypeNodes().flatMap((part) => typeOrigins(part, new Set(seen)));
   const tables = parts.filter((part): part is RowOrigin & { table: TsNode } => part.kind === "schema" && part.table !== undefined);
-  if (parts.some((part) => part.kind === "unresolved") || tables.some((part) => !sameTable(part.table, tables[0]?.table ?? part.table))) {
+  // A sibling arm of a Pick/Omit projection can re-supply a member the projection dropped, so the row's table no longer owns it.
+  const reSupplied = parts.length > 1 && parts.some((part) => part.dropsMembers === true);
+  if (reSupplied || parts.some((part) => part.kind === "unresolved") || tables.some((part) => !sameTable(part.table, tables[0]?.table ?? part.table))) {
     return [origin("unresolved", typeNode.getType(), schemaTableIn(parts))];
   }
   return [tables[0] === undefined ? origin("plain", typeNode.getType()) : origin("schema", typeNode.getType(), tables[0].table)];
