@@ -8,11 +8,11 @@
 // exactly the contract the crunch said was broken, so the CT reads the attributes rather than the form
 // state that feeds them. Each field's root is addressable by `data-slot="field-root"` + its label.
 
-// @orb-waive-file testid-typed-only-stories("avatar-asset-id"): baselined when the gate widened; burn-down item 906.
 import { useAppForm } from "@orb/client/forms/editor";
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 
@@ -76,7 +76,7 @@ export function AvatarUploadEpochStory(): ReactElement {
         Resolve new upload
       </button>
       <form.Subscribe selector={(state): AssetId | null => state.values.avatarAssetId}>
-        {(assetId): ReactElement => <output data-testid="avatar-asset-id">{assetId ?? "none"}</output>}
+        {(assetId): ReactElement => <output data-testid={storyTestId("avatarAssetId")}>{assetId ?? "none"}</output>}
       </form.Subscribe>
     </div>
   );

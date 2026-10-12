@@ -3,13 +3,12 @@
 // precedent) — the section bodies are mounted by the config host, not exported standalone; the Backup group
 // mounts as its two CONTRIBUTED sections through the host's own resolver.
 
-// @orb-waive-file testid-typed-only-stories("import-outcome"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("tracker-tally"): baselined when the gate widened; burn-down item 906.
 import { useOrbSocket } from "@orb/client/data";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { BundleWorkloadTracker } from "#client/features/workloads/components/bundle-workload-tracker.tsx";
@@ -140,7 +139,7 @@ function LibraryImportEpochBody(): ReactElement {
       <button type="button" onClick={libraryImport.reset}>
         Reset import
       </button>
-      <output data-testid="import-outcome">{outcome}</output>
+      <output data-testid={storyTestId("importOutcome")}>{outcome}</output>
     </>
   );
 }
@@ -184,7 +183,7 @@ function BundleTrackerPairBody({ goneId, liveId }: { readonly goneId: string; re
       <button type="button" onClick={(): void => setTailed(false)}>
         Unmount the tailed tracker
       </button>
-      <output data-testid="tracker-tally">{`mounted=${String(tailed)} gone=${tally(gone)} live=${tally(live)}`}</output>
+      <output data-testid={storyTestId("trackerTally")}>{`mounted=${String(tailed)} gone=${tally(gone)} live=${tally(live)}`}</output>
     </>
   );
 }

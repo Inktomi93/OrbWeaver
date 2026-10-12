@@ -15,13 +15,11 @@
 // `_ct-stories` precedent: `MessageRow`, `MessageActionsRow`), which resolves through the same alias to the
 // same module instance — proven by these CTs, whose subjects all read `useTRPC` and render.
 
-// @orb-waive-file testid-typed-only-stories("actions-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("picker-host"): baselined when the gate widened; burn-down item 906.
-// @orb-waive-file testid-typed-only-stories("reactions-host"): baselined when the gate widened; burn-down item 906.
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { chatMessageReactionsSurface } from "@orb/client/features/chat";
 import type { ChatSurfaceContribution } from "@orb/client/lib";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -54,7 +52,7 @@ function renderFooter(contribution: ChatSurfaceContribution): ReactElement | nul
 export function MessageReactionsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="reactions-host" style={{ width: 320 }}>
+      <div data-testid={storyTestId("reactionsHost")} style={{ width: 320 }}>
         {renderFooter(chatMessageReactionsSurface)}
       </div>
     </CtDataProviders>
@@ -71,7 +69,7 @@ export function MessageReactionsStory(): ReactElement {
 export function MessageActionsDoorsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="actions-host" style={{ width: 320 }}>
+      <div data-testid={storyTestId("actionsHost")} style={{ width: 320 }}>
         <MessageActionsRow message={FOOTER_STATE.message} messageActions="expanded" />
       </div>
     </CtDataProviders>
@@ -93,7 +91,7 @@ const STANDARD_LABELED_STATE = {
 export function NarratorActionsDoorsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="actions-host" style={{ width: 320 }}>
+      <div data-testid={storyTestId("actionsHost")} style={{ width: 320 }}>
         <MessageActionsRow characterNames={["Alice", "Bob"]} message={NARRATOR_STATE.message} messageActions="expanded" />
       </div>
     </CtDataProviders>
@@ -104,7 +102,7 @@ export function NarratorActionsDoorsStory(): ReactElement {
 export function StandardLabeledDoorsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="actions-host" style={{ width: 320 }}>
+      <div data-testid={storyTestId("actionsHost")} style={{ width: 320 }}>
         <MessageActionsRow characterNames={["Alice", "Bob"]} message={STANDARD_LABELED_STATE.message} messageActions="expanded" />
       </div>
     </CtDataProviders>
@@ -163,7 +161,7 @@ function ReactionPickerHarness(): ReactElement {
 export function ReactionPickerStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="picker-host" style={{ width: 320 }}>
+      <div data-testid={storyTestId("pickerHost")} style={{ width: 320 }}>
         <ReactionPickerHarness />
       </div>
     </CtDataProviders>

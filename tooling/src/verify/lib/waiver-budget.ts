@@ -94,7 +94,6 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "test-mock-doctrine": 33,
   "test-production-clone": 17,
   "test-reach": 112,
-  "testid-typed-only-stories": 336,
   "tests-raw-package-reach": 2491,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,

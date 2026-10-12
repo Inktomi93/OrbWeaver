@@ -4,14 +4,16 @@
 // every scoped floor); A2 a `TEST_IDS` row no producer spends.
 // DECLARED LIMIT: a producer whose value is a runtime expression is invisible — see PRODUCER EVIDENCE.
 //
-// PRODUCER EVIDENCE (three rules, measured against the whole corpus at mint — 313 consumed values, 0 false
-// positives). A testid VALUE counts as produced when:
+// PRODUCER EVIDENCE (four rules; the first three were measured against the whole corpus at mint — 313 consumed
+// values, 0 false positives). A testid VALUE counts as produced when:
 //   (1) a `data-testid` attribute/property carries it as a LITERAL (in packages/**/src OR tests/** — a CT
 //       story is a legitimate producer; `draft-cast` was one until its story stopped rendering it);
 //   (2) a `data-testid` TEMPLATE with >= 1 static part could generate it (`engine-launch-${key}`);
 //   (3) its registry KEY is mentioned as a string in packages/**/src outside the registry itself — the
 //       PROP-INDIRECTION rule. `<FormDialog testKey="adminCreateUserDialog">` stamps the id inside
 //       form-dialog.tsx from a prop; the caller's key literal is the only static evidence there is.
+//   (4) a CT story stamps it through `storyTestId("key")` and `STORY_TEST_IDS` (tests/support/browser/
+//       story-test-ids.ts, read by the same row reader) maps that key to it. A story row no story spends is an A2.
 // Rule 3 is why a raw dynamic producer (`data-testid={props.id}`) is IGNORED rather than treated as a
 // wildcard: a wildcard would absolve every consumer on the tree, and the live indirection is already
 // covered by the key it forwards.
@@ -65,7 +67,16 @@ import type { GatePolicyNodeFindingDetails } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { firstAnchor } from "../lib/caught-failure.ts";
-import { TESTID_ATTR, TESTID_FN, TESTID_REGISTRY_CONST, TESTID_REGISTRY_HOME, testIdRegistryRow } from "../lib/testid-registry.ts";
+import {
+  STORY_TESTID_FN,
+  STORY_TESTID_REGISTRY_HOME,
+  storyTestIdRegistryRow,
+  TESTID_ATTR,
+  TESTID_FN,
+  TESTID_REGISTRY_CONST,
+  TESTID_REGISTRY_HOME,
+  testIdRegistryRow,
+} from "../lib/testid-registry.ts";
 
 const GETTER = "getByTestId";
 /** A `[data-testid="x"]` fragment anywhere inside a selector string (the `locator()` consumer shape). */
@@ -126,10 +137,10 @@ function templatePattern(node: Node): RegExp | undefined {
   return staticChars >= MIN_TEMPLATE_STATIC_CHARS ? new RegExp(`^${parts.join("")}$`, "u") : undefined;
 }
 
-/** The literal key ARGUMENT of a `testId("key")` call — the typed producer/consumer shape. */
-function testIdCallArgument(node: Node): Node | undefined {
+/** The literal key ARGUMENT of a `testId("key")` or `storyTestId("key")` call — the typed producer/consumer shape. */
+function testIdCallArgument(node: Node, fn: string = TESTID_FN): Node | undefined {
   const call = node.asKind(SyntaxKind.CallExpression);
-  if (call === undefined || call.getExpression().getText() !== TESTID_FN) {
+  if (call === undefined || call.getExpression().getText() !== fn) {
     return;
   }
   const first = call.getArguments()[0];
@@ -176,6 +187,9 @@ export const gate = defineGate({
     const consumerKeys: KeySite[] = [];
     /** The live registry, read off its own AST through the family reader: key → value + the A2 anchor. */
     const registry = new Map<string, RegistryRow>();
+    /** The story registry, read the same way: a CT story's own ids, produced by `storyTestId("key")` stamps. */
+    const storyRegistry = new Map<string, RegistryRow>();
+    const storyProducerKeys = new Set<string>();
 
     const recordProducerValue = (expr: Node | undefined): void => {
       if (expr === undefined) {
@@ -191,6 +205,11 @@ export const gate = defineGate({
         producerKeys.add(readStringValue(keyArgument) as string);
         return;
       }
+      const storyKeyArgument = testIdCallArgument(expr, STORY_TESTID_FN);
+      if (storyKeyArgument !== undefined) {
+        storyProducerKeys.add(readStringValue(storyKeyArgument) as string);
+        return;
+      }
       const pattern = templatePattern(expr);
       if (pattern !== undefined) {
         patternProducers.push(pattern);
@@ -204,6 +223,13 @@ export const gate = defineGate({
       }
       if (assignment.getName().replace(/^["']|["']$/gu, "") === TESTID_ATTR) {
         recordProducerValue(assignment.getInitializer());
+        return;
+      }
+      if (rel === STORY_TESTID_REGISTRY_HOME) {
+        const storyRow = storyTestIdRegistryRow(node);
+        if (storyRow !== undefined) {
+          storyRegistry.set(storyRow.key, { value: storyRow.value, node: storyRow.assignment, anchor: storyRow.name });
+        }
         return;
       }
       if (rel !== TESTID_REGISTRY_HOME) {
@@ -264,6 +290,12 @@ export const gate = defineGate({
           exactProducers.add(row.value);
         }
       }
+      for (const key of storyProducerKeys) {
+        const row = storyRegistry.get(key);
+        if (row !== undefined) {
+          exactProducers.add(row.value);
+        }
+      }
     };
 
     const isProduced = (value: string): boolean => exactProducers.has(value) || patternProducers.some((re) => re.test(value));
@@ -287,9 +319,9 @@ export const gate = defineGate({
       }
     };
 
-    /** A2 — a typed row promising a selector no component stamps. */
+    /** A2 — a typed row promising a selector no component (or, for a story row, no story) stamps. */
     const reportDeadRegistryRows = (): void => {
-      for (const [key, row] of registry) {
+      for (const [key, row] of [...registry, ...storyRegistry]) {
         if (!isProduced(row.value)) {
           ctx.report.node(
             row.node,
@@ -350,6 +382,24 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
+        [STORY_TESTID_REGISTRY_HOME]: 'export const STORY_TEST_IDS = {\n  ghostPanel: "ghost-panel",\n} as const;\n',
+        "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid={storyTestId("liveRow")}>2</p>;\n',
+      },
+      expect: { count: 1, token: "ghostPanel", messageIncludes: "A2: the registry row" },
+      why: "A2 over the story registry: a row no story stamps is dead, anchored on its bare key. The `liveRow` stamp has no row, which tsc owns, so only the unspent row is a finding",
+    },
+    {
+      mode: "source",
+      files: {
+        [STORY_TESTID_REGISTRY_HOME]: 'export const STORY_TEST_IDS = {\n  castCount: "cast-count",\n} as const;\n',
+        "tests/client/features/character/components/list-pane.ct.tsx": 'const a = component.getByTestId("cast-count");\n',
+      },
+      expect: { count: 2 },
+      why: "a CT selecting a story id no story stamps is an A1, and the unspent story row is the A2 beside it",
+    },
+    {
+      mode: "source",
+      files: {
         // A1 — THE FOUNDING SHAPE, replayed: the story stopped rendering `draft-cast` (the R1 draft-runtime
         // deletion, 99ec49cda1) and the two CT assertions on it survived, green under every scoped floor.
         "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid="cast-count">2</p>;\n',
@@ -390,6 +440,16 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "source",
+      files: {
+        [STORY_TESTID_REGISTRY_HOME]: 'export const STORY_TEST_IDS = {\n  castCount: "cast-count",\n} as const;\n',
+        "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid={storyTestId("castCount")}>2</p>;\n',
+        "tests/client/features/character/components/list-pane.ct.tsx":
+          'test("cast", async () => {\n  await expect(component.getByTestId("cast-count")).toHaveText("2");\n});\n',
+      },
+      why: "rule 4: a story that stamps `storyTestId(key)` produces the registry row's value, so the CT selecting that value is live. Dropping the story-registry read turns this row RED",
+    },
     {
       mode: "source",
       files: {
