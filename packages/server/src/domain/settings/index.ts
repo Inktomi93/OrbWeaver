@@ -41,3 +41,4 @@ export { createExportUserSettings } from "./verbs/export-user-settings.ts";
 export { createImportTheme } from "./verbs/import-theme.ts";
 export { createImportUserSettings } from "./verbs/import-user-settings.ts";
 export { createJoinerSettingsStatement } from "./verbs/joiner-settings-statement.ts";
+export { createResolveUserProse } from "./verbs/resolve-user-prose.ts";

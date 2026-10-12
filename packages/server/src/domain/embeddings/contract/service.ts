@@ -4,10 +4,11 @@
 
 import type { AssetKind } from "@orb/contracts/assets";
 import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
-import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
+import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
 import type { Capability, EndpointFeatures, ProviderId } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { SideGenSampling } from "@orb/inference";
@@ -274,3 +275,10 @@ export interface EmbeddingsWorkloadDeps {
    *  deliberate over-inclusiveness), which is why it arrives as an op rather than a local query. */
   readonly listCorpusOwners: () => Promise<UserId[]>;
 }
+
+export interface EmbeddingsIndexerSubscriptionDeps {
+  readonly getEffectiveConfig: () => EffectiveAppConfig;
+  readonly indexer: EmbeddingsIndexer;
+}
+
+export type EmbeddingsIndexerSubscription = (event: DomainEvent) => Promise<void>;

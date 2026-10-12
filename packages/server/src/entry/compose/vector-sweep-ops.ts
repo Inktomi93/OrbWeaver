@@ -6,23 +6,10 @@ import type { ChatWorkloadDeps, MemoryEmbedSpace } from "#domain/chat";
 import type { DatabankWorkloadDeps } from "#domain/databank";
 import type { EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
 
-/**
- * A memory-off owner's memory receipt against their current target, or `null`. They have no memory vectors, so the
- * scope is vacuously in the target space; an ENABLED owner gets none, because its own memory sweep records it.
- */
-export function createVacuousMemoryReceipt(deps: {
-  readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
-  readonly embeddings: Pick<EmbeddingsService, "resolveGeneration">;
-}): (ownerId: UserId) => Promise<MemoryEmbedSpace | null> {
-  // @orb-waive compose-wiring-only(async): baselined when the gate landed; burn-down item 964.
-  return async (ownerId) => {
-    if (await deps.isMemoryEnabled(ownerId)) {
-      return null;
-    }
-    const generation = await deps.embeddings.resolveGeneration(ownerId, "embed");
-    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
-  };
-}
+import { createVacuousMemoryReceipt as createMemoryOffReceipt } from "#domain/embeddings";
+
+/** The existing entry door retains the domain factory's identity. */
+export const createVacuousMemoryReceipt = createMemoryOffReceipt;
 
 /**
  * THE COVERED SET of a vector sweep comes from its ENUMERATION SCOPE: `null` is the bulk arm, whose covered set is

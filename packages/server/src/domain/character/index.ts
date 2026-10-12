@@ -67,6 +67,7 @@ export type {
 export type { CharacterDetail, CharacterSummary } from "./contract/views.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
 export { backfillPluginProvenance } from "./persistence/backfill-plugin-provenance.ts";
+export { createLoadCharacterEmbeddingOwner } from "./persistence/embedding-owner.ts";
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
 export { migrateSeededCardBackgrounds } from "./persistence/migrate-seeded-backgrounds.ts";
 export { createCharacterOwned, createOwnedCharacterIds } from "./persistence/ownership-ops.ts";
@@ -79,3 +80,4 @@ export { createCharacterService } from "./service.ts";
 export { buildCardEmbedText } from "./substrate/embed-text.ts";
 // rpg promotion recovers from a handle-uniqueness refusal through this, injected at the composition root.
 export { isCharacterHandleConflict } from "./substrate/handle-conflict.ts";
+export { createEmbeddableCardText } from "./verbs/embeddable-card-text.ts";

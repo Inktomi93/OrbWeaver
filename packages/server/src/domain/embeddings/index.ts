@@ -25,7 +25,11 @@ export type {
   ResolveEmbeddingConnection,
 } from "./contract/service.ts";
 export { createEmbeddingsIndexer } from "./indexer/index.ts";
+export { createEmbeddingsIndexerSubscription } from "./indexer/subscription.ts";
 export { createHandoffRestampStatements } from "./persistence/handoff-restamp.ts";
 export { createEmbeddingsService } from "./service.ts";
+export { precomputedSeedEmbedding } from "./substrate/seed-embedding.ts";
+export { createEmbeddingReindexTriggers } from "./verbs/embedding-reindex-triggers.ts";
 export { createRecordUsage } from "./verbs/record-usage.ts";
+export { createVacuousMemoryReceipt } from "./verbs/vacuous-memory-receipt.ts";
 export { createEmbeddingsWorkloadContributions } from "./workload-contributions.ts";

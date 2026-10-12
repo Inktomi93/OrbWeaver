@@ -5,10 +5,6 @@
 // the `SearchScope`/`SearchTarget` axes.
 
 export type { SearchContext } from "./context.ts";
-// `SEARCH_NO_SPACE` + `SEARCH_SPACE_REINDEXING` are exported for ONE consumer: the composition root's in-turn
-// retrieval-degrade seam (`entry/compose/retrieval-degrade.ts`, #2510), which is the only place allowed to
-// decide that a chat turn survives a space refusal. A domain may not import them — that would be the sideways
-// import constitution §2 forbids — which is exactly why the decision lives at compose and not in chat.
 export { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "./contract/errors.ts";
 export {
   type CorpusParams,
@@ -47,7 +43,6 @@ export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/servi
 
 export { createSearchService } from "./service.ts";
 export { evictFieldIndex } from "./substrate/field-index.ts";
-
+export { withRetrievalDegrade } from "./substrate/retrieval-degrade.ts";
 export { createDigestSources } from "./verbs/digest-sources.ts";
-
 export { createSourceState } from "./verbs/source-state.ts";

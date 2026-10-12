@@ -113,6 +113,7 @@ export { generateSegments } from "./memory/generate/segments.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
 export { loadChatMeta } from "./memory/persistence/queries.ts";
 export { resolveTier0Range } from "./memory/recall/bridge.ts";
+export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createGenerationObservationSession } from "./persistence/generation-observation.ts";
@@ -172,6 +173,7 @@ export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — contributor #0,
 // the rpg-gather projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
+export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
 // The rpg-facing generic chat surface (docs/plans/rpg/design.md) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // The imagery quiet-extraction shaper — imagery consumes it as an injected op at the
