@@ -130,6 +130,36 @@ describe("exportCharacter", () => {
     expect(card.data.character_book?.entries.map((entry) => entry.content)).toEqual(["they breathe fire"]);
   });
 
+  test("never serializes another owner's tag, even when a junction row links it to the card", async () => {
+    const db = await freshDb();
+    const svc = createExportService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const character = await seedCharacter(db, { ownerId: owner, name: "Tagged" });
+    await seedCharacterTag(db, character, await seedTag(db, owner, "fantasy"), "accepted");
+    // A cross-owner junction row: the writers refuse it, so only an older or hand-written row carries it.
+    await seedCharacterTag(db, character, await seedTag(db, other, "private-label"), "accepted");
+
+    const result = await svc.exportCharacter({ principal: principal(owner), characterId: character });
+    const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
+    expect(card.data.tags).toEqual(["fantasy"]);
+  });
+
+  test("never embeds another owner's book, even when a junction row names it the card's primary book", async () => {
+    const db = await freshDb();
+    const svc = createExportService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const character = await seedCharacter(db, { ownerId: owner });
+    const foreign = await seedWorldBook(db, other, mintTypeId(ID_PREFIX.worldBook), "Private Lore");
+    await seedWorldEntry(db, { worldBookId: foreign, title: "Secret", content: "the other owner's lore", keys: ["secret"] });
+    await seedCharacterBook(db, character, foreign, "primary");
+
+    const result = await svc.exportCharacter({ principal: principal(owner), characterId: character });
+    const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
+    expect(card.data.character_book).toBeUndefined();
+  });
+
   // ── attached-book REFERENCES (portability twin of the duplicate carry) ──────────────────────────────
 
   test("bundles the attached-book references with their roles (never the book content)", async () => {

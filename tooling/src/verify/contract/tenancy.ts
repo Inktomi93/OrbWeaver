@@ -67,10 +67,17 @@ export interface ForeignKeyColumns {
   readonly parentColumn: string;
 }
 
-/** What a predicate VALUE reads: the written receivers of the table or subquery columns it names, and the
- *  subselects it runs. A value with neither is a plain value (a parameter, a literal, a caller binding). */
+/** One row source a predicate value reads a column of: its written receiver, and its declared schema table
+ *  (undefined for a subquery or CTE, which has no scoping class). */
+export interface ValueReceiver {
+  readonly receiver: string;
+  readonly table: string | undefined;
+}
+
+/** What a predicate VALUE reads: the row sources whose columns it names, and the subselects it runs. A value
+ *  with neither still scopes only when its type is a plain string id (the pin readers' `isPlainValue`). */
 export interface ValueSources {
-  readonly receivers: readonly string[];
+  readonly receivers: readonly ValueReceiver[];
   readonly subselects: readonly Node[];
 }
 

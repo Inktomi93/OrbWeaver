@@ -117,8 +117,8 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
  *  every-owner duplicate pass (`computeDuplicatePairs`), which runs with no Principal. */
 export async function readOwnedCharacterVectors(db: Db, ownerId: UserId | null): Promise<OwnedCharacterVector[]> {
   const scope = ownerId === null ? realCharactersOfEveryOwner() : ownedRealCharacters(ownerId);
-  // @orb-waive owner-scoped-reads(characters): a non-null `ownerId` pins `characters.ownerId` through `ownedRealCharacters`; `null` is the every-owner duplicate pass (`computeDuplicatePairs` from the find-duplicates workload with no owner), a trusted system read with no Principal (D20). The verbs (similarity graph, projection, archetypes) always pass the principal's id. Ends if a Principal-bearing caller can reach the null arm.
-  // @orb-waive owner-scoped-reads(embedGenerations): the generation joins through the card embedding, whose card is pinned to `ownerId` on the owned arm; the `null` arm is the every-owner duplicate pass (D20, no Principal); the read projects only the generation's fingerprint for the embedding row that names it. Ends if a Principal-bearing caller can reach the null arm.
+  // @orb-waive owner-scoped-reads(characters): a non-null `ownerId` pins `characters.ownerId` through `ownedRealCharacters`; the `null` arm is the every-owner duplicate pass (`computeDuplicatePairs` from the find-duplicates workload), reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — the pass writes only derived same-owner pair rows. The verbs (similarity graph, projection, archetypes) always pass the principal's id. Ends if a request-scoped caller can reach the null arm.
+  // @orb-waive owner-scoped-reads(embedGenerations): the generation joins through the card embedding, whose card is pinned to `ownerId` on the owned arm; the `null` arm is the every-owner duplicate pass, reachable only from a null-owner workload run (system or box-owner bulk); rows never egress; the read projects only the generation's fingerprint for the embedding row that names it. Ends if a request-scoped caller can reach the null arm.
   return await db
     .select({
       generationId: characterEmbeddings.generationId,
@@ -217,7 +217,7 @@ export async function readImageHubVectors(db: Db, ownerId: UserId): Promise<HubV
 // ── distinct-owner enumerations (the BULK csls fan-out universe — the owners who HAVE rows in each table) ──
 /** Distinct owners with card embeddings (via `characters.ownerId`). */
 export async function distinctCharacterHubOwners(db: Db): Promise<UserId[]> {
-  // @orb-waive owner-scoped-reads(characters): the bulk passes' owner enumeration (`distinctCorpusOwners`, and `compute-hub-scores`' owner universe when no owner is given), a trusted system read with no Principal (D20) that returns owner ids only, never a card row. Ends if a Principal-bearing caller reaches it or it projects a card column.
+  // @orb-waive owner-scoped-reads(characters): the bulk passes' owner enumeration (`distinctCorpusOwners`, and `compute-hub-scores`' owner universe when no owner is given), reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — it returns owner ids only, used to pick whose rows the pass recomputes and whom it notifies. Ends if a request-scoped caller reaches it or it projects a card column.
   const rows = await db
     .selectDistinct({ ownerId: characters.ownerId })
     .from(characterEmbeddings)
@@ -264,7 +264,7 @@ export async function distinctSegmentHubOwners(db: Db): Promise<UserId[]> {
 
 /** Distinct owners with image embeddings (via `assets.ownerId`). */
 export async function distinctImageHubOwners(db: Db): Promise<UserId[]> {
-  // @orb-waive owner-scoped-reads(assets): the bulk passes' owner enumeration (`distinctCorpusOwners`, and `compute-hub-scores`' owner universe when no owner is given), a trusted system read with no Principal (D20) that returns owner ids only, never an asset row. Ends if a Principal-bearing caller reaches it or it projects an asset column.
+  // @orb-waive owner-scoped-reads(assets): the bulk passes' owner enumeration (`distinctCorpusOwners`, and `compute-hub-scores`' owner universe when no owner is given), reachable only from a null-owner workload run (system or box-owner bulk); rows never egress — it returns owner ids only, used to pick whose rows the pass recomputes and whom it notifies. Ends if a request-scoped caller reaches it or it projects an asset column.
   const rows = await db.selectDistinct({ ownerId: assets.ownerId }).from(imageEmbeddings).innerJoin(assets, eq(imageEmbeddings.assetId, assets.id));
   return rows.map((r) => r.ownerId);
 }
