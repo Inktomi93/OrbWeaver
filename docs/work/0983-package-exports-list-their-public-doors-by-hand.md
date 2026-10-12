@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-D318: replace the wildcard exports map in kit, contracts, db, server and client with an explicit list of the doors other packages use, plus a declared testing door per package for test-only seams. Derive the first list from the real cross-package imports in production code. Move the test files that import deep internal folders onto a declared door or the testing door. Point knip at the declared exports with tests outside the production run, so an export no production package uses is reported, and baseline today's findings shrink-only for adjudication by area.
+D318: replace the wildcard exports map in kit, contracts, db, server and client with an explicit list of the doors production packages import, generated from the real cross-package imports in production source. Legacy tests that import a deep `@orb/<package>/<path>` move to the existing root raw-reach form (`#<package>/<path>`, granted under `tests-raw-package-reach`) and leave with their files when the rebuild replaces them; rebuilt tests enter through public entries and `@orb/testkit` only, per Core-0 section 5. No transitional testing door is added. Point knip at the declared exports with tests outside the production run, and baseline today's findings shrink-only for adjudication by area.
 
 ## Why
 
@@ -18,7 +18,7 @@ The wildcard made every folder importable from any package and hid dead code fro
 
 ## Done when
 
-No package exports map carries a wildcard except imports; an undeclared cross-package path fails to resolve; tests reach packages only through declared doors; knip's production run reports unused declared exports against a shrink-only baseline; Core-0 section 2 states the rule.
+No package exports map carries a wildcard; an undeclared cross-package path fails to resolve; no test imports a deep `@orb/<package>/<path>`; knip's production run reports unused declared exports against a shrink-only baseline; Core-0 section 2 states the rule.
 
 ## Evidence
 
