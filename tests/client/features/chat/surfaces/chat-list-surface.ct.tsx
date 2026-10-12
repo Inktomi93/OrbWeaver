@@ -21,13 +21,13 @@
 // real. `chat.getChat` ONLY — the owner refused warming `chat.listMessages` too (the measured trade is in
 // `use-prefetch-room.ts`); the map's `listMessages` row rides along because the two are one feed.
 
+import { expectInstrumentTierLive } from "@orb/testkit/browser/tier-liveness.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
+import type { TrpcInput, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
-import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcInput, TrpcResponder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListReturnStory, ChatListSurfaceStory, ReturnedRowClaimStory } from "../_ct-stories.tsx";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 

@@ -6,9 +6,9 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { resolveTrigger } from "#server/domain/automation/substrate/fact-resolver.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
 import { ruleFixture, seedHostChat } from "../_support.ts";
 

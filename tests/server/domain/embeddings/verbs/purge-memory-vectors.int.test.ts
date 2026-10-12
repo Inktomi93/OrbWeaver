@@ -8,12 +8,12 @@ import { chatDigests, chatSegments, embedGenerations } from "@orb/db";
 import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { PinnedGeneration } from "#server/domain/embeddings/contract/service.ts";
 import { upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { StoreHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedUser } from "../_support.ts";
 

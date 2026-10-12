@@ -6,11 +6,11 @@ import type { Db } from "@orb/db";
 import { worldBooks } from "@orb/db";
 import type { UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createListOwnedBookIds } from "#server/domain/world-info/verbs/list-owned-book-ids.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 

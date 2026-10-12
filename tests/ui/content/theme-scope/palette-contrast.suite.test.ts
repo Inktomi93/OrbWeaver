@@ -29,12 +29,12 @@ import {
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
+import { OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "@orb/testkit/iso/oklab-reference.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "#ui/content/theme-scope/clamp.ts";
 import { compositedBase } from "#ui/content/theme-scope/color-parse.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "../../../support/oklab-reference.ts";
 
 // ── Token literals → sRGB (0–255) through the kit's gamut-clamped `oklchToSrgb`. Neutral and low-chroma
 // derived tones never clip, so this matches the browser's resolution of the emitted relative-color. ──

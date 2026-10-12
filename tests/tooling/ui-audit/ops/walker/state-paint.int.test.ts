@@ -5,8 +5,8 @@
 // have no pure-fixture form. Each fixture pins ONE property against its nearest legitimate twin.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 interface StatePaintReport {
   readonly findings: readonly { readonly rule: string; readonly selector: string; readonly value: string }[];

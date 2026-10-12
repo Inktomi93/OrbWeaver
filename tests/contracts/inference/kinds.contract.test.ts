@@ -6,7 +6,7 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import { KIND_DEFS, MODEL_KINDS, modelKindSchema, TASK_DEFS, TASKS, tasksOfKind } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 /** The floor's own payload, by its discriminator — the value its kind's schema must accept. */
 function payloadOf(floor: Capability): unknown {

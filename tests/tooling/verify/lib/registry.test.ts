@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../../../../tooling/src/verify/contract/ledger-paths.ts";
 import type { StageDef } from "../../../../tooling/src/verify/contract/stage.ts";
@@ -8,7 +9,6 @@ import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { stageLine } from "../../../../tooling/src/verify/lib/run-render.ts";
 import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
 import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // @orb-waive no-vanity-alias(WHOLE_TIERS): baselined when the gate widened; burn-down item 906.

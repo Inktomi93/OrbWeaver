@@ -17,8 +17,8 @@ import {
   regexScriptTitle,
 } from "@orb/client/lib";
 import { REGEX_PLACEMENTS } from "@orb/kit/regex";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A fixed, obviously-fake relative formatter — the subtitle under test is the COMPOSITION, not the
  *  formatting, and a real one would drag the wall clock into every assertion. */

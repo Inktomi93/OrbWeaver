@@ -4,10 +4,10 @@
 // window is `null` when the capability declares none — a `0` there would make every budget computation clamp
 // to nothing instead of falling back.
 
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { RefineryNotConfiguredError } from "#server/domain/refinery/contract/errors.ts";
 import { summarizerFactsOf } from "#server/domain/refinery/substrate/summarizer.ts";
-import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("reads the structured slot's model and its context window", async () => {
   const clients = makeFakeRoleClients({ summarizerContextTokens: 32_000 });

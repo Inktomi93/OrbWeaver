@@ -2,8 +2,8 @@
 // so a write that stores an empty label would make every later list and get of that row fail, and the pane could
 // not show the row to repair it. The label patch is refused at the write instead.
 
-import "../../../../support/composed-real.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import "@orb/testkit/node/composed-real.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a whitespace-only label patch answers BAD_REQUEST and the owner's list still resolves", async ({ ownerCaller }) => {
   const created = await ownerCaller.connection.create({

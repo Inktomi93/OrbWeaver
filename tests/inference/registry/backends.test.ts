@@ -5,9 +5,9 @@
 // @orb-waive-file no-test-fabrication(Task[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Task, Wire } from "@orb/contracts/inference";
 import { WIRE_DEFS, WIRES } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ProviderBackend } from "#inference/contract/backend.ts";
 import { BACKEND_DEFS, buildBackends } from "#inference/registry/backends.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { fakeDeps } from "../_support.ts";
 
 /** The task → backend method map — the ONE place the table test spells it. */

@@ -8,6 +8,8 @@
 // door (`@orb/ui/*`, `#state`, `#data`, `#components`, the installed Base UI and zustand types), the real home a
 // tripwire watches rewritten or removed, and the real Base UI anatomy manifest left as it is on disk. Every
 // add path and name is this arm's own, because the add arms share one overlaid pass.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as baseuiAnatomyCompleteness } from "../../../../../tooling/src/verify/gates/baseui-anatomy-completeness.ts";
 import { gate as baseuiDerivesNotRespells } from "../../../../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
 import { gate as baseuiDerivesNotRespellsHealth } from "../../../../../tooling/src/verify/gates/baseui-derives-not-respells-health.ts";
@@ -48,7 +50,6 @@ import { gate as uiPrimitiveStructure } from "../../../../../tooling/src/verify/
 import { gate as uiSkinFragmentPurity } from "../../../../../tooling/src/verify/gates/ui-skin-fragment-purity.ts";
 import { gate as uiVariantAxesStamped } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped.ts";
 import { gate as uiVariantAxesStampedHealth } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped-health.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const CHAT = "packages/client/src/features/chat";
 const UI = "packages/ui/src/primitives";

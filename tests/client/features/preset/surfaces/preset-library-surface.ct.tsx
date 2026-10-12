@@ -25,13 +25,13 @@ import { duplicateActionName, PRESET_UNREADABLE_ROW_MARKER, rowActionsName } fro
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { expectInstrumentTierLive } from "@orb/testkit/browser/tier-liveness.ts";
+import { resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
-import { resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,

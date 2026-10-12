@@ -9,6 +9,8 @@
 // these policies read every gate module or every test, so they also report a batch-mate's probe; the runner's
 // entanglement check proves those arms alone.
 //
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as auditClientTests } from "../../../../../tooling/src/verify/gates/audit-client-tests.ts";
 import { gate as ctNoOneshotLiveReadAssert } from "../../../../../tooling/src/verify/gates/ct-no-oneshot-live-read-assert.ts";
 import { gate as ctPollScheduleAndPaint } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
@@ -33,7 +35,6 @@ import { gate as testWorldBrowserContracts } from "../../../../../tooling/src/ve
 import { gate as toolingCliEntry } from "../../../../../tooling/src/verify/gates/tooling-cli-entry.ts";
 import { gate as toolingOpsDirectInvocation } from "../../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
 import { gate as toolingSize } from "../../../../../tooling/src/verify/gates/tooling-size.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const GATES = "tooling/src/verify/gates";
 const OVER_CAP = Array.from({ length: 460 }, (_, index) => `export const line${String(index)} = ${String(index)};`).join("\n");
@@ -178,7 +179,7 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       add(
         "tests/tooling/verify/gates/liveness-probe.test.ts",
-        'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\nwriteFileSync(join(process.cwd(), "tooling/src/verify/gates/x.ts"), "planted");\nexport const livenessTest = test;\n',
+        'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\nwriteFileSync(join(process.cwd(), "tooling/src/verify/gates/x.ts"), "planted");\nexport const livenessTest = test;\n',
       ),
     ],
     messageIncludes: "CHECKOUT",

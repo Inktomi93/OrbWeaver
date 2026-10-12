@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { classifySuiteExit, readSuiteEvidence } from "../../../../tooling/src/mutation-probe/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SPEC_REL = "tests/tooling/subject.test.ts";
 const STARTED_AT = 10;

@@ -1,8 +1,9 @@
 // The deep-imports codemod over a planted git tree: a same-module climb becomes `#src/`, a cross-module one
 // enters the target's front door, and the door gains exactly the re-exports it lacked, types as `export type`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { planDeepImports } from "../../../../tooling/src/codemod/index.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const MANIFEST = JSON.stringify({ name: "@t/p", imports: { "#*": "./src/*/index.ts" } });
 const TSCONFIG = JSON.stringify({ compilerOptions: { module: "nodenext", moduleResolution: "nodenext", allowImportingTsExtensions: true, noEmit: true } });

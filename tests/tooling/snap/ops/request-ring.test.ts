@@ -5,10 +5,10 @@
 // browser integration proves the same attachment against Playwright.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { EventEmitter } from "node:events";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Page, Request, Response } from "@playwright/test";
 import { REQUEST_BODY_BUDGET_BYTES, REQUEST_BODY_CAP_BYTES, REQUEST_RING_CAPACITY } from "../../../../tooling/src/snap/index.ts";
 import { RequestRing } from "../../../../tooling/src/snap/ops/request-ring.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 interface FakeRequestSpec {
   readonly url: string;

@@ -1,7 +1,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { loadWindowAnchor, loadWindowRange } from "#server/domain/chat/persistence/message-window.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage } from "../_support.ts";
 
 test("secondary identities and every range endpoint stay within the resolved room and floor", async () => {

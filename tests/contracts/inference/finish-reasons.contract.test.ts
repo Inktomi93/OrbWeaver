@@ -6,7 +6,7 @@
 // what keeps the per-wire fold from needing a fallthrough.
 
 import { NORMALIZED_FINISH_REASONS, normalizedFinishReasonSchema } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("every member parses to itself", () => {
   for (const reason of NORMALIZED_FINISH_REASONS) {

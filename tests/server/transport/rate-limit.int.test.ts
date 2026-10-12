@@ -6,10 +6,10 @@
 
 // @orb-waive-file no-test-fabrication(DomainRateLimitError): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainRateLimitError } from "@orb/kit/errors";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createRateLimiter } from "#server/transport/rate-limit.ts";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 const WINDOW_MS = 60_000;

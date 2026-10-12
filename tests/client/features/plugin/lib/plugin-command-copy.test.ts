@@ -4,9 +4,9 @@
 import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { humanizeId, pluginCommandShownName, sharedPluginNames } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { pluginCommandArgOffers } from "#client/features/plugin/lib/plugin-command-dispatch.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("humanizeId reads camelCase, snake_case and kebab-case identifiers as one sentence-case phrase", () => {
   expect(humanizeId("style")).toBe("Style");

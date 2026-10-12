@@ -21,6 +21,11 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
@@ -35,11 +40,6 @@ import { runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
 // engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
 import { __spanConvertsToNothingForTest, __spanToWirePartForTest, buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
-import { wireSchema } from "../../../../support/wire-ready.ts";
 import fitGoldens from "./pipeline-fit.goldens.json" with { type: "json" };
 
 const CAPABILITY: GenerationCapability = makeGenerationCapability({

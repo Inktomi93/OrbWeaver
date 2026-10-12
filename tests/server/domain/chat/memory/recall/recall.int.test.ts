@@ -3,6 +3,8 @@ import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { generateDigests } from "#server/domain/chat/memory/generate/digests.ts";
@@ -10,8 +12,6 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import type { MemoryLogEntry } from "#server/domain/chat/memory/types.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../_support.ts";
 import { fakeEmbeddingsStore, fakeSearchDigests, fakeSummarize, GROUP_CHAR, seedDigest, seedSegment, seedTurns, sharedScope } from "../_support.ts";
 

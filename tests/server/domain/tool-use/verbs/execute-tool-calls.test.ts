@@ -4,9 +4,9 @@
 // in emission order.
 // @subject packages/server/src/domain/tool-use/verbs/execute-tool-calls.ts
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const NOOP_SCHEMA = z.object({});

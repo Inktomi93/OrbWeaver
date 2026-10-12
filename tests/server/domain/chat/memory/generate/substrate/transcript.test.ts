@@ -2,10 +2,10 @@ import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { blockHash, blockSpeakerIds, renderTranscript, sliceBlocks, speakerLabel } from "#server/domain/chat/memory/generate/substrate/transcript.ts";
 import type { MsgRow } from "#server/domain/chat/memory/types.ts";
-import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");
 const cole = castId<CharacterId>("character_cole");

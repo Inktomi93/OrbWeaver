@@ -2,10 +2,10 @@
 // @subject packages/server/src/domain/character/verbs/count.ts
 
 import { createCharacterService } from "@orb/server/domain/character";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeHarness } from "../_support.ts";
 
 test("census applies archived and literal-search scope without exposing a foreign owner's match", async ({ db }) => {

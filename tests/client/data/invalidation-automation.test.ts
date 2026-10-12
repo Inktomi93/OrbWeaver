@@ -5,9 +5,9 @@ import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { allAutomationRoomFilters, automationEventFilters } from "#client/data/invalidation-automation.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_automation_filters");
 const OTHER_CHAT_ID = castId<ChatId>("chat_other_automation_filters");

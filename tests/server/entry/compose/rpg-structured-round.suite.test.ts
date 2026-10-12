@@ -17,14 +17,14 @@ import {
 } from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { detectModelFamily } from "#inference/capability/families.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { StateRoundPlans } from "#server/domain/rpg/index.ts";
 import { fallbackStateRound, primaryStateRound } from "#server/domain/rpg/substrate/readonly-axis.ts";
 import { buildToolRoundWireTools, structuredShapes } from "#server/entry/compose/rpg.ts";
-import { makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { ANTHROPIC_STATE_ROUND_400S } from "./_structured-state-round-recordings.ts";
 
 /** The probe's refs: an ongoing scene (no establish-forcing), three targets, no trackers. */

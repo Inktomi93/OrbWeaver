@@ -6,10 +6,10 @@
 
 // @orb-waive-file no-test-fabrication(Extract<StageResolution, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { StageResolution } from "#server/domain/refinery/contract/prompts.ts";
 import { resolveStageResolution } from "#server/domain/refinery/substrate/stage-resolution.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser, validScoreSchema } from "../_support.ts";
 
 /** Narrow a `StageResolution` to one arm, THROWING (never `expect`-inside-an-`if`). */

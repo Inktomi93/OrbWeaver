@@ -6,8 +6,8 @@
 
 import type { JoinDeps } from "@orb/server/entry/http";
 import { registerJoin } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface MockResult {
   readonly kind: "text" | "redirect";

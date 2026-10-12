@@ -5,8 +5,9 @@
 // design-audit, and motion-audit/perf-meter had no nav at all — so the two probes that answer "is this
 // surface smooth / responsive" could not reach any surface behind a room. Four probes, one spelling: a
 // probe that arrives differently is a probe measuring something else.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { buildNavScript, NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/floor/instrument/nav";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("each verb calls its own bridge method with the raw target", () => {
   expect(buildNavScript("open-chat", "latest")).toContain('nav.openChat("latest")');

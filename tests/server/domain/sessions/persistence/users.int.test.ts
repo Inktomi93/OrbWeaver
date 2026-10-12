@@ -2,6 +2,8 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -11,8 +13,6 @@ import {
   selectIdByHandle,
   updateUser,
 } from "#server/domain/sessions/persistence/users.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const T0 = 1_750_000_000_000;
 const ALICE = castId<UserId>("user_alice");

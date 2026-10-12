@@ -1,13 +1,9 @@
 // The inference funnel's own capability and cache-plan answer for one built-in route, for a CT that stubs the
-// connection editor's reads. `tests/support` is the one test home allowed to reach inference internals.
+// connection editor's reads, composed from the inference package's public entry.
 import type { CachePolicyContext, GenerationCapability } from "@orb/contracts/inference";
 import { effectivePromptCache, modelIdSchema } from "@orb/contracts/inference";
-import { cachePolicyContextOf, responseReplaySupportedFor } from "#inference/backends/http/response-cache.ts";
-import { detectModelFamily } from "#inference/capability/families.ts";
-import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
-import { makeResolved } from "../factories/resolved-connection.ts";
+import { cachePolicyContextOf, curatedRows, detectModelFamily, resolveCachePolicy, responseReplaySupportedFor, synthesizeCapability } from "@orb/inference";
+import { makeResolved } from "./factories/resolved-connection.ts";
 
 type CuratedQuery = Parameters<typeof curatedRows>[0];
 

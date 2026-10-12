@@ -7,11 +7,12 @@
 // "NOT a ctx.receipt()" note), and that `execution: "entire-population"` defers under a narrowed scope —
 // the generic deferral mechanics are the planner's own contract, proven for every shape at
 // `tests/tooling/verify/lib/policy-plan.test.ts`; this pins it for this one real policy.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 

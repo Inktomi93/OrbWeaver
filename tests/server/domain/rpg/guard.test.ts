@@ -11,11 +11,11 @@ import type { RpgActorRef } from "@orb/contracts/rpg";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { can } from "#server/domain/admin/guard.ts";
 import { assertHostRole, assertOwnUserRef, notFoundGame } from "#server/domain/rpg/guard.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const MEMBER = principal(castId<UserId>("user_member"));
 const OTHER: UserId = castId<UserId>("user_other");

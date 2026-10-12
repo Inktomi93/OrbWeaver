@@ -4,11 +4,11 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import { SERVER_ENTRY_IN_PACKAGE, SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import { serverSpawnPlan } from "../../../../tooling/src/dev/index.ts";
 import { buildProdSpawnPlan } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Every launcher runs the one server entry. A moved entry must fail here, not in whichever launcher nobody ran.

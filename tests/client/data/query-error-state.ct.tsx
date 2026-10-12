@@ -1,8 +1,8 @@
 // CT: `<QueryErrorState>` (rollup-audit C2) — the shared read-error block, and `<QueryBoundary>`'s
 // default `renderError` falling back to it.
 import { QueryErrorState } from "@orb/client/data";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { EchoBoundaryWithoutRenderErrorStory } from "./_ct-stories.tsx";
 
 test("renders the label + a Retry that fires onRetry", async ({ mount }) => {

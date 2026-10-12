@@ -1,6 +1,6 @@
 // @orb-waive-file no-test-fabrication(RecordedRequest["body"]): baselined when the gate widened to value casts; burn-down item 906.
 
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { clampRoleHandling, turnsLevelFor, USER_ROLE_HANDLING } from "@orb/contracts/inference";
@@ -18,14 +18,14 @@ import {
 } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
+import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { reconcileStats } from "#server/domain/stats/index.ts";
 import type { RecordedRequest, SseEvent } from "../../../inference/backends/_hosted-support.ts";
 import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import type { Fixtures } from "../../../support/fixtures.ts";
-import { test as base, expect } from "../../../support/fixtures.ts";
 import { seedCharacter } from "../../domain/chat/_support.ts";
 
 const CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";

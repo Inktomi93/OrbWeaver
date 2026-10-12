@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { loadCssFacts } from "../../../../tooling/src/verify/ops/resource-css.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PRODUCT_CSS = {
   "packages/ui/src/styles/theme.css": "@theme {\n  --color-ink: oklch(0.4 0.1 20);\n}\n",

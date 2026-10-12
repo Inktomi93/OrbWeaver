@@ -4,8 +4,8 @@
 
 // @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import { __setEgressResolverForTest, guardedGitHttp } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

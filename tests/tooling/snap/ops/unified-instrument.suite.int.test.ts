@@ -10,6 +10,8 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
+import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
@@ -28,8 +30,6 @@ import {
   interactionPerfExit,
   interactionPerfProblems,
 } from "../../../../tooling/src/snap/ops/arms/interaction-perf.ts";
-import type { CliResult } from "../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);

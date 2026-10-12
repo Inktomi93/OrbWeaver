@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineFact, defineGate, reviewedGrantsFor } from "@orb/tooling/verify";
 import { readyResourceValue } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../support/real-corpus-liveness.ts";
-import { openRealCorpusLiveness } from "../../../support/real-corpus-liveness.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const IMPORTER = "packages/kit/src/importer.ts";
 const EXPORTER = "packages/kit/src/exporter.ts";

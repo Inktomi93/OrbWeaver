@@ -1,10 +1,11 @@
 // CT: the status-chip seal — a background-job state chip composing Badge + WebSpinner
 // (ui-primitive-carve-out-work-order item 7). role=status/aria-live=polite on transitions;
 // failed carries a non-color icon signal plus an optional real retry <Button>.
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { StatusChip } from "@orb/ui/status-chip";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("idle renders the neutral (muted) badge token with the Idle label", async ({ mount }) => {
   const component = await mount(<StatusChip status="idle" />);

@@ -13,9 +13,9 @@
 // which says "this device MEASURED it" rather than "the mount declared a constant" — an assertion reading
 // only `data-tile-reserved` would keep passing for the wrong reason if the measurement were ever lost.
 
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CorpusThemeSectionStory } from "../_ct-stories.tsx";
 
 /** `discovery.themeDetail`'s shape for the first theme — three members, the card's fixed anatomy. */

@@ -18,8 +18,8 @@
 // against the real full verdict, not a hand-rolled expectation.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { plantedPolicySource } from "@orb/testkit/node/planted-gate-corpus.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // ── 5. THE SELECTOR'S HONESTY (#1185) ────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ test("the COMMA form is a UNION of folder globs, never a silent zero (#1185)", {
     [`${SCOPE_A}/switch.ts`]: "export const value = 1;\n",
     [`${SCOPE_B}/tokens.ts`]: "export const token = 1;\n",
     // A corpus member the scoped door can load. It reports nothing on this tree: its one subject path is
-    // never planted (the silence convention, tests/support/planted-gate-corpus.ts), so what this arm measures
+    // never planted (the silence convention, tests/support/node/planted-gate-corpus.ts), so what this arm measures
     // is the SCOPE's file count and not a finding.
     "tooling/src/verify/gates/fixture.ts": plantedPolicySource({ repoRoot, id: "fixture", subjectPath: "packages/x/src/unplanted.ts", token: "unplanted" }),
   };

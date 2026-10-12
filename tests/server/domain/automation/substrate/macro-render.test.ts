@@ -6,9 +6,9 @@
 import type { AutomationCelEnv } from "@orb/contracts/automation";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { renderArmTemplate } from "#server/domain/automation/substrate/macro-render.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT_ENV: AutomationCelEnv = {
   vars: { mood: "grim" },

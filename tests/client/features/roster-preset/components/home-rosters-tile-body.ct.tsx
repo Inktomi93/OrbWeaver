@@ -5,9 +5,9 @@
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { HomeRememberedRostersTileStory, HomeRostersTileStory, HomeSettledHiddenRostersTileStory } from "../_ct-stories.tsx";
 
 const SPIRE: RosterPresetSummary = {

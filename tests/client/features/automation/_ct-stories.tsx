@@ -16,14 +16,14 @@ import { automationRulesSection, ClockMeter, NeedleMeter, RulesSection } from "@
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { setMobileViewport } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
+import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RoomActivityLog } from "#client/features/automation/components/room-activity-log.tsx";
 import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
-import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { configSections } from "../../../support/browser/ct-door.ts";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The narrowest REAL host for this surface — the CONTEXT pane at its docked width. A trailing control

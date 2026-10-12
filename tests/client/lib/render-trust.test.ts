@@ -6,8 +6,8 @@
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolveRowRenderPolicy } from "#client/lib/render-trust.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const VIEWER = castId<UserId>("user_viewer");
 const OTHER = castId<UserId>("user_other");

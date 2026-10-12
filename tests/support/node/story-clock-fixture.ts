@@ -1,6 +1,6 @@
 import type { PluginSurfaceRegistrationMeta } from "@orb/contracts/plugin";
 import { pluginSurfaceRegistrationMetaSchema } from "@orb/contracts/plugin";
-import { bootShowcase } from "../showcase-guest.ts";
+import { bootShowcase } from "./showcase-guest.ts";
 
 /** Captures the actual authored surfaces and their empty-room publication. */
 export async function storyClockFixture(): Promise<{

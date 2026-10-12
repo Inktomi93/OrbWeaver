@@ -7,8 +7,9 @@
 // Recipes are built HERE with the real `tv` rather than imported from a primitive: the claims under test
 // are about the mechanism (defaults, undeclared axes, unstamped axes, verbatim keys), and a pilot's own
 // arms are pinned where they render.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { STAMPED_VARIANT_AXES, tv, variantAttrs, variantProps } from "@orb/ui/lib";
-import { expect, test } from "../../support/fixtures.ts";
 
 const recipe = tv({
   base: "inline-flex",

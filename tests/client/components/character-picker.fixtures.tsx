@@ -4,9 +4,9 @@
 
 import { CharacterPicker } from "@orb/client/components";
 import type { CharacterId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
 
 export interface CharacterPickerHarnessProps {
   /** Override the list's default `max-h-80` geometry for pagination controls. */

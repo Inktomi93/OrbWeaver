@@ -7,6 +7,8 @@
 // homes (`@orb/db` tables, `@orb/contracts` shapes, the real chat persistence and bus modules) exactly as
 // server code spells them, and each blindness tripwire loses the real subject it counts. Every add path, id
 // and name is this arm's own, because the add arms share one overlaid pass.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as busChannelPrimitive } from "../../../../../tooling/src/verify/gates/bus-channel-primitive.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 import { gate as chatViewerPlaneCanonReadsHealth } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads-health.ts";
@@ -38,7 +40,6 @@ import { gate as typesInContract } from "../../../../../tooling/src/verify/gates
 import { gate as untrustedRegexSafeExec } from "../../../../../tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 import { gate as vectorScopeDerived } from "../../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb-naming.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const SERVER = "packages/server/src";
 const CHAT_VERBS = `${SERVER}/domain/chat/verbs`;

@@ -14,9 +14,10 @@
 // ts-morph member must be recognised however written, and the same-named member on a NON-ts-morph owner must
 // be refused however written. A reader widened until it says yes to everything passes a one-sided control and
 // fails this one — the `LOOKALIKE` rows are what make the YES rows mean something.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { isTsMorphMember, resolveCallableMember } from "../../../../tooling/src/verify/lib/gate-contract-origin.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/gate-contract-origin";
 

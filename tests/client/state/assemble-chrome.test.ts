@@ -6,9 +6,9 @@
 // @orb-waive-file no-test-fabrication(ChromeZone): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state";
 import { assembleChrome, NO_SELECTION_TITLE } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Command } from "@orb/ui/icons";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 function section(id: SectionDefinition["id"], mobile: SectionDefinition["rail"]["mobile"]): SectionDefinition {
   return {

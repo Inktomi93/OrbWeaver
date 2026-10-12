@@ -6,6 +6,7 @@
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTimeLib } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   activityHeatmapMatrix,
@@ -32,7 +33,6 @@ import {
   WEEKDAY_LABELS,
   weekdayBarItems,
 } from "#client/features/stats/lib/analytics-view-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("formatDurationMs", () => {
   test("sub-second renders as rounded ms", () => {

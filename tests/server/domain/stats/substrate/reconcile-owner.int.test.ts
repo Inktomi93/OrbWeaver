@@ -3,11 +3,11 @@
 // owner's `owner_stats` row is untouched, unlike the workload's bulk (no-ownerId) arm.
 
 import { ownerStats } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { reconcileOwnerStats } from "#server/domain/stats/substrate/reconcile-owner.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedOwnerStats, seedUser, T0 } from "../_support.ts";
 
 describe("reconcileOwnerStats", () => {

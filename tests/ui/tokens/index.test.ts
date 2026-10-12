@@ -7,12 +7,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NORMAL_RATIO, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { SnappedTokenPath } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, SNAPPED_LENGTH_BASE_PX, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { gridVariants } from "#ui/layout/variants.ts";
 import { AVATAR_HUE_STEPS } from "#ui/primitives/avatar/hue.ts";
 import { generateArtifacts, renderGeneratedCss } from "../../../packages/ui/tokens.build.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../../packages/ui");
 

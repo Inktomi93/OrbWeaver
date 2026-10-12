@@ -2,6 +2,7 @@ import { useInvalidation, useTRPC } from "@orb/client/data";
 import { beginRuleCreation, bindDurableLocalToUser } from "@orb/client/state";
 import type { ChatId, UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -9,7 +10,6 @@ import { useEffect, useState } from "react";
 import { useRuleAutosave } from "#client/features/automation/hooks/use-rule-autosave.ts";
 import { ruleEditorValues } from "#client/features/automation/lib/rule-editor-model.ts";
 import { editableRule } from "#client/features/automation/lib/rule-save-session.ts";
-import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 
 interface RuleEchoProps {
   readonly row: Parameters<typeof editableRule>[0];

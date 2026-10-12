@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import type { StageResult, VerifyReport } from "../../../../tooling/src/verify/contract/stage.ts";
 import { finishGithubStage, printGithubReport, startGithubStage } from "../../../../tooling/src/verify/lib/github-feedback.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function stage(overrides: Partial<StageResult> = {}): StageResult {
   return {

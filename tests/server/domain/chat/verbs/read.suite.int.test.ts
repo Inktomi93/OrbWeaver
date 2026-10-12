@@ -4,13 +4,13 @@ import { chatParticipants, chats, messageVariants } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   batchParticipantViews,
   makeChatContext,

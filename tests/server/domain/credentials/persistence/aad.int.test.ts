@@ -7,10 +7,10 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { aadFor } from "#server/domain/credentials/persistence/aad.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const alice = castId<UserId>("user_alice");
 const openrouter = castId<ProviderId>("openrouter");

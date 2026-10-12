@@ -11,13 +11,14 @@
 // doors (`lib/policy-plan.ts` and `lib/policy-pass.ts`), not of any one policy, and its most dangerous failure
 // mode — the two doors disagreeing — surfaces as a thrown `applyOwnerPlan` reconciliation rather than as a
 // finding.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy, PolicyScopeResolution } from "@orb/tooling/verify";
 import { defineFact, defineGate, executePolicyPlan, planPolicyCommand } from "@orb/tooling/verify";
 import { Project, SyntaxKind } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { resolveEffectivePopulation } from "../../../../tooling/src/verify/lib/policy-effective-population.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const SOURCE_A = "packages/client/src/a.ts";

@@ -4,9 +4,9 @@
 // wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
 // @orb-waive-file no-test-fabrication({ spanName?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
@@ -55,6 +55,10 @@ import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { createDomainEventBus, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { SocketListener } from "@orb/server/transport/trpc";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeLocalLightCache } from "@orb/tooling/seed";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
@@ -67,10 +71,6 @@ import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts
 import { subscribeChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "#server/transport/trpc/notifications-bus.ts";
 import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { testModelId } from "../../../support/inference-identities.ts";
 import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
 import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";

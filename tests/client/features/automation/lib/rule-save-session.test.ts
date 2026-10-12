@@ -2,9 +2,9 @@ import type { AutomationRuleCreateInput, AutomationRuleEditable, AutomationRuleU
 import { automationRuleEditableSchema } from "@orb/contracts/automation";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createRuleSaveSession } from "#client/features/automation/lib/rule-save-session.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { createSeededIds } from "../../../../support/ids.ts";
 
 const ids = createSeededIds();
 const chatId = typeIdSchema(ID_PREFIX.chat).parse(ids.next(ID_PREFIX.chat));

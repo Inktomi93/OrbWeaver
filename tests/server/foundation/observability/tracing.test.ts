@@ -15,8 +15,8 @@ import {
   withRequestSpan,
   wrapLibSqlClient,
 } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const PROBE_VALUE = 7;
 

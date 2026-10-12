@@ -5,9 +5,9 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { RegisteredTool } from "#server/domain/tool-use/contract/results.ts";
 import { isDirectDrivableBy } from "#server/domain/tool-use/substrate/reachability.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALICE: UserId = castId("user_alice");
 const BOB: UserId = castId("user_bob");

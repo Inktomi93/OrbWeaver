@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { CSS_MERGE_TRACE_STATUSES, cssMergeTraceStatusSchema } from "../../../../tooling/src/snap/contract/cascade.ts";
 import { cssMergeTraceSnapshot } from "../../../../tooling/src/snap/ops/arms/cascade.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const INVENTED = "invented-member";
 

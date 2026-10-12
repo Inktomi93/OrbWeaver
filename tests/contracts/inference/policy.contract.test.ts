@@ -21,7 +21,7 @@ import {
   tasksOfKind,
   WIRE_DEFAULT_FEATURES,
 } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 function provider(id: string): NonNullable<ReturnType<typeof builtinProvider>> {
   const row = builtinProvider(id);

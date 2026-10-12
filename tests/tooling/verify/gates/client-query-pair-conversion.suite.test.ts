@@ -18,6 +18,8 @@
 //
 // §4.3 (reviewed grants) does not apply: all three declare `facts: []` / `resources: []` and none is
 // `authority: "reviewed-grant"`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -27,7 +29,6 @@ import { gate as zustandSelectorDerived } from "../../../../tooling/src/verify/g
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/client-query-pair-conversion";

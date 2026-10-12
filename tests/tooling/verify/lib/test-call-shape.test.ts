@@ -1,10 +1,11 @@
 // Mirror of `tooling/src/verify/lib/test-call-shape.ts` (#2027): the one test-call SHAPE reader both
 // `test-no-stubs` and `audit-client-tests` consume. Pinned on the reader itself so a consumer's proof rows
 // are not the only thing standing between a modifier vocabulary edit and a silent recognizer change.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { callChainRoot, isTestCallShape } from "../../../../tooling/src/verify/lib/test-call-shape.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function callsOf(source: string): CallExpression[] {
   const project = new Project({ useInMemoryFileSystem: true });

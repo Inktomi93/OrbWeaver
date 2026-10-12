@@ -2,9 +2,9 @@
 // @subject packages/server/src/domain/credentials/verbs/remove.ts
 
 import { createCredentialsService } from "@orb/server/domain/credentials";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 describe("remove", () => {

@@ -44,6 +44,8 @@ import {
 } from "@orb/client/state";
 import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -54,8 +56,6 @@ import { CorpusSearchDisclosure } from "#client/features/discovery/components/co
 import { CorpusSearchResults } from "#client/features/discovery/components/corpus-search-results.tsx";
 import { CorpusThemeSection } from "#client/features/discovery/components/corpus-theme-section.tsx";
 import { CorpusArtifactSurface } from "#client/features/discovery/surfaces/corpus-artifact-surface.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
 // `discovery.home`'s theme projection breaks this module at compile time rather than surviving as a hole.

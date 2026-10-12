@@ -16,8 +16,8 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishUserEvent, subscribeUserEvents, withQuietBulkFanout } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const USER_A = castId<UserId>("user_a");
 const USER_B = castId<UserId>("user_b");

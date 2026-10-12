@@ -2,8 +2,8 @@
 // vectors DEGRADE per-field (never a whole-blob reject — the lenient posture), unknown keys strip.
 
 import { themeOverrideSchema } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("themeOverrideSchema (the wire clamp)", () => {
   test("a full safe override round-trips", () => {

@@ -53,6 +53,9 @@ import {
 } from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { characterDetailContributors } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
@@ -64,14 +67,6 @@ import { CharacterRelationsTab } from "#client/features/character/components/cha
 import { CharacterRestoreBookAction } from "#client/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "#client/features/character/components/character-tags-row.tsx";
 import { LabelsLibrarySurface } from "#client/features/tag/surfaces/labels-library-surface.tsx";
-import {
-  CtAppDataProviders,
-  CtCharacterContributorSectionRegistry,
-  CtDataProviders,
-  CtRealSectionRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
-import { characterDetailContributors } from "../../../support/browser/ct-door.ts";
-import { isolationRegistry } from "../../../support/browser/ct-isolation.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────

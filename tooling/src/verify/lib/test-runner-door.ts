@@ -1,6 +1,6 @@
 // One reader for the DOOR a test enters its runner through, plus the structural tell that separates the
-// two composed doors. Canonical ORIGIN cannot answer this question: `tests/support/fixtures.ts` and
-// `tests/support/tool-fixtures.ts` both re-export vitest's `expect`, so both canonically resolve to the
+// two composed doors. Canonical ORIGIN cannot answer this question: `tests/support/node/fixtures.ts` and
+// `tests/support/node/tool-fixtures.ts` both re-export vitest's `expect`, so both canonically resolve to the
 // same external declaration. What differs is which module the consumer NAMED — the authored door, which
 // `ModuleMemberOrigin` preserves by contract — and, for the tooling mirror, whether that door is the one
 // that installs the RESULT snapshot serializer (Core-Tooling-Law.md §4.8: entering through the plain door

@@ -12,10 +12,10 @@ import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state
 import * as state from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QueryClient } from "@tanstack/react-query";
 import { QueryClient as RealQueryClient } from "@tanstack/react-query";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_agentnav_a");
 const CHARACTER_ID = castId<CharacterId>("character_agentnav_a");

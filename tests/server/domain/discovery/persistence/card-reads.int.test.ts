@@ -3,10 +3,10 @@
 // the human-authored fields; the optional characterId/ownerId filter narrows the scan (the on-demand +
 // owner-scope belts).
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { readCardDistillTargets, readOwnedCardDisplay } from "#server/domain/discovery/persistence/card-reads.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 describe("readCardDistillTargets", () => {

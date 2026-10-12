@@ -4,7 +4,7 @@
 import type { KeyObject } from "node:crypto";
 import { generateKeyPairSync } from "node:crypto";
 import { request } from "node:https";
-import { createFrozenClock } from "../clock.ts";
+import { createFrozenClock } from "../iso/clock.ts";
 import { ipCertificatePem } from "./x509.ts";
 
 const LIFETIME_MS = 160 * 3_600_000;

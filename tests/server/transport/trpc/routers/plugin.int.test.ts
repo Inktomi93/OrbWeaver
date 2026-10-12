@@ -6,11 +6,11 @@
 // surface + tool invocation + event delivery ride P4b (the realm exposes the determinism floor this slice —
 // pinned by realm.test); this test exercises the composed lifecycle, not the membrane call surface.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
 import { makeBundle } from "../../../domain/plugin/_support.ts";
 

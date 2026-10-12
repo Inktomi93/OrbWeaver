@@ -1,7 +1,7 @@
 // @orb-waive-file no-vanity-alias(makeAuthConfig): baselined when the gate widened; burn-down item 906.
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeAuthConfig as cfg, headers } from "../_support.ts";
 
 // `single-user` mode resolver — ALWAYS null: it never gates, never reads a cookie/header, and delegates

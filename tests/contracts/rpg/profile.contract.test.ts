@@ -12,7 +12,7 @@ import {
   rpgSeedTrackers,
   rpgStatProfileSchema,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("freeform is lite's empty-attribute default with an identity-ish modifier", () => {
   expect(RPG_PROFILE_FREEFORM.attributes).toEqual([]);

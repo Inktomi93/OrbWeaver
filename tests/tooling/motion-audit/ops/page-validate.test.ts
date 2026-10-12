@@ -5,9 +5,10 @@
 // false. ops/drive.ts already carries a bridge-PRESENCE probe for exactly that reason (#409, "every
 // __orb read below answers null/[] and each budget arm reads that as a clean zero"); these are the same
 // defence for the case where the bridge is present and answers the wrong shape.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "../../../../tooling/src/motion-audit/ops/page-validate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SNAPSHOT = { loafs: [], cls: 0.01, worstBlocking: 12, worstShift: 0.004 };
 const RECORD = { target: ".row", properties: ["opacity"], compositorClean: true };

@@ -5,10 +5,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { nearestCharacters } from "#server/domain/search/persistence/nearest.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("nearestCharacters", () => {

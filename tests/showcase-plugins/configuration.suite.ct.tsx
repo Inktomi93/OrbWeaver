@@ -6,11 +6,11 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { unzipSync } from "fflate";
 import { ExtensionsSectionStory, PluginConfigurationStory } from "../client/features/plugin/_ct-stories.tsx";
-import type { TrpcInput, TrpcWireOutput } from "../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../support/node/route-trpc.ts";
 
 const PLUGIN_ID = castId<PluginId>("plugin_ct_configuration");
 

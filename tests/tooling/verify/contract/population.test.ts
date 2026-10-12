@@ -31,10 +31,10 @@
 // synthetic inputs that each isolate one direction of the defect.
 import { matchesGlob } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { harnessGlobs } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The repo-relative directory of a workspace member (`.` for the root), and the root table shape. */
 type MemberPaths = readonly string[];

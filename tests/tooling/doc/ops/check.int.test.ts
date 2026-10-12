@@ -1,7 +1,8 @@
 // The docs half of `pnpm check:agents` on planted trees: the structural rules, the writing rules and
 // the reference check compose into one list; the clean tree passes; the real repository is clean.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { docFileCount, docLayerProblems, newAdr, newItem, newItemsFrom, newPlan } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
 const MISSION = "---\nkind: law\nstatus: active\nupdated: 2026-07-03\n---\n\n# Mission\n\nWhy this shape.\n";

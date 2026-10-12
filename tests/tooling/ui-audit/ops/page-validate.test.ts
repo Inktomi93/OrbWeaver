@@ -9,9 +9,10 @@
 // a fixture built from the table could never disagree with it, which is the vacuous-pass shape. A new
 // REQUIRED field in `RawSamples` reds here (the fixture stops being valid) and in tsc (the table is a
 // `Record<keyof RawSamples, …>`) — the two guards are independent on purpose.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { appFailureSurface, rawSamples, shellStateSnapshot } from "../../../../tooling/src/ui-audit/ops/page-validate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Every REQUIRED field of the walk's return object, at its container kind and nothing more. */
 function validSamples(): Record<string, unknown> {

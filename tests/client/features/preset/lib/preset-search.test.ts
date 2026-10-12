@@ -3,8 +3,8 @@
 // rather than a rendered one precisely because the extraction's whole point is that the answer does not
 // depend on which component asks; the two readers AGREEING is pinned at the surface CT.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { filterPresetsByName, presetSearchNeedle } from "#client/features/preset/lib/preset-search.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ROWS = [{ name: "Default" }, { name: "Default (edited)" }, { name: "Imported RP" }];
 

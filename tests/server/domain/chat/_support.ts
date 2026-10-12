@@ -64,6 +64,10 @@ import {
   settleRetainedChatRebase,
 } from "@orb/server/domain/stats";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { ClaimChatOp, SummarizeOp } from "#server/domain/chat/contract/context.ts";
@@ -71,10 +75,6 @@ import type { MemoryRecallResult } from "#server/domain/chat/contract/memory.ts"
 import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "#server/domain/embeddings/persistence/clear.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 export const FROZEN_AT = FROZEN_AT_MS;

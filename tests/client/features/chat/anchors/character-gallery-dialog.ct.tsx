@@ -5,10 +5,10 @@
 // removal now goes through an AlertDialog — `assets.removeFromGallery` does NOT fire on the first click,
 // only after the explicit confirm (the chat-delete rule). Network is stubbed via routeTrpc.
 
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
 import { GALLERY_CELL, ITEM, OWNED_CELL, ownedItem, PAGE_SIZE, pagedItem, TOAST_ROOT } from "../_gallery-fixtures.ts";
 

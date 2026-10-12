@@ -16,7 +16,7 @@ import {
   rpgConfigViewSchema,
   rpgGameConfigSchema,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("an empty config parses to the born-default (freeform profile, empty steeringNote)", () => {
   const config = rpgGameConfigSchema.parse({});

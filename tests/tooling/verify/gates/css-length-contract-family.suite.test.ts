@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as ordinary } from "../../../../tooling/src/verify/gates/css-length-tokens.ts";
@@ -8,7 +9,6 @@ import { SHELL_STYLESHEET } from "../../../../tooling/src/verify/lib/css-length-
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const LENGTH_GRANTS = REVIEWED_GRANTS.filter(({ policyId }) => policyId === grants.id);
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");

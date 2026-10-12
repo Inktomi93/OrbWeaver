@@ -38,7 +38,7 @@ Share only identical ordered interventions; prove every distinct intervention al
 
 Selection lives in `tooling/src/verify/lib/instrument-affected-reach.ts`, `tooling/src/verify/lib/instrument-affected-liveness.ts`, and `tooling/src/verify/ops/instrument-affected.ts`. Mirror tests preserve source attribution and fail-closed selection.
 
-`tests/support/real-corpus-liveness.ts` owns intervention isolation and timing. Native corpus entry points call `tests/tooling/verify/gates/_liveness/runner.ts` to prove:
+`tests/support/node/real-corpus-liveness.ts` owns intervention isolation and timing. Native corpus entry points call `tests/tooling/verify/gates/_liveness/runner.ts` to prove:
 
 - Every selected case survives; identical interventions share without a size cutoff.
 - An own-path-only hidden dependency reports with its complete intervention and stays silent alone or beside another policy's intervention.

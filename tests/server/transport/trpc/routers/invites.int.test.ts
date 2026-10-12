@@ -8,18 +8,18 @@
 // background blob also carries a retired key (`seededId`) the seeded-background migration rewrites; the
 // carried-blob schemas strip it, so a stale card cannot fail a join and the key never reaches the joiner.
 
-import "../../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import { groupConfigSchema } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { chatParticipants } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { ADMIN_USER_ID, expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { guestModeSentence } from "#server/domain/chat/verbs/invite-preview.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { seedChat } from "../../../../support/factories/chat.ts";
-import { ADMIN_USER_ID, expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures.ts";
 
 const CARD_BACKGROUND: ThemeBackground = {
   kind: "external",

@@ -1,8 +1,8 @@
 import type { Db } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { reclaimChatLocksOnBoot, refreshLock, releaseLock, tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat } from "../_support.ts";
 
 const T0 = 1_750_000_000_000;

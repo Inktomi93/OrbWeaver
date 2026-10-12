@@ -5,8 +5,8 @@
 // gates they mirror.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { nearCapAdvisories } from "../../../../tooling/src/verify/lib/near-cap.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function linesOf(n: number): string {
   return "export const x = 1;\n".repeat(n);

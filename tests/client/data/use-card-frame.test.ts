@@ -11,8 +11,8 @@ import { cardFrameMintBody, mintCardFrame } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // A client-asserted policy field must not be spellable in the mint body — the server owns the verdict.
 const POLICY_WORDS = /trust|allow|forbid/iu;

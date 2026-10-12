@@ -4,13 +4,13 @@ import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { EmbeddingConnectionSnapshot } from "#server/domain/embeddings/contract/service.ts";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
-import { freshDb } from "../../../support/db.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedUser } from "../embeddings/_support.ts";
 
 async function connection(db: Db, ownerId: UserId, key: string): Promise<EmbeddingConnectionSnapshot> {

@@ -6,11 +6,12 @@
 //   row" computed against a registry that failed to load is not uncertain, it is INVERTED.
 //
 // Every arm carries its planted control in both directions.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { DocumentIndex, LedgerFacts } from "../../../../tooling/src/verify/contract/resource-document.ts";
 import { loadDocumentIndex, loadLedger, readMarkdownFacts } from "../../../../tooling/src/verify/ops/resource-document.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ADR_TREE = "docs/adr";
 

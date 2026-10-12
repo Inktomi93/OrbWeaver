@@ -2,9 +2,9 @@
 // commands. The owner of the room's character opens that character's gallery (the store the app root's host
 // reads; the story's probe prints it). A viewer who owns none is told why and nothing opens.
 
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 import { ChatDoorSlashComposerStory } from "../hooks/_slash-command-stories.tsx";
 

@@ -9,10 +9,10 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const PNG = "image/png";

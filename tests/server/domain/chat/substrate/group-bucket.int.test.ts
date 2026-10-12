@@ -10,13 +10,13 @@ import type { Db } from "@orb/db";
 import { chatDigests, embedGenerations, userConnections } from "@orb/db";
 import type { CharacterId, EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { generateDigests } from "#server/domain/chat/memory/generate/digests.ts";
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { resolveGroupBucketCharacterId } from "#server/domain/chat/substrate/group-bucket.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support.ts";
 

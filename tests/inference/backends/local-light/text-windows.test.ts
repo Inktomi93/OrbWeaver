@@ -1,6 +1,6 @@
 import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { encodeTextWindows } from "#inference/backends/local-light/text-windows.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("native shape validation refuses batching, invalid lengths and an unrepresentable codepoint before inference", async () => {
   let forwards = 0;

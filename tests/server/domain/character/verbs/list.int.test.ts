@@ -12,10 +12,10 @@ import { characterTags, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { cardTokenSize } from "#server/domain/character/substrate/card-tokens.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacterSummary, seedRawCharacter, seedSeatedChat, seedUser } from "../_support.ts";
 
 describe("list", () => {

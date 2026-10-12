@@ -12,12 +12,12 @@ import { join } from "node:path";
 import process from "node:process";
 import type { RerankOnnx } from "@orb/contracts/inference";
 import { LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, vi } from "vitest";
 import { localLightCpuThreads } from "#inference/backends/local-light/cpu-budget.ts";
 import type { ModelCacheConfig } from "#inference/backends/local-light/model-cache.ts";
 import { createModelCache, rerankBatches } from "#inference/backends/local-light/model-cache.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed } from "#inference/backends/local-light/tasks.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { fakeResolved } from "../../_support.ts";
 
 type Lib = Awaited<ReturnType<NonNullable<ModelCacheConfig["__loadTransformersForTest"]>>>;

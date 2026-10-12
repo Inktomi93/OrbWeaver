@@ -15,10 +15,10 @@ import type { ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment, sharedScope } from "./_support.ts";
 

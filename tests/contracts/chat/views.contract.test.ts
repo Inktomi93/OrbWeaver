@@ -1,6 +1,6 @@
 import { chatLineageViewSchema, chatListPageSchema, chatSummarySchema, turnOutcomeSchema, userMacroPicksViewSchema } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("library rows retain per-viewer data while rejecting root and portrait widening", () => {
   const portrait = { characterId: mintTypeId(ID_PREFIX.character), name: "Aria", avatarHash: null };

@@ -3,9 +3,9 @@
 // arrays/primitives REPLACE (no array-concat — else "set importSkipCharacters to [x]" is impossible).
 
 import type { AppSettings } from "@orb/contracts/settings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { deepMergeAppSettings, deepMergePlain } from "#server/domain/settings/substrate/merge.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("deepMergeAppSettings", () => {
   test("undefined skips, null clears a top-level override", () => {

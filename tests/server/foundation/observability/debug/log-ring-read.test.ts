@@ -5,9 +5,9 @@
 // ever reporting an error while `?level=` silently filtered nothing. Two readers now share this function; a
 // regression in it would blind both at once.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel, ringLineTime } from "#server/foundation/observability/debug/log-ring-read.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("ringLineLevel", () => {
   test("reads the STRING LABEL our formatter emits — the arm whose Number() coercion was NaN", () => {

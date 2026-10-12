@@ -20,9 +20,9 @@ import {
 } from "@orb/contracts/automation";
 import type { WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { expectTypeOf } from "vitest";
 import type { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("RULE_PRESET_IDS is the pinned 22-member catalogue (the 19 committed rows + the three OPTIONAL owner-picks: illustrate-on-lore-reveal, react-to-lore-activation, auto-set-scene-background), in §4 build order", () => {
   expect(RULE_PRESET_IDS).toEqual([

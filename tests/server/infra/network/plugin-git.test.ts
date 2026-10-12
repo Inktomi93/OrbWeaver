@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
 import { createPluginGitSource, materializePluginGitEntries } from "@orb/server/infra/network";
+import { expect, test as houseTest } from "@orb/testkit/node/fixtures.ts";
 import { add, commit, indexPack, init } from "isomorphic-git";
-import { expect, test as houseTest } from "../../../support/fixtures.ts";
 
 const COMMIT = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const OBJECT_CAP = 2 * 1024 * 1024;

@@ -3,8 +3,8 @@
 // plain http. The trusted-peer predicate is the one `resolveClientIp` uses for `X-Forwarded-For`.
 
 import { resolveClientScope, resolveTransport } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const NO_PROXIES: readonly string[] = [];
 

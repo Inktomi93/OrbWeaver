@@ -12,10 +12,10 @@
 // WHICH VALUE this door handed it. A pin on the mechanism alone stays green while the door reads an ambient
 // identity again, which is exactly how the drift survived #1848's own suite.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { RunMarkerDeps } from "@orb/tooling/floor/process/run-marker";
 import { markedPids, mintRunMarker } from "@orb/tooling/floor/process/run-marker";
 import { sweepOwnBrowsers } from "../../../../tooling/src/snap/ops/browser-sweep.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const OUTER = mintRunMarker(100, 1_700_000_000_000);
 const LEASE = mintRunMarker(300, 1_700_000_000_001);

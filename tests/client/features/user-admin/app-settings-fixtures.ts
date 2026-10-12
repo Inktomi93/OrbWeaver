@@ -1,4 +1,4 @@
-import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 export type EffectiveAppSettings = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["resolved"];
 export type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides">["overrides"];

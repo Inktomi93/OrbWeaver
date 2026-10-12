@@ -1,4 +1,4 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import {
@@ -14,13 +14,13 @@ import {
 } from "@orb/db";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { reconcileStats } from "@orb/server/domain/stats";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { test as base, expect } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 
 const test = base.extend<{ requests: RecordedRequest[]; providerFetch: typeof fetch }>({

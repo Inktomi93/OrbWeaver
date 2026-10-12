@@ -16,11 +16,12 @@
 //          first: 5 of 6 legacy examples exercise the per-file arm (3 flag, 2 pass shapes plus the
 //          out-of-population row) and 1 exercises the blindness arm — nonzero on both, so the replay is
 //          evidence and nothing here is constructed in place of it.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/tooling-ops-direct-invocation";
 const GUARD_HOME = "tooling/src/floor/cli/entrypoint.ts";

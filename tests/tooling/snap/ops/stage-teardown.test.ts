@@ -4,13 +4,13 @@
 
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import type { ListeningPortsRead, PortOwner } from "../../../../tooling/src/floor/host/platform.ts";
 import { DEV_PORTS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageStopDeps } from "../../../../tooling/src/snap/contract/stage.ts";
 import { reapStrandedBand, stopStage, tearDownRowlessBand } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
 import { STACK_CLI_REL, stackPorts } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PORTS = { server: 47_811, vite: 47_812 } as const;
 const STAGE_PID = 4242;

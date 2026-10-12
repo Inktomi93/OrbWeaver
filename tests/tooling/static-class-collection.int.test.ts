@@ -1,5 +1,6 @@
 // @orb-waive-file no-test-fabrication(typeof source.forEachDescendant): baselined when the gate widened to value casts; burn-down item 906.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph";
 import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
@@ -7,7 +8,6 @@ import type { CssHookProvenance } from "../../tooling/src/verify/lib/css-family-
 import { cssHookProvenanceFact } from "../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { runPolicyPass } from "../../tooling/src/verify/lib/policy-pass.ts";
 import { __resetStaticClassCollectorMints, StaticClassCollector, staticClassCollectorMints } from "../../tooling/src/verify/lib/static-class-expression.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 // THE SUCCESSOR PROOF for the retired `beginHookOwnerCollection` lifecycle test (#1584, 2026-09-13).
 //

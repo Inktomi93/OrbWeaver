@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { parsePluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "#server/infra/plugin-host/process-argv.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("broker and watchdog accept only their closed inherited-channel launch arguments", () => {
   expect(parsePluginBrokerWatchdogArguments(["private", "4", "1073741824", "production"])).toEqual({

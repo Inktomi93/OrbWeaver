@@ -2,7 +2,7 @@
 // wire a shipped provider row names but the schema refuses would fail every connection read on that provider.
 
 import { BUILTIN_PROVIDERS, WIRE_DEFS, wireSchema } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("every wire a built-in provider row or a wire def names parses", () => {
   for (const wire of [...BUILTIN_PROVIDERS.map((row) => row.wire), ...Object.keys(WIRE_DEFS)]) {

@@ -1,8 +1,8 @@
 // @orb-waive-file no-test-fabrication(Cfg): baselined when the gate widened to value casts; burn-down item 906.
 
 import { defineVersionedConfig, tolerantArray } from "@orb/contracts/versioned-config";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 // A 3-version config with a NON-IDEMPOTENT lift (appends to a counter) so we can prove the
 // storedVersion-beats-probe invariant: re-running the lift would corrupt `count`.

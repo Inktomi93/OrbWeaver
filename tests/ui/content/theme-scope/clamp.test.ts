@@ -1,5 +1,7 @@
 // The ThemeScope clamp is the D44 §12.1 security boundary — this test proves hostile override values
 // are DROPPED and only validated ones pass. Pure (node), so every branch is exercised deterministically.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { parseCssColorToSrgb } from "#kit/safe-color/index.ts";
 import type { Oklch } from "#kit/theme-derivation/index.ts";
 import {
@@ -13,7 +15,6 @@ import {
   wcagContrastRatio,
 } from "#kit/theme-derivation/index.ts";
 import { clampThemeTokens } from "#ui/content/theme-scope/clamp.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("legal colors pass through to their custom properties", () => {
   const { vars } = clampThemeTokens({

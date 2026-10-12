@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PolicyCommandRequest, PolicyPassResult, PolicyScopeResolution } from "@orb/tooling/verify";
 import { defineFact, defineGate, executePolicyPlan, planPolicyCommand, policyPassExitCode, policySourceCandidates } from "@orb/tooling/verify";
 import { Project } from "ts-morph";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { policy } from "./_policy-plan-fixture.ts";
 
 const PROGRAM = {

@@ -5,11 +5,11 @@
 
 import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { WorldInfoNotFoundError } from "#server/domain/world-info/contract/errors.ts";
 import { ensureCharacterOwned, ensurePersonaOwned } from "#server/domain/world-info/persistence/ownership.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedPersona, seedUser } from "../_support.ts";
 
 describe("ensureCharacterOwned", () => {

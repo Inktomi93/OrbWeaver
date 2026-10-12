@@ -5,13 +5,13 @@
 // unlabelled. Neither path contributes a pass/fail count, and `load-suspect` moves no exit code.
 // The one remaining WITHHELD cause is an unproven/software browser — no number exists there at all.
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Page } from "@playwright/test";
 import { vi } from "vitest";
 import type { BrowserAccelerationEvidence } from "../../../../../tooling/src/floor/browser/browser-acceleration.ts";
 import { snapRatePostureIdSchema } from "../../../../../tooling/src/snap/contract/rate-posture.ts";
 import type { SnapRatePosture } from "../../../../../tooling/src/snap/lib/rate-posture.ts";
 import { APP_SNAPSHOT_ARM, appSnapshotResultPair, capturePerfEvidence } from "../../../../../tooling/src/snap/ops/arms/perf.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const HARDWARE: BrowserAccelerationEvidence = {
   backend: "Mesa Intel UHD 770",

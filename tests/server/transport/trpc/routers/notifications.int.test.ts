@@ -29,9 +29,9 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 /** The only human on a single-user box — the plugin's installer and the rule's author, at once. */

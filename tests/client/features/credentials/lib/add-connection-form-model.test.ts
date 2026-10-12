@@ -5,6 +5,7 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { AddConnectionFormValues } from "#client/features/credentials/lib/add-connection-form-model.ts";
 import {
   ADD_CONNECTION_DEFAULTS,
@@ -16,7 +17,6 @@ import {
   validateAddConnection,
 } from "#client/features/credentials/lib/add-connection-form-model.ts";
 import { addModelActionLabel } from "#client/features/credentials/lib/add-model-on-key-form-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const HOSTED_DRAFT: AddConnectionFormValues = { ...ADD_CONNECTION_DEFAULTS, providerId: "openrouter", auth: "apiKey", model: "anthropic/claude-opus-5" };
 

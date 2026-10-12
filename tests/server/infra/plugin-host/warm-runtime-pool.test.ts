@@ -1,6 +1,7 @@
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { PluginHostBusyError, WarmRuntimePool } from "#server/infra/plugin-host/warm-runtime-pool.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface Target {
   readonly id: string;

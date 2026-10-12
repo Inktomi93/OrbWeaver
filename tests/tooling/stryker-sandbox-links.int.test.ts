@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, join, relative } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 interface SandboxLinker {

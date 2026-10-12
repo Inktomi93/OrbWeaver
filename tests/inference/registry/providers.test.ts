@@ -5,9 +5,9 @@
 import { providerDefSchema } from "@orb/contracts/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ProviderSnapshot, ProviderStore } from "#inference/deps.ts";
 import { createProviderRegistry } from "#inference/registry/providers.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { memoryProviderSnapshot, memoryProviderState, memoryReleasePlugin, memoryReplacePlugin } from "../_support.ts";
 
 const PROVIDER = providerDefSchema.parse({

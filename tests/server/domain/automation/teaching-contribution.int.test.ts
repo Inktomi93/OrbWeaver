@@ -14,6 +14,8 @@ import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { EMPTY_ANALYSIS_STATE } from "#server/domain/automation/contract/analysis.ts";
 import { createAutomationTeachingContributions } from "#server/domain/automation/index.ts";
 import { upsertRuleState } from "#server/domain/automation/persistence/rule-state.ts";
@@ -23,8 +25,6 @@ import { shape } from "#server/domain/chat/assembly/shape.ts";
 import type { TeachingContext } from "#server/domain/chat/contract/context.ts";
 import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
 import { convertsToEmptyWireRow } from "#server/domain/chat/substrate/wire-history.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";
 import { seedUser } from "./_support.ts";
 

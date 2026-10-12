@@ -1,7 +1,7 @@
 import { messagesPageSchema, messageWindowSchema } from "@orb/contracts/chat";
 import { CORPUS_SOURCE_OUTCOMES } from "@orb/contracts/search";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("empty canon pages remain readable without admitting service-only fields", () => {
   const page = { messages: [], identities: [] };

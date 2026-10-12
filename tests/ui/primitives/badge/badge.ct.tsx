@@ -2,11 +2,11 @@
 // carry real padding (ui-package-design §6.1).
 
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { Badge } from "@orb/ui/badge";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("default intent is the neutral (muted) token background", async ({ mount }) => {
   const badge = await mount(<Badge>Draft</Badge>);

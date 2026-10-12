@@ -8,9 +8,9 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedOwner, seedPlugin } from "../_support.ts";
 
 const ACME_ID = castId<ProviderId>("acme-endpoint");

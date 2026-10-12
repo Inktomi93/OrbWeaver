@@ -10,11 +10,11 @@
 // The EMPTY arm has its own test because omitting an empty roster is the specific failure the empty-states
 // law names: a scope that renders nothing reads as "not built yet", not as "nothing attaches this".
 
+import { readSwitchRowOrientation } from "@orb/testkit/browser/settings-geometry.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { readSwitchRowOrientation } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RegexContextStory } from "../_ct-stories.tsx";
 
 const SCRIPT_ID = "regex_script_000000000000000a";

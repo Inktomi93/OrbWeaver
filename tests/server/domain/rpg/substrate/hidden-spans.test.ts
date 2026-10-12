@@ -5,9 +5,9 @@
 // silently unlocks a hand-locked field), it leaves non-strings alone, and it is IDENTITY for a viewer who
 // reads hidden. The span vocabulary itself belongs to `@orb/kit/content` and is pinned there.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { stripHiddenDeep, stripHiddenForViewer } from "#server/domain/rpg/substrate/hidden-spans.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const HIDDEN = '<lie character="Mira" truth="she is the informant"/>';
 const TRUTH = "she is the informant";

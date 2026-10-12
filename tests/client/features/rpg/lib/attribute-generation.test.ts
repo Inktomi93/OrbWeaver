@@ -1,6 +1,6 @@
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { canGenerateD20Attributes, rollD20Attributes, standardD20Attributes } from "#client/features/rpg/lib/attribute-generation.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the standard array has the six canonical keys in displayed order", () => {
   expect(standardD20Attributes()).toEqual({ str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 });

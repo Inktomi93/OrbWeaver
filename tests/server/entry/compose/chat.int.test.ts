@@ -26,8 +26,8 @@
 // SECOND BLOCK (bottom of the file): the other composed-injection gap at this seam — `resolveSeatDeco`'s
 // tighten-only external-media combine, likewise stubbed everywhere else. Its own header explains the exploit.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -39,11 +39,11 @@ import { connectionBindings, rpgGames, userConnections } from "@orb/db";
 import type { ChatId, ConnectionBindingId, Handle, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
-import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { seedPreset } from "../../domain/preset/_support.ts";
 import { seedGame } from "../../domain/rpg/_support.ts";

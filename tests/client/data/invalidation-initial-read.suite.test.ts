@@ -4,11 +4,11 @@ import { __resetBusDupBursts } from "@orb/client/lib";
 import type { MessageView } from "@orb/contracts/chat";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QueryExecuteOptions } from "@tanstack/react-query";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { vi } from "vitest";
 import { runAfterViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_initial_invalidation");

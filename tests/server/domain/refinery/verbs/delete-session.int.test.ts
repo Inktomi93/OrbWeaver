@@ -5,9 +5,9 @@ import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("deletes the owned session + its runs; the character survives; a stranger gets NOT_FOUND", async () => {

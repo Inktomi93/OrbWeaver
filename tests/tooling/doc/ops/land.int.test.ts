@@ -6,12 +6,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { landItems, newAdr, newItem, nextAdrId } from "../../../../tooling/src/doc/index.ts";
 import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { REPO_ROOT } from "../../../../tooling/src/floor/artifacts/artifacts.ts";
 import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const TODAY = "2026-09-23";

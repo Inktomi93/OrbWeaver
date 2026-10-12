@@ -2,6 +2,9 @@
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
 import { AA_NON_TEXT_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "@orb/testkit/browser/pixel-contrast.ts";
+import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
@@ -9,9 +12,6 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "../../../support/browser/pixel-contrast.ts";
-import { pixelSurface } from "../../../support/browser/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

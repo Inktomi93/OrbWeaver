@@ -4,8 +4,8 @@
 // P1 ST-parity semantics). DISPLAY ONLY — no macro is resolved (BUILD-SPEC §7/§10).
 
 import type { PromptSection } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { assemblePreview, splitMacroTokens } from "#client/features/preset/components/prompt-assembly/preview-model.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 
 function literal(id: string, content: string, extra: Partial<Extract<PromptSection, { type: "literal" }>> = {}): PromptSection {
   return { type: "literal", id, name: id, role: "system", content, enabled: true, ...extra };

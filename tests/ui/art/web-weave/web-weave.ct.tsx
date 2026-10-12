@@ -14,12 +14,12 @@
 // mount ranged 16k–136k, the glint sweep dominating), so a one-sample baseline is a lottery that
 // flakes red on a high sample and passes a drive that did nothing on a low one.
 
+import { ambientCeiling, fingerprintDelta, frameFingerprint, frameFingerprintPair, waitFrames } from "@orb/testkit/browser/weave-drive.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import type { WeavePoint } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ambientCeiling, fingerprintDelta, frameFingerprint, frameFingerprintPair, waitFrames } from "../../../support/browser/weave-drive.ts";
 import { WeaveBox, WeaveInertTwinBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 /** How far past the worst ambient beat a drive must move the frame to count as a real change. */

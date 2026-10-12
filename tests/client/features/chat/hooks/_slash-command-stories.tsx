@@ -13,10 +13,10 @@
 // @orb-waive-file testid-typed-only-stories("ct-slash-fired"): baselined when the gate widened; burn-down item 906.
 import type { ContributorRegistry, SlashCommandContribution, SlashCommandMountProps } from "@orb/client/lib";
 import { SlashCommandRegistryProvider } from "@orb/client/state";
+import { slashCommands } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { slashCommands } from "../../../../support/browser/ct-door.ts";
-import { isolationRegistry } from "../../../../support/browser/ct-isolation.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { SLASH_LOCKED_REASON } from "../fixtures.ts";
 

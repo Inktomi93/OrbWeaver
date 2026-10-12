@@ -5,8 +5,8 @@
 //   • claiming to handle a non-XML tag pair leaves the user's `[thinking]` block in the prose while the
 //     post-hoc split believes the wire already handled it.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { thinkTagMiddleware } from "#inference/backends/openai-compat/think-tags.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const THINK = { prefix: "<think>", suffix: "</think>" } as const;
 

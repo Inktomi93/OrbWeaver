@@ -21,6 +21,10 @@ import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/id
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
@@ -30,10 +34,6 @@ import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
 import { createFork } from "#server/domain/chat/verbs/fork.ts";
 import { createExportChatBundle } from "#server/domain/export/verbs/export-chat-bundle.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { makeHarness as makeExportHarness } from "../../export/_support.ts";
 import {
   addVariant,

@@ -18,11 +18,11 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import type { ScopedChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharactersContextStory } from "../_ct-stories.tsx";

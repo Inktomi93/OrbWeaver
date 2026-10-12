@@ -5,9 +5,9 @@ import type { WorkloadStatus } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { workloadStreamEmitter } from "@orb/server/domain/workloads";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
 
 describe("workloads.cancel", () => {

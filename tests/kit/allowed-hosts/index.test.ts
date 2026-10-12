@@ -13,8 +13,8 @@ import {
   splitHostList,
   withoutTrailingDot,
 } from "@orb/kit/allowed-hosts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("splitHostList", () => {
   test("unset, empty, comma-only and dot-only values are all empty", () => {

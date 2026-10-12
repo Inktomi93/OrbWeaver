@@ -6,9 +6,9 @@
 
 import type { ShapeBreakpointDecision, ShapeTraceRow } from "@orb/contracts/chat";
 import { SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildShapeTrace } from "#server/domain/chat/assembly/trace.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ROW: ShapeTraceRow = { role: "assistant", source: "canon", chars: 5 };
 

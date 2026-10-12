@@ -1,8 +1,8 @@
 import process from "node:process";
 import { admitsHandle, handleKey } from "@orb/kit/handle-key";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { UNICODE_DATA_VERSION } from "#kit/handle-key/unicode-data.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const BMP_FIRST_PRINTABLE = 0x20;
 const BMP_LAST = 0xff_ff;

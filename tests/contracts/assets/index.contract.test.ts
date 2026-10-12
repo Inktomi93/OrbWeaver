@@ -13,7 +13,7 @@ import {
 } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── The upload `kind` axis ───────────────────────────────────────────────────
 // The ONE home for the union (§7.5). A drift here would mean the db enum / upload route / client have

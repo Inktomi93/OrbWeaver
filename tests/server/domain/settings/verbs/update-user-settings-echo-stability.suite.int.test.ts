@@ -12,11 +12,11 @@ import type { Db } from "@orb/db";
 import { userSettings } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedAsset } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { seedAsset } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** Read the raw stored blob + version COLUMN — the echo-stability invariants live at the storage layer

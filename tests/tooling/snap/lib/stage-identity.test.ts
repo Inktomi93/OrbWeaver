@@ -1,6 +1,7 @@
 // The stage identity readers: the clone flag survives, and anything off-grammar is null rather than half-read.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseStageBoundIdentity, parseStageDbProvenance } from "../../../../tooling/src/snap/lib/stage-identity.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PROVENANCE = { copiedFrom: "/box/prod.db", copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
 

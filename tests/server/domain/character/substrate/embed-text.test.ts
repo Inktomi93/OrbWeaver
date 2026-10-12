@@ -4,10 +4,10 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildCardEmbedText } from "#server/domain/character/substrate/embed-text.ts";
 import { buildGroupCard } from "#server/domain/character/substrate/group-character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function card(overrides: Partial<CharacterCard> = {}): CharacterCard {
   return { ...buildGroupCard(), name: "", description: null, greetings: [], ...overrides };

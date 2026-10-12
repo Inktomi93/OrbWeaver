@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { isDrizzleWriteStatement, upsertConfigOf, whereArgOf } from "../../../../tooling/src/verify/lib/tenancy-read.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("static bracket chains retain their WHERE and conflict-update scoping inputs", () => {
   const project = new Project({ useInMemoryFileSystem: true });

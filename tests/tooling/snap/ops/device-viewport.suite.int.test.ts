@@ -14,10 +14,10 @@
 // "worked" by making every viewport coarse.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { beforeEach, vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);

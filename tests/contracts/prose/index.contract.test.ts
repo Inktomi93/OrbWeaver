@@ -35,8 +35,8 @@ import {
   resolveProseText,
   USER_PROSE_SLOT_IDS,
 } from "@orb/contracts/prose";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import baseline from "#contracts/prose/prose-baseline.json" with { type: "json" };
-import { expect, test } from "../../support/fixtures.ts";
 
 const FIRST_ID: ProseSlotId = "preset.format.impersonateNudge";
 const sha256 = (text: string): string => createHash("sha256").update(text, "utf8").digest("hex");

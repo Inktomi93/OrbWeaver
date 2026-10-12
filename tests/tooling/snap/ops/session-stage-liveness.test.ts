@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { SessionEvent, SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
@@ -13,7 +14,6 @@ import { readSessionEvent } from "../../../../tooling/src/snap/lib/session-wire.
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { refuseDriftedStageCall } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
 import { writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CHECKOUT = "/home/dev/orbweaver";
 const BAND = 2;

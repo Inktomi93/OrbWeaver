@@ -1,11 +1,11 @@
 import { imageryGenerations } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { seedAsset } from "@orb/testkit/node/factories/asset.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeImageryCall } from "@orb/testkit/node/factories/imagery-call.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { readOwnedImageryCalls } from "#server/domain/imagery/persistence/portability-read.ts";
-import { seedAsset } from "../../../../support/factories/asset.ts";
-import { seedCharacter } from "../../../../support/factories/character.ts";
-import { makeImageryCall } from "../../../../support/factories/imagery-call.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("native execution grouping is asset-owner scoped and a foreign subject label cannot leak", async ({ db }) => {
   const owner = await seedUser(db);

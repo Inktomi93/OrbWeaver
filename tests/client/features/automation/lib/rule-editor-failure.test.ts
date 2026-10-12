@@ -3,9 +3,9 @@
 // own sentence along.
 
 import { AUTOMATION_RULE_REFUSAL_CODES, ruleRefusalReason } from "@orb/contracts/automation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { ruleEditorFailure } from "#client/features/automation/lib/rule-editor-failure.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const SERVER_SENTENCE = "tool 'zz_probe' is not what you think";
 const GENERIC = "The rule was not accepted. Review its fields and your current permissions before editing again.";

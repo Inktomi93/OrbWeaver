@@ -29,16 +29,16 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
-import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
-import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   MessageListFooterDisclosureStory,
   MessageListMomentStory,

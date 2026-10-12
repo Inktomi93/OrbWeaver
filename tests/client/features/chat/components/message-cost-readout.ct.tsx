@@ -12,8 +12,8 @@
 //
 // If either gate loosens, a pin here goes red — that is what this file guards, not "a button renders".
 
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageCostReadoutStory } from "../_ct-stories.tsx";
 
 const COST_PROC = "connection.generationCost";

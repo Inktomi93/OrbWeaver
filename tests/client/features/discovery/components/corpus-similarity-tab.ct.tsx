@@ -18,10 +18,10 @@
 // reads are suspense reads behind one QueryBoundary, and the edge list is a separate non-suspending query,
 // so "Nearest pairs" being visible is the settle for the section order and the pair list needs its own.
 
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusSimilarityTabStory, CorpusSimilarityToContentStory } from "../_ct-stories.tsx";
 
 /** The truncation line the capped list owes — matched loosely so the cap can be re-tuned without a re-red. */

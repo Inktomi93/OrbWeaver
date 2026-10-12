@@ -2,11 +2,12 @@
 // `insert`/`update` verb, and a verb counts only when drizzle-orm declares it. Both directions are planted: a builder
 // hoisted into a local and a factory that returns one are writes, a same-named method on any other object is not, and
 // a receiver the checker cannot bind is no write rather than a guess.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { DrizzleWrite } from "../../../../tooling/src/floor/code-facts/drizzle-columns.ts";
 import { drizzleWriteOf, writeKeysOf } from "../../../../tooling/src/floor/code-facts/drizzle-columns.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DRIZZLE_SOURCE =
   "export declare class Builder {\n  set(value: object): Builder;\n  values(value: object): Builder;\n  where(condition: unknown): Builder;\n" +

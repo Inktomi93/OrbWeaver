@@ -1,4 +1,4 @@
-import { expect, test } from "../../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 test("the manual front door documents fresh-target and evidence semantics", async ({ runCli }) => {
   const result = await runCli("review-mirror", ["--help"]);

@@ -30,10 +30,11 @@
 // `finalize` returned at its first line in every one of them — the arm the split carried out into its own
 // policy was covered by zero legacy rows. The successor proof below is therefore CONSTRUCTED from the
 // legacy arm's own trigger conditions, not replayed from its corpus.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as occurrence } from "../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("a shared poll schedule and an unbarriered evaluate trigger are flagged, and the founding anchor stays sound", () => {
   expect(verifyPolicyProofs([occurrence, health])).toEqual([]);

@@ -19,8 +19,8 @@ import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportTreeDeps } from "@orb/server/entry/http";
 import { registerImportTree } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const TREE_ROUTE = "POST /api/import/tree";
 const REVIEW_ROUTE = "POST /api/import/tree/review";

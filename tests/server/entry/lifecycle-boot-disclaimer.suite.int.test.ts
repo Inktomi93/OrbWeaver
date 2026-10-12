@@ -2,10 +2,10 @@
 // says nothing alarming in its whole boot. The widened-peer control is the sibling suite, which boots the same
 // box with AUTH_FALLBACK_TRUSTED_PEERS set and sees the security line inside the group.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeAll } from "vitest";
-import type { BootedLifecycle } from "../../support/booted-lifecycle.ts";
-import { bootLifecycle, disclaimerIndices } from "../../support/booted-lifecycle.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import type { BootedLifecycle } from "./_booted-lifecycle.ts";
+import { bootLifecycle, disclaimerIndices } from "./_booted-lifecycle.ts";
 
 const BOOT_TIMEOUT_MS = 120_000;
 // mode, listener, credential-less owner, cookie rule, secrets and the single-user caveat.

@@ -3,8 +3,8 @@
 
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import type { Page } from "@playwright/test";
-import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 type GalleryRow = TrpcWireOutput<"assets.listGallery">[number];
 type OwnedRow = TrpcWireOutput<"assets.listOwned">[number];

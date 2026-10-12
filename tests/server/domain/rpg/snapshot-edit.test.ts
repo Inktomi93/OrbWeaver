@@ -1,8 +1,8 @@
 import type { RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { serializeHandWrite } from "#server/domain/rpg/snapshot-edit.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const GAME_A = castId<RpgGameId>("rpg_game_hand_queue_a");
 const GAME_B = castId<RpgGameId>("rpg_game_hand_queue_b");

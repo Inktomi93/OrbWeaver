@@ -22,7 +22,7 @@ interface RootFactBase {
 type RootFact = { [Kind in RootKind]: RootFactBase & { readonly kind: Kind } }[RootKind];
 type InternalFact = RootFact | FixtureAuthoredValueUnreadable;
 
-const TOOL_FIXTURE_SUFFIX = "/tests/support/tool-fixtures.ts";
+const TOOL_FIXTURE_SUFFIX = "/tests/support/node/tool-fixtures.ts";
 const SCRATCH_FIXTURE = "scratch";
 const REPO_FIXTURE = "repoRoot";
 const PLANTED_TREE_FIXTURE = "plantedTree";

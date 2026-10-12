@@ -4,9 +4,9 @@
 import type { MemoryRecallSlice } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createMemoryRecallRecorder } from "#server/domain/chat/memory/recall/recorder.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 
 const scoped = castId<CharacterId>("character_group");
 

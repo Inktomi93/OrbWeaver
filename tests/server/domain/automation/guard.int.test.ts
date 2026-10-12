@@ -7,11 +7,11 @@ import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { can } from "@orb/server/domain/admin";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { AutomationChatNotFoundError, RuleNotFoundError } from "#server/domain/automation/contract/errors.ts";
 import { requireChatHost, requireRuleAuthority } from "#server/domain/automation/guard.ts";
 import { insertRule } from "#server/domain/automation/persistence/rules.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedParticipant } from "../chat/_support.ts";
 import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "./_support.ts";
 

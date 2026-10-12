@@ -89,7 +89,11 @@ export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, LOCAL_LIGHT_MODEL_SLOTS } fr
 // tag the way compose does, and the transport suites build a classified `ProviderError` the way a runner does.
 export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
 export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/wire/cache-control.ts";
-export { curatedKind } from "./capability/sources/curated/loader.ts";
+// The curated-evidence fold, for a caller that answers a route's capability without a saved connection: the
+// connection editor's CT oracle reads the funnel's own answer through these instead of the package internals.
+export { detectModelFamily } from "./capability/families.ts";
+export { curatedKind, curatedRows } from "./capability/sources/curated/loader.ts";
+export { synthesizeCapability } from "./capability/synthesize.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
 export { resolvedWarningSchema } from "./contract/resolve.ts";

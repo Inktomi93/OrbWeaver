@@ -9,10 +9,10 @@
 // Everything is asserted through what a user can SEE and NAME (accessible names, the rendered row, the wire
 // the affordance fires), never through the store or the hooks behind them.
 
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexLibraryGroupStory } from "../_ct-stories.tsx";
 
 /** The kebab's accessible name is `Actions for <subject>`, so only a pattern addresses one row's menu — and

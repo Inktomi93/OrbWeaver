@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { pluginBrokerExecArgv } from "#server/infra/plugin-host/process-permission.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { runPluginBrokerPlatformProof } from "./_platform-proof.ts";
 
 const PROOF_TIMEOUT_MS = 600_000;

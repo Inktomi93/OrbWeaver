@@ -1,9 +1,9 @@
 // substrate: processReply — the pure LLM-reply→keyword-prompt normalizer. One golden
 // row per numbered step; case is PRESERVED; the caller owns empty-is-error.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { processReply } from "#server/domain/imagery/substrate/process-reply.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const TRAILING_COMMA = /,\s*$/;
 

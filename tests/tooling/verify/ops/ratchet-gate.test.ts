@@ -7,8 +7,9 @@
 // and it comes back INCLUDED with zero edits to the classifier, because its basename matches the naming
 // convention. A hand-list design would have needed a new row for it; this design needs none — that IS the
 // "enumeration must not rot" property #667 asked for.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { classifyRatchetFiles, discoverTestFiles, isRatchetShaped } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("isRatchetShaped: the tooling ratchet/presence/conformance self-tests match", () => {
   expect(isRatchetShaped("tests/tooling/chat-component-presence.test.ts")).toBe(true);

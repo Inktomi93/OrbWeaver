@@ -2,10 +2,10 @@ import { chatDigests } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { consolidationHash, resolveTier0Range } from "@orb/server/domain/chat";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createDigestSourceCoverage } from "#server/domain/search/verbs/digest-sources.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 test("a higher-tier source proves its original generation grid and rejects a changed fanOut before rebuild", async () => {

@@ -1,5 +1,6 @@
 // `pnpm dev`'s pure decisions: which source trees restart the server, and which port and proxy target vite gets.
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { DEV_PORTS, MAX_TCP_PORT } from "@orb/tooling/floor/host/ports";
 import type { WorkspacePackage } from "../../../../tooling/src/dev/index.ts";
 import {
@@ -11,7 +12,6 @@ import {
   VITE_API_TARGET_ENV,
   VITE_PORT_ENV,
 } from "../../../../tooling/src/dev/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function pkg(name: string, workspaceDeps: readonly string[] = []): WorkspacePackage {
   return { name, dir: join("/repo", "packages", name), workspaceDeps };

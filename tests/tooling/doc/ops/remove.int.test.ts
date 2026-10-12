@@ -3,8 +3,8 @@
 // link or path, a D citation, an item filed under the plan, an item or parked plan waiting on the item.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { newAdr, newItem, newLaw, newPlan, removeDocs, setStatus } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
 const OPEN = { priority: null, area: null, plan: null, lane: null } as const;

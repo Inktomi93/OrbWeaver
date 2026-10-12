@@ -2,10 +2,10 @@
 // draft), Shift+Enter inserts a newline; Save fires `chat.editMessage` directly (never a manual cache
 // patch); a no-op edit (unchanged text) just exits without firing the mutation.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageEditTextareaStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
 

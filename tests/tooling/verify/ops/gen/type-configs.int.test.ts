@@ -1,8 +1,8 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { deriveTypeConfigFiles } from "../../../../../tooling/src/verify/ops/gen/type-configs.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 // Keep filesystem access native while reproducing Windows arithmetic over authored config paths.
 vi.mock("node:path", async (importOriginal) => {

@@ -4,9 +4,9 @@
 import type { Db } from "@orb/db";
 import type { Handle, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach, describe } from "vitest";
 import { insertJournalEntry } from "#server/domain/rpg/persistence/journal.ts";
-import { freshDb } from "../../../../../support/db.ts";
 import { expect, FROZEN_AT, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
 
 let db: Db;

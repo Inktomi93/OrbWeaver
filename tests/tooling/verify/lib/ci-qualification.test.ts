@@ -5,12 +5,12 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { hasQualifiedMainPush, qualificationDecision, resolveCiQualification, selectAffectedInstrumentTests } from "@orb/tooling/verify";
 import type { CiQualificationConfig } from "../../../../tooling/src/verify/contract/qualification.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 test("failed tool A followed by application B carries A's tool bytes into qualification", async ({ scratch, fakeBin }) => {

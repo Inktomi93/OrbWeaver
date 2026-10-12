@@ -3,10 +3,10 @@
 // #2230: the real baseline dispatch must compare generator bytes, never a declaration count.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runBaseline } from "@orb/tooling/verify";
 import { THEME } from "../../../../../tooling/src/verify/contract/css-family.ts";
 import { TOKEN_CONTRACT_PATHS } from "../../../../../tooling/src/verify/contract/resource-artifact.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 function plantTheme(root: string, repoRoot: string): string {

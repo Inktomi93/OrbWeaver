@@ -8,6 +8,8 @@
 import { useOrbSocket } from "@orb/client/data";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { BundleWorkloadTracker } from "#client/features/workloads/components/bundle-workload-tracker.tsx";
@@ -16,8 +18,6 @@ import { WorkloadsJobsSection } from "#client/features/workloads/components/work
 import { WorkloadsTuningSection } from "#client/features/workloads/components/workloads-tuning-section.tsx";
 import type { LibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
 import { useLibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
-import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { configSections } from "../../../support/browser/ct-door.ts";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. Since SSE-1 S5 an active workload row has no

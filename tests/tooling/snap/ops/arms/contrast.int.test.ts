@@ -1,9 +1,9 @@
 // #953 instrument plant: the structured contrast door must distinguish one real framebuffer sample
 // from the same selector population painted over by an unrelated layer.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../../tooling/src/snap/ops/arms/contrast.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

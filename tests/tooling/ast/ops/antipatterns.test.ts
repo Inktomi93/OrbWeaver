@@ -1,9 +1,10 @@
 // `pnpm ast antipatterns` verdict handling: a killed, refused or incomplete structure pass is no verdict, never a
 // clean run, and a finished pass prints every class with its unwaived hits, alarms and waived sites.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { AntipatternVerdict } from "../../../../tooling/src/ast/index.ts";
 import { ANTIPATTERN_CLASSES, judgeAntipatternPass } from "../../../../tooling/src/ast/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ARTIFACT = "reports/runs/structure/lane-1/check-structure.json";
 const PASS_STDOUT = `structure done; read ${ARTIFACT}\n`;

@@ -4,7 +4,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // Type-level pins (D26 slot-has-no-content / view-has-content, the ChatBusEvent secret-unrepresentable
 // allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (docs/law/Spine-Testing.md §1). This

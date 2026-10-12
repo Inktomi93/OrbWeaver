@@ -1,5 +1,5 @@
 import { clampToTokenBudget, estimateTokens, safeTokenWindow, splitToTokenBudget, TOKEN_HEADROOM_SLACK_CAP, TOKENIZER_HEADROOM_FACTOR } from "@orb/kit/tokens";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("empty string is zero tokens", () => {
   expect(estimateTokens("")).toBe(0);

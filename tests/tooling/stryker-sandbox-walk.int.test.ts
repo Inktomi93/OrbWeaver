@@ -32,8 +32,8 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterAll } from "vitest";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 type FindNodeModulesList = (basePath: string, tempDirName?: string) => Promise<string[]>;
 

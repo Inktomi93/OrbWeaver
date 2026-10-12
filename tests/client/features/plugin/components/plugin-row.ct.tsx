@@ -5,11 +5,11 @@
 // reaches the card as text. The words themselves are not asserted; their data (a fixture's description, a
 // fixture's raw error) is.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { NO_IMAGE_MODEL_NOTE } from "#client/features/plugin/lib/plugin-copy.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginRow = TrpcWireOutput<"plugin.list">[number];

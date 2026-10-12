@@ -8,8 +8,8 @@
 // survives the regrouping intact.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument, stateTwin } from "../../../../support/ui-audit-relational.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument, stateTwin } from "@orb/testkit/node/ui-audit-relational.ts";
 
 test("selection-idiom ignores invariant base paint when selected and unselected twins use the same channel", async ({ runCli, scratch }) => {
   const invariant = [

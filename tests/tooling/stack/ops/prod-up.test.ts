@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ProdRecord } from "../../../../tooling/src/stack/contract/types.ts";
 import type { FailedSpawnDeps } from "../../../../tooling/src/stack/ops/prod-up.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const record: ProdRecord = {
   mode: "prod",

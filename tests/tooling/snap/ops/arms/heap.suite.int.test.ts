@@ -9,6 +9,7 @@
 // growth is measured rather than blind; missing/malformed/incompatible evidence must refuse, never pass.
 import { copyFile, readFile, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import type { HeapComparisonReceipt, HeapRetainerReceipt, HeapSnapshotReceipt, SnapRunIndex } from "@orb/tooling/snap";
@@ -23,7 +24,6 @@ import {
 import type { Page } from "@playwright/test";
 import { vi } from "vitest";
 import { captureRawHeap } from "../../../../../tooling/src/snap/ops/heap-capture.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);

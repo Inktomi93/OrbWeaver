@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ambientRootsForProgram } from "@orb/tooling/floor/compiler/type-config-intent";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the Vitest augmentation belongs only to Node and browser test programs", () => {
   const ambient = "tests/support/vitest-tags.d.ts";

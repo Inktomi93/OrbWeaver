@@ -5,8 +5,8 @@
 // here — this is the pure parser.
 
 import { parseReasoningTags } from "@orb/server/primitives/reasoning";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const TAGS = { prefix: "<think>", suffix: "</think>" } as const;
 

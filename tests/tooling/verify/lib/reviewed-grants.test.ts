@@ -7,6 +7,7 @@
 import { globSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant, SelectedGatePolicy } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -17,7 +18,6 @@ import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole
 import { validateReviewedGrants } from "../../../../tooling/src/verify/lib/gate-authority-validation.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Importing every gate module once is the whole cost of this file; memoized so both roster tests pay it once.

@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import { fetchGoogleModels, listGoogleModels } from "#inference/catalog/google.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const KEY = "native-catalog-test-key";
 const dial = {

@@ -39,6 +39,7 @@
 // is the receipt that every arm still fires on its own fixture.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -52,7 +53,6 @@ import { gate as tsconfigEntryLiveness } from "../../../../tooling/src/verify/ga
 import { gate as tsconfigEntryLivenessHealth } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [

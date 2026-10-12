@@ -5,6 +5,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import type { GateAuthority } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -13,7 +14,6 @@ import type { GatePolicyAnalysis } from "../../../../tooling/src/verify/contract
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { assertGateFactDescriptor, assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function writeModules(root: string, modules: Readonly<Record<string, string>>): void {
   for (const [name, source] of Object.entries(modules)) {

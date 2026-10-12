@@ -22,9 +22,9 @@ import process from "node:process";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { reimportBudget } from "@orb/testkit/node/reimport-budget.ts";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { reimportBudget } from "../../../../support/reimport-budget.ts";
 
 const CHAT_A = castId<ChatId>("chat_a");
 

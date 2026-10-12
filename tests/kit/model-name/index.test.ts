@@ -3,8 +3,8 @@
 // know which shape it got: a hosted route, a HuggingFace org/repo ref, and a local weights path all arrive
 // through the same `string`.
 import { modelDisplayName } from "@orb/kit/model-name";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // The identifier that motivated the primitive — 106 characters, rendered twice in one panel.
 const LOCAL_QUANT_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";

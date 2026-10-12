@@ -6,8 +6,8 @@
 
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "@orb/server/foundation/env";
 import { diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "@orb/server/foundation/env";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const SEALED: DiagnosticsPostureInput = { debugToken: undefined, ipAllowlist: undefined, wireCapture: "off", rpgTrace: "off" };
 

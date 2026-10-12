@@ -6,6 +6,8 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, personas, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { SignupInviteCapability } from "#server/domain/chat/contract/signup.ts";
@@ -18,8 +20,6 @@ import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joi
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 const DAY_MS = 86_400_000;

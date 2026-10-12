@@ -6,11 +6,12 @@
 // the message-row role and from a StreamAuthority tier that merely shares a lexeme — the distinction a
 // hardcoded literal set structurally cannot make. The HOME half refuses a vocabulary declared anywhere but
 // its own module, so a same-named tuple elsewhere is never adopted.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import type { TupleVocabularyFact } from "../../../../tooling/src/verify/contract/tuple-vocabulary-fact.ts";
 import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../../../../tooling/src/verify/lib/role-vocabulary.ts";
 import { createTupleVocabularyFacts, TUPLE_VOCABULARY_VISITOR_KINDS } from "../../../../tooling/src/verify/lib/tuple-vocabulary-fact.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 const HOME = "packages/contracts/src/identity/index.ts";

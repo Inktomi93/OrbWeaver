@@ -7,8 +7,8 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { hueDistance, isDeterministicColor, isRenderableColor, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const MODERN_SYSTEM_COLORS = [
   "AccentColor",

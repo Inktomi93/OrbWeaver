@@ -22,16 +22,16 @@
 
 import type { USER_ROLES } from "@orb/contracts/identity";
 import { CONNECTION_OP_CODES, EMBEDDING_FLOOR } from "@orb/contracts/inference";
+import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
+import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
+import { connectionCacheOracle } from "@orb/testkit/node/connection-cache-oracle.ts";
+import { makeCachePolicy, makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "#client/lib/embedder-rebuild.ts";
-import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
-import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
-import { makeCachePolicy, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
-import { connectionCacheOracle } from "../../../../support/node/connection-cache-oracle.ts";
-import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
 import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorScrollPaneStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 

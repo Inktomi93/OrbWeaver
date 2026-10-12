@@ -7,8 +7,8 @@
 
 import { AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import { DomainOperationError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 
 describe("setOwnerBudgets", () => {

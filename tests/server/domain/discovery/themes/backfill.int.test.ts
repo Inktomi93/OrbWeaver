@@ -8,12 +8,12 @@ import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { resolveTier0Range } from "#server/domain/chat/index.ts";
 import { backfillMsgMidAt } from "#server/domain/discovery/themes/backfill.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedChatDigest, seedChatSegment, seedHostedChat, seedMessage, seedUser, vec } from "../_support.ts";
 
 // The same grid the composition root binds — the grounded floor config (fanOut 4).

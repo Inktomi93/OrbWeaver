@@ -15,7 +15,7 @@ import {
   SIZE_PRESET_NAMES,
   sizePresetSchema,
 } from "@orb/contracts/imagery";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("SIZE_PRESET_NAMES is [square, portrait, landscape] and sizePresetSchema derives from it", () => {
   expect(SIZE_PRESET_NAMES).toEqual(["square", "portrait", "landscape"]);

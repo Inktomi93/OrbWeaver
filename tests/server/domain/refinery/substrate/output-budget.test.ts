@@ -4,10 +4,10 @@
 // (stageBudgetMisfitOf) fires ONLY when the caller explicitly capped below the predicted need.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { StageEstimateSubject } from "#server/domain/refinery/contract/prompts.ts";
 import { outputEstimateOf, stageBudgetMisfitOf } from "#server/domain/refinery/substrate/output-budget.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD: CharacterCard = {
   name: "Aria",

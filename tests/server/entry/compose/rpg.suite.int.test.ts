@@ -1,4 +1,4 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi } from "@orb/contracts/inference";
@@ -12,13 +12,13 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { reconcileStats } from "@orb/server/domain/stats";
 import type { ServicesResult } from "@orb/server/entry/compose";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { ZodError, z } from "zod";
 import { observeChatResult } from "#inference/backends/http/generation-observation.ts";
 import { buildRpg } from "#server/entry/compose/rpg.ts";
-import { makeGenerationUsage } from "../../../support/factories/generation-usage.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 function principalOf(userId: UserId): Principal {

@@ -36,6 +36,7 @@
 // shipped the identifier join green.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import { exemptionCollections, gate, hasStaleArm } from "../../../../tooling/src/verify/gates/gate-modernization.ts";
@@ -43,7 +44,6 @@ import { projectCtx } from "../../../../tooling/src/verify/index.ts";
 import { readGateModernizationModule } from "../../../../tooling/src/verify/lib/gate-modernization-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES_REL = "tooling/src/verify/gates";

@@ -3,10 +3,10 @@
 
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ChatResult } from "#inference/contract/chat.ts";
 import type { PlannedResponseFormat, StructuredPlan } from "#inference/structured/plan.ts";
 import { normalizeStructuredValue, structuredChatResult } from "#inference/structured/reply.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A format with no pinned values, so only the reshaped paths act. */
 function at(reshapedPaths: readonly string[]): Pick<PlannedResponseFormat, "schema" | "reshapedPaths"> {

@@ -16,12 +16,12 @@
 // for both roles (owner ruling, as Moonlit paints both), and identity art paints only where there IS art.
 
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import { afterEach, vi } from "vitest";
 import type { BubbleDecoration, BubbleDecorationArgs } from "#client/features/chat/lib/art-decorations.ts";
 import { avatarTreatmentFor } from "#client/features/chat/lib/avatar-treatment.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
 function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {

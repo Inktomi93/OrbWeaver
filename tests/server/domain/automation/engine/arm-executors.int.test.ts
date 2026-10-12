@@ -19,6 +19,8 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type {
   ArmDispatch,
   ArmExecutorDeps,
@@ -34,8 +36,6 @@ import type {
 import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
 import { selectGlobalVariable } from "#server/domain/automation/persistence/queries.ts";
 import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { arm, NO_TOOLS, seedUser } from "../_support.ts";
 

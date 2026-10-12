@@ -40,7 +40,7 @@ import {
   RPG_BASELINE_TOOL_DESCRIPTIONS,
   rpgGameConfigSchema,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const EVERYTHING_PLANE_TEACHING = `This game has hidden layers. Record only the players' SURFACE reality — what the scene openly shows: a character's outward words, visible actions, and apparent state. Do NOT write a character's secret truth, hidden motive, or a lie's real answer into any tracked plane (journal, beats, cast thoughts/mood/relationship, quests). The hidden layer lives in your reasoning channel and the host's reveal-eye — never the panel.
 SCENE — set scene.location (WHERE) and scene.timeOfDay (dawn/morning/afternoon/evening/night/midnight); when the beat doesn't change them, restate the current values, never blank them. Set scene.recentEvent = a one-line summary of what just happened.

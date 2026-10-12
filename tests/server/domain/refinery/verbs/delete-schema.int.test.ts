@@ -4,8 +4,8 @@
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefinerySchemaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 test("the owner's delete lands; foreign and absent ids collapse to NOT_FOUND", async () => {

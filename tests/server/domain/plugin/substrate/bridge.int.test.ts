@@ -12,14 +12,14 @@ import type { VarOp } from "@orb/kit/macro";
 import { can } from "@orb/server/domain/admin";
 import { requireHost } from "@orb/server/domain/chat";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, vi } from "vitest";
 import { createResolveViewerVisibility } from "#server/domain/chat/verbs/resolve-viewer-visibility.ts";
 import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "#server/domain/plugin/substrate/bridge.ts";
 import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../../chat/_support.ts";
 import { makeInertOps, makePluginHarness, principalFor } from "../_support.ts";
 

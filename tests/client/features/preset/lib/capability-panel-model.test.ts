@@ -10,6 +10,7 @@
 import type { GenerationCapability, Range } from "@orb/contracts/inference";
 import { builtinProvider, DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   QUALITY_OPTIONS,
   QUALITY_SELECT_ITEMS,
@@ -23,7 +24,6 @@ import {
   supportsSeed,
   verbosityLevelsFor,
 } from "#client/features/preset/lib/capability-panel-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const R = (min: number, max: number): Range => ({ min, max });
 

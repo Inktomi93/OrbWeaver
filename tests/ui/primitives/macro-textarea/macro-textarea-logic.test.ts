@@ -3,8 +3,9 @@
 // wrong place), so test them directly. Ported nearly verbatim from neo-tavern's
 // macro-textarea-logic.test.ts — these functions never touched the macro catalog, so the port is a
 // straight copy.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { computeMacroInsertion, detectTrigger, MACRO_CARET_MARKER } from "#ui/primitives/macro-textarea/macro-textarea-logic.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("detectTrigger: returns null when there is no `{{` before the caret", () => {
   expect(detectTrigger("hello world", 11)).toBeNull();

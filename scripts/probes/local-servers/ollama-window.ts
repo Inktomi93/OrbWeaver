@@ -20,12 +20,12 @@ import { createInferenceRuntime } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
 import type { DeliveredCue } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { createRunChatTurnBridge } from "../../../packages/server/src/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps } from "../../../tests/inference/_support.ts";
-import { principal } from "../../../tests/support/factories/principal.ts";
 import { http, jsonl, waitFor } from "./_kit.ts";
 
 const BASE_URL = "http://127.0.0.1:28111/v1";

@@ -29,12 +29,13 @@
 //      are pinned verbatim below, so a FOURTH, unintended text drift reds this test.
 // Everything else — which sites flag, at which position, with which token, and which sanctioned-home row
 // the tripwire names — must be IDENTICAL.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as spacingTierHealth } from "../../../../tooling/src/verify/gates/spacing-tier-home-health.ts";
 import { gate as typographyTierHealth } from "../../../../tooling/src/verify/gates/typography-tier-home-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/tier-home-health";
 const ANCHOR = "packages/ui/src/tokens/index.ts";

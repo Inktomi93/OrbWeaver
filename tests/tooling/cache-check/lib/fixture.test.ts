@@ -1,7 +1,8 @@
 // @orb-waive-file platform-spellings(ran): baselined when the gate widened; burn-down item 906.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CacheCase, CasePlan, ProbeStep } from "@orb/tooling/cache-check";
 import { CACHE_CASES, CASE_PLANS, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // How many judged calls a step contributes, read the same way ops/drive.ts reads a step's replies.
 function measuredCalls(step: ProbeStep): number {

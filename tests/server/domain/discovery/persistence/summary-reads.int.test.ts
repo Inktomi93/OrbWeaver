@@ -5,10 +5,10 @@
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { readOwnedCardFacets, readOwnedDistillates } from "#server/domain/discovery/persistence/summary-reads.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 async function seedSummary(

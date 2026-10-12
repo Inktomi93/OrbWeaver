@@ -3,9 +3,9 @@
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
 const OTHER = castId<ChatId>("chat_b");

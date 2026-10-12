@@ -1,6 +1,6 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { toolBoundaryDisplayMessage } from "#client/features/chat/lib/tool-prose.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeMessageView } from "../fixtures.ts";
 
 function displayed(content: string, toolCalls: readonly ToolCallRecord[]): string {

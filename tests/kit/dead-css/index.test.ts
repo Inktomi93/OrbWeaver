@@ -5,8 +5,8 @@
 // pattern silently changes what the probe calls dead.
 
 import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, classTokensInSelector, isDeadCssMarkerClass } from "@orb/kit/dead-css";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("classTokensInSelector", () => {
   test("reads every class token out of a compound selector", () => {

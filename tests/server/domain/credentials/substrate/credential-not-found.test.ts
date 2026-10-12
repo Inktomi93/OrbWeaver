@@ -4,10 +4,10 @@
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { CredentialsNotFoundError } from "#server/domain/credentials/contract/errors.ts";
 import { requireOwned } from "#server/domain/credentials/substrate/credential-not-found.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CREDENTIAL_ID = castId<UserCredentialId>("credential_x");
 

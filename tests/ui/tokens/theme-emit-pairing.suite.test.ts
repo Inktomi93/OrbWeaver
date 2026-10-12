@@ -11,8 +11,8 @@
 // invariant, not a component behavior test.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { THEME_SCOPE_EMIT_VARS } from "#ui/content/theme-scope/emit-vars.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ROOTS = ["packages/ui/src", "packages/client/src"];
 const SCAN_EXT_RE = /\.(?:tsx|ts|css)$/u;

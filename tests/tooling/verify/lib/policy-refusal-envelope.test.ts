@@ -10,6 +10,8 @@
 // message a refusal RAISES (thrown, or pushed into the array a throw joins) is composed from the table FRAGMENT
 // by fragment, or is one of the declared caller-error invariants. Three false cleans in its first version, all
 // three now permanent controls; the block comment above the census states each with its measurement.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { BinaryExpression, Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { Project, SyntaxKind, Node as TsNode, VariableDeclarationKind } from "ts-morph";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
@@ -27,7 +29,6 @@ import {
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { genericRefusalTextContaining, refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** THE TWO TREE-WALKING ARMS PARSE EVERY `tooling/src/verify/lib/*.ts` THROUGH ts-morph, and they ran at

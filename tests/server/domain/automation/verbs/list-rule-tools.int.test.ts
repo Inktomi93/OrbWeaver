@@ -1,14 +1,14 @@
 // verb: listRuleTools — the caller-scoped catalog of installed plugin tools, driven through the composed service.
 // @subject packages/server/src/domain/automation/verbs/list-rule-tools.ts
 
-import "../../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { AutomationRuleToolView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { PluginToolHandle } from "@orb/server/domain/tool-use";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { principal } from "../_support.ts";
 
 const TOOL_NAME = "plugin_rule_catalog_shared";

@@ -1,0 +1,43 @@
+{
+  "name": "@orb/testkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26.3.0"
+  },
+  "sideEffects": true,
+  "exports": {
+    "./iso/*": "./iso/*",
+    "./node/*": "./node/*",
+    "./browser/*": "./browser/*"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "catalog:",
+    "@orb/client": "workspace:*",
+    "@orb/contracts": "workspace:*",
+    "@orb/db": "workspace:*",
+    "@orb/inference": "workspace:*",
+    "@orb/kit": "workspace:*",
+    "@orb/plugin-toolchain": "workspace:*",
+    "@orb/server": "workspace:*",
+    "@orb/tooling": "workspace:*",
+    "@orb/ui": "workspace:*",
+    "@playwright/experimental-ct-react": "catalog:",
+    "@playwright/test": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "drizzle-kit": "catalog:",
+    "drizzle-orm": "catalog:",
+    "fflate": "catalog:",
+    "react": "catalog:",
+    "sharp": "catalog:",
+    "ts-morph": "catalog:",
+    "typeid-js": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:"
+  }
+}

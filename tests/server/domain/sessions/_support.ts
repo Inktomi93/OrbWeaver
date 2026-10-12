@@ -7,8 +7,8 @@ import type { Db } from "@orb/db";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
-import type { Clock } from "../../../support/clock.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import type { Clock } from "@orb/testkit/iso/clock.ts";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 
 /** The session-secret pepper the harness binds — ≥32 chars (the KDF/token-hash length floor). */
 export const PEPPER = "test-session-secret-at-least-32-chars-long";

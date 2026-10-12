@@ -1,8 +1,8 @@
 import { messageWindowTargetSchema } from "@orb/contracts/search";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { corpusDigestSource } from "@orb/testkit/node/corpus-source.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { corpusDigestSource } from "../../../../support/node/corpus-source.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { makeMessageView } from "../../chat/fixtures.ts";
 import { CorpusArtifactReaderStory } from "../_ct-stories.tsx";
 

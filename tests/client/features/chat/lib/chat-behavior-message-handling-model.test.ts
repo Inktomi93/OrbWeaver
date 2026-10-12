@@ -4,8 +4,8 @@
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { projectMessageHandlingForm, toMessageHandlingPatch } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const populated: ChatSettings = {
   attachmentQuality: { imageDetail: "high", videoMaxResolution: "original" },

@@ -16,11 +16,11 @@
 // RENDERED — role queries (which only see the accessibility tree) plus `elementFromPoint` and box geometry —
 // because a source assertion would have passed for the popup too.
 
+import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import type { TrpcFixtureOutput, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { touchFloorPx } from "../../support/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcResponder } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures.tsx";
 
 type TagWithUsageFixture = TrpcFixtureOutput<"tag.listTagsWithUsage">[number];

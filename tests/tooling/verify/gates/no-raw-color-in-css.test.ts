@@ -16,12 +16,13 @@
 // so each tree gets its own arm — a single arm would leave the other half of the derivation unproven, and
 // every proof row in the module happens to plant files in both trees, which is why the refusal was never
 // reachable from the rows.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-raw-color-in-css.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("no-raw-color-in-css final policy proofs remain conformant", () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);

@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { createWorkspaceResolutionCache } from "@orb/tooling/floor/compiler/ts-workspace-resolution";
 import type { Project, ResolutionHost } from "ts-morph";
 import { ts } from "ts-morph";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function resolveThroughCompiler(host: ResolutionHost, name: string, importer: string, options: ts.CompilerOptions): string | undefined {
   const compilerOptions = { ...options, noLib: true, types: [] };

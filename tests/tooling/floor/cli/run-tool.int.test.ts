@@ -4,9 +4,9 @@
 // survives a later crash as 2, not 1).
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const RUN_TOOL_URL = pathToFileURL(new URL("../../../../tooling/src/floor/cli/run-tool.ts", import.meta.url).pathname).href;
 

@@ -32,12 +32,12 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
+import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { execGit } from "@orb/tooling/floor/git/git";
 import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import { extractTrailingSystemRows, splitAgentHistory } from "../../packages/inference/src/backends/agent-sdk/turn-input.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../packages/server/src/domain/chat/assembly/injections.ts";
 import type { DeliveredCue } from "../../packages/server/src/domain/chat/contract/results.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../tests/support/factories/resolved-connection.ts";
 
 const BASE_REF = "9b99ac912d";
 const HISTORY_BUDGET_PATH = "packages/server/src/domain/chat/assembly/history-budget.ts";

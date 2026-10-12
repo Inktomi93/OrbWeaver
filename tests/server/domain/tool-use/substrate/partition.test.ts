@@ -5,10 +5,10 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { RegisteredTool, ToolRegistry } from "#server/domain/tool-use/contract/results.ts";
 import { lookupForDriver, toolRegistryKey } from "#server/domain/tool-use/substrate/partition.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALICE: UserId = castId("user_alice");
 const BOB: UserId = castId("user_bob");

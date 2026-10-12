@@ -8,6 +8,8 @@
 // planted in a copy of biome.json and then restored — that is the red-first receipt this pin freezes. The
 // live arm re-runs the control probe against the CURRENT config, so the sentinel going ignored (which would
 // make every zero refuse forever) is caught here rather than in a lane's floor.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { StageDef } from "../../../../tooling/src/verify/index.ts";
 import {
   auditBiomeTranscript,
@@ -18,7 +20,6 @@ import {
   parseCheckedFileCount,
   REGISTRY,
 } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** The captured biome transcripts (see the header): the defect prints the SAME summary line as a healthy

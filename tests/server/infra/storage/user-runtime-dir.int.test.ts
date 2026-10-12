@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createUserRuntimeDirs } from "#server/infra/storage/user-runtime-dir.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const ALICE = castId<UserId>("user_01j9alice");
 const BOB = castId<UserId>("user_01j9bob00");

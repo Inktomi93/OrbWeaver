@@ -2,9 +2,9 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const HOOK = fileURLToPath(new URL("../../.claude/hooks/worktree-remove.sh", import.meta.url));
 

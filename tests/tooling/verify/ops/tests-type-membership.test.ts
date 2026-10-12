@@ -16,12 +16,12 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { classifyMembership, compareRoutingParity, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
 import { ts } from "ts-morph";
 import { vi } from "vitest";
 import type { MembershipReport } from "../../../../tooling/src/verify/contract/tests-type-membership.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // The cases run the native compiler over planted repositories. MEASURED: 0.9 s to 3.4 s alone and beside a structure

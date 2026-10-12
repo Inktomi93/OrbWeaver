@@ -18,12 +18,12 @@
 //  · `[drop]` — the RE-ARM. A second real stutter on the SAME surface after `__resetMotionFlags` must fire
 //    again, or a driven multi-step probe reads every step after the first as clean.
 
+import { blockMainThread } from "@orb/testkit/node/block-main-thread.ts";
 // @orb-waive-file no-test-fabrication(readonly {): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ tag: string }[]): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { droppedFramePct } from "../../../tooling/src/motion-audit/index.ts";
-import { blockMainThread } from "../../support/node/block-main-thread.ts";
 import {
   DeadClassConfirmStory,
   MotionFlaggersAuditPauseStory,

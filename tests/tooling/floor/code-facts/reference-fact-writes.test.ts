@@ -1,9 +1,9 @@
 // Strong collection-use proof is separate from the source-local explicit-write queries.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function query(files: Readonly<Record<string, string>>, source = "source.ts"): MorphNode | undefined {
   const project = new Project({ useInMemoryFileSystem: true });

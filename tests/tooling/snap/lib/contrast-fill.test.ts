@@ -6,9 +6,9 @@
 // plant as bytes than to arrange as a page: an interior thinner than its own anti-aliased edge, and an
 // interior made only of anti-aliasing, are both one buffer here and a fight in a browser.
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ContrastFillReading, ContrastFillRegion, ContrastPixelImage } from "../../../../tooling/src/snap/contract/contrast.ts";
 import { readFillChannels } from "../../../../tooling/src/snap/lib/contrast-fill.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CHANNELS = 3;
 

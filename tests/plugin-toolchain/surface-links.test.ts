@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PluginAuthorDiagnostic } from "@orb/plugin-toolchain";
 import { compilePluginDirectory } from "@orb/plugin-toolchain";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 
 async function checkMain(repoRoot: string, scratch: string, lines: readonly string[]): Promise<readonly PluginAuthorDiagnostic[]> {
   const directory = join(scratch, "plugin");

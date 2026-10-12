@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   BROWSER_TEST_SUFFIXES,
   classifyTestFilename,
@@ -14,7 +15,6 @@ import {
   VITEST_TYPECHECK_GROUP_NAMES,
   vitestTypecheckGroupName,
 } from "@orb/tooling/floor/testing/test-kinds";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("native timing capability follows registered runtime kinds, not compiler world", () => {
   for (const kind of TEST_KIND_DEFINITIONS) {

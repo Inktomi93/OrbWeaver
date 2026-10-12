@@ -5,9 +5,9 @@
 // mirror).
 
 import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { entryDraftStore } from "#client/features/world-info/lib/entry-draft-store.ts";
 import { NEW_ENTRY_FORM } from "#client/features/world-info/lib/entry-editor-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("entry draft mirrors a form-value change and reads it back keyed by entityId", () => {
   expect(readDraftSeed(entryDraftStore, "entry_1")).toBeUndefined();

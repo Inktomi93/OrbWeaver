@@ -8,10 +8,10 @@
 //                   "Speculative", blaming the model for our parse failure and hiding that nothing validated.
 // Each case barriers on the SETTLED badge (`data-answer-state`), never on an in-flight fetching state.
 
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusDossierSurfaceStory } from "../_ct-stories.tsx";
 
 const DOSSIER = {

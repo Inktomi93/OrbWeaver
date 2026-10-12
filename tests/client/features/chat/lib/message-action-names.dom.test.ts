@@ -10,6 +10,8 @@
 // (#570, owner 2026-08-23 — the lone chevron generates, so borrowing the pager's word is the drift the
 // ruling forbids) and `More message actions` (#869 — deliberately unlike the composer utility menu's own
 // name, after Chrome stacked two tooltips with different copy). Changing either is changing that ruling.
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_EDIT_NAME,
@@ -20,7 +22,6 @@ import {
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the row action cluster's names", () => {
   expect(MESSAGE_EDIT_NAME).toBe("Edit message");

@@ -4,9 +4,9 @@
 import { regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
-import { principal } from "../../../../../support/factories/principal.ts";
-import { seedUser } from "../../../../../support/factories/user.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { behavior, makeHarness } from "../../_support.ts";
 
 test("census counts only owned library rows without entering full-list enrichment", async ({ db }) => {

@@ -2,10 +2,10 @@
 // server lists only the owner's images not already in this gallery, a keyset page at a time, so "Nothing left
 // to add" is a claim about the last page. "Upload instead" hands over to the dialog's upload zone.
 
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryDialogStory } from "../_ct-stories.tsx";
 import { ITEM, OWNED_CELL, ownedItem, PAGE_SIZE, STORY_CHARACTER_ID } from "../_gallery-fixtures.ts";
 

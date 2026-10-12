@@ -3,6 +3,7 @@
 // This test owns no expression resolver or CSS parser, and pins plain @theme against unused-token loss.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { CSS_MERGE_FAMILY_NAMES } from "@orb/ui/lib";
 // Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847).
 import { assertTokenContract } from "@orb/ui/token-contract";
@@ -11,7 +12,6 @@ import { compile } from "tailwindcss";
 import type { SourceFile } from "ts-morph";
 import { getWorkspace } from "../../tooling/src/floor/compiler/ts-workspace.ts";
 import { walkStaticClassExpressions } from "../../tooling/src/verify/lib/static-class-expression.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 interface CompilerFamilyProbe {
   readonly family: string;

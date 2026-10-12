@@ -45,13 +45,13 @@ import { FIXTURE_NAMES, readFixtureDoor, registersSnapshotSerializer } from "../
 const TOOLING_MIRROR = "tests/tooling/";
 
 const MESSAGE =
-  "a test/it/expect binding bypasses the composed fixture — import from 'support/fixtures' (or, under " +
-  "tests/tooling/, 'support/tool-fixtures', the door that installs the RESULT snapshot serializer) " +
+  "a test/it/expect binding bypasses the composed fixture — import from '@orb/testkit/node/fixtures.ts' (or, under " +
+  "tests/tooling/, '@orb/testkit/node/tool-fixtures.ts', the door that installs the RESULT snapshot serializer) " +
   "(docs/law/Spine-Testing.md §4; docs/law/Core-Tooling-Law.md §4.8).";
 
 const FIX =
-  "import { test, expect } from the composed fixture door — 'support/fixtures' everywhere, " +
-  "'support/tool-fixtures' under tests/tooling/ — never from vitest or @playwright/test directly. A " +
+  "import { test, expect } from the composed fixture door — '@orb/testkit/node/fixtures.ts' everywhere, " +
+  "'@orb/testkit/node/tool-fixtures.ts' under tests/tooling/ — never from vitest or @playwright/test directly. A " +
   "deliberate site is waived with `@orb-waive test-fixture-imports(<position>): <reason>` on the line " +
   "above, where <position> is the banned import specifier's own name (`test`/`expect`).";
 

@@ -21,8 +21,8 @@ import { createRoomRegistry } from "@orb/client/data";
 import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_reg_1");
 const USER_ROOM: StreamRoomRef = { channel: "user" };
@@ -147,7 +147,7 @@ describe("ref-counting", () => {
   });
 
   test("two subscribers of ONE room cost one attach; only the last leaver detaches", () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     const wire = fakeTransport();
@@ -281,7 +281,7 @@ describe("the live edge — BOOT-4X: the gap-heal is a RE-connect instrument", (
   });
 
   test("a room RE-joining after a detach heals — its cache went stale while nothing announced writes", () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     registry.bindTransport(fakeTransport().transport);
@@ -298,7 +298,7 @@ describe("the live edge — BOOT-4X: the gap-heal is a RE-connect instrument", (
   // room never left, so re-joining inside the grace must cost nothing — no detach, no attach, and no heal
   // (a heal here re-fetched every root of the surface that was merely re-rendering).
   test("a re-join INSIDE the retire grace reclaims the room — no detach, no second attach, no heal", () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     const wire = fakeTransport();
@@ -316,7 +316,7 @@ describe("the live edge — BOOT-4X: the gap-heal is a RE-connect instrument", (
   });
 
   test("the gate is per ROOM — one room's history never heals another", () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     registry.bindTransport(fakeTransport().transport);
@@ -397,7 +397,7 @@ describe("liveEpoch — how much can this room have missed?", () => {
   });
 
   test("a re-join after a real detach climbs it; a REMOUNT inside the retire grace does not", () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     registry.bindTransport(fakeTransport().transport);
@@ -579,7 +579,7 @@ describe("routing and failure", () => {
 // reconnects to retry. These pin the two halves of the answer: retry, then say so.
 describe("a failed announce is retried, and never silently abandoned", () => {
   test("an announce that fails twice and then succeeds still attaches the room", async () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     const attempts: (number | null)[] = [];
@@ -607,7 +607,7 @@ describe("a failed announce is retried, and never silently abandoned", () => {
   });
 
   test("an announce that exhausts its retries on a LIVE socket surfaces instead of holding it silently", async () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     let calls = 0;
@@ -640,7 +640,7 @@ describe("a failed announce is retried, and never silently abandoned", () => {
   // at the PRODUCER, keyed on the cause, never in the toast surface where distinct causes would collapse too.
 
   test("a socket that never went live is the SOCKET's story: no room repeats it", async () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     // `stream.attach` mints the socket cell, so the per-user cap refuses it with the same error the connect
@@ -662,7 +662,7 @@ describe("a failed announce is retried, and never silently abandoned", () => {
   });
 
   test("with the socket live, N rooms failing for one hiccup is still ONE alert", async () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     registry.bindTransport({
@@ -689,7 +689,7 @@ describe("a failed announce is retried, and never silently abandoned", () => {
   });
 
   test("a room LEFT mid-retry stops retrying — a torn-down surface never announces or errors", async () => {
-    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     let calls = 0;

@@ -8,9 +8,9 @@
 import type { PluginSurfaceNode } from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { collectImageAssetIds, gridTiles, specBindsState, specNamesBundleAsset } from "#client/features/plugin/lib/plugin-surface-bindings.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNED = castId<AssetId>("asset_01h455vb4pex5vsknk084sn02q");
 const SPRITE = castId<AssetId>("asset_01h455vb4pex5vsknk084sn03r");

@@ -1,7 +1,7 @@
 import { archetypeSchema, visualArchetypeSchema } from "@orb/contracts/discovery";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("computed archetypes retain corpus provenance and complete members but not widened member data", () => {
   const member = { characterId: mintTypeId(ID_PREFIX.character), name: "Aria", avatarHash: null };

@@ -26,11 +26,11 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
-import { createFrozenClock } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 
 // The deterministic base instant — sourced from the LOCKED global fixture (Spine-Testing.md §4), not a
 // self-rolled literal. Seed-row timestamps build off it as test DATA (the `msgCounter` + explicit

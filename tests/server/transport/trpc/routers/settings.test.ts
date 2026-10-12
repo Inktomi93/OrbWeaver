@@ -2,8 +2,8 @@
 // refused before the verb runs; the version read stays open to every member (it is what a bug report quotes).
 
 import type { UpdateCheck } from "@orb/kit/version-identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const UP_TO_DATE: UpdateCheck = { status: "up-to-date", local: "0.1.0", remote: null, reason: null };

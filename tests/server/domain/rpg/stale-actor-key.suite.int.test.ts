@@ -30,6 +30,7 @@ import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";
 import type { ChatId, ChatTurnId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
 import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
@@ -37,7 +38,6 @@ import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
 import { findSnapshotByVariant, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
-import { freshDb } from "../../../support/db.ts";
 import { emptyState, expect, seedLiteGame, seedMessage, target, test } from "./_support.ts";
 
 /** The corrupt-row error names the table it came from (`RpgStateCorruptError("rpg_snapshots", …)`). */

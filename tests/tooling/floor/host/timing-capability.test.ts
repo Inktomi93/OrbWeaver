@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { timingCapability, timingMeasurementResult } from "../../../../tooling/src/floor/host/timing-capability.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const OWNER = { ["ORB_TIMING_HARDWARE_CLASS"]: "inktomi-owner", ["ORB_TEST_CAPABILITIES"]: "stable-timing" };
 

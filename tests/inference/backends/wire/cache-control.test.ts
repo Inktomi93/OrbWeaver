@@ -6,6 +6,8 @@
 
 import type { GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
 import { modelIdSchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { providerLogger } from "#inference/backends/http/provider-log.ts";
 import {
   computeCacheBreakpointPlacements,
@@ -14,8 +16,6 @@ import {
   preservesCacheBlockEnds,
 } from "#inference/backends/wire/cache-control.ts";
 import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { testProviderId } from "../../../support/inference-identities.ts";
 import { fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 

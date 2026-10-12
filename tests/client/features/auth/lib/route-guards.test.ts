@@ -18,10 +18,10 @@
 import type { AuthMe } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { stubTabStorage } from "@orb/testkit/node/tab-storage.ts";
 import { afterEach, beforeEach, vi } from "vitest";
 import { redirectIfAuthed, requireAuthed } from "#client/features/auth/lib/route-guards.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { stubTabStorage } from "../../../../support/tab-storage.ts";
 
 const AUTHED: AuthMe = { authenticated: true, handle: castId<Handle>("alice"), role: "user" };
 const ANON: AuthMe = { authenticated: false, handle: null, role: null };

@@ -8,10 +8,10 @@ import type { Db } from "@orb/db";
 import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, createResolvePersonasForParticipants } from "@orb/server/domain/persona";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { seedChat } from "../../../../support/factories/chat.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** Two humans, each with one persona, and an unpinned room. Returns the op under test plus the ids. */

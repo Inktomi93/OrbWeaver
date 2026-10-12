@@ -5,9 +5,9 @@
 //
 // Direct source import (not a barrel): these are module-internal primitives exported `@public` for the pins.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { forgetIfCurrent, rememberBounded } from "#client/data/bounded-memo.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("rememberBounded — a memo cannot grow without bound", () => {
   test("evicts the oldest entries once the cap is reached, so size never exceeds the cap", () => {

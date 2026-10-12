@@ -3,9 +3,9 @@
 
 import type { OpenChallenge } from "@orb/server/infra/acme";
 import { openChallengeResponder } from "@orb/server/infra/acme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { freeLoopbackPort } from "@orb/testkit/node/free-port.ts";
 import { afterEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
-import { freeLoopbackPort } from "../../../support/node/free-port.ts";
 
 const TOKEN = "tok_Abc123-xyz";
 const KEY_AUTHORIZATION = `${TOKEN}.thumbprint_Q1w2e3`;

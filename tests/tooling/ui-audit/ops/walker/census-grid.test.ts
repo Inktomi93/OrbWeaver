@@ -17,8 +17,8 @@
 // assertion vacuously. (`node:vm`, not `new Function` — the global Function constructor is biome-RED
 // house-wide, and this repo already sandboxes untrusted source through vm in the regex watchdog.)
 import { runInNewContext } from "node:vm";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { WALKER_CENSUS_GRID } from "../../../../../tooling/src/ui-audit/ops/walker/census-grid.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 interface CensusRow {
   candidates: number;

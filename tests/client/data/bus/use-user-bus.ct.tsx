@@ -15,10 +15,10 @@
 // always-heal code (re-verified after the move).
 
 import type { StreamFrame } from "@orb/contracts/stream";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeOrbSocket } from "../../../support/node/route-orb-socket.ts";
-import type { TrpcRoutes } from "../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { UserBusGapHealStory, UserBusRemountStory } from "./_ct-stories.tsx";
 import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 

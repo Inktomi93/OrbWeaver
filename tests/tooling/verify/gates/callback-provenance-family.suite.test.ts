@@ -19,6 +19,8 @@
 // tested identity branch. Refusal controls here inspect the production error envelope; declared
 // mustRefuse rows can also express refusal verdicts and match the policy's own diagnostic.
 // Reviewed-grant witnesses do not apply: these policies have ordinary or hard authority.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -30,7 +32,6 @@ import { gate as evaluateNoScopeCapture } from "../../../../tooling/src/verify/g
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/callback-provenance-family";
 

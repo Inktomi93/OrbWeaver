@@ -3,8 +3,8 @@
 // a word the tuple does not know, or no word at all, is `null` — unrecorded, never a guess.
 
 import { EFFORT_LEVELS } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { effortWordOf } from "#inference/backends/wire/applied-effort.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("every tuple member round-trips, including `none` (thinking off) and `xhigh` (the openai-compat spelling of max)", () => {
   for (const level of EFFORT_LEVELS) {

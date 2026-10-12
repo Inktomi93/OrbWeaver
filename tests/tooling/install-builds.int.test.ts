@@ -3,12 +3,12 @@ import { chmod, copyFile, mkdir, readFile, rename, stat, symlink, writeFile } fr
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { strToU8, zipSync } from "fflate";
 import { parse } from "yaml";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 // Unneeded third-party downloads stay denied; the required media CLI is a bounded, checked exception.
 

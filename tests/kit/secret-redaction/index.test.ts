@@ -18,8 +18,8 @@
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "@orb/kit/secret-redaction";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // Assembled from parts: the SPELLING is the subject, and a contiguous quote-bearing literal in the source
 // reads as a pasted credential to a reviewer and to the high-entropy sweeps.

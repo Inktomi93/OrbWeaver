@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fetchOpenRouterCatalog } from "#inference/catalog/openrouter.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
 
 test("OpenRouter catalog merges its three modality lists and preserves the first row per id", async () => {

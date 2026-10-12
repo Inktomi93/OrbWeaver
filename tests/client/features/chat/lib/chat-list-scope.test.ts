@@ -5,6 +5,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   activeFilterExits,
   chatListScopeKey,
@@ -15,7 +16,6 @@ import {
   searchEmptyDescription,
 } from "#client/features/chat/lib/chat-list-scope.ts";
 import { timeLib } from "#client/lib/time.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("char_aria");
 const SOLA = castId<CharacterId>("char_sola");

@@ -1,10 +1,10 @@
 // Catalog mirror behavior: persisted snapshot first, in-memory hits, forced refresh after invalidation,
 // coalesced cold warms, and a best-effort failure held briefly before the next retry.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import { createMirror } from "#inference/catalog/mirror.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const rowsSchema = z.array(z.string());
 

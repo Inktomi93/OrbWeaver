@@ -4,12 +4,12 @@ import { RulesSection } from "@orb/client/features/automation";
 import { bindDurableLocalToUser } from "@orb/client/state";
 import type { ChatId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { Button } from "@orb/ui/button";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { OwnerAutomationSectionsStory } from "./_ct-stories.tsx";
 

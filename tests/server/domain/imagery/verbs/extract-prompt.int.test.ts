@@ -10,11 +10,11 @@ import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { createImageryService, PromptExtractionFailedError } from "@orb/server/domain/imagery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_room");

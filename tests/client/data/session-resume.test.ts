@@ -5,8 +5,8 @@
 import { takeSessionResume, writeSessionResume } from "@orb/client/data";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_abc");
 

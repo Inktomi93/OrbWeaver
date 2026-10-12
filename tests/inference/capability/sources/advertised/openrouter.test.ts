@@ -6,8 +6,8 @@
 
 // @orb-waive-file no-test-fabrication({ verbosity?: unknown; sampling?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { advertisedFromOpenRouter } from "#inference/capability/sources/advertised/openrouter.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function entry(overrides: Partial<ModelCatalogEntry>): ModelCatalogEntry {
   return {

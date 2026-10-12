@@ -3,9 +3,9 @@
 // 'estimated'; and the count lands on the RIGHT side of the role axis (assistant → tokensOut, else tokensIn).
 
 import { estimateTokens } from "@orb/kit/tokens";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { recordedTokenCountFromMetadata, resolveImportedTokenUsage } from "#server/domain/import/substrate/token-usage.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("recordedTokenCountFromMetadata", () => {
   test("a valid non-negative safe integer token_count is read through", () => {

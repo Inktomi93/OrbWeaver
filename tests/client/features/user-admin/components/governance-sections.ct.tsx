@@ -12,12 +12,12 @@
 // module-private `useIsBoxOwner()` predicate, per-KEY rather than per-section.
 
 import type { ShareStatus, SignInModeView } from "@orb/contracts/identity";
+import { lastAppSettingsPartial } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { JSHandle, Locator, Page } from "@playwright/test";
-import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";

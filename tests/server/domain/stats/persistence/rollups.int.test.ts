@@ -7,6 +7,8 @@ import type { DailyStatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import {
   readByModel,
@@ -18,8 +20,6 @@ import {
   readTimeseries,
   readWrapped,
 } from "#server/domain/stats/persistence/rollups.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   seedCharacter,
   seedCharacterStats,

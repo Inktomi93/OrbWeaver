@@ -10,8 +10,8 @@ import { join } from "node:path";
 import { crc32, deflateRawSync, gzipSync } from "node:zlib";
 import type { ExtractOptions, StagedArchive, ZipEntry } from "@orb/server/infra/storage";
 import { extractZip, packZip } from "@orb/server/infra/storage";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const enc = new TextEncoder();
 

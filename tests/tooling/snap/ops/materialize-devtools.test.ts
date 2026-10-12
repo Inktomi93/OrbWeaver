@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { literalModuleAssetPaths } from "../../../../tooling/src/snap/lib/devtools-module-assets.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const REVISION = "33c2f401a9c8ddad2159eb0ab83aa244a5247361";
 const MODULE = `/serve_rev/@${REVISION}/models/formatter/formatter.js`;

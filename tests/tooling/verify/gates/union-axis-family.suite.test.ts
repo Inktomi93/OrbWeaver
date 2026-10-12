@@ -18,13 +18,14 @@
 //          `report.node`'s exact-slice validation; each becomes an authored slice, and arm B's z.enum
 //          sub-kind additionally moves from the CALL to its ARRAY argument (a call's text carries parens,
 //          which the marker grammar's `[^()\r\n]+` position group cannot hold).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as unionRedecl } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/union-axis-family";
 const FAMILY: readonly GatePolicy[] = [unionAlias, unionRedecl];

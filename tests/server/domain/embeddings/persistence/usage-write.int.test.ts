@@ -2,12 +2,12 @@ import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import { embeddingCalls, ownerStats } from "@orb/db";
 import type { EmbeddingCallId, EmbeddingInvocationId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { appendEmbeddingBatch, settleEmbeddingInvocation } from "#server/domain/embeddings/persistence/usage-write.ts";
 import { applyStatsDelta } from "#server/domain/stats/index.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 test("settlement cannot cross an owner and missing connection attribution cannot discard measured zero", async ({ db, ids, clock }) => {
   const owner = await seedUser(db);

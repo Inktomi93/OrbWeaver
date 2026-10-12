@@ -6,7 +6,7 @@
 // the resolver must refuse rather than route a chat turn to.
 
 import { declaredCapabilitySchema, EMBEDDING_FLOOR, embeddingCapabilitySchema, LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the floor parses and is the conservative one — text-only, no MRL, window estimated", () => {
   expect(embeddingCapabilitySchema.parse(EMBEDDING_FLOOR)).toEqual(EMBEDDING_FLOOR);

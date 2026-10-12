@@ -1,10 +1,10 @@
 // entry/lifecycle — the control for the healthy-boot suite beside it: the same single-user box with a declared
 // owner peer set boots, and the standing exposure is a security line INSIDE the one disclaimer group.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeAll } from "vitest";
-import type { BootedLifecycle } from "../../support/booted-lifecycle.ts";
-import { bootLifecycle, disclaimerIndices } from "../../support/booted-lifecycle.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import type { BootedLifecycle } from "./_booted-lifecycle.ts";
+import { bootLifecycle, disclaimerIndices } from "./_booted-lifecycle.ts";
 
 const BOOT_TIMEOUT_MS = 120_000;
 

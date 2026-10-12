@@ -25,7 +25,7 @@
 
 import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
 import type { Wire } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ChatScript } from "./_harness.ts";
 import { CONFORMANCE_WIRES, cellTest, driveChat, meteredForWire } from "./_harness.ts";
 

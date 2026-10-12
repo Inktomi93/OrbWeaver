@@ -7,6 +7,9 @@ import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { EmbeddingsStoreOp, StoreDigestParams } from "#server/domain/chat/contract/context.ts";
@@ -15,9 +18,6 @@ import { consolidationSystemPrompt } from "#server/domain/chat/memory/generate/s
 import { blockHash } from "#server/domain/chat/memory/generate/substrate/transcript.ts";
 import { loadDigestsForScope, loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
 import type { MemoryLogEntry, MsgRow } from "#server/domain/chat/memory/types.ts";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
-import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "../../../../../support/utility-preset.ts";
 import { asSummarizeOp, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope, testGenerationId } from "../_support.ts";
 

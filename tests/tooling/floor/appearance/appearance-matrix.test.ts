@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { RuntimeAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { appearancePatchForAssignment, appearanceReachReceipt } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function runtimeContract(overrides: Partial<RuntimeAppearanceContract> = {}): RuntimeAppearanceContract {
   return {

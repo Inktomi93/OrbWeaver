@@ -14,8 +14,8 @@
 // schema_version DEFAULT 5→6 drift, fixed 8a8a0c65ae). Two comparators would be the drift this pins against,
 // so there is exactly one.
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { compareSchemaBaseline } from "../../../../tooling/src/verify/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 

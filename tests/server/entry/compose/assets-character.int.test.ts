@@ -15,8 +15,8 @@
 // `seedUserCharacters`) — and the force must gate BOTH, or the deployment owner is the one user who never
 // gets asked.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -24,13 +24,13 @@ import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { TEST_BASE_URL, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "#server/entry/compose/assets-character.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
-import { freshDb } from "../../../support/db.ts";
-import { seedUser } from "../../../support/factories/index.ts";
-import { TEST_BASE_URL, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 function principalOf(userId: UserId): Principal {
   return { userId, role: "user", handle: castId("firstrun"), externalId: null, via: "header" };

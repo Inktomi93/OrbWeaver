@@ -1,8 +1,9 @@
 // The generated-file renderers: deterministic bytes, relative links that resolve from the file's own
 // folder, and the plan-slug derivation for live and archived plan paths.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { WorkItem } from "../../../../tooling/src/doc/index.ts";
 import { isGeneratedPath, planSlugOf, renderAdrIndex, renderPlanIndex, renderTasks, renderWorkIndex } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function item(overrides: Partial<WorkItem>): WorkItem {
   return {

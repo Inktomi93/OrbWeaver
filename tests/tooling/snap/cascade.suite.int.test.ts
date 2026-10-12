@@ -7,10 +7,10 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRawReceipt } from "@orb/tooling/floor/devtools/devtools-runtime";
 import { prepareDevToolsCascadeRuntime } from "@orb/tooling/floor/devtools/devtools-runtime";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const ASSET_ROOT = fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));

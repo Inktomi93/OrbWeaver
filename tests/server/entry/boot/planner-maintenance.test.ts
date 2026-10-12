@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import { startPlannerMaintenance } from "#server/entry/boot/planner-maintenance.ts";
 import { getLog } from "#server/foundation/observability/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("daily maintenance skips overlapping ticks, cancels future work, and joins the running refresh", async () => {
   const refresh = Promise.withResolvers<void>();

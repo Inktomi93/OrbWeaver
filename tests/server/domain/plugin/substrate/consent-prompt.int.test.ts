@@ -18,8 +18,8 @@ import type { NotificationEvent, NotificationType } from "@orb/contracts/notific
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHostOps } from "@orb/server/domain/plugin";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 /** One recorded move on the standing-ask seam — which verb of the trio, and what it carried. */

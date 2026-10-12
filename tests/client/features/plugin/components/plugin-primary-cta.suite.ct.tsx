@@ -21,13 +21,13 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { ExtensionsPageStory, PluginChatSettingsSectionStory, PluginDialogBodyStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];

@@ -15,9 +15,9 @@ import { assets, automationRules, messageVariants, plugins } from "@orb/db";
 import type { AssetId, AutomationRuleId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { migratePluginToolWireNamesOnBoot } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedUser } from "../../domain/chat/_support.ts";
 
 const AT = 1_700_000_000_000;

@@ -4,9 +4,9 @@
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { createLocalPluginHost } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { PLUGIN_WASM_MEMORY_INITIAL_BYTES } from "#server/infra/plugin-host/budgets.ts";
 import { __readGuestMemoryBytesForTest } from "#server/infra/plugin-host/module.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const GROWTH_MEBIBYTES = 24;
 const CARD = { nested: { list: [1, 2, 3], text: "after growth" }, flag: true };

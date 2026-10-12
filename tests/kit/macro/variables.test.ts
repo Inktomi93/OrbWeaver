@@ -5,7 +5,7 @@
 // @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import type { MacroDiagnostic, MacroEnv, VarOp } from "@orb/kit/macro";
 import { applyVarOp, foldVarOps, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── applyVarOp — the ONE mutation-semantics home ──────────────────────────────────────────────
 

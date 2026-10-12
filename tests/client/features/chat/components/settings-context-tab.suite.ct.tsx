@@ -1,12 +1,12 @@
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { storyClockFixture } from "@orb/testkit/node/story-clock-fixture.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { storyClockFixture } from "../../../../support/node/story-clock-fixture.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { HostControlTruthStory } from "./_host-control-truth-stories.tsx";
 
 async function routes(page: Page, panels = true, isHost = true): Promise<ChatId> {

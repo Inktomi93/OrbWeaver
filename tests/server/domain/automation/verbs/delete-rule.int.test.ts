@@ -3,8 +3,8 @@
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService, createEnabledRuleIndex, RuleNotFoundError } from "@orb/server/domain/automation";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MSG_COMMITTED, makeAutomationHarness, principal, readFailingDb, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 test("deleteRule removes the rule from the chat's list, and announces the roster move", async () => {

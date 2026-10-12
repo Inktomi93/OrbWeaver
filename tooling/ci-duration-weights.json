@@ -7664,19 +7664,19 @@
       "durationMs": 455
     },
     {
-      "file": "tests/support/chat/scenario.int.test.ts",
+      "file": "tests/server/domain/chat/scenario.int.test.ts",
       "durationMs": 373
     },
     {
-      "file": "tests/support/db.int.test.ts",
+      "file": "tests/support/node/db.int.test.ts",
       "durationMs": 320
     },
     {
-      "file": "tests/support/factories/factories.int.test.ts",
+      "file": "tests/support/node/factories/factories.int.test.ts",
       "durationMs": 285
     },
     {
-      "file": "tests/support/fixtures.int.test.ts",
+      "file": "tests/support/node/fixtures.int.test.ts",
       "durationMs": 2724
     },
     {
@@ -7684,7 +7684,7 @@
       "durationMs": 4
     },
     {
-      "file": "tests/support/matchers.test.ts",
+      "file": "tests/support/node/matchers.test.ts",
       "durationMs": 2
     },
     {
@@ -7700,7 +7700,7 @@
       "durationMs": 2
     },
     {
-      "file": "tests/support/tool-fixtures.test.ts",
+      "file": "tests/support/node/tool-fixtures.test.ts",
       "durationMs": 53
     },
     {

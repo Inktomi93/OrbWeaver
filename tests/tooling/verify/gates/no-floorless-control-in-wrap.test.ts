@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as health } from "../../../../tooling/src/verify/gates/floorless-control-vocabulary-health.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/floorless-conversion";
 const SUBJECT = "packages/client/src/features/rpg/components/rpg-pack-rows.tsx";

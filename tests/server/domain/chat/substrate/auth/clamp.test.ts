@@ -4,6 +4,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MemberCardView, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   clampMemberCard,
@@ -12,7 +13,6 @@ import {
   resolveCardVisibility,
   resolveHistoryFloorSeq,
 } from "#server/domain/chat/substrate/auth/index.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 
 const CHAR = castId<CharacterId>("character_aria");
 const AVATAR = castId<AssetId>("asset_aria");

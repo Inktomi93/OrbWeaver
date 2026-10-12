@@ -5,10 +5,10 @@
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { insertRule, setRuleEnabledRow } from "#server/domain/automation/persistence/rules.ts";
 import { createEnabledRuleIndex } from "#server/domain/automation/substrate/enabled-index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, ruleFixture } from "../_support.ts";
 
 async function seedEnabledChatRule(fixture: Awaited<ReturnType<typeof ruleFixture>>): Promise<AutomationRuleId> {

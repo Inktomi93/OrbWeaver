@@ -14,13 +14,13 @@ import { REACTION_ATTRIBUTION_MAX_PER_MESSAGE, REACTION_EMOJIS } from "@orb/cont
 import type { Db } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach } from "vitest";
 import type { TeachingContext, TeachingContribution } from "#server/domain/chat/contract/context.ts";
 import type { StoredSegmentAnchor } from "#server/domain/chat/contract/params.ts";
 import { insertReaction } from "#server/domain/chat/persistence/reactions.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "./_support.ts";
 
 let db: Db;

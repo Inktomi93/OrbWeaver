@@ -9,11 +9,11 @@
 
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ResultContext } from "#inference/backends/v4/result.ts";
 import { measuredCostOf, toChatResult } from "#inference/backends/v4/result.ts";
 import type { StreamDrain } from "#inference/backends/v4/stream.ts";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The OR provider metadata + V4 usage.raw as the dist emits them (values from the 2026-09-20 probe, scaled). */
 function openRouterUsage(args: {

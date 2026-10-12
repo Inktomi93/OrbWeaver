@@ -1,7 +1,8 @@
 // Live authored compiler programs require the repository resource; virtual program controls stay unit-owned.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { compilerConfigRoster, readAvailablePolicyPrograms } from "../../../../tooling/src/verify/lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the roster is derived from a path inventory, never from a directory walk", ({ repoRoot }) => {
   const roster = compilerConfigRoster(readPolicyRepositoryInventory(repoRoot).paths);

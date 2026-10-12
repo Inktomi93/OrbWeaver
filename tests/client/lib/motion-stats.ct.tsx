@@ -52,6 +52,17 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
+import type { AppBlockingReceipt } from "@orb/testkit/iso/app-blocking-receipt.ts";
+import { matchAppBlockingFrame } from "@orb/testkit/iso/app-blocking-receipt.ts";
+import {
+  retainNativeSources,
+  SELECT_BUILD_DIAGNOSTIC_ENV,
+  SELECT_CPU_DIAGNOSTIC_ENV,
+  SELECT_CPU_PROFILING_ENV,
+  SELECT_NATIVE_SOURCES_ATTACHMENT,
+  SELECT_NATIVE_TRACE_ENV,
+} from "@orb/testkit/node/select-native-sources.ts";
+import { assertTimingBudget } from "@orb/testkit/node/timing-budget.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import { NATIVE_TIMING_CASE_ANNOTATION } from "../../../tooling/src/floor/host/timing-capability.ts";
@@ -61,17 +72,6 @@ import { BLOCKING_BUDGET_MS, loafOverBudget, loafTotals } from "../../../tooling
 import type { TraceCapture } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
-import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
-import { matchAppBlockingFrame } from "../../support/iso/app-blocking-receipt.ts";
-import {
-  retainNativeSources,
-  SELECT_BUILD_DIAGNOSTIC_ENV,
-  SELECT_CPU_DIAGNOSTIC_ENV,
-  SELECT_CPU_PROFILING_ENV,
-  SELECT_NATIVE_SOURCES_ATTACHMENT,
-  SELECT_NATIVE_TRACE_ENV,
-} from "../../support/node/select-native-sources.ts";
-import { assertTimingBudget } from "../../support/node/timing-budget.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";

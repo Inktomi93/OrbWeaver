@@ -3,9 +3,9 @@
 // dropzone's own type and size checks, a server refusal with its reason, a failed add) is said once, on the
 // dropzone's own error line, and each batch starts from a clean zone.
 
+import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { dropFiles } from "../../../../support/browser/drop-files.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
 import {
   capImageUploads,

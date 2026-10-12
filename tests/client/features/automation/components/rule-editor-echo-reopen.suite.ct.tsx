@@ -1,10 +1,10 @@
 import { automationRuleCreateSchema } from "@orb/contracts/automation";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { createSeededIds } from "../../../../support/ids.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RuleEditorRulesStory } from "../_editor-stories.tsx";
 
 const ids = createSeededIds();

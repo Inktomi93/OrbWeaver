@@ -9,7 +9,7 @@ import {
   IMPORT_TREE_MAX_TOTAL_BYTES,
   resolveUploadCaps,
 } from "@orb/contracts/uploads";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const MIB = 1024 * 1024;
 

@@ -14,6 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as policyFamilyReaders } from "../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
@@ -23,7 +24,6 @@ import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-load
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { runNewGate } from "../../../../tooling/src/verify/ops/new-gate.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES_REL = "tooling/src/verify/gates";

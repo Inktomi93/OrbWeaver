@@ -3,11 +3,12 @@
 // GROUPS by gate → prints the reason (message + fix) ONCE as the group header → lists ALL occurrences
 // beneath as clickable `path:line:col` + the offending token. This pins that grouped shape: reason once,
 // every token under it, distinct columns per token.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { FinalPolicyRow, StructurePolicyReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
 import { renderPolicyPass } from "../../../../tooling/src/verify/lib/render.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // ── per-gate SCAN HEALTH (Codex GA-H-01) ──────────────────────────────────────────────────────────────
 // A verdict with no denominator is unauditable: ✓ reads the same whether the gate examined the file or

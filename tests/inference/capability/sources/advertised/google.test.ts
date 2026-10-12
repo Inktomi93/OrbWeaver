@@ -1,8 +1,8 @@
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { advertisedFromGoogle } from "#inference/capability/sources/advertised/google.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testProviderId } from "../../../../support/inference-identities.ts";
 
 test("native advertised thinking, token limits and sampling exclusions override curated facts while declared wins", () => {
   const curated = curatedRows({ model: "gemini-3-flash-preview", providerId: testProviderId("google"), wire: "google-generative-ai" });

@@ -9,8 +9,8 @@ import { join } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_A = castId<UserId>("user_alpha");
 const OWNER_B = castId<UserId>("user_beta");

@@ -1,7 +1,7 @@
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
+import { UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AttachmentQualityStory } from "../_attachment-quality-stories.tsx";
 
 const SETTINGS_VIEW = {

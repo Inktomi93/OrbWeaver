@@ -18,9 +18,9 @@
 // menu-item assertion uses the PAGE locator (the chat-options-menu.ct.tsx precedent).
 
 import type { ParticipantRole } from "@orb/contracts/identity";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerChatOptionsStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 

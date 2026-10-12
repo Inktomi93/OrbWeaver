@@ -36,6 +36,12 @@ import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { COMMAND_CHIP_NAME } from "@orb/testkit/browser/command-chip-name.ts";
+import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+import { SIGNED_IN_OWNER_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
+import { touchDrag } from "@orb/testkit/browser/weave-drive.ts";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -44,12 +50,6 @@ import { commandShortcutLabel } from "#client/features/app-shell/lib/command-sho
 import { MODAL_SLOT_IDS } from "#client/state/modal-slot-ids.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/floor/appearance/appearance-presets.json" with { type: "json" };
-import { COMMAND_CHIP_NAME } from "../../../../support/browser/command-chip-name.ts";
-import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
-import { touchDrag } from "../../../../support/browser/weave-drive.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { SIGNED_IN_OWNER_ME, stubAuthMe } from "../../../../support/node/stub-auth-me.ts";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";

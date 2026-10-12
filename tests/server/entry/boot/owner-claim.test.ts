@@ -10,8 +10,8 @@ import { castId } from "@orb/kit/ids";
 import type { OwnerClaimAnnouncement } from "@orb/server/entry/boot";
 import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import { createOwnerClaimCode } from "@orb/server/infra/auth";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("owner-row");
 const ALLOWLIST = ["https://orb.example.com/api/auth/oidc/callback", "http://localhost:8788/api/auth/oidc/callback"];

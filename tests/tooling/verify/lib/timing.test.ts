@@ -13,10 +13,11 @@
 // from an older writer. Both arrive as `undefined` while satisfying `tsc` at the call site, which is why
 // the alarm's parameter is the LOOSE row view rather than `FinalPolicyRow`: the broken shapes below are
 // then ordinary values of a real type, never a cast past one.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PolicyPhase } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import type { FinalPolicyRow } from "../../../../tooling/src/verify/contract/structure-report.ts";
 import { policyTimingAlarms, policyTimingLine } from "../../../../tooling/src/verify/lib/timing.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ZERO_PHASES: Record<PolicyPhase, number> = { population: 0, create: 0, visitFile: 0, visit: 0, evaluate: 0, receipt: 0 };
 

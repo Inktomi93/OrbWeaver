@@ -8,7 +8,7 @@
 
 import { connectionBindingSchema, userConnectionSchema } from "@orb/contracts/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const ROW = {
   id: mintTypeId(ID_PREFIX.userConnection),

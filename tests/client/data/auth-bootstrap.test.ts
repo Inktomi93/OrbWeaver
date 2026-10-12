@@ -7,10 +7,10 @@
 // @orb-waive-file no-test-fabrication(URLSearchParams): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, vi } from "vitest";
 import { confirmPendingJoin, fetchAuthMe, login, logout, signOut } from "#client/data/auth-bootstrap.ts";
 import { bindSessionDocumentHost } from "#client/lib/session-document-host.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const signOutOrder: string[] = [];
 const assigned: string[] = [];

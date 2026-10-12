@@ -3,10 +3,10 @@
 // wins (never a later assistant/narrator line), an empty chat is `null`, and a message with no user line is null.
 
 import type { Db } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { createGetPendingUserText } from "#server/domain/chat/verbs/get-pending-user-text.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage } from "../_support.ts";
 
 let db: Db;

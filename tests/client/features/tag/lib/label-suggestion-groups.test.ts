@@ -3,8 +3,8 @@
 import type { TagSuggestionView } from "@orb/contracts/tag";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { groupSuggestions } from "#client/features/tag/lib/label-suggestion-groups.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function suggestion(name: string, characterName: string): TagSuggestionView {
   return {

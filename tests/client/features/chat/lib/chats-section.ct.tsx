@@ -17,14 +17,14 @@
 import type { RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "@orb/testkit/node/chat-settings-sections-reads-empty.ts";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
-import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "../../../../support/node/chat-settings-sections-reads-empty.ts";
-import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 

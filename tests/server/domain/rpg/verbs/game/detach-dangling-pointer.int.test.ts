@@ -14,8 +14,8 @@ import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { beforeEach } from "vitest";
-import { freshDb } from "../../../../../support/db.ts";
 import { expect, makeRpgService, principal, seedChat, seedUser, test } from "../../_support.ts";
 
 let db: Db;

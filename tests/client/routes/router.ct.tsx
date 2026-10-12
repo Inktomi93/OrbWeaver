@@ -3,9 +3,9 @@
 // fallback, and the raw token must leave the address bar without adding a history entry.
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { AuthConfig } from "#client/data/auth-config.ts";
-import { SIGNED_OUT_ME, stubAuthMe } from "../../support/node/stub-auth-me.ts";
 import { ProductionRouterAliasStory, ProductionRouterOverlapStory, ProductionRouterStory, RouterTokenHandoffStory } from "./_ct-stories.tsx";
 
 const JOIN_TOKEN = "ct-join-token";

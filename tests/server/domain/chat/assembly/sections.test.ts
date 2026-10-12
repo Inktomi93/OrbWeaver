@@ -7,9 +7,9 @@
 
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, GENERATION_TYPES } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { hasActiveMarker, sectionTriggers } from "#server/domain/chat/assembly/sections.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function marker(over: Partial<Extract<PromptSection, { type: "marker" }>> = {}): PromptSection {
   const base: Extract<PromptSection, { type: "marker" }> = { type: "marker", id: "m1", name: "m", marker: "guided_instruction", role: "system", enabled: true };

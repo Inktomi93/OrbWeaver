@@ -20,12 +20,12 @@ import {
   SESSION_COOKIE_NAME_INSECURE,
   SESSION_COOKIE_NAME_SECURE,
 } from "@orb/server/infra/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const NOW = 1_750_000_000_000;
 const PEPPER = "test-session-secret-at-least-32-chars-long";

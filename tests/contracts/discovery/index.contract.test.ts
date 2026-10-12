@@ -8,7 +8,7 @@ import {
   RELATIONS,
 } from "@orb/contracts/discovery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── The dedup `relation` axis (D34 — promoted to contracts so db `duplicate_chat_pairs.relation` derives it) ──
 // The ONE home for the duplicate|forked union (§7.5). A drift here would mean the db enum / CHECK /

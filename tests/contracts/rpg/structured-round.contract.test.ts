@@ -5,7 +5,7 @@
 
 import type { RpgToolCall } from "@orb/contracts/rpg";
 import { structuredChangesToToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a multi-change reply decodes to the tool calls a tool round carries, and folds identically", () => {
   const reply = {

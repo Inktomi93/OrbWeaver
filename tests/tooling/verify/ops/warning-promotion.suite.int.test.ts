@@ -23,9 +23,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { plantedPolicySource } from "@orb/testkit/node/planted-gate-corpus.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { FinalPolicyRow, StructurePolicyReport, StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
-import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** A spawned run over a planted root loads the harness Project and both dispatchers: ~3-6 s quiet. */
@@ -85,7 +85,7 @@ function plantedWarningPolicy(repoRoot: string): string {
 }
 
 /** A SECOND policy that reports nothing on this tree (its one subject path is never planted — the silence
- *  convention, tests/support/planted-gate-corpus.ts). It keeps the roster from being a single row, so
+ *  convention, tests/support/node/planted-gate-corpus.ts). It keeps the roster from being a single row, so
  *  `report.total` on the promoted run is unambiguously the WARNING policy's rather than the whole corpus's. */
 const controlPolicy = (repoRoot: string): string =>
   plantedPolicySource({ repoRoot, id: CONTROL_ID, subjectPath: "packages/x/src/unplanted.ts", token: "unplanted" });

@@ -7,11 +7,11 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ImageryTemplatesSectionStory } from "../_ct-stories.tsx";
 
 /** Build the getUserSettings view with an optional imagery override seed (default: virgin — no overrides). */

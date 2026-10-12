@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/floor/devtools/devtools-assets";
 import {
   adjudicateDevToolsClosure,
@@ -16,7 +17,6 @@ import {
   verifyDevToolsAssets,
 } from "@orb/tooling/floor/devtools/devtools-assets";
 import { afterEach } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const REAL_PIN = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend/pin.json", import.meta.url));
 const REAL_ROOT = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));

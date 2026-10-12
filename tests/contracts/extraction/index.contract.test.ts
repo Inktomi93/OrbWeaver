@@ -1,6 +1,6 @@
 import type { DocFormat } from "@orb/contracts/extraction";
 import { DOC_FORMATS, DOC_UPLOAD_ACCEPT, docFormatForMime, docUploadMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── The extraction FORMAT axis — the ONE tuple the MIME→format map + the
 // format→loader Record derive from (a new member without a loader is a tsc error in infra/extraction). ──

@@ -6,6 +6,8 @@ import { automationFires, automationRules } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { upsertOwnerBudget } from "#server/domain/automation/persistence/budgets.ts";
@@ -18,8 +20,6 @@ import {
   reserveFireBudget,
 } from "#server/domain/automation/persistence/fires.ts";
 import { insertRule } from "#server/domain/automation/persistence/rules.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedChatFires, seedHostChat, seedUser } from "../_support.ts";
 
 async function seedRule(

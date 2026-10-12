@@ -2,6 +2,7 @@
 // budget row. Every selection that walked that population judges it alike; any other reports it unjudged.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import type {
   GateAuthorityAlarm,
@@ -15,7 +16,6 @@ import type { PolicyPassInput, PolicyPassResult } from "../../../../tooling/src/
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const POLICY = { id: "reviewed-policy", authority: "reviewed-grant", severity: "error" } as const;
 const GRANT: ReviewedGateGrant = { id: "reviewed-policy:a", policyId: POLICY.id, subject: "a.ts", operation: "op", why: "w", endsWhen: "e" };

@@ -8,7 +8,7 @@
 
 // @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { bindingTaskOf, isRoutableTask, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS, routableTaskSchema, TASK_DEFS, TASKS, taskDef } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("`ROUTABLE_TASKS`, the schema and the predicate are three readers of ONE flag", () => {
   for (const task of TASKS) {

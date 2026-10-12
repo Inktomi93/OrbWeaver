@@ -6,6 +6,8 @@
 // included, proven by its own regression-guard fixture and not by a pin here. Every proof runs through the
 // production dispatcher, and the arms a proof row cannot express — a REFUSAL, and the retirement of a whole
 // exemption table — are pinned through `runPolicyPass` here.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -15,7 +17,6 @@ import { gate as busDefinitionBelts } from "../../../../tooling/src/verify/gates
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/bus-pair";

@@ -6,6 +6,8 @@
 // number beside it. Every policy's founding shape, its identity matrix (alias ·
 // namespace · re-export · destructure · computed · shadow) and its declared limits run through the SAME
 // dispatcher the real command uses.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as boundedListLimit } from "../../../../tooling/src/verify/gates/bounded-list-limit.ts";
 import { gate as byteCheckCast } from "../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as discoveryNoStatsRollups } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
@@ -20,7 +22,6 @@ import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/t
 import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import { gate as vectorScopeDerived } from "../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY_TIMEOUT_MS = scaledBudget(300_000);

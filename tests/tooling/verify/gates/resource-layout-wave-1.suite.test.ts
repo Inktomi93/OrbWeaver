@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as componentSize } from "../../../../tooling/src/verify/gates/component-size.ts";
@@ -10,7 +11,6 @@ import { gate as serverLayout } from "../../../../tooling/src/verify/gates/serve
 import { gate as uiExportsMapComplete } from "../../../../tooling/src/verify/gates/ui-exports-map-complete.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [componentSize, componentSizeUi, featureOwnsDefinition, packageLayout, serverLayout, uiExportsMapComplete] as const;

@@ -4,10 +4,10 @@
 // breaks the flag, THIS goes red before any editor silently starts flagging pristine forms dirty.
 // Headless FormApi (form-core re-export) — no DOM, no React.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // @orb-waive-file no-loose-id-cast(form): baselined when the gate widened; burn-down item 906.
 import { FormApi } from "@tanstack/react-form";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 interface Values {
   name: string;

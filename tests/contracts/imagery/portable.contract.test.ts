@@ -1,6 +1,6 @@
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
-import { makeImageryCall } from "../../support/factories/imagery-call.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { makeImageryCall } from "@orb/testkit/node/factories/imagery-call.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("portable history retains partial subsets without inferring absent counts or invoice proof", () => {
   const call = portableImageryCallSchema.parse(makeImageryCall());

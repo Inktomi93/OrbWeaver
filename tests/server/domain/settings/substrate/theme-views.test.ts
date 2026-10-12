@@ -17,11 +17,11 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { themes } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";
 import { SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
 import { toThemeView } from "#server/domain/settings/substrate/theme-views.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 type ThemeRow = typeof themes.$inferSelect;

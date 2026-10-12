@@ -8,8 +8,9 @@
 //     → `CT SUMMARY — PASS  ·  4 passed`, exit 0 — the third path was never mentioned and never opened
 //   pnpm test:scoped tests/tooling/smoke.test.ts tests/tooling/nope-does-not-exist.test.ts
 //     → `1 passed (1)`, exit 0
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { barrenOperands, isPathShaped, resolveOperand, unresolvedOperands, unresolvedRefusal } from "@orb/tooling/floor/testing/scoped-run-paths";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The near-miss itself: two paths that exist plus the stale one a merge floor actually named. */
 const REAL_A = "tests/tooling/smoke.test.ts";

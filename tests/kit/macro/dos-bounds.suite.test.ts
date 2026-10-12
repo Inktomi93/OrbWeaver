@@ -7,7 +7,7 @@
 
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_MAX_DEPTH, parseMacros, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
   return { char: "C", user: "U", persona: "P", scenario: "S", env: {}, ...extra };

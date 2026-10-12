@@ -2,9 +2,10 @@
 // TOP of the existing dev db instead of wiping it, and `--messages abc` silently built the 120-row default
 // — a seeder answering a request nobody made, behind a clean exit. Every refusal here is a `UsageError`,
 // which `seed/cli.ts` maps to exit 3 (misuse), because a bad invocation is not a tool failure.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { parseChatArgs, parseDemoArgs } from "@orb/tooling/seed";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("parseDemoArgs accepts exactly its two flags", () => {
   expect(parseDemoArgs([])).toEqual({ fresh: false, force: false });

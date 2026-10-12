@@ -2,12 +2,13 @@
 // registry row, an event line and the RESULT pairs — each round-trips, and each answers null to anything
 // off-grammar (a torn line, another protocol version, a missing ownership fact) so nothing half-read is
 // ever mistaken for a verdict. The partition/verdict half is tests/tooling/snap/lib/session-plan.test.ts.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import { readSessionEvent, readSessionRequest, readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { sessionEnvironmentOf } from "../../../../tooling/src/snap/ops/session-daemon.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const LANE = "/home/dev/orbweaver/.claude/worktrees/agent-lane";
 const HOME = "/home/dev/orbweaver/.cache/snap-session";

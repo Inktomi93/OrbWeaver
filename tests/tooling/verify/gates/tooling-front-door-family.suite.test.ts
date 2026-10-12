@@ -31,6 +31,7 @@
 //          (count identical, message differs) — the planted-types rows in the module pin the precise branch.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -41,7 +42,6 @@ import { gate as rootConfigImport } from "../../../../tooling/src/verify/gates/t
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/tooling-front-door-family";
 const IMPORT_FAMILY: readonly GatePolicy[] = [frontDoor, rootConfigImport];

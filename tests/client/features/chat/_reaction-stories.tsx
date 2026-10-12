@@ -21,6 +21,7 @@
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { chatMessageReactionsSurface } from "@orb/client/features/chat";
 import type { ChatSurfaceContribution } from "@orb/client/lib";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -30,7 +31,6 @@ import { MessageActionsRow } from "#client/features/chat/components/message-acti
 import { ReactionPicker } from "#client/features/chat/components/reaction-picker.tsx";
 import { useReactionsForVariant, useViewerSeatId } from "#client/features/chat/hooks/use-message-reactions.ts";
 import { useToggleReactionMutation } from "#client/features/chat/lib/reaction-mutations.ts";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { makeMessageView } from "./fixtures.ts";
 
 // MODULE-PRIVATE (the playwright-ct constraint: a story module may export COMPONENTS ONLY — a spec that

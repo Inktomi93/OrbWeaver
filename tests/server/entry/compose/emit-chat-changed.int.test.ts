@@ -11,9 +11,9 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createChatChangedEmitter } from "@orb/server/entry/compose";
 import { publishUserEvent, subscribeUserEvents } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 /** Read the next event off a live stream — `on()` buffered anything published after subscribe. */

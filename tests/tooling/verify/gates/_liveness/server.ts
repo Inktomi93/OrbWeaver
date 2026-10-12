@@ -1,10 +1,11 @@
 // Real-corpus liveness arms (#2149) for policies judging the server-side packages. DATA, collected by the
 // one runner (`./runner.ts`), which loads the isolated structure corpora and runs every arm against it — so an arm names no corpus of its own (docs/work/0043).
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as contractDerives } from "../../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as externalIdHealth } from "../../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
 import { gate as injectedOpHealth } from "../../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
 import { gate as serdeCoreHealth } from "../../../../../tooling/src/verify/gates/serde-core-seal-health.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 /** A neutralise overlay that simply removes the watched subject from a file. */
 function blank(path: string): RealCorpusOverlay {

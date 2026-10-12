@@ -86,6 +86,7 @@
 // it is spelled.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy, GatePolicyProof } from "../../tooling/src/verify/contract/policy.ts";
@@ -94,7 +95,6 @@ import type { SpellingBlindSet } from "../../tooling/src/verify/contract/spellin
 import { loadGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
 import { spellingTwinCensus } from "../../tooling/src/verify/ops/spelling-twin-blindness.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");

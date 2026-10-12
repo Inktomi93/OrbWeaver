@@ -15,10 +15,10 @@ import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { runProfileImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
-import "../../../support/composed-real.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
+import "@orb/testkit/node/composed-real.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
