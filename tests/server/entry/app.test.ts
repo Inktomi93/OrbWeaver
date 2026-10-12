@@ -3,6 +3,7 @@
 // then 401s an anonymous caller); the seam is consulted exactly once per request (no double-resolve). The
 // tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
 
+// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import { createTrpcClient } from "@orb/client/data";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";

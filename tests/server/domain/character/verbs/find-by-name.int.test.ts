@@ -2,6 +2,7 @@
 // (not the handle), owner-scoped, blind to synthetic group identities, and returns every same-named card so
 // the caller can refuse an ambiguity.
 
+// @orb-waive-file no-vanity-alias(FROZEN_AT_MS): baselined when the gate widened; burn-down item 906.
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";

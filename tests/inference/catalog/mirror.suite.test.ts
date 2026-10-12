@@ -56,6 +56,7 @@ test("warm prefers a valid snapshot, caches it, and invalidate forces a live ref
 test("concurrent cold warms share one fetch, and a failed warm is held briefly, then retried", async () => {
   let resolveFetch: ((value: string[]) => void) | undefined;
   let markFetchStarted: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const fetchStarted = new Promise<void>((resolve) => {
     markFetchStarted = resolve;
   });
@@ -74,6 +75,7 @@ test("concurrent cold warms share one fetch, and a failed warm is held briefly, 
   const pending = (): Promise<string[]> => {
     fetches += 1;
     markFetchStarted?.();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     return new Promise((resolve) => {
       resolveFetch = resolve;
     });
@@ -138,6 +140,7 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
   const dialingSecret = "sk-owner-a-0123456789abcdef";
   let rejectFetch: ((err: Error) => void) | undefined;
   let markFetchStarted: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const fetchStarted = new Promise<void>((resolve) => {
     markFetchStarted = resolve;
   });
@@ -152,6 +155,7 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
   });
   const pending = (): Promise<string[]> => {
     markFetchStarted?.();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     return new Promise((_resolve, reject) => {
       rejectFetch = reject;
     });
@@ -172,6 +176,7 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
 test("a warm in flight when the mirror is invalidated does not publish its stale answer, and the next warm fetches fresh", async () => {
   let release: ((value: string[]) => void) | undefined;
   let markStarted: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const started = new Promise<void>((resolve) => {
     markStarted = resolve;
   });
@@ -194,6 +199,7 @@ test("a warm in flight when the mirror is invalidated does not publish its stale
   });
   const stale = mirror.warm(() => {
     markStarted?.();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     return new Promise<string[]>((resolve) => {
       release = resolve;
     });
@@ -212,6 +218,7 @@ test("a snapshot write still in flight when the mirror is invalidated is taken b
   const stored = new Map<string, string>();
   let finishWrite: (() => void) | undefined;
   let markWriting: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const writing = new Promise<void>((resolve) => {
     markWriting = resolve;
   });

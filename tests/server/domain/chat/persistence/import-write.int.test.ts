@@ -4,6 +4,8 @@
 // input is the canonical `BulkImportChatInput` (`@orb/contracts/chat`); the ST→canonical mapping is import's
 // job (tested there), so these fixtures are chat-native.
 
+// @orb-waive-file no-loose-id-cast({ opening: "greet-all", group: { output: "not-a-mode" } }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";

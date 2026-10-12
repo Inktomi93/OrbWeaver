@@ -14,6 +14,7 @@ import { parseWorkloadInput } from "../substrate/params.ts";
 
 const ENTITY = "workload_schedule";
 
+// @orb-waive contract-structural-copy(MutablePatch): baselined when the gate widened; burn-down item 904.
 /** The mutable patch assembled from the optional inputs (mirrors the persistence `SchedulePatch`). */
 interface MutablePatch {
   kind?: WorkloadKind;

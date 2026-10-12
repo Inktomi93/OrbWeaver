@@ -11,6 +11,8 @@
 // `deps:orphan-ratchet` also reads — so that suite pins the six liveness sets identical with the edge flag
 // off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
+// @orb-waive-file no-vanity-alias(REPO_ROOT): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(byName): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ModuleResolutionKind, Project } from "ts-morph";

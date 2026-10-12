@@ -8,6 +8,7 @@
 // (false ⇒ the rule pauses, spending no error budget). Both meanings of `false` are proven here as one
 // predicate so the two gates can never answer differently.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";

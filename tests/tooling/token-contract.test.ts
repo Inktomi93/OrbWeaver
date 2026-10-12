@@ -1,6 +1,7 @@
 // The token VAULT contract: official DTCG 2025.10 schemas first, Orb semantic checks second. These
 // fixtures exercise the instrument in both directions; the real corpus assertion pins the shipped
 // exact target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TokenContractTexts } from "@orb/ui/token-contract";

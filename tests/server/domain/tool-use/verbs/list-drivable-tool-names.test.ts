@@ -7,6 +7,7 @@
 // registry no longer holds, an ordinary "I switched my plugin off" would become a FAILED TURN. These pins are
 // what say it cannot.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";

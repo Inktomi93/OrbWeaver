@@ -1,3 +1,10 @@
+// @orb-waive-file testid-typed-only-stories("active-config-group"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("aggregate"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("connection-notice"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("held-secrets"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("notified-description"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("scroll-pane"): baselined when the gate widened; burn-down item 906.
 import { ConnectionsListSection } from "#client/features/credentials/components/connections-list-section.tsx";
 // credentials feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx

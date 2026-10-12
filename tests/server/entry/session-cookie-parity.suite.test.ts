@@ -16,6 +16,7 @@
 // cookie NAME, duplicated Cookie HEADERS, a name-prefix shadowing attempt, broken percent-escapes) — and
 // asserts ONE answer. It pins parse BEHAVIOR, not implementation, and runs once per transport.
 
+// @orb-waive-file no-loose-id-cast({}): baselined when the gate widened; burn-down item 906.
 import type { RequestTransport } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";

@@ -5,6 +5,7 @@
 // version, and clearing an override sends the leaf `null` (reset to the shipped wording). Asserts the fired
 // patch, never the UI reaction (assert-the-mutation-fired).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

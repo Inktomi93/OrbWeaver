@@ -13,6 +13,7 @@
 // whole exception class. Only one of them writes a transform (the shell's push is CSS-owned), so the grant
 // table carries exactly one row — asserted below against the policy id rather than a literal count, so
 // amending §1.5 moves one place and reds here if the halves drift apart.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import { gate as flip } from "../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";

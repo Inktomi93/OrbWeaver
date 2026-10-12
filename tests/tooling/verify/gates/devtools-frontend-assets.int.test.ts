@@ -8,6 +8,7 @@
 // nothing forever — silent-because-dead reading exactly like silent-because-clean. The two arms below are a
 // virtual OVERLAY on the real root: the clean one asserts the live verdict and the receipt census, the
 // broken one asserts the policy REPORTS on the real subject.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";

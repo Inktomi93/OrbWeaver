@@ -5,6 +5,7 @@ import { assets, characterSummaries, characters, chatDigestSpeakers, chatDigests
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, or } from "drizzle-orm";
 
+// @orb-waive contract-structural-copy(CharacterDisplayRow): baselined when the gate widened; burn-down item 904.
 interface CharacterDisplayRow {
   readonly characterId: CharacterId;
   readonly name: string;

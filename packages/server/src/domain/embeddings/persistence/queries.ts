@@ -290,6 +290,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
  *  short-circuit never compares against a different model's row. */
 export async function existingSegmentHash(
   db: Db,
+  // @orb-waive contract-structural-copy(chatId): baselined when the gate widened; burn-down item 904.
   key: { chatId: ChatId; blockIdx: number; chunkIdx: number; generationId: EmbedGenerationId },
 ): Promise<string | undefined> {
   const rows = await db

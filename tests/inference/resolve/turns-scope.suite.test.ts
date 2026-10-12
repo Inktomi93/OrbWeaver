@@ -3,6 +3,7 @@
 // refuses what the floor folds (`@ai-sdk/google` throws on a system message after the first turn). Resolved
 // through the real runtime, so the scope is proven where the capability is built.
 
+// @orb-waive-file no-loose-id-cast(credentialId): baselined when the gate widened; burn-down item 906.
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, turnsLevelFor } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";

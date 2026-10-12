@@ -35,6 +35,7 @@
 // un-credentialed owner-password claim on a `deny` box. A containerized local deploy uses
 // `LOCAL_INITIAL_PASSWORD` instead (spec §3.2, already its documented state).
 
+// @orb-waive no-inline-wire-interface(OwnerFallbackPeerInput): baselined when the gate widened; burn-down item 904.
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
 export interface OwnerFallbackPeerInput {
   /** `AUTH_FALLBACK` — the knob `resolve` tests BEFORE the peer gate; `deny` makes this set unreachable. */

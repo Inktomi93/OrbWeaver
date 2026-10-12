@@ -307,6 +307,8 @@ A test proves what ships. Helpers, stories and fixtures must follow a product ch
 - **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review.
 - **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
 
+The antipatterns these rules forbid, with their detectors and burn-down items, are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
+
 ## Esoterica (must-preserve facts)
 
 - The fixture is the composed *production* wiring with the model scripted — tests exercise the real injection graph, not a parallel test-only assembly. A divergence between test and prod wiring is a bug.

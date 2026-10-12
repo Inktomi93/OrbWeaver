@@ -25,6 +25,7 @@
 // about ONE FLAT ID NAMESPACE ACROSS TWO CONTRACTS. There is one contract now, so that arm retired with its
 // premise; what it was really protecting — a selection resolves to at most one module, because the loader
 // asserts `id === basename` — is the loader's own law and is pinned in `tests/tooling/verify/lib/loader.test.ts`.
+// @orb-waive-file no-vanity-alias(plantedSubject): baselined when the gate widened; burn-down item 906.
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

@@ -4,6 +4,10 @@
 // becomes host while other humans are NOT auto-joined (D16 chokepoint — FLAG[fork-humans]), and `chatCreated`
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
+// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} }): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ChatReasoningPart } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";

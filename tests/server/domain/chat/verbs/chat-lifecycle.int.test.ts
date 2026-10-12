@@ -140,10 +140,12 @@ describe("chat-row flags (host-only)", () => {
   // halves: `delete` ABORTS the room's turns (source) and the bus emit is TOTAL (floor).
   test("deleting a chat mid-turn: the streaming turn is aborted, the post-delete delta is dropped (no unhandled rejection), and the process survives", async () => {
     let sawFirstDelta!: () => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const streaming = new Promise<void>((resolve) => {
       sawFirstDelta = resolve;
     });
     let deleteDone!: () => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const deleted = new Promise<void>((resolve) => {
       deleteDone = resolve;
     });
@@ -184,6 +186,7 @@ describe("chat-row flags (host-only)", () => {
     deleteDone();
     const outcome = await sending;
     // Let any rejection the fire-and-forget emits produced reach the process handler.
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 20));
     process.off("unhandledRejection", onUnhandled);
 

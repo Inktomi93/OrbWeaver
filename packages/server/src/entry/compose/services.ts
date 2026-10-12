@@ -268,6 +268,7 @@ export const UNSUPERVISED_RESTART: ServerRestartPort = {
   },
 };
 
+// @orb-waive no-inline-wire-interface(ServicesResult): baselined when the gate widened; burn-down item 904.
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
  *  supervises/probes/wires. */
 export interface ServicesResult {

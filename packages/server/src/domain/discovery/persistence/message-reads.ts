@@ -8,6 +8,7 @@ import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
 import { ownedRealCharacters } from "./character-scope.ts";
 
+// @orb-waive contract-structural-copy(ForgottenGemCandidateRow): baselined when the gate widened; burn-down item 904.
 interface ForgottenGemCandidateRow {
   readonly characterId: CharacterId;
   readonly name: string;
@@ -66,6 +67,7 @@ export async function readCharacterMessageSamples(db: Db, ownerId: UserId, chara
     .limit(limit);
 }
 
+// @orb-waive contract-structural-copy(SwipeHotspotRow): baselined when the gate widened; burn-down item 904.
 interface SwipeHotspotRow {
   readonly messageId: MessageId;
   readonly seq: number;

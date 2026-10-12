@@ -28,6 +28,7 @@ export function pluginReviewKey(pluginId: PluginId): PluginPageKey {
   return pluginPageKey(pluginId, REVIEW_SURFACE);
 }
 
+// @orb-waive no-inline-wire-interface(PluginPageView): baselined when the gate widened; burn-down item 904.
 /** One registered extension page as the switcher + the content pane read it. */
 export interface PluginPageView {
   /** The drill key the selection store holds (`<pluginId>:<surfaceId>`) — minted through the ONE seam. */

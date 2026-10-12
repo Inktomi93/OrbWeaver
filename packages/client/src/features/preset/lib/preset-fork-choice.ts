@@ -8,6 +8,7 @@
 // `findConvergenceFork` mirrors `persistence/queries.ts#findOwnedForkOf` (the OLDEST fork by `createdAt`,
 // ties broken by id) rather than trusting the list's own ordering.
 
+// @orb-waive no-inline-wire-interface(PresetForkRow): baselined when the gate widened; burn-down item 904.
 /** The minimal `PresetSummary` shape these two need (tRPC-inferred at the call site). */
 export interface PresetForkRow {
   readonly id: string;

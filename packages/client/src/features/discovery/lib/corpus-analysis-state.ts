@@ -95,6 +95,7 @@ type CorpusPassCount = number | "pending" | "unavailable";
  */
 type CorpusPassRan = boolean | "unknown";
 
+// @orb-waive no-inline-wire-interface(CorpusAnalysisInput): baselined when the gate widened; burn-down item 904.
 /** Exactly the fields the four suspended discovery reads contribute — no query shapes leak in here. */
 export interface CorpusAnalysisInput {
   readonly characters: number;

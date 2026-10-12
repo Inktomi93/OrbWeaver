@@ -85,6 +85,7 @@ export interface RegexComposeDeps {
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
+// @orb-waive no-inline-wire-interface(RegexComposeResult): baselined when the gate widened; burn-down item 904.
 /** The regex compose product: the service + the four portability ops + the chat-turn resolve op. */
 export interface RegexComposeResult {
   readonly regex: RegexService;

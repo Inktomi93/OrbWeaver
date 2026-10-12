@@ -3,6 +3,7 @@
 //
 // `StreamText`'s own root IS the mounted element (no wrapping div) — assertions target the `mount()`
 // locator directly (`component`), never `component.locator(...)`, which searches DESCENDANTS.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { StreamText } from "@orb/ui/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";

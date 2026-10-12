@@ -8,6 +8,7 @@
 // Every negative assertion below ships its POSITIVE CONTROL in the same test: `overlap` is proven to FIND
 // a collision on a planted input before it is trusted to report none on the real one. A bare empty array
 // is "I could not measure", never "there is nothing there".
+// @orb-waive-file platform-spellings(designExclusions): baselined when the gate widened; burn-down item 906.
 import {
   CT_VITE_PORT,
   DEV_PORTS,

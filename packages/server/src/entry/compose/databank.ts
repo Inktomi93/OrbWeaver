@@ -58,6 +58,7 @@ export interface DatabankComposeDeps {
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
+// @orb-waive no-inline-wire-interface(DatabankComposeResult): baselined when the gate widened; burn-down item 904.
 /** The databank compose product: the retrieval/producer service + the chunk-embed ingest subsystem. */
 export interface DatabankComposeResult {
   readonly databank: DatabankService;

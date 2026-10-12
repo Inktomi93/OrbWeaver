@@ -7,6 +7,7 @@
 // component is exported from its feature front door, and both resolve to the SAME module instance the
 // `@orb/client/*` providers resolve to (one on-disk path ⇒ one vite module id), so context identity holds.
 
+// @orb-waive-file testid-typed-only-stories("preset-renamed"): baselined when the gate widened; burn-down item 906.
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";

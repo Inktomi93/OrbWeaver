@@ -1,3 +1,4 @@
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { PluginHostBusyError, WarmRuntimePool } from "#server/infra/plugin-host/warm-runtime-pool.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

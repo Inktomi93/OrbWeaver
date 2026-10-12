@@ -15,6 +15,7 @@
 // COMPONENT'S own props; the dispatch narrows the runtime arm record once (`as never`), which is honest
 // because every value in it was derived from that component's own tv config (plan module).
 
+// @orb-waive-file testid-typed-only-stories("variant-arm-root"): baselined when the gate widened; burn-down item 906.
 import { Badge } from "@orb/ui/badge";
 import type { ButtonProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";

@@ -85,6 +85,7 @@ async function openAutomationRoom(ctx: Context, opts: { readonly sinceSeq?: numb
  *  race the real feed has too. */
 async function nextFrameAfter(iterator: AsyncIterator<unknown>, publish: () => void): Promise<StreamFrame> {
   const pending = iterator.next();
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, 0));
   publish();
   return frameOf((await pending).value);
@@ -173,6 +174,7 @@ describe("the pump re-runs the gate, and its throw is one room's fault", () => {
     await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     publishUserEvent(MEMBER, { type: "tagsChanged" });
     frames.push(frameOf((await first).value));
@@ -236,6 +238,7 @@ describe("the authority tier follows a role change mid-subscription (#1407)", ()
     await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     publishAutomationEvent(CHIPS); // even the MEMBER-visible chip is withheld -- they are not a member any more
     publishUserEvent(MEMBER, { type: "tagsChanged" });

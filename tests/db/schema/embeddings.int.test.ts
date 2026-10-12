@@ -150,6 +150,7 @@ test("content_hash is NOT NULL — a vector write missing it is rejected", async
   let caught: unknown;
   try {
     // @orb-waive no-test-fabrication(never): the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (contentHash omitted). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
     await db.insert(characterEmbeddings).values({
       id: castId<CharacterEmbeddingId>("character_embedding_nohash"),
       characterId,
@@ -344,6 +345,7 @@ test("image_embeddings.lens CHECK rejects a non-member lens value", async () => 
       id: castId<ImageEmbeddingId>("image_embedding_bad"),
       assetId,
       embedding: rampVector(),
+      // @orb-waive no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
       lens: "nope" as never,
       contentHash: "h",
       model: MODEL,
@@ -377,6 +379,7 @@ test("image_index_skips.reason CHECK rejects a non-member reason value", async (
   const assetId = await seedAsset(db, ownerId, "asset_badreason");
   let caught: unknown;
   try {
+    // @orb-waive no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
     await db.insert(imageIndexSkips).values({ assetId, reason: "nope" as never });
   } catch (err) {
     caught = err;
@@ -485,6 +488,7 @@ test("chat_digests.text is NOT NULL — a digest write missing its body is rejec
   let caught: unknown;
   try {
     // @orb-waive no-test-fabrication(never): the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (text omitted). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
     await db.insert(chatDigests).values({
       id: castId<ChatDigestId>("chat_digest_nulltext"),
       chatId,

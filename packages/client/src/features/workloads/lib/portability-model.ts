@@ -52,6 +52,7 @@ interface ImportOutcomeView {
   readonly notes?: readonly string[];
 }
 
+// @orb-waive no-inline-wire-interface(ImportSummary): baselined when the gate widened; burn-down item 904.
 /** The normalized import result the report summary renders (both import paths map into this). `notes` is
  *  the BATCH-wide list (#1710's `bundleImportNotes` flattening, for the bundle arm only — the card arm's
  *  notes are per-file and ride `outcomes[].notes` instead, since that arm already has per-file detail). */

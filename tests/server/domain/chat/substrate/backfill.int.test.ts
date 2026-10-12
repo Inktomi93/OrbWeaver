@@ -4,6 +4,7 @@
 // the group-character sweep mints ONLY for group rooms lacking one (idempotent, host-owned); the signal
 // aborts cooperatively (an aborted sweep does zero work).
 
+// @orb-waive-file platform-spellings(store): baselined when the gate widened; burn-down item 906.
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
@@ -437,6 +438,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const mint = vi.fn(async (_args: { ownerId: UserId; chatId: ChatId }) => ({
       characterId: "character_group" as CharacterId,
     }));
+    // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint as never });
     const resolve: ResolveBackfillMemoryConfig = (hostUserId) => Promise.resolve(hostUserId === hostOff ? { mode: "off" } : {});
 
@@ -746,6 +748,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     }));
     const ctx = makeChatContext(db, {
       findSyntheticGroupCharacter: () => Promise.resolve(null),
+      // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
       mintSyntheticGroupCharacter: mint as never,
     });
 
@@ -762,6 +765,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     const mint = vi.fn();
     const ctx = makeChatContext(db, {
       findSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
+      // @orb-waive no-loose-id-cast(mint): baselined when the gate widened; burn-down item 906.
       mintSyntheticGroupCharacter: mint as never,
     });
 

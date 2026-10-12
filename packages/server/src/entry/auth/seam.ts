@@ -81,6 +81,7 @@ export interface PerRequestSeamDeps {
   readonly transport: RequestTransport;
 }
 
+// @orb-waive no-inline-wire-interface(SeamResult): baselined when the gate widened; burn-down item 904.
 /** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
  *  CSRF-header signal the transport ladder keys on. */
 export interface SeamResult {

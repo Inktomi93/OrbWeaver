@@ -13,6 +13,7 @@
 // form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's ROSTER_STUB. Every
 // value crosses the routeTrpc JSON boundary as a plain object.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";

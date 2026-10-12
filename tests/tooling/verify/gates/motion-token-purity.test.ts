@@ -16,6 +16,7 @@
 //        suppression cannot also carry a waiver. That is why the reduced-motion floor is a POPULATION
 //        CARVE-OUT here rather than a waived site, and the pin below is what stops a future reader
 //        "simplifying" the carve-out into a marker that cannot bind.
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";

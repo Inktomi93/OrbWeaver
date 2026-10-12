@@ -21,6 +21,7 @@
 // founding seat. Any arm added here that touches the chat/character grains carries a second seat, or it
 // re-opens the blind spot.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import { generationUsageLegSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";

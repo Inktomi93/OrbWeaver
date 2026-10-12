@@ -3,6 +3,7 @@
 // and CANCELLATION — an abort mid-sweep must still settle the rollups for every owner already written,
 // because a re-run is a read-only census and can never heal them.
 
+// @orb-waive-file platform-spellings(OWNERS): baselined when the gate widened; burn-down item 906.
 import type { ImportedTokenUsageCandidate } from "@orb/contracts/chat";
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

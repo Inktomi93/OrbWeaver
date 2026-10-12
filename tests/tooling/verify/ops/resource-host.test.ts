@@ -1,3 +1,4 @@
+// @orb-waive-file no-loose-id-cast("ct"): baselined when the gate widened; burn-down item 906.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

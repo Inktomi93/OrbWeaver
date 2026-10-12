@@ -1,6 +1,7 @@
 // @instrument-proof: every completed Snap run after slot open creates one immutable versioned run index,
 // prints a bounded receipt card, and can be read browser-free by absolute path, exact id, or local latest.
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
+// @orb-waive-file platform-spellings(paths): baselined when the gate widened; burn-down item 906.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/floor/artifacts/artifact-out";

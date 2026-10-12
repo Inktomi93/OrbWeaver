@@ -19,6 +19,13 @@
 // the honest form of the `CharacterCardTileStory` note, not a departure from it: that story takes plain
 // strings because its ids come from a fixture's display data, not from a mint.
 
+// @orb-waive-file testid-typed-only-stories("applied"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("lane-run-frame"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("roster"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("run-controls-frame"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("runs"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("session"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("teaching-frame"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "@orb/client/data";
 import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";

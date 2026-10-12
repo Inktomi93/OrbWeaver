@@ -210,6 +210,7 @@ export function beltKeyGloss(key: string): string | null {
   return `We own ${key} — getting it wrong hangs or 400s the turn, so the history fit sets it. This row is dropped before the request is sent.`;
 }
 
+// @orb-waive no-inline-wire-interface(ExtraRow): baselined when the gate widened; burn-down item 904.
 /** ONE `extras` row while it is being edited. `id` is the row's IDENTITY (§5.3a property 1): the delete
  *  button removes THAT row and editing a key does not rebuild the list under the caret. A row with an empty
  *  key is HELD (property 2) — it survives an autosave instead of being pruned out from under the typist — and

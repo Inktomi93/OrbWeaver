@@ -3,6 +3,10 @@
 // DISJOINT, and every claimed namespace's remaining keys are claimed or CITED. The last test is the REAL
 // door's registry against the REAL contract defaults — the pre-image of the boot-time throw.
 
+// @orb-waive-file no-loose-id-cast("appearance"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast("one"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast("rateLimitsExtra"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(sectionName): baselined when the gate widened; burn-down item 906.
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
@@ -119,7 +123,9 @@ describe("assertSettingsKeyPartition", () => {
   });
 
   test("two APP-tier sections claiming one key throw", () => {
+    // @orb-waive no-loose-id-cast("rateLimits"): baselined when the gate widened; burn-down item 906.
     const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits" as never] } };
+    // @orb-waive no-loose-id-cast("rateLimits"): baselined when the gate widened; burn-down item 906.
     const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimits" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(OVERLAP_ONE_TWO);
@@ -152,6 +158,7 @@ describe("assertSettingsKeyPartition", () => {
   // A key that merely PREFIXES another is not nested (`rateLimitsExtra` ≠ inside `rateLimits`) — the
   // check keys on the dot, never on a bare string prefix.
   test("a sibling key sharing a name PREFIX is not a nesting conflict", () => {
+    // @orb-waive no-loose-id-cast("rateLimits"): baselined when the gate widened; burn-down item 906.
     const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits" as never] } };
     const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimitsExtra" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
@@ -160,6 +167,7 @@ describe("assertSettingsKeyPartition", () => {
 
   test("a CITED gap passes — the D107 exemption, with its reason", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
+    // @orb-waive no-loose-id-cast("chat"): baselined when the gate widened; burn-down item 906.
     const cites = [{ section: "chat" as never, key: "orphan", reason: "ingest-only, set elsewhere" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1, orphan: 2 } }), cites)).not.toThrow();
   });
@@ -168,12 +176,14 @@ describe("assertSettingsKeyPartition", () => {
   // instead of rotting green, in BOTH directions.
   test("a cite whose key a section now CLAIMS throws", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one", "orphan"])]);
+    // @orb-waive no-loose-id-cast("chat"): baselined when the gate widened; burn-down item 906.
     const cites = [{ section: "chat" as never, key: "orphan", reason: "stale — a section claims it now" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1, orphan: 2 } }), cites)).toThrow(CITE_NOW_CLAIMED);
   });
 
   test("a cite for a key that no longer EXISTS throws", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
+    // @orb-waive no-loose-id-cast("chat"): baselined when the gate widened; burn-down item 906.
     const cites = [{ section: "chat" as never, key: "removed", reason: "the key was deleted from the schema" }];
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), cites)).toThrow(CITE_KEY_GONE);
   });

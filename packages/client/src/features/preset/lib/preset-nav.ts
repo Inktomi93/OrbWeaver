@@ -46,6 +46,7 @@ const PRESET_EDITOR_VIEW_TUPLE = [
  *  read it via the `PresetEditorView.id` interface field). Derived from the tuple. */
 type PresetEditorViewId = (typeof PRESET_EDITOR_VIEW_TUPLE)[number]["id"];
 
+// @orb-waive no-inline-wire-interface(PresetEditorView): baselined when the gate widened; burn-down item 904.
 /** One flat editor view (label + the content id it drives). */
 export interface PresetEditorView {
   readonly id: PresetEditorViewId;

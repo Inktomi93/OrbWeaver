@@ -20,6 +20,9 @@
 // `notify` is main.tsx-bound in production, so every story binds it to a DOM sink: the apply doors report
 // through `notify`, and a toast that is never rendered is exactly the defect P1-2 filed.
 
+// @orb-waive-file testid-typed-only-stories("cbcf-notice"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rosters-box"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("rosters-hidden"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows, useTRPC } from "@orb/client/data";
 import { HomeSurface } from "@orb/client/features/home";

@@ -7,6 +7,7 @@
 //
 // This is the "hardest-won" machinery: total swipe consistency across every panel plane, from ONE mechanism.
 
+// @orb-waive-file no-loose-id-cast(await findSnapshotByVariant): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb/kit/ids";

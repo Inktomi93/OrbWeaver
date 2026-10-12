@@ -4,6 +4,9 @@
 // the parentChatId → main_chat round-trip (note_prompt is one-way now — the room author's-note override was
 // retired 2026-08-01); the txt format.
 
+// @orb-waive-file no-loose-id-cast(actor.characterId ?? null): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(args.characterId ?? null): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(over.metadata ?? null): baselined when the gate widened; burn-down item 906.
 import type { MessageKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";

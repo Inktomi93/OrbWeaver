@@ -13,6 +13,7 @@
 // if it returns false. The `fan()` helper below is that call shape and nothing else, so an arm here cannot
 // pass by testing a different policy than the emit surface applies.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

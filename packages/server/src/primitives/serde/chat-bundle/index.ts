@@ -87,6 +87,7 @@ export const CHAT_BUNDLE_EXT = ".orb.json";
 
 // ── the canonical shape (POSITIONAL refs, NAME-level re-links) ────────────────────────────────────────────
 
+// @orb-waive contract-structural-copy(PortableChatVariant): baselined when the gate widened; burn-down item 904.
 /** One swipe of a message, with the orb-only economics + `variableDelta` the ST arm cannot carry. */
 export interface PortableChatVariant {
   readonly idx: number;
@@ -121,6 +122,7 @@ export interface PortableChatMessage {
   readonly variants: readonly PortableChatVariant[];
 }
 
+// @orb-waive contract-structural-copy(PortableChatInjection): baselined when the gate widened; burn-down item 904.
 /** One `chat_injections` row — the per-chat prose plane that replaced the room-override author's-note twin
  *  (owner ruling 2026-08-01) and that the ST arm can only carry ONE of, one-way. */
 export interface PortableChatInjection {

@@ -1,3 +1,4 @@
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";

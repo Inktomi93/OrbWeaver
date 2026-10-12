@@ -2,6 +2,7 @@
 // crosses from caller text into the durable scheduler graph, so the wire must prove the canonical workload
 // TypeID shape before the domain sees it.
 
+// @orb-waive-file no-loose-id-cast([stored]): baselined when the gate widened; burn-down item 906.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { WorkloadService } from "@orb/server/domain/workloads";
 import { describe, vi } from "vitest";

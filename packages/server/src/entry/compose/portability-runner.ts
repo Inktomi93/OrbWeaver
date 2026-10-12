@@ -102,6 +102,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importReportsDir: string;
 }
 
+// @orb-waive no-inline-wire-interface(PortabilityRunnerComposeResult): baselined when the gate widened; burn-down item 904.
 /** The compose product: the registry the delivery core iterates + the deps import's contributions take. */
 export interface PortabilityRunnerComposeResult {
   readonly portability: PortabilityRegistry;

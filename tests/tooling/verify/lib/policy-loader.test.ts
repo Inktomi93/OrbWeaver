@@ -1,3 +1,5 @@
+// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ ...fact, extra: true }): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -155,6 +157,7 @@ test("an installed-package request declares a closed MODE, and `file` is require
   // makes each one a type error, which is the stronger enforcement tier. The casts reach past it to prove
   // the RUNTIME backstop, which is what actually judges a loaded module the compiler never saw.
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid gate shape
+  // @orb-waive no-loose-id-cast([request]): baselined when the gate widened; burn-down item 906.
   const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
   // A `text` request with no file would read nothing; an `ast` request with one carries a file nobody reads.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "text" }))).toThrow(/file.*nonempty|unknown property/i);
@@ -628,6 +631,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
     expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [request] }))).not.toThrow();
   }
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
+  // @orb-waive no-loose-id-cast([request]): baselined when the gate widened; burn-down item 906.
   const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "d-ledgers" }))).toThrow(/id is unknown for ledger/i);

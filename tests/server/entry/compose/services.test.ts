@@ -4,6 +4,7 @@
 // wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// @orb-waive-file no-vanity-alias(seedCharacter): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";

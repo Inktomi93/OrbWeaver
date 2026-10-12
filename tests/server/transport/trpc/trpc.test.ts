@@ -9,6 +9,7 @@
 // unmodelled throw's own text off the wire while a classified error keeps both its message and its reason.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// @orb-waive-file no-loose-id-cast(result): baselined when the gate widened; burn-down item 906.
 import "../../../support/composed-real.ts";
 import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
 import type { UserSettingsView } from "@orb/contracts/settings";

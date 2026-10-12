@@ -5,6 +5,7 @@
 // D16 live clamp over real `chat_participants` rows now live at
 // `tests/server/transport/trpc/stream/sources/chat.int.test.ts`.
 
+// @orb-waive-file no-vanity-alias(principal): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

@@ -484,6 +484,7 @@ export function computeHistoryBreakpoint(
   return { offsetFromEnd, decision: "placed" };
 }
 
+// @orb-waive contract-structural-copy(RowFacts): baselined when the gate widened; burn-down item 904.
 /** What ONE pre-squash row contributes to the delivered-row trace: where its bytes came from, and whose voice
  *  it is in. The VOICE is read here rather than off the delivered row because the name-stamp INLINES the
  *  speaker into content on every mode but `completion` — by the time a row is delivered, `name` is usually

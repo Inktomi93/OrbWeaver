@@ -11,6 +11,8 @@
 // actions the arm dispatches are the production ones, so the write really happens — nothing in this story
 // reads the store back, which is exactly the "wrote it, nothing landed" state the refusal describes.
 
+// @orb-waive-file testid-typed-only-stories("config-target-verdict"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("panel-request-reason"): baselined when the gate widened; burn-down item 906.
 import { buildAgentNav } from "@orb/client/agent-nav";
 import { useTRPC } from "@orb/client/data";
 import { createContributorRegistry } from "@orb/client/lib";

@@ -2,6 +2,7 @@
 // the M3 correctness core: when-filtering, own-then-contributor declared order, the duplicate-id THROW at
 // mint construction, null-state passthrough, and actions binding.
 
+// @orb-waive-file platform-spellings(crowned): baselined when the gate widened; burn-down item 906.
 import { createAppQueryClient, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { automationActivityTab } from "@orb/client/features/automation";
 import { chatContextTabs } from "@orb/client/features/chat";

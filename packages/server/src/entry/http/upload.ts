@@ -71,6 +71,7 @@ const IMAGE_MIME_PREFIX = "image/";
  *  a superset of {@link ImportAssetPort}'s `{assetId}`, so one handle serves both routes). */
 export interface UploadAssetsPort {
   readonly store: (params: {
+    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
     readonly principal: Principal;
     readonly bytes: Uint8Array;
     readonly kind: AssetKind;

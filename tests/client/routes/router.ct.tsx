@@ -42,6 +42,7 @@ test("a slow auth read on a signed-out /join landing reaches the invite form, no
   const meReads: string[] = [];
   await stubAuthMe(page, async (request) => {
     meReads.push(request.url());
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise<void>((resolve) => {
       setTimeout(resolve, SLOW_ME_MS);
     });
@@ -80,6 +81,7 @@ test("overlapping navigations during a slow guard settle on the latest login loc
   let reads = 0;
   await stubAuthMe(page, async () => {
     reads += 1;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise<void>((resolve) => setTimeout(resolve, SLOW_ME_MS));
     return SIGNED_OUT_ME;
   });

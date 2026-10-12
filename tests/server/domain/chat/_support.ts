@@ -4,6 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
+// @orb-waive-file no-loose-id-cast(overrides.metadata ?? null): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView, TurnInitiator } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";

@@ -236,6 +236,7 @@ export function computeCacheBreakpointPlacements(args: {
   return placed;
 }
 
+// @orb-waive no-inline-wire-interface(CacheMarkerRow): baselined when the gate widened; burn-down item 904.
 /** One delivered wire row as the marker placer reads it: the depth axis inputs plus the prose it estimates. */
 export interface CacheMarkerRow {
   readonly role: string;

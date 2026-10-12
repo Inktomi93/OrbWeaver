@@ -96,7 +96,7 @@ export const gate = defineGate({
   family: "id-brand-flow",
   authority: "ordinary",
   severity: "error",
-  population: "@product",
+  population: ["@product", "@tests"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -142,6 +142,12 @@ export const gate = defineGate({
       files: { "packages/server/src/x.ts": "export const x = value as never;\n" },
       expect: { count: 1, token: "value" },
       why: "as never disables every assignability check",
+    },
+    {
+      mode: "types",
+      files: { "tests/server/domain/x/verb.test.ts": "export const y = value as never;\n" },
+      expect: { count: 1, token: "value" },
+      why: "tests are judged: a test-side `as never` is the same disabled check as a product one",
     },
     {
       mode: "types",
@@ -224,8 +230,8 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/server/src/clean.ts": "export const clean = true;\n", "tests/server/x.test.ts": "export const x = value as never;\n" },
-      why: "tests are outside this policy population",
+      files: { "packages/server/src/clean.ts": "export const clean = true;\n", "scripts/x.ts": "export const x = value as never;\n" },
+      why: "scripts are outside this policy population; tests are inside it (the `as never` test row in mustFlag)",
     },
     {
       mode: "types",

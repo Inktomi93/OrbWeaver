@@ -126,6 +126,7 @@ async function attachCarriedContent(
   characterId: CharacterId,
   carried: CarriedContent,
 ): Promise<{
+  // @orb-waive contract-structural-copy(attachedBooksLinked): baselined when the gate widened; burn-down item 904.
   readonly attachedBooksLinked: number;
   readonly attachedBooksSkipped: number;
   readonly regexScriptsLifted: number;

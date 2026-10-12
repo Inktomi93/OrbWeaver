@@ -4,6 +4,14 @@
 // and surfaces the `onLoggedIn` callback as rendered text so the test can assert the success path
 // without a navigation harness.
 
+// @orb-waive-file testid-typed-only-stories("ct-first-run-done"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-kill-session"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-logged-in"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-login-done"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-login-invite-dismissed"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-login-landing"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-login-scene"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-resumes"): baselined when the gate widened; burn-down item 906.
 import { bindSessionRecovery, recoverIfUnauthorizedCode } from "@orb/client/data";
 import { LoginShellAnchor } from "@orb/client/features/auth";
 import { closeModal, openModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";

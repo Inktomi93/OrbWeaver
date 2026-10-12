@@ -10,6 +10,7 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";

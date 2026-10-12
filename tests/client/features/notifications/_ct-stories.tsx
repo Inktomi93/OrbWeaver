@@ -7,6 +7,9 @@
 // JOINS the `notifications` ROOM on the tab's one socket, so the socket has to be mounted above the bell for
 // the stream to exist at all.
 
+// @orb-waive-file testid-typed-only-stories("ct-plugin-target"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-sheet-badge"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-shell-destination"): baselined when the gate widened; burn-down item 906.
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
 import { pluginsInstalledSection } from "@orb/client/features/plugin";

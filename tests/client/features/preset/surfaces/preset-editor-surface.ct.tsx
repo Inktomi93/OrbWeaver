@@ -306,6 +306,7 @@ const SAMPLING_KICKER = "Sampling · reasoning · output";
 async function holdCapability(page: Page): Promise<void> {
   await page.route("**/api/trpc/**", async (route) => {
     if (route.request().url().includes("connection.resolveChatCapability")) {
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise<void>((resolve) => setTimeout(resolve, CAPABILITY_HOLD_MS));
     }
     await route.fallback();
@@ -434,6 +435,7 @@ test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's v
   // against B ever carries A's "balanced" (the frozen-seed persist-the-previous-preset bug).
   await pickQuality(component, page, FAST);
   await expect.poll(() => updatesAgainst(trpc, PRESET_B).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("fast");
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   expect(updatesAgainst(trpc, PRESET_B).some((call) => call.config?.params?.quality === "balanced")).toBe(false);
 });
@@ -467,6 +469,7 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
 
   // Snapshot the update count once the pre-reset edit has settled — any write past this line is the
   // teardown clobber the fix must prevent (the debounce window has elapsed, so nothing else is pending).
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   const updatesBeforeReset = trpc.count("preset.update");
 
@@ -483,6 +486,7 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // THE PIN: the reset calls `session.reseed(starter)`, whose discard-flagged teardown must NOT flush the
   // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
   // pre-reset "balanced" back over the starter — a NEW `preset.update` past the snapshot. Wait it out; none.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 700)));
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 700ms real-timer wait is the negative-assertion window itself (proving NO late `preset.update` fires); there is no later state to race against.
   expect(trpc.count("preset.update")).toBe(updatesBeforeReset);
@@ -552,6 +556,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   await expect(output).toHaveValue("1234");
   await expect(component.getByRole("region", { name: "Preset editor" }).getByRole("status")).toHaveText("Saving…");
   try {
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), RACING_SAVE_WINDOW_MS);
     // @orb-waive ct-no-oneshot-live-read-assert(expect): negative recorder read after the rendered edit and full debounce, while the first response remains held.
     expect(trpc.inputs("preset.update")).toHaveLength(1);
@@ -573,6 +578,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
     .toMatchObject({ quality: "balanced", maxOutputTokens: 1234 });
 
   // Let any late debounce / teardown flush land, then assert the mint stayed at exactly one.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(1);
   expect(updatesAgainst(trpc, FORK).length).toBeGreaterThanOrEqual(1);
@@ -756,6 +762,7 @@ test("FORK-CHOICE — with a fork already in the library, a built-in edit is INT
   await expect(dialog.getByText(NAMES_THE_FORK_RE)).toBeVisible();
 
   // THE PIN: the save is PARKED. A dialog that appears after the write already landed is theatre.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding wait is the negative-assertion window itself (the debounce + a full save round-trip have had their chance; the dialog is what holds the chain).
   expect(trpc.count("preset.update")).toBe(0);
@@ -774,6 +781,7 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
   // …and the editor follows it, exactly as the silent COW's retarget does.
   await expect(component.getByText(`selected=${FORK_ONE}`)).toBeVisible();
 
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
   // THE PIN (mutation count): the built-in is never written to, so the server never COWs — the library still
   // holds exactly the ONE fork it started with, no second copy minted behind the owner's back.
@@ -794,6 +802,7 @@ test("FORK-CHOICE delayed completion cannot retarget selection after the user op
   await expect(component.getByText(`selected=${PRESET_A}`)).toBeVisible();
 
   held.release(presetDetail(FORK_ONE, FORK_ONE_NAME, undefined));
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
   await expect(component.getByText(`selected=${PRESET_A}`)).toBeVisible();
   await expect(component.getByText(`selected=${FORK_ONE}`)).toHaveCount(0);
@@ -983,6 +992,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   // leads deliberately — an assertion ordered behind a cosmetic one is an assertion that never runs on the
   // red side, and THIS is the defect (measured on the unfixed tree: exactly one `preset.update` fired,
   // carrying 4499 characters the schema would then heal to nothing).
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 900ms real-timer wait IS the negative-assertion window.
   expect(trpc.count("preset.update")).toBe(0);
@@ -2008,6 +2018,7 @@ test("UNREADABLE — a corrupt stored preset says so on OPEN, disables saving, a
   await expect(qualityDial(component)).toHaveText(DEEP);
   // The negative-assertion WINDOW — a real-timer sleep evaluated in the page (`page.waitForTimeout` is
   // biome-banned, `noPlaywrightWaitForTimeout`; this is the house idiom the prose-cap pin above uses).
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
   // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
   // plus the full debounce window, so the read IS settled at this line.

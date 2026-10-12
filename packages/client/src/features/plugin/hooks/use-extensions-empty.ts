@@ -32,6 +32,7 @@ type ExtensionsEmptyReason = keyof typeof EXTENSIONS_EMPTY_COPY;
  *  `inferOutput` derivation, not an exported shape a type home would own). */
 type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
 
+// @orb-waive no-inline-wire-interface(ExtensionsEmptyView): baselined when the gate widened; burn-down item 904.
 /** The resolved reason plus the plugins its copy is about. */
 export interface ExtensionsEmptyView {
   /** `null` while the reads have not settled — the pane owes a loading skin, not a claim. */

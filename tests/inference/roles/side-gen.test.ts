@@ -3,6 +3,8 @@
 // same dispatch seam production crosses) and asserts on the wire body or the item; each names a divergence the
 // separate batch path had from the chat turn.
 
+// @orb-waive-file no-loose-id-cast(extras): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Capability, ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";

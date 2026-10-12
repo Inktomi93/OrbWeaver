@@ -146,6 +146,7 @@ describe("session channel — single-flight", () => {
   test("two contenders: exactly one RUNS, the other FOLLOWS without running the work", async () => {
     let runs = 0;
     let releaseLeader: (() => void) | undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<void>((resolve) => {
       releaseLeader = resolve;
     });
@@ -178,6 +179,7 @@ describe("session channel — single-flight", () => {
     vi.stubGlobal("navigator", undefined);
     let runs = 0;
     let release: (() => void) | undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });

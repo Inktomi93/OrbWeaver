@@ -339,10 +339,12 @@ test("concurrent retries join one in-flight finish without invoking the failed d
   await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
 
   let releaseRetry: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const retryHeld = new Promise<void>((resolve) => {
     releaseRetry = resolve;
   });
   let markRetryStarted: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const retryStarted = new Promise<void>((resolve) => {
     markRetryStarted = resolve;
   });
@@ -372,10 +374,12 @@ test("a joined retry failure rejects every waiter and releases the finish for a 
   await expect(seed.game({ profile: "d20" })).rejects.toThrow("injected failure at createGame");
 
   let rejectRetry: ((reason: Error) => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const retryHeld = new Promise<void>((_resolve, reject) => {
     rejectRetry = reject;
   });
   let markRetryStarted: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const retryStarted = new Promise<void>((resolve) => {
     markRetryStarted = resolve;
   });

@@ -22,6 +22,7 @@ const FIELD_BOOSTS: Readonly<Record<string, number>> = {
 
 const INDEX_FIELDS = ["name", "description", "personality", "scenario", "creatorNotes"] as const;
 
+// @orb-waive contract-structural-copy(CardDoc): baselined when the gate widened; burn-down item 904.
 interface CardDoc {
   readonly id: CharacterId;
   readonly name: string;

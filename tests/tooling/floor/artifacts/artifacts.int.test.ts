@@ -16,6 +16,7 @@
 // THE PLANTED CONTROL IS THE PRE-FIX WRITER. The last case replays exactly what every instrument used to do
 // — stub to a FIXED path, work, final to the same FIXED path — driven the same way, and asserts that one
 // run's artifact is destroyed. Without it, the green arm below would only prove that two runs both exited.
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

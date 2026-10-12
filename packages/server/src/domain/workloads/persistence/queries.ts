@@ -115,6 +115,7 @@ interface QueueScanInput {
 
 type QueueCursor = Pick<WorkloadSelectRow, "scheduledAt" | "createdAt" | "id">;
 
+// @orb-waive contract-structural-copy(WorkloadListFilter): baselined when the gate widened; burn-down item 904.
 /** `ownerId: null` filters to system/scheduler rows; `undefined` = no owner filter. */
 interface WorkloadListFilter {
   readonly kind?: WorkloadKind;
