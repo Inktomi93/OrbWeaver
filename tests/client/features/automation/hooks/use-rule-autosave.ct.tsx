@@ -53,7 +53,7 @@ const committed = { ...initial, name: "Committed B", updatedAt: 2 };
 const props = { firstOwner, secondOwner, firstChat, secondChat };
 
 test("update echoes the complete confirmed row into only its original list before save resolves", async ({ mount, page }) => {
-  const refetch = trpcHold();
+  const refetch = trpcHold<"automation.listOwnerRules">();
   let reads = 0;
   const routes: TrpcRoutes<"automation.listOwnerRules" | "automation.listRules" | "automation.updateRule"> = {
     "automation.listOwnerRules": () => [global],
@@ -86,7 +86,7 @@ test("create appends an acknowledged global row without fabricating or replacing
   const row = { ...global, name: "Original A" };
   const saved = { ...row, name: "Committed B", updatedAt: 2 };
   const globalSibling = { ...sibling, chatId: null };
-  const refetch = trpcHold();
+  const refetch = trpcHold<"automation.listOwnerRules">();
   let reads = 0;
   const routes: TrpcRoutes<"automation.listOwnerRules" | "automation.listRules" | "automation.createRule"> = {
     "automation.listOwnerRules": () => (reads++ === 0 ? [globalSibling] : refetch),
@@ -124,8 +124,8 @@ test("a cold list remains unknown instead of being invented from a single creati
 });
 
 test("an older exact list read cannot overwrite the response echo after its delayed bytes arrive", async ({ mount, page }) => {
-  const older = trpcHold();
-  const confirm = trpcHold();
+  const older = trpcHold<"automation.listRules">();
+  const confirm = trpcHold<"automation.listRules">();
   let reads = 0;
   const routes: TrpcRoutes<"automation.listOwnerRules" | "automation.listRules" | "automation.updateRule"> = {
     "automation.listOwnerRules": () => [global],
@@ -165,7 +165,7 @@ test("a late old-owner response neither cancels nor seeds the rebound owner's gl
   const row = { ...global, name: "Original A" };
   const foreign = { ...row, name: "Second owner's row" };
   const saved = { ...row, name: "Committed B" };
-  const write = trpcHold();
+  const write = trpcHold<"automation.updateRule">();
   let reads = 0;
   const routes: TrpcRoutes<"automation.listOwnerRules" | "automation.listRules" | "automation.updateRule"> = {
     "automation.listOwnerRules": () => (reads++ === 0 ? [row] : [foreign]),

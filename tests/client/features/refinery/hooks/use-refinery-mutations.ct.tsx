@@ -31,7 +31,7 @@ import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { RefineryDataStory } from "../_ct-stories.tsx";
-import { makeRefinerySessionSummary } from "../fixtures.ts";
+import { makeRefinerySessionSummary, makeRefinerySessionView } from "../fixtures.ts";
 
 // MINTED, never hand-written: `typeIdSchema` validates the 26-char suffix, and a literal that drifts from the
 // alphabet fails at a parse seam rather than at the assertion.
@@ -61,19 +61,7 @@ function rosterRow(name: string): ReturnType<typeof makeRefinerySessionSummary> 
  * still a real array the ledger reader can select over.
  */
 const REFINERY_SESSION_ROUTES: TrpcRoutes<"refinery.getSession" | "refinery.listRuns"> = {
-  "refinery.getSession": {
-    id: SESSION_ID,
-    characterId: CHARACTER_ID,
-    name: "Rev",
-    status: "active",
-    originalCard: makeCharacterDetail(),
-    selection: { fields: ["description", "personality"] },
-    stageConfig: { score: { kind: "fixed", mode: "full" }, rewrite: { kind: "fixed", mode: "balanced" }, analyze: { kind: "fixed", mode: "full" } },
-    guidance: null,
-    iterationCount: 1,
-    createdAt: 0,
-    updatedAt: 0,
-  },
+  "refinery.getSession": makeRefinerySessionView({ id: SESSION_ID, characterId: CHARACTER_ID }),
   "refinery.listRuns": [],
 };
 

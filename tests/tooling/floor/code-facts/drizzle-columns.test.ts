@@ -3,21 +3,18 @@
 // hoisted into a local and a factory that returns one are writes, a same-named method on any other object is not, and
 // a receiver the checker cannot bind is no write rather than a guess.
 
+import { MINI_DRIZZLE_ORM_PATH, MINI_DRIZZLE_ORM_SOURCE } from "@orb/testkit/node/mini-drizzle-orm.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { DrizzleWrite } from "../../../../tooling/src/floor/code-facts/drizzle-columns.ts";
 import { drizzleWriteOf, writeKeysOf } from "../../../../tooling/src/floor/code-facts/drizzle-columns.ts";
 
-const DRIZZLE_SOURCE =
-  "export declare class Builder {\n  set(value: object): Builder;\n  values(value: object): Builder;\n  where(condition: unknown): Builder;\n" +
-  "  onConflictDoUpdate(config: object): Builder;\n}\n" +
-  "export declare class Db {\n  insert(table: unknown): Builder;\n  update(table: unknown): Builder;\n}\n";
 const PRELUDE = 'import type { Db } from "drizzle-orm";\nimport { plugins } from "./schema.ts";\ndeclare const db: Db;\n';
 
 function callsOf(use: string): readonly CallExpression[] {
   const project = new Project({ useInMemoryFileSystem: true });
-  project.createSourceFile("/repo/node_modules/drizzle-orm/index.ts", DRIZZLE_SOURCE);
+  project.createSourceFile(`/repo/${MINI_DRIZZLE_ORM_PATH}`, MINI_DRIZZLE_ORM_SOURCE);
   project.createSourceFile("/repo/schema.ts", "export const plugins = { name: 'plugins' };\n");
   return project.createSourceFile("/repo/use.ts", `${PRELUDE}${use}`).getDescendantsOfKind(SyntaxKind.CallExpression);
 }

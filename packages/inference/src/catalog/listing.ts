@@ -25,6 +25,7 @@ import type { ProviderRegistry } from "../registry/providers.ts";
 import { fetchEndpointModels } from "./endpoint.ts";
 import { listGoogleModels } from "./google.ts";
 
+// @orb-waive no-inline-package-interface(CatalogListingDeps): baselined when the gate landed; burn-down item 952.
 export interface CatalogListingDeps {
   readonly registry: ProviderRegistry;
   readonly resolveCredential: InferenceDeps["resolveCredential"];

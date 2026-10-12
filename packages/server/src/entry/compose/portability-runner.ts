@@ -56,6 +56,7 @@ import { buildPortabilityRegistry } from "./portability.ts";
 /** Repo-root ST profile snapshot (gitignored) — the `import-st` default when no `stProfileDir` is set. */
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
+// @orb-waive no-inline-package-interface(PortabilityRunnerComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the portability+import seam needs from the composition root. */
 export interface PortabilityRunnerComposeDeps {
   readonly db: Db;
@@ -102,7 +103,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importReportsDir: string;
 }
 
-// @orb-waive no-inline-wire-interface(PortabilityRunnerComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(PortabilityRunnerComposeResult): baselined when the gate landed; burn-down item 952.
 /** The compose product: the registry the delivery core iterates + the deps import's contributions take. */
 export interface PortabilityRunnerComposeResult {
   readonly portability: PortabilityRegistry;

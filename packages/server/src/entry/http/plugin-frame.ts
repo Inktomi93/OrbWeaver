@@ -110,6 +110,7 @@ const MISS_DOC = buildCardFrameDocument({
   fontFamily: undefined,
 });
 
+// @orb-waive no-inline-package-interface(PluginFrameSurfacePort): baselined when the gate landed; burn-down item 952.
 /** The owner-scoped frame-body read — the ONE authority for whether these bytes may be served to this caller.
  *  Structural port so `entry/http` states exactly the slice it consumes (the `CardFrameParticipantsPort` precedent);
  *  wired at compose to `services.plugin.getFrameBody`, whose three gates (ownership, the live `ui.frame` grant,
@@ -123,6 +124,7 @@ export interface PluginFrameSurfacePort {
   }) => Promise<{ readonly bytes: Uint8Array; readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp" } | null>;
 }
 
+// @orb-waive no-inline-package-interface(PluginFrameDeps): baselined when the gate landed; burn-down item 952.
 export interface PluginFrameDeps {
   readonly surfaces: PluginFrameSurfacePort;
   readonly now: () => number;

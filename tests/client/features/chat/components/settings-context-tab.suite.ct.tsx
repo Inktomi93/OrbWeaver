@@ -1,5 +1,6 @@
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -18,7 +19,7 @@ async function routes(page: Page, panels = true, isHost = true): Promise<ChatId>
     "databank.listActiveForChat": [],
     "worldInfo.listForChat": [],
     "chat.listChatInjections": [],
-    "chat.getChat": { id: chatId, viewerIsHost: isHost, participants: [], memberPersonaLore: true, roomOverrides: {} },
+    "chat.getChat": makeChatDetail({ id: chatId, viewerIsHost: isHost, participants: [], memberPersonaLore: true, roomOverrides: {} }),
     "settings.getUserSettings": userSettingsView(),
     "plugin.list": (): TrpcWireOutput<"plugin.list"> => [
       {

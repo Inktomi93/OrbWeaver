@@ -5,10 +5,9 @@
 // with the accepted text (a form edit that autosaves) belongs to the editor, not to this component.
 
 import { GREETING_TRANSFORMS } from "@orb/contracts/preset";
-import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { GreetingStudioStory } from "./greeting-studio.fixtures.tsx";
@@ -76,14 +75,8 @@ test("the transform picks ride the rewrite input as KINDS — no fragment bytes 
 const DIALOGUE_SPAN = '[data-slot="dialogue"]';
 const QUOTED_PREVIEW = "He looks up. “You're late,” he says.";
 
-function settingsStub(colorQuotedSpeech: boolean): TrpcFixtureOutput<"settings.getUserSettings"> {
-  return {
-    userId: castId<UserId>("user_ct"),
-    schemaVersion: 1,
-    config: { appearance: { colorQuotedSpeech } },
-    updatedAt: 0,
-    configUnreadable: null,
-  };
+function settingsStub(colorQuotedSpeech: boolean): TrpcWireOutput<"settings.getUserSettings"> {
+  return userSettingsView({ appearance: { colorQuotedSpeech } });
 }
 
 /** The COMPUTED colour of the tinted span vs the scope's resolved `--color-dialogue` (markdown.ct precedent). */

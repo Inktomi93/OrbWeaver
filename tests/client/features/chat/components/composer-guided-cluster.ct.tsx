@@ -16,11 +16,13 @@
 import { GENERATION_FAILED_DETAIL, IMPERSONATE_FAILED_LEAD, IMPERSONATE_IN_FLIGHT, IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { isImpersonateStreamRequest, routeImpersonateStream, routeImpersonateStreamOnce, ZOMBIE_WATCH_MS } from "@orb/testkit/node/route-impersonate-stream.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { makeRpgGameView } from "../../rpg/fixtures.ts";
 import { ComposerAtViewportFootStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -362,14 +364,14 @@ test("Simple send fires chat.commitMessage (post without generating) and clears 
 // ── P5 game steers, re-homed into the ✨ menu (owner: "game steers go in the magic wand") ─────────────────
 // The cluster reads `chat.getChat.rpg` (engaged pointer ⇒ a live game) + `rpg.getGame.publicConfig.plotProgression`
 // to decide which steers render; a plot steer fires chat.generate with a trusted-template gameSteer KIND.
-const GAME_CHAT = { participants: [], rpg: { gameId: "rpg_game_ct_steer", engaged: true } };
+const GAME_CHAT = makeChatDetail({ participants: [], rpg: { gameId: "rpg_game_ct_steer", engaged: true } });
 
 test("an unavailable connection disables menu generation but keeps Simple send available", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
-    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
+    "rpg.getGame": () => makeRpgGameView(COMPOSER_CHAT_ID, { features: { plotProgression: true } }),
     "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
     "chat.commitMessage": () => EMPTY_TURN,
   });
@@ -439,7 +441,7 @@ test("game steers live in the ✨ menu (the Plot submenu) and fire a gameSteer K
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
-    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
+    "rpg.getGame": () => makeRpgGameView(COMPOSER_CHAT_ID, { features: { plotProgression: true } }),
     "chat.generate": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory />);
@@ -463,7 +465,7 @@ test("Plot submenu is APPLICABILITY-gated off when plotProgression is false — 
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
-    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: false } }),
+    "rpg.getGame": () => makeRpgGameView(COMPOSER_CHAT_ID, { features: { plotProgression: false } }),
   });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
@@ -504,7 +506,7 @@ test("'Offer choices' renders EXACTLY ONCE on a game chat — moved out of Plot,
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => GAME_CHAT,
-    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
+    "rpg.getGame": () => makeRpgGameView(COMPOSER_CHAT_ID, { features: { plotProgression: true } }),
   });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();

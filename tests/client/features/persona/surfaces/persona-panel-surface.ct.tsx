@@ -4,13 +4,15 @@
 // owns the shape: no room ⇒ rows are not switches and the head says who new chats start as; the glyphs' reveal
 // and order; the Edit door; the account foot; the keyboard grammar.
 
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { appSettingsView } from "../../user-admin/app-settings-fixtures.ts";
 import { PersonaEditDoorColdStory, PersonaEditDoorStory, PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";
@@ -48,11 +50,13 @@ const PERSONAS: TrpcWireOutput<"persona.list"> = [
   { id: LYRA, name: "Lyra", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 3, updatedAt: 3 },
 ];
 
+const VIEWER_ID = castId<UserId>("user_ct");
+
 /** The viewer's solo room, playing Nova, the card pinned to Nova. */
-const CHAT: TrpcFixtureOutput<"chat.getChat"> = {
+const CHAT = makeChatDetail({
   id: CHAT_ID,
   title: "The Ashen Spire",
-  viewerUserId: "user_ct",
+  viewerUserId: VIEWER_ID,
   viewerActivePersonaId: NOVA,
   anchorPersonaId: NOVA,
   anchorState: "live",
@@ -60,21 +64,15 @@ const CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   viewerOwnedCharacterIds: [],
   participants: [],
   identities: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
-};
+});
 
 const SEED_PROC = "settings.updateUserSettingsSection";
 const PLAYING = "Playing as";
 const DEFAULT_MARKER = "Your default persona";
 const DEFAULT_BUTTON = /is your default — press to clear$/u;
 
-function settingsWith(seeds: { currentPersonaId: string | null; defaultPersonaId: string | null }): TrpcFixtureOutput<"settings.getUserSettings"> {
-  return {
-    userId: "user_ct",
-    schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, ...seeds } },
-    updatedAt: 0,
-    configUnreadable: null,
-  };
+function settingsWith(seeds: { currentPersonaId: string | null; defaultPersonaId: string | null }): TrpcWireOutput<"settings.getUserSettings"> {
+  return userSettingsView({ seeds }, { userId: VIEWER_ID });
 }
 
 function stub(
@@ -242,11 +240,12 @@ test("after a swap the check, the pressed pin and the pressed crown sit on their
 
 test("the glyph order on a row is ✓ 📌 🔗 👑, then Edit", async ({ mount, page }) => {
   await stub(page, {
-    "chat.getChat": () => ({
-      ...CHAT,
-      viewerOwnedCharacterIds: ["character_aria"],
-      participants: [{ kind: "character", characterId: "character_aria", displayName: "Aria" }],
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        ...CHAT,
+        viewerOwnedCharacterIds: ["character_aria"],
+        participants: [makeParticipantView({ kind: "character", characterId: "character_aria", displayName: "Aria" })],
+      }),
     "persona.listConnectedToCharacter": () => [PERSONAS[1] as TrpcWireOutput<"persona.list">[number]],
   });
   await stubAuth(page);
@@ -266,14 +265,15 @@ test("the glyph order on a row is ✓ 📌 🔗 👑, then Edit", async ({ mount
 
 test("the check's seat binding: solo room covers lines and preset text; another member's pin, lines only", async ({ mount, page }) => {
   await stub(page, {
-    "chat.getChat": () => ({
-      ...CHAT,
-      anchorPersonaId: "persona_zara",
-      participants: [
-        { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
-        { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: "persona_zara", leftSeq: null },
-      ],
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        ...CHAT,
+        anchorPersonaId: "persona_zara",
+        participants: [
+          makeParticipantView({ kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null }),
+          makeParticipantView({ kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: "persona_zara", leftSeq: null }),
+        ],
+      }),
   });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
@@ -455,7 +455,7 @@ test("the cold Edit door keeps focus in the editor — Settings mounting later d
     "regex.countScripts": () => 0,
     "rosterPreset.count": () => 0,
     "worldInfo.countBooks": () => 0,
-    "settings.getAppSettingsWithOverrides": () => ({ resolved: { privateEndpointAllowlist: [] }, overrides: { privateEndpointAllowlist: null } }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView({ privateEndpointAllowlist: [] }, { privateEndpointAllowlist: null }),
   });
   await stubAuth(page);
   await mount(<PersonaEditDoorColdStory />);

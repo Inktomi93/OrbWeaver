@@ -11,7 +11,7 @@
 //                    (viewer-LAST — the ruling's counter-style guarantee).
 //   4. either arm  → the composer, the edit textarea, and the wire payload keep the RAW canon, always.
 
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -23,7 +23,7 @@ import { DisplayTierChatlessStory, DisplayTierInRoomStory } from "./_ct-stories.
 const RAW = "the GOBLIN snarls";
 
 /** A library row shaped exactly as `regexScriptSchema` parses one (the wire the hook narrows). */
-function script(id: string, name: string, findRegex: string, replaceString: string): TrpcFixtureOutput<"regex.listScripts">[number] {
+function script(id: string, name: string, findRegex: string, replaceString: string): TrpcWireOutput<"regex.listScripts">[number] {
   return {
     id,
     name,
@@ -47,7 +47,7 @@ const OWN = script("regex_script_00000000000000000a", "own", "snarls", "grumbles
 const HOST = script("regex_script_00000000000000000b", "host", "GOBLIN", "✦GOBLIN✦");
 
 /** `listRoomDisplayScripts` returns `[]` when the room never opted in — that IS the toggle-off arm. */
-function stub(page: Page, roomBroadcast: TrpcFixtureOutput<"regex.listRoomDisplayScripts">): Promise<TrpcRecorder> {
+function stub(page: Page, roomBroadcast: TrpcWireOutput<"regex.listRoomDisplayScripts">): Promise<TrpcRecorder> {
   const listScripts: TrpcResponder<"regex.listScripts"> = () => [OWN];
   const listRoomDisplayScripts: TrpcResponder<"regex.listRoomDisplayScripts"> = () => roomBroadcast;
   return routeTrpc(page, {

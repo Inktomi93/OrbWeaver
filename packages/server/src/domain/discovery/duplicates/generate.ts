@@ -73,7 +73,7 @@ function canonical(a: CharacterId, b: CharacterId): { readonly a: CharacterId; r
  */
 export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps, opts: ComputeDuplicatesOptions = {}): Promise<DuplicateComputeStats> {
   const threshold = opts.threshold ?? DEFAULT_DUP_THRESHOLD;
-  const rows = await readOwnedCharacterVectors(db, opts.ownerId);
+  const rows = await readOwnedCharacterVectors(db, opts.ownerId ?? null);
   const computedAt = deps.now();
 
   const owners = new Set<string>();

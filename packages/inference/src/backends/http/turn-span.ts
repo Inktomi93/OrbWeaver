@@ -17,6 +17,7 @@
 
 import type { AddSpanEvent, ChatResult } from "#contract";
 
+// @orb-waive no-inline-package-interface(TurnCacheSpan): baselined when the gate landed; burn-down item 952.
 /** One turn's cache placement, as the two hosted wires already count it for their own receipts. */
 export interface TurnCacheSpan {
   readonly breakpointsPlaced: number;

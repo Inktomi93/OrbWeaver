@@ -21,20 +21,20 @@
 //      and the story mounts OUTSIDE any QueryBoundary, so a throwing read would surface as a page error.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CarriedAppearanceCastStory } from "./_ct-stories.tsx";
 
 const ARIA = mintTypeId(ID_PREFIX.character);
-const COMMITTED_CHAT = {
+const COMMITTED_CHAT = makeChatDetail({
   viewerUserId: "user_ct_carried_appearance",
   participants: [
-    { id: "cp_h", kind: "human", characterId: null, displayName: "Alex", leftSeq: null },
-    { id: "cp_a", kind: "character", characterId: ARIA, displayName: "Aria", leftSeq: null },
+    makeParticipantView({ id: "cp_h", kind: "human", characterId: null, displayName: "Alex", leftSeq: null }),
+    makeParticipantView({ id: "cp_a", kind: "character", characterId: ARIA, displayName: "Aria", leftSeq: null }),
   ],
   background: null,
-} satisfies TrpcFixtureOutput<"chat.getChat">;
+});
 
 test("COMMITTED: the roster projects into the cast (humans counted, characters carried)", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);

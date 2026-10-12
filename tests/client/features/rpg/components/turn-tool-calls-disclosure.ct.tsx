@@ -16,6 +16,7 @@
 //     committed room was printing that 404 (twice, with the retry) on open.
 
 import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -26,12 +27,13 @@ import {
   TurnToolCallsOtherVariantStory,
   TurnToolCallsUserRowStory,
 } from "../_ct-stories.tsx";
+import { makeRpgConfigView, makeRpgTrackerView } from "../fixtures.ts";
 
 /** The room's `ChatDetail` as a LIVE game — the gate the hook reads before it asks for any record
  *  (`isRpgEngaged`, the one client predicate). Every story below is a game room unless it says otherwise;
  *  without this stub the disclosure correctly never fetches and the whole file would assert nothing. */
 const GAME_ROOM: TrpcRoutes<"chat.getChat"> = {
-  "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({ rpg: { gameId: "rpg_game_ct", engaged: true } }),
+  "chat.getChat": () => makeChatDetail({ rpg: { gameId: "rpg_game_ct", engaged: true } }),
 };
 
 /** A REAL folded turn's call set, in the shape the record projection produces — all FOUR verdicts at once,
@@ -44,6 +46,7 @@ const RECORDED_TURN = [
     variantId: "mv_ct_folded",
     messageId: "msg_ct_folded",
     createdAt: 1_700_000_000_000,
+    failure: null,
     calls: [
       {
         name: "update_party",
@@ -129,6 +132,7 @@ test("a call with several issues renders each on its own line, in order", async 
         variantId: "mv_ct_folded",
         messageId: "msg_ct_folded",
         createdAt: 1_700_000_000_000,
+        failure: null,
         calls: [{ name: "update_scene", args: "[]", verdict: "dropped" as const, issues, withheld: null }],
       },
     ],
@@ -165,6 +169,7 @@ const WITHHELD_TURN = [
     variantId: "mv_ct_folded",
     messageId: "msg_ct_folded",
     createdAt: 1_700_000_000_000,
+    failure: null,
     calls: [{ name: "update_scene", args: "", verdict: "dropped" as const, issues: ["arguments: not valid JSON"], withheld: "unparseable" as const }],
   },
 ];
@@ -225,7 +230,7 @@ test("a room with NO live game NEVER asks for the record — no request, and the
   // The record is stubbed as PRESENT: if the gate let the query through, this room would render a disclosure
   // and the count would be non-zero. Nothing here is absent for want of data.
   const trpc = await routeTrpc(page, {
-    "chat.getChat": () => ({ rpg: null }),
+    "chat.getChat": () => makeChatDetail({ rpg: null }),
     "rpg.listTurnToolCalls": () => RECORDED_TURN,
   });
 
@@ -248,9 +253,10 @@ test("a room with NO live game NEVER asks for the record — no request, and the
 
 test("a game toggled OFF asks for nothing either — the OFF arm gates identically to no game", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({
-      rpg: { gameId: "rpg_game_ct", engaged: false },
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        rpg: { gameId: "rpg_game_ct", engaged: false },
+      }),
     "rpg.listTurnToolCalls": () => RECORDED_TURN,
   });
 
@@ -269,14 +275,15 @@ test("re-engaging the game brings the record back with no reload", async ({ moun
   // itself (the `Decline` test's pattern), never a call counter.
   let engaged = false;
   await routeTrpc(page, {
-    "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({
-      rpg: { gameId: "rpg_game_ct", engaged },
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        rpg: { gameId: "rpg_game_ct", engaged },
+      }),
     "rpg.updateConfig": (): undefined => {
       engaged = true;
     },
-    "rpg.getConfigView": () => ({ ruleset: "freeform" }),
-    "rpg.getTrackerView": () => ({ ambient: null }),
+    "rpg.getConfigView": () => makeRpgConfigView(),
+    "rpg.getTrackerView": () => makeRpgTrackerView(),
     "rpg.listTurnToolCalls": () => RECORDED_TURN,
   });
 

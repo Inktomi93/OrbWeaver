@@ -31,6 +31,7 @@ const MAX_ATTR_LEN = 512;
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1e6;
 
+// @orb-waive no-inline-package-interface(SerializedSpan): baselined when the gate landed; burn-down item 952.
 /** Public span shape — the JSON /api/_debug/traces returns. */
 export interface SerializedSpan {
   spanId: string;
@@ -45,6 +46,7 @@ export interface SerializedSpan {
   requestId: string;
 }
 
+// @orb-waive no-inline-package-interface(SerializedSpanEvent): baselined when the gate landed; burn-down item 952.
 /** A span event — `attributes` omitted entirely when there are none (exactOptionalPropertyTypes). */
 export interface SerializedSpanEvent {
   name: string;
@@ -52,6 +54,7 @@ export interface SerializedSpanEvent {
   attributes?: Record<string, string | number | boolean>;
 }
 
+// @orb-waive no-inline-package-interface(RequestTraceTotals): baselined when the gate landed; burn-down item 952.
 /** Precomputed per-trace totals so the list view need not walk every span. */
 export interface RequestTraceTotals {
   spanCount: number;
@@ -61,6 +64,7 @@ export interface RequestTraceTotals {
   providerDurationMs: number;
 }
 
+// @orb-waive no-inline-package-interface(RequestTrace): baselined when the gate landed; burn-down item 952.
 /** A full request trace — the root + its descendants in capture order. */
 export interface RequestTrace {
   requestId: string;
@@ -77,6 +81,7 @@ interface BucketState {
   startedAtMin: number;
 }
 
+// @orb-waive no-inline-package-interface(SpanAttrs): baselined when the gate landed; burn-down item 952.
 /** Attributes a span may carry. Primitives only — anything else is a code smell (RP content via a span
  *  attribute is the regression to guard). An index-signature interface (not a `type` alias) so the
  *  no-inline-types grit leaves it (only exported `type`/zod-schema are matched). */

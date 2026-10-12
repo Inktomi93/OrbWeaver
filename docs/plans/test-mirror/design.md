@@ -28,7 +28,7 @@ Do the steps in order. A later step may run in parallel only where its row says 
 - Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests. Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `@orb/testkit/node/fixtures.ts` barrel. Items 888, 889 (with 476), 891, 893, 894, 903, 914, 917, 918, 921, 922, 924, 925, 929, 937, 938, 942, 947, 949 and 950. The waiver budget is keyed by application and implementation parts (item 925, `gate-runtime-standardization.md` section 5).
 - Merged, not yet closed: item 901 (`tests/support` is the world-split `@orb/testkit` package) closes when 890 moves the compose closures to their owning layer. Item 899's second half and item 900's core are merged; check each done line against the tree, then land them. Item 915 removed the verb grants; the client, module and row grant files remain.
 - In flight, each on its work item's lane: item 890 in three lanes (server rows; client, story and UI rows; contracts, inference and tooling rows), 892 with 906, 904 with 905, 923 with 945, 926 with 944, 928, 932, 939, 948 and 887.
-- Waiting: 946 after 906; 952 after 923; 898 after 887; 951 after the test lanes above merge, as one codemod commit.
+- Waiting: 946 after 906; 952 after 923; 898 after 887. Item 939 stops: its remaining over-cap files leave through the test-foundation legacy ledger.
 - Next phase: [test-foundation](../test-foundation/design.md). It owns the server harness rebuild, so item 890 stops at its verifier fixes and its remaining server harness rows move there, and one code-facts engine for codemods, `pnpm ast` and the gates.
 - Every lane gets a fresh-context verifier before merge. A verifier finding about the item is fixed in that item; an unrelated one becomes a new item.
 
@@ -110,7 +110,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 
 - Inference and tooling: `tests/inference/capability/synthesize.test.ts:12` and `resolve/resolve-task.suite.test.ts:346` copy `requireGenerationCapability`; two showcase plugin suites copy a toast floor that has diverged from `ui-outbox.ts:85`; `tests/support/node/tool-fixtures.ts:59-62` copies `tooling/src/codemod/lib/plans.ts:70-73`.
 
-- Contracts: `tests/contracts/rpg/extraction.contract.test.ts:63` and `rpg/tracker.contract.test.ts:34` copy the actor-key scheme from `packages/contracts/src/rpg/actor.ts:138-146`; `rpg/structured-patch.contract.test.ts:47-65` copies the tool builder from `packages/server/src/entry/compose/rpg.ts:1082-1120` (move it to contracts); `prose/index.contract.test.ts:37,116-130` copies the hash and version rule from `tooling/src/verify/ops/gen/prose.ts:37-60`; `rpg/extraction.contract.test.ts:1082-1105` copies the name-map walker from `packages/contracts/src/inference/wire-subset.ts:95`.
+- Contracts: `tests/contracts/rpg/_extraction-support.ts:24` and `rpg/tracker.contract.test.ts:34` copy the actor-key scheme from `packages/contracts/src/rpg/actor.ts:138-146`; `rpg/structured-patch.contract.test.ts:47-65` copies the tool builder from `packages/server/src/entry/compose/rpg.ts:1082-1120` (move it to contracts); `prose/index.contract.test.ts:37,116-130` copies the hash and version rule from `tooling/src/verify/ops/gen/prose.ts:37-60`; `rpg/extraction-wire-subset.contract.test.ts:25-48` copies the name-map walker from `packages/contracts/src/inference/wire-subset.ts:95`.
 
 - UI: `tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:325` carries a stale copy of the app CSP. Derive it from `securityHeaders` once its directive table lives in a package a CT can import (kit): a CT cannot import `@orb/server/entry/http`, because the babel transform of `domain/chat/contract/errors.ts` rejects its `declare` fields.
 
@@ -119,7 +119,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 **891, typed recorder.**
 
 - `tests/support/node/route-trpc.ts:471-477,569-573`: `lastInput` and `inputs` return unknown, so client tests cast to hand shapes. Type them by procedure with `TrpcInput`.
-- The `lastPatch` helper copied across the settings section CTs; the untyped `auth/me` stubs; the untyped upload caps in `chat/_gallery-fixtures.ts:75-90`; `TrpcFixture` accepting any non-empty subset.
+- The `lastPatch` helper copied across the settings section CTs; the untyped `auth/me` stubs; the untyped upload caps in `chat/_gallery-fixtures.ts:75-90`.
 
 **892, constants.** Also the private constants tests re-spell: web-weave, snap, reveal and glint timings, the touch floor (`SNAPPED_LENGTH_BASE_PX` in `packages/ui/src/tokens/index.ts`), contract caps and defaults kept private in `settings/appearance.ts`, `character/index.ts`, `refinery/index.ts` and `databank/index.ts` (export them), and token px literals in the layout primitive CTs. The AA floor, the talkativeness default, max output tokens, max image bytes, blur surfaces, chat styles, owned settings keys, the frozen clock, config anchor ids, the CSRF header, chat-with names, test ids, the chat width default (`chat/_ct-stories.tsx:2104-2107` measures at 50dvw against a production default of 60), and the inline e2e timeouts.
 

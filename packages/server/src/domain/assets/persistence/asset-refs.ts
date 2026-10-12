@@ -191,14 +191,14 @@ async function selectFkReferencedAssetIds(db: Db, ownerId: UserId | null): Promi
   const live = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
     // @orb-waive no-await-db-in-loop(where): one SELECT per ASSET_REFS registry row, not per data row — each ref names a DIFFERENT table and column, so the twelve reads cannot collapse into one statement. Ends when the registry is expressible as one UNION over a generated view.
-    const rows =
-      ownerId === null
-        ? await db.selectDistinct({ id: ref.column }).from(ref.table).where(isNotNull(ref.column))
-        : await db
-            .selectDistinct({ id: ref.column })
-            .from(ref.table)
-            .innerJoin(assets, eq(assets.id, ref.column))
-            .where(and(isNotNull(ref.column), eq(assets.ownerId, ownerId)));
+    // The `assets` join drops only references to ids that are no asset, so the GC sweep's live set is unchanged by it.
+    // @orb-waive owner-scoped-reads(ref.table): `ref` walks the `ASSET_REFS` registry and the read selects only that table's asset FK column — the whole-corpus GC sweep (a trusted system pass, D20, `ownerId === null`) or the exporter's own assets by `eq(assets.ownerId, ownerId)` on the joined asset. Ends if a caller-supplied table or column reaches this registry.
+    // @orb-waive owner-scoped-reads(assets): the joined asset is owner-scoped by `eq(assets.ownerId, ownerId)` on the export arm; the `ownerId === null` arm is the whole-corpus GC sweep, a trusted system pass (D20) that returns asset ids only. Ends if a Principal-bearing caller reaches the null arm.
+    const rows = await db
+      .selectDistinct({ id: ref.column })
+      .from(ref.table)
+      .innerJoin(assets, eq(assets.id, ref.column))
+      .where(and(isNotNull(ref.column), ownerId === null ? undefined : eq(assets.ownerId, ownerId)));
     for (const row of rows) {
       const id = row.id as AssetId | null;
       if (id !== null) {
@@ -292,6 +292,7 @@ export async function selectReferencedAmong(db: Db, candidateIds: readonly Asset
  * same SQL statement as the destructive write, so a concurrent writer cannot land a reference between an
  * application-side preflight and the delete. The returned verdict owns whether callers may remove CAS bytes. */
 export async function deleteAssetRowIfUnreferenced(db: Db, ownerId: UserId, assetId: AssetId): Promise<boolean> {
+  // @orb-waive owner-scoped-reads(ref.table): `ref` walks the `ASSET_REFS` registry and the read selects only that table's asset FK column as an `exists` liveness probe for the owner's asset this delete already holds; no row leaves the statement. Ends if a caller-supplied table or column reaches this registry.
   const fkReferences = ASSET_REFS.map((ref) => exists(db.select({ one: sql`1` }).from(ref.table).where(eq(ref.column, assetId))));
   const settingsReference = exists(
     db

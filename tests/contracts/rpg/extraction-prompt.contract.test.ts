@@ -3,7 +3,7 @@
 // game against the GM PRESET's `promptConfig.prose`. Two things have to be true forever, and this file is
 // where they are true. The POPULATE round's own prose (populate census rows 1-7) joined the same discipline
 // as `rpg.populate.*`; its byte-identity is proven at the COMPOSED-REAL tier instead (the round's system + user
-// prompts, `tests/server/entry/compose/rpg.int.test.ts`), because four of its seven slots live at the server
+// prompts, `tests/server/entry/compose/rpg-populate.int.test.ts`), because four of its seven slots live at the server
 // seam and only the driven round renders them together.
 //
 //

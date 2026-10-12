@@ -97,6 +97,7 @@ export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocum
   if (params.generationFingerprint !== undefined) {
     generationCondition = and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
   }
+  // @orb-waive owner-scoped-reads(documents): satellite chain from `document_chunks`, whose only scope is the document it joins, so the scope is the `documentIds` allowlist the `documents` search verb resolves first through `resolveActiveDocumentIds(scope)` (owned, room-attached and visible documents only). Ends if a caller-supplied document id reaches this read unfiltered.
   const rows = await db
     .select({
       chunkId: documentChunks.id,

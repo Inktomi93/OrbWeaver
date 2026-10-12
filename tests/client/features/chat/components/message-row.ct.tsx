@@ -116,7 +116,7 @@ test("per-card prompt controls belong to the room host, retain hidden cards, and
       hidden: true,
     },
   ];
-  const recorder = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.editToolCall": () => ({ toolCalls }) });
+  const recorder = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.editToolCall": () => makeMessageView({ toolCalls }) });
   const host = await mount(<MessageRowStory chatStyle="bubble" content="The moon rises." toolCalls={toolCalls} viewerIsHost={true} />);
   const card = host.getByRole("group", { name: "Draw a card", exact: true });
   await expect(card.getByText("Hidden from AI", { exact: true })).toBeVisible();

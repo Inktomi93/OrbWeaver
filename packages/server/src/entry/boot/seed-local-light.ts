@@ -32,6 +32,7 @@ import { seedLocalLightConnections } from "#domain/connection";
 import { getLog } from "#foundation/observability";
 import { minter } from "../compose/minter.ts";
 
+// @orb-waive no-inline-package-interface(SeedLocalLightDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedLocalLightDeps {
   readonly db: Db;
   readonly now: () => number;

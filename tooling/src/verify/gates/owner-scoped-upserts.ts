@@ -23,7 +23,7 @@
 // — ran this same check before this conversion.
 //
 // FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
-// `schemaTableIdents` for the every-declared-table denominator, `reportBlindWhenEmpty` for the
+// `schemaTableIndex` for the every-declared-table denominator, `reportBlindWhenEmpty` for the
 // zero-derivation refusal), plus `lib/tenancy-read.ts` for the call shapes. The denominator matters here
 // in particular: without it an UNREADABLE table target is indistinguishable from a non-owner-scoped one,
 // and this member would go quietly silent on exactly the rows it exists to judge.
@@ -44,9 +44,10 @@ import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { predicatesTableColumn, tableTargetOf, upsertConfigOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
+import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
 
 const OWNER_COL = "ownerId";
 const INSERT_VERB = "insert";
@@ -137,7 +138,7 @@ interface UpsertVerdict {
 }
 
 /** Judge one upsert candidate now that the (a)-class/denominator sets are ready. Reports at most once. */
-function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: ReadonlySet<string>): UpsertVerdict | undefined {
+function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: SchemaTableIndex): UpsertVerdict | undefined {
   const arg = node.getArguments()[0];
   const target = tableTargetOf(arg, ownerTableIdents, allTableIdents);
   if (target === undefined || target.kind === "other-table" || arg === undefined) {
@@ -185,7 +186,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const ownerTableIdents = ownerScopedTableIdents(schemaFact.value);
-        const allTableIdents = schemaTableIdents(schemaFact.value);
+        const allTableIdents = schemaTableIndex(schemaFact.value);
         for (const candidate of candidates) {
           const verdict = judgeUpsert(candidate.node, ownerTableIdents, allTableIdents);
           if (verdict !== undefined) {

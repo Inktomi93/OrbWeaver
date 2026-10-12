@@ -24,4 +24,6 @@ Every category A row in the test-mirror audit inventories is fixed by calling th
 
 ## Evidence
 
+Scope closed by owner ruling: the in-flight legs finish and are verified, then this item closes. Rows driven by legacy test files (list paging and sort cursors through stub responders, the remaining server harness rows) are not chased; they become e2e cases or composition-root tests under the test-foundation plan, and compose closures become exported factories under item 958.
+
 Filled at landing: what ran and where its output is.

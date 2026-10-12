@@ -3,7 +3,7 @@ import { characterProvenanceOf } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
-import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 
 // Character CT fixtures — plain client read-model literals matching `CharacterSummary`'s wire shape
@@ -160,8 +160,7 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
 }
 
 type CharacterListPageFixture = TrpcWireOutput<"character.list">;
-type FunctionResponder<T> = T extends (input: infer TInput) => infer TOutput ? (input: TInput) => TOutput : never;
-export type CharacterListResponder = FunctionResponder<TrpcResponder<"character.list">>;
+export type CharacterListResponder = (input: TrpcInput<"character.list">) => CharacterListPageFixture;
 type CharacterListInput = NonNullable<Parameters<CharacterListResponder>[0]>;
 
 /**

@@ -28,7 +28,7 @@ import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, The
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
-import { ownedRealCharacters } from "./character-scope.ts";
+import { ownedRealCharacters, realCharactersOfEveryOwner } from "./character-scope.ts";
 
 /**
  * The owner's current generation for one scope: the active one search reads, or the target while no promotion
@@ -113,8 +113,10 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
 }
 
 // ── duplicate-character pass ──────────────────────────────────────────────────
-/** Every card embedding with its owner, excluding synthetic (per-room group) characters. */
-export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null): Promise<OwnedCharacterVector[]> {
+/** Every card embedding with its owner, excluding synthetic (per-room group) characters. No owner is the
+ *  every-owner duplicate pass (`computeDuplicatePairs`), which runs with no Principal. */
+export async function readOwnedCharacterVectors(db: Db, ownerId: UserId | null): Promise<OwnedCharacterVector[]> {
+  const scope = ownerId === null ? realCharactersOfEveryOwner() : ownedRealCharacters(ownerId);
   return await db
     .select({
       generationId: characterEmbeddings.generationId,
@@ -128,7 +130,7 @@ export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null)
     .from(characterEmbeddings)
     .leftJoin(embedGenerations, eq(embedGenerations.id, characterEmbeddings.generationId))
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(and(ownedRealCharacters(ownerId), currentCard));
+    .where(and(scope, currentCard));
 }
 
 // ── hub passes (always owner-scoped — csls analyzes YOUR OWN library only, no cross-tenant read) ──
@@ -219,7 +221,7 @@ export async function distinctCharacterHubOwners(db: Db): Promise<UserId[]> {
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
     // Same belt as the per-owner read this enumeration fans out to: an owner whose only embedded characters
     // are synthetic has NOTHING for the card-hub pass to score, and listing them mints an empty pass.
-    .where(ownedRealCharacters());
+    .where(realCharactersOfEveryOwner());
   return rows.map((r) => r.ownerId);
 }
 

@@ -11,13 +11,14 @@ import type { CapabilityOverride, ChatApi, NativeChatApi, ProviderId, Wire } fro
 import { capabilityOverrideSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
-// @orb-waive no-inline-wire-interface(CompiledRow): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(CompiledRow): baselined when the gate landed; burn-down item 952.
 export interface CompiledRow {
   readonly row: CapabilityOverride;
   readonly model: RegExp | null;
   readonly ids: ReadonlySet<string> | null;
 }
 
+// @orb-waive no-inline-package-interface(RowQuery): baselined when the gate landed; burn-down item 952.
 /** What a resolver asks the row tiers with: the model id plus the route it resolved on. */
 export interface RowQuery {
   readonly model: string;

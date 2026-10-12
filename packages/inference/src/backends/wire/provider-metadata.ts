@@ -67,6 +67,7 @@ export function prefixBindingDropsOf(bag: unknown): readonly string[] | undefine
   return transformations.filter((entry) => entry.reason === PREFIX_BINDING_MISMATCH).map((entry) => entry.path);
 }
 
+// @orb-waive no-inline-package-interface(AgentSdkTurnFacts): baselined when the gate landed; burn-down item 952.
 /** The typed facts the agent-sdk runner accumulates for the `claude-sub` arm. An interface rather than a bag
  *  because this producer has no SDK object to parse — the frames were already read field by field. */
 export interface AgentSdkTurnFacts {

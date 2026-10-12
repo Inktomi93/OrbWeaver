@@ -27,6 +27,7 @@ import { RPG_RULESET_DEFAULT, RPG_RULESET_PROFILE, rpgGameConfigSchema, rpgSeedT
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { deriveEffectiveDelivery } from "@orb/server/domain/rpg";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 /**
  * A `rpg.getGame` view for a BORN lite game on `chatId`.
@@ -81,5 +82,88 @@ export function makeRpgGameView(
       cyoaChoiceBehavior: config.features.cyoaChoiceBehavior,
       plotProgression: config.features.plotProgression,
     },
+  };
+}
+
+// A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, the TRACKER defs,
+// relationship hints, the deception knobs). Empty-but-valid defaults; the console renders it.
+export function makeRpgConfigView(
+  macros: TrpcWireOutput<"rpg.getConfigView">["userMacros"] = [],
+  presetNames: readonly string[] = [],
+  gmPresetId: string | null = null,
+): TrpcWireOutput<"rpg.getConfigView"> {
+  return {
+    statProfile: {
+      attributes: [{ key: "str", label: "Strength", hint: "raw power" }],
+      range: { min: 1, max: 20 },
+      modifier: { center: 10, step: 2 },
+      skillGoverning: {},
+      defaultAttribute: "str",
+      perceptionAttribute: "str",
+      resolution: { kind: "house-d20" },
+    },
+    ruleset: "freeform",
+    dateMode: "structured",
+    steeringNote: "Keep the tone grim.",
+    // #1032 — the GM-VOICE knob. Default null (the born "your own preset" arm every other pin here drives).
+    gmPresetId,
+    extractionMode: "cheap",
+    trackers: [
+      {
+        key: "trust",
+        label: "Trust",
+        shape: "text",
+        write: "set",
+        subject: "actor",
+        appliesTo: "npcs",
+        max: null,
+        hint: "",
+        color: null,
+        icon: null,
+        sort: 0,
+        pinned: false,
+        locked: false,
+      },
+    ],
+    relationshipHints: { debtor: "owes the party a debt" },
+    journalTypeHints: {},
+    deception: false,
+    omniscience: false,
+    hiddenContentReveal: true,
+    recentBeatsKeepLast: 6,
+    // The §1.3 extraction-depth trio the scalar form now edits (`toHostConsoleForm` reads all three).
+    extractionContext: "window",
+    stateCaptureVehicle: "auto",
+    extractionWindowTokens: 4096,
+    reconcileEveryBeats: 10,
+    // The P4/P5 knobs the scalar form projects (`toHostConsoleForm`).
+    immersiveHtml: false,
+    immersiveHtmlInteractive: false,
+    cardKeepLastX: 3,
+    cyoa: false,
+    cyoaChoiceBehavior: "compose",
+    plotProgression: true,
+    // WAVE MU — the two macro-editor fields: the GAME's own authored macros and the NAMES the chat's active
+    // preset declares (the shadow gloss). Overridable per test.
+    userMacros: macros,
+    presetMacroNames: presetNames,
+  };
+}
+
+/** An empty `rpg.getTrackerView`: no ambient scene, no actors, no trackers, nothing locked. */
+export function makeRpgTrackerView(overrides: Partial<TrpcWireOutput<"rpg.getTrackerView">> = {}): TrpcWireOutput<"rpg.getTrackerView"> {
+  return {
+    ambient: null,
+    actors: [],
+    cast: [],
+    trackerDefs: [],
+    gameTrackers: [],
+    quests: [],
+    plot: null,
+    recentBeats: [],
+    trackersReadOnly: false,
+    trackerOrbs: [],
+    lockedPaths: [],
+    ...overrides,
   };
 }

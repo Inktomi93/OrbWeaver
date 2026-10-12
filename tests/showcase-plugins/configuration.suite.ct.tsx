@@ -20,7 +20,7 @@ async function configuredBundle(slug: string): Promise<{
   row: TrpcWireOutput<"plugin.list">[number];
   surfaces: TrpcWireOutput<"plugin.listSurfaces">;
   ui: string;
-  invoke: (input: TrpcInput<"plugin.invokeUiAction">) => ReturnType<typeof trpcHold>;
+  invoke: (input: TrpcInput<"plugin.invokeUiAction">) => ReturnType<typeof trpcHold<"plugin.invokeUiAction">>;
 }> {
   const root = join(import.meta.dirname, "..", "..");
   const built = await packPluginDirectory({
@@ -103,8 +103,8 @@ async function configuredBundle(slug: string): Promise<{
     row,
     surfaces,
     ui: new TextDecoder().decode(ui ?? new Uint8Array()),
-    invoke: (input): ReturnType<typeof trpcHold> => {
-      const held = trpcHold();
+    invoke: (input): ReturnType<typeof trpcHold<"plugin.invokeUiAction">> => {
+      const held = trpcHold<"plugin.invokeUiAction">();
       const handler = actions.get(input.surfaceId);
       if (handler === undefined) {
         throw new Error(`No action handler for ${input.surfaceId}`);

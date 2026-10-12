@@ -26,7 +26,8 @@
 // Menu POPUPs render through a Base UI Portal — menu-item assertions use the PAGE locator, never `component`.
 
 import { RESPONSE_SPEAKER_CUE, STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ComposerStory } from "../_ct-stories.tsx";
@@ -47,10 +48,10 @@ type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
       : never
     : never
   : never;
-type ParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
+type ParticipantFixture = FixtureArrayElement<TrpcWireOutput<"chat.getChat">, "participants">;
 
 function character(name: string): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `participant_${name.toLowerCase()}`,
     kind: "character",
     role: "member",
@@ -59,11 +60,11 @@ function character(name: string): ParticipantFixture {
     displayName: name,
     avatarHash: null,
     leftSeq: null,
-  };
+  });
 }
 
 /** A human seat — present but never a speaker option (the menu is the seated CHARACTERS). */
-const HOST = {
+const HOST = makeParticipantView({
   id: "participant_host",
   kind: "human",
   role: "host",
@@ -72,9 +73,9 @@ const HOST = {
   displayName: "Alex",
   avatarHash: null,
   leftSeq: null,
-} satisfies ParticipantFixture;
+});
 
-const GROUP_ROSTER = { participants: [HOST, character("Aria"), character("Bolt")] } satisfies TrpcFixtureOutput<"chat.getChat">;
+const GROUP_ROSTER = makeChatDetail({ participants: [HOST, character("Aria"), character("Bolt")] });
 const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
 
 // ── 1. Response's character-count fork ───────────────────────────────────────────────────────────────────────────────
@@ -127,7 +128,7 @@ test("a SOLO-character room keeps the DIRECT Response button — one click fires
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": () => ({ participants: [HOST, character("Aria")] }),
+    "chat.getChat": () => makeChatDetail({ participants: [HOST, character("Aria")] }),
     "chat.generate": () => EMPTY_TURN,
   });
   const component = await mount(<ComposerStory />);
@@ -350,7 +351,8 @@ test("the group-room speaker cue — the one door to who replies next — is the
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": () => ({ ...GROUP_ROSTER, title: "Council", participants: [HOST, character("Mira"), character("Doran")], viewerIsHost: true }),
+    "chat.getChat": () =>
+      makeChatDetail({ ...GROUP_ROSTER, title: "Council", participants: [HOST, character("Mira"), character("Doran")], viewerIsHost: true }),
   });
   const component = await mount(<ComposerStory />);
   await expect(component.getByRole("button", { name: RESPONSE, exact: true })).toHaveAccessibleDescription(RESPONSE_SPEAKER_CUE);

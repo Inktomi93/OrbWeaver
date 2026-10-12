@@ -15,6 +15,7 @@ const PROBE_TTL_MS = 10_000;
 const WAKE_POLL_MS = 1000;
 const WAKE_TIMEOUT_MS = 120_000;
 
+// @orb-waive no-inline-package-interface(ReachabilityDeps): baselined when the gate landed; burn-down item 952.
 export interface ReachabilityDeps {
   readonly fetch: typeof fetch;
   readonly now: () => number;
@@ -141,6 +142,7 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
   });
 }
 
+// @orb-waive no-inline-package-interface(ReachabilityProber): baselined when the gate landed; burn-down item 952.
 export interface ReachabilityProber {
   readonly probe: (target: ProbeTarget) => Promise<Reachability>;
   /** Whether the server says it is asleep right now. Never cached: a server is put to sleep from outside the app at

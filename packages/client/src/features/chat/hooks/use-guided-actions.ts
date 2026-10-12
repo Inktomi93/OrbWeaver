@@ -124,7 +124,6 @@ export interface UseGuidedActionsOptions {
   readonly onFireError?: ((firedText: string) => void) | undefined;
 }
 
-// @orb-waive no-inline-wire-interface(UseGuidedActionsResult): baselined when the gate widened; burn-down item 904.
 export interface UseGuidedActionsResult {
   readonly isPending: boolean;
   /** Null while unknown (an empty transcript, still loading, or the tail isn't assistant). */

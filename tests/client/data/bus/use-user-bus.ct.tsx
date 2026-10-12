@@ -15,6 +15,8 @@
 // always-heal code (re-verified after the move).
 
 import type { StreamFrame } from "@orb/contracts/stream";
+import { makePersonaView } from "@orb/testkit/node/factories/persona-view.ts";
+import { makeTagView } from "@orb/testkit/node/factories/tag-view.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -24,8 +26,8 @@ import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
 const ROUTES: TrpcRoutes<"persona.list" | "tag.listTags"> = {
   ...STREAM_MUTATION_ROUTES,
-  "persona.list": (): readonly { id: string }[] => [{ id: "persona_ctuserbus" }],
-  "tag.listTags": (): readonly { id: string }[] => [{ id: "tag_ctuserbus" }],
+  "persona.list": () => [makePersonaView({ id: "persona_ctuserbus" })],
+  "tag.listTags": () => [makeTagView({ id: "tag_ctuserbus" })],
 };
 
 /** The BARRIER frame — a `tagsChanged` on the `user` room, nested verbatim under `event` (SSE-1 §3.2). */

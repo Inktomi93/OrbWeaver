@@ -13,7 +13,6 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 // imports this adapter dragged 19 browser files into the DOM-less program (type-worlds #1351).
 import type { MessageRenderContext } from "#src/lib/message-render.ts";
 
-// @orb-waive no-inline-wire-interface(ResolveMessageRenderContextInput): baselined when the gate widened; burn-down item 904.
 export interface ResolveMessageRenderContextInput {
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;

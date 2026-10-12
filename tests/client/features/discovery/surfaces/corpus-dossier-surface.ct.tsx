@@ -8,7 +8,7 @@
 //                   "Speculative", blaming the model for our parse failure and hiding that nothing validated.
 // Each case barriers on the SETTLED badge (`data-answer-state`), never on an in-flight fetching state.
 
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -29,8 +29,8 @@ const DOSSIER = {
 /** The dossier's other reads, stubbed flat so only the ASK answer varies between cases. */
 async function routeDossier(
   page: Page,
-  answer: TrpcFixtureOutput<"discovery.askCard">,
-  dossier: TrpcFixtureOutput<"discovery.characterDossier"> = DOSSIER,
+  answer: TrpcWireOutput<"discovery.askCard">,
+  dossier: TrpcWireOutput<"discovery.characterDossier"> = DOSSIER,
 ): Promise<void> {
   await routeTrpc(page, {
     "discovery.characterDossier": dossier,

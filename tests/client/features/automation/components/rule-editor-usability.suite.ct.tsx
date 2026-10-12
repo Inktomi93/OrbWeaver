@@ -156,7 +156,7 @@ test("a structured condition refusal marks its field and cannot offer an unchang
 });
 
 test("discard waits for an in-flight birth and Undo retains its ambiguous request identity", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"automation.createRule">();
   const rows: TrpcWireOutput<"automation.listRules">[number][] = [];
   const scenario: { lost: boolean } = { lost: true };
   const recorder = await routeTrpc(page, {
