@@ -92,6 +92,27 @@ The fact store is built once per world program, updated from file changes and pe
 
 Retrofits inside legacy test files (vanity aliases, casts, waiver bookkeeping, file splits) leave with those files.
 
+### Each layer answers one question
+
+| Layer | Owns | Never |
+| - | - | - |
+| e2e on the corpus | every user flow across surfaces and every wire: the router contract, auth, cookies, CSRF, streams, the real database and migrations, the plugin host, uploads | a component state it has to engineer into the server |
+| CT | component and primitive behaviour; states a real backend does not produce on demand (error, loading, half-loaded, empty, very long content, races, slow responses, reconnects); rendered measurement (geometry, layout shift, contrast, accessible names, focus order, every viewport and theme) | a mounted route or the app shell walking a flow over stubbed calls |
+| Server integration | domain logic and permissions, cross-tenant cases included, on the composition root | a fake that stands in for domain logic |
+| Unit | pure logic in `@orb/kit` and `@orb/contracts` | I/O |
+
+A CT stubs every wire, so a CT can stay green while the real wire is broken; only e2e proves the wire. A CT that walks a flow pays every CT cost (stub ratchets, the unfed-read ledger, the config-mirror gate, flake handling) to prove what e2e proves for real. Item 963 moves each flow-walking route and shell CT into an e2e case and deletes it. CTs mount through the compose door (960) with stubs from builders (959), so a stub cannot drift from the contract.
+
+### How a rebuilt test is written
+
+1. It calls production through a public entry: the router, a domain front door, a contract or kit export. It never copies a production function, query or rule.
+2. It builds data through a builder or the corpus, so every value is one production can produce.
+3. It takes its types from contracts and production; it declares no shape a lower package owns.
+4. Clock, ids and random come injected from the composition root, so the result is deterministic without fake timers.
+5. It fakes only an edge: the database driver, the provider, the plugin host, the network.
+6. It asserts behaviour a user or a caller sees, never a literal it built itself and never help or copy text.
+7. A port keeps every case of the file it replaces, regression cases first, and a production mutant turns it red.
+
 ### Tests mirror directories, not files
 
 By owner ruling (item 899), tests live in the directory that mirrors their feature and are named for the behaviour they prove; there is no one-to-one file mirror. A module has a test when a test reaches it through the import graph or names it in an `@subject` header; a mock or a type-only import is not reach. `test-layout` checks the directory and `test-reach` checks presence, and both stay in the core. Rebuilt tests drive the product through public entries, so `test-reach` credits the module a test drives through that entry, never every module the composed graph happens to import.
