@@ -85,7 +85,10 @@ const UNMAKEABLE_WIDTH = (): Float32Array<ArrayBuffer> => new Float32Array(1);
  * their target and every scope of it completes, so search reads it as ready. A LATER space is the row a target move
  * leaves behind when its width probe refuses: production inserts the generation, then keeps the old target.
  */
-async function seedGeneration(
+/** Mint the owner's `task` generation for `encoder` through the embeddings service and complete every scope it
+ *  needs. A second encoder for an owner who already has a target is a move whose width probe refuses, so its
+ *  generation exists beside the readable one, the way a refused re-point leaves it. */
+export async function seedGeneration(
   db: Db,
   ownerId: UserId,
   task: EmbeddingTask,

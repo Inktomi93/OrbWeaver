@@ -117,7 +117,7 @@ export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
-// The embed funnel, so the server snapshot and any edge fake turn the caller's knobs into the same wire knobs.
+// The funnel the runtime serves as `funnel.embed`, for a test runtime that scripts only the executor.
 export { resolveEmbed } from "./funnel/resolve-embed.ts";
 export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
 export type { ProviderRegistry } from "./registry/providers.ts";
