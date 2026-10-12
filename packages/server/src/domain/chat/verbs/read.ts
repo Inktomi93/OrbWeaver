@@ -37,7 +37,7 @@ import type {
   NextTurnConnectionView,
   ParticipantView,
 } from "@orb/contracts/chat";
-import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
@@ -166,13 +166,7 @@ import {
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
-import {
-  projectViewForMember,
-  scrubChatEventReplayForMember,
-  scrubStreamReplayForMember,
-  stripMemberCardForViewer,
-  viewerReadsHidden,
-} from "../substrate/member-visibility.ts";
+import { scrubChatEventReplayForMember, scrubStreamReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
   humanSeatPersonasOf,

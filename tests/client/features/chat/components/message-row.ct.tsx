@@ -7,6 +7,7 @@
 // a regression check for that default.
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import { projectViewForMember } from "@orb/contracts/chat";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -26,7 +27,6 @@ import {
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
-import { projectViewForMember } from "#server/domain/chat/substrate/member-visibility.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
