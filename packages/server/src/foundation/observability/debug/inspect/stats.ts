@@ -59,7 +59,7 @@ const COUNTED_TABLES: SQLiteTable[] = [
 ];
 
 async function countRows(db: Db, table: SQLiteTable): Promise<number> {
-  // @orb-waive owner-scoped-reads(table): the debug inspector's row count over its own fixed backbone table list, behind the `/api/_debug` owner/admin authority; it returns a count, never a row. Ends if a caller-supplied table reaches it.
+  // @orb-waive owner-scoped-reads(table): the debug inspector's row count over its own fixed backbone table list, behind the `/api/_debug` gate, which admits only the box owner's session (`debugGateAdmits`, `can(p,'owner',global)`) or the `DEBUG_TOKEN` operator secret; it returns a count, never a row. Ends if a caller-supplied table reaches it or the gate admits a non-owner principal.
   const rows = await db.select({ n: count() }).from(table);
   return Number(rows[0]?.n ?? 0);
 }

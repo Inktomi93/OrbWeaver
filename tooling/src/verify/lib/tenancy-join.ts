@@ -1,15 +1,19 @@
-// The JOIN half of the tenancy read readers: which tables a drizzle read binds (`.from` and every join verb), and
-// whether the statement's conjuncts scope one, by an owner term or by an FK edge pointing AT it.
+// The JOIN half of the tenancy read readers: which tables a drizzle read binds (`.from`, every join verb and the
+// relational `db.query.<t>` verbs), what terms its predicates carry, and which owner terms or FK edges scope a table.
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import type { ChainTerm, ReadAnchor, SchemaTableIndex } from "../contract/tenancy.ts";
+import type { ChainTerm, ConjunctLeaves, ReadAnchor, SchemaTableIndex } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { MEMBER_ACCESS_KINDS } from "./symbol-reference.ts";
-import { callsDrizzleOperator, declaredTableOf, enclosingFn } from "./tenancy-read.ts";
-import { foreignKeyColumnKey } from "./tenancy-scope.ts";
+import { callsDrizzleOperator, declaredTableOf, enclosingFn, RELATIONAL_VERBS, relationalOperatorName } from "./tenancy-read.ts";
+import { EDGE_ARROW, foreignKeyColumnKey } from "./tenancy-scope.ts";
 
 const FROM_VERB = "from";
+const RELATIONAL_ROOT = "query";
+const UNDEFINED_VALUE = "undefined";
+const PUSH_METHOD = "push";
+const MAP_METHOD = "map";
 /** The drizzle select-builder verbs that bind a second table into a read. */
 const JOIN_VERBS: ReadonlySet<string> = new Set(["innerJoin", "leftJoin", "rightJoin", "fullJoin", "crossJoin"]);
 const EQ_OPERATOR = "eq";
@@ -17,6 +21,9 @@ const IN_ARRAY_OPERATOR = "inArray";
 const AND_OPERATOR = "and";
 const OWNER_COL = "ownerId";
 const MAX_HELPER_DEPTH = 1;
+// The existential leaf reader follows nested predicate helpers further than the owner arm: a deeper read only
+// finds more terms, and a helper past the cap is opaque, never absent.
+const MAX_LEAF_HELPER_DEPTH = 3;
 /** The value operators a predicate expression can evaluate to either side of: each side may be the predicate. */
 const EITHER_SIDE_OPERATORS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
 
@@ -27,6 +34,9 @@ export function readAnchorOf(node: Node): ReadAnchor | undefined {
     return;
   }
   const verb = staticMemberAccess(node.getExpression())?.name;
+  if (verb !== undefined && RELATIONAL_VERBS.has(verb)) {
+    return relationalAnchorOf(node);
+  }
   const [table, on] = node.getArguments();
   if (verb === undefined || table === undefined) {
     return;
@@ -35,6 +45,16 @@ export function readAnchorOf(node: Node): ReadAnchor | undefined {
     return { kind: "from", call: node, table };
   }
   return JOIN_VERBS.has(verb) ? { kind: "join", call: node, table, on } : undefined;
+}
+
+/** The relational-API read `<db>.query.<t>.findFirst|findMany(config)`: the `<t>` member names the table. */
+function relationalAnchorOf(call: CallExpression): ReadAnchor | undefined {
+  const verb = staticMemberAccess(call.getExpression());
+  const table = verb === undefined ? undefined : staticMemberAccess(unwrapExpression(verb.receiver));
+  const root = table === undefined ? undefined : staticMemberAccess(unwrapExpression(table.receiver));
+  return table !== undefined && root?.name === RELATIONAL_ROOT
+    ? { kind: "relational", call, table: table.nameNode, config: call.getArguments()[0] }
+    : undefined;
 }
 
 /** Every table a subquery's inner select binds: the read anchors within that one bounded expression. */
@@ -59,7 +79,7 @@ function columnOf(node: Node, index: SchemaTableIndex): ColumnRead | undefined {
 }
 
 /** Does this node read any column of the table written `ident`? */
-function readsTable(node: Node, ident: string): boolean {
+export function readsTable(node: Node, ident: string): boolean {
   const reads = MEMBER_ACCESS_KINDS.flatMap((kind) => node.getDescendantsOfKind(kind));
   return [node, ...reads].some((candidate) => {
     const read = staticMemberAccess(candidate);
@@ -117,9 +137,11 @@ function helperReturns(call: CallExpression): readonly Node[] | undefined {
     .getDefinitionNodes()
     .map((definition) => (definition.isKind(SyntaxKind.VariableDeclaration) ? definition.getInitializer() : definition))
     .find((definition) => definition !== undefined && Node.isFunctionLikeDeclaration(definition));
-  if (fn === undefined) {
-    return;
-  }
+  return fn === undefined ? undefined : functionReturns(fn);
+}
+
+/** Every value a function returns, on the same terms as {@link helperReturns}. */
+function functionReturns(fn: Node): readonly Node[] | undefined {
   const body = fn.isKind(SyntaxKind.ArrowFunction) ? fn.getBody() : fn.getFirstChildByKind(SyntaxKind.Block);
   if (body === undefined || !body.isKind(SyntaxKind.Block)) {
     return body === undefined ? undefined : [body];
@@ -172,24 +194,28 @@ function isOwnerColumn(node: Node, ident: string): boolean {
   return read?.name === OWNER_COL && read.receiver.getText() === ident;
 }
 
-/** Is this conjunct an owner term on the table written `ident`: `eq(T.ownerId, value)` or
- *  `inArray(T.ownerId, owners)` by its drizzle import, where the value does not read `T` itself? `or`, `ne`,
- *  `isNotNull`, a `sql` template and `eq(T.ownerId, T.ownerId)` all name the column and scope nothing. */
-export function isOwnerTerm(conjunct: Node, ident: string): boolean {
+/** The value side of an owner term on the table written `ident`: `eq(T.ownerId, value)` or
+ *  `inArray(T.ownerId, owners)` by its drizzle import, where the value does not read `T` itself; undefined for
+ *  any other conjunct. `or`, `ne`, `isNotNull`, a `sql` template and `eq(T.ownerId, T.ownerId)` all name the
+ *  column and scope nothing. Whether a column or subselect value is pinned is the caller's second question. */
+export function ownerTermValue(conjunct: Node, ident: string): Node | undefined {
   if (!conjunct.isKind(SyntaxKind.CallExpression)) {
-    return false;
+    return;
   }
   const [left, right] = conjunct.getArguments();
   if (left === undefined || right === undefined) {
-    return false;
+    return;
   }
   if (callsDrizzleOperator(conjunct, IN_ARRAY_OPERATOR)) {
-    return isOwnerColumn(left, ident) && !readsTable(right, ident);
+    return isOwnerColumn(left, ident) && !readsTable(right, ident) ? right : undefined;
   }
   if (!callsDrizzleOperator(conjunct, EQ_OPERATOR)) {
-    return false;
+    return;
   }
-  return (isOwnerColumn(left, ident) && !readsTable(right, ident)) || (isOwnerColumn(right, ident) && !readsTable(left, ident));
+  if (isOwnerColumn(left, ident) && !readsTable(right, ident)) {
+    return right;
+  }
+  return isOwnerColumn(right, ident) && !readsTable(left, ident) ? left : undefined;
 }
 
 /** Does this conjunct select rows by a VALUE on the written column (`eq(chats.anchorPersonaId, personaId)`,
@@ -204,9 +230,88 @@ export function selectsByValue(conjunct: Node, column: string, index: SchemaTabl
   return (names(left) && isValue(right)) || (names(right) && isValue(left));
 }
 
-/** Does `test` accept some plain conjunct (no helper hop) of these predicates? */
-export function anyConjunct(predicates: readonly (Node | undefined)[], test: (conjunct: Node) => boolean): boolean {
-  return predicates.some((predicate) => predicate !== undefined && conjunctsOf(predicate).some(test));
+const NO_LEAVES: ConjunctLeaves = { leaves: [], opaque: false };
+
+function mergeLeaves(parts: readonly ConjunctLeaves[]): ConjunctLeaves {
+  return { leaves: parts.flatMap((part) => part.leaves), opaque: parts.some((part) => part.opaque) };
+}
+
+/** Every term these predicates can carry, for the existential questions (does SOME term select by id?): through
+ *  `and(…)`, `const` bindings, array spreads with the terms a local `.push(…)` adds, and one helper hop. A
+ *  conjunct no reader resolves marks the predicate opaque, so the caller treats it as unproven, never as absent. */
+export function conjunctLeaves(predicates: readonly (Node | undefined)[], depth = 0): ConjunctLeaves {
+  return mergeLeaves(predicates.map((predicate) => (predicate === undefined ? NO_LEAVES : leavesOf(predicate, depth))));
+}
+
+function leavesOf(predicate: Node, depth: number): ConjunctLeaves {
+  const value = unwrapExpression(predicate);
+  if (value.isKind(SyntaxKind.CallExpression) && callsDrizzleOperator(value, AND_OPERATOR)) {
+    return conjunctLeaves(value.getArguments(), depth);
+  }
+  if (value.isKind(SyntaxKind.SpreadElement)) {
+    return spreadLeaves(value.getExpression(), depth);
+  }
+  if (value.isKind(SyntaxKind.Identifier)) {
+    if (value.getText() === UNDEFINED_VALUE) {
+      return NO_LEAVES;
+    }
+    const bound = constInitializerOf(value);
+    return bound === undefined ? { leaves: [value], opaque: true } : leavesOf(bound, depth);
+  }
+  if (value.isKind(SyntaxKind.CallExpression) && isLocalHelperCall(value)) {
+    const values = depth >= MAX_LEAF_HELPER_DEPTH ? undefined : helperReturns(value);
+    return values === undefined ? { leaves: [value], opaque: true } : conjunctLeaves(values, depth + 1);
+  }
+  return { leaves: [value], opaque: false };
+}
+
+/** Is the callee a function this program authors (a local or imported helper), rather than an operator from a
+ *  package or an unresolved module? Only an authored helper can hide its terms behind its name. */
+function isLocalHelperCall(call: CallExpression): boolean {
+  const callee = unwrapExpression(call.getExpression());
+  if (!callee.isKind(SyntaxKind.Identifier) || relationalOperatorName(callee) !== undefined) {
+    return false;
+  }
+  const definitions = callee.getDefinitionNodes();
+  return (
+    definitions.length > 0 && !definitions.some((definition) => definition.isKind(SyntaxKind.ImportSpecifier) || definition.getSourceFile().isDeclarationFile())
+  );
+}
+
+/** The terms `ids.map((id) => term)` builds: every value its inline callback returns. */
+function mappedTerms(call: CallExpression): readonly Node[] | undefined {
+  const [callback] = call.getArguments();
+  const isMap = staticMemberAccess(call.getExpression())?.name === MAP_METHOD;
+  return isMap && callback !== undefined && (callback.isKind(SyntaxKind.ArrowFunction) || callback.isKind(SyntaxKind.FunctionExpression))
+    ? functionReturns(callback)
+    : undefined;
+}
+
+/** The terms an `and(...terms)` spread can carry: an array literal's elements (each arm of a conditional), or a
+ *  `const` array's terms plus every `terms.push(…)` argument in its scope. Anything else is opaque. */
+function spreadLeaves(spread: Node, depth: number): ConjunctLeaves {
+  const value = unwrapExpression(spread);
+  if (value.isKind(SyntaxKind.ArrayLiteralExpression)) {
+    return conjunctLeaves(value.getElements(), depth);
+  }
+  if (value.isKind(SyntaxKind.ConditionalExpression)) {
+    return mergeLeaves([spreadLeaves(value.getWhenTrue(), depth), spreadLeaves(value.getWhenFalse(), depth)]);
+  }
+  const mapped = value.isKind(SyntaxKind.CallExpression) ? mappedTerms(value) : undefined;
+  if (mapped !== undefined) {
+    return conjunctLeaves(mapped, depth);
+  }
+  const initializer = value.isKind(SyntaxKind.Identifier) ? constInitializerOf(value) : undefined;
+  if (initializer === undefined) {
+    return { leaves: [value], opaque: true };
+  }
+  const symbol = value.getSymbol()?.compilerSymbol;
+  const scope = enclosingFn(value) ?? value.getSourceFile();
+  const pushed = scope.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap((call) => {
+    const method = staticMemberAccess(call.getExpression());
+    return method?.name === PUSH_METHOD && symbol !== undefined && method.receiver.getSymbol()?.compilerSymbol === symbol ? call.getArguments() : [];
+  });
+  return mergeLeaves([spreadLeaves(initializer, depth), conjunctLeaves(pushed, depth)]);
 }
 
 /** The conjuncts that bind the joined table J to ANOTHER table's row along a declared foreign key that POINTS AT
@@ -230,7 +335,7 @@ export function chainTermsOf(
       return [];
     }
     const [joined, bound] = left.receiver === joinedIdent ? [left, right] : [right, left];
-    const edge = `${foreignKeyColumnKey(bound.table, bound.name)}->${foreignKeyColumnKey(joined.table, joined.name)}`;
-    return fkEdges.has(edge) ? [{ boundTable: bound.table, boundColumn: `${bound.receiver}.${bound.name}` }] : [];
+    const edge = `${foreignKeyColumnKey(bound.table, bound.name)}${EDGE_ARROW}${foreignKeyColumnKey(joined.table, joined.name)}`;
+    return fkEdges.has(edge) ? [{ boundTable: bound.table, boundReceiver: bound.receiver, boundColumn: `${bound.receiver}.${bound.name}` }] : [];
   });
 }

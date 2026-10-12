@@ -19,10 +19,12 @@ import {
   readCharacterHubVectors,
   readDigestHubVectors,
   readImageHubVectors,
+  readOwnedAvatarVectors,
   readOwnedCaptionRows,
   readOwnedCharacterVectors,
   readOwnedDigestKeywords,
   readOwnedDigestVectors,
+  readOwnedPortraitPairs,
   readSegmentHubVectors,
   readThemeClusterMembers,
   readThemeClusterTimeline,
@@ -61,6 +63,26 @@ test("an owned character pointing at a foreign avatar never exposes that owner's
   });
   expect(await readOwnedCaptionRows(db, owner)).toEqual([]);
   expect(await readCaptionRowsByFacet(db, owner, { path: "$.artStyle", isList: false, value: "anime" })).toEqual([]);
+});
+
+test("an owned character pointing at a foreign avatar never exposes that owner's image vector", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "vector-reader");
+  const other = await seedUser(db, "vector-asset-owner");
+  const ownAsset = await seedAsset(db, mintTypeId(ID_PREFIX.asset), owner);
+  const ownCard = await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, avatarAssetId: ownAsset });
+  const foreignAsset = await seedAsset(db, mintTypeId(ID_PREFIX.asset), other);
+  const linkedCard = await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, avatarAssetId: foreignAsset });
+  for (const [card, assetId] of [
+    [ownCard, ownAsset],
+    [linkedCard, foreignAsset],
+  ] as const) {
+    await seedImageEmbedding(db, { id: mintTypeId(ID_PREFIX.imageEmbedding), assetId, lens: "image-raw", embedding: vec(1, 0) });
+    await seedCharacterEmbedding(db, { characterId: card, embedding: vec(1, 0) });
+  }
+
+  expect((await readOwnedAvatarVectors(db, owner)).map((row) => row.characterId)).toEqual([ownCard]);
+  expect((await readOwnedPortraitPairs(db, owner)).map((row) => row.characterId)).toEqual([ownCard]);
 });
 
 // A theme cluster + one assignment row — `readTier0DigestSpans` reads only digests that were ASSIGNED.

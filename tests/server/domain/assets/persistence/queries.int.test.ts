@@ -7,14 +7,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assets } from "@orb/db";
 import type { AssetId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import { assetIdForHash, metadataForOwnedHash, storeBlob } from "#server/domain/assets/persistence/queries.ts";
+import { assetIdForHash, galleryItemViewById, insertGalleryItem, metadataForOwnedHash, storeBlob } from "#server/domain/assets/persistence/queries.ts";
 import { pngBytes, pngBytesWithDims, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
@@ -155,6 +155,31 @@ describe("owner-scoped reads", () => {
       size: bytes.byteLength,
     });
     expect(await metadataForOwnedHash(db, other, stored.hash)).toBeUndefined();
+  });
+
+  test("a gallery item resolves its view only for the owner of the asset it curates", async () => {
+    const db = await freshDb();
+    const cas = await freshCas();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const stored = await storeBlob(db, cas, {
+      ownerId: other,
+      bytes: pngBytes(9, 7, 5),
+      kind: "gallery",
+      mime: PNG,
+      candidateId: mintTypeId(ID_PREFIX.asset),
+      now: FROZEN_AT_MS,
+      enforceMagic: false,
+    });
+    const item = await insertGalleryItem(db, {
+      id: mintTypeId(ID_PREFIX.galleryItem),
+      assetId: stored.assetId,
+      subjectCharacterId: undefined,
+      now: FROZEN_AT_MS,
+    });
+
+    expect(await galleryItemViewById(db, other, item)).toMatchObject({ galleryItemId: item, assetId: stored.assetId });
+    expect(await galleryItemViewById(db, owner, item)).toBeUndefined();
   });
 
   test("storeBlob with enforceMagic rejects a non-image and writes nothing", async () => {

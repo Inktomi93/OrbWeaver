@@ -98,6 +98,8 @@ export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocum
     generationCondition = and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
   }
   // @orb-waive owner-scoped-reads(documents): satellite chain from `document_chunks`, whose only scope is the document it joins, so the scope is the `documentIds` allowlist the `documents` search verb resolves first through `resolveActiveDocumentIds(scope)` (owned, room-attached and visible documents only). Ends if a caller-supplied document id reaches this read unfiltered.
+  // @orb-waive owner-scoped-reads(embedGenerations): the generation is pinned to the joined document's owner by `eq(documents.ownerId, embedGenerations.ownerId)`, and the documents are the `documentIds` allowlist above; the gate cannot see that pin because the allowlist selects `document_chunks`, not `documents`. Ends if a caller-supplied document id reaches this read unfiltered or the owner match is dropped.
+  // @orb-waive owner-scoped-reads(embedSpaceState): the space row is pinned to the same document owner through `eq(embedSpaceState.ownerId, embedGenerations.ownerId)`, so it is that allowlisted document owner's active generation. Ends if a caller-supplied document id reaches this read unfiltered or either owner match is dropped.
   const rows = await db
     .select({
       chunkId: documentChunks.id,
