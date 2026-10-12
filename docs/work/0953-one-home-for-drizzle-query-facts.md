@@ -18,7 +18,7 @@ Gates and `pnpm ast` read drizzle code two ways, so a `pnpm ast` verb finds what
 
 ## Done when
 
-One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns` output and every caller gate's findings are unchanged or a recorded improvement.
+One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns` output and every caller gate's findings are unchanged or a recorded improvement. The tenancy gates read through the new reader, and it flags every by-id spelling the item 980 security review planted: a by-id helper inside an object, a table-parameter helper, a bound FK column inside or() or a sql leaf, a schema namespace table, a const table alias, a const relational receiver, a non-$dynamic builder escaping to a helper, a builder returned from a function, split builder bindings at any depth, and a subquery or CTE whose ownerId column is relabelled from another table.
 
 ## Evidence
 
