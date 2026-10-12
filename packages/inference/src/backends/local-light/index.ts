@@ -19,6 +19,7 @@ export type { LocalLightModelCache } from "./model-cache.ts";
 export type { LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
 
+// @orb-waive no-inline-package-interface(LocalLightBackendDeps): baselined when the gate landed; burn-down item 952.
 export interface LocalLightBackendDeps {
   readonly now: () => number;
   readonly log: InferenceDeps["log"];
@@ -26,6 +27,7 @@ export interface LocalLightBackendDeps {
   readonly config: NonNullable<InferenceDeps["localLight"]> | undefined;
 }
 
+// @orb-waive no-inline-package-interface(LocalLightBackend): baselined when the gate landed; burn-down item 952.
 export interface LocalLightBackend {
   readonly backend: ProviderBackend;
   readonly prefetch: LocalLightPrefetchHandle;

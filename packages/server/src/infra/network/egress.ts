@@ -660,6 +660,7 @@ export class EgressBlockedError extends Error {
   }
 }
 
+// @orb-waive no-inline-package-interface(SafeFetchOptions): baselined when the gate landed; burn-down item 952.
 export interface SafeFetchOptions {
   /** REQUIRED. A host allowlist (exact "api.chub.ai" or a leading-dot suffix ".chub.ai" that matches
    *  any subdomain but NEVER the bare apex), checked case-insensitively at the start URL and on EVERY
@@ -690,7 +691,7 @@ export interface SafeFetchOptions {
   readonly ownerConfiguredEndpoint?: boolean;
 }
 
-// @orb-waive no-inline-wire-interface(SafeFetchResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(SafeFetchResult): baselined when the gate landed; burn-down item 952.
 export interface SafeFetchResult {
   /** Final response URL after safeFetch's validated redirect chain. Optional only for injected test doubles. */
   readonly url?: string;
@@ -927,6 +928,7 @@ export async function fetchPluginBundle(url: string): Promise<Uint8Array> {
   return await res.bytes();
 }
 
+// @orb-waive no-inline-package-interface(PinnedDownloadLimits): baselined when the gate landed; burn-down item 952.
 /** The limits a pinned-release download runs under: the exact hosts the release and its redirect hops may name,
  *  the asset's pinned size as the byte cap, and the whole-download deadline. */
 export interface PinnedDownloadLimits {

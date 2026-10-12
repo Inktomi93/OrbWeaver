@@ -97,6 +97,7 @@ type ImportBackgroundStore = (params: {
   readonly maxBytes: number;
 }) => Promise<{ readonly assetId: AssetId; readonly hash: string }>;
 
+// @orb-waive no-inline-package-interface(ProfileDirImportDeps): baselined when the gate landed; burn-down item 952.
 export interface ProfileDirImportDeps {
   readonly fs: ImportFsPort;
   /** The root holding one subdir per ST user profile (the loader collects each subdir independently). */

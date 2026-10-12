@@ -44,6 +44,7 @@ const embeddingResponseSchema = z.object({
   usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
 });
 
+// @orb-waive no-inline-package-interface(EmbedDeps): baselined when the gate landed; burn-down item 952.
 export interface EmbedDeps {
   readonly log: InferenceLog;
   readonly transport: TransportDeps;

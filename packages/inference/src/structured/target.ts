@@ -11,6 +11,7 @@ import {
 } from "@orb/contracts/inference";
 import type { Resolved } from "../contract/resolved.ts";
 
+// @orb-waive no-inline-package-interface(StructuredTarget): baselined when the gate landed; burn-down item 952.
 /** The planner's view of one endpoint. `mode` is `features.structuredMode`, else the wire default; `limits` are
  *  `output.structuredLimitsFrom` merged with `output.structuredLimits`, where the carrier is grammar-compiled. */
 export interface StructuredTarget extends StructuredSchemaTarget {

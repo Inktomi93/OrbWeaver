@@ -67,6 +67,7 @@ const destinationFormSchema = z.string().transform((value, ctx) => {
 
 const IMAGE_MIME_PREFIX = "image/";
 
+// @orb-waive no-inline-package-interface(UploadAssetsPort): baselined when the gate landed; burn-down item 952.
 /** The `assets` front-door slice the asset-upload route consumes (the full {@link StoredAsset} result —
  *  a superset of {@link ImportAssetPort}'s `{assetId}`, so one handle serves both routes). */
 export interface UploadAssetsPort {
@@ -81,6 +82,7 @@ export interface UploadAssetsPort {
   }) => Promise<StoredAsset>;
 }
 
+// @orb-waive no-inline-package-interface(UploadDeps): baselined when the gate landed; burn-down item 952.
 export interface UploadDeps {
   /** Serves the asset-upload `store` and the import avatar-store (`ImportAssetPort`). */
   readonly assets: UploadAssetsPort & ImportAssetPort;

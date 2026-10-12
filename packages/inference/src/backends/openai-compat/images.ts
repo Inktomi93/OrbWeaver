@@ -125,6 +125,7 @@ function imageApiUsage(body: unknown, headers: Headers, openrouter: boolean, sec
   );
 }
 
+// @orb-waive no-inline-package-interface(ImagesDeps): baselined when the gate landed; burn-down item 952.
 export interface ImagesDeps {
   readonly transport: TransportDeps;
   readonly normalize: NormalizeImageBytes;

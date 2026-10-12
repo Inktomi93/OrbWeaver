@@ -50,10 +50,20 @@ const STORY_SECTION = "chat-history";
  *  is the Actions selection the readout echoes — `impersonate` unless a story is about the per-KIND delivery
  *  dispatch (the Actions-tab IA §2.3), which is exactly a claim about which row is selected. */
 function useReadoutFixture(chatId: ChatId | null, view: string, templateId = "impersonate"): void {
+  // The preset is opened once per mount and torn down once on unmount. The teardown's clear runs inside a view
+  // transition, so tying it to the view-driven effect below let a re-run's clear land AFTER its select and
+  // leave the readout on "Loading the active preset…".
   useEffect(() => {
     // In place: a swapped select runs inside the view transition's update callback, after the section pick
     // below, and would clear it (a select drops the sub-drill).
     selectPreset(STORY_PRESET, { swap: false });
+    return (): void => {
+      __resetPresetSelection();
+      __resetPresetTemplate();
+      goToLanding();
+    };
+  }, []);
+  useEffect(() => {
     setPresetEditorView(view);
     // The SELECTIONS the readout echoes (§6.1: the row body selects, the readout resolves that row) — the
     // Actions template and the Prompt rack row.
@@ -62,11 +72,6 @@ function useReadoutFixture(chatId: ChatId | null, view: string, templateId = "im
     if (chatId !== null) {
       selectChat(chatId);
     }
-    return (): void => {
-      __resetPresetSelection();
-      __resetPresetTemplate();
-      goToLanding();
-    };
   }, [chatId, view, templateId]);
 }
 

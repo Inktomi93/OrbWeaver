@@ -35,6 +35,7 @@ const IMPORT_FAILED = "import failed";
  *  framework-fixed `Variables` key). */
 type ImportApp = Parameters<typeof registerImportBundle>[0];
 
+// @orb-waive no-inline-package-interface(ImportChatDeps): baselined when the gate landed; burn-down item 952.
 export interface ImportChatDeps {
   /** The composed registry — its `chat` descriptor IS the import path (resolved once at registration). */
   readonly registry: PortabilityRegistry;
@@ -55,7 +56,7 @@ interface FailedChat {
   readonly error: string;
 }
 
-// @orb-waive no-inline-wire-interface(ChatImportResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ChatImportResult): baselined when the gate landed; burn-down item 952.
 /** The `POST /api/import/chat` response body: the REAL per-file outcome (the client summary derives from it). */
 export interface ChatImportResult {
   readonly imported: readonly ImportedChat[];

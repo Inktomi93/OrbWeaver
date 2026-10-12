@@ -5,6 +5,7 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as doors } from "../../../../../tooling/src/verify/gates/duplicate-action-doors.ts";
 import { gate as doorsHealth } from "../../../../../tooling/src/verify/gates/duplicate-action-doors-health.ts";
+import { gate as wireInterface } from "../../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as historyWrites } from "../../../../../tooling/src/verify/gates/no-raw-history-writes.ts";
 import { gate as flip } from "../../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { gate as windowedHealth } from "../../../../../tooling/src/verify/gates/windowed-infinite-query-health.ts";
@@ -23,6 +24,13 @@ const GLIDE_SOURCE =
   "}\n";
 
 export const CLIENT_ARMS: readonly RealCorpusLivenessArm[] = [
+  {
+    policy: wireInterface,
+    overlays: [
+      { kind: "add", path: "packages/client/src/data/liveness-wire.ts", source: "export interface LivenessImportResult {\n  readonly chatId: string;\n}\n" },
+    ],
+    messageIncludes: "exported wire-named plain-data interface",
+  },
   {
     policy: historyWrites,
     messageIncludes: "browser History mutation directly",

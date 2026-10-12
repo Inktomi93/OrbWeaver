@@ -590,6 +590,7 @@ function resolveReplyImages(params: UserIntent, capability: GenerationCapability
   return true;
 }
 
+// @orb-waive no-inline-package-interface(ResolveChatOptions): baselined when the gate landed; burn-down item 952.
 /** What a turn's resolution depends on beyond the intent and the model. */
 export interface ResolveChatOptions {
   /** {@link ChatPosture}; absent is a delivered chat turn. */

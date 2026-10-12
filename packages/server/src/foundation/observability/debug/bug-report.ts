@@ -78,6 +78,7 @@ const MIN_SECRET_LENGTH = 8;
  *  reports without making the reader retype a whole uuid (the lister resolves any unambiguous prefix). */
 const ID_PREFIX_HINT = 8;
 
+// @orb-waive no-inline-package-interface(BugReportInspectors): baselined when the gate landed; burn-down item 952.
 /** The optional domain-owned flight recorders, as the debug registrar already receives them. Absent ⇒ that
  *  source reports itself absent in the bundle rather than silently contributing nothing. */
 export interface BugReportInspectors {

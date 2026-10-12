@@ -47,6 +47,7 @@ function isInlineServable(mime: string): boolean {
   return INLINE_MEDIA_PREFIXES.some((prefix) => base.startsWith(prefix));
 }
 
+// @orb-waive no-inline-package-interface(BlobAssetsPort): baselined when the gate landed; burn-down item 952.
 /** The `assets` front-door slice the blob route consumes. `getMetadata` may include `ownerId` for the
  *  roster-avatar path. */
 export interface BlobAssetsPort {
@@ -60,16 +61,19 @@ export interface BlobAssetsPort {
   }) => Promise<Uint8Array | undefined>;
 }
 
+// @orb-waive no-inline-package-interface(BlobCasPort): baselined when the gate landed; burn-down item 952.
 /** The `infra/storage` CAS slice the blob route reads originals from (per-user keyed). */
 export interface BlobCasPort {
   readonly read: (ownerId: UserId, hash: string) => Promise<Uint8Array>;
 }
 
+// @orb-waive no-inline-package-interface(BlobDeps): baselined when the gate landed; burn-down item 952.
 export interface BlobDeps {
   readonly assets: BlobAssetsPort;
   readonly cas: BlobCasPort;
 }
 
+// @orb-waive no-inline-package-interface(PrincipalEnv): baselined when the gate landed; burn-down item 952.
 /** The request-context shape EVERY principal-reading route registrar in this directory types its `app`
  *  against — declared once here (the oldest such registrar) rather than re-spelled per route file. It is the
  *  WHOLE set of vars the auth middleware writes, not just the ones this route reads: Hono's env generic is

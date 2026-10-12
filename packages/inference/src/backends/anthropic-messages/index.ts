@@ -45,6 +45,7 @@ function isAnthropicChatRequest(req: ChatRequest): req is AnthropicChatRequest {
   return req.api === "anthropic-messages";
 }
 
+// @orb-waive no-inline-package-interface(AnthropicBackendDeps): baselined when the gate landed; burn-down item 952.
 export interface AnthropicBackendDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
@@ -60,6 +61,7 @@ function headersOf(secret: string | null): Record<string, string> {
   return { [VERSION_HEADER]: API_VERSION, ...(secret !== null && secret.length > 0 ? { [API_KEY_HEADER]: secret } : {}) };
 }
 
+// @orb-waive no-inline-package-interface(AnthropicModelsDial): baselined when the gate landed; burn-down item 952.
 /** One `GET /v1/models` dial. The key is a plain string: a saved connection's decrypted key, or a key typed into
  *  a draft that has nothing saved yet. `secrets` is what the dial's error text is scrubbed of. */
 export interface AnthropicModelsDial {

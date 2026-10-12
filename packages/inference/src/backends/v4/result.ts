@@ -50,6 +50,7 @@ const openRouterRawUsageSchema = z.object({
   is_byok: z.boolean().nullish().catch(null),
 });
 
+// @orb-waive no-inline-package-interface(MeasuredCost): baselined when the gate landed; burn-down item 952.
 /** A wire-reported cost WITH its breakdown — what `costProvenance: "measured"` records. */
 export interface MeasuredCost {
   readonly costUsd: number;
@@ -214,6 +215,7 @@ export function appliedSampling(sampling: ResolvedSampling, warnings: readonly R
   return Object.fromEntries(Object.entries(sampling).filter(([knob]) => !dropped.has(knob)));
 }
 
+// @orb-waive no-inline-package-interface(ResultContext): baselined when the gate landed; burn-down item 952.
 export interface ResultContext {
   readonly responseCache?: ResponseCache | undefined;
   readonly model: ModelId;

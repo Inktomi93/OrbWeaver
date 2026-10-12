@@ -43,6 +43,7 @@ function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
   return IMAGERY_WARNING_CODES.has(code);
 }
 
+// @orb-waive no-inline-package-interface(ImageryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the imagery seam needs from the composition root. `resolveViewerVisibility` is the late-bound
  *  forward-ref (built after chat); the keystone threads it as a getter so the cycle stays broken. */
 export interface ImageryComposeDeps {

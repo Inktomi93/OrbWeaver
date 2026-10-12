@@ -107,6 +107,7 @@ const PLUGIN_MESSAGE_CONTENT_CAP = 16_384;
 // The plugin prompt-transform ORDER BAND (automation 0–999, plugins 1000+; host policy wraps guest).
 const PLUGIN_TRANSFORM_ORDER_BASE = 1000;
 
+// @orb-waive no-inline-package-interface(AutomationPluginComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the automation+plugin seam needs from the composition root. */
 export interface AutomationPluginComposeDeps {
   readonly db: Db;
@@ -189,7 +190,7 @@ export interface AutomationPluginComposeDeps {
   }>;
 }
 
-// @orb-waive no-inline-wire-interface(AutomationPluginComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(AutomationPluginComposeResult): baselined when the gate landed; burn-down item 952.
 /** The automation+plugin compose product. */
 export interface AutomationPluginComposeResult {
   readonly automation: AutomationService;

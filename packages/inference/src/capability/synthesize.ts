@@ -25,6 +25,7 @@ import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { ModelFamily } from "../contract/runtime.ts";
 import { applyFamilyFloor } from "./sources/family-floor.ts";
 
+// @orb-waive no-inline-package-interface(Evidence): baselined when the gate landed; burn-down item 952.
 /** What the resolver assembled for one (connection × model), lowest tier last. */
 export interface Evidence {
   readonly declared?: DeclaredCapability | null | undefined;
@@ -33,6 +34,7 @@ export interface Evidence {
   readonly curated?: readonly CapabilityOverride[] | undefined;
 }
 
+// @orb-waive no-inline-package-interface(SynthesizedCapability): baselined when the gate landed; burn-down item 952.
 export interface SynthesizedCapability {
   readonly capability: Capability;
   readonly warnings: readonly ResolvedWarning[];

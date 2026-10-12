@@ -46,6 +46,7 @@ export function isIdleTrip(error: unknown): boolean {
   return false;
 }
 
+// @orb-waive no-inline-package-interface(IdleAbort): baselined when the gate landed; burn-down item 952.
 /** The composed idle-abort handle a runner threads through its stream loop. */
 export interface IdleAbort {
   /** The composed signal — fires on either the caller's cancel or an idle stall. Pass to `fetch`. */

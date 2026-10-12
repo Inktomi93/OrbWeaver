@@ -22,6 +22,7 @@ import { buildAuditStatementIfPrecedingWrote } from "#foundation/observability";
 import { publishUserEvent } from "#transport/trpc";
 import type { SessionSocketEviction } from "../http/index.ts";
 
+// @orb-waive no-inline-package-interface(AdminComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the admin seam needs from the composition root: boot primitives + the sibling services admin's
  *  session/vllm/embed sub-bundles route through. `vllmEngine` is the registry's live engine handle (null when
  *  vLLM is disabled). */
@@ -56,7 +57,7 @@ export interface AdminComposeDeps {
   readonly serverRestart: ServerRestartPort;
 }
 
-// @orb-waive no-inline-wire-interface(AdminComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(AdminComposeResult): baselined when the gate landed; burn-down item 952.
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
  *  the export service). */
 export interface AdminComposeResult {

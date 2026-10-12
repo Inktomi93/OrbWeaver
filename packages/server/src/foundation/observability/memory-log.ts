@@ -4,6 +4,7 @@
 
 import { getLog } from "./logger.ts";
 
+// @orb-waive no-inline-package-interface(MemoryLogRecord): baselined when the gate landed; burn-down item 952.
 export interface MemoryLogRecord {
   readonly event: string;
   readonly [field: string]: unknown;
