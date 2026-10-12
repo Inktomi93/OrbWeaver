@@ -1,5 +1,6 @@
 // verb: countDistillCalls — the distill sweep's model-call estimate: one call per non-synthetic card with
 // content, scoped to one owner or box-wide. The agreement with the real batch lives in distill.int.test.ts.
+// @subject packages/server/src/domain/discovery/verbs/count-distill-calls.ts
 
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";

@@ -2,6 +2,7 @@
 // SERIALIZES the already-mapped orb-native file and delegates the write to the preset domain's injected op
 // (owning no serde and no collision rule), isolates a refusal PER PRESET, separates ACCEPTED from NET-NEW, and
 // emits a note for every preset that landed — including the empty-fields "landed whole" note.
+// @subject packages/server/src/domain/import/verbs/import-presets.ts
 
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -3,6 +3,7 @@
 //     width + webp format), then cache it.
 //   • cache hit ⇒ serve cached bytes, transform NOT called again.
 //   • off-ladder/absurd width, a non-hash, and a non-owner all ⇒ undefined (404) with no transform.
+// @subject packages/server/src/domain/assets/verbs/resolve-variant.ts
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";

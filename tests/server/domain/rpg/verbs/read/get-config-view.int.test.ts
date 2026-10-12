@@ -2,6 +2,7 @@
 // (`gmPresetId` / `extractionMode`) at their defaults on a fresh game, and the WAVE MU macro-editor pair:
 // the game's own authored `userMacros` + the NAMES the chat's active preset declares (the shadow gloss the
 // host console renders — a game macro sharing a preset macro's name is the one the turn resolves).
+// @subject packages/server/src/domain/rpg/verbs/read/get-config-view.ts
 
 import { userMacroSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";

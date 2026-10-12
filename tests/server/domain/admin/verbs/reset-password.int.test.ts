@@ -7,6 +7,7 @@
 // the sessions untouched. The fourth is the ORDERING pin — a reset for a target with no live sessions still
 // writes its audit row, which is what breaks if the kick is ever moved between the write and the
 // `changes()`-guarded audit insert.
+// @subject packages/server/src/domain/admin/verbs/reset-password.ts
 
 import { users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";

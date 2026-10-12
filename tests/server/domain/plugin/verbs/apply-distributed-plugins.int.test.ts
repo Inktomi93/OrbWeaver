@@ -4,6 +4,7 @@
 // The pins: a user who missed the fan-out ends up with the same CONSENT-FIRST row every recipient got; it is
 // SELF-scoped (a plain member drives it for themselves, with no admin anywhere); and it is idempotent by slug,
 // so a second drive mints nothing and a user's own pre-existing copy is never disturbed.
+// @subject packages/server/src/domain/plugin/verbs/apply-distributed-plugins.ts
 
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

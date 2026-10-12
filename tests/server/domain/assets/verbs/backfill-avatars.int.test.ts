@@ -5,6 +5,7 @@
 //   • a mismatched card is never STORED — the hash verdict is knowable from the bytes, so rejecting it
 //     costs no row and no blob (an indexed-then-rejected card is GC's problem an hour later).
 //   • `dryRun` writes nothing AND forecasts the real link/mismatch split (the params contract's promise).
+// @subject packages/server/src/domain/assets/verbs/backfill-avatars.ts
 
 import { createHash } from "node:crypto";
 import { assets, characters } from "@orb/db";

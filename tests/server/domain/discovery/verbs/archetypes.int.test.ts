@@ -1,6 +1,7 @@
 // Integration: archetypes — k-means over an owner's card vectors, labelled from distilled facets (mode
 // genre/tone + top tags), largest first; owner-scoped (audit #1); content-collapsed (fork copies don't
 // double-count). (corpusProjection has its own mirror test: projection.int.test.ts.)
+// @subject packages/server/src/domain/discovery/verbs/archetypes.ts
 
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characterSummaries } from "@orb/db";

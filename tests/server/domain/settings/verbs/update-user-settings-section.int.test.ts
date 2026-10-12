@@ -2,6 +2,7 @@
 // two concurrent patches on SIBLING sections of the SAME user both land (the per-user
 // serializer makes the read-merge-write atomic w.r.t. other same-user writes — without it last-write-wins
 // would silently drop one). Plus: a section patch deep-merges (doesn't clobber sibling sections/keys).
+// @subject packages/server/src/domain/settings/verbs/update-user-settings-section.ts
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";

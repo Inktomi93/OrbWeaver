@@ -1,4 +1,5 @@
 // verb: updateTag — partial patch, `null` clears color to theme default, rename conflict, missing → 404.
+// @subject packages/server/src/domain/tag/verbs/update.ts
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";

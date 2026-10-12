@@ -2,6 +2,7 @@
 // character / foreign anchor persona → leak-free NotFound, BEFORE any row lands), the `(owner, name)`
 // typed conflict, position normalization (sparse wire positions → dense 0..n-1), the groupConfig
 // parse-at-write, and the `rosterPresetsChanged` user-bus emit.
+// @subject packages/server/src/domain/roster-preset/verbs/create.ts
 
 import { rosterPresetMembers, rosterPresets } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";

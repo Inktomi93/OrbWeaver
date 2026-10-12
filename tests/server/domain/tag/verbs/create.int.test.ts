@@ -1,4 +1,5 @@
 // verb: createTag — mints an owner-scoped tag (defaults applied) and TOCTOU-rejects a duplicate name.
+// @subject packages/server/src/domain/tag/verbs/create.ts
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { createTagService } from "@orb/server/domain/tag";

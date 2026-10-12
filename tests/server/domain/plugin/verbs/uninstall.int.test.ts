@@ -1,6 +1,7 @@
 // verb: uninstall — remove an installed plugin (02 §4). Deactivate (dispose the resident) → delete the row
 // (KV + the #802 fetched-asset links cascade) → reap the bundle asset AND the covers this install was
 // retaining. The end state is zero rows, zero KV, zero bundle bytes, and no orphaned plugin art.
+// @subject packages/server/src/domain/plugin/verbs/uninstall.ts
 
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, pluginKv } from "@orb/db";

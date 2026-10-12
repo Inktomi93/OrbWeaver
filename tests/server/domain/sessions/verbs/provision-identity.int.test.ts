@@ -1,3 +1,6 @@
+// verb: sessions.provisionIdentity — resolves an external identity to a user row, or denies it.
+// @subject packages/server/src/domain/sessions/verbs/provision-identity.ts
+
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";

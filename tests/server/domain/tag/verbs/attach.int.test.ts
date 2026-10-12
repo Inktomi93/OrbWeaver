@@ -1,5 +1,6 @@
 // verbs: attachTag · detachTag · bulkAttachTag — ownership + target gate + the D30 chat membership overlay +
 // the proposed/accepted status lifecycle, all through the service front door.
+// @subject packages/server/src/domain/tag/verbs/attach.ts
 
 import { characterTags, chatTags } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";

@@ -2,6 +2,7 @@
 // DIVERGENCE belt both terminal verbs share: the copy carries the accepted patch while the ORIGINAL card
 // is byte-untouched; no snapshot is minted (nothing existing was written); the zero-write arm mints no
 // copy; a diverged field drops without `confirmDiverged` and lands with it.
+// @subject packages/server/src/domain/refinery/verbs/apply-as-copy.ts
 
 import { characterSnapshots, characters } from "@orb/db";
 import { eq } from "drizzle-orm";

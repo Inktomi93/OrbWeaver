@@ -1,6 +1,7 @@
 // verb: upgrade — replace an installed plugin's bundle (02 §4). Slug-match, downgrade refusal, the re-grant
 // rule (WIDENED REACH — new caps OR new netHosts ⇒ disabled), the old-bundle reap, and enabled-state
 // preservation when no re-confirmation is needed.
+// @subject packages/server/src/domain/plugin/verbs/upgrade.ts
 
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";

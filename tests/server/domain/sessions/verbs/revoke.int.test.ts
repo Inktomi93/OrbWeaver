@@ -1,3 +1,6 @@
+// verb: sessions.revoke — logout and bulk revocation of sessions, audited for the owner.
+// @subject packages/server/src/domain/sessions/verbs/revoke.ts
+
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { batchMany } from "@orb/db/query";

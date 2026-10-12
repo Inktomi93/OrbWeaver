@@ -1,5 +1,6 @@
 // verb: listEntryIndex — the lean per-book index a machine writer reads (title + keys only). Load-bearing:
 // owner-gated (a foreign book is NotFound), projects only title/keys.
+// @subject packages/server/src/domain/world-info/verbs/entries/list-entry-index.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

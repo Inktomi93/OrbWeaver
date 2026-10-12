@@ -6,6 +6,7 @@
 //   • cooperative abort: an aborted signal stops the sweep between items (no further reads/embeds), and an
 //     abort during an embed's wait on the model rejects the pass with no partial row;
 //   • an embed failure PROPAGATES (never swallowed) — the completed items' rows survive for the rerun.
+// @subject packages/server/src/domain/embeddings/verbs/embed-corpus.ts
 
 import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedSpaceState, userConnections } from "@orb/db";

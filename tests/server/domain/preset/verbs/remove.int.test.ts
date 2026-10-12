@@ -1,3 +1,6 @@
+// verb: remove — deletes the owner's preset and audits it; the system default and other owners' presets are refused.
+// @subject packages/server/src/domain/preset/verbs/remove.ts
+
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, PresetNotFoundError, PresetOperationError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";

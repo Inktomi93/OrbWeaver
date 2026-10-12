@@ -8,6 +8,7 @@
 //     `tag.attachCardTagByName` seam (injected, over the same db) — the Accept/Reject queue's producer.
 //   • IDEMPOTENT / NO-DOWNGRADE: a re-run refreshes the summary in place and never flips an ACCEPTED tag
 //     back to pending. SYNTHETIC group characters are excluded.
+// @subject packages/server/src/domain/discovery/verbs/distill.ts
 
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { RoleClients, StructuredOptions, SummarizeInput } from "@orb/contracts/role-clients";

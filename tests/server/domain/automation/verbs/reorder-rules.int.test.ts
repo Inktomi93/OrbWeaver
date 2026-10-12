@@ -1,4 +1,5 @@
 // verb: reorderRules — total position rewrite (host-only); listRules reads position order.
+// @subject packages/server/src/domain/automation/verbs/reorder-rules.ts
 
 import { automationRules } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";

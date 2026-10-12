@@ -1,6 +1,7 @@
 // verb: staleGenerationOwners — boot re-indexes exactly the owners whose stored target no longer matches the
 // generation their binding resolves to now, or whose rebuild never promoted; an owner on a promoted, matching
 // generation is left alone.
+// @subject packages/server/src/domain/embeddings/verbs/stale-generation-owners.ts
 
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";

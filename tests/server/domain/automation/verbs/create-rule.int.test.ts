@@ -1,5 +1,6 @@
 // verb: createRule — host authority + the whole validation gauntlet (reserved trigger/arm · bad CEL · arm
 // cap · cooldown floor · unattached book), and the born-disabled/position-0 creation (04 §2).
+// @subject packages/server/src/domain/automation/verbs/create-rule.ts
 
 import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { AUTOMATION_RULE_NAME_MAX_CHARS } from "@orb/contracts/automation";

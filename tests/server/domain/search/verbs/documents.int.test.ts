@@ -3,6 +3,7 @@
 // better), the minScore floor, the content-hash collapse (fork/near-copy chunks → one better-ranked
 // representative), the empty-allowlist ZERO-embed short-circuit (the trigger-discipline mirror), and THE
 // flagship gate-8 owner/host-scope no-leak pin (two users share one chat; no cross-tenant chunk surfaces).
+// @subject packages/server/src/domain/search/verbs/documents.ts
 
 import { documentChunks, embedGenerations, embedSpaceState, userConnections } from "@orb/db";
 import type { EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";

@@ -1,5 +1,6 @@
 // Verb test: setScheduleEnabled — flips the enabled flag; F3 owner-scoping (a stranger toggling owner A's
 // schedule → leak-free NOT_FOUND, no mutation).
+// @subject packages/server/src/domain/workloads/verbs/set-schedule-enabled.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadScheduleId } from "@orb/kit/ids";

@@ -1,6 +1,7 @@
 // verb: listForChat — the room's attached books under the INJECTED member gate. Load-bearing:
 // room-PUBLIC (not owner-filtered — another member's attached book is visible; the pool assembles against
 // it either way); newest first; role null; a guard rejection propagates (a non-member never sees the list).
+// @subject packages/server/src/domain/world-info/verbs/attachments/list-for-chat.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

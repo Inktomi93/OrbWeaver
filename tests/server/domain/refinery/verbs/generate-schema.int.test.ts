@@ -3,6 +3,7 @@
 // authoring arms each drive their own call shape, and the honest-refusal / errors-as-data arms resolve
 // rather than throw. The prompt is asserted for what it must NOT contain too — the veto was about a prompt
 // begging for JSON, and a green that only checks the happy path would not have caught it.
+// @subject packages/server/src/domain/refinery/verbs/generate-schema.ts
 
 import type { SchemaForgeResult } from "@orb/server/domain/refinery";
 import { freshDb } from "../../../../support/db.ts";

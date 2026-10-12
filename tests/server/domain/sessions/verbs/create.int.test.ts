@@ -1,3 +1,6 @@
+// verb: sessions.create — mints an opaque token whose peppered hash, never the raw token, is what persists.
+// @subject packages/server/src/domain/sessions/verbs/create.ts
+
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";

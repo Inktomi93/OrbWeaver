@@ -1,6 +1,7 @@
 // verb: previewEmbedSpaceChange — the read the pane asks before an embedder change. It must say "rebuild" exactly
 // when the change moves the caller to a new embedding generation, count what that rebuild covers, and write
 // nothing.
+// @subject packages/server/src/domain/connection/verbs/preview-embed-space-change.ts
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { characterEmbeddings, characters, embedGenerations, userCredentials } from "@orb/db";

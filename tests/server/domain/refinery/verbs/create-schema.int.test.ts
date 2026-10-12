@@ -1,5 +1,6 @@
 // .int tests for `createSchema`: the write belt (lift + tightenings + well-known core) refuses BEFORE
 // anything persists, and the S5 per-owner CASE-INSENSITIVE name hygiene.
+// @subject packages/server/src/domain/refinery/verbs/create-schema.ts
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
 import { DomainOperationError } from "@orb/kit/errors";

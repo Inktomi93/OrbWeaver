@@ -15,6 +15,7 @@
 // beside the other egress attacks (`tests/server/infra/network/fetch-plugin-bundle.suite.test.ts`); this file
 // drives the DOMAIN funnel with an injected `fetchBundle` so the SSRF-block outcome and the funnel refusals are
 // provable without live DNS.
+// @subject packages/server/src/domain/plugin/verbs/install-from-url.ts
 
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";

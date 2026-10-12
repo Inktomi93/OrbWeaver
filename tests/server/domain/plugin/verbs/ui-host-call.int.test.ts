@@ -13,6 +13,7 @@
 // The ops are the harness's inert doubles, so a passing call proves the DISPATCH reached the right bridge op
 // with the right arguments — the op's own semantics (the D16 viewer clamp, the KV ceilings) are pinned where
 // they live, in `substrate/bridge.test.ts` and the storage suites, and are not re-proven here.
+// @subject packages/server/src/domain/plugin/verbs/ui-host-call.ts
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability } from "@orb/contracts/plugin";

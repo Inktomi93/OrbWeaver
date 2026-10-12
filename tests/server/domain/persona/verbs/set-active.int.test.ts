@@ -1,3 +1,6 @@
+// verb: setActivePersona — pins a persona to a chat seat, behind the injected author-or-host gate.
+// @subject packages/server/src/domain/persona/verbs/set-active.ts
+
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
 import type { ChatId, Handle, PersonaId } from "@orb/kit/ids";
