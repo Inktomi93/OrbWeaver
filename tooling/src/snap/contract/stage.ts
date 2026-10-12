@@ -72,7 +72,7 @@ export interface StageDbProvenance {
 }
 
 /** How a stage signs its users in (`--stage-auth`). `single-user` serves a copy of the dev db as its one
- *  owner; `local` boots an empty data root with local sign-in and the fixture's two seeded humans, so
+ *  owner; `local` boots an empty data root (or the `--stage-db` clone) with local sign-in and the fixture's two seeded humans, so
  *  `--contexts`/`--as` can drive multi-human flows against the staged tree. */
 export const STAGE_AUTH_MODES = ["single-user", "local"] as const;
 export type StageAuthMode = (typeof STAGE_AUTH_MODES)[number];
@@ -421,29 +421,29 @@ export interface StageArgs {
   ref: string | null;
   /** Force-rebuild the stage even when a warm one at this sha exists. Implies --isolated. */
   fresh: boolean;
-  /** Stage the WORKING TREE (uncommitted changes), not a commit — rsyncs tracked+modified+untracked
-   *  source (gitignore-filtered) into a fixed stage dir and re-syncs on every call (refreshable, no
-   *  full re-stage when warm). Implies --isolated; takes priority over --ref. */
+  /** Stage the WORKING TREE, not a commit: rsyncs tracked, modified and untracked source (gitignore-filtered)
+   *  into a fixed stage dir on every call. Implies --isolated; takes priority over --ref. */
   dirty: boolean;
   /** `--stage-auth`: how the stage signs users in. `local` boots an empty data root with the fixture's
    *  seeded humans, and `--contexts`/`--as` then log in against the stage. Implies --isolated. */
   stageAuth: StageAuthMode;
-  /** `--stage-db <path>`: clone this db (and its -wal/-shm) into the stage instead of the dev db. Implies
-   *  --isolated and --fresh, and does not combine with `--stage-auth local`. */
+  /** `--stage-db <path>`: clone this db, its -wal/-shm and the assets/ beside its db/ into the stage. Implies
+   *  --isolated and --fresh; with `--stage-auth local` the fixture humans are seeded into the clone. */
   stageDb: string | null;
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;
-  /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
-   *  engines status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
+  /** Print the stage's visibility (marker, band port owners, worktree dirs) and exit, ignoring the route. */
   stageStatus: boolean;
   /** Reap a STRANDED stage (a stage-rooted band process nothing has used inside the idle TTL) and prune
    *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
    *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
   stageSweep: boolean;
-  /** `--stage-keeper <band>`: the band idle TIMER'S OWN entry (#1163 arm b) — spawned by `ensureStage`
-   *  through ops/stage-keeper.ts, never typed by an operator. It polls that band's row and tears the stage
-   *  down through the `--stage-down` path once nothing has used it for the TTL. null = not a keeper. */
+  /** `--stage-keeper <band>`: the band idle timer's own entry (#1163 arm b), spawned by `ensureStage`, never typed. */
   stageKeeper: number | null;
+  /** `--stage-wait <min>`: queue for a busy table; a detached waiter boots the stage in order. null = no wait. */
+  stageWait: number | null;
+  /** `--stage-waiter <ticket>`: the queue waiter's own entry, never typed. */
+  stageWaiter: string | null;
   /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
    *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
   stageOwner: string | null;
