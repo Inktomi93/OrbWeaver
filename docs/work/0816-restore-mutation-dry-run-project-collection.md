@@ -1,8 +1,8 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-11
-priority: P1
+updated: 2026-10-12
+priority: P2
 area: ci
 ---
 

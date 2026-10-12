@@ -11,7 +11,7 @@ plan: doc-migration
 
 ## What
 
-Apply writing rule 9 to law: every rule in `docs/law/` is checkable or carries a reason. For each rule, name the gate or test that enforces it, add one, or delete the rule. Work one law doc at a time.
+Apply writing rule 9 to law: every rule in `docs/law/` is checkable or carries a reason. For each rule, name the gate or test that enforces it, add one, or delete the rule. Work one law doc at a time. Carry: every enforcement claim in the law names its gate.
 
 ## Why
 

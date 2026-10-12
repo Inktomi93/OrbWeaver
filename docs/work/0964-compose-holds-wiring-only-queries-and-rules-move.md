@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Closures inside packages/server/src/entry/compose run database queries and carry business rules: resolveUserPublics, resolveConnectedPersona and the present-host read in chat.ts, the large rpg.ts closures, automation-plugin.ts, search-discovery.ts, the seat writes in session-entries.ts, and query closures in co-participant-assets.ts, emit-chat-changed.ts, event-bus.ts, regex.ts, preset-usage.ts, visible-rooms.ts, roster-preset.ts and imagery.ts. Move each to its owning domain as an exported function, or as an injected op where it crosses domains, and add a gate that a compose module calls no drizzle query builder and holds no branching beyond wiring. Build the gate first, red against the current tree; its findings are the work set.
+Closures inside packages/server/src/entry/compose run database queries and carry business rules: resolveUserPublics, resolveConnectedPersona and the present-host read in chat.ts, the large rpg.ts closures, automation-plugin.ts, search-discovery.ts, the seat writes in session-entries.ts, and query closures in co-participant-assets.ts, emit-chat-changed.ts, event-bus.ts, regex.ts, preset-usage.ts, visible-rooms.ts, roster-preset.ts and imagery.ts. Move each to its owning domain as an exported function, or as an injected op where it crosses domains, and add a gate that a compose module calls no drizzle query builder and holds no branching beyond wiring. Build the gate first, red against the current tree; its findings are the work set. When it lands, Core-0 sections 5 and 9 and Spine-Testing section 2 describe the testkit shape (with 958).
 
 ## Why
 

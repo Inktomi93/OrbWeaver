@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-09-23
+status: blocked
+updated: 2026-10-12
 priority: P3
 area: infra
+blocked: owner
 ---
 
 # Track unhandled promise rejections in plugin guests

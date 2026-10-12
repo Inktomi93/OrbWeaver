@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-09-24
+status: blocked
+updated: 2026-10-12
 priority: P2
 area: network
+blocked: owner
 plan: easy-sharing
 ---
 

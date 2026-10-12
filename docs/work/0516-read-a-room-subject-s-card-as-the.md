@@ -1,8 +1,8 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-03
-priority: P2
+updated: 2026-10-12
+priority: P3
 area: imagery
 ---
 

@@ -12,7 +12,7 @@ plan: world-state-clips
 
 ## What
 
-Retain durable narrative facts as a concept under `docs/plans/world-state-clips/design.md`, parked until the owner resumes it.
+Retain durable narrative facts as a concept under `docs/plans/world-state-clips/design.md`, parked until the owner resumes it. Also: decide the normal-chat Trackers tab presentation when the program resumes.
 
 ## Why
 

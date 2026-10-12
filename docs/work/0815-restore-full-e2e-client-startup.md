@@ -10,7 +10,7 @@ area: ci
 
 ## What
 
-Make the full model-free E2E harness reach genuine client readiness for every selected mode before its tests begin.
+Make the full model-free E2E harness reach genuine client readiness for every selected mode before its tests begin. Run the diagnostics workflow once and keep its startup transcript as this item's evidence.
 
 ## Why
 

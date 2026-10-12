@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Tables, joins, subqueries, columns, reads and writes are read once, in `tooling/src/floor/code-facts/`. Move `resolveTableDef` and the checker read path from `tooling/src/ast/lib/columns.ts` and `column-reads.ts`, and fold `verify/lib/drizzle-client-call.ts`, `tenancy-read.ts`, `tenancy-join.ts` and the json-column readers onto it. `pnpm ast columns`, the tenancy gates, the json-column gates and the single-writer gates call it.
+Tables, joins, subqueries, columns, reads and writes are read once, in `tooling/src/floor/code-facts/`. Move `resolveTableDef` and the checker read path from `tooling/src/ast/lib/columns.ts` and `column-reads.ts`, and fold `verify/lib/drizzle-client-call.ts`, `tenancy-read.ts`, `tenancy-join.ts` and the json-column readers onto it. `pnpm ast columns`, the tenancy gates, the json-column gates and the single-writer gates call it. byte-check-cast reads its schema population through the one drizzle fact.
 
 ## Why
 

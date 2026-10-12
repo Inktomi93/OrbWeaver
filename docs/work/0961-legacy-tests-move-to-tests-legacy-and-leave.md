@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Every test file not yet rebuilt moves, by `git mv`, to a legacy folder under `tests/` at its same mirror path. The folder is the ledger: no list to maintain. Lane floors, commit hooks and the strict gates exclude the legacy folder by population; CI runs it as its own project, so the regression net stays up. Legacy files reach package internals through the root raw-reach map (`#<package>/<path>`) without grants, because `tests-raw-package-reach` and its grant tables exclude the folder. A domain's legacy folder is deleted when its rebuilt suite in the real mirror carries every case. New tests go only into the real mirror, at full strictness.
+Every test file not yet rebuilt moves, by `git mv`, to a legacy folder under `tests/` at its same mirror path. The folder is the ledger: no list to maintain. Lane floors, commit hooks and the strict gates exclude the legacy folder by population; CI runs it as its own project, so the regression net stays up. Legacy files reach package internals through the root raw-reach map (`#<package>/<path>`) without grants, because `tests-raw-package-reach` and its grant tables exclude the folder. A domain's legacy folder is deleted when its rebuilt suite in the real mirror carries every case. New tests go only into the real mirror, at full strictness. test-file-size excludes the legacy folder and its grant rows are deleted when this lands; rebuilt files obey the size cap.
 
 ## Why
 

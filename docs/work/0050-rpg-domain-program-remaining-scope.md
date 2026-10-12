@@ -12,7 +12,7 @@ plan: rpg
 
 ## What
 
-Retain the future RPG engine concept under `docs/plans/rpg/design.md`. Preserve the implemented RPG experience. Remaining game-engine scope and ordering await an explicit owner request.
+Retain the future RPG engine concept under `docs/plans/rpg/design.md`. Preserve the implemented RPG experience. Remaining game-engine scope and ordering await an explicit owner request. Also: remove RPG_PACKAGED_PROFILE_BY_KEY through item 357, and rule the resource-orb question with the takeover rulings.
 
 ## Why
 

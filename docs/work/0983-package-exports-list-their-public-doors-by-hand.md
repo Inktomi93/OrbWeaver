@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-D318: replace the wildcard exports map in kit, contracts, db, server and client with an explicit list of the doors production packages import, generated from the real cross-package imports in production source. Legacy tests that import a deep `@orb/<package>/<path>` move to the existing root raw-reach form (`#<package>/<path>`, granted under `tests-raw-package-reach`) and leave with their files when the rebuild replaces them; rebuilt tests enter through public entries and `@orb/testkit` only, per Core-0 section 5. No transitional testing door is added. Point knip at the declared exports with tests outside the production run, and baseline today's findings shrink-only for adjudication by area.
+D318: replace the wildcard exports map in kit, contracts, db, server and client with an explicit list of the doors production packages import, generated from the real cross-package imports in production source. Legacy tests that import a deep `@orb/<package>/<path>` move to the existing root raw-reach form (`#<package>/<path>`, granted under `tests-raw-package-reach`) and leave with their files when the rebuild replaces them; rebuilt tests enter through public entries and `@orb/testkit` only, per Core-0 section 5. No transitional testing door is added. Point knip at the declared exports with tests outside the production run, and baseline today's findings shrink-only for adjudication by area. Test-only exports knip will report once exports are listed, to delete or give a caller: the macro validateMacroArgs wrapper, the theme-derivation proof helpers oklabToOklch and derivedMutedForegroundLightness, DEFAULT_EMBED_MODEL, and the default-content and showcase-plugins export surface.
 
 ## Why
 

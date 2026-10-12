@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-`ast/lib/resolve.ts`, `usage.ts` and `ast/ops/wiring.ts` answer reference and member-read questions beside `floor/code-facts/reference-fact.ts`. Move `pnpm ast refs`, `callers`, `importers` and `unwired` onto the floor reader and delete the ast copies. Item 944 started this for member reads. About fifty more sites read a bracket key by hand with `getArgumentExpression`: in `tooling/src/ast/lib` (fields, liveness), `ast/ops` (regkeys, registry-candidates, swallowed), many `verify/lib` readers (bus, css-family, static-class, json-column, caught-failure, id-brand and others) and many gates. Move them family by family onto the floor reader, diffing each owning gate before and after.
+`ast/lib/resolve.ts`, `usage.ts` and `ast/ops/wiring.ts` answer reference and member-read questions beside `floor/code-facts/reference-fact.ts`. Move `pnpm ast refs`, `callers`, `importers` and `unwired` onto the floor reader and delete the ast copies. Item 944 started this for member reads. About fifty more sites read a bracket key by hand with `getArgumentExpression`: in `tooling/src/ast/lib` (fields, liveness), `ast/ops` (regkeys, registry-candidates, swallowed), many `verify/lib` readers (bus, css-family, static-class, json-column, caught-failure, id-brand and others) and many gates. Move them family by family onto the floor reader, diffing each owning gate before and after. Controls to carry: the clientgap false positive on ViewerView, a JSDoc link that is not a consumer, and mutable bindings that are not const aliases.
 
 ## Why
 

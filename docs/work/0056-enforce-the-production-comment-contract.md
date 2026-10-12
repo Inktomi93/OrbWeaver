@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-09-30
-priority: P2
+updated: 2026-10-12
+priority: P3
 area: tooling
 ---
 

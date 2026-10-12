@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-10-07
-priority: P1
+updated: 2026-10-12
+priority: P2
 area: plugin
 plan: plugin-authoring
 ---
