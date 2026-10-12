@@ -69,7 +69,7 @@ const APPLICATION = Object.freeze({
   "one-principal-mint-population": 4,
   "over-art-plate-arm": 1,
   "owner-role-split": 5,
-  "owner-scoped-reads": 31,
+  "owner-scoped-reads": 48,
   "owner-scoped-writes": 29,
   "package-subpath-crossing": 17,
   "persistence-boundary": 4,

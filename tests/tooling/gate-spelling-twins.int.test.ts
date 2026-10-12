@@ -80,6 +80,11 @@
 //     bracket-seam `mustPass` row, which is the acquitting half.
 // Both gates keep their BRACKET arm: the chain readers (`chainCalls`, `isDrizzleWriteStatement`) are still
 // property-access-keyed, which is committed, measured blindness rather than growth.
+//   • `owner-scoped-reads` ["bracket","namespace"] → ["bracket"] — the NAMESPACE arm closed when the gate's
+//     read anchor (`lib/tenancy-join.ts#readAnchorOf`) stopped requiring an Identifier argument and resolved its
+//     table through `tableTargetOf`, which reads `schema.characters` by its exported member. Pinned by that
+//     policy's own namespace `mustFlag` row. The bracket arm stays: the twin respells `T.id` on the reported
+//     line to `T["id"]`, and `predicatesOwnId` still matches the dotted text.
 //
 // The remedy for a red is never a ledger row: it is `tooling/src/verify/lib/symbol-reference.ts`
 // (`readMemberAccess` / `moduleMemberReference` / `readStringConstant`), which resolves a reference however
