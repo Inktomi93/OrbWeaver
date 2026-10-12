@@ -8,8 +8,10 @@ import type { CallExpression, Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
+import { MEMBER_ACCESS_KINDS, readMemberAccess, readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const TERMINALS: ReadonlySet<string> = new Set(["query", "mutation", "subscription"]);
+const INPUT_MEMBER: ReadonlySet<string> = new Set(["input"]);
 const LOOSE_CALLEES: ReadonlySet<string> = new Set(["z.any", "z.unknown", "z.looseObject"]);
 const PASSTHROUGH = "passthrough";
 /** Builder variables are short chains; a longer walk means a cycle through re-assignment. */
@@ -47,12 +49,13 @@ function readsInput(handler: Node, readers: ReadonlySet<Node>): boolean {
   return readers.has(handler);
 }
 
-/** The function whose first parameter this `<param>.input` read names, if any. */
+/** The function whose first parameter this `<param>.input` (or `<param>["input"]`) read names, if any. */
 function inputReader(access: Node): Node | undefined {
-  if (!N.isPropertyAccessExpression(access) || access.getName() !== "input") {
+  const read = readsMemberNamed(access, INPUT_MEMBER);
+  if (read === undefined) {
     return;
   }
-  const receiver = access.getExpression().getText();
+  const receiver = read.receiver.getText();
   const fn = access.getFirstAncestor((ancestor) => N.isArrowFunction(ancestor) || N.isFunctionExpression(ancestor) || N.isFunctionDeclaration(ancestor));
   const first = fn !== undefined && (N.isArrowFunction(fn) || N.isFunctionExpression(fn) || N.isFunctionDeclaration(fn)) ? fn.getParameters()[0] : undefined;
   return first !== undefined && N.isIdentifier(first.getNameNode()) && first.getName() === receiver ? fn : undefined;
@@ -61,10 +64,9 @@ function inputReader(access: Node): Node | undefined {
 /** One step down a builder chain: the receiver of a call, a builder variable's initializer, or an unwrapped expression. */
 function chainStep(current: Node): Node | undefined {
   if (N.isCallExpression(current)) {
-    const callee = current.getExpression();
-    return N.isPropertyAccessExpression(callee) ? callee.getExpression() : undefined;
+    return readMemberAccess(current.getExpression())?.receiver;
   }
-  if (N.isIdentifier(current) || N.isPropertyAccessExpression(current)) {
+  if (N.isIdentifier(current) || readMemberAccess(current) !== undefined) {
     const held = resolveStableExpression(current);
     if (held.kind === "resolved") {
       return held.value === current ? undefined : held.value;
@@ -81,8 +83,7 @@ function inputParsers(receiver: Node): readonly Node[] {
   const parsers: Node[] = [];
   let current: Node | undefined = receiver;
   for (let hop = 0; current !== undefined && hop < MAX_CHAIN_HOPS; hop++) {
-    const callee = N.isCallExpression(current) ? current.getExpression() : undefined;
-    if (N.isCallExpression(current) && callee !== undefined && N.isPropertyAccessExpression(callee) && callee.getName() === "input") {
+    if (N.isCallExpression(current) && readsMemberNamed(current.getExpression(), INPUT_MEMBER) !== undefined) {
       parsers.push(...current.getArguments());
     }
     current = chainStep(current);
@@ -96,7 +97,9 @@ function isLooseParser(parser: Node): boolean {
     return false;
   }
   const callee = parser.getExpression();
-  return LOOSE_CALLEES.has(callee.getText()) || (N.isPropertyAccessExpression(callee) && callee.getName() === PASSTHROUGH);
+  const read = readMemberAccess(callee);
+  const spelled = read === undefined ? callee.getText() : `${read.receiver.getText()}.${read.name}`;
+  return LOOSE_CALLEES.has(spelled) || read?.name === PASSTHROUGH;
 }
 
 export const gate = defineGate({
@@ -119,14 +122,13 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node): void => {
-            const callee = N.isCallExpression(node) ? node.getExpression() : undefined;
-            if (N.isCallExpression(node) && callee !== undefined && N.isPropertyAccessExpression(callee) && TERMINALS.has(callee.getName())) {
+            if (N.isCallExpression(node) && readsMemberNamed(node.getExpression(), TERMINALS) !== undefined) {
               terminals.push(node);
             }
           },
         },
         {
-          kinds: [SyntaxKind.PropertyAccessExpression],
+          kinds: MEMBER_ACCESS_KINDS,
           visit: (node): void => {
             const reader = inputReader(node);
             if (reader !== undefined) {
@@ -137,15 +139,15 @@ export const gate = defineGate({
       ],
       evaluate: () => {
         for (const call of terminals) {
-          const callee = call.getExpression();
+          const terminal = readMemberAccess(call.getExpression());
           const handler = handlerOf(call.getArguments()[0]);
-          if (!N.isPropertyAccessExpression(callee) || handler === undefined || !readsInput(handler, readers)) {
+          if (terminal === undefined || handler === undefined || !readsInput(handler, readers)) {
             continue;
           }
-          const parsers = inputParsers(callee.getExpression());
+          const parsers = inputParsers(terminal.receiver);
           const loose = parsers.find(isLooseParser);
           if (parsers.length === 0 || loose !== undefined) {
-            const name = callee.getNameNode();
+            const name = terminal.nameNode;
             const detail = loose === undefined ? "no `.input()` on the chain" : `loose parser \`${loose.getText()}\``;
             ctx.report.node(name, { token: name.getText(), offset: 0, message: `Found: ${detail}. ${MESSAGE}` });
           }
@@ -177,6 +179,24 @@ export const gate = defineGate({
       expect: { count: 2, messageIncludes: "loose parser" },
       why: "pass-anything parsers count as no parser: `z.unknown()` and `.passthrough()`",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/routers/chat.ts":
+          'declare const authed: any;\nexport const read = authed["query"](({ input }) => input);\nexport const write = authed["mutation"]((opts) => opts["input"].id);\n',
+      },
+      expect: { count: 2, messageIncludes: "no `.input()` on the chain" },
+      why: "the bracket spelling of the terminal and of the `input` read off the handler's first parameter",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/routers/chat.ts":
+          'declare const authed: any;\ndeclare const z: any;\ndeclare const schema: any;\nexport const a = authed["input"](z["unknown"]()).query(({ input }) => input);\nexport const b = authed["input"](schema["passthrough"]()).mutation(({ input }) => input);\n',
+      },
+      expect: { count: 2, messageIncludes: "loose parser" },
+      why: "the bracket spelling of the `.input()` call, of a pass-anything callee and of `.passthrough()`",
+    },
   ],
   mustPass: [
     {
@@ -195,6 +215,14 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/verbs/read.ts": "declare const authed: any;\nexport const read = authed.query(({ input }) => input);\n",
       },
       why: "the population: only the tRPC transport tree declares procedures",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/routers/chat.ts":
+          'declare const authed: any;\ndeclare const schema: any;\nexport const a = authed["input"](schema)["query"](({ input }) => input);\nexport const b = authed["input"](schema)["mutation"]((opts) => opts["input"].id);\nexport const c = authed["query"](({ ctx }) => ctx);\n',
+      },
+      why: "the bracket spelling with a parser on the chain, and a bracket-spelled handler that never reads input, stay silent",
     },
   ],
 });
