@@ -31,7 +31,6 @@ const BACKTICK_TOKEN_RE = /`([^`\n]+)`/gu;
 const STRIKETHROUGH_RE = /~~[^~\n]*~~/gu;
 const RIDER_LINE_RE = /rider|truth[- ]audit|purged|\bdead\b(?![-\s]ends?\b)|\bdied\b|the (former|old) `|\bnot an? `|there is no `/iu;
 const NON_LITERAL_TOKEN_RE = /[*{}<>…]|\.\.\./u;
-const HEAD_RIDER_RE = /BUILD-STATE RIDER/u;
 const HEAD_RIDER_SCAN_LINES = 20;
 const PLACEHOLDER_SEGMENT_RE = /(^|\/)[A-Z](\/|$)/u;
 const PATH_PREFIXES: readonly string[] = [
@@ -155,7 +154,7 @@ function maskStrikethrough(line: string): string {
 }
 
 function hasHeadRider(lines: readonly string[]): boolean {
-  return lines.slice(0, HEAD_RIDER_SCAN_LINES).some((line) => HEAD_RIDER_RE.test(line));
+  return lines.slice(0, HEAD_RIDER_SCAN_LINES).some((line) => line.includes("BUILD-STATE RIDER"));
 }
 
 function pathToken(raw: string): string | undefined {

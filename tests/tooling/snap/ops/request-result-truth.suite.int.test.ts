@@ -104,7 +104,7 @@ test("zero-request terminal, immutable index, and browser-free report agree on o
   const runSlot = await slot(root, "zero-requests");
   const path = await completeSnapRun({ slot: runSlot, root, exit: terminal.value.exit, error: null }, opts, ["snap", "--requests"]);
   const index = await readSnapRunIndex(path);
-  expect(index.resultPairs).toEqual(terminal.value.pairs.map(([key, value]) => [String(key), String(value)]));
+  expect(index.resultPairs).toEqual(terminal.value.pairs.map(([key, value]) => [key, String(value)]));
   expect(index.verdict).toMatchObject({ exit: EXIT.toolError, state: "refused" });
   expect(requestsArm(index)).toMatchObject({ state: "refused", detail: "requests=0" });
 
@@ -129,6 +129,6 @@ test("zero-request terminal, immutable index, and browser-free report agree on o
   const positiveSlot = await slot(root, "two-requests");
   const positivePath = await completeSnapRun({ slot: positiveSlot, root, exit: positive.value.exit, error: null }, opts, ["snap", "--requests"]);
   const positiveIndex = await readSnapRunIndex(positivePath);
-  expect(positiveIndex.resultPairs).toEqual(positive.value.pairs.map(([key, value]) => [String(key), String(value)]));
+  expect(positiveIndex.resultPairs).toEqual(positive.value.pairs.map(([key, value]) => [key, String(value)]));
   expect(requestsArm(positiveIndex)).toMatchObject({ state: "passed", detail: "requests=2" });
 });

@@ -7,6 +7,12 @@
 
 import type { MacroEnv, VarOp } from "./types.ts";
 
+/** Macro variables deliberately use native coercion, including comma-joined arrays and custom toString.
+ * JSON serialization would change the public arbitrary-runtime-state variable contract. */
+export function macroValueText(value: unknown): string {
+  return String(value);
+}
+
 /** THE TWO OWN-KEY ACCESSORS for a string-keyed variable plane, and the reason they exist (#1564).
  *
  *  A variable key is validated for LENGTH and nothing else, at every door: the `{{setvar}}` macro, the
@@ -68,11 +74,11 @@ export function applyVarOp(env: MacroEnv, op: VarOp): boolean {
       setVarKey(env, op.key, op.value);
       return true;
     case "add":
-      setVarKey(env, op.key, `${String(readVarKey(env, op.key) ?? "")}${op.value}`);
+      setVarKey(env, op.key, `${macroValueText(readVarKey(env, op.key) ?? "")}${op.value}`);
       return true;
     case "inc":
     case "dec": {
-      const current = parseCompleteInteger(String(readVarKey(env, op.key) ?? "0"));
+      const current = parseCompleteInteger(macroValueText(readVarKey(env, op.key) ?? "0"));
       if (current === null) {
         return false;
       }
@@ -103,5 +109,5 @@ export function foldVarOps(deltas: readonly (readonly VarOp[])[]): Record<string
   // `fromEntries` DEFINES each property, so a `__proto__` key that survived the fold above survives the
   // stringification too (#1564) — a loop of `out[key] = …` dropped it here even when the env held it, which
   // is the second half of the same hole and the one that reaches `chats.runtime_variables`.
-  return Object.fromEntries(Object.entries(env).map(([key, value]) => [key, String(value ?? "")]));
+  return Object.fromEntries(Object.entries(env).map(([key, value]) => [key, macroValueText(value ?? "")]));
 }

@@ -141,7 +141,7 @@ function retainingEdge(value: unknown, label: string): HeapRetainingEdge {
   return {
     nodeId: integer(row["nodeId"], `${label}.nodeId`),
     nodeName: text(row["nodeName"], `${label}.nodeName`),
-    edgeName: String(row["edgeName"] ?? ""),
+    edgeName: text(row["edgeName"] ?? "", `${label}.edgeName`),
     edgeType: text(row["edgeType"], `${label}.edgeType`),
     distance: finite(row["distance"], `${label}.distance`),
     children: array(row["children"], `${label}.children`).map((child, index) => retainingEdge(child, `${label}.children[${String(index)}]`)),
@@ -161,7 +161,7 @@ function dominator(value: unknown, label: string): HeapDominatorNode {
 function outgoingEdge(value: unknown, label: string): HeapOutgoingEdge {
   const row = record(value, label);
   return {
-    name: String(row["name"] ?? ""),
+    name: text(row["name"] ?? "", `${label}.name`),
     type: text(row["type"], `${label}.type`),
     node: nodeSummary(row["node"], `${label}.node`),
   };

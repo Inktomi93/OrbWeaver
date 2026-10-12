@@ -265,7 +265,7 @@ export const gate = defineGate({
           ],
           visit: (node, sourceFile): void => {
             const path = sourceFile.getFilePath();
-            if (!FEATURES_RE.test(path) || APP_SHELL_RE.test(path)) {
+            if (!path.includes("/packages/client/src/features/") || path.includes("/packages/client/src/features/app-shell/")) {
               return;
             }
             const text = node.getText();

@@ -7,8 +7,10 @@ import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 
 function keep<T>(edit: T | undefined, current: T): T {
-  // biome-ignore lint/nursery/useNullishCoalescing: null means "clear the field" (distinct from undefined "keep") — ?? would swallow an explicit clear.
-  return edit === undefined ? current : edit;
+  if (edit === undefined) {
+    return current;
+  }
+  return edit;
 }
 
 function keepList<T>(edit: readonly T[] | null | undefined, current: T[]): T[] {

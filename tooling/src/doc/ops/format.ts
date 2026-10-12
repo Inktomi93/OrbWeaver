@@ -102,15 +102,6 @@ function isInstructionFile(path: string): boolean {
 const CLASS_2_TREES = [".claude/skills/", "tooling/"] as const;
 
 /**
- * VENDORED: the pinned DevTools frontend closure. Its bytes are upstream AND hash-validated — the
- * `devtools-frontend-assets` gate reds with "hash/size mismatch" the moment a manifest member's bytes
- * change, so formatting a markdown file in there would break a gate rather than tidy a doc. Measured
- * 2026-09-12: exactly one `.md` under it (`…/panels/whats_new/resources/WNDT.md`), currently canonical
- * by luck, which is precisely why the fence is a PATH rule and not a "it's clean today" observation.
- */
-const VENDORED = /^tooling\/src\/snap\/lib\/devtools-frontend\//u;
-
-/**
  * THE GENERATED INDEX IS ADMITTED, and the route there is the durable part (#2178, closing the #2144
  * widening). `.claude/skills/snap-driving/reference/flags.md` is DERIVED
  * (`verify/ops/gen/snap-flags-index.ts`) and ratcheted by `ledgers:fresh`, and it was fenced out of this
@@ -130,7 +121,8 @@ const VENDORED = /^tooling\/src\/snap\/lib\/devtools-frontend\//u;
  */
 /** True for a tracked path this formatter owns under class 2. */
 function isClass2File(path: string): boolean {
-  return CLASS_2_TREES.some((tree) => path.startsWith(tree)) && !VENDORED.test(path);
+  // The vendored DevTools bytes are hash-validated and must not be reformatted.
+  return CLASS_2_TREES.some((tree) => path.startsWith(tree)) && !path.startsWith("tooling/src/snap/lib/devtools-frontend/");
 }
 
 /**

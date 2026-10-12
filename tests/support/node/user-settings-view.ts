@@ -52,7 +52,7 @@ export function userSettingsConfig(overrides: UserSettingsOverrides = {}): UserS
   const merged: Record<string, unknown> = { ...DEFAULT_USER_SETTINGS };
   for (const [key, value] of Object.entries(overrides)) {
     const base = (DEFAULT_USER_SETTINGS as Record<string, unknown>)[key];
-    merged[key] = value !== null && typeof value === "object" && base !== null && typeof base === "object" ? { ...base, ...value } : value;
+    merged[key] = typeof value === "object" && base !== null && typeof base === "object" ? { ...base, ...value } : value;
   }
   // The healing gate: whatever `merged` looks like, this always returns a byte-complete `UserSettings` —
   // the same defaulting production's read verb performs — instead of the raw, possibly-incomplete

@@ -110,7 +110,7 @@ async function openGamePanel(page: Page): Promise<void> {
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */
 function characterRef(view: TrackerView, characterId: CharacterId): RpgActorRef {
-  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
+  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
   }
@@ -120,7 +120,7 @@ function characterRef(view: TrackerView, characterId: CharacterId): RpgActorRef 
 /** The seeded character's actor row from a fresh tracker read (the volatile-plane comparand). */
 async function characterActor(chatId: ChatId, characterId: CharacterId): Promise<TrackerActor> {
   const view = await getTrackerView(chatId);
-  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
+  const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
   }
@@ -250,7 +250,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(after.ambient?.weather?.label).toBe("bitter cold");
     expect(after.recentBeats).toContain("Stepped into the freezing night market");
 
-    const hero = after.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
+    const hero = after.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
     expect(hero?.sheet.level).toBe(5);
     expect(hero?.sheet.className).toBe("Ranger");
     // Health is an ordinary meter since R3 — one ceiling home (the def's `max`, overridable per carrier).
@@ -273,7 +273,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(mira?.identity?.mood).toBe("wary");
     expect(mira?.identity?.relationship).toEqual({ kind: "custom", label: "vassal" });
     // Her carried trackers resolve SERVER-side (the `npcs` class) and pair with the readings on her own row.
-    expect(mira?.trackers.map((d) => [d.key, mira?.volatile?.trackerValues[d.key]?.value])).toEqual([
+    expect(mira?.trackers.map((d) => [d.key, mira.volatile.trackerValues[d.key]?.value])).toEqual([
       ["secret", "knows the password"],
       ["trust", 4],
     ]);

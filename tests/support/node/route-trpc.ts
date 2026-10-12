@@ -445,7 +445,7 @@ function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, 
       raw = undefined;
     }
   }
-  return isBatch ? ((raw as Record<string, unknown>) ?? {}) : { 0: raw };
+  return isBatch ? ((raw as Record<string, unknown> | null | undefined) ?? {}) : { 0: raw };
 }
 
 export interface TrpcRecorder {

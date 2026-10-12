@@ -224,7 +224,7 @@ async function judgeOne(text: string): Promise<number> {
     8,
   );
   spent += cost;
-  const n = Number.parseInt(String(out).match(/\d+/)?.[0] ?? "0", 10);
+  const n = Number.parseInt((/\d+/.exec(out))?.[0] ?? "0", 10);
   return Number.isFinite(n) ? n : 0;
 }
 

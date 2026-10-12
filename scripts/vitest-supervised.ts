@@ -233,7 +233,7 @@ function parseArgs(): { projects: string[]; baseArgs: string[]; report: string; 
       runtimeOnly = true;
       continue;
     }
-    const projectEq = a.match(PROJECT_RE);
+    const projectEq = PROJECT_RE.exec(a);
     if (projectEq?.[1] !== undefined) {
       projects.push(projectEq[1]);
       continue;
@@ -243,7 +243,7 @@ function parseArgs(): { projects: string[]; baseArgs: string[]; report: string; 
       i += 1;
       continue;
     }
-    const outEq = a.match(OUTPUT_FILE_RE);
+    const outEq = OUTPUT_FILE_RE.exec(a);
     if (outEq?.[1] !== undefined) {
       report = resolveUnder(outEq[1]);
       continue;
@@ -491,13 +491,11 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
     carry = lines.pop() ?? "";
     for (const line of lines) {
       retainOutput(recentOutput, line);
-      const m = line.match(RESULT_LINE_RE);
+      const m = RESULT_LINE_RE.exec(line);
       if (m?.[1] !== undefined) {
         completed.add(m[1]);
       }
-      if (nonVerdict === null) {
-        nonVerdict = NON_VERDICT_PATTERNS.find((pattern) => pattern.re.test(line))?.what ?? null;
-      }
+      nonVerdict ??= NON_VERDICT_PATTERNS.find((pattern) => pattern.re.test(line))?.what ?? null;
     }
   }
   child.stdout.on("data", (c: Buffer) => {

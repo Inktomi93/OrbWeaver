@@ -633,7 +633,7 @@ describe("migrateDataLayout", () => {
       () => "",
       (err: Error) => err.message,
     );
-    const remedy = message.match(/DATABASE_URL=(\S+)/u)?.[1];
+    const remedy = /DATABASE_URL=(\S+)/u.exec(message)?.[1];
     expect(remedy).toBe(`file:${join(root, DB_FILE_NAME)}`);
     const report = await migrateDataLayout({ layout: layoutFor(root, { ["DATABASE_URL"]: remedy ?? "" }), pid, deviceOf: dbOnOtherDevice });
     expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(false);

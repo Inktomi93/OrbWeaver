@@ -78,7 +78,7 @@ function packageFacts(value: unknown, id: PackageResourceId, path: string): Pack
 
 export function loadPackageMetadata(reader: ResourceReader, id: PackageResourceId): ResourceLoad<PackageMetadata> {
   if (!Object.hasOwn(PACKAGE_RESOURCE_PATHS, id)) {
-    return refused("unresolved", `unknown package resource id: ${String(id)}`, []);
+    return refused("unresolved", `unknown package resource id: ${id}`, []);
   }
   const path = PACKAGE_RESOURCE_PATHS[id];
   const loaded = reader.read(path);
@@ -109,7 +109,7 @@ function syntaxError(source: SourceFile): string | undefined {
 
 export function loadStaticConfig(reader: ResourceReader, id: StaticConfigResourceId, parseSource: StaticSourceParser): ResourceLoad<StaticConfigFacts> {
   if (!Object.hasOwn(STATIC_CONFIG_RESOURCE_PATHS, id)) {
-    return refused("unresolved", `unknown static config resource id: ${String(id)}`, []);
+    return refused("unresolved", `unknown static config resource id: ${id}`, []);
   }
   const path = STATIC_CONFIG_RESOURCE_PATHS[id];
   const loaded = reader.read(path);

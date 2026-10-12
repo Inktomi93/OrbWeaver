@@ -463,7 +463,7 @@ test(
         const root = `${ROOT}-proof-${sequence}`;
         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
         const rows = danglingSpecifiers(files).map((row) => `${policy.id}: ${row}`);
-        if (/FAIL-CLOSED/u.test(proof.why)) {
+        if (proof.why.includes("FAIL-CLOSED")) {
           declaredUnreadable += rows.length;
         } else {
           dangling.push(...rows);

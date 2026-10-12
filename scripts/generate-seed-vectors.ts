@@ -65,7 +65,7 @@ try {
   for (const card of DEFAULT_CHARACTER_CARDS) {
     const text = buildCardEmbedText({
       name: card.input.name,
-      description: card.input.description ?? null,
+      description: card.input.description,
       personality: card.input.personality ?? null,
       scenario: card.input.scenario ?? null,
       greetings: card.input.greetings ?? [],

@@ -260,7 +260,7 @@ function vehicleOf(body: Record<string, unknown> | null): string {
   }
   const gen = body["generationConfig"] as Record<string, unknown> | undefined;
   if (gen !== undefined && ("responseJsonSchema" in gen || "responseSchema" in gen)) {
-    return `generationConfig:${String(gen["responseMimeType"] ?? "?")}`;
+    return `generationConfig:${typeof gen["responseMimeType"] === "string" ? gen["responseMimeType"] : "?"}`;
   }
   return "unconstrained";
 }
@@ -293,12 +293,11 @@ function counted(roles: RoleClientsWithSignal, log: CallLog): Pick<RoleClientsWi
     },
     structured: async (inputs, opts): ReturnType<RoleClientsWithSignal["structured"]> => {
       log.calls += 1;
-      wire.body = null;
-      wire.reply = undefined;
+      Object.assign(wire, { body: null, reply: undefined });
       try {
         const result = await roles.structured(inputs, opts);
-        log.tokensIn = result.items[0]?.usage?.tokensIn ?? null;
-        log.tokensOut = result.items[0]?.usage?.tokensOut ?? null;
+        log.tokensIn = result.items[0]?.usage.tokensIn ?? null;
+        log.tokensOut = result.items[0]?.usage.tokensOut ?? null;
         log.answers.push(result.items[0]?.text ?? "");
         return result;
       } catch (error) {

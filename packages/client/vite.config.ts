@@ -120,9 +120,7 @@ function devCspMirror(): Plugin {
   // requests inside one stale window share the single in-flight probe.
   const currentPolicy = async (): Promise<string> => {
     if (Date.now() - probedAt >= CSP_MIRROR_TTL_MS) {
-      if (inFlight === null) {
-        inFlight = probe();
-      }
+      inFlight ??= probe();
       await inFlight;
     }
     return policy;
@@ -355,9 +353,9 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
     const key = createHash("sha256")
       .update(toolchain)
       .update("\0")
-      .update(this.environment?.name ?? "")
+      .update(this.environment.name)
       .update("\0")
-      .update(options?.moduleType ?? "")
+      .update(options.moduleType)
       .update("\0")
       .update(id)
       .update("\0")

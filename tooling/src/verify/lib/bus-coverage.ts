@@ -264,7 +264,7 @@ function callDiscriminators(sf: SourceFile, spec: BusCoverageSpec, emitterNames:
     if (name === undefined) {
       return [];
     }
-    if (spec.typesConst === "USER_BUS_EVENT_TYPES" && name === "emit" && !PLUGIN_SURFACE_STATE.test(sf.getFilePath())) {
+    if (spec.typesConst === "USER_BUS_EVENT_TYPES" && name === "emit" && !sf.getFilePath().endsWith("/domain/plugin/substrate/surface-state.ts")) {
       return [];
     }
     return discriminatorValues(call, spec, name);

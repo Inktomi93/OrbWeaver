@@ -123,12 +123,11 @@ const REST_VARIANTS: ReadonlySet<string> = new Set([
   "**",
 ]);
 
-/** A container-query prefix (`@md:`, `@min-[40rem]:`, `@md/name:`) is a viewport fact, never a state. */
-const CONTAINER_VARIANT_RE = /^@/u;
 const SUPPORTS_VARIANT_RE = /^(?:supports|min|max)-/u;
 
+// Container-query prefixes describe a viewport, not interactive state.
 function isRestVariant(prefix: string): boolean {
-  return REST_VARIANTS.has(prefix) || CONTAINER_VARIANT_RE.test(prefix) || SUPPORTS_VARIANT_RE.test(prefix);
+  return REST_VARIANTS.has(prefix) || prefix.startsWith("@") || SUPPORTS_VARIANT_RE.test(prefix);
 }
 
 interface ParseState {

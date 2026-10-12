@@ -294,7 +294,7 @@ function observe(project: Project, root: string): Observation {
   const errors = importer
     .getPreEmitDiagnostics()
     .map((diagnostic) => diagnostic.getCode())
-    .toSorted();
+    .toSorted((left = 0, right = 0) => left - right);
   return {
     value,
     global,

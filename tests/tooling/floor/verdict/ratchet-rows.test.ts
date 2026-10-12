@@ -1,7 +1,12 @@
 import { mkdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { citeResolves } from "../../../../tooling/src/floor/verdict/ratchet-rows.ts";
+import { citeResolves, parseRatchetRow } from "../../../../tooling/src/floor/verdict/ratchet-rows.ts";
+
+test("ratchet reasons refuse structured data instead of accepting an object placeholder", () => {
+  expect(() => parseRatchetRow("subject", { count: 1, why: { reason: "unreviewed" } })).toThrow("why");
+  expect(parseRatchetRow("subject", { count: 1, why: "" }).why).toBe("");
+});
 
 test("ratchet cites stay within the repository after normalization and symlink resolution", async ({ scratch }) => {
   const root = join(scratch, "repo");

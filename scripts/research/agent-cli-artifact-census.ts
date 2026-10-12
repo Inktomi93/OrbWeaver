@@ -289,7 +289,7 @@ function withoutHeredocBodies(command: string): string {
       continue;
     }
     retained.push(line);
-    const match = line.match(/<<(-)?\s*['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?/);
+    const match = /<<(-)?\s*['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?/.exec(line);
     if (match?.[2]) {
       stripTabs = Boolean(match[1]);
       delimiter = match[2];
@@ -389,16 +389,16 @@ function directFamily(token: string): Family | null {
   if (/tooling\/src\/snap\/cli\.ts$|scripts\/probes\/snap(?:-stage)?\.ts$/.test(normalized)) {
     return "snap";
   }
-  if (/tooling\/src\/ui-audit\/cli\.ts$/.test(normalized)) {
+  if (normalized.endsWith("tooling/src/ui-audit/cli.ts")) {
     return "design-audit";
   }
-  if (/tooling\/src\/motion-audit\/cli\.ts$/.test(normalized)) {
+  if (normalized.endsWith("tooling/src/motion-audit/cli.ts")) {
     return "motion-audit";
   }
-  if (/tooling\/src\/cpu-profile\/cli\.ts$/.test(normalized)) {
+  if (normalized.endsWith("tooling/src/cpu-profile/cli.ts")) {
     return "perf-meter";
   }
-  if (/tooling\/src\/screen-record\/cli\.ts$/.test(normalized)) {
+  if (normalized.endsWith("tooling/src/screen-record/cli.ts")) {
     return "record";
   }
   return null;
@@ -530,7 +530,7 @@ function outputCandidates(args: string[], cwd: string | undefined): ArtifactCand
   const candidates: ArtifactCandidate[] = [];
   for (let index = 0; index < args.length; index++) {
     const token = args[index] ?? "";
-    const equal = token.match(/^--(?:out|name)=(.+)$/);
+    const equal = /^--(?:out|name)=(.+)$/.exec(token);
     const value = equal?.[1] ?? (/^--(?:out|name)$/.test(token) ? args[index + 1] : undefined);
     if (value && !value.startsWith("-")) {
       const clean = value.replace(/[),.;:'"`]+$/, "");
@@ -640,13 +640,13 @@ function downstreamKind(toolName: string, input: Record<string, unknown> | undef
   } else if (typeof input?.["path"] === "string") {
     destination = input["path"];
   }
-  if (/^(?:Write|Edit|MultiEdit|apply_patch)$/i.test(toolName) && /docs\/reviews\//.test(destination)) {
+  if (/^(?:Write|Edit|MultiEdit|apply_patch)$/i.test(toolName) && destination.includes("docs/reviews/")) {
     return "report";
   }
   if (toolName === "Bash" && /\b(?:gh\s+issue\s+create|pnpm\s+work:item)\b/.test(inputText)) {
     return "issue";
   }
-  if (/^(?:Write|Edit|MultiEdit|apply_patch)$/i.test(toolName) && destination && !/docs\/reviews\//.test(destination)) {
+  if (/^(?:Write|Edit|MultiEdit|apply_patch)$/i.test(toolName) && destination && !destination.includes("docs/reviews/")) {
     return "fix";
   }
   if (toolName === "Bash" && /\bgit\s+commit\b/.test(inputText)) {
@@ -1044,9 +1044,7 @@ function aggregate(): Record<string, unknown> {
   const productRecordByDate: Record<string, Record<string, number>> = {};
   for (const invocation of productRecord) {
     const day = invocation.timestamp?.slice(0, 10) ?? "unknown";
-    if (!productRecordByDate[day]) {
-      productRecordByDate[day] = {};
-    }
+    productRecordByDate[day] ??= {};
     const bucket = productRecordByDate[day];
     bump(bucket, invocation.outcome);
   }

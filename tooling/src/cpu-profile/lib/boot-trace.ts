@@ -98,7 +98,7 @@ export function summarizeBootTrace(analyzed: { readonly insights: unknown }, eve
   const receipts = {} as Record<BootTraceInsightName, BootTraceInsightReceipt>;
   for (const name of BOOT_TRACE_INSIGHTS) {
     if (modelErrors[name] !== undefined) {
-      throw new Error(`boot trace insight ${name} failed: ${String(modelErrors[name])}`);
+      throw new Error(`boot trace insight ${name} failed: ${JSON.stringify(modelErrors[name])}`);
     }
     const model = record(models[name]);
     if (Object.keys(model).length === 0) {
@@ -117,7 +117,7 @@ export function summarizeBootTrace(analyzed: { readonly insights: unknown }, eve
   return {
     eventCount,
     navigationId,
-    url: String(set.url ?? ""),
+    url: typeof set.url === "string" ? set.url : "",
     lcpMs,
     rawTracePath,
     insights: receipts,

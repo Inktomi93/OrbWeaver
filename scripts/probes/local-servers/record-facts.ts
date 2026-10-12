@@ -70,7 +70,7 @@ function bodyKeysOf(body: unknown): string {
 
 function recordingFetch(log: Exchange[]): typeof fetch {
   return async (input, init) => {
-    const url = new URL(String(input));
+    const url = new URL(input instanceof Request ? input.url : input);
     const started = Date.now();
     const res = await fetch(input, init);
     const text = await res.text();

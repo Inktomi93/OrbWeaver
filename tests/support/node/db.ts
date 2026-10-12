@@ -149,7 +149,7 @@ function sqlOf(arg: unknown): string {
     return arg;
   }
   if (arg !== null && typeof arg === "object" && "sql" in arg) {
-    return String((arg as { sql?: string }).sql ?? "?");
+    return (arg as { sql?: string }).sql ?? "?";
   }
   return "?";
 }

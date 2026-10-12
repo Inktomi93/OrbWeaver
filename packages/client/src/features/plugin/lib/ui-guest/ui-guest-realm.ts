@@ -113,11 +113,14 @@ interface RealmDeps {
 }
 
 /** Project a guest error handle to plain data. Nothing live crosses back; a dump is a plain JS value. */
-function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
+export function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
   const dumped: unknown = ctx.dump(handle);
   if (typeof dumped === "object" && dumped !== null) {
-    const record = dumped as { name?: unknown; message?: unknown };
-    return `${String(record.name ?? "Error")}: ${String(record.message ?? "")}`;
+    const nameValue = ("name" in dumped ? dumped.name : null) ?? "Error";
+    const messageValue = ("message" in dumped ? dumped.message : null) ?? "";
+    const name = typeof nameValue === "string" ? nameValue : JSON.stringify(nameValue);
+    const message = typeof messageValue === "string" ? messageValue : JSON.stringify(messageValue);
+    return `${name}: ${message}`;
   }
   return String(dumped);
 }

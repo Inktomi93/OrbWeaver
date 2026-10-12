@@ -10,7 +10,7 @@ import mutation, { assertEveryLaneClassified, DROPPED_LANES, RUNTIME_LANES } fro
 
 function baseLaneNames(): readonly string[] {
   return (base.test?.projects ?? []).flatMap((project) =>
-    typeof project === "object" && "test" in project && project.test.name !== undefined ? [String(project.test.name)] : [],
+    typeof project === "object" && "test" in project && typeof project.test.name === "string" ? [project.test.name] : [],
   );
 }
 

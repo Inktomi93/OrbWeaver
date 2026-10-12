@@ -164,7 +164,7 @@ test("an arm's RESULT pairs are TOTAL — an arm that did not run still says so"
   const pairs = new Map<string, ResultPair[1]>();
   for (const [, lifecycle] of pageArms()) {
     for (const [key, value] of lifecycle.pairs(pairInput())) {
-      pairs.set(String(key), value);
+      pairs.set(key, value);
     }
   }
   // No flag was passed, so every one of these is the "off" answer rather than an absent field.
@@ -181,7 +181,7 @@ test("the RESULT ledger: claimed pairs keep their position, unclaimed ones reach
   const ledger = armPairLedger(pairInput(), new Map<Arm, readonly ResultPair[]>());
   expect(ledger.arm("aria").map(([key]) => key)).toEqual(["aria", "aria-fails"]);
   expect(ledger.some("dead-css", "deadcss-fails").map(([key]) => key)).toEqual(["deadcss-fails"]);
-  const rest = ledger.rest().map(([key]) => String(key));
+  const rest = ledger.rest().map(([key]) => key);
   // Claimed once, never twice — the leftover sweep must not re-emit what the spine already placed.
   expect(rest).not.toContain("aria");
   expect(rest).not.toContain("deadcss-fails");

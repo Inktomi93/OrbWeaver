@@ -265,7 +265,7 @@ async function warmMode(browser: Browser, mode: ModeProject, reportDir: string):
     ({ attribute, prefix }) => {
       let previous: string | null | undefined;
       const observer = new MutationObserver(() => {
-        const ready = document.documentElement?.getAttribute(attribute) ?? null;
+        const ready = document.documentElement.getAttribute(attribute) ?? null;
         if (ready !== previous) {
           previous = ready;
           const state = ready ?? "missing";

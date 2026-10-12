@@ -102,8 +102,11 @@ const GUEST_LINE_RE = /plugin-guest\.js:(\d+):\d+/;
 
 /** Pull the guest source line out of a QuickJS error's `stack`. Returns `undefined` on any shape that
  *  doesn't match rather than guessing — an absent line is a silently omitted field, never a wrong one. */
-function extractGuestLine(stack: string): number | undefined {
-  const match = GUEST_LINE_RE.exec(stack);
+function extractGuestLine(dumped: object): number | undefined {
+  if (!("stack" in dumped) || typeof dumped.stack !== "string") {
+    return;
+  }
+  const match = GUEST_LINE_RE.exec(dumped.stack);
   if (match === null) {
     return;
   }
@@ -131,10 +134,11 @@ const DEFAULT_LIMITS: SandboxLimits = {
 function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
   const dumped: unknown = ctx.dump(handle);
   if (typeof dumped === "object" && dumped !== null) {
-    const record = dumped as { name?: unknown; message?: unknown; stack?: unknown };
-    const name = String(record.name ?? "Error");
-    const message = String(record.message ?? "");
-    const line = typeof record.stack === "string" ? extractGuestLine(record.stack) : undefined;
+    const nameValue = ("name" in dumped ? dumped.name : null) ?? "Error";
+    const messageValue = ("message" in dumped ? dumped.message : null) ?? "";
+    const name = typeof nameValue === "string" ? nameValue : JSON.stringify(nameValue);
+    const message = typeof messageValue === "string" ? messageValue : JSON.stringify(messageValue);
+    const line = extractGuestLine(dumped);
     return line === undefined ? { name, message } : { name, message, line };
   }
   return { name: "Error", message: String(dumped) };

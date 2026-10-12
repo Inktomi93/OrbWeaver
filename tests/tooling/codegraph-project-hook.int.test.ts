@@ -42,7 +42,7 @@ function runHook(hook: string, cwd: string, toolInput: object = {}, toolName = "
   const run = spawnSync(process.execPath, [hook], { input: JSON.stringify(payload), encoding: "utf8" });
   expect(run.status, run.stderr).toBe(0);
   expect(run.stderr).toBe("");
-  return String(run.stdout);
+  return run.stdout;
 }
 
 function updatedPath(output: string): string {

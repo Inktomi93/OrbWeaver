@@ -48,7 +48,7 @@ export interface ProseReading {
  *  it is about cannot compile against the pre-fix source, and a red-first receipt is the whole point. */
 export function readProseMeasure(page: Page, opening: string): Promise<ProseReading> {
   return page.evaluate((needle: string) => {
-    const paragraph = [...document.querySelectorAll("p,span,div")].find((el) => el.children.length === 0 && (el.textContent ?? "").trim().startsWith(needle));
+    const paragraph = [...document.querySelectorAll("p,span,div")].find((el) => el.children.length === 0 && el.textContent.trim().startsWith(needle));
     if (!(paragraph instanceof HTMLElement)) {
       throw new Error(`reading measure: no paragraph starting "${needle}" to measure`);
     }
@@ -59,7 +59,7 @@ export function readProseMeasure(page: Page, opening: string): Promise<ProseRead
     }
     const style = getComputedStyle(paragraph);
     context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const text = (paragraph.textContent ?? "").replace(/\s+/gu, " ").trim();
+    const text = paragraph.textContent.replace(/\s+/gu, " ").trim();
     const advance = context.measureText(text).width / text.length;
     const probe = document.createElement("div");
     probe.style.position = "absolute";

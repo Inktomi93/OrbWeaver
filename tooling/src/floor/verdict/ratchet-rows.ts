@@ -124,7 +124,10 @@ export function parseRatchetRow(subject: string, raw: unknown): RatchetRow {
       `row "${subject}": \`ratified\` (${ratified}) exceeds \`count\` (${count}) — the ratified portion is part of the budget, never beside it`,
     );
   }
-  const why = row.why === undefined ? null : String(row.why);
+  if (row.why !== undefined && typeof row.why !== "string") {
+    throw new RatchetRowError(`row "${subject}": \`why\` must be a string`);
+  }
+  const why = row.why ?? null;
   return { subject, count, ratified, debt: count - ratified, why, cite: readCite(subject, row.cite) };
 }
 

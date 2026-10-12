@@ -434,7 +434,7 @@ export async function run() {
     );
   }
   for (const r of rows.filter((row) => String(row["arm"]).startsWith("system") || String(row["arm"]).startsWith("clear"))) {
-    console.log(`${String(r["wire"])} ${String(r["arm"])} #${String(r["trial"] ?? "-")}: ${JSON.stringify(r["replyHead"])}`);
+    console.log(`${String(r["wire"])} ${String(r["arm"])} #${JSON.stringify(r["trial"] ?? "-")}: ${JSON.stringify(r["replyHead"])}`);
   }
   return verdict;
 }

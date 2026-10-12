@@ -13,6 +13,7 @@ import type {
   MacroRegistry,
 } from "./types.ts";
 import { MACRO_FLAG_DEFS } from "./types.ts";
+import { macroValueText } from "./variables.ts";
 
 /** Resolve an env entry by name, exact-case first then case-insensitively (registry parity).
  *  Returns the stringified value (null/undefined → ""), or `undefined` when no key matches so
@@ -21,13 +22,13 @@ import { MACRO_FLAG_DEFS } from "./types.ts";
  *  insertion-order match — deterministic and vanishingly rare for ChoiceBlock names. */
 function lookupEnvCI(env: MacroEnv, name: string): string | undefined {
   if (Object.hasOwn(env, name)) {
-    return String(env[name] ?? "");
+    return macroValueText(env[name] ?? "");
   }
   const lower = name.toLowerCase();
   const matchKey = Object.keys(env).find((key) => key.toLowerCase() === lower);
   // Return the (undefined) `matchKey` itself rather than a literal `undefined` on a miss — same
   // value, and it keeps the single-expression return readable.
-  return matchKey === undefined ? matchKey : String(env[matchKey] ?? "");
+  return matchKey === undefined ? matchKey : macroValueText(env[matchKey] ?? "");
 }
 
 // Resolve a macro argument only if it actually contains a sub-macro (the common arg is plain text).

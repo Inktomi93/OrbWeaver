@@ -34,7 +34,6 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const TOKEN_COLOR_RE = /^(var\(--|color-mix\(in oklab,)/u;
 /** An interpolated sky nests one mix over two token recipes — the tell that it blended, not snapped. */
 const NESTED_MIX_RE = /^color-mix\(in oklab, color-mix\(/u;
-const WASH_MIX_RE = /^color-mix\(in oklab,/u;
 const BODY_RE = /^(sun|moon)$/u;
 
 /** Is an angle inside the clockwise wedge from `from` to `to`? (Wrap-aware — a dial band may straddle 0°.) */
@@ -297,7 +296,7 @@ test("the storm is the loudest cell on every air axis; the particle layers are a
   // Every wash that exists is a token recipe.
   const washFills = WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).wash).filter((wash) => wash !== null);
   expect(washFills.length).toBeGreaterThan(0);
-  expect(washFills.every((wash) => WASH_MIX_RE.test(wash.fill))).toBe(true);
+  expect(washFills.every((wash) => wash.fill.startsWith("color-mix(in oklab,"))).toBe(true);
 });
 
 test("the composed treatment is the two axes joined: any hour × any weather is a complete, distinct stack", () => {

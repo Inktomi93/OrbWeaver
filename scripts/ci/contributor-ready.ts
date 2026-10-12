@@ -31,14 +31,14 @@ const child = spawnFullPriorityChild("pnpm", ["dev"], {
   env: childEnv,
   logPath: join(RUNNER_TEMP, "contributor-dev.log"),
 });
-let exited = false;
+const state = { exited: false };
 child.wait().then(
   (exit) => {
-    exited = true;
+    state.exited = true;
     console.error("pnpm dev exited", exit);
   },
   (error: Error) => {
-    exited = true;
+    state.exited = true;
     console.error("pnpm dev supervision failed", error);
   },
 );
@@ -80,7 +80,7 @@ for ($sample = 0; $sample -lt 44; $sample++) {
 try {
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   while (!((await ready(HEALTHZ)) && (await ready(DEV_ORIGIN)))) {
-    if (exited) {
+    if (state.exited) {
       throw new Error("pnpm dev exited before both endpoints answered");
     }
     if (Date.now() >= deadline) {

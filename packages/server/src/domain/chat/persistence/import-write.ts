@@ -143,9 +143,7 @@ async function loadExistingImports(db: Db, characterId: CharacterId, hashes: rea
       .innerJoin(chats, eq(chats.id, chatImportClaims.chatId))
       .where(and(eq(chatImportClaims.characterId, characterId), inArray(chatImportClaims.importHash, chunk)));
     for (const r of rows) {
-      if (seen[r.importHash] === undefined) {
-        seen[r.importHash] = { chatId: r.id, anchorPersonaId: r.anchorPersonaId };
-      }
+      seen[r.importHash] ??= { chatId: r.id, anchorPersonaId: r.anchorPersonaId };
     }
   }
   return seen;

@@ -13,7 +13,6 @@ import type { QuickTunnelLauncherDeps, RelayEvents, RelayLauncher, RelayProcess,
 
 const QUICK_TUNNEL_PARENT = "trycloudflare.com";
 const QUICK_TUNNEL_LABEL = /^[a-z0-9]+(?:-[a-z0-9]+)+$/u;
-const BANNER = /quick Tunnel has been created!/u;
 const BANNER_URL = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/u;
 // A line longer than this is no banner line, so the unterminated tail is dropped rather than held.
 const MAX_LINE_CHARS = 4096;
@@ -48,7 +47,7 @@ function bannerUrlReader(onUrl: (url: string) => void): (chunk: string) => void 
     carry = (lines.pop() ?? "").slice(-MAX_LINE_CHARS);
     for (const line of lines) {
       if (!bannerSeen) {
-        bannerSeen = BANNER.test(line);
+        bannerSeen = line.includes("quick Tunnel has been created!");
         continue;
       }
       const match = BANNER_URL.exec(line);

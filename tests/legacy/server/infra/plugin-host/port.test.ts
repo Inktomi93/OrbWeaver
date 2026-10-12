@@ -41,8 +41,6 @@ const INBOUND_CAP_RE = /inbound cap/u;
 const QUEUE_FULL_RE = /queue full/u;
 const HANDLER_BOOM_RE = /handler boom/u;
 const INVOCATION_ENDED_RE = /invocation ended/u;
-/** The membrane's guest→host argument cap refusal (distinct from `INBOUND_CAP_RE`, the handler-args cap). */
-const ARGS_CAP_RE = /arguments exceed/u;
 /** The resident-handler args channel's JSON-only refusal (a non-JSON payload never reaches the guest). */
 const ARGS_JSON_RE = /args must be a JSON document/u;
 const RESIDENT_CAPACITY_RE = /local resident runtime capacity/u;
@@ -2324,7 +2322,7 @@ describe("membrane — the INBOUND host-call args cap (the mirror of the 1 MiB r
     }
     const log = host.readLog(outcome.instance);
     expect(log.some((l) => l.message === "STORED")).toBe(false);
-    expect(log.some((l) => l.level === "error" && ARGS_CAP_RE.test(l.message))).toBe(true);
+    expect(log.some((l) => l.level === "error" && l.message.includes("arguments exceed"))).toBe(true);
     // The refusal is BEFORE the op: nothing reached the plugin-private store.
     expect(fake.store.size).toBe(0);
     host.dispose(outcome.instance);

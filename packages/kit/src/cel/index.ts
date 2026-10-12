@@ -8,6 +8,7 @@
 
 import type { ASTNode } from "@marcbachmann/cel-js";
 import { EvaluationError, ParseError, parse } from "@marcbachmann/cel-js";
+import { isPrimitive } from "#guards";
 
 // The source-length cap. Bytes, not chars — a multi-byte predicate can't sneak past a char cap.
 const CEL_MAX_SOURCE_BYTES = 2048;
@@ -158,7 +159,10 @@ function normalizeCel(value: unknown): CelValue {
   }
   // Anything else (undefined, functions, symbols) is not a CEL data value — coerce to its string form
   // rather than leak a non-CelValue; in practice the evaluator never returns these.
-  return String(value);
+  if (isPrimitive(value)) {
+    return String(value);
+  }
+  return typeof value === "function" ? value.toString() : JSON.stringify(value);
 }
 
 /** Evaluate a compiled program against `bindings`. Returns the normalized {@link CelValue}; throws

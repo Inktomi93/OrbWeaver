@@ -1344,7 +1344,7 @@ function swipeReport(rows: readonly Row[], latest: ReadonlyMap<string, string>, 
       continue;
     }
     console.log(`\n### ${cell} swipes\n`);
-    const stored = (result["steps"] as SwipeStep[]).map((step) => ({ ...step, calls: step.calls ?? [] }));
+    const stored = (result["steps"] as SwipeStep[]).map((step) => ({ ...step, calls: step.calls }));
     for (const [label, ok] of Object.entries(swipeChecks(stored))) {
       console.log(`- ${ok ? "PASS" : "FAIL"} ${label}`);
     }

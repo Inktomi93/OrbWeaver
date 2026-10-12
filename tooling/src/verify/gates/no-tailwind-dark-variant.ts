@@ -151,7 +151,7 @@ function exactTokens(scanner: Scanner, value: StaticClassCandidate): AnchoredTok
   const findings: AnchoredToken[] = [];
   for (const scanned of scanner.getCandidatesWithPositions({ content: value.value, extension: "html" })) {
     if (darkPart(scanned.candidate) !== undefined) {
-      const anchored = sourceToken(value.segments, Number(scanned.position), scanned.candidate);
+      const anchored = sourceToken(value.segments, scanned.position, scanned.candidate);
       if (anchored !== undefined) {
         findings.push(anchored);
       }

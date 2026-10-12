@@ -164,7 +164,7 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
   `)
     )[0]?.n ?? 0;
   return {
-    total: Number(total),
+    total,
     rows: rows.map(({ cs, name }) => ({
       characterId: cs.characterId,
       name,
@@ -329,10 +329,10 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
     // untyped.
     personaId: castId<PersonaId>(r.personaId),
     name: r.name,
-    chatCount: Number(r.chatCount),
-    messageCount: Number(r.messageCount),
-    tokensOut: recordedTokens(Number(r.tokensOut), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
-    tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
+    chatCount: r.chatCount,
+    messageCount: r.messageCount,
+    tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+    tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     lastUsedAt: r.lastUsedAt ?? null,
   }));
 }

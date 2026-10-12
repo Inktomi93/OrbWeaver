@@ -63,7 +63,7 @@ export async function inspectChatState(db: Db, chatId: ChatId): Promise<ChatInsp
   }));
 
   const frameRows = await db.select({ n: count() }).from(sessionEntries).where(eq(sessionEntries.chatId, chatId));
-  const sessionFrameCount = Number(frameRows[0]?.n ?? 0);
+  const sessionFrameCount = frameRows[0]?.n ?? 0;
 
   const recentEvents = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(desc(chatEvents.seq)).limit(RECENT_EVENT_LIMIT);
 

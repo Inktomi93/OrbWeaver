@@ -14,7 +14,7 @@ import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
-import { applyVarOp, readVarKey } from "./variables.ts";
+import { applyVarOp, macroValueText, readVarKey } from "./variables.ts";
 
 const DECIMAL_RADIX = 10;
 const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive
@@ -209,7 +209,7 @@ function resolvePredicateValue(rawToken: string, ctx: MacroContext): string {
   }
   if (BARE_IDENT.test(trimmed)) {
     const looked = readContextValue(trimmed, ctx);
-    return looked === undefined ? "" : String(looked);
+    return looked === undefined ? "" : macroValueText(looked);
   }
   return unquote(trimmed);
 }
@@ -344,7 +344,7 @@ const rollHandler: MacroHandler = (args, ctx) => {
   if (spec === undefined || spec === "") {
     return "";
   }
-  const dice = spec.match(DICE_SPEC);
+  const dice = DICE_SPEC.exec(spec);
   if (dice) {
     return rollDice(dice, random);
   }
@@ -441,7 +441,7 @@ const readVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
-  return String(readVarKey(ctx.env, key) ?? "");
+  return macroValueText(readVarKey(ctx.env, key) ?? "");
 };
 
 // {{setvar::name::value}} — write `value` to ctx.env[name], render "". Records the op on ctx.opLog.
@@ -480,13 +480,13 @@ const incVar: MacroHandler = (args, ctx) => {
     return "";
   }
   const op: VarOp = { op: "inc", key };
-  const current = String(readVarKey(ctx.env, key) ?? "0");
+  const current = macroValueText(readVarKey(ctx.env, key) ?? "0");
   if (!applyVarOp(ctx.env, op)) {
     pushVarError(ctx, `'incvar' needs a whole number: variable '${key}' currently holds '${current}'`);
     return current;
   }
   ctx.opLog?.push(op);
-  return String(readVarKey(ctx.env, key) ?? "");
+  return macroValueText(readVarKey(ctx.env, key) ?? "");
 };
 
 // {{decvar::name}} — −1 on the stored string, IFF it is a complete integer. Mirrors {{incvar}} above.
@@ -496,13 +496,13 @@ const decVar: MacroHandler = (args, ctx) => {
     return "";
   }
   const op: VarOp = { op: "dec", key };
-  const current = String(readVarKey(ctx.env, key) ?? "0");
+  const current = macroValueText(readVarKey(ctx.env, key) ?? "0");
   if (!applyVarOp(ctx.env, op)) {
     pushVarError(ctx, `'decvar' needs a whole number: variable '${key}' currently holds '${current}'`);
     return current;
   }
   ctx.opLog?.push(op);
-  return String(readVarKey(ctx.env, key) ?? "");
+  return macroValueText(readVarKey(ctx.env, key) ?? "");
 };
 
 // {{hasvar::name}} — "true" / "" so it composes with `{{if hasvar::flag}}`. Semantics: "exists" is

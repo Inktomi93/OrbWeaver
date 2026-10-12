@@ -113,13 +113,11 @@ describe("withViewTransition", () => {
   // transition: the update callback holds the old frame until the destination stops showing skeleton rows,
   // within a deadline, so a slow read costs a short hold rather than a second unanimated paint.
   describe("holds the old frame until the destination has content", () => {
-    const skeletonSelector = /skeleton/u;
-
     function stubTransitionDocument(pending: () => boolean): Array<() => void | Promise<void>> {
       const callbacks: Array<() => void | Promise<void>> = [];
       vi.stubGlobal("matchMedia", () => ({ matches: false }));
       vi.stubGlobal("document", {
-        querySelector: (selector: string) => (skeletonSelector.test(selector) && pending() ? {} : null),
+        querySelector: (selector: string) => (selector.includes("skeleton") && pending() ? {} : null),
         startViewTransition: (callback: () => void | Promise<void>) => {
           callbacks.push(callback);
           return { ready: Promise.resolve(), finished: Promise.resolve(), updateCallbackDone: Promise.resolve() };

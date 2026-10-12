@@ -186,7 +186,7 @@ export function readInstalledSurface(root: string): InstalledSurface | undefined
   if (!existsSync(join(pkgDir, "package.json"))) {
     return;
   }
-  const version = String((JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8")) as { version?: string }).version ?? "");
+  const version = (JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8")) as { version?: string }).version ?? "";
   const surface = installedSurfaceOver(globbedSurfaceProject(pkgDir), pkgDir, version);
   surfaceByRoot.set(root, surface);
   return surface;

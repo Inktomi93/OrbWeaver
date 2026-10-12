@@ -295,10 +295,10 @@ async function main(): Promise<void> {
     recorder.closeAllConnections();
     recorder.close();
     if (stack?.pid !== undefined && stack.exitCode === null) {
-      const exited = once(stack, "exit");
+      const exited = once(stack, "exit").then(() => true);
       killPidGroup(stack.pid, "SIGTERM");
-      await Promise.race([exited, delay(STOP_TIMEOUT_MS)]);
-      if (stack.exitCode === null) {
+      const stopped = await Promise.race([exited, delay(STOP_TIMEOUT_MS).then(() => false)]);
+      if (!stopped) {
         killPidGroup(stack.pid, "SIGKILL");
       }
     }

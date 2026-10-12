@@ -119,15 +119,15 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     // Raw-SQL boundary mint: `m.character_id` is the branded characters.id column; sql`` rows come back
     // untyped.
     characterId: castId<CharacterId>(r.characterId),
-    generations: Number(r.generations),
-    tokensIn: recordedTokens(Number(r.tokensIn), Number(r.tokensInMeasuredSamples), Number(r.tokensInEstimatedSamples)),
-    tokensInProvenance: aggregateTokenProvenance(Number(r.tokensInMeasuredSamples), Number(r.tokensInEstimatedSamples)),
+    generations: r.generations,
+    tokensIn: recordedTokens(r.tokensIn, r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
+    tokensInProvenance: aggregateTokenProvenance(r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
     // The sample counters, not this sum, decide recorded-vs-null (see recordedTokens) — coalescing here is safe.
-    tokensOut: recordedTokens(Number(r.tokensOut ?? 0), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
-    tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
+    tokensOut: recordedTokens(r.tokensOut ?? 0, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+    tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     costUsd: costOfSamples(costSamples.get(r.characterId)),
-    cacheReadTokens: Number(r.cacheReadTokens),
-    cacheWriteTokens: Number(r.cacheWriteTokens),
+    cacheReadTokens: r.cacheReadTokens,
+    cacheWriteTokens: r.cacheWriteTokens,
   }));
 }
 
@@ -161,11 +161,11 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
     characterId: castId<CharacterId>(r.characterId),
     model: r.model,
     provider: r.provider,
-    generations: Number(r.generations),
-    tokensOut: recordedTokens(Number(r.tokensOut), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
-    tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
-    genTimeMs: Number(r.genTimeMs),
-    genSamples: Number(r.genSamples),
+    generations: r.generations,
+    tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+    tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+    genTimeMs: r.genTimeMs,
+    genSamples: r.genSamples,
     costUsd: costOfSamples(costSamples.get(modelCostKey(r.characterId, r.model, r.provider))),
   }));
 }

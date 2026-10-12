@@ -87,7 +87,7 @@ test("resolves imported aliases, object spreads, and class member aliases at the
   });
 
   expect(facts.tokens.map((token) => token.value).sort()).toEqual(["probe:first", "probe:last", "probe:member-alias"]);
-  const producerLines = facts.tokens.map((token) => token.segments[0]?.node.getStartLineNumber()).sort();
+  const producerLines = facts.tokens.map((token) => token.segments[0]?.node.getStartLineNumber()).sort((left = 0, right = 0) => left - right);
   expect(producerLines).toEqual([2, 3, 4]);
 });
 

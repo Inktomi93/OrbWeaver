@@ -37,7 +37,7 @@ import baseVariant from "@jitl/quickjs-ng-wasmfile-release-sync";
 // transform and the worker bundle fails to build. It is also why `.dependency-cruiser.cjs` excludes
 // `?`-suffixed asset requests from its graph (see the note there).
 import wasmUrl from "@jitl/quickjs-ng-wasmfile-release-sync/wasm?url";
-import type { QuickJSContext, QuickJSHandle, QuickJSWASMModule } from "quickjs-emscripten-core";
+import type { QuickJSContext, QuickJSWASMModule } from "quickjs-emscripten-core";
 import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
 // The wire LEAF, never the `#lib` barrel: the barrel re-exports React modules, and in dev each carries the
 // react-refresh preamble that reads `window`, which a worker does not have (depcruise
@@ -46,7 +46,7 @@ import type { UiGuestBootMessage, UiGuestEventMessage, UiGuestInbound } from "#s
 import { UI_GUEST_BUDGETS } from "#src/lib/plugin-ui-guest-protocol.ts";
 // This module DRIVES; `ui-guest-realm` BUILDS — the same split `sandbox.ts` and `realm.ts` draw on the server.
 import type { GuestState } from "./ui-guest-realm.ts";
-import { callJsonParse, installRealm, LogRing, makeSeams, post } from "./ui-guest-realm.ts";
+import { callJsonParse, installRealm, LogRing, makeSeams, post, readError } from "./ui-guest-realm.ts";
 
 /** Every network affordance this THREAD has. Removed once the WASM is loaded — see the file header. */
 const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"] as const;
@@ -83,16 +83,6 @@ function fixedGuestMemory(): WebAssembly.Memory {
 function loadModule(): Promise<QuickJSWASMModule> {
   modulePromise ??= newQuickJSWASMModuleFromVariant(newVariant(baseVariant, { wasmLocation: wasmUrl, wasmMemory: fixedGuestMemory() }));
   return modulePromise;
-}
-
-/** Project a guest error handle to plain data. Nothing live crosses back; a dump is a plain JS value. */
-function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
-  const dumped: unknown = ctx.dump(handle);
-  if (typeof dumped === "object" && dumped !== null) {
-    const record = dumped as { name?: unknown; message?: unknown };
-    return `${String(record.name ?? "Error")}: ${String(record.message ?? "")}`;
-  }
-  return String(dumped);
 }
 
 /** Run a guest computation to settlement under a CPU budget: install the interrupt handler against REAL

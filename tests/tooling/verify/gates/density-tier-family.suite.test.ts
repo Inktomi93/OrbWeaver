@@ -97,7 +97,10 @@ test("§4.7 THE ACT IS THE OPERATION: one file performing two different acts is 
   // file across A1/A2/A3, so a new KIND of violation was absolved by arithmetic whenever an old occurrence
   // left. Collapse `operation` to a constant in lib/density-tier.ts and this arm reports one finding.
   const { authority } = passOf(TWO_ACTS);
-  expect(authority.effectiveFindings.map((finding) => finding.operation).toSorted()).toEqual(["box-in-box", "text-axis:size"]);
+  expect(authority.effectiveFindings.map((finding) => finding.operation).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual([
+    "box-in-box",
+    "text-axis:size",
+  ]);
 });
 
 test("§4.7 THE SUBJECT IS THE FILE: the same act in two files is two findings and needs two grants", () => {
@@ -109,7 +112,7 @@ test("§4.7 THE SUBJECT IS THE FILE: the same act in two files is two findings a
     "packages/client/src/features/a/one.tsx": 'export const A = <Text size="micro">a</Text>;\n',
     "packages/client/src/features/b/two.tsx": 'export const B = <Text size="micro">b</Text>;\n',
   });
-  expect(authority.effectiveFindings.map((finding) => finding.subject).toSorted()).toEqual([
+  expect(authority.effectiveFindings.map((finding) => finding.subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual([
     "packages/client/src/features/a/one.tsx",
     "packages/client/src/features/b/two.tsx",
   ]);

@@ -120,7 +120,7 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
     // BELTED (#1640): a fine override REPLACES the @theme value, so a snapped token's fine arm must carry
     // the same round(up, …, 1px) belt — an unbelted fine arm is the pointer most sessions actually use
     // running off the device-pixel grid (that is where #1143's switch thumb lived).
-    const m = fineBody.match(new RegExp(`--spacing-${name}:\\s*round\\(up, ([\\d.]+)rem, 1px\\)`, "u"));
+    const m = new RegExp(`--spacing-${name}:\\s*round\\(up, ([\\d.]+)rem, 1px\\)`, "u").exec(fineBody);
     expect(m, `--spacing-${name} must be present in the fine override block AND belted`).not.toBeNull();
     return Number(m?.[1]);
   };

@@ -52,7 +52,7 @@ function executablePathsFor(
   for (const [index, overlay] of modeOverlays.entries()) {
     const [path] = normalizePathSet([overlay.path], `tracked mode overlay[${String(index)}] path`);
     if (path === undefined || !repoPaths.includes(path)) {
-      throw new Error(`tracked mode overlay path is not in the candidate index: ${String(path ?? overlay.path)}`);
+      throw new Error(`tracked mode overlay path is not in the candidate index: ${path ?? overlay.path}`);
     }
     if (overlaid.has(path)) {
       throw new Error(`tracked mode overlay path is declared more than once: ${path}`);

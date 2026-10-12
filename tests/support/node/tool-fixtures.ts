@@ -136,7 +136,7 @@ export const test = houseTest.extend<ToolFixtures>({
     const binDir = join(scratch, "fake-bin");
     // biome-ignore lint/style/noProcessEnv: PATH manipulation IS this fixture's job — a temp executable must shadow the real one for the spawned child; restored below.
     const originalPath = process.env["PATH"];
-    let prepended = false;
+    const state = { prepended: false };
     await use(async (name, moduleSource) => {
       if (!FAKE_BIN_NAME_RE.test(name) || name.endsWith(".") || WINDOWS_DEVICE_NAME_RE.test(name)) {
         throw new Error(`fakeBin: ${JSON.stringify(name)} must be one command basename`);
@@ -151,13 +151,13 @@ export const test = houseTest.extend<ToolFixtures>({
         writeFile(windowsLauncher, `@echo off\r\n"${windowsBatchLiteral(process.execPath)}" "%~dp0${moduleName}" %*\r\n`, "utf8"),
       ]);
       await chmod(posixLauncher, EXECUTABLE_MODE);
-      if (!prepended) {
+      if (!state.prepended) {
         // biome-ignore lint/style/noProcessEnv: see above — the prepend is the mechanism.
         process.env["PATH"] = `${binDir}${delimiter}${originalPath ?? ""}`;
-        prepended = true;
+        state.prepended = true;
       }
     });
-    if (prepended) {
+    if (state.prepended) {
       // biome-ignore lint/style/noProcessEnv: see above — the restore half.
       process.env["PATH"] = originalPath ?? "";
     }

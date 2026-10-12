@@ -161,7 +161,7 @@ test("a worker that dies mid-call rejects the call as a retryable server error, 
     const failure = await cache.embedTexts(MODEL, [CRASH]).catch((err: unknown) => err);
     expect(failure).toBeInstanceOf(ProviderError);
     expect(failure).toMatchObject({ kind: "server", retryable: true });
-    expect(String((failure as ProviderError).message)).toContain(`exit code ${String(CRASH_EXIT_CODE)}`);
+    expect((failure as ProviderError).message).toContain(`exit code ${String(CRASH_EXIT_CODE)}`);
     expect(errors).toEqual(["local-light: the inference worker stopped unexpectedly"]);
     const vectors = await cache.embedTexts(MODEL, ["abc"]);
     expect([...(vectors[0] ?? [])]).toEqual([3, 1, 2]);

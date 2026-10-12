@@ -42,6 +42,7 @@ import {
   THINKING_OFF_SPELLINGS,
   TOKENIZE_APIS,
 } from "@orb/contracts/inference";
+import { isPrimitive } from "@orb/kit/guards";
 
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
@@ -143,6 +144,10 @@ export function parseFactValue(edit: FactRow["edit"], raw: string): unknown {
   return raw.trim();
 }
 
+function factValueText(value: unknown): string {
+  return isPrimitive(value) ? String(value) : JSON.stringify(value);
+}
+
 /** The control's seed for a resolved value — the inverse of {@link parseFactValue}. An unstated leaf seeds the
  *  control's first choice (a boolean seeds "no", the cautious answer) or an empty field. */
 export function draftOf(edit: FactRow["edit"], value: unknown): string {
@@ -158,7 +163,7 @@ export function draftOf(edit: FactRow["edit"], value: unknown): string {
   if (edit.kind === "list") {
     return Array.isArray(value) ? value.map((part) => String(part)).join(", ") : "";
   }
-  return String(value);
+  return factValueText(value);
 }
 
 /** How a raw leaf value READS when the leaf states no formatter of its own. */
@@ -173,7 +178,7 @@ function readValue(edit: FactRow["edit"], value: unknown): string {
   if (edit.kind === "choice") {
     return edit.choices.find((choice) => choice.matches(value))?.label ?? String(value);
   }
-  return String(value);
+  return factValueText(value);
 }
 
 export function formatLeaf(leaf: FactLeaf, value: unknown): string {

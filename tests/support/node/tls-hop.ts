@@ -37,7 +37,7 @@ export function selfSignedIpPair(address: string): CertificatePair {
       notBefore: clock.now() - LIFETIME_MS,
       notAfter: clock.now() + LIFETIME_MS * VALID_LIFETIMES,
     }),
-    keyPem: keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    keyPem: keys.privateKey.export({ type: "pkcs8", format: "pem" }),
   };
 }
 

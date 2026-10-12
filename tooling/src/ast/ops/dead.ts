@@ -20,12 +20,6 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 /** How many sites a `dead` row names before it collapses to a count. */
 const DEAD_SITES_SHOWN = 3;
 
-/** A file path plausibly VENDORED — third-party code kept in-tree. There is no structural marker for
- *  this in the repo (informational only, unlike `@public`/`@swallowed-ok`): a `/vendor/` directory, or
- *  the file's own header comment saying so (the `build-argv.ts` chat-template convention). Vendored code
- *  can still be genuinely dead — this arm is context for the reader, never a verdict input. */
-const VENDORED_PATH_RE = /\/vendor\//u;
-
 const VENDORED_HEADER_RE = /\bvendored\b/iu;
 
 /** Application/package source is product evidence. Scripts, tooling, and package-root configs are useful
@@ -39,8 +33,9 @@ function siteListOf(nodes: readonly Node[]): string[] {
 
 /** `decl`'s own file lives under a `/vendor/` directory, or its FILE-level leading comment (the header,
  *  never the declaration's own leading comment) says "vendored". */
+// Vendored code is informational context, never an input to the dead-code verdict.
 function isVendoredHome(decl: Node): boolean {
-  if (VENDORED_PATH_RE.test(decl.getSourceFile().getFilePath())) {
+  if (decl.getSourceFile().getFilePath().includes("/vendor/")) {
     return true;
   }
   const header = decl.getSourceFile().getStatements()[0];

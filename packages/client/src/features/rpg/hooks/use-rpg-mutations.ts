@@ -59,10 +59,10 @@ type TrackerView = inferOutput<Trpc["rpg"]["getTrackerView"]>;
  */
 function wireActorRefKey(ref: inferInput<Trpc["rpg"]["patchSheet"]>["actorRef"]): string {
   if (ref.kind === "character") {
-    return actorRefKey({ kind: "character", characterId: castId<CharacterId>(String(ref.characterId)) });
+    return actorRefKey({ kind: "character", characterId: castId<CharacterId>(ref.characterId) });
   }
   if (ref.kind === "user") {
-    return actorRefKey({ kind: "user", userId: castId<UserId>(String(ref.userId)) });
+    return actorRefKey({ kind: "user", userId: castId<UserId>(ref.userId) });
   }
   return actorRefKey({ kind: "npc", npcKey: ref.npcKey });
 }

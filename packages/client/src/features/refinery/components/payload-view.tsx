@@ -9,6 +9,7 @@
 // hero gauge with its docked prose (the score frame's gauge + summary), then everything else in schema
 // order. Empty/absent values are LOAD-BEARING designed states ("—" / "none listed"), never collapses.
 
+import { isPrimitive } from "@orb/kit/guards";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -71,7 +72,7 @@ function scalarText(value: unknown): string {
   if (typeof value === "boolean") {
     return value ? "Yes" : "No";
   }
-  return String(value);
+  return isPrimitive(value) ? String(value) : JSON.stringify(value);
 }
 
 function fieldOrder(fields: readonly PlanField[]): { banners: PlanField[]; hero: PlanField | null; heroProse: PlanField | null; rest: PlanField[] } {

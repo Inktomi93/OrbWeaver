@@ -289,7 +289,7 @@ test("capture keeps the primary, disable, and detach failures without closing th
     caught = error;
   }
   expect(caught).toBeInstanceOf(AggregateError);
-  const messages = (caught as AggregateError).errors.map((error) => String((error as Error).message));
+  const messages = (caught as AggregateError).errors.map((error) => (error as Error).message);
   expect(messages).toEqual(expect.arrayContaining(["primary take failure", "disable failure", "detach failure"]));
   expect(detach).toHaveBeenCalledTimes(1);
   expect(context.newCDPSession).toHaveBeenCalledTimes(1);

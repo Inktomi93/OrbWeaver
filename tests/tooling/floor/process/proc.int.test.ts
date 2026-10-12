@@ -257,7 +257,7 @@ test("#2211 THE DEFECT PROOF — on an ENOBUFS kill the diagnosis reaches the ME
   // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as { code?: string }).code, "the tiny ceiling must KILL rather than truncate").toBe("ENOBUFS");
   // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-  expect(occurrences(String((thrown as Error).message), DIAGNOSIS)).toBe(1);
+  expect(occurrences((thrown as Error).message, DIAGNOSIS)).toBe(1);
 });
 
 test("#2211 — the caller's maxBuffer is FORWARDED: without it the ceiling is node's, not the caller's", () => {
@@ -366,5 +366,5 @@ test("#2272 CONTROL — the de-duplication does NOT cost the ENOBUFS repair: sti
   // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as { code?: string }).code, "the tiny ceiling must KILL rather than truncate").toBe("ENOBUFS");
   // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-  expect(occurrences(String((thrown as Error).message), DIAGNOSIS), "node appended nothing here — the helper is the whole repair").toBe(1);
+  expect(occurrences((thrown as Error).message, DIAGNOSIS), "node appended nothing here — the helper is the whole repair").toBe(1);
 });

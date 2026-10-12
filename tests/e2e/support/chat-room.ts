@@ -93,7 +93,7 @@ export async function waitForAppReady(page: Page, timeout = 30_000): Promise<voi
         (attribute) => ({
           path: globalThis.location.pathname,
           ready: document.documentElement.getAttribute(attribute),
-          body: document.body.textContent?.slice(0, 1000),
+          body: document.body.textContent.slice(0, 1000),
           viteErrors: [...document.querySelectorAll("vite-error-overlay")].map((overlay) =>
             [".plugin", ".message-body", ".file"].map((selector) => overlay.shadowRoot?.querySelector(selector)?.textContent ?? "").join(" "),
           ),

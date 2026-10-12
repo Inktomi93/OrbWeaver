@@ -76,7 +76,7 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     // ASSEMBLE — the name-stamp pass touched rows.
     expect((await getShapeTrace(chatId)).stageCounts.named).toBeGreaterThan(0);
     // WIRE — a non-system message carries a `name` (the completion fingerprint), NO inline "Author: " prefix.
-    const msgs = ((wire?.["messages"] as readonly WireMessage[] | undefined) ?? []).filter((m) => m.role !== "system");
+    const msgs = ((wire["messages"] as readonly WireMessage[] | undefined) ?? []).filter((m) => m.role !== "system");
     expect(msgs.some((m) => m.name !== undefined && m.name.length > 0)).toBe(true);
     expect(msgs.every((m) => !AUTHOR_PREFIX_RE.test(m.content))).toBe(true);
     // DB — the assistant row is stamped with the local model.

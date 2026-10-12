@@ -80,6 +80,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
+import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, LEGACY_TEST_WORLD_PROGRAMS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
@@ -145,9 +146,11 @@ const COMPONENT_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(
     family === "component" && !TEST_KIND_DEFINITIONS.some((other) => other.family === family && other.suffix !== suffix && suffix.endsWith(other.suffix)),
 ).map(({ suffix }) => suffix);
 const componentTestGlobs = (root) => COMPONENT_TEST_SUFFIXES.map((suffix) => `${root}/**/*${suffix}`);
-// Every product test sits in the legacy folder until its domain is rebuilt; a rebuilt mirror home (`tests/<pkg>`) joins
-// this list when its first file lands, because a selector with no member is a dead rule block.
-const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`, ...(pkg === "client" ? ["tests/client/components"] : [])];
+// Native compiler owners still choose the parser world; authored membership admits each populated mirror automatically.
+const AUTHORED_TEST_PATHS = readAuthoredRepositoryInventory(ROOT).paths.filter(
+  (path) => path.startsWith("tests/") && (path.endsWith(".ts") || path.endsWith(".tsx")),
+);
+const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`, `tests/${pkg}`].filter((home) => AUTHORED_TEST_PATHS.some((path) => path.startsWith(`${home}/`)));
 const homeGlobs = (pkg, glob) => testHomes(pkg).map((home) => `${home}/${glob}`);
 const UI_CT = testHomes("ui").flatMap((home) => componentTestGlobs(home));
 const UI_FIXTURES = homeGlobs("ui", "**/*.fixtures.tsx");
@@ -335,16 +338,25 @@ const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfi
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];
-// Biome's partial type inference misread drizzle builders (thenable), `useRef().current` and TanStack status flags,
-// so `await-thenable`, `no-unnecessary-condition` and this rule run on real types here. Default-comparator sorts of
-// test sets are order normalisers, so the sort rule covers source and scripts, not `tests/**`.
-const SORT_COMPARE = ["error", { ignoreStringArrays: true }];
+// The real-type twins of Biome's type-inference rules. Biome's partial inference misread drizzle builders (thenable),
+// `useRef().current` and TanStack status flags, so these run on the TypeScript checker's types instead.
+const REAL_TYPE_RULES = {
+  "@typescript-eslint/await-thenable": "error",
+  "@typescript-eslint/no-unnecessary-condition": "error",
+  "@typescript-eslint/require-array-sort-compare": ["error", { ignoreStringArrays: true }],
+  "@typescript-eslint/prefer-includes": "error",
+  "@typescript-eslint/no-base-to-string": "error",
+  "@typescript-eslint/no-unnecessary-type-conversion": "error",
+  "@typescript-eslint/prefer-regexp-exec": "error",
+  "@typescript-eslint/prefer-nullish-coalescing": "error",
+  "@typescript-eslint/prefer-string-starts-ends-with": "error",
+};
 const ASYNC_SAFETY_RULES = {
   // The headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
   // could not fail their own test. Nothing else in the stack can see a dropped Promise.
   "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
   "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
-  "@typescript-eslint/await-thenable": "error",
+  ...REAL_TYPE_RULES,
   // The §5.5 string-union dispatch law: a default catch-all lets a new member inherit an arm silently.
   "@typescript-eslint/switch-exhaustiveness-check": "error",
   // Caught a real object interpolation that would have rendered `[object Object]` in gate output.
@@ -945,12 +957,10 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
       // An `async` fn with no `await` is a mis-signaled sync fn (a caller may skip awaiting it). 0 FP today.
       "@typescript-eslint/require-await": "error",
-      "@typescript-eslint/await-thenable": "error",
+      ...REAL_TYPE_RULES,
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
-      "@typescript-eslint/no-unnecessary-condition": "error",
-      "@typescript-eslint/require-array-sort-compare": SORT_COMPARE,
     },
   },
   {
@@ -996,7 +1006,7 @@ export default tseslint.config(
       parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { ...ASYNC_SAFETY_RULES, "@typescript-eslint/require-array-sort-compare": SORT_COMPARE },
+    rules: ASYNC_SAFETY_RULES,
   },
   {
     // THE NESTED `scripts/` TREES (#2290) — the COVERAGE half of the block above, landed 2026-09-13.
@@ -1039,7 +1049,7 @@ export default tseslint.config(
       parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { ...ASYNC_SAFETY_RULES, "@typescript-eslint/require-array-sort-compare": SORT_COMPARE },
+    rules: ASYNC_SAFETY_RULES,
   },
   {
     // ASYNC-SAFETY + dispatch + deprecation over the tooling + test surface — see the SAFETY_SURFACE
@@ -1073,7 +1083,7 @@ export default tseslint.config(
     // nothing to await is a mis-signaled sync function, and a caller may skip awaiting it.
     files: [TOOLING_SRC],
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { "@typescript-eslint/require-await": "error", "@typescript-eslint/require-array-sort-compare": SORT_COMPARE },
+    rules: { "@typescript-eslint/require-await": "error" },
   },
   {
     // The TSDoc doc-comment gate over the tooling surface and every test tree (#472, the first family of the

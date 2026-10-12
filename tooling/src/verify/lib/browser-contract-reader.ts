@@ -13,8 +13,6 @@ const BROWSER_PACKAGE_NAMES = [...BROWSER_PACKAGES].map((name) => RegExp.escape(
 const BROWSER_PACKAGE_PATH_RE = new RegExp(`/packages/(?:${BROWSER_PACKAGE_NAMES})/src/`, "u");
 const BROWSER_PACKAGE_SOURCE_RE = new RegExp(`/packages/(?:${BROWSER_PACKAGE_NAMES})/src/.*\\.tsx$`, "u");
 const BROWSER_PACKAGE_DOOR_RE = new RegExp(`^(?:@orb/(?:${BROWSER_PACKAGE_NAMES})(?:/|$)|.*packages/(?:${BROWSER_PACKAGE_NAMES})/src/)`, "u");
-const REACT_GLOBAL_RE = /\/node_modules\/@types\/react\/global\.d\.ts$/u;
-const REACT_TYPES_RE = /\/node_modules\/@types\/react\//u;
 const TYPESCRIPT_BROWSER_LIB_RE = /\/node_modules\/typescript\/lib\/lib\.(?:dom|webworker)(?:\.[^/]+)?\.d\.ts$/u;
 
 export interface BrowserContractIssue {
@@ -133,7 +131,7 @@ function canonicalDeclarations(reference: MorphNode): readonly MorphNode[] {
 }
 
 function isReactDeclaration(node: MorphNode): boolean {
-  return REACT_TYPES_RE.test(normalizedPath(node));
+  return normalizedPath(node).includes("/node_modules/@types/react/");
 }
 
 function intrinsicReferences(typeNode: TypeNode): { readonly direct: boolean; readonly declarations: readonly MorphNode[] } {
@@ -233,11 +231,12 @@ function hasStringLiteralConstituent(type: Type): boolean {
 }
 
 function fallbackIssue(declarations: readonly MorphNode[]): BrowserContractIssue | undefined {
-  if (!declarations.some((declaration) => REACT_GLOBAL_RE.test(normalizedPath(declaration)))) {
+  if (!declarations.some((declaration) => normalizedPath(declaration).endsWith("/node_modules/@types/react/global.d.ts"))) {
     return;
   }
   const meaningful = declarations.filter(
-    (declaration) => !(REACT_GLOBAL_RE.test(normalizedPath(declaration)) || TYPESCRIPT_BROWSER_LIB_RE.test(normalizedPath(declaration))),
+    (declaration) =>
+      !(normalizedPath(declaration).endsWith("/node_modules/@types/react/global.d.ts") || TYPESCRIPT_BROWSER_LIB_RE.test(normalizedPath(declaration))),
   );
   return meaningful.length === 0
     ? { kind: "react-global-fallback", detail: "the type exists in the Node world only as React's empty global.d.ts fallback" }

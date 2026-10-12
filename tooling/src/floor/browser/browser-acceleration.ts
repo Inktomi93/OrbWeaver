@@ -26,7 +26,7 @@ export async function readBrowserAcceleration(browser: Browser): Promise<Browser
   const cdp = await browser.newBrowserCDPSession();
   try {
     const info = await cdp.send("SystemInfo.getInfo");
-    const backend = String(info.gpu.auxAttributes?.["glRenderer"] ?? info.gpu.devices[0]?.deviceString ?? "unknown");
+    const backend = info.gpu.auxAttributes?.["glRenderer"] ?? info.gpu.devices[0]?.deviceString ?? "unknown";
     const features = info.gpu.featureStatus ?? {};
     const gpuCompositing = features["gpu_compositing"] ?? "unknown";
     const rasterization = features["rasterization"] ?? "unknown";

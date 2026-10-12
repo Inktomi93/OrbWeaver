@@ -17,7 +17,7 @@ export function registerSnapDiagnosticCompleteness(summary: OrbConsoleCompletene
 }
 
 export function registerSnapResultPairs(pairs: readonly ResultPair[] | readonly (readonly [string, string])[]): void {
-  terminalResultPairs = pairs.map(([key, value]) => [String(key), String(value)] as const);
+  terminalResultPairs = pairs.map(([key, value]) => [key, String(value)] as const);
 }
 
 export function registerSnapFactBatch(batch: SnapRunFactBatch): void {

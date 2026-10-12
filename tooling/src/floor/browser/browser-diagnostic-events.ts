@@ -1,3 +1,4 @@
+import { isPrimitive } from "@orb/kit/guards";
 import { createTimeLib } from "@orb/kit/time";
 import type { ConsoleMessage } from "@playwright/test";
 import { exactScope } from "../artifacts/artifact-scope.ts";
@@ -45,7 +46,10 @@ export function diagnosticDetails(value: unknown): BrowserDiagnosticDetails {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return value;
   }
-  return String(value ?? "no details");
+  if (value === null || value === undefined) {
+    return "no details";
+  }
+  return isPrimitive(value) ? String(value) : JSON.stringify(value);
 }
 
 export function recordAuditIssue(

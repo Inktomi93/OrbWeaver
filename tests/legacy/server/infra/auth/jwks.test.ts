@@ -116,7 +116,7 @@ describe("createForwardJwtVerifier — real jose verification (fail-closed point
     // significant (byte 0 of the signature), so any change always invalidates it.
     const parts = jwt.split(".");
     const sig = parts[2] ?? "";
-    parts[2] = `${sig[0] === "A" ? "B" : "A"}${sig.slice(1)}`;
+    parts[2] = `${sig.startsWith("A") ? "B" : "A"}${sig.slice(1)}`;
     const tampered = parts.join(".");
     expect(await createForwardJwtVerifier().verify({ jwt: tampered, metaJwks: jwks, allowlist: ALLOW })).toBeNull();
   });

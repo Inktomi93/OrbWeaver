@@ -1,6 +1,13 @@
 // Small structural type-guards shared across layers. Narrowing helpers that let callers drop
 // `as Record<string, unknown>` casts in favor of a real runtime check.
 
+export type PrimitiveValue = string | number | boolean | bigint | symbol | null | undefined;
+
+/** Primitive values have native text spellings without an object's default stringification. */
+export function isPrimitive(value: unknown): value is PrimitiveValue {
+  return value === null || (typeof value !== "object" && typeof value !== "function");
+}
+
 /**
  * True for a non-null, non-array object. Narrows `unknown` to `Record<string, unknown>` so a value
  * coming off `JSON.parse` / a stored blob can be treated as an object map without a cast.

@@ -24,7 +24,7 @@ function structuralClass(token: string): boolean {
     token.startsWith("@min-[") ||
     token.startsWith("@md:grid-cols-[") ||
     token.startsWith("grid-cols-[repeat(") ||
-    /cqh\]$/u.test(token)
+    token.endsWith("cqh]")
   );
 }
 
@@ -95,7 +95,7 @@ function classCandidates(classes: StaticClassFactResult, relativePath: (node: No
       if (match === null) {
         continue;
       }
-      const anchor = sourceToken(candidate.segments, Number(result.position) + match.index);
+      const anchor = sourceToken(candidate.segments, result.position + match.index);
       if (anchor === undefined) {
         continue;
       }

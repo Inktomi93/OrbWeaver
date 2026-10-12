@@ -15,7 +15,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
 export function loadJsonResource(reader: ResourceReader, id: JsonResourceId): ResourceLoad<JsonResourceFacts> {
   if (!Object.hasOwn(JSON_RESOURCE_PATHS, id)) {
-    return { status: "unresolved", paths: [], members: 0, reason: `unknown json resource id: ${String(id)}` };
+    return { status: "unresolved", paths: [], members: 0, reason: `unknown json resource id: ${id}` };
   }
   const path = JSON_RESOURCE_PATHS[id];
   const loaded = reader.read(path);

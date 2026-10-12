@@ -310,10 +310,6 @@ const OPENROUTER_REASONING_IDS = [
   "openai/o4-mini:batch",
 ] as const;
 
-// gpt-oss is open-weight and OpenRouter serves it from third-party hosts, not OpenAI's Responses API, so it has no
-// encrypted reasoning to replay signed.
-const OPEN_WEIGHT = /^openai\/gpt-oss/;
-
 function cells(model: string): { readonly sampling: boolean; readonly replay: string | undefined } {
   const stated = openaiRows(model).findLast((row) => row.generation?.sampling !== undefined)?.generation?.sampling;
   return {
@@ -325,8 +321,9 @@ function cells(model: string): { readonly sampling: boolean; readonly replay: st
 // The stated-empty sampling set and signed replay belong to the reasoning ids alone. The kind floor already states
 // no sampling, so the curated cell is read off the matched rows; replay is read off the synthesized capability.
 test("every OpenAI reasoning id OpenRouter lists carries the empty sampling set and signed replay, gpt-oss aside", () => {
+  // OpenRouter serves gpt-oss through third-party hosts, so it has no signed encrypted reasoning.
   for (const model of OPENROUTER_REASONING_IDS) {
-    expect(cells(model), model).toEqual(OPEN_WEIGHT.test(model) ? { sampling: false, replay: undefined } : { sampling: true, replay: "signed" });
+    expect(cells(model), model).toEqual(model.startsWith("openai/gpt-oss") ? { sampling: false, replay: undefined } : { sampling: true, replay: "signed" });
   }
   for (const model of ["gpt-6-astra", "gpt-6-astra-2026-09-22", "gpt-5.1-codex-max", "o3-pro"]) {
     expect(cells(model), model).toEqual({ sampling: true, replay: "signed" });

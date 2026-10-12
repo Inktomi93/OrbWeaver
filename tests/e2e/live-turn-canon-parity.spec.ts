@@ -51,7 +51,7 @@ function domTranscript(page: Page): Promise<readonly { role: string; text: strin
   return page.locator('[data-slot="message-row"]').evaluateAll((els) =>
     els.map((el) => ({
       role: el.getAttribute("data-role") ?? "",
-      text: (el.textContent ?? "").replace(/\s+/gu, " ").trim(),
+      text: el.textContent.replace(/\s+/gu, " ").trim(),
     })),
   );
 }

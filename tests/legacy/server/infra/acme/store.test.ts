@@ -40,7 +40,7 @@ function issued(address: string): IssuedCertificate {
   });
   return {
     certificatePem,
-    keyPem: leaf.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    keyPem: leaf.privateKey.export({ type: "pkcs8", format: "pem" }),
     notBefore: clock.now(),
     notAfter: clock.now() + LIFETIME_MS,
   };
