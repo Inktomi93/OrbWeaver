@@ -381,6 +381,36 @@ export interface EnsureStageOpts {
   readonly stageDb?: string;
 }
 
+/** What the band allocator is asked: the table home, who is asking for which commit, and the row-builder for
+ *  the band it hands back. */
+export interface StageBandAcquireInput {
+  readonly home: string;
+  readonly root: string;
+  readonly checkout: string;
+  readonly targetSha: string;
+  readonly dirty: boolean;
+  readonly fresh: boolean;
+  readonly nowMs: number;
+  readonly auth: StageAuthMode;
+  readonly claim: (band: number) => StageRow;
+}
+
+/** The allocator's answer: the decision, and the census it judged. */
+export interface StageBandAcquisition {
+  readonly allocation: StageAllocation;
+  readonly views: readonly StageBandView[];
+}
+
+/** The box-facing steps `ensureStage` runs before it boots or reuses a stage, injected so a test drives the
+ *  hold registration without a sibling's live stage. `snap` wires the real ones at the entry. */
+export interface EnsureStageOps {
+  readonly repoRoot: () => string;
+  readonly resolveRef: (root: string, ref: string) => string;
+  readonly markerRoot: (root: string) => string;
+  readonly acquireStageBand: (input: StageBandAcquireInput) => StageBandAcquisition;
+  readonly armStageKeeper: (home: string, row: StageRow) => StageRow;
+}
+
 /** The isolated-stage half of snap's parsed argv (serve from a frozen HEAD worktree, not the live dev
  *  stack); `Args` extends it. */
 export interface StageArgs {

@@ -11,7 +11,6 @@
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import {
-  AA_LARGE_RATIO,
   AA_NON_TEXT_RATIO,
   AA_NORMAL_DERIVATION_RATIO,
   AA_NORMAL_RATIO,
@@ -173,12 +172,13 @@ test.each(PALETTES.map((palette) => [palette.name, palette] as const))("static %
   }
 });
 
-test("static PRIMARY solid surface clears the 3:1 UI/large-text floor", () => {
-  // primary is a SOLID accent button+badge (medium/bold label = the WCAG large-text carve). The semantic
+test("static PRIMARY solid surface clears the AA normal-text floor", () => {
+  // primary is a SOLID accent button+badge whose label is normal-size text (font-medium at label or body
+  // size, below the WCAG large-text sizes), so SC 1.4.3 asks 4.5:1. The semantic
   // INTENTS (destructive/success/warning/highlight) are no longer asserted here — they are polarity-aware
   // light-dark() tokens now swept per-palette at the stronger AA-NORMAL 4.5:1 floor in the test below.
   const ratio = wcagContrastRatio(rgbOf("color.primary-foreground"), rgbOf("color.primary"));
-  expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(AA_LARGE_RATIO);
+  expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 test.each(
