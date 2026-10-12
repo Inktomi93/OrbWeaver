@@ -3,7 +3,7 @@
 
 import type { SeededCardContent } from "@orb/server/domain/character";
 import { matchesAuthoredContent } from "@orb/server/domain/character";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const AUTHORED = {
   name: "Charlotte",

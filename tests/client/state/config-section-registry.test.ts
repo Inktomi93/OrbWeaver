@@ -12,8 +12,8 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution, SettingsViewerView } from "@orb/client/state";
 import { configSectionNavParts, configSectionNavs, resolveConfigSections } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 /** A section contribution stub — `body` returns a marker string so the resolve output is inspectable. */
 function section(id: string, anchor: ConfigSectionContribution["anchor"] = "chat-behavior"): ConfigSectionContribution {

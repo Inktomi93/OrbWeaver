@@ -1,8 +1,9 @@
 // @instrument-proof: an impossible report location REFUSES rather than slicing — the probe's own header
 //   states that a mutant planted one byte out reads as a SURVIVOR, so an unchecked bound is a false
 //   negative for the whole mutation verdict, not a cosmetic bug.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { lineStarts, offsetOf, offsetRangeOf } from "../../../../tooling/src/mutation-probe/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SOURCE = "const a = 1;\nconst b = 2;\nconst c = 3;\n";
 

@@ -5,8 +5,8 @@
 // deliberately NOT parsed (OR sent no rate-limit header on a 200, `gen-1789884256-ZeulFgkGknjAbAgCKe1S`) — the
 // negative pin below is what keeps "unobserved" from silently becoming "guessed".
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { parseGoDuration, RATE_LIMIT_WARN_UTILIZATION, rateLimitCanaryEvent, rateLimitFromHeaders } from "#inference/backends/http/rate-limit-headers.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_789_884_000_000;
 const RESET = "2026-09-20T06:04:11Z";

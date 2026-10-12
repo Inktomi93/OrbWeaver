@@ -12,8 +12,8 @@
 // this file is about LAYERING, and the OKLCH colour reading has its own pins in index.test.ts.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 /** The exact live house pattern, in CSS: `relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-… before:shadow-glow before:content-['']` — the shape all
  *  six real carriers share (discovery/corpus-family-map, discovery/corpus-understanding-invitation,

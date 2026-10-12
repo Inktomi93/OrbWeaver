@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewMirrorEvidence } from "../../../tooling/src/review-mirror/index.ts";
 import { assertReviewEvidence, censusPendingGuards, reviewEvidenceGaps, stripComments } from "../../../tooling/src/review-mirror/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/review-fixture";
 

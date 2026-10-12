@@ -26,10 +26,10 @@ import {
 } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FROZEN_NOW = 1_700_000_000_000;
 const SEED_SECRET = "seed-demo-test-session-secret-0000000000";

@@ -1,10 +1,10 @@
 // Authored-decision population controls for the collision censuses (#987).
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { RelationalPopulationReport } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 /** The proof denominator the `design-audit-rule-proof` gate reads — same shape as the sibling census
  *  suites: evidence attached to an executable registration, so deleting the test deletes the proof. */

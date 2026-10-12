@@ -17,8 +17,8 @@ import type { PluginInstance, PluginSurfaceRegistration } from "@orb/contracts/p
 import { PLUGIN_TOAST_COOLDOWN_SECONDS, PLUGIN_TOAST_MAX_CHARS, PLUGIN_UI_OUTBOX_MAX } from "@orb/contracts/plugin";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createPluginUiOutbox, resolveUiOutcome } from "@orb/server/domain/plugin";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
 const PLUGIN = { id: mintTypeId(ID_PREFIX.plugin), name: "Oracle Deck", slug: "oracle-deck" };

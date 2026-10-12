@@ -11,9 +11,9 @@
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
 // @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelContrast, pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
 
 test("a claiming region takes the identity band: its band renders, the section's own does not, the bracket renders around it", async ({ mount }) => {
@@ -76,7 +76,6 @@ test("a NON-claiming region contributor is ignored — the section's own band re
 //     labelled so: the HEARTH inversion #861/#875 measured live (8.25 vs 8.03) does NOT reproduce in the
 //     shipped Hearth tokens — it was measured in the game room's CARRIED theme (D44), whose neutral ramp is
 //     compressed differently. Hearth passed pre-fix; LIGHT was a real red (receded 3.36:1).
-const WCAG_TEXT_MIN = 4.5;
 /** Two surfaces are "the same material" when their composited medians agree; 1 byte of slack for the
  *  screenshot's own quantisation, not for a fill. */
 const SAME_SURFACE_SLACK = 1;
@@ -118,7 +117,7 @@ for (const theme of SHIPPED_THEMES) {
       expect(Math.abs(surface.rgb.b - pane.rgb.b)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
     }
     // The owning state rail is a step above the pane.
-    expect(contrastRatio(owning.rgb, pane.rgb), `owning ${owning.describe} vs pane ${pane.describe}`).toBeGreaterThan(1);
+    expect(wcagContrastRatio(owning.rgb, pane.rgb), `owning ${owning.describe} vs pane ${pane.describe}`).toBeGreaterThan(1);
   });
 
   test(`${theme}: every cell caption clears 4.5:1 — including the LOCKED cell, which is a live control`, async ({ mount, page }) => {
@@ -142,7 +141,7 @@ for (const theme of SHIPPED_THEMES) {
       const name = await caption.innerText();
       await expect
         .poll(async () => (await pixelContrast(page, caption)).ratio, { message: `${name} caption contrast (composited)` })
-        .toBeGreaterThanOrEqual(WCAG_TEXT_MIN);
+        .toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
   });
 }
@@ -205,12 +204,9 @@ for (const theme of SHIPPED_THEMES) {
     await expect(chevron).toHaveCount(1);
     await expect
       .poll(async () => (await pixelContrast(page, chevron)).ratio, { message: `${theme} overflow chevron vs the strip fill` })
-      .toBeGreaterThanOrEqual(UI_GRAPHIC_MIN);
+      .toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
 }
-
-/** WCAG 1.4.11 Non-text Contrast — the floor a meaningful graphic owes its adjacent colour. */
-const UI_GRAPHIC_MIN = 3;
 
 /** The story's caption census (4 state-rail cells + 2 header tabs) — stated so a story edit that drops a cell cannot quietly
  *  shrink the caption sweep to a green zero. */

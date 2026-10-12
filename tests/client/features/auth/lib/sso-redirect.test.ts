@@ -4,9 +4,9 @@
 // round-trip) suppresses it even beside `?sso`; non-oidc modes never bounce. (The "already authed" case is
 // the route guard's, upstream — never this helper's.)
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "#client/features/auth/lib/sso-redirect.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("shouldAutoRedirectToSso (A9)", () => {
   test("oidc DEFAULT is show-the-page (no redirect without the opt-in)", () => {

@@ -5,9 +5,9 @@
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { handoffProvenance } from "#server/domain/character/contract/handoff-copy.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("handoffProvenance", () => {
   test("the format is `handoff:<chatId>:<sourceCharacterId>` — the ONE spelling both the writer and finder use", () => {

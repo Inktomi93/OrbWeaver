@@ -11,12 +11,12 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedCharacter, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

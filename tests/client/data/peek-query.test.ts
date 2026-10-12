@@ -3,9 +3,9 @@
 // read-only-peek contract the §11.3 gate exemption rests on.
 
 import { peekQueryData } from "@orb/client/data";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient, queryOptions } from "@tanstack/react-query";
 import { expectTypeOf } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("peekQueryData returns cached data for a seeded key", () => {
   const qc = new QueryClient();

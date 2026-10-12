@@ -8,6 +8,7 @@
 // The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
@@ -38,7 +39,6 @@ import {
   spawnerForPort,
   valueExportNames,
 } from "../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 // Hoisted: the rule against per-call regex literals applies to test bodies too.
 const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;

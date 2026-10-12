@@ -9,9 +9,9 @@ import type { ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 // 2024-01-15 and 2024-03-20 (epoch-ms) — each on a calendar-bucket boundary.

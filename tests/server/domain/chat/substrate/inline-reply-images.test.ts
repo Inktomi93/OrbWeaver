@@ -13,8 +13,8 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { mintInlineImageAlt, projectInlineReplyImages } from "#server/domain/chat/substrate/inline-reply-images.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const A = castId<AssetId>("asset_a");
 const B = castId<AssetId>("asset_b");

@@ -2,6 +2,8 @@ packages:
   - packages/*
   # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/law/Core-Tooling-Law.md).
   - tooling
+  # The test kit (@orb/testkit) — ABOVE the cake beside tooling; tests and scripts import it, packages and tooling never do.
+  - tests/support
 
 # Enforce the Node floor declared by each workspace manifest; pnpm reads this setting here, not from .npmrc.
 engineStrict: true

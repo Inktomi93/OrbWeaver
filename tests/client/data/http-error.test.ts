@@ -9,8 +9,8 @@
 
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import { throwHttpError } from "@orb/client/data";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // No trailing ` — ` separator on the empty-body path.
 const ENDS_AT_STATUS_TEXT = /Internal Server Error$/u;

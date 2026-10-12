@@ -22,9 +22,9 @@ import {
 } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeGenerationUsage } from "../../support/factories/generation-usage.ts";
-import { expect, test } from "../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../support/inference-identities.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("normalized economics and cache objects refuse undeclared fields without losing known zeroes", () => {
   const pricing = { inputPerMTok: 0, outputPerMTok: 0, cacheReadPerMTok: 0, cacheWritePerMTok: 0 };

@@ -1,8 +1,8 @@
 // CT: a route that fails to load or render must land on an error with a retry, never a permanent logo splash,
 // and a section read that suspends must hold only its own shell region.
 
+import { SIGNED_IN_OWNER_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SIGNED_IN_OWNER_ME, stubAuthMe } from "../../support/node/stub-auth-me.ts";
 import { ProductionRouterCrashReportStory, ProductionRouterStory, RegionSuspenseStory } from "./_ct-stories.tsx";
 
 test("a failed authed-app chunk shows a retry, not the pending splash, and Retry reloads the page", async ({ mount, page }) => {

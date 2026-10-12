@@ -25,7 +25,7 @@ Do the steps in order. A later step may run in parallel only where its row says 
 
 ### Live state
 
-- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel. Item 899 (law rewrite, reach gate, waiver budget, and the gates for Spine-Testing section 10), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
+- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/node/fixtures.ts` barrel. Item 899 (law rewrite, reach gate, waiver budget, and the gates for Spine-Testing section 10), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
 - In flight: item 900 core (gate extensions, baselines, catalog, `pnpm ast antipatterns`), reworked after a refuted review.
 - Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), items 914, 915, 920 and 921.
 - Next: item 890 (move copied logic to its owning layer, starting with the four widest server harnesses), item 888, item 892, item 894, item 901, item 902, then item 898 after item 887.
@@ -108,7 +108,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 
 - Story harnesses: `chat/_ct-stories.tsx:1244` copies the removed `surfaceWarning`; `chat/_reaction-stories.tsx:115-152` copies a moved wrapper; `auth/_ct-stories.tsx:183-188` re-implements session recovery; `user-admin/components/share-card.ct.tsx:94-145` partly copies the share refusal rule; `components/greeting-studio.fixtures.tsx:17-36` wires a path production never takes.
 
-- Inference and tooling: `tests/inference/capability/synthesize.test.ts:12` and `resolve/resolve-task.suite.test.ts:346` copy `requireGenerationCapability`; two showcase plugin suites copy a toast floor that has diverged from `ui-outbox.ts:85`; `tests/support/tool-fixtures.ts:59-62` copies `tooling/src/codemod/lib/plans.ts:70-73`.
+- Inference and tooling: `tests/inference/capability/synthesize.test.ts:12` and `resolve/resolve-task.suite.test.ts:346` copy `requireGenerationCapability`; two showcase plugin suites copy a toast floor that has diverged from `ui-outbox.ts:85`; `tests/support/node/tool-fixtures.ts:59-62` copies `tooling/src/codemod/lib/plans.ts:70-73`.
 
 - Contracts: `tests/contracts/rpg/extraction.contract.test.ts:63` and `rpg/tracker.contract.test.ts:34` copy the actor-key scheme from `packages/contracts/src/rpg/actor.ts:138-146`; `rpg/structured-patch.contract.test.ts:47-65` copies the tool builder from `packages/server/src/entry/compose/rpg.ts:1082-1120` (move it to contracts); `prose/index.contract.test.ts:37,116-130` copies the hash and version rule from `tooling/src/verify/ops/gen/prose.ts:37-60`; `rpg/extraction.contract.test.ts:1082-1105` copies the name-map walker from `packages/contracts/src/inference/wire-subset.ts:95`.
 

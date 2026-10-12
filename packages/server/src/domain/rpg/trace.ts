@@ -11,8 +11,9 @@
 // ASSUMES(single-replica): the ring is per-process (the `bus.ts` precedent). The recorder stamps each record's
 // `seq` (a monotonic counter) + `at` (via the injected `now`), so the emitters stay clock-free.
 
+import type { RpgTraceEvent, RpgTraceRecord } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
-import type { RpgTraceEvent, RpgTraceFilter, RpgTraceRecord, RpgTraceRecorder } from "./contract/trace.ts";
+import type { RpgTraceFilter, RpgTraceRecorder } from "./contract/trace.ts";
 
 /** The default ring depth — a few turns' worth of a chatty tool loop; the oldest record drops past it. */
 const DEFAULT_LIMIT = 2000;

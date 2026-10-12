@@ -1,9 +1,9 @@
 // verb: relabel — a key follows its connection's rename, but only while it still carries the old name.
 // @subject packages/server/src/domain/credentials/verbs/relabel.ts
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCredential } from "../_support.ts";
 
 describe("relabel", () => {

@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as lengthTokens } from "../../tooling/src/verify/gates/css-length-tokens.ts";
 import { gate as lengthTokenGrants } from "../../tooling/src/verify/gates/css-length-tokens-grants.ts";
 import { gate as lengthTokenHealth } from "../../tooling/src/verify/gates/css-length-tokens-health.ts";
@@ -6,7 +7,6 @@ import { gate as variableResolutionGrants } from "../../tooling/src/verify/gates
 import { gate as variableResolutionHealth } from "../../tooling/src/verify/gates/css-var-defined-health.ts";
 import { gate as polarity } from "../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 /** Three gate proofs over the real tree: measured 5.3s on a loaded box (2026-09-01 barrier), over vitest's 5s default. */
 const PROOF_BUDGET_MS = 30_000;

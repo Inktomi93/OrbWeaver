@@ -6,7 +6,7 @@
 // picker.
 
 import { agentSdkModelSchema, EFFORT_LEVELS, modelCatalogEntrySchema, modelListingSchema } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const MINIMAL = {
   id: "openai/gpt-4o",

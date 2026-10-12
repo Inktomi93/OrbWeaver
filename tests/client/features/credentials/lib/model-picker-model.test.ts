@@ -6,6 +6,7 @@
 // `listed: false` answer keeps its reason, and Enter's floor admits only the result that IS what was typed.
 
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   clauseOf,
   filterByChips,
@@ -24,7 +25,6 @@ import {
   typedModelAllowed,
   typedOption,
 } from "#client/features/credentials/lib/model-picker-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function entry(id: string, name = id): ModelCatalogEntry {
   return {

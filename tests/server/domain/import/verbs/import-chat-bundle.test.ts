@@ -21,8 +21,8 @@ import type { ImportService } from "@orb/server/domain/import";
 import { createImportService } from "@orb/server/domain/import";
 import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { ProfileHarness } from "../_support.ts";
 import { makeProfileHarness } from "../_support.ts";
 

@@ -6,13 +6,13 @@
 
 import { MODEL_ROLES_PATH_TEXT } from "@orb/client/lib";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 

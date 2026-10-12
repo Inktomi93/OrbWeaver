@@ -10,12 +10,12 @@ import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { connectionBindings, userConnections, userSeedLedger } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { seedLocalLightConnections } from "#server/domain/connection/persistence/local-light-seed.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedUser } from "../_support.ts";
 
 // The two seeded labels, in the order the sorted read returns them.

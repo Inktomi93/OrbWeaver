@@ -23,6 +23,8 @@
 // RED-FIRST HERITAGE: the `extends`/aliased-arm and open-key-space behaviours these fixtures assume were
 // each measured returning ZERO findings against the pre-#948/#1024/#1066 gate. Those defect proofs are now
 // the two modules' own conformance rows; what survives here is only the part a row cannot reach.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -30,7 +32,6 @@ import { gate as busPayloadAllowlist } from "../../../../tooling/src/verify/gate
 import { gate as busPayloadHealth } from "../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 const CHAT_BUS = "packages/contracts/src/chat/bus.ts";

@@ -3,8 +3,8 @@
 // needs no DOM/jsdom to test under the node unit lane.
 
 import { buildClientErrorPayload } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("buildClientErrorPayload", () => {
   test("carries the error's message + stack + the injected url", () => {

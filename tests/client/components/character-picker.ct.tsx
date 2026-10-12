@@ -7,9 +7,9 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcInput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcInput } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CharacterPickerHarness } from "./character-picker.fixtures.tsx";
 

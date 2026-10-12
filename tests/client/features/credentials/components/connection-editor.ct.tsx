@@ -21,21 +21,17 @@
 //     owner ruling), no per-chat/per-room override (F20).
 
 import type { USER_ROLES } from "@orb/contracts/identity";
-import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, effectivePromptCache, modelIdSchema } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, EMBEDDING_FLOOR } from "@orb/contracts/inference";
+import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
+import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
+import { connectionCacheOracle } from "@orb/testkit/node/connection-cache-oracle.ts";
+import { makeCachePolicy, makeResolvedCacheView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "#client/lib/embedder-rebuild.ts";
-import { cachePolicyContextOf, responseReplaySupportedFor } from "#inference/backends/http/response-cache.ts";
-import { detectModelFamily } from "#inference/capability/families.ts";
-import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "#inference/capability/synthesize.ts";
-import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
-import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
-import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
-import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
-import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
 import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorScrollPaneStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
@@ -1186,21 +1182,7 @@ function cacheEditorOptions(providerId: string, model: string, replay = false): 
   if (provider === undefined) {
     throw new Error("Caching UI fixture requires a built-in provider");
   }
-  const resolved = makeResolved({ providerId: provider.id, model: modelIdSchema.parse(model) });
-  const capability = synthesizeCapability("generation", detectModelFamily(model), {
-    curated: curatedRows({ model, providerId: resolved.providerId, wire: provider.wire, api: provider.apis[0] }),
-  }).capability;
-  if (capability.kind !== "generation") {
-    throw new Error("Caching UI fixture requires a generation capability");
-  }
-  const connection = {
-    ...resolved,
-    capability,
-    promptCache: effectivePromptCache(null, capability.generation.turns?.promptCacheDefaultEnabled, capability.generation.turns?.fixedCacheTtl),
-    transport: replay ? { headers: { "X-OpenRouter-Cache": "true" } } : null,
-  };
-  const cacheContext = cachePolicyContextOf(connection, responseReplaySupportedFor(connection));
-  const cache = resolveCachePolicy({ context: cacheContext, generation: capability.generation });
+  const { capability, cacheContext, cache } = connectionCacheOracle(provider, model, replay);
   return {
     provider,
     connection: connectionRow({

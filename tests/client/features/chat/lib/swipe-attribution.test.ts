@@ -5,10 +5,10 @@
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { CreditConnections } from "#client/features/chat/lib/swipe-attribution.ts";
 import { generationCreditSentence, providerName } from "#client/features/chat/lib/swipe-attribution.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 const MODEL = testModelId("anthropic/claude-sonnet-5");
 const ANTHROPIC = testProviderId("anthropic");

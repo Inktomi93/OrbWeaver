@@ -1,6 +1,6 @@
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES, imageLensSchema, VECTOR_SCOPES, VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // ── The IMAGE-lens axis (D34 — promoted to contracts so the db `image_embeddings.lens` column derives it) ──
 // The ONE home for the image-lens union (§7.5). A drift here would mean the db enum / CHECK / test-mirror

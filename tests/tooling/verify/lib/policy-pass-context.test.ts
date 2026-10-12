@@ -13,8 +13,9 @@
 // `… never with ctx.relativePath.` — while the `relativePath` row and the three no-diagnosis controls
 // passed. That asymmetry is the whole defect and it is why the controls ride in the same file: a fix that
 // simply DELETED the clause would also turn those two rows green while destroying the remedy.
-import { Project } from "ts-morph";
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { Project } from "ts-morph";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyReportSink } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -23,7 +24,6 @@ import type { PolicyFactValueRegistry } from "../../../../tooling/src/verify/con
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { makePolicyContext } from "../../../../tooling/src/verify/lib/policy-pass-context.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const NARROW = "packages/client/src/narrow.ts";
 const WIDE = "packages/server/src/wide.ts";

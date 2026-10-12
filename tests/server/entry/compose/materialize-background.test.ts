@@ -12,8 +12,8 @@ import { castId } from "@orb/kit/ids";
 import { createMaterializeBackground } from "@orb/server/entry/compose";
 import type { SafeFetchResult } from "@orb/server/infra/network";
 import { EgressBlockedError } from "@orb/server/infra/network";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 // A minimal but header-PARSEABLE 1×1 PNG: signature + an IHDR carrying width/height. The magic belt fails a
 // bare signature (requireDimensions defaults true), so the success case needs a real IHDR.

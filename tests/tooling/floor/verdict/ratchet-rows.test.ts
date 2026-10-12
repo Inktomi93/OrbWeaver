@@ -1,7 +1,7 @@
 import { mkdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { citeResolves } from "../../../../tooling/src/floor/verdict/ratchet-rows.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("ratchet cites stay within the repository after normalization and symlink resolution", async ({ scratch }) => {
   const root = join(scratch, "repo");

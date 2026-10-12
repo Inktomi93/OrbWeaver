@@ -1,5 +1,5 @@
 import { refinerySchemaPlanLine, refinerySchemaPlanSchema, schemaPlanReasonOf } from "@orb/contracts/refinery";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("schema plans preserve each refusal and carrier outcome rather than substituting a success", () => {
   const plans = [

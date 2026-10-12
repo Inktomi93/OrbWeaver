@@ -18,14 +18,6 @@ function handShapeGrants(item: string, rows: readonly (readonly [string, string]
 }
 
 export const REVIEWED_GRANTS_TEST_HAND_SHAPE: readonly ReviewedGateGrant[] = [
-  ...handShapeGrants("888", [
-    ["tests/e2e/live-context-cutoff.spec.ts", "copies:ContextFitPreview=packages/contracts/src/chat/assemble.ts#ContextFitPreview"],
-    ["tests/e2e/multi-human-visibility.local.spec.ts", "copies:MemberCard=packages/contracts/src/chat/roster.ts#MemberCardView"],
-    ["tests/e2e/support/trpc.ts", "copies:JournalEntry=packages/contracts/src/rpg/views.ts#RpgJournalEntryView"],
-    ["tests/e2e/support/trpc.ts", "copies:NewConnection=packages/server/src/domain/connection/contract/params.ts#ConnectionFields"],
-    ["tests/e2e/support/trpc.ts", "copies:TrackerQuest=packages/contracts/src/rpg/views.ts#RpgQuestView"],
-    ["tests/e2e/support/trpc.ts", "overlaps:WireCapture=packages/server/src/foundation/observability/debug/wire-capture.ts#WireCapture"],
-  ]),
   ...handShapeGrants("906", [
     [
       "tests/client/features/app-shell/_cascade-fixtures.tsx",
@@ -43,7 +35,7 @@ export const REVIEWED_GRANTS_TEST_HAND_SHAPE: readonly ReviewedGateGrant[] = [
     ["tests/server/domain/import/_support.ts", "copies:ArtAttachCall=packages/server/src/domain/character/contract/params.ts#AttachImportedArtParams"],
     ["tests/server/domain/preset/_support.ts", "overlaps:SeedPresetOverrides=packages/server/src/domain/preset/contract/views.ts#PresetDetail"],
     ["tests/server/domain/search/_support.ts", "copies:SeedCharacterSummaryOverrides=packages/contracts/src/discovery/index.ts#BrowseCharacter"],
-    ["tests/support/chat/tape.ts", "copies:ErrorOptions=packages/inference/src/contract/errors.ts#ProviderErrorInit"],
+    ["tests/support/node/chat/tape.ts", "copies:ErrorOptions=packages/inference/src/contract/errors.ts#ProviderErrorInit"],
     ["tests/support/iso/app-blocking-receipt.ts", "copies:AppBlockingFrameTiming=packages/client/src/lib/motion-stats.ts#LongAnimationFrameEvidence"],
   ]),
   // The overlap lands on the debug inspector's row, which only shares the columns; the seeder writes `characters`.

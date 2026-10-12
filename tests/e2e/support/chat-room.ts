@@ -20,11 +20,11 @@
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
 import type { MessageId } from "@orb/kit/ids";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
-import { HOST_BAND, openContextSections } from "../../support/node/open-context-sections.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
@@ -44,9 +44,9 @@ const BOOTSTRAP_MESSAGE = "Hi";
 const COLD_CHAT_SURFACE_TIMEOUT = budget(45_000);
 
 // The dev introspection handle's shape, as read from inside a browser-context `page.evaluate`. Declared
-// locally (not imported from the client's ambient `declare global`) — the e2e support tree stays
-// import-free of the package trees on purpose. `__orb` is a dev-only global no lib declares, so the
-// direct cast (all-optional target — always assignable) is the one sanctioned bridge to it.
+// locally because the client's ambient `declare global` is not importable from this program; it is a dev global,
+// not a wire shape. `__orb` is a dev-only global no lib declares, so the direct cast (all-optional target —
+// always assignable) is the one sanctioned bridge to it.
 interface OrbBusHandle {
   readonly __orb?: {
     readonly bus: () => {

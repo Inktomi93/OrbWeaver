@@ -2,8 +2,8 @@
 // through its current `@orb/contracts` schema, every seeded blob must survive its read seam's schema, and every
 // seeded table is either read back row for row or named in `NOT_READ_BACK`.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
-import "../../../support/composed-real.ts";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import process from "node:process";
 import { assetIdSchema, assetKindSchema, characterIdSchema, galleryItemIdSchema } from "@orb/contracts/assets";
@@ -66,12 +66,12 @@ import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { seedDefaultBackgrounds, seedDefaultPreset, seedExamplePlugins, seedThemes, seedUserContent } from "@orb/server/entry/boot";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, vi } from "vitest";
 import { z } from "zod";
-import type { AppCaller } from "../../../support/fixtures.ts";
-import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 
 // A fresh checkout has no release zips; this suite must not borrow another file's artifact build.
 beforeAll(async () => {

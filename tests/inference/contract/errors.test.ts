@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("adding batch progress preserves the failing item's stack and original cause without repeating the message", () => {
   const cause = new Error("upstream failure");

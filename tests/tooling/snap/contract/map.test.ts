@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   MAP_ACTIONABILITIES,
   MAP_INACTIVE_REASONS,
@@ -7,7 +8,6 @@ import {
   mapVisibilitySchema,
 } from "../../../../tooling/src/snap/contract/map.ts";
 import { rawMapEntries } from "../../../../tooling/src/snap/ops/page-validate.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const INVENTED = "invented-member";
 const MAP_ROW = {

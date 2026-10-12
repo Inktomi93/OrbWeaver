@@ -22,11 +22,11 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
+import { livingChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/chromium-processes.ts";
+import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import type { DesignAuditRuleId } from "../../../tooling/src/ui-audit/index.ts";
-import { livingChromiumIdentities, watchChromiumDescendants } from "../../support/chromium-processes.ts";
-import type { ToolFixtures } from "../../support/tool-fixtures.ts";
-import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(90_000);

@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const ARIA_ID = castId<CharacterId>("character_aria");
 const KAI_ID = castId<CharacterId>("character_kai");

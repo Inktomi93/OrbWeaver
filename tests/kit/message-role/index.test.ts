@@ -1,5 +1,5 @@
 import { MESSAGE_ROLES, messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("MESSAGE_ROLES carries the canonical members in order", () => {
   expect(MESSAGE_ROLES).toEqual(["system", "user", "assistant"]);

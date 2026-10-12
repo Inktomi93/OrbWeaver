@@ -2,7 +2,6 @@
 // pinned QueryClient, the central invalidation seam, the bus reducer + adapter, and the three
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
-export type { AuthMe } from "./auth-bootstrap.ts";
 export {
   AUTH_ME_KEY,
   confirmPendingJoin,

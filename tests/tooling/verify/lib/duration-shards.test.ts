@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { z } from "zod";
 import { balanceNativeFiles, requireNativeSelection } from "../../../../tooling/src/verify/lib/duration-shards.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const baseline = z
   .object({ node: z.array(z.object({ file: z.string(), durationMs: z.number() })), ct: z.array(z.object({ file: z.string(), durationMs: z.number() })) })

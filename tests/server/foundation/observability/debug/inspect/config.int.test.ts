@@ -16,9 +16,9 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { characterDetailRow, characterPolicySweep, chatConfigRow, rpgGameForChat } from "@orb/server/foundation/observability/debug";
-import { freshDb } from "../../../../../support/db.ts";
-import { makeCharacter } from "../../../../../support/factories/character.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const OWNER = castId<UserId>("user_config_probe");
 const OPEN_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: false };

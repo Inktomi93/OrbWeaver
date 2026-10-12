@@ -7,9 +7,9 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CalendarPosition } from "@orb/kit/time";
 import { createTimeLib } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { localMomentum, localTimeline, rhythmOf } from "#client/features/stats/lib/local-calendar-folds.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function at(timeZone: string): (epochMs: number) => CalendarPosition {
   return createTimeLib({ timeZone }).calendarPosition;

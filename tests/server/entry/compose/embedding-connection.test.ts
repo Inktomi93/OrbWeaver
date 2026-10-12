@@ -5,13 +5,13 @@
 import { NoConnectionError } from "@orb/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { TEST_CONNECTION_ID, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { describe } from "vitest";
-import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { TEST_CONNECTION_ID, TEST_OWNER_ID } from "../../../support/factories/resolved-connection.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { makeEmbeddingRuntime } from "../../../support/inference-runtime.ts";
 
 const GONE_ROW = castId<UserConnectionId>("user_connection_gone");
 

@@ -1,6 +1,8 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import {
   loadCanonThroughSeq,
@@ -12,8 +14,6 @@ import {
   loadSegmentSpans,
   loadWitnessHorizons,
 } from "#server/domain/chat/memory/persistence/queries.ts";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support.ts";
 import { GROUP_CHAR, memoryGeneration, seedDigest, seedSegment } from "../_support.ts";
 

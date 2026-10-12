@@ -15,13 +15,14 @@
 // §6.2 arms below exist because a `mustPass` row asserts neither `waivedFindings === 1` nor, separately,
 // that the suppression came from THIS policy's own position: a row that stopped flagging for an unrelated
 // reason would pass it. The triple — zero effective, exactly one waived, zero authority alarms — is the arm.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as classTokenSplice } from "../../../../tooling/src/verify/gates/class-token-splice.ts";
 import { gate as scrollContainerPositioned } from "../../../../tooling/src/verify/gates/scroll-container-positioned.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [classTokenSplice, scrollContainerPositioned];

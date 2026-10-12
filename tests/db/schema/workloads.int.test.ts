@@ -15,9 +15,9 @@ import { isConstraintViolation } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 // ── Test-mirror (D34): the db column enum derives the ONE contracts tuple ──────────────────────────────
 test("workloads.kind enum mirrors WORKLOAD_KINDS (db derives the contracts tuple, never re-spells)", () => {

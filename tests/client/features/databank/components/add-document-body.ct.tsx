@@ -1,7 +1,7 @@
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { dropFiles } from "@orb/testkit/browser/drop-files.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { dropFiles } from "../../../../support/browser/drop-files.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES } from "../../chat/fixtures.ts";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";

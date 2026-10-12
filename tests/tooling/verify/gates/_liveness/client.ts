@@ -1,12 +1,13 @@
 // Real-corpus liveness arms (#2149) for policies judging the frontend packages (`@client`, `@ui`). DATA,
 // collected by the one runner (`./runner.ts`), which loads the
 // isolated structure corpora and runs every arm against it (docs/work/0043).
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as doors } from "../../../../../tooling/src/verify/gates/duplicate-action-doors.ts";
 import { gate as doorsHealth } from "../../../../../tooling/src/verify/gates/duplicate-action-doors-health.ts";
 import { gate as historyWrites } from "../../../../../tooling/src/verify/gates/no-raw-history-writes.ts";
 import { gate as flip } from "../../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { gate as windowedHealth } from "../../../../../tooling/src/verify/gates/windowed-infinite-query-health.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 /** A neutralise overlay that simply removes the watched subject from a file. */
 function blank(path: string): RealCorpusOverlay {

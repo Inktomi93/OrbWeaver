@@ -10,9 +10,9 @@ import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery, createImportGallery } from "@orb/server/domain/assets";
 import { buildGallery } from "@orb/server/primitives/serde/gallery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser, withGalleryCharacterOps } from "../_support.ts";
 
 const PNG = "image/png";

@@ -1,6 +1,7 @@
 // substrate/rates — pure read-layer rate math. div guards a zero denominator; the named rates derive the
 // non-additive ratios from the additive rollup columns; the `recorded*` pair decides UNRECORDED vs zero.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   aggregateTokenProvenance,
@@ -12,7 +13,6 @@ import {
   recordedTokens,
   throughputTps,
 } from "#server/domain/stats/substrate/rates.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("rate helpers", () => {
   test("div returns 0 for a non-positive denominator (no NaN/Infinity)", () => {

@@ -2,8 +2,8 @@
 // wire clamp's own suite mirrors override.ts (test-presence).
 
 import { createThemeInputSchema, THEME_NAME_MAX, themeSchema } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("theme entity/input schemas", () => {
   test("createThemeInput enforces the name cap and trims", () => {

@@ -18,8 +18,9 @@
 //
 // @instrument-proof: every arm below runs the SAME selectors against a page that carries the element and
 // one that does not, through the real CLI, so a refusal that fired unconditionally reds the control.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);

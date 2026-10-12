@@ -18,7 +18,7 @@
 
 import type { Wire } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
-import { expect } from "../../support/fixtures.ts";
+import { expect } from "@orb/testkit/node/fixtures.ts";
 import type { ChatScript } from "./_harness.ts";
 import { CONFORMANCE_WIRES, cellTest, driveChat, settledProviderError } from "./_harness.ts";
 

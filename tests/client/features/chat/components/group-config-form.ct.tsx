@@ -7,9 +7,9 @@
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
 import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, groupConfigSchema, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES, utilityBindings, withRunningRerank } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES, utilityBindings, withRunningRerank } from "../../../../support/node/utility-role.ts";
 import { CommittedGroupConfigTabStory, GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';

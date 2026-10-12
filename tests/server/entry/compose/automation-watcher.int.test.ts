@@ -13,10 +13,10 @@ import type { Db } from "@orb/db";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AutomationOps } from "@orb/server/domain/automation";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach } from "vitest";
 import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedMessage } from "../../domain/chat/_support.ts";
 
 let db: Db;

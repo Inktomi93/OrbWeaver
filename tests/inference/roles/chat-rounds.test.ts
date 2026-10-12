@@ -9,10 +9,10 @@ import { carriesForcedToolRound, ProviderError, runStructuredChat, toForcedToolR
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
-import { makeResolved } from "../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_rounds");
 const FORMAT: ResponseFormat = { name: "state", schema: projectJsonSchema(z.object({ place: z.string() })) };

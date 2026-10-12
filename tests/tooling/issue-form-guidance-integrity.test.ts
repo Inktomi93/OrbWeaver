@@ -1,8 +1,8 @@
 // @orb-waive-file no-vanity-alias(test): baselined when the gate widened; burn-down item 906.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test as issueTest } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseDocument } from "yaml";
-import { expect, test as issueTest } from "../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const FORMS_DIR = join(ROOT, ".github", "ISSUE_TEMPLATE");

@@ -23,9 +23,9 @@ import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb
 import { castId } from "@orb/kit/ids";
 import type { ImportAssetPort, ImportCharacterPort, ImportContextWiring, ImportTagPort } from "@orb/server/entry/import";
 import { buildImportContext } from "@orb/server/entry/import";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const FOREIGN = castId<UserId>("usr_victim");

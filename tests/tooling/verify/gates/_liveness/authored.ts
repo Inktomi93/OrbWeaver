@@ -7,6 +7,8 @@
 // read authored TEXT (a marker comment, a suppression directive, a debt citation), and this file is authored
 // text too: every such token is assembled from parts below, so the planted string exists only in the overlay
 // and never in this file for the real structure run to find.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatStreamWritesInBusOnly } from "../../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
 import { gate as gateIgnoreInventory } from "../../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { gate as noAwaitDbInLoop } from "../../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
@@ -24,7 +26,6 @@ import { gate as queryMachineSeals } from "../../../../../tooling/src/verify/gat
 import { gate as testFixtureImports } from "../../../../../tooling/src/verify/gates/test-fixture-imports.ts";
 import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { gate as zustandSelectorStability } from "../../../../../tooling/src/verify/gates/zustand-selector-stability.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const CHAT = "packages/client/src/features/chat";
 const CHARACTER_PERSISTENCE = "packages/server/src/domain/character/persistence";

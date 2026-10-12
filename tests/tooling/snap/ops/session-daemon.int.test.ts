@@ -28,6 +28,9 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { abandonedRuns } from "@orb/tooling/floor/artifacts/artifacts";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/floor/browser/browser";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -43,9 +46,6 @@ import { vi } from "vitest";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_INSTRUMENT } from "../../../../tooling/src/snap/lib/session-plan.ts";
 import { readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import type { CliResult } from "../../../support/tool-fixtures.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Wall clock only — every arm asserts a STRUCTURAL fact (an eval value, an exit code, a file, a pid's

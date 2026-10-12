@@ -3,12 +3,13 @@
 // The exact named-file door. The capability under test is TOTAL FAIL-CLOSED over the demanded id set: an
 // exact resource is named because the policy's judgment is ABOUT it, so a per-id miss inside a `ready` fact
 // would invert that judgment rather than narrow it.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { ExactFile, ExactResourceId } from "../../../../tooling/src/verify/contract/resource-exact.ts";
 import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-exact.ts";
 import { loadExactFiles } from "../../../../tooling/src/verify/ops/resource-exact.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const BOOT = EXACT_RESOURCE_PATHS["ct-boot"];
 const EXTENSION = EXACT_RESOURCE_PATHS["ct-extension-css"];

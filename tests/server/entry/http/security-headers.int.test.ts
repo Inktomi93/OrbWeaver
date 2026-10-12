@@ -8,13 +8,13 @@
 // forbids external media, so a fresh deployment ships the strict policy.
 // ASSUMES(single-replica): the effective-config cache is module-scope, reset per test here.
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
 import { __resetEffectiveConfigCache, getEffectiveConfig, reloadEffectiveConfig } from "#server/domain/settings/effective-config/cache.ts";
 import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts";
 import { securityHeaders } from "#server/entry/http/security-headers.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const AT = 1_750_000_000_000;
 

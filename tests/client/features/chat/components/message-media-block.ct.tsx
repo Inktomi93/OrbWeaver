@@ -5,10 +5,10 @@
 // just the source).
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_RATIO, PORTRAIT_W } from "@orb/testkit/browser/held-portrait-image.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { seedActiveChat } from "@orb/testkit/node/seed-active-chat.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/browser/held-portrait-image.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { seedActiveChat } from "../../../../support/node/seed-active-chat.ts";
 import { AttachmentMediaStory, RoomImageDetailStory } from "../_ct-stories.tsx";
 
 const MEDIA_IMG = '[data-slot="message-media"]';

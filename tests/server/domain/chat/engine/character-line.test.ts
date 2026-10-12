@@ -1,9 +1,9 @@
 // engine/character-line — the one "who is this" line both Smart pickers read: the distilled pitch, else the
 // card's leading sentences, else its tags, never the whole card; a blank card leaves the consumer the name alone.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { characterLine } from "#server/domain/chat/engine/character-line.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD = {
   name: "Maelis",

@@ -7,9 +7,9 @@ import type { Db } from "@orb/db";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedHostedChat, seedMessage, seedMessageVariant, seedUser } from "../_support.ts";
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {

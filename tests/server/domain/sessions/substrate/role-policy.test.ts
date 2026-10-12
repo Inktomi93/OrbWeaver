@@ -1,5 +1,6 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
 import {
   deriveIdentityAccess,
@@ -9,7 +10,6 @@ import {
   ownerHandles,
   reDeriveRoleOnLogin,
 } from "#server/domain/sessions/substrate/role-policy.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // The group→role governance matrix (D17; owner-confirmed). The vars are read at CALL time from process.env
 // (the sanctioned exception), so `vi.stubEnv` drives every case. The model, mapped onto orb's owner|admin|

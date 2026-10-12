@@ -8,6 +8,8 @@
 // files sit beside the real ones in `packages/db/src/schema/`. Several schema policies judge EVERY table, so a
 // schema arm's file also draws `db-structure` / `table-scoping-class` findings; the runner's entanglement check
 // proves those arms alone.
+
+import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as assumesSingleReplica } from "../../../../../tooling/src/verify/gates/assumes-single-replica.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as contentPartSeam } from "../../../../../tooling/src/verify/gates/content-part-seam.ts";
@@ -41,7 +43,6 @@ import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/ga
 import { gate as zodExportMembership } from "../../../../../tooling/src/verify/gates/zod-export-membership.ts";
 import { gate as zodModernSpellings } from "../../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
 
 const SCHEMA = "packages/db/src/schema";
 const DOMAIN = "packages/server/src/domain/character";

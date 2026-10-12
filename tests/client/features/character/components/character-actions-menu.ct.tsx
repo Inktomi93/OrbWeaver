@@ -9,10 +9,10 @@
 // class, so `refinery.startSession`'s call count is asserted beside the rendered landing.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterActionsMenuStory } from "../_ct-stories.tsx";
 
 // MINTED, never hand-written (`typeIdSchema` validates the 26-char suffix at runtime).

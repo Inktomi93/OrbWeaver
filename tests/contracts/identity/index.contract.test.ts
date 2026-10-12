@@ -2,6 +2,7 @@ import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contr
 import {
   AUTH_MODES,
   authConfigShareSchema,
+  authMeSchema,
   authModeSchema,
   relayStatusSchema,
   SHARE_STATES,
@@ -12,8 +13,8 @@ import {
 } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 // D17 PIN: the global-role axis is EXACTLY [owner, admin, user] — the `owner` member is the new one
 // (was neo's 2-member admin|user). A drift here is the whole point of this node's existence.
@@ -167,4 +168,11 @@ test("shareStatusSchema is strict, so a status carrying anything else fails the 
 test("authConfigShareSchema carries only the state and a nullable link", () => {
   expect(authConfigShareSchema.parse({ state: "up", url: null })).toEqual({ state: "up", url: null });
   expect(authConfigShareSchema.safeParse({ state: "up", url: null, relay: "quick" }).success).toBe(false);
+});
+
+test("authMeSchema admits both the signed-in and the unauthenticated answer and refuses an unknown role", () => {
+  expect(authMeSchema.safeParse({ authenticated: true, handle: "alice", role: "owner" }).success).toBe(true);
+  expect(authMeSchema.safeParse({ authenticated: false, handle: null, role: null }).success).toBe(true);
+  expect(authMeSchema.safeParse({ authenticated: true, handle: "alice", role: "root" }).success).toBe(false);
+  expect(authMeSchema.safeParse({ authenticated: true, handle: "alice", role: "user", via: "cookie" }).success).toBe(false);
 });

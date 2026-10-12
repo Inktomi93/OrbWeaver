@@ -3,10 +3,10 @@
 // new words at delay 0, previously revealed words resuming at their true age, settled words clamped
 // to the constant cap (byte-stable styles), and the shrink reset for a new tail block.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // Deep-imports src (browser package; @orb/ui is not node-resolvable), like dialogue.test.ts.
 import { describe } from "vitest";
 import { createRevealPlugin } from "#ui/markdown/reveal-plugin.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 interface Node {
   type: string;

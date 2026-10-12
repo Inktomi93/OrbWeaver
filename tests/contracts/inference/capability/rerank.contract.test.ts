@@ -5,7 +5,7 @@
 // measured number it never had.
 
 import { RERANK_FLOOR, rerankCapabilitySchema } from "@orb/contracts/inference";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the floor parses and declares itself a guess", () => {
   expect(rerankCapabilitySchema.parse(RERANK_FLOOR)).toEqual(RERANK_FLOOR);

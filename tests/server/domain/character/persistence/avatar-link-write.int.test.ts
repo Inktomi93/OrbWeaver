@@ -17,10 +17,10 @@ import { characters } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createLinkCharacterAvatars } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedRawCharacter, seedUser } from "../_support.ts";
 
 /** A pinned relink instant, deliberately DIFFERENT from the seed's `updatedAt` so the stamp is provable. */

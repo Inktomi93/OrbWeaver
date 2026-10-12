@@ -1,4 +1,4 @@
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { chatGenerationObservations, connectionBindings, messages, messageVariants, ownerStats, userConnections } from "@orb/db";
@@ -6,14 +6,14 @@ import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { reconcileStats } from "@orb/server/domain/stats";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
+import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
-import { principal } from "../../../support/factories/principal.ts";
-import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
-import { seedUser } from "../../../support/factories/user.ts";
-import type { Fixtures } from "../../../support/fixtures.ts";
-import { test as base, expect } from "../../../support/fixtures.ts";
 import { seedCharacter } from "../../domain/chat/_support.ts";
 
 const test = base.extend<{ requests: RecordedRequest[]; providerFetch: typeof fetch }>({

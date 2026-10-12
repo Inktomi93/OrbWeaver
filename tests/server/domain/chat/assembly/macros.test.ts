@@ -10,10 +10,10 @@ import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildTurnMacroContext, renderHistoryMacros, renderMacros, resolveGuidedActionText, resolveNudgeText } from "#server/domain/chat/assembly/macros.ts";
 import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 

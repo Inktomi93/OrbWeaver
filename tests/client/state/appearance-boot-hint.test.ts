@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach } from "vitest";
 import { __resetAppearanceBootHint, readAppearanceBootHint, rememberAppearanceBootHint, rememberDataThemeHint } from "#client/state/appearance-boot-hint.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 beforeEach(__resetAppearanceBootHint);
 afterEach(__resetAppearanceBootHint);

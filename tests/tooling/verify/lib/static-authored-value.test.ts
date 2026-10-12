@@ -1,5 +1,6 @@
 // Authored shape and refusal controls; arbitrary free-function effects are outside this reader's contract.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
@@ -12,7 +13,6 @@ import {
   readStaticAuthoredValue,
   resolveAuthoredComposite,
 } from "../../../../tooling/src/verify/lib/static-authored-value.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

@@ -3,13 +3,13 @@
 // catalog to list and nothing to share — and an action that names a key the row does not have.
 
 import { PROVIDER_AUTHS } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   addModelActionGloss,
   addModelActionLabel,
   addModelScope,
   validateAddModelOnKey,
 } from "#client/features/credentials/lib/add-model-on-key-form-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const KEY_ID = "user_credential_ctaddmodel01";
 

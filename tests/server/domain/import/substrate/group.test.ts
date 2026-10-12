@@ -2,9 +2,9 @@
 // malformed/non-object JSON never throws (degrades to null), members resolve by FILENAME (never display
 // name — the load-bearing disambiguation the header states), and generation_mode 1 maps to narratorOutput.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { parseStGroupFile } from "#server/domain/import/substrate/group.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function bytesOf(obj: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(obj));

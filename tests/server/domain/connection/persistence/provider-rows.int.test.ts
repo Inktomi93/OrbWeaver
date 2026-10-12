@@ -6,6 +6,9 @@ import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { pluginProviderClaims, providerRows } from "@orb/db";
 import type { Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -15,9 +18,6 @@ import {
   releasePluginProviderClaims,
   replacePluginProviderRows,
 } from "#server/domain/connection/persistence/provider-rows.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { PluginHarness } from "../../plugin/_support.ts";
 import { makeBundle, makePluginHarness, principalFor, seedUser } from "../../plugin/_support.ts";
 

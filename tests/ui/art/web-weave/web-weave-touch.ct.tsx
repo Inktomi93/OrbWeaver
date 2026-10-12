@@ -18,7 +18,6 @@
 //     web is backdrop decoration, and a blanket `touch-action: none` would pass claim one and eat
 //     the page).
 
-import { expect, test } from "@playwright/experimental-ct-react";
 import {
   ambientCeiling,
   boxCentre,
@@ -27,7 +26,8 @@ import {
   frameFingerprintPair,
   touchDrag,
   waitFrames,
-} from "../../../support/browser/weave-drive.ts";
+} from "@orb/testkit/browser/weave-drive.ts";
+import { expect, test } from "@playwright/experimental-ct-react";
 import { WeaveInertTwinBox, WeaveScrollBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 // The whole suite runs as a touch device: `hasTouch` flips `matchMedia("(pointer: coarse)")` in

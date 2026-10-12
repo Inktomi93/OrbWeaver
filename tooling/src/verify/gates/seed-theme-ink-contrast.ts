@@ -109,7 +109,7 @@
 // final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by
 // both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 
-import { NORMAL_MIN_RATIO } from "../../floor/instrument/wcag.ts";
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { THEME } from "../contract/css-family.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -196,7 +196,7 @@ function judgeInPalette(use: InkUse, palette: SeedPalette): Verdict {
     const judged = use.selfTintPercent === null ? ground : compositeOver(ink, ground, use.selfTintPercent / PERCENT);
     const ratio = worstContrast(ink, judged);
     measured += 1;
-    if (ratio < NORMAL_MIN_RATIO) {
+    if (ratio < AA_NORMAL_RATIO) {
       failures.push({ palette: palette.name, ground: groundVar, ratio, tint: use.selfTintPercent });
     }
   }
@@ -232,7 +232,7 @@ function reportClass(report: Report, use: InkUse, failures: readonly Judged[]): 
     token: use.className,
     subject: use.file,
     operation: inkOperation(use.token),
-    message: `${use.className}${tint} measures ${worst.ratio.toFixed(2)}:1 on ${worst.ground} in the ${worst.palette} seed${others} — below WCAG AA-NORMAL ${String(NORMAL_MIN_RATIO)}:1 — see tooling/src/verify/gates/seed-theme-ink-contrast.ts`,
+    message: `${use.className}${tint} measures ${worst.ratio.toFixed(2)}:1 on ${worst.ground} in the ${worst.palette} seed${others} — below WCAG AA-NORMAL ${String(AA_NORMAL_RATIO)}:1 — see tooling/src/verify/gates/seed-theme-ink-contrast.ts`,
   });
 }
 

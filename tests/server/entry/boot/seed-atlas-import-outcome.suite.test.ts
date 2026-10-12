@@ -20,13 +20,13 @@
 //
 // `.suite`: one property (the add path's outcome is stated, and its writes do not hang off the statement)
 // across the guest bundle + the host's toast budget — it mirrors no single module. The harness is the shared
-// `tests/support/atlas-guest.ts`, so the realm denial these tests run under is the realm's own.
+// `tests/support/node/atlas-guest.ts`, so the realm denial these tests run under is the realm's own.
 
+import type { AtlasBootOptions, CannedResponse } from "@orb/testkit/node/atlas-guest.ts";
+import { bootAtlas, lastAtlasState } from "@orb/testkit/node/atlas-guest.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // @orb-waive-file no-test-fabrication({ owned?: unknown } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
-import type { AtlasBootOptions, CannedResponse } from "../../../support/atlas-guest.ts";
-import { bootAtlas, lastAtlasState } from "../../../support/atlas-guest.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** A one-row Wyvern page — the hub whose rows carry native card JSON, so the add path's JSON arm resolves
  *  without an art plane (the PNG-first arm folds on `ingestAsset`, exactly as it does for a PNG-less hub). */

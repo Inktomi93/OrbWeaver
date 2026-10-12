@@ -9,20 +9,20 @@ import type { Db } from "@orb/db";
 import { assets, characters, ownerStats } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import type { CopyAssetToOwner } from "#server/domain/character/index.ts";
 import { createCopyHandoffCards, handoffProvenance } from "#server/domain/character/index.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { seedUser } from "../../../../support/factories/user.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 const CHAT = castId<ChatId>("chat_transfer");
 /** The find-before-mint provenance READ — the statement both accepts must clear before either writes, and
  *  the one this race is about. It is held rather than the INSERT because the insert rides `db.batch`, and
- *  the hold harness intercepts `execute` only (see `tests/support/db.ts#holdingClient`). */
+ *  the hold harness intercepts `execute` only (see `tests/support/node/db.ts#holdingClient`). */
 const PROVENANCE_READ = /"imported_from" in/iu;
 
 async function seedCard(

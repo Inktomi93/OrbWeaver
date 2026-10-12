@@ -1,6 +1,6 @@
+import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION, timingCapability } from "@orb/tooling/floor/host/timing-capability";
 import { vi } from "vitest";
-import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION, timingCapability } from "../../../tooling/src/floor/host/timing-capability.ts";
-import { expect, test } from "../fixtures.ts";
+import { expect, test } from "./fixtures.ts";
 import { assertTimingBudget } from "./timing-budget.ts";
 
 test("record-only timing retains its native number and breach without replacing behavioral assertions", async () => {

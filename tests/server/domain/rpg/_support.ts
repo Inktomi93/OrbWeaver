@@ -29,6 +29,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
+import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import { viewerReadsHidden } from "#server/domain/chat/index.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "#server/domain/rpg/contract/params.ts";
@@ -43,10 +44,9 @@ import type {
 } from "#server/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
-import { makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
-export { expect, test } from "../../../support/fixtures.ts";
+export { expect, test } from "@orb/testkit/node/fixtures.ts";
 export { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 /** The empty-born snapshot state (the createGame seed shape — null ambient, empty planes, no locks). */

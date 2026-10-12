@@ -6,10 +6,10 @@ import type { Principal } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isAdmin } from "#server/domain/admin/guard.ts";
 import { assertKindSupportsMode, isVisibleToCaller, resolveListOwnerFilter } from "#server/domain/workloads/substrate/authorize.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER: UserId = castId("user_owner");
 const OTHER: UserId = castId("user_other");

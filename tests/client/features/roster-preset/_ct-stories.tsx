@@ -27,11 +27,14 @@ import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows, useTRPC } from "@orb/client/data";
 import { HomeSurface } from "@orb/client/features/home";
 import type { NotifyInput } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
+import { bindNotify, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { __readSurfaceBoxForTest, rememberHomeTileSettledHidden, rememberSurfaceBox, selectChat, useHomeTileSettledHidden } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -39,8 +42,6 @@ import { RosterCollectionRows } from "#client/features/roster-preset/components/
 import { RosterPicker } from "#client/features/roster-preset/components/roster-picker.tsx";
 import { rosterPresetHomeTile } from "#client/features/roster-preset/lib/home-rosters-tile.tsx";
 import { RosterMemberSurface } from "#client/features/roster-preset/surfaces/roster-member-surface.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 // The stories' active-chat id — the `.ct.tsx` stubs `chat.getChat`/`automation.listRules` for this same id
 // (a plain module-const, not an export: a story module exports components ONLY).
@@ -215,7 +216,14 @@ export function HomeRostersTileStory({ width = 360 }: { readonly width?: number 
   return (
     <CtDataProviders>
       <div style={{ width }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [rosterPresetHomeTile])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the Rosters tile alone in the home frame so its own gate and heading are what is measured",
+            [rosterPresetHomeTile],
+          )}
+        />
       </div>
       {sink.node}
     </CtDataProviders>

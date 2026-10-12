@@ -4,9 +4,9 @@
 // layered over a backdrop and orb's base surface must be opaque), and the sRGB→OKLCH transform against
 // PUBLISHED reference values (a transposed matrix coefficient produces plausible-looking wrong colours).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "#server/primitives/serde/theme/color.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The literal for a colour string, or null when it does not parse — the whole pipeline in one call. */
 function convert(raw: string): string | null {

@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { collectRegistryCandidates } from "../../../../tooling/src/ast/ops/registry-candidates.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

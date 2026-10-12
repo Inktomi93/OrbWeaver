@@ -1,8 +1,8 @@
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { freshCountedDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { scenario } from "../../../../support/chat/scenario.ts";
-import { tape } from "../../../../support/chat/tape.ts";
-import { freshCountedDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { scenario } from "../_scenario.ts";
 import { seedMessage } from "../_support.ts";
 
 describe("interactive read bounds", () => {

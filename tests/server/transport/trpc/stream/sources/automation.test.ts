@@ -28,8 +28,8 @@ import type { AutomationService } from "@orb/server/domain/automation";
 import { AutomationChatNotFoundError } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishAutomationEvent, publishUserEvent } from "@orb/server/transport/trpc";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 import { consumeServerReady } from "../_support.ts";
 

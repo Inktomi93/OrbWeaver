@@ -1,8 +1,8 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as agentBridgeLock } from "../../../../tooling/src/verify/gates/agent-bridge-lock.ts";
 import { gate as designAuditRuleProof } from "../../../../tooling/src/verify/gates/design-audit-rule-proof.ts";
 import { gate as toolingInstrumentProof } from "../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [agentBridgeLock, designAuditRuleProof, toolingInstrumentProof] as const;

@@ -2,10 +2,10 @@
 // The cli.int suite proves the same behaviour through the real binary; this one exists because the edge that
 // matters (an id that is also a PREFIX of a longer id) is awkward to plant and trivial to state.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { BugReportListing, BugReportSummary } from "../../../../tooling/src/bug-reports/contract/index.ts";
 import { formatShow, resolveBugReport } from "../../../../tooling/src/bug-reports/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function summary(id: string, overrides: Partial<BugReportSummary> = {}): BugReportSummary {
   return {

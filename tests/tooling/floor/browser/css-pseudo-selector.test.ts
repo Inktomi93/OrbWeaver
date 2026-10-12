@@ -3,8 +3,9 @@
 // appears inside the host's match condition. Both arms matter: the first is what unblocked
 // `light-art-scrim-glass-elevation` after #1154 moved the shell panes' glass onto `::before`; the second is
 // what keeps `:has(a::before)` addressed to the host it actually names.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { CSS_PSEUDO_TYPE, splitPseudoSelector } from "../../../../tooling/src/floor/browser/css-pseudo-selector.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("a trailing carrier splits off the host and keeps Chromium's own pseudo-type key", () => {
   expect(splitPseudoSelector('.shell-panel[data-panel-side="list"]::before')).toEqual({

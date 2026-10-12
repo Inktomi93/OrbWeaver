@@ -2,11 +2,11 @@
 // selection remains the host section contract.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import {
   ConfigHostStory,
   ConfigListDefaultStory,

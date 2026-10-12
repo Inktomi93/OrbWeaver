@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { castStringLiteralsByDiagnostic, createCodemodProject, deleteFiles, isTestFile, moveFiles, runCodemod } from "@orb/tooling/codemod";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const SEMANTIC_RUN_TIMEOUT_MS = scaledBudget(20_000);

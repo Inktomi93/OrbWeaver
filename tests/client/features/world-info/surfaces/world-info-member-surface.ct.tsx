@@ -8,9 +8,9 @@
 // path: @dnd-kit's KeyboardSensor picks up on Space, moves 10px per ArrowDown, drops on Space (its own
 // defaults). DEF-14: every assertion is web-first / expect.poll — no bare live-DOM read.
 
+import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoEditorReorderStory, WorldInfoMemberStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";

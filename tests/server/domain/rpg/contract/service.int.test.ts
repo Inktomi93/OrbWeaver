@@ -3,11 +3,11 @@
 // arrays and `trackerValues` object are COPIES of the row's parsed values, never a shared reference — and
 // nullable-array columns collapse a null (an empty-born row) to `[]` so the projected state is total.
 
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { insertSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { emptyState, seedChat, seedGame, seedMessage, target } from "../_support.ts";
 
 describe("snapshotRowToState", () => {

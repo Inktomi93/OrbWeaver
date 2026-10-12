@@ -10,9 +10,9 @@ import { NOTIFICATION_TYPES, notificationEventSchema } from "@orb/contracts/noti
 import { notifications, users } from "@orb/db";
 import type { Handle, NotificationId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 // A valid `invite` event for the given recipient (real TypeIDs so it also parses via the contract).

@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PLUGIN_SCRIPT_ENTRY_MAX_BYTES } from "@orb/contracts/plugin";
 import { packPreparedPluginDir } from "@orb/server/infra/plugin-source";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { unzipSync } from "fflate";
-import { expect, test } from "../../../support/fixtures.ts";
 
 async function withSource(run: (root: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "orb-plugin-source-"));

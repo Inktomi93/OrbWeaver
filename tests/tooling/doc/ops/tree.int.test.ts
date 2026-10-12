@@ -2,10 +2,10 @@
 // commit-message contract is checked by this door itself, and git's own refusal text reaches the caller.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TRAILER = "Co-Authored-By: t <t@example.invalid>";
 

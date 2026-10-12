@@ -2,9 +2,9 @@
 // critical case is a description containing BOTH macros: a naive one-pass swap would double-hit and corrupt
 // it; the two intermediate tokens guarantee each source macro lands exactly once.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { swapPersonaMacros } from "#server/domain/persona/substrate/macro-swap.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("swapPersonaMacros", () => {
   test("inverts both macros in a string containing BOTH (the collision case)", () => {

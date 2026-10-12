@@ -2,13 +2,13 @@ import { automationActionSchema, automationRuleUpdateSchema } from "@orb/contrac
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { ruleActionExamples } from "@orb/testkit/node/factories/automation-rule-actions.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { ruleActionExamples } from "../../../../support/factories/automation-rule-actions.ts";
-import { createSeededIds } from "../../../../support/ids.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RuleEditorRulesStory } from "../_editor-stories.tsx";
 
 const ids = createSeededIds();

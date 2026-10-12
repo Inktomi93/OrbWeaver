@@ -8,11 +8,11 @@
 // nowhere) · the §7.4 sub-level deep link onto a moved section.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { findSettingsColumnViolation, readSettingsPaneGeometry } from "@orb/testkit/browser/settings-geometry.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import { AdminGroupStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";

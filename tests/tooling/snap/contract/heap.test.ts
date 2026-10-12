@@ -2,8 +2,9 @@
 // `heapSnapshotReceiptSchema` imports it rather than re-spelling a looser copy (a bare `z.number()`/
 // `z.string()` that silently accepted a negative `omitted` and an empty `kind`/`path` the declaration
 // reader already refuses). This file's own job is narrow: hold the heap READER to the same floor.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { heapSnapshotReceiptSchema } from "../../../../tooling/src/snap/contract/heap.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The smallest object that satisfies `heapSnapshotReceiptSchema` — every axis but `limits` is filler,
  *  present only so `.safeParse` reaches the field under test. */

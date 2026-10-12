@@ -25,8 +25,8 @@ import {
   loreEntryMetadata,
   selectBestCharacterBook,
 } from "@orb/server/primitives/serde/card";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal-but-complete canonical card (the hash tests mutate copies of this). */
 function baseCard(overrides: Partial<CharacterCard> = {}): CharacterCard {

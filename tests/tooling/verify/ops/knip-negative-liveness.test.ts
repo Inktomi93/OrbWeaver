@@ -2,10 +2,11 @@
 // reds and names the pattern by workspace; one naming a tracked file passes; a wildcard negation over an
 // absent directory is out of scope. The last case judges the real knip.ts against the real git index.
 // @orb-waive-file no-vanity-alias(config): baselined when the gate widened; burn-down item 906.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { config as knipConfig } from "../../../../knip.ts";
 import { judgeKnipNegatives, knipNegativeReport } from "../../../../tooling/src/verify/ops/knip-negative-liveness.ts";
 import { loadTrackedFiles } from "../../../../tooling/src/verify/ops/resource-tracked.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TRACKED = new Set(["packages/client/src/main.tsx", "scripts/run.ts", "knip.ts"]);
 

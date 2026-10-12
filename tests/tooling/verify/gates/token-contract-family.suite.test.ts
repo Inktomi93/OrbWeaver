@@ -1,6 +1,7 @@
 // @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { TokenRemovalBaseline } from "@orb/ui/token-contract";
 import { readTokenContractTexts, readTokenRemovalBaseline, validateTokenContractTexts } from "@orb/ui/token-contract";
 import { Project } from "ts-morph";
@@ -9,7 +10,6 @@ import { TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/re
 import { gate as tokensContract } from "../../../../tooling/src/verify/gates/tokens-contract.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 const CANONICAL = readTokenContractTexts(join(REPO_ROOT, "packages/ui"));

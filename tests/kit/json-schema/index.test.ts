@@ -3,8 +3,8 @@
 // tool's args AND ResponseFormat.schema (04 §1) — these goldens are that axis's too.
 
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("pins additionalProperties:false on every object node, nested objects + array items included", () => {
   const projected = projectJsonSchema(

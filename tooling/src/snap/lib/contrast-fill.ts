@@ -23,8 +23,8 @@
 //     text subject the ring is background by construction, on a fill subject it IS the fill.
 //   · Both are separated by a FEATHER of the element's own edge pixels, which blend the two and belong to
 //     neither.
+import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { Rgb } from "../../floor/instrument/wcag.ts";
-import { contrastRatio } from "../../floor/instrument/wcag.ts";
 import type { ContrastFillGeometry, ContrastFillReading, ContrastFillRegion, ContrastPixelImage } from "../contract/contrast.ts";
 
 /** Colour resolution of one bucket: 4 sRGB steps per channel. Coarse enough that an anti-aliased sweep of
@@ -192,10 +192,12 @@ export function readFillChannels(image: ContrastPixelImage, geometry: ContrastFi
     };
   }
   const dominant = populations.reduce((most, bucket) => (bucket.count > most.count ? bucket : most));
-  const loudest = populations.reduce((best, bucket) => (contrastRatio(meanOf(bucket), surround) > contrastRatio(meanOf(best), surround) ? bucket : best));
+  const loudest = populations.reduce((best, bucket) =>
+    wcagContrastRatio(meanOf(bucket), surround) > wcagContrastRatio(meanOf(best), surround) ? bucket : best,
+  );
   return {
     kind: "measured",
-    ratio: contrastRatio(meanOf(loudest), surround),
+    ratio: wcagContrastRatio(meanOf(loudest), surround),
     fill: meanOf(loudest),
     surround,
     channel: loudest === dominant ? "fill" : "inset-edge",

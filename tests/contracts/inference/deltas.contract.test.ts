@@ -6,7 +6,7 @@
 // turns stream nothing visible and cost nothing measurable.
 
 import { DELTA_KINDS, WIRE_DEFS, WIRES } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("no wire declares a delta outside the tuple — the bus dispatches on this union", () => {
   const known: ReadonlySet<string> = new Set<string>(DELTA_KINDS);

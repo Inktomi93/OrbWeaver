@@ -20,11 +20,11 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService, DistillFailedError } from "@orb/server/domain/discovery";
 import { createTagService } from "@orb/server/domain/tag";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness } from "../../tag/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 

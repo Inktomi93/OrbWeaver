@@ -7,6 +7,7 @@
 // below are LITERAL — an expectation derived from the registry would agree with the registry no matter what
 // the registry said, which is the shape of a test that cannot fail.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view.test.ts precedent).
@@ -18,7 +19,6 @@ import {
   characterActionLabel,
   characterActionsForScope,
 } from "#client/features/character/lib/character-actions.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The vocabulary, spelled out — the exact accessible names each surface is allowed to render. */
 const EXPECTED_LABELS_BY_SCOPE = {

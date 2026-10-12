@@ -3,9 +3,9 @@
 // strike/trip cycle (HEALTH_STRIKE_LIMIT consecutive strikes trips, resetting the counter). Each test uses
 // a unique credentialId — the underlying cache is a module-scope singleton.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { beginProbe, recordStrike, resetStrikes } from "#server/domain/credentials/substrate/health-throttle.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("beginProbe", () => {
   test("the FIRST probe for a credential proceeds (returns null) and stamps the check time", () => {

@@ -19,9 +19,9 @@
 // The two observables are the host's own honesty instruments over the REAL resolver: `peekPrompt` (the bytes
 // the next turn ships) and `getMemberCard` (the card-context render). Neither runs a turn.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @orb-waive-file no-loose-id-cast(characterId): baselined when the gate widened; burn-down item 906.
-import "../../../support/composed-real.ts";
+import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -30,11 +30,11 @@ import { characters, chatParticipants, connectionBindings, userConnections } fro
 import type { ChatId, ConnectionBindingId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 
 /** The card whose own description carries the CARD-context probe (§A.2's "`{{user}}` is my brother" shape). */

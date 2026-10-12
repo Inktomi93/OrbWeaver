@@ -3,8 +3,8 @@
 // duplicate-contributor-id throw at construction, list() order.
 
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ID_TUPLE = ["a", "b", "c"] as const;
 type Id = (typeof ID_TUPLE)[number];

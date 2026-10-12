@@ -3,10 +3,10 @@
 
 import { embedGenerationTargets } from "@orb/db";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import type { EmbeddingConnectionSnapshot } from "#server/domain/embeddings/contract/service.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { EMBED_DIM, fakeVector, makeStoreHarness, seedUser } from "../_support.ts";
 
 test("sync proves both changed targets before either lands; preview/snapshots stay owner-scoped and never probe", async ({ db, ids }) => {

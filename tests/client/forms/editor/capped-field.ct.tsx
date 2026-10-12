@@ -8,8 +8,8 @@
 // token is an oklch custom property, not a class name a snapshot could compare).
 
 import { CappedFieldCounter } from "@orb/client/forms/editor";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const MAX = 4000;
 

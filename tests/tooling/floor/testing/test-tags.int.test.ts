@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { descendantsOfKind, getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { TYPE_CONFIG_EXCLUDES } from "@orb/tooling/floor/compiler/type-config-intent";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -8,7 +9,6 @@ import { classifyTestFilename, runtimeForTestFamily, TEST_KIND_DEFINITIONS } fro
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { testTagFilters } from "../../../../vitest.config.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TEST_FILE = "tagged.test.js";
 const VITEST_RUNTIME_KINDS = TEST_KIND_DEFINITIONS.filter(({ family }) => runtimeForTestFamily(family) === "vitest");

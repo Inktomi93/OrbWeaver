@@ -1,6 +1,6 @@
 import { characterRegexTierKey, regexTierAllowSchema } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("regex tier allows are sparse overrides: one fixed or character key parses without filling siblings", () => {
   const characterKey = characterRegexTierKey(mintTypeId(ID_PREFIX.character));

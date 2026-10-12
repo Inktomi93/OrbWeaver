@@ -26,8 +26,8 @@ import { CARD_EMBEDDABLE_THEME_KEYS, themeOverrideSchema } from "@orb/contracts/
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { readSeedAvatar, SEED_BACKGROUND_PLATES, SEED_MANIFEST } from "@orb/default-content";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const SHIPPED_PLATE_SLUGS = new Set(SEED_BACKGROUND_PLATES.map((plate) => plate.slug));
 const EMBEDDABLE = new Set<string>(CARD_EMBEDDABLE_THEME_KEYS);

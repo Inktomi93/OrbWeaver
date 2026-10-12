@@ -9,12 +9,12 @@ import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgS
 import { castId } from "@orb/kit/ids";
 import type { RpgContext } from "@orb/server/domain/rpg";
 import { createRpgService } from "@orb/server/domain/rpg";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { PostNarratorMessage } from "#server/domain/chat/contract/context.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
 import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../../support/db.ts";
 import { makeChatContext, noClaim, seedCharacter, seedParticipant, seedUser } from "../../../chat/_support.ts";
 import type { RpgHarness } from "../../_support.ts";
 import { expect, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";

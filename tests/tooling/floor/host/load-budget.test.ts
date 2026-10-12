@@ -14,6 +14,7 @@
 //       message naming base×factor and the loadavg. The ceiling is not a way to hang.
 
 import { cpus } from "node:os";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   annotateRateLoad,
   BOX_LOAD_ENV,
@@ -43,7 +44,6 @@ import {
 import { cgroupQuotaCores, effectiveCpuCount, readCpuThrottle } from "@orb/tooling/floor/host/load-budget-cgroup";
 import { vi } from "vitest";
 import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Per-core 4.0 on a 24-core box — the FORCED-LOAD reading T14/T16 use. */
 const LOADED = { loadavg1: 96, cpuCount: 24 } as const;

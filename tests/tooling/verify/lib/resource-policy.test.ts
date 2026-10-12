@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css-family.ts";
@@ -10,7 +11,6 @@ import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/re
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { bindPolicyResources } from "../../../../tooling/src/verify/lib/resource-policy.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("each owner receives a receipt even when a sibling already acquired the resource", ({ scratch }) => {
   const invocation = createResourceHost({ root: scratch, overlay: { "package.json": JSON.stringify({ name: "orb", private: true }) } });

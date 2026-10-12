@@ -8,10 +8,10 @@
 
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { loadPluginMessages } from "#server/entry/compose/plugin-chat-reads.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedMessage } from "../../domain/chat/_support.ts";
 
 let db: Db;

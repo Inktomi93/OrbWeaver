@@ -4,10 +4,10 @@ import { createServer, Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { connect } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
+import { createManualTimer } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
 import { drainHttpServer, HTTP_SERVER_TIMEOUTS, serveHttpServer } from "#server/entry/lifecycle.ts";
-import { createManualTimer } from "../../support/clock.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DRAIN_MS = 200;
 const SHORT_REQUEST_TIMEOUT_MS = 40;

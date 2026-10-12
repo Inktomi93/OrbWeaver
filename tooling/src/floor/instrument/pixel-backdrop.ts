@@ -17,7 +17,7 @@
  * the ring cannot drag the number.
  */
 
-import { relativeLuminance } from "./wcag.ts";
+import { relativeLuminance } from "@orb/kit/theme-derivation";
 
 /** Ring thickness as a fraction of the box's short side (capped by SAMPLE_RING_MAX_PX). */
 export const SAMPLE_RING_FRAC = 0.15;

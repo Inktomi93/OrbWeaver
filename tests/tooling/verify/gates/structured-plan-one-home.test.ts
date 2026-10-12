@@ -1,13 +1,14 @@
 // structured-plan-one-home's family floor: its declared proofs pass the production runtime, and the ordinary waiver
 // binds to exactly the reported `toolChoice` position (one waived, none effective, no alarm), which a mustPass row
 // alone cannot tell apart from a fixture that never flagged.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/structured-plan-one-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { WIRE_SCHEMA_ENGINE } from "../../../../tooling/src/verify/lib/wire-schema-vocabulary-fact.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/structured-plan-one-home";
 const ENGINE = 'export const STRUCTURED_VEHICLES = ["response-format", "forced-tool", "offered-tool"] as const;\n';

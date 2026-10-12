@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "../../../../support/ui-audit-relational.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node/ui-audit-relational.ts";
 
 interface ActivityAuditReport {
   readonly findings: readonly { readonly rule: string; readonly selector?: string }[];

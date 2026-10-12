@@ -7,10 +7,10 @@ import { castId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { rebuildStatsTimelineOnBoot } from "@orb/server/entry/boot";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb, SHIPPED_MIGRATIONS } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { seedCharacter, seedCharacterStats, seedChat, seedMessage, seedModelStats, seedOwnerStats, seedUser, T0 } from "../../domain/stats/_support.ts";
 
 const BOOT_NOW = (): number => T0 + 60_000;

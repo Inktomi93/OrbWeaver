@@ -7,9 +7,9 @@ import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from 
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "@orb/server/domain/workloads";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
 
 const SINGULAR_CALLS = 4;

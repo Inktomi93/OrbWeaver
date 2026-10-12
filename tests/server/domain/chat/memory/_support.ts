@@ -3,7 +3,6 @@
 // injected fakes (summarize / embeddingsStore / searchDigests) the build + recall close over. The digest/
 // segment rows carry a dummy F32_BLOB(1024) embedding (memory never reads the vector column — only the facets).
 
-import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
@@ -33,9 +32,7 @@ import type {
 } from "#server/domain/chat/contract/context.ts";
 import type { MemoryScope } from "#server/domain/chat/memory/types.ts";
 import { loadPresentHostUserId } from "#server/domain/chat/persistence/reactions.ts";
-import { completeGenerationScope, resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { createMemoryEmbeddingOps } from "#server/entry/compose/memory-embedding-ops.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { StoreHarness } from "../../embeddings/_support.ts";
 import { makeStoreHarness, SUMMARIZER_MODEL, seedVectorConnection } from "../../embeddings/_support.ts";
 import { makeChatContext, seedMessage } from "../_support.ts";
@@ -67,7 +64,7 @@ export async function memoryGeneration(db: Db, ownerId: UserId): Promise<MemoryS
     return current;
   }
   await seedVectorConnection(db, ownerId);
-  const generation = await resolveTargetGeneration(makeStoreHarness(db).ctx, ownerId, "embed");
+  const generation = await createEmbeddingsService(makeStoreHarness(db).ctx).resolveGeneration(ownerId, "embed");
   if (generation === null) {
     throw new Error(`the memory fixture owner ${ownerId} must resolve an embed generation`);
   }
@@ -97,13 +94,15 @@ function dummyVector(dims: number): Float32Array {
   return new Float32Array(dims);
 }
 
-/** Every scope of the owner's memory space completes, as the sweeps record it, so search reads it as ready. */
+/** Every scope of the owner's memory space completes through the sweeps that record it (the card sweep, the memory
+ *  and document reclaims), so search reads it as ready. */
 export async function completeMemorySpace(db: Db, ownerId: UserId): Promise<void> {
   const generation = await memoryGeneration(db, ownerId);
   const receipt = { id: generation.id, task: "embed", via: "embed", epoch: generation.epoch, space: generation.space } as const;
-  for (const scope of VECTOR_SCOPES_BY_TASK.embed) {
-    await completeGenerationScope({ db, now: () => FROZEN_AT_MS, onTargetPromoted: (): void => undefined }, { ownerId, scope, generation: receipt });
-  }
+  const embeddings = createEmbeddingsService(makeStoreHarness(db).ctx);
+  await embeddings.embedCorpus({ ownerId, force: false, signal: new AbortController().signal });
+  await embeddings.purgeMemoryVectors({ ownerId, generation: receipt });
+  await embeddings.purgeDocumentVectors({ ownerId, generation: receipt });
 }
 
 async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<MemorySpace> {

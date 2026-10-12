@@ -5,8 +5,8 @@
 import { copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 test("native dependency rules reject upward helper-world edges and retain compatible edges", { timeout: scaledBudget(30_000) }, ({ scratch, repoRoot }) => {
@@ -29,8 +29,10 @@ test("native dependency rules reject upward helper-world edges and retain compat
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), source);
   }
+  // The CT consumer lives outside `tests/support`, so only the repo adapter (whose roots include `tests/client`) cruises it.
+  const ctConsumer = "tests/client/helper.ct.tsx";
   mkdirSync(join(scratch, "tests/client"));
-  writeFileSync(join(scratch, "tests/client/helper.ct.tsx"), 'import "../support/node/ct-consumed.ts";');
+  writeFileSync(join(scratch, ctConsumer), 'import "../support/node/ct-consumed.ts";');
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
     ["tests/support", "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "json"],
@@ -53,7 +55,7 @@ test("native dependency rules reject upward helper-world edges and retain compat
   expect(adapted.status, adapted.stderr).toBe(0);
   const adapterReport = JSON.parse(adapted.stdout) as typeof report;
   expect(adapterReport.summary.violations).toEqual(report.summary.violations);
-  expect(adapterReport.summary.totalCruised).toBe(Object.keys(files).length);
+  expect(adapterReport.summary.totalCruised).toBe(Object.keys(files).length + [ctConsumer].length);
   expect(report.summary.totalCruised).toBe(Object.keys(files).length);
   expect(report.summary.violations.filter((violation) => violation.rule.name === "no-orphans")).toEqual([]);
   const gating = runNicedSync(process.execPath, ["scripts/depcruise.ts", "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"], {

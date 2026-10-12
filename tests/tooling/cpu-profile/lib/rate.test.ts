@@ -8,10 +8,10 @@
 // `perf=load-suspect` and leaves the exit alone. Only an unproven browser (NO number at all) still
 // withholds and forces exit 2. The injected readings are planted controls in every direction.
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { perfRateDisposition, perfRateExit, perfRatePair } from "../../../../tooling/src/cpu-profile/lib/rate.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HARDWARE = {
   backend: "Mesa Intel UHD 770",

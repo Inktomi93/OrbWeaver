@@ -3,7 +3,7 @@
 // #466 exemption pushed that file past the tooling size cap; the browser half (the in-page fact script,
 // pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (floor/instrument/wcag.ts).
 import type { Rgb } from "../../floor/instrument/wcag.ts";
-import { MEASURABLE_OPACITY_MIN, UI_COMPONENT_MIN_RATIO as SHARED_UI_COMPONENT_MIN_RATIO } from "../../floor/instrument/wcag.ts";
+import { MEASURABLE_OPACITY_MIN } from "../../floor/instrument/wcag.ts";
 import type { ContrastEvidence, ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen, ContrastOutcome } from "../contract/contrast.ts";
 
 export const BOLD_WEIGHT = 700;
@@ -13,11 +13,6 @@ export const BOLD_WEIGHT = 700;
  *  script spells the same pair inline — it is a raw string evaluated in the browser and cannot import —
  *  so this constant is the Node-side half, not a second home for the rule. */
 export const FIELD_TAGS: ReadonlySet<string> = new Set(["INPUT", "TEXTAREA"]);
-
-/** WCAG 1.4.11's non-text boundary — RE-EXPORTED from the fleet kernel (`floor/instrument/wcag.ts`), which owns it
- *  since #624 gave design-audit the same inactive-control vocabulary. Kept as a named export here so snap's
- *  own consumers keep their import path; the VALUE has exactly one home. */
-export const UI_COMPONENT_MIN_RATIO = SHARED_UI_COMPONENT_MIN_RATIO;
 
 /** Roles whose contrast is a two-STATE signal (the track's on/off colors), NOT track-vs-page — measuring
  *  the latter is meaningless and produced the 1.71:1 Switch false-FAIL. */

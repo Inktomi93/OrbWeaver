@@ -15,9 +15,13 @@ import type { Db } from "@orb/db";
 import { assets, messageAssets } from "@orb/db";
 import type { AssetId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createAssetsService } from "@orb/server/domain/assets";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
-import { createAssetsService } from "#server/domain/assets/index.ts";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
@@ -27,10 +31,6 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createTurn } from "#server/domain/chat/verbs/turn.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 

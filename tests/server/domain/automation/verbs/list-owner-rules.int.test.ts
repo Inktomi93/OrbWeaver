@@ -11,8 +11,8 @@
 
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 
 const DOMAIN_TRIGGER = { bus: "domain", type: "character.updated" } as const;

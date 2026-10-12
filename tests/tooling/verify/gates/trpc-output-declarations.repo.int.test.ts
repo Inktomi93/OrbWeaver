@@ -1,9 +1,9 @@
 // Native installed tRPC types, mounted population, and virtual-only omissions on actual service routes.
 
 import process from "node:process";
+import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate } from "../../../../tooling/src/verify/gates/trpc-output-declarations.ts";
-import { assertArmVerdict, openRealCorpusLiveness } from "../../../support/real-corpus-liveness.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { TRPC_OUTPUT_ARMS } from "./_liveness/trpc-output.ts";
 
 const arm = TRPC_OUTPUT_ARMS[0];

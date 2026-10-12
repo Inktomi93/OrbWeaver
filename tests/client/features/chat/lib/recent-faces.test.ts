@@ -8,9 +8,9 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { FaceSourceChat } from "#client/features/chat/lib/recent-faces.ts";
 import { recentFaces } from "#client/features/chat/lib/recent-faces.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function seat(id: string, name: string, avatarHash: string | null = null): FaceSourceChat["participantPortraits"][number] {
   return { characterId: castId<CharacterId>(id), name, avatarHash };

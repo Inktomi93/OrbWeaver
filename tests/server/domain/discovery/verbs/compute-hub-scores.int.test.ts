@@ -4,9 +4,9 @@
 // @subject packages/server/src/domain/discovery/verbs/compute-hub-scores.ts
 
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { HubScoreRecorder } from "../_support.ts";
 import {
   makeDiscoveryHarness,

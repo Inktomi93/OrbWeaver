@@ -18,10 +18,10 @@ import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { migrateHandoffOfferVocabOnBoot } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { loadPendingHandoff } from "#server/domain/chat/persistence/queries.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_handoffvocab1");
 

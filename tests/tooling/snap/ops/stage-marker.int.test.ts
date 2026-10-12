@@ -22,6 +22,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { vi } from "vitest";
@@ -43,8 +45,6 @@ import {
   writeBands,
   writeRow,
 } from "../../../../tooling/src/snap/ops/stage-marker.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Wall clock only — every arm asserts a STRUCTURAL fact (a file's contents, a band index, a verdict

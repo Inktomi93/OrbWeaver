@@ -6,9 +6,10 @@
 import type { AssemblePersona } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
+import { tape } from "@orb/testkit/node/chat/tape.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ResolveForeignInputsOp, TurnTrigger } from "#server/domain/chat/contract/foreign.ts";
-import { scenario, tape } from "../../../../support/chat/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+import { scenario } from "../_scenario.ts";
 import { seedPersona } from "../_support.ts";
 
 const PERSONA: AssemblePersona = { name: "P", description: "" };

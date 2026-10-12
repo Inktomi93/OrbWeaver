@@ -4,8 +4,8 @@
 // fresh-id shape (BUILD-SPEC §3.2/§3.3/§3.5).
 
 import type { GenerationType, PromptSection } from "@orb/contracts/preset";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { addableSections, guidedFooterState, hasRoleField, makeSection, sectionKind, triggersPillLabel } from "#client/features/preset/lib/assembly-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // The literal branch carries the optional `trigger` (a `GenerationType[]`); indexing `PromptSection["trigger"]`
 // would fail since the plain-marker branch has no such field, so annotate the element array directly.

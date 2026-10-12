@@ -5,10 +5,11 @@
 // computed table walks past a column invariant — and only an independent pin holds that apart. The reader's
 // one consumer (`gates/freeze-provenance-write-pairing.ts`) covers it transitively through its own rows;
 // this file is the reader's own, so the boundary survives a change to that policy.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import { readDrizzleWriteTable } from "../../../../tooling/src/floor/code-facts/drizzle-write-chain.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // The write verbs are drizzle's only when drizzle-orm declares them, so every fixture carries a drizzle module.
 const DRIZZLE_SOURCE =

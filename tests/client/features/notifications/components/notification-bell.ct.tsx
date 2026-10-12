@@ -14,13 +14,13 @@ import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { OrbSocketRecorder } from "@orb/testkit/node/route-orb-socket.ts";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
-import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 // The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
 // (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
@@ -787,6 +787,9 @@ test("a phone's disabled-plugin notice closes the real You drawer and reveals th
     "plugin.list": [installedPlugin(AFFINITY_PLUGIN, "Affinity Tracker")],
     "plugin.listSurfaces": [],
     "plugin.getLog": [],
+    // The story mounts the shipped chrome, whose persona identity and plugin-commands widgets read these.
+    "persona.list": [],
+    "plugin.listCommands": [],
     // The installed card's chat-visibility toggle reads the viewer's profile (`use-plugin-chat-visibility.ts`).
     "settings.getUserSettings": userSettingsView(),
     "sessions.me": { userId: "user_ct_reader", handle: "reader", globalRole: "user" },

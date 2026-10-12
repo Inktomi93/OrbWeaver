@@ -1,11 +1,11 @@
 // requireProfile — assert the profile-wave deps are wired. Pins the load-bearing claim: a card-only ctx
 // (profile undefined) throws LOUD (a composition bug, never a user error); a wired ctx returns the deps.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ImportContext } from "#server/domain/import/context.ts";
 import type { ImportProfileDeps } from "#server/domain/import/contract/service.ts";
 import { requireProfile } from "#server/domain/import/guard.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 describe("requireProfile", () => {
   test("throws loud when ctx.profile is not wired (a card-only slice reaching a chats/personas verb)", () => {

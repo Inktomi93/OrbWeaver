@@ -6,10 +6,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { nearestImages } from "#server/domain/search/persistence/image-nearest.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { IMAGE_EMBED_MODEL, seedAsset, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("nearestImages", () => {

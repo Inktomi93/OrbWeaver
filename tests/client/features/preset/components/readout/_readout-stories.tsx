@@ -33,13 +33,13 @@ import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { makeCachePolicy, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { PromptReadout } from "#client/features/preset/components/readout/prompt-readout.tsx";
 import { CapabilityCard, EffectiveProfile } from "#client/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "#client/features/preset/components/readout/transforms-readout.tsx";
-import { CtDataProviders } from "../../../../../support/browser/ct-data-providers.tsx";
-import { makeCachePolicy, makeGenerationCapability } from "../../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
@@ -54,7 +54,9 @@ const STORY_SECTION = "chat-history";
  *  dispatch (the Actions-tab IA §2.3), which is exactly a claim about which row is selected. */
 function useReadoutFixture(chatId: ChatId | null, view: string, templateId = "impersonate"): void {
   useEffect(() => {
-    selectPreset(STORY_PRESET);
+    // In place: a swapped select runs inside the view transition's update callback, after the section pick
+    // below, and would clear it (a select drops the sub-drill).
+    selectPreset(STORY_PRESET, { swap: false });
     setPresetEditorView(view);
     // The SELECTIONS the readout echoes (§6.1: the row body selects, the readout resolves that row) — the
     // Actions template and the Prompt rack row.

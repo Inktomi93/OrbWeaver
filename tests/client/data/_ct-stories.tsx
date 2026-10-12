@@ -88,11 +88,11 @@ import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, MessageId, PersonaId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtAppDataProviders, CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
-import type { TrpcInput, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from

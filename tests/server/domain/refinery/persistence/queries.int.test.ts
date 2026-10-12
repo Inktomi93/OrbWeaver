@@ -11,11 +11,11 @@ import { characters, refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { latestRunRowOf, latestVerdictsOf, loadOwnedSessionRow, sessionViewOf } from "#server/domain/refinery/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 const AT_EARLY = 1_700_000_000_000;

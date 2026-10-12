@@ -6,6 +6,11 @@
 import { characterSnapshots, characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, CharacterSnapshotId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import type { CharacterRow } from "@orb/testkit/node/factories/character.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { CharacterOperationError } from "#server/domain/character/contract/errors.ts";
@@ -20,11 +25,6 @@ import {
 } from "#server/domain/character/persistence/card.ts";
 import { buildGroupCard } from "#server/domain/character/substrate/group-character.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import type { CharacterRow } from "../../../../support/factories/character.ts";
-import { makeCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 function makeRow(ownerId: UserId, id: string, handle: CharacterHandle): CharacterRow {

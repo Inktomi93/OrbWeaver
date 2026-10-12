@@ -5,9 +5,9 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildGroupCard, groupHandle, isReservedGroupHandle } from "#server/domain/character/substrate/group-character.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("groupHandle / isReservedGroupHandle", () => {
   test("groupHandle mints `__group__<chatId>` and that handle IS reserved", () => {

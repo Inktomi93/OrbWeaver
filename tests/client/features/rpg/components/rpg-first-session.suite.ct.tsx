@@ -1,9 +1,9 @@
 import { rpgConfigViewSchema } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 import { MessageContentSpansStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_ID } from "../../chat/fixtures.ts";

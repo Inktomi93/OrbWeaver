@@ -4,13 +4,13 @@
 // written and what the reader can act on (the confirm, the door), never the sentences.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
+import type { TrpcRecorder, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { UTILITY_ROW, utilityBindings } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "#client/features/chat/lib/memory-settings-section-nav.ts";
-import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_ROW, utilityBindings } from "../../../../support/node/utility-role.ts";
 import { MemorySettingsSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = {

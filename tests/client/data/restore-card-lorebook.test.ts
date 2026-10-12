@@ -9,11 +9,11 @@
 // @orb-waive-file no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less root typecheck:graph program (the 2026-06-28 dom-lib incident).
 import { restoreCardLorebook } from "#client/data/restore-card-lorebook.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();

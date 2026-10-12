@@ -6,9 +6,9 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createEnableShareSeating } from "#server/entry/compose/share-seating.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const BOTH_ON: AppSettings = { localMultiUser: true, discreetLogin: true };

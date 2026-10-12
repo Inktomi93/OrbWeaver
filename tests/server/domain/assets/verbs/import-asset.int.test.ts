@@ -17,12 +17,12 @@ import { assets, messages, messageVariants } from "@orb/db";
 import type { AssetId, CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportAssets, createImportAsset } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { loadAssetCasRefById } from "#server/domain/assets/persistence/queries.ts";
 import { buildPortableAssetFilename, hashAssetBytes } from "#server/domain/assets/substrate/portable-asset-file.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 

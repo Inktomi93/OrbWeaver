@@ -13,9 +13,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SpawnLockOpts } from "../../../../tooling/src/stack/index.ts";
 import { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } from "../../../../tooling/src/stack/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SELF_PID = 1234;
 const HOLDER_PID = 4242;

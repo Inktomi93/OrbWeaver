@@ -21,9 +21,9 @@ import { presets } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { migrateProseSlotVocab } from "@orb/server/domain/preset";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const PRESET_ID = castId<PresetId>("preset_proseslotvocab1");
 const AT = 1_700_000_000_000;

@@ -6,9 +6,9 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
+import type { TrpcFixtureOutput, TrpcInput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput, TrpcInput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ImagineExtractStory, ImagineFreeStory } from "../_ct-stories.tsx";
 
 /** The read-the-chat button's accessible name. It used to be "Preview prompt", a 13px ghost tucked into the

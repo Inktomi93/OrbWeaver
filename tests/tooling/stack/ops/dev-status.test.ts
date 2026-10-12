@@ -1,9 +1,9 @@
 // `stack status` over a planted socket table: a table it cannot read, or a port held by an owner the OS will
 // not name, must end in `status=unknown` and exit 2, never `down` or "not bound".
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { doDevStatus } from "../../../../tooling/src/stack/ops/dev-status.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { captured, devContext, PLANTED_PORTS, REFUSED_TABLE, tableHolding } from "../_dev-verbs.ts";
 
 test("status over a socket table it cannot read reports status=unknown and exits 2, never down", async ({ scratch }) => {

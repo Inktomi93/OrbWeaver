@@ -5,6 +5,10 @@ import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
@@ -14,10 +18,6 @@ import { continuedSignatureMetadata, signaturesForContent } from "#server/domain
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "../../../../../scripts/probes/gemini-capabilities/scenario.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved, newUserId } from "../../../../inference/_support.ts";
-import { principal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testProviderId } from "../../../../support/inference-identities.ts";
-import { wireSchema } from "../../../../support/wire-ready.ts";
 
 const GOOGLE_DETAIL = { type: "reasoning.encrypted", data: "fixture-google-opaque-proof", id: "call-alpha", format: "google-gemini-v1", index: 0 };
 const record = z.record(z.string(), z.unknown());

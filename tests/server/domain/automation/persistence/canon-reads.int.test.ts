@@ -3,6 +3,8 @@
 
 import { chatBooks, messages, worldBooks } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -12,8 +14,6 @@ import {
   loadCallerRole,
   loadPresentHumanMemberIds,
 } from "#server/domain/automation/persistence/canon-reads.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { seedHostChat, seedUser } from "../_support.ts";
 

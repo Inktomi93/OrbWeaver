@@ -21,17 +21,17 @@ import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
+import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { ROLE_STATUS_LABELS } from "#client/lib/connection-roles.ts";
-import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
-import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import { RulesActivityFreshnessStory, RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
 
 const CHAT = castId<ChatId>("chat_ct_rules_0001");
@@ -1166,7 +1166,7 @@ async function contrastBetween(page: Page, foreground: string, background: strin
     },
     [foreground, background] as const,
   );
-  return contrastRatio(fg, bg);
+  return wcagContrastRatio(fg, bg);
 }
 
 for (const theme of THEMES) {
@@ -1232,7 +1232,7 @@ for (const theme of THEMES) {
         }, TRANSPARENT_BG);
       await expect
         .poll(async () => await contrastBetween(page, (await readGlossAtAssertion())[0], (await readGlossAtAssertion())[1]))
-        .toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+        .toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 
       // The rendered receipt of the #886 CLOSED face, taken before anything is opened.
       await component.screenshot({ path: ctSnapPath(`cb-rules-${theme}-${width}`) });

@@ -21,14 +21,14 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createOwnedCharacterIds } from "@orb/server/domain/character";
 import { createPersonaOwned } from "@orb/server/domain/persona";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { RuleValidationError } from "#server/domain/automation/contract/errors.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
 import type { RuleView } from "#server/domain/automation/contract/results.ts";
 import { resolveChatRulePresetKnobs, toRulePresetView } from "#server/domain/automation/substrate/presets.ts";
 import type { PresentCharacterSeat, RosterPresetContext } from "#server/domain/roster-preset/contract/service.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { createSeededIds } from "../../../support/ids.ts";
 
 interface AuditCall {
   readonly entry: Parameters<RosterPresetContext["audit"]>[0];

@@ -2,8 +2,8 @@
 // only the exact empty directories it created if a later mkdir fails.
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSourceFile } from "../../../../tooling/src/codemod/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { withTree } from "../_kit-tree.ts";
 
 test("a regular-file parent refuses the whole batch before any directory or file is created", async () => {

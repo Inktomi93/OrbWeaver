@@ -23,11 +23,11 @@
 import type { TagFolderType } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the theme clamp.ts relative-import precedent).
 import type { FilterableRow, TagGroupCensus } from "#client/features/character/lib/character-list-view.ts";
 import { groupByTag, groupStartsOpen } from "#client/features/character/lib/character-list-view.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const tag = (id: string, name: string, isHiddenOnCard = false, folderType: TagFolderType = "NONE"): FilterableRow["tags"][number] => ({
   id: castId<TagId>(id),

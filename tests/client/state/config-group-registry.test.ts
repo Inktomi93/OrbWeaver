@@ -5,9 +5,9 @@
 
 import type { ConfigGroupDefinition } from "@orb/client/state";
 import { configAnchorId, isCollectionGroup, rendersOwnBody } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Settings } from "@orb/ui/icons";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("configAnchorId", () => {
   test("stamps config-anchor-<category>-<sub>", () => {

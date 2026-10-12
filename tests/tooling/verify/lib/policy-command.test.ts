@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parsePolicyCommand } from "@orb/tooling/verify";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test.describe("final policy command parser", () => {
   test.each([

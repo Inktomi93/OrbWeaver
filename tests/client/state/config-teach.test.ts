@@ -8,8 +8,8 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution, ConfigSettingRef, SettingTeachDecl } from "@orb/client/state";
 import { assertTeachHonesty, isTeachNone } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const EMPTY_SUMMARY = /empty summary/;
 const EMPTY_AFFECTS = /empty "affects" list or a blank entry/;

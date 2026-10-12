@@ -4,9 +4,9 @@
 // `spawnNiced` door (the nice -19 floor), which is also the door whose default ceiling is now
 // `budget(120_000)`, so the arm exercises the seam every instrument spawns through.
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Per-core 4.0 on a 24-core box — the same FORCED-LOAD reading the unit twin uses. */
 const readLoaded = (): { loadavg1: number; cpuCount: number } => ({ loadavg1: 96, cpuCount: 24 });

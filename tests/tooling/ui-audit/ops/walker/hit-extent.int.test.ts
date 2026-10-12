@@ -17,10 +17,10 @@
 // agreement is measured rather than asserted from two separate runs.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "@orb/testkit/iso/hit-extent-walk.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node/ui-audit-relational.ts";
 import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";
-import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "../../../../support/iso/hit-extent-walk.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "../../../../support/ui-audit-relational.ts";
 
 /** The shipped shape, reduced to its mechanism: `.value` is text-height and carries a pointer-conditional
  *  44px `::after`; `.row` takes the coarse floor so stacked pseudos have room (the #869 fix). `.bare` is

@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -7,7 +8,6 @@ import { gate as clientStructure } from "../../../../tooling/src/verify/gates/cl
 import { gate as featureStructure } from "../../../../tooling/src/verify/gates/feature-structure.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 
 const policies = [featureStructure, clientStructure] as const;
 

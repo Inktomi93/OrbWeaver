@@ -13,12 +13,12 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { aggregateScope, artifactRef } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { collectSnapFindings } from "../../../../tooling/src/snap/lib/run-findings.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SLOT_DIR = join(tmpdir(), "orb-findings-fixture");
 const INDEX_PATH = `${SLOT_DIR}/run.json`;

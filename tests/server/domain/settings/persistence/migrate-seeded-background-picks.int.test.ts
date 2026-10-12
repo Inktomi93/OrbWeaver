@@ -24,10 +24,10 @@ import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { migrateSeededBackgroundPicks } from "#server/domain/settings/persistence/migrate-seeded-background-picks.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1_750_000_000_000;

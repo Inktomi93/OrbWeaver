@@ -28,17 +28,17 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
+import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
+import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import type { TrpcFixtureOutput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
-import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
-import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   MessageListFooterDisclosureStory,
   MessageListMomentStory,
@@ -471,7 +471,7 @@ for (const viewport of [
         const letters = component.getByText(/^[MT]$/u);
         await expect.poll(() => letters.evaluateAll(initialTracksItsSlot)).toEqual([true, true]);
         const contrast = await pixelContrast(page, letters.last());
-        expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
+        expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
       });
     }
   });
@@ -558,7 +558,7 @@ test.describe("an image that fails to load shows the speaker's fallback, readabl
       await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
       await expect(component.getByRole("button", { name: viewImageActionName("Mira"), exact: true })).toHaveCount(0);
       const contrast = await pixelContrast(page, letters.last());
-      expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
+      expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     });
   }
 });
@@ -1763,7 +1763,7 @@ test("#690 LOADING OVER ART, LIGHT ROOM: the skeleton bars are visibly distinct 
   // Settled snapshot: the visibility barrier settled the box; a framebuffer read is a SEQUENTIAL browser op.
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
-  const ratio = contrastRatio(bar, plate);
+  const ratio = wcagContrastRatio(bar, plate);
   expect(ratio, `bar ${JSON.stringify(bar)} on plate ${JSON.stringify(plate)}`).toBeGreaterThan(SKELETON_ON_PLATE_FLOOR);
 });
 
@@ -1784,7 +1784,7 @@ test("#690 LOADING OVER ART, REDUCED MOTION: the flat base fill carries the same
   const box = await skeleton.boundingBox();
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
-  const ratio = contrastRatio(bar, plate);
+  const ratio = wcagContrastRatio(bar, plate);
   await page.emulateMedia({ reducedMotion: "no-preference" });
   expect(ratio, `flat bar ${JSON.stringify(bar)} on plate ${JSON.stringify(plate)}`).toBeGreaterThan(SKELETON_ON_PLATE_FLOOR);
 });
@@ -1803,7 +1803,7 @@ test("#690 LOADING OVER ART, DARK ROOM: the same bars stay distinct on the polar
   const box = await skeleton.boundingBox();
   const plate = await sampleLoadingPlatePixel(page, skeleton);
   const bar = await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2));
-  const ratio = contrastRatio(bar, plate);
+  const ratio = wcagContrastRatio(bar, plate);
   expect(ratio, `bar ${JSON.stringify(bar)} on plate ${JSON.stringify(plate)}`).toBeGreaterThan(SKELETON_ON_PLATE_FLOOR);
 });
 
@@ -1834,8 +1834,6 @@ test("LOADING OVER ART CONTROL: the same probe reads the raw backdrop where no a
 // THE ART IS WHITE ON PURPOSE: the story's palette is the dark seed, so the error ink is the LIGHT muted
 // tone and the worst legal wallpaper is the BRIGHT one (D144/#217's polarity inversion).
 const ERROR_WORST_ART = "#ffffff";
-/** WCAG AA for normal text — what a room's failure message and its recovery control owe their backdrop. */
-const AA_NORMAL_TEXT = 4.5;
 const ERROR_CONTRAST_WIDTHS = [
   { label: "desktop", width: 1280, height: 800 },
   { label: "mobile", width: 430, height: 932 },
@@ -1859,9 +1857,9 @@ for (const { label, width, height } of ERROR_CONTRAST_WIDTHS) {
     // Settled snapshot: both boxes are settled by the visibility barriers above; a framebuffer read is a
     // SEQUENTIAL browser operation, so the two samples cannot be taken concurrently.
     const statusContrast = await pixelContrast(page, status);
-    expect(statusContrast.ratio, `error copy: ${statusContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    expect(statusContrast.ratio, `error copy: ${statusContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     const retryContrast = await pixelContrast(page, retry);
-    expect(retryContrast.ratio, `retry control: ${retryContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    expect(retryContrast.ratio, `retry control: ${retryContrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   });
 }
 
@@ -1882,7 +1880,7 @@ test("#681 CONTROL: with no art flag the SAME probe reads the raw backdrop — t
   // The raw white story backdrop, unplated — and therefore the DEFECT's own number, which is what makes
   // the ≥AA assertions above a receipt for the plate rather than for the palette.
   expect(contrast.backdrop.r, contrast.describe).toBeGreaterThan(240);
-  expect(contrast.ratio, contrast.describe).toBeLessThan(AA_NORMAL_TEXT);
+  expect(contrast.ratio, contrast.describe).toBeLessThan(AA_NORMAL_RATIO);
 });
 
 // ── #107: the transcript's cost to a keyboard reader ──────────────────────────────────────────────
@@ -2132,7 +2130,7 @@ test("a pinned speaker band keeps AA contrast over a light page: the top fade st
   });
   // Scrolled deep into the turn: content lies above the edge, and the band is what covers it.
   await expect.poll(() => scroller.evaluate((el: HTMLElement) => el.scrollTop)).toBeGreaterThan(0);
-  await expect.poll(async () => (await pixelContrast(page, name)).ratio).toBeGreaterThanOrEqual(4.5);
+  await expect.poll(async () => (await pixelContrast(page, name)).ratio).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   // The fade stays on and starts under the pinned band, so the line cut at its bottom edge dissolves too.
   await expect(scroller).toHaveAttribute("data-fade-top", "");
   const bandBottom = await component.locator(STUCK_NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().bottom);

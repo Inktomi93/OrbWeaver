@@ -3,10 +3,10 @@
 // legitimate claim≠sniff pair: an `image/apng` claim over PNG-signature bytes (BG-A — animated PNG
 // backgrounds share the PNG magic; the sniff is container-blind to the acTL animation chunk).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { AssetContentRejectedError } from "#server/domain/assets/contract/errors.ts";
 import { assertMagicMatches } from "#server/domain/assets/substrate/mime.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 // PNG 8-byte signature (an animated PNG carries the SAME leading bytes — the acTL chunk sits past it).
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

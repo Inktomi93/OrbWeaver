@@ -7,8 +7,8 @@
 // composer dispatches against). A command DECLARED once is therefore both typeable and discoverable, and
 // a build with zero registrants degrades to exactly the two navigation groups.
 
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../../fixtures.ts";
 import { CommandPaletteSurfaceStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../fixtures.ts";

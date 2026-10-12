@@ -1,9 +1,9 @@
 import { AUTOMATION_ACTION_TYPES, automationActionSchema, automationRuleEditableSchema } from "@orb/contracts/automation";
+import { ruleActionExamples } from "@orb/testkit/node/factories/automation-rule-actions.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ruleEditorCommitSchema, ruleEditorDraftSchema } from "#client/features/automation/lib/contract/rule-editor.ts";
 import { emptyRuleEditor, keepRowIdentities, newRuleAction, ruleEditable, ruleEditorValues } from "#client/features/automation/lib/rule-editor-model.ts";
 import { ruleToolArgumentGuidance } from "#client/features/automation/lib/rule-tool-arguments.ts";
-import { ruleActionExamples } from "../../../../support/factories/automation-rule-actions.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test.each(AUTOMATION_ACTION_TYPES)("metadata editing preserves every %s value without leaking UI row identities", (type) => {
   const action = automationActionSchema.parse(ruleActionExamples[type]);

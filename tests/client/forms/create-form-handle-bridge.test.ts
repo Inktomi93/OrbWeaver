@@ -5,8 +5,8 @@
 // by the character/preset editor-inspector CTs.
 
 import { createFormHandleBridge } from "@orb/client/forms";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 interface Handle {
   readonly id: string;

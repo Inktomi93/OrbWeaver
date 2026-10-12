@@ -5,8 +5,8 @@
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { notifyRulesChanged } from "#server/domain/automation/substrate/rule-feed.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a chat-scoped rule change announces rulesChanged on that chat", () => {
   const events: AutomationBusEvent[] = [];

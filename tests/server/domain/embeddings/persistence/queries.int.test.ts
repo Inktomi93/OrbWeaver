@@ -8,6 +8,8 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedGenerationTargets, imageAnalyses, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { saveImageAnalysis } from "#server/domain/embeddings/persistence/image-analysis.ts";
@@ -18,8 +20,6 @@ import {
   upsertImageEmbedding,
   writeHubScoreRows,
 } from "#server/domain/embeddings/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;

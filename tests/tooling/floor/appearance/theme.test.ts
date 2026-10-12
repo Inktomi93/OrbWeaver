@@ -6,6 +6,8 @@
 // These pins cover the pure half: what a request resolves to against the real library, that an unknown name
 // is REFUSED loudly instead of silently rendering the account's own theme, and that the patch states the
 // SELECTION only (the app fetches the real theme row itself — the shim never fabricates a palette).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   applyThemeFlag,
   NO_THEME,
@@ -19,7 +21,6 @@ import {
   themeWarning,
 } from "@orb/tooling/floor/appearance/theme";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The live shape of `settings.listThemes` (ThemeView rows, seeds + the caller's own), batched. */
 const LIBRARY = [

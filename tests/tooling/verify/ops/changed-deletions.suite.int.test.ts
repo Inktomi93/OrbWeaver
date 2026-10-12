@@ -3,11 +3,11 @@
 // in a disposable repo and proves every stage derives from the one classification.
 import { mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Selection, StageDef } from "../../../../tooling/src/verify/index.ts";
 import { REGISTRY, resolveSelection } from "../../../../tooling/src/verify/index.ts";
 import { gitChangedPathClassification } from "../../../../tooling/src/verify/lib/repo-paths.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function git(root: string, args: readonly string[]): void {
   execFixtureGit(root, args);

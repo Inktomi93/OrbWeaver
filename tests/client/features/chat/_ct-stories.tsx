@@ -135,7 +135,7 @@ import type {
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, notify, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
+import { bindNotify, notify, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import {
   CommandPaletteSourceRegistryProvider,
@@ -199,6 +199,16 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserConnectionId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import {
+  CtAppDataProviders,
+  CtChatContributorSectionRegistry,
+  CtDataProviders,
+  CtRealConfigSectionRegistry,
+  CtRealSectionRegistry,
+} from "@orb/testkit/browser/ct-data-providers.tsx";
+import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
@@ -275,15 +285,6 @@ import { createWarningSurface } from "#client/features/chat/lib/turn-warning-sur
 import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
-import {
-  CtAppDataProviders,
-  CtChatContributorSectionRegistry,
-  CtDataProviders,
-  CtRealConfigSectionRegistry,
-  CtRealSectionRegistry,
-} from "../../../support/browser/ct-data-providers.tsx";
-import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "../../../support/browser/ct-door.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 
@@ -732,17 +733,25 @@ export function MessageToolCallsStory({ records, customToolName, prefixToolName,
   if (customToolName !== undefined) {
     contributions.push({ id: customToolName, match: "name", render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> });
   }
-  const renderers = createContributorRegistry<ToolRenderer>("tool-renderers", contributions);
+  const renderers = isolationRegistry<ToolRenderer>(
+    "tool-renderers",
+    "swaps the shipped renderers for one name claim and one prefix claim so the order of exact and prefix resolution is the subject",
+    contributions,
+  );
   const block = <MessageToolCalls records={records} renderers={renderers} />;
   if (messageRenderer === undefined) {
     return block;
   }
-  const messageRenderers = createContributorRegistry<MessageToolsRenderer>("message-tools-renderer", [
-    {
-      id: "ct-message-tools",
-      render: (all): ReactElement | null => (messageRenderer === "claims" ? <div data-testid="message-fold">{`${all.length} tool calls`}</div> : null),
-    },
-  ]);
+  const messageRenderers = isolationRegistry<MessageToolsRenderer>(
+    "message-tools-renderer",
+    "mounts one whole-message renderer that claims or abstains so the first-refusal seam is the subject",
+    [
+      {
+        id: "ct-message-tools",
+        render: (all): ReactElement | null => (messageRenderer === "claims" ? <div data-testid="message-fold">{`${all.length} tool calls`}</div> : null),
+      },
+    ],
+  );
   return <MessageToolsRendererRegistryProvider value={messageRenderers}>{block}</MessageToolsRendererRegistryProvider>;
 }
 
@@ -1484,23 +1493,27 @@ export function MessageListTabWalkStory(): ReactElement {
 // unreachable. It is not — `row-roving.ts`'s sweep is a DOM sweep, so a control the row's own React tree
 // never knew about is suppressed and restored exactly like `Edit message`. The `tabindex="-1"` it wears at
 // rest is the #107 budget working, not a defect, and this harness is what keeps that distinction pinned.
-const FOOTER_DISCLOSURE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
-  {
-    id: "ct-footer-disclosure",
-    anchor: "message-footer",
-    when: ({ message }) => message.role === "assistant",
-    body: () => (
-      <Collapsible>
-        <CollapsibleTrigger>
-          <Text voice="label">What this turn did</Text>
-        </CollapsibleTrigger>
-        <CollapsiblePanel>
-          <Text voice="gloss">the folded record</Text>
-        </CollapsiblePanel>
-      </Collapsible>
-    ),
-  },
-]);
+const FOOTER_DISCLOSURE_CONTRIBUTORS = isolationRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  "keeps one fake message-footer disclosure as the only room contribution so the row's tab walk is the subject",
+  [
+    {
+      id: "ct-footer-disclosure",
+      anchor: "message-footer",
+      when: ({ message }) => message.role === "assistant",
+      body: () => (
+        <Collapsible>
+          <CollapsibleTrigger>
+            <Text voice="label">What this turn did</Text>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <Text voice="gloss">the folded record</Text>
+          </CollapsiblePanel>
+        </Collapsible>
+      ),
+    },
+  ],
+);
 
 function FooterDisclosureHarness(): ReactElement {
   const trpc = useTRPC();
@@ -1945,7 +1958,14 @@ function HomeTileStory({ tile }: { readonly tile: HomeTileContribution }): React
     <CtDataProviders>
       <ActiveSectionProbe />
       <div style={{ height: 640, width: 720 }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [tile])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "mounts one chat tile alone in the home frame so its kicker, boundary and action are the shipped ones under test",
+            [tile],
+          )}
+        />
       </div>
     </CtDataProviders>
   );
@@ -1978,7 +1998,14 @@ export function ChatRecentsMobileStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 932, width: 430 }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the recents tile alone, without the masthead and shelf tiles, so the hero's credit line and action row alone decide the phone pane's height",
+            [chatRecentsTile],
+          )}
+        />
       </div>
     </CtDataProviders>
   );
@@ -1994,7 +2021,14 @@ export function ChatRecentsHeroArtStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 640, width: 1860 }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the recents tile alone, without the other hearth tiles, so the hero art band that only a wide pane draws is what is measured",
+            [chatRecentsTile],
+          )}
+        />
       </div>
     </CtDataProviders>
   );
@@ -2010,7 +2044,11 @@ export function ChatRecentsPairStory(): ReactElement {
       <div style={{ height: 640, width: 720 }}>
         <HomeSurface
           onNewChat={(): void => undefined}
-          tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatAlsoOpenTile])}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the recents and also-open tiles together, without the rest of the roster, so the hearth pair's split is the subject",
+            [chatRecentsTile, chatAlsoOpenTile],
+          )}
         />
       </div>
     </CtDataProviders>
@@ -2042,7 +2080,14 @@ export function ChatTempChatTileStory(): ReactElement {
         <ChatsTopbarHeader />
       </div>
       <div style={{ height: 640, width: 720 }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatTempChatTile])} />
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={isolationRegistry<HomeTileContribution>(
+            "home-tiles",
+            "keeps the temp-chat tile alone beside the topbar header so the launcher's intent is what the story reads",
+            [chatTempChatTile],
+          )}
+        />
       </div>
     </CtDataProviders>
   );
@@ -2149,20 +2194,22 @@ export interface CommandPaletteSurfaceStoryProps {
 /** The palette's registry: the real door set, plus one grafted contribution in the `"contributed"` arm.
  *  Module-scope + pure (D54 full-compile — manual memo is banned; the compiler caches the call site). */
 function buildPaletteRegistry(commands: CommandPaletteSurfaceStoryProps["commands"], onFakeFire: () => void): ContributorRegistry<SlashCommandContribution> {
-  const door = slashCommands.list();
-  const contributions: readonly SlashCommandContribution[] =
-    commands === "contributed"
-      ? [
-          ...door,
-          {
-            id: CT_PALETTE_COMMAND_ID,
-            label: CT_PALETTE_COMMAND_LABEL,
-            describe: "A grafted command, registered at the door",
-            mount: (props): ReactElement => <CtFakeCommandMount {...props} onFire={onFakeFire} />,
-          },
-        ]
-      : door;
-  return createContributorRegistry<SlashCommandContribution>("slash-commands", contributions);
+  if (commands !== "contributed") {
+    return slashCommands;
+  }
+  return isolationRegistry<SlashCommandContribution>(
+    "slash-commands",
+    "extends the shipped command list by one grafted fake so the palette's extension seam is proven",
+    [
+      ...slashCommands.list(),
+      {
+        id: CT_PALETTE_COMMAND_ID,
+        label: CT_PALETTE_COMMAND_LABEL,
+        describe: "A grafted command, registered at the door",
+        mount: (props): ReactElement => <CtFakeCommandMount {...props} onFire={onFakeFire} />,
+      },
+    ],
+  );
 }
 
 /** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
@@ -2421,7 +2468,11 @@ export function ChatContextTabContributorStory({ visible }: ChatContextTabContri
     when: () => visible,
     body: (): ReactElement => <div data-testid="ct-fake-context-tab-body">fake tab body</div>,
   };
-  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [fakeTab]);
+  const contextContributors = isolationRegistry<ContextTabDef<ChatContextState>>(
+    "chat-context",
+    "replaces the shipped context tabs with one fake so the seam is proven to render and gate a contributed tab",
+    [fakeTab],
+  );
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry contextContributors={contextContributors}>
@@ -2439,7 +2490,11 @@ export function RoomActivityTabStory(): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
-  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [automationActivityTab]);
+  const contextContributors = isolationRegistry<ContextTabDef<ChatContextState>>(
+    "chat-context",
+    "keeps the automation Activity tab as the only context contributor so its host gate and log body are the subject",
+    [automationActivityTab],
+  );
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry contextContributors={contextContributors}>
@@ -2491,7 +2546,11 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false, g
           when: () => visible,
           body: (): ReactElement | null => (silent ? null : <div data-testid="ct-fake-surface-contribution">{greedy ? CT_GREEDY_BODY : `fake ${anchor}`}</div>),
         };
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [fakeContribution]);
+  const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
+    "chat-surface",
+    "replaces the shipped room contributions with one fake at the chosen anchor so the anchor consumer is proven to render and gate it",
+    [fakeContribution],
+  );
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry surfaceContributors={surfaceContributors}>
@@ -4261,8 +4320,9 @@ export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt
   const [ran, setRan] = useState(0);
   const [epoch, setEpoch] = useState(0);
   const [dismissed, setDismissed] = useState<readonly string[]>([]);
-  const sources = createContributorRegistry<ChatControlSource>(
+  const sources = isolationRegistry<ChatControlSource>(
     "chat-controls",
+    "replaces the shipped control sources with one fake, or none, so the band's publish guard and stacking are the subject",
     source === "none"
       ? []
       : [
@@ -4282,7 +4342,11 @@ export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt
           },
         ],
   );
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
+    "chat-surface",
+    "mounts only the chat-controls band contribution so the band over the composer is the subject",
+    [makeChatControlsContribution(sources)],
+  );
   return (
     <CtDataProviders>
       <SocketHost>
@@ -4319,8 +4383,16 @@ export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt
 // is the end-to-end proof the arm's `sendText`/`mode` reach a member's click. Full room (not a bare band) so
 // the compose-mode assertion can read THIS room's real composer draft.
 export function AutomationChipsStory(): ReactElement {
-  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationQuickReplySource]);
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  const sources = isolationRegistry<ChatControlSource>(
+    "chat-controls",
+    "keeps the automation quick-reply source as the only control source so its chips are the subject",
+    [automationQuickReplySource],
+  );
+  const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
+    "chat-surface",
+    "mounts only the chat-controls band contribution so the band over the composer is the subject",
+    [makeChatControlsContribution(sources)],
+  );
   return (
     <CtDataProviders>
       <SocketHost>
@@ -4338,8 +4410,16 @@ export function AutomationChipsStory(): ReactElement {
 // from a hand-fired `suggestionRaised` frame carrying C3's rewrite DETAIL, so this is the end-to-end proof
 // that the host-only bus payload becomes a collapsed `@orb/ui/diff` body a host can open.
 export function AutomationSuggestionCardStory(): ReactElement {
-  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  const sources = isolationRegistry<ChatControlSource>(
+    "chat-controls",
+    "keeps the automation suggestion source as the only control source so its card is the subject",
+    [automationSuggestionSource],
+  );
+  const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
+    "chat-surface",
+    "mounts only the chat-controls band contribution so the band over the composer is the subject",
+    [makeChatControlsContribution(sources)],
+  );
   return (
     <CtDataProviders>
       <SocketHost>
@@ -4357,9 +4437,21 @@ export function AutomationActivityFreshnessStory(): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
-  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
-  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [automationActivityTab]);
+  const sources = isolationRegistry<ChatControlSource>(
+    "chat-controls",
+    "keeps the automation suggestion source as the only control source so its terminal repaints are the subject",
+    [automationSuggestionSource],
+  );
+  const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
+    "chat-surface",
+    "mounts only the chat-controls band contribution so the band over the composer is the subject",
+    [makeChatControlsContribution(sources)],
+  );
+  const contextContributors = isolationRegistry<ContextTabDef<ChatContextState>>(
+    "chat-context",
+    "keeps the automation Activity tab as the only context contributor so cross-surface invalidation is the subject",
+    [automationActivityTab],
+  );
   return (
     <CtDataProviders>
       <SocketHost>
@@ -4376,7 +4468,11 @@ export function AutomationActivityFreshnessStory(): ReactElement {
 // Full room so the CT exercises both the contextual menu and this room's real composer draft. `height` lets a
 // viewport-sized room measure where the menu lands against the room's full column.
 export function RpgDiceComposerStory({ height = 480 }: { readonly height?: number }): ReactElement {
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [rpgDiceComposerMediaSurface]);
+  const surfaceContributors = isolationRegistry<ChatSurfaceContribution>(
+    "chat-surface",
+    "keeps the rpg dice composer entry as the only room contribution so the utility menu is the subject",
+    [rpgDiceComposerMediaSurface],
+  );
   return (
     <CtDataProviders>
       <SocketHost>
@@ -4395,7 +4491,11 @@ export function RpgDiceComposerStory({ height = 480 }: { readonly height?: numbe
 // only the plain `record` data crosses it. A record whose result is malformed/absent falls back to the generic
 // `ToolCallBlock` (the canon-preserving null state), which the CT drives with a second record.
 export function RpgDiceToolResultStory({ record }: { readonly record: ToolCallRecord }): ReactElement {
-  const renderers = createContributorRegistry<ToolRenderer>("tool-renderers", [rpgDiceToolRenderer]);
+  const renderers = isolationRegistry<ToolRenderer>(
+    "tool-renderers",
+    "keeps the rpg dice renderer as the only tool renderer so the roll_dice result card is the subject",
+    [rpgDiceToolRenderer],
+  );
   return <MessageToolCalls records={[record]} renderers={renderers} />;
 }
 

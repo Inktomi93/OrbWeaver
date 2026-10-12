@@ -33,8 +33,8 @@ import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportBundleDeps } from "@orb/server/entry/http";
 import { registerImportBundle } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const BUNDLE_ROUTE = "POST /api/import/bundle";
 

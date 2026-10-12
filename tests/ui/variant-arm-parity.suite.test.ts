@@ -21,10 +21,10 @@
 // @orb-waive-file no-test-fabrication({ readonly variants?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { DESIGN_AUDIT_RULE_IDS } from "@orb/tooling/ui-audit";
 // `describe` has no composed-fixture surface; test/expect ride the fixture door (test-fixture-imports).
 import { describe } from "vitest";
-import { expect, test } from "../support/fixtures.ts";
 import { introspectTv, JUDGED_RULES, OUT_OF_SCOPE_RULES, VARIANT_ARM_STORY_DEFS, WITHHELD_RULES, WITHHELD_VARIANT_SOURCES } from "./variant-arm-matrix.def.ts";
 import { inactiveClassification } from "./variant-arm-matrix.gather.ts";
 import { STORY_KEYS } from "./variant-arm-matrix.keys.ts";

@@ -7,12 +7,12 @@
 // fill-only element that ring IS the fill, and the arm would measure the subject against itself. The
 // margin is what makes the surround visible at all.
 import { errorMessage } from "@orb/kit/error-message";
+import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { Rgb } from "../../floor/instrument/wcag.ts";
-import { UI_COMPONENT_MIN_RATIO } from "../../floor/instrument/wcag.ts";
 import type { ContrastCapture, ContrastFillReading, ContrastMeasured } from "../contract/contrast.ts";
 import { readFillChannels } from "../lib/contrast-fill.ts";
 import { FIELD_TAGS } from "../lib/contrast-verdict.ts";
@@ -144,7 +144,7 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
     candidates: facts.total,
     inViewport: 1,
     matchIndex: facts.matchIndex,
-    requiredRatio: UI_COMPONENT_MIN_RATIO,
+    requiredRatio: AA_NON_TEXT_RATIO,
   } as const;
   if (reading.kind === "capture-failed") {
     // #1758: an INSTRUMENT fault (the capture itself, retried once, still failed) — never folded into the
@@ -187,13 +187,13 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
       },
     };
   }
-  const passed = reading.ratio >= UI_COMPONENT_MIN_RATIO;
+  const passed = reading.ratio >= AA_NON_TEXT_RATIO;
   const share = `${(reading.share * PERCENT).toFixed(0)}% of the box`;
   // The two COLOURS are printed, not just the ratio: a fill verdict a reviewer cannot take to the token
   // vault is the same unquotable number this arm replaced, and seeing them is how a wrong channel is
   // caught by eye (an anti-aliased edge winning would print a colour that is neither fill nor surround).
   const colours = `${show(reading.fill)} on ${show(reading.surround)} (${(reading.surroundShare * PERCENT).toFixed(0)}% of the band)`;
-  const tail = `(fill-only · channel ${reading.channel} ${share} · ${colours} · need ${UI_COMPONENT_MIN_RATIO.toFixed(1)} · fill-sample)`;
+  const tail = `(fill-only · channel ${reading.channel} ${share} · ${colours} · need ${AA_NON_TEXT_RATIO.toFixed(1)} · fill-sample)`;
   // #1385 item 3: a bare `FILL … FAIL` reads like a TEXT contrast verdict, and the question it does not
   // answer — the boundary, WCAG 1.4.11 — is the one an empty input's affordance actually rests on. The
   // fill arm cannot answer it (it samples the box, not each painted side), so it names the arm that can

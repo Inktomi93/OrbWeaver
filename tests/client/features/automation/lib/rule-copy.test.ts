@@ -8,6 +8,7 @@
 // rendered before — becomes the answer the Run-now toast promises is in the fire log.
 
 import { AUTOMATION_ACTION_TYPES, AUTOMATION_ARM_SCOPE, SPEND_ARM_TYPES } from "@orb/contracts/automation";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
   armGroups,
@@ -27,7 +28,6 @@ import {
   ruleUnreadableLine,
   ruleUnreadableRunRefusal,
 } from "#client/features/automation/lib/rule-refusal-copy.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const CAPS = { cooldownSeconds: 45, maxFiresPerHour: 30 } as const;
 /** A FIXED past epoch (test-determinism) — the phrase's unit ladder is kit/time's test, not this one. */

@@ -2,8 +2,8 @@
 // the same vector, and the seeded encoder and reranker rows read as running only while the fake reports
 // no failed load.
 import { modelIdSchema } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { fakeLocalLightCache } from "@orb/tooling/seed";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DIM = 8;
 const MODEL = modelIdSchema.parse("jinaai/jina-clip-v2");

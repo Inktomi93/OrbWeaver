@@ -3,11 +3,11 @@
 // prove none survives the projection, then prove each safety step is the one doing the work.
 
 import { bugReportDiagnosticsSchema } from "@orb/contracts/diagnostics";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { readBugReportDiagnostics } from "#server/foundation/observability/bug-report-diagnostics.ts";
 import { secretLiterals } from "#server/foundation/observability/debug/bug-report.ts";
 import { logRing } from "#server/foundation/observability/logger.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const AT = "2026-09-02T08:00:00.000Z";
 const AT_MS = Date.UTC(2026, 8, 2, 8);

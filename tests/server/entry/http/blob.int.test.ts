@@ -12,10 +12,10 @@ import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { PrincipalEnv } from "@orb/server/entry/http";
 import { registerBlob } from "@orb/server/entry/http";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe, onTestFinished } from "vitest";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import type { AssetsHarness } from "../../domain/assets/_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../../domain/assets/_support.ts";
 

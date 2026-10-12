@@ -2,9 +2,9 @@ import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { chatGenerationObservations } from "@orb/db";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { groupObservationRows } from "#server/domain/chat/substrate/generation-observation.ts";
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("operation grouping keeps chat identity, private funding and physical leg order distinct", ({ ids, clock }) => {
   const chat = castId<ChatId>(ids.next(ID_PREFIX.chat));

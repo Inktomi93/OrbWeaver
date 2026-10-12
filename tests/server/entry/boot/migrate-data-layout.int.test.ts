@@ -31,11 +31,11 @@ import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DB_FILE_NAME, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { getLog } from "@orb/server/foundation/observability";
 import { createCas } from "@orb/server/infra/storage";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { NicedChild } from "@orb/tooling/floor/process/proc";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { sql } from "drizzle-orm";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_layout_owner");
 const NOW = 1_700_000_000_000;

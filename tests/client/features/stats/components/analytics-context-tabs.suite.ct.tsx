@@ -1,6 +1,6 @@
 // CT: WHAT THE CONTEXT TABS CLAIM TO BE ABOUT (side-eye rail-analytics 2026-08-19 P1b).
 //
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 // The CONTEXT band names the leaderboard-drilled character (§6.3 N4/P4), which reads as a claim that the
 // numbers under it are that character's. Two of the three dimension tabs cannot honour it — `model_stats`
@@ -12,8 +12,8 @@ import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 // These drive the PRODUCTION path: the real tabs over the real data layer, with the drill seeded through
 // the same `#state` selection the leaderboard writes.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
 const MODEL_ROW = {

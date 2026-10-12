@@ -11,10 +11,10 @@ import { useInvalidation, useTRPC } from "@orb/client/data";
 import { ImageDetailBody, ImageEditBody, ImagineBody } from "@orb/client/features/imagery";
 import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/client/state";
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { CtAppDataProviders, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The shell ModalHost's body-swap, narrowed to the three imagery slots — renders whichever the store says is

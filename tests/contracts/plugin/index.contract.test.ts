@@ -4,7 +4,7 @@
 // (errors.ts). The manifest matrix + the capability axis live in the manifest.ts mirror (manifest.contract.test.ts).
 
 import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_CAPABILITIES, PLUGIN_ORIGINS, PluginCapabilityError } from "@orb/contracts/plugin";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("PLUGIN_ORIGINS is [upload, url, git] — the file arm, the URL-install arm, and the git-install arm (U8 2b; D276)", () => {
   // ORDER IS LOAD-BEARING: `upload` first (the historical single-arm), `url` appended (U8 2b makes a URL install's

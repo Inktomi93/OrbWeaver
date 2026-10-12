@@ -34,6 +34,16 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
@@ -42,16 +52,6 @@ import type { EmbeddingsIndexerContext, EmbeddingsService } from "#server/domain
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
-import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
-import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { createSeededIds } from "../../../support/ids.ts";
-import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
-import { makeEmbeddingRuntime } from "../../../support/inference-runtime.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
@@ -378,7 +378,7 @@ export function vectorConnectionOf(ownerId: UserId): UserConnectionId {
  * Seed the owner's bound encoder row: the FK parent of `embed_generations.connection_id`
  * (`resolveTargetGeneration` runs on the first `store()` of every sweep). With no row the generation insert fails
  * the FK, and databank's ingest accumulator records that as DATA (`failed[]`), so a suite reads quietly green.
- * Kept out of `tests/support/factories/resolved-connection.ts` because browser-world CT stories import that file,
+ * Kept out of `tests/support/node/factories/resolved-connection.ts` because browser-world CT stories import that file,
  * and an `@orb/db` import there would drag the node-only db package into the CT bundle.
  */
 export async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {

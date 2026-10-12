@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import YAML from "yaml";
 import { z } from "zod";
 import { applicationPartitionKeys } from "../../../../tooling/src/verify/lib/application-partitions.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STEP = z.object({
   id: z.string().optional(),

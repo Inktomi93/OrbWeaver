@@ -13,13 +13,13 @@
 import type { Db } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 // Deep-imported: `transport/jobs/` has no barrel — entry wires each driver by path (the sibling
 // `catalog-refresh-scheduler` test's spelling).
 import type { WorkloadScheduleSchedulerDeps } from "#server/transport/jobs/workload-schedule-scheduler.ts";
 import { startWorkloadScheduleScheduler } from "#server/transport/jobs/workload-schedule-scheduler.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 const MINUTE_MS = 60_000;

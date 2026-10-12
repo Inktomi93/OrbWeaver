@@ -2,12 +2,13 @@
 // (arc = value/max, never a bare circled number), the value glyph inside, and the accessible datum as a
 // visually-hidden `label value/max` line (the ring itself is aria-hidden). Assert the arc-stroke ramp
 // token, the sr-only datum, and the aria-hidden svg — never a hardcoded px/hex.
+
+import { partVsSurface } from "@orb/testkit/browser/part-vs-surface.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { RingGauge } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { partVsSurface } from "../../../support/browser/part-vs-surface.ts";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("the arc fill strokes the requested track-ramp step and the svg is decorative", async ({ mount }) => {
   const component = await mount(<RingGauge value={12} max={20} color={2} label="Sanity" />);

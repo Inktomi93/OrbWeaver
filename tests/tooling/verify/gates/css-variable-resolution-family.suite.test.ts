@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as ordinary } from "../../../../tooling/src/verify/gates/css-var-defined.ts";
@@ -7,7 +8,6 @@ import { CLEAN_PRODUCT_CSS, SOURCE_ANCHOR, VENDOR_SURFACE_FIXTURE } from "../../
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the css-variable-resolution family keeps its declared proofs", () => {
   expect(verifyPolicyProofs([ordinary, grants, health])).toEqual([]);

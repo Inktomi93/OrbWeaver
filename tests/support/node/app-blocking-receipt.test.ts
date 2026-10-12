@@ -1,6 +1,6 @@
-import { expect, test } from "../fixtures.ts";
 import type { AppBlockingFrameTiming, AppBlockingReceipt } from "../iso/app-blocking-receipt.ts";
 import { matchAppBlockingFrame } from "../iso/app-blocking-receipt.ts";
+import { expect, test } from "./fixtures.ts";
 
 const rawFrame: AppBlockingFrameTiming = { startTime: 100.4, duration: 180.2, blockingDuration: 90.6, styleAndLayoutStart: 280.4 };
 const retained: AppBlockingFrameTiming = { startTime: 100, duration: 180, blockingDuration: 91, styleAndLayoutStart: 280 };

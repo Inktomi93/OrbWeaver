@@ -25,11 +25,11 @@
 // responder is left alone deliberately: its header states "ordering is the ARRAY's", and thirty-one other
 // mounts are written against that.
 
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../../fixtures.ts";
 import { CharacterLibraryWelcomeListModeStory } from "../_ct-stories.tsx";
 import type { CharacterSummaryFixture } from "../fixtures.ts";

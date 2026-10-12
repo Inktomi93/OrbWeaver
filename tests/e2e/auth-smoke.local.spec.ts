@@ -41,7 +41,7 @@ test("a MEMBER is REFUSED an owner-only proc (admin.listUsers → 403), but the 
   expect(refused.status).toBe(403);
 
   // The owner (fallback seam) reads it — the gate is a ROLE gate, not a blanket deny.
-  const users = await ownerActor(origin).query<readonly unknown[]>("admin.listUsers", {});
+  const users = await ownerActor(origin).query("admin.listUsers");
   expect(Array.isArray(users)).toBe(true);
 });
 

@@ -7,11 +7,11 @@
 
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { listSelectedAssistantBodies } from "#server/domain/rpg/persistence/reveal.ts";
 import { buildRevealView } from "#server/domain/rpg/substrate/reveal.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { addVariant, expect, seedChat, seedMessage, test } from "../_support.ts";
 
 const LIE = (character: string, truth: string): string => `<lie character="${character}" type="motive" truth="${truth}" reason="greed" />`;

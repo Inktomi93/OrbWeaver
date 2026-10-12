@@ -15,12 +15,12 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
+import { UTILITY_ROW, utilityBindings } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-import { UTILITY_ROW, utilityBindings } from "../../../../support/node/utility-role.ts";
 import { CorpusUnderstandingInvitationStory } from "../_ct-stories.tsx";
 
 const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" } satisfies TrpcWireOutput<"sessions.me">;

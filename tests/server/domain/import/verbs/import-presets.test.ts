@@ -10,8 +10,8 @@ import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CollectedPreset, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
 import { createImportService, stPresetFromJson } from "@orb/server/domain/import";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

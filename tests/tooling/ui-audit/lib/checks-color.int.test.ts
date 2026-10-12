@@ -9,12 +9,13 @@
 //   2. the TRUE-POSITIVE arm is untouched — an ACTIVE control at the same ratio still REDs,
 //   3. the usability signal SURVIVES the exemption: a control so dim it may not read as present at all
 //      still says so, as a P3 advisory that explicitly disclaims being a WCAG violation.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { INACTIVE_KIND_EXPR, isContrastExempt, remainsOperable } from "../../../../tooling/src/floor/instrument/wcag.ts";
 import type { ContrastInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
 import { checkContrast, colorTextPopulations } from "../../../../tooling/src/ui-audit/lib/checks-color.ts";
 import { populationEvidenceGap } from "../../../../tooling/src/ui-audit/lib/population.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // The two grays are chosen for the RATIOS they produce against the page, not for their looks — each
 // straddles a different boundary, and the pair is what makes the advisory's own floor testable.

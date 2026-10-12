@@ -62,12 +62,12 @@ import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { CtAppDataProviders, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
 import { VersionsTabBody } from "#client/features/refinery/components/refinery-context-tabs.tsx";
-import { CtAppDataProviders, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 export interface RefineryDataStoryProps {

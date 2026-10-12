@@ -11,6 +11,7 @@ import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { createPluginHost, PLUGIN_MEMORY_LIMIT_BYTES } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
@@ -30,7 +31,6 @@ import {
   __terminateManagedPluginBrokerForTest,
 } from "#server/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "#showcase-plugins/index.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const LONG = 30_000;
 const CHAT = "chat_process0000000000000000" as ChatId;

@@ -5,8 +5,9 @@
 // (weight / fill / partialFill) land as RENDERED SVG, asserted on computed values and real geometry
 // rather than on the source. Mounted via the support stories: CT cannot serialize a
 // component-as-prop (`icon={X}`) across the mount boundary.
+
+import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ctSnapPath } from "../../../support/node/snap-out.ts";
 import { CloseIconStory, IconGalleryStory, StarIconStory, TwoPartialStarsStory } from "./icon.fixtures.tsx";
 
 // = ICON_XS / ICON_SM / ICON_MD / ICON_LG (packages/ui/src/primitives/icons/icon.tsx type-scale table).

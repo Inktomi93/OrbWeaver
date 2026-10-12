@@ -15,8 +15,8 @@
 import { fetchPluginUiSource } from "@orb/client/data";
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // MINTED, never a hand-written literal — the route parses this segment with `typeIdSchema` in production.
 const PLUGIN_ID = mintTypeId(ID_PREFIX.plugin);

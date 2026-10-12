@@ -11,8 +11,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { bundleImportMemoryChatIds, runBundleImport } from "@orb/server/entry/import";
 import type { ZipEntry } from "@orb/server/infra/storage";
 import { packZip } from "@orb/server/infra/storage";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const enc = new TextEncoder();

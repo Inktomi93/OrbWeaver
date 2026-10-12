@@ -23,17 +23,17 @@
 // catchable and flakes where it is not.
 //
 // THE CLOCK IS FROZEN on every mount: the masthead's credit line renders an elapsed-since stamp off the
-// session's `createdAt`, and `FROZEN_AT` here IS `tests/support/clock.ts`'s `FROZEN_AT_MS`, so the stamp
+// session's `createdAt`, and `FROZEN_AT` here IS `tests/support/iso/clock.ts`'s `FROZEN_AT_MS`, so the stamp
 // is a fixed string rather than a value that drifts with the wall clock.
 
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryContentStory, RefineryStartStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";

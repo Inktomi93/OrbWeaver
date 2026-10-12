@@ -4,6 +4,8 @@
 // the gate always caught — so a reader that stops reading anything at all cannot look like a clean pass.
 // The permissive direction is the dangerous one: these readers only ever WIDEN detection, and the tests
 // that matter are the ones proving they still refuse a genuinely unreadable value.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import {
@@ -17,7 +19,6 @@ import {
   readsMemberNamed,
   referencesModuleExport,
 } from "../../../../tooling/src/verify/lib/symbol-reference.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function sourceOf(code: string): SourceFile {
   return new Project({ useInMemoryFileSystem: true }).createSourceFile("/repo/x.ts", code);

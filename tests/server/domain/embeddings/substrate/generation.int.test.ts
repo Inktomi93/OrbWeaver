@@ -4,14 +4,14 @@ import { documentChunks, embedGenerationTargets, embedSpaceState, userConnection
 import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
 import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 import type { EmbeddingConnectionSnapshot } from "#server/domain/embeddings/contract/service.ts";
 import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
 import { LOCAL_ENCODER_PROBE_TIMEOUT_MS, probeWidth, resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedDocument, seedUser } from "../_support.ts";
 
 async function seedConnection(db: Db, ownerId: UserId, key: string): Promise<EmbeddingConnectionSnapshot> {

@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Expression } from "ts-morph";
 import { Project } from "ts-morph";
 import { terminalCall } from "../../../../tooling/src/verify/lib/schema-fact-value.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function namespaceReference(source: string): Expression {
   const project = new Project({ useInMemoryFileSystem: true });

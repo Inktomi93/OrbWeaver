@@ -3,12 +3,12 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AppearanceCarrierObservable } from "#client/lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES } from "#client/lib/appearance-carrier-manifest.ts";
-import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/node/chat-and-inbox-reads-empty.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { AppearanceCarrierStory } from "../features/app-shell/_ct-stories.tsx";
 import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
 import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
@@ -72,10 +72,12 @@ test("#935 every armed appearance key changes its declared real carrier across t
   const captureArm = async (appearance: AppearanceSettings, arm: string): Promise<Partial<AppearanceCarrierSnapshot>> => {
     await routeAppearance(page, appearance, arm);
     const component = await mount(<AppearanceCarrierStory />);
+    // Barrier on the settings having landed. `avatarSize` alone is vacuous for arm B (its value is the schema
+    // default, so it matches before the query answers); `chatStyle` is non-default on B, so the pair holds for both arms.
     // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     await expect
       .poll(async () => JSON.parse((await page.getByRole("region", { name: "CT Appearance hook snapshot" }).textContent()) ?? "{}") as Record<string, unknown>)
-      .toMatchObject({ avatarSize: appearance.avatarSize });
+      .toMatchObject({ avatarSize: appearance.avatarSize, chatStyle: appearance.chatStyle });
     const snapshot = await readCarrierSnapshot(page);
     await component.unmount();
     return snapshot;

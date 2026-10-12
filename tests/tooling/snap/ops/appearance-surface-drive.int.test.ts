@@ -6,10 +6,11 @@
 // @instrument-absence-proof: the second arm is the planted control in the other direction — the SAME call
 // against a page that DOES show the surface's settle subject returns normally, so the refusal above is a
 // real answer about the surface rather than a wait that can only fail.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { anchorRowSubject, driveSurface } from "../../../../tooling/src/snap/ops/appearance-surface-drive.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // The refusing arm SPENDS the surface-settle budget (WAIT_SELECTOR_TIMEOUT_MS, 10s base) by design, so the

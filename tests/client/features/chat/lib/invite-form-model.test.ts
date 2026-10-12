@@ -13,9 +13,9 @@
 import { createInviteSchema, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { INVITE_FORM_DEFAULTS, inviteJoinLink, signupBounds, toCreateInviteInput, validateInviteForm } from "#client/features/chat/lib/invite-form-model.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A fixed submit-time clock — the projection resolves expiry presets against it. */
 const NOW = 1_700_000_000_000;

@@ -15,9 +15,9 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { OwnerAutomationSectionsStory } from "../_ct-stories.tsx";
 
 /** A FIXED epoch, never `Date.now()` (test-determinism): the row renders relative time. */

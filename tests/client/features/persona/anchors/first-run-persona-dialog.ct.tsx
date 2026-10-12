@@ -10,11 +10,11 @@
 // while that persona is unseeded, names the remaining work on its own button, and a retry retries the SEED.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { FirstRunPersonaDialogStory } from "../_ct-stories.tsx";
 
 // The gate is a `FormDialog`, which PORTALS to the body — so every locator here is PAGE-scoped. A mount-handle

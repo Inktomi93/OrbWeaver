@@ -1,7 +1,7 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { stubTabStorage } from "@orb/testkit/node/tab-storage.ts";
 import { afterEach, vi } from "vitest";
 import { clearJoinParam, consumeInboundJoinToken, peekInboundJoinToken, readJoinToken, stashInboundJoinToken } from "#client/data/join-token.ts";
-import { expect, test } from "../../support/fixtures.ts";
-import { stubTabStorage } from "../../support/tab-storage.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();

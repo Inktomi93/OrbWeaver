@@ -11,11 +11,11 @@
 import type { Db } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { NO_HISTORY_FLOOR } from "#server/domain/chat/substrate/auth/clamp.ts";
 import { createResolveViewerVisibility } from "#server/domain/chat/verbs/resolve-viewer-visibility.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;

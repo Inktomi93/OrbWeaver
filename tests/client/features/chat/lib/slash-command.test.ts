@@ -3,6 +3,7 @@
 // swallow a user's message or fire a command they did not ask for.
 
 import type { SlashCommandContribution } from "@orb/client/lib";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   classifySlashKey,
   matchSlashCommands,
@@ -16,7 +17,6 @@ import {
   slashOptionId,
   unknownCommandNotice,
 } from "#client/features/chat/lib/slash-command.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function command(id: string): SlashCommandContribution {
   return { id, label: id, describe: id, mount: () => null };

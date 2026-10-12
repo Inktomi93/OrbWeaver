@@ -5,7 +5,7 @@
 import { resolveConfigTarget } from "@orb/client/agent-nav";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const GROUP = "appearance" as ConfigGroupId;
 const OTHER_GROUP = "chat-behavior" as ConfigGroupId;

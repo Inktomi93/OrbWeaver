@@ -1,8 +1,8 @@
 import { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest } from "@orb/client/state";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_rpg_round_store");
 const TURN_A = castId<ChatTurnId>("chat_turn_round_a");

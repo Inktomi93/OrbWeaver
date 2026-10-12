@@ -7,7 +7,7 @@ import {
   rollDiceResultSchema,
 } from "@orb/contracts/rpg";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("hand and spending doors keep refused, unchanged, and committed outcomes distinct", () => {
   for (const schema of [handDoorResultSchema, populateResultSchema, promoteActorResultSchema, resyncResultSchema]) {

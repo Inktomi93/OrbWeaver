@@ -12,9 +12,10 @@
 //
 // @instrument-proof: the failing and passing borders differ ONLY in border-color; a per-side sampler reading
 // the wrong strip (the fill, the surround, the anti-aliased corner) cannot separate them.
+import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium } from "@playwright/test";
 import { measureEdgeContrast } from "../../../../tooling/src/snap/ops/contrast-edge.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
@@ -44,7 +45,7 @@ test("a 1px border below 3:1 FAILS and its brighter twin PASSES, on the same pag
     await page.setContent(FIXTURE);
 
     const faint = await measureEdgeContrast(page, "#faint", VIEWPORT);
-    expect(faint.evidence).toMatchObject({ status: "ok", method: "edge-sample", passed: false, requiredRatio: 3 });
+    expect(faint.evidence).toMatchObject({ status: "ok", method: "edge-sample", passed: false, requiredRatio: AA_NON_TEXT_RATIO });
     expect(faint.evidence.ratio ?? 0).toBeGreaterThan(1.2);
     expect(faint.evidence.ratio ?? 0).toBeLessThan(1.4);
     expect(faint.outcome.failed).toBe(true);

@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createAdmission } from "#server/infra/plugin-host/admission.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 test("admission refuses above its ceiling and an idempotent release returns exactly one slot", () => {
   const acquire = createAdmission(2);

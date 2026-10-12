@@ -2,8 +2,8 @@
 // because the sign-in mode and the bind are env and may have changed since the owner chose.
 // @subject packages/server/src/domain/share/verbs/resume-ip-certificate.ts
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { shareHarness } from "../_support.ts";
 
 const SETTING = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 } as const;

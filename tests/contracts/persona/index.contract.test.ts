@@ -1,6 +1,6 @@
 import { createPersonaSchema, personaMetadataSchema, personaMetadataWriteSchema, updatePersonaSchema } from "@orb/contracts/persona";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // Valid sample ids minted at runtime (no pasted high-entropy literals — noSecrets).
 const assetId = mintTypeId(ID_PREFIX.asset);

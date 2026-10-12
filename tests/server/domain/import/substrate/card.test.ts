@@ -3,11 +3,11 @@
 
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { cardFromJson } from "@orb/server/primitives/serde/card";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // The substrate-internal helpers (cardToCreateInput/importFileHash) are not front-door exports — this is
 // their mirror test, so it reaches the module directly (same relative-path pattern as `_support.ts`).
 import { cardToCreateInput, importFileHash, parseCardJson, parseCardPng } from "#server/domain/import/substrate/card.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const FAILED_VALIDATION = /failed validation/u;
 

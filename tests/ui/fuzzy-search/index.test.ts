@@ -1,9 +1,9 @@
 // The DOM-free fuzzy-search core: empty query passthrough (original order), ranked matching,
 // per-call field scoping over one index, boost ordering, and the limit cap.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fuzzySearch } from "@orb/ui/fuzzy-search";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 interface Card {
   readonly id: string;

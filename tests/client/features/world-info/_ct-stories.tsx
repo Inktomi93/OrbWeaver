@@ -9,6 +9,7 @@ import { selectCollectionMember, useCollectionSelection } from "@orb/client/stat
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryEditor } from "#client/features/world-info/components/entry-editor.tsx";
@@ -16,7 +17,6 @@ import { WorldInfoCollectionRows } from "#client/features/world-info/components/
 import { WorldInfoContextBody } from "#client/features/world-info/components/world-info-context-body.tsx";
 import { WorldInfoSettingsSection } from "#client/features/world-info/components/world-info-settings-section.tsx";
 import { WorldInfoMemberSurface } from "#client/features/world-info/surfaces/world-info-member-surface.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
  *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's

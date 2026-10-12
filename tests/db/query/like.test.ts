@@ -2,8 +2,8 @@
 // metacharacters and the escape character itself are escaped, in one pass, and ordinary text is untouched.
 
 import { escapeLikeTerm } from "@orb/db/query";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("escapeLikeTerm", () => {
   test("escapes both LIKE metacharacters and the escape character itself", () => {

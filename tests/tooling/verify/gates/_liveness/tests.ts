@@ -1,9 +1,11 @@
 // Real-corpus liveness arms (#2149) for policies whose subject is the test tree itself. DATA, collected by
 // the one runner (`./runner.ts`), which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
+
+import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as ctConfigMirrorParity } from "../../../../../tooling/src/verify/gates/ct-config-mirror-parity.ts";
 import { gate as ctPollHealth } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
 import { gate as testsPackageSubpath } from "../../../../../tooling/src/verify/gates/tests-package-subpath.ts";
-import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-liveness.ts";
+import { gate as testsRawPackageReach } from "../../../../../tooling/src/verify/gates/tests-raw-package-reach.ts";
 
 export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
   {
@@ -28,8 +30,7 @@ export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: testsPackageSubpath,
-    // A test climbing back into a package's source beside the migrated tree, which spells every such import
-    // through the root subpath map.
+    // A test climbing back into a package's source, where every real test enters through a declared door.
     overlays: [
       {
         kind: "add",
@@ -37,6 +38,18 @@ export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
         source: 'export { sha256Hex } from "../../packages/server/src/primitives/content-hash/index.ts";\n',
       },
     ],
-    messageIncludes: "Use #server/primitives/content-hash/index.ts.",
+    messageIncludes: "Use the public entry of @orb/server.",
+  },
+  {
+    policy: testsRawPackageReach,
+    // A new raw root-map reach: no central grant names this test file, so the baselined table cannot absorb it.
+    overlays: [
+      {
+        kind: "add",
+        path: "tests/server/liveness-raw.test.ts",
+        source: 'export { sha256Hex } from "#server/primitives/content-hash/index.ts";\n',
+      },
+    ],
+    messageIncludes: "This reaches packages/server/src/primitives/content-hash/index.ts.",
   },
 ];

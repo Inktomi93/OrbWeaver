@@ -10,7 +10,7 @@
 // fixture deterministic across calls within a run (`test-determinism`).
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 const DEFAULT_CHARACTER_ID = mintTypeId(ID_PREFIX.character);

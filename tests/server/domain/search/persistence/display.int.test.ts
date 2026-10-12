@@ -5,10 +5,10 @@
 
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { resolveCharacterDisplay, resolveChatDisplay } from "#server/domain/search/persistence/display.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedCharacterSummary, seedChat, seedUser } from "../_support.ts";
 
 describe("resolveChatDisplay", () => {

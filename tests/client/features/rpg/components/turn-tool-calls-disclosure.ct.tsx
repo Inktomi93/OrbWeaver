@@ -15,10 +15,10 @@
 //     `listTurnToolCalls` answers a deliberate leak-free NOT_FOUND for a gameless chat and every non-game
 //     committed room was printing that 404 (twice, with the retry) on open.
 
+import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   TurnToolCallsDisclosureStory,
   TurnToolCallsEngagementStory,

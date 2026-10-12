@@ -12,13 +12,13 @@ import { characterBooks, worldBooks, worldEntries } from "@orb/db";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildWorldBookFile } from "@orb/server/primitives/serde/world-info";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { WorldInfoImportContext } from "#server/domain/world-info/contract/import.ts";
 import { createImportStandaloneLorebook } from "#server/domain/world-info/persistence/import-write.ts";
 import { createImport } from "#server/domain/world-info/verbs/import.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const ENC = new TextEncoder();

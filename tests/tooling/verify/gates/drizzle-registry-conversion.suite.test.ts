@@ -14,10 +14,11 @@
 //      `empty` status through its own fail-closed `recordReadySchemaFact` (the phase that owns this moved
 //      from the provider receipt to the consumer in #1962). Identity, not spelling — and a refusal, never
 //      a silent pass.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as domainFreshnessPlane } from "../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
 import { gate as lifecyclePortability } from "../../../../tooling/src/verify/gates/lifecycle-portability.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // The one runner of these policies' declared rows, so `check:instrument-affected` reaches it by quoted id:
 // "lifecycle-portability", "domain-freshness-plane".

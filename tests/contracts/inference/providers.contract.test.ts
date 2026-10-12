@@ -16,7 +16,7 @@ import {
   providerTasks,
   WIRE_DEFS,
 } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("every built-in row parses under providerDefSchema, is bare, and matches PROVIDER_ID", () => {
   expect(BUILTIN_PROVIDERS.length).toBeGreaterThan(0);

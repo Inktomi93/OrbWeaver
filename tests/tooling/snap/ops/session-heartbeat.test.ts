@@ -1,12 +1,12 @@
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { touchSessionHeartbeat } from "../../../../tooling/src/snap/ops/session-heartbeat.ts";
 import { readRow, writeRow } from "../../../../tooling/src/snap/ops/session-registry.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const OLD = "2026-09-03T10:00:00.000Z";
 const NOW = "2026-09-03T10:05:00.000Z";

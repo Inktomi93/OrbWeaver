@@ -4,9 +4,9 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Wire } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ProviderBackend } from "#inference/contract/backend.ts";
 import { createProviderExecutor } from "#inference/roles/executor.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { fakeDeps, fakeResolved } from "../_support.ts";
 
 test("the common executor starts and settles embedding accounting under the resolved connection", async () => {

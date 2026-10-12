@@ -16,8 +16,8 @@ import { castId } from "@orb/kit/ids";
 import type { CollectedTheme, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
 import { createImportService } from "@orb/server/domain/import";
 import { stThemeFromJson } from "@orb/server/primitives/serde/theme";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

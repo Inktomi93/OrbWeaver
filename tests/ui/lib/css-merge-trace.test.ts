@@ -12,8 +12,8 @@
 import { readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { cn, cssMergeTrace, tv } from "@orb/ui/lib";
-import { expect, test } from "../../support/fixtures.ts";
 
 const UI_SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../../packages/ui/src");
 

@@ -5,8 +5,8 @@
 // Load-bearing: it is NON-suspense. An unresolved (or failing) viewer reads as NON-admin — gating must
 // never block a pane from painting, and the shell re-applies a deep link once visibility grows.
 
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { SettingsViewerViewStory } from "./_ct-stories.tsx";
 
 test("owner and admin both project isAdmin=true", async ({ mount, page }) => {

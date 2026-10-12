@@ -4,11 +4,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { parseSnapArgs, parseSnapReportArgs, prepareScenario, snapFlagDescriptors } from "../../../../tooling/src/snap/index.ts";
 import { SESSION_ONLY_FLAGS, sessionOnlyFlagsIn } from "../../../../tooling/src/snap/lib/session-plan.ts";
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));

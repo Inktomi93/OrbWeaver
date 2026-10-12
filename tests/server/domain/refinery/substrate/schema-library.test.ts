@@ -3,9 +3,9 @@
 // for the client to key its UI off — the case-insensitivity itself is the CALLER's uniqueness check
 // (queries.ts), this file's job is just to produce the right typed refusal.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { SCHEMA_NAME_TAKEN_REASON, schemaNameTakenError } from "#server/domain/refinery/substrate/schema-library.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("schemaNameTakenError", () => {
   test("the error carries the coded reason the client reads off the BAD_REQUEST body", () => {

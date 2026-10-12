@@ -18,10 +18,10 @@ import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed, seedOwner } from "@orb/server/entry/boot";
 import { createPasswordHasher } from "@orb/server/infra/auth";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { afterEach, vi } from "vitest";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("u_owner");
 const OTHER_ID = castId<UserId>("u_other");

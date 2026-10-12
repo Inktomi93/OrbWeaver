@@ -54,6 +54,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createPersonaOwned } from "@orb/server/domain/persona";
 import { createSourceState } from "@orb/server/domain/search";
@@ -63,19 +64,18 @@ import {
   createResolveRetainedChatRebase,
   settleRetainedChatRebase,
 } from "@orb/server/domain/stats";
+import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { ClaimChatOp, SummarizeOp } from "#server/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "#server/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
-import { loadPresentHostUserId } from "#server/domain/chat/persistence/reactions.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
-import { createMemoryEmbeddingOps } from "#server/entry/compose/memory-embedding-ops.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { makeStoreHarness, seedVectorConnection } from "../embeddings/_support.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.

@@ -1,17 +1,17 @@
 // CT: the switch seal — real role="switch" semantics: pointer + keyboard toggle aria-checked,
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
+import { AA_NON_TEXT_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "@orb/testkit/browser/pixel-contrast.ts";
+import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { contrastRatio, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "../../../support/browser/pixel-contrast.ts";
-import { pixelSurface } from "../../../support/browser/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 
@@ -568,8 +568,8 @@ async function stateLoudness(page: Page, name: string, state: "off" | "on", pane
   await settledThumb(root);
   const track = await pixelSurface(page, root, { region: TRACK_BEHIND_PARKED_THUMB[state] });
   const knob = await pixelSurface(page, thumb);
-  const trackRatio = contrastRatio(track.rgb, pane.rgb);
-  const thumbRatio = contrastRatio(knob.rgb, track.rgb);
+  const trackRatio = wcagContrastRatio(track.rgb, pane.rgb);
+  const thumbRatio = wcagContrastRatio(knob.rgb, track.rgb);
   return {
     value: Math.max(trackRatio, thumbRatio),
     describe: `${name}: track ${track.describe} ${trackRatio.toFixed(3)}:1 vs pane ${pane.describe} · thumb ${knob.describe} ${thumbRatio.toFixed(3)}:1 vs track`,
@@ -589,12 +589,12 @@ test("the OFF state is measurably QUIETER than the ON state, on both tones and e
     // colour — a clipped screenshot, a region off the box, a `[data-theme]` that never applied — and an
     // ordering pin over constant inputs passes on nothing. The ON accent track must be really painted.
     expect(
-      contrastRatio(
+      wcagContrastRatio(
         (await pixelSurface(page, page.getByRole("switch", { name: `${theme} accent on` }), { region: TRACK_BEHIND_PARKED_THUMB.on })).rgb,
         pane.rgb,
       ),
       `[${theme}] the ON accent track must be a real painted fill, or this pin is vacuous`,
-    ).toBeGreaterThan(UI_COMPONENT_MIN_RATIO);
+    ).toBeGreaterThan(AA_NON_TEXT_RATIO);
 
     expect(accentOff.value, `[${theme}] tone=accent — ${accentOff.describe} || ${accentOn.describe}`).toBeLessThan(accentOn.value);
     expect(quietOff.value, `[${theme}] tone=quiet — ${quietOff.describe} || ${quietOn.describe}`).toBeLessThan(quietOn.value);
@@ -626,11 +626,11 @@ test("the knob is surrounded by TRACK on every side, and clears 3:1 against it �
       const above = await pixelSurface(page, root, { region: TRACK_ABOVE_PARKED_THUMB[state] });
       const knob = await pixelSurface(page, root.locator('[data-slot="switch-thumb"]'));
       expect(
-        contrastRatio(above.rgb, track.rgb),
+        wcagContrastRatio(above.rgb, track.rgb),
         `[${theme}/${state}] the strip ABOVE the knob (${above.describe}) must be the same surface as the track beside it (${track.describe}) — if it is the pane, a fill probe measures the knob against the page`,
       ).toBeLessThan(SAME_SURFACE_MAX_RATIO);
-      expect(contrastRatio(knob.rgb, track.rgb), `[${theme}/${state}] knob ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(
-        UI_COMPONENT_MIN_RATIO,
+      expect(wcagContrastRatio(knob.rgb, track.rgb), `[${theme}/${state}] knob ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(
+        AA_NON_TEXT_RATIO,
       );
     }
   }

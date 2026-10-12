@@ -3,10 +3,11 @@
 // intent-token color pairing (real DOM/CSS, fine to assert here). The sparkline's TOKENS-sourced
 // line color is asserted on the pure `buildSparklineOption` builder in stat-figure.test.ts — see
 // bar-list.ct.tsx's header comment for why (the RPC boundary strips the mounted instance).
+
+import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("renders label + value with no chart when trend is omitted", async ({ mount }) => {
   const component = await mount(<StatFigure label="Documents indexed" value="1,204" />);

@@ -51,7 +51,7 @@ import {
 import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
 // The cap is read from its ONE home (`@orb/kit/injection`), never re-spelled as a literal here.
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
 const SAMPLE_TEMPERATURE = 0.7;

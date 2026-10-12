@@ -11,12 +11,12 @@ import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "#server/domain/chat/bus.ts";
 import { appendChatEvent } from "#server/domain/chat/persistence/events.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedChat, seedUser } from "./_support.ts";
 
 let db: Db;

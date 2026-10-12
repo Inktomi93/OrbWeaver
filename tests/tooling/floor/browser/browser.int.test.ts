@@ -13,6 +13,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { ChromiumIdentity } from "@orb/testkit/node/chromium-processes.ts";
+import {
+  chromiumDescendantIdentities,
+  identityKey,
+  leakChromiumArgs,
+  livingChromiumIdentities,
+  terminateChromiumIdentities,
+  watchChromiumDescendants,
+} from "@orb/testkit/node/chromium-processes.ts";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { closeProbeSession, launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import type { LocalStorageSeed } from "@orb/tooling/floor/browser/browser-contract";
@@ -22,16 +32,6 @@ import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { currentRunMarker } from "@orb/tooling/floor/process/run-marker";
 import { chromium } from "@playwright/test";
 import { afterAll, vi } from "vitest";
-import type { ChromiumIdentity } from "../../../support/chromium-processes.ts";
-import {
-  chromiumDescendantIdentities,
-  identityKey,
-  leakChromiumArgs,
-  livingChromiumIdentities,
-  terminateChromiumIdentities,
-  watchChromiumDescendants,
-} from "../../../support/chromium-processes.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // THE FILE-LEVEL CEILING (#1232 residue, measured 2026-09-03). vitest.config.ts states the law for this

@@ -22,13 +22,13 @@ import {
 import type { TagView } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtAppDataProviders, CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
 import { useIsMutating } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { TagCollectionRows } from "#client/features/tag/components/tag-collection-rows.tsx";
 import { TagMemberSurface } from "#client/features/tag/surfaces/tag-member-surface.tsx";
-import { CtAppDataProviders, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The tag MEMBER EDITOR (the F-11 split's CONTENT half) in isolation — `tag.listTagsWithUsage` (the read)

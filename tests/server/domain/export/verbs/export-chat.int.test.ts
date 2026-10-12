@@ -14,12 +14,12 @@ import { chatParticipants, chats, messages, messageVariants, personas } from "@o
 import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createExportChat } from "#server/domain/export/verbs/export-chat.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

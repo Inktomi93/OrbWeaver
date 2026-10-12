@@ -21,9 +21,9 @@
 //      and the story mounts OUTSIDE any QueryBoundary, so a throwing read would surface as a page error.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcFixtureOutput } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { CarriedAppearanceCastStory } from "./_ct-stories.tsx";
 
 const ARIA = mintTypeId(ID_PREFIX.character);

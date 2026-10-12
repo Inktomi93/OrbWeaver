@@ -5,12 +5,12 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSyn
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { ESLint } from "eslint";
 import { createVitest } from "vitest/node";
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
 import { snapshotDepcruiseConfig, snapshotEslintConfig, snapshotVitestConfig } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CONFIG_REL = "vitest.config.ts";
 const ESLINT_CONFIG_REL = "eslint.config.js";

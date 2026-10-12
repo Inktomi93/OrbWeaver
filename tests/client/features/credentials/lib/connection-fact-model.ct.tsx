@@ -1,9 +1,10 @@
 // Cache discounts are owner-configured rates, not inferred invoices. Saving a real zero must preserve
 // the required input/output rates, and resetting it must restore absence rather than erase all pricing.
+
+import { expectDisclosureReady } from "@orb/testkit/browser/disclosure-ready.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
-import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, connectionRow } from "../_connection-fixtures.ts";
 import { ConnectionEditorNarrowStory } from "../_ct-stories.tsx";
 

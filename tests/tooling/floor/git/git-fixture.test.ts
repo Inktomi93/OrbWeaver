@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runGit } from "@orb/tooling/floor/git/git";
 import {
   configureFixtureGitIdentity,
@@ -14,7 +15,6 @@ import {
   fixtureGitEnvironment,
   runFixtureGit,
 } from "@orb/tooling/floor/git/git-fixture";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("a hook-style GIT_DIR cannot redirect fixture initialization into a sentinel repository", ({ scratch }) => {
   const sentinel = join(scratch, "sentinel");

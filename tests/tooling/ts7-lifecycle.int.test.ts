@@ -4,13 +4,13 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { HOST_POOL_ROOT_ENV, hostPoolDir, tryAcquireHostSlot } from "@orb/tooling/floor/host/host-slots";
 import { processInfo } from "@orb/tooling/floor/host/platform";
 import { TS7_POOL_NAME } from "@orb/tooling/floor/host/ts7-admission";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const TIMEOUT = scaledBudget(15_000);

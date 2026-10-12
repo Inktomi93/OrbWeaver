@@ -1,8 +1,9 @@
 // The test-subpaths codemod over a planted git tree: module specifiers from tests/ into a package's src take the root
 // `#<package>/*` map; a path read as data is reported, never rewritten, and a package-root file is left alone.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { planTestSubpaths } from "../../../../tooling/src/codemod/index.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("module specifiers move to the root map; data paths are reported; package-root files stay", async ({ plantedTree }) => {
   const root = await plantedTree({

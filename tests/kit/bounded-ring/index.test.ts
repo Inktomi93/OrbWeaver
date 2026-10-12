@@ -1,5 +1,5 @@
 import { createBoundedRing } from "@orb/kit/bounded-ring";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("reads NEWEST-FIRST — the troubleshooting-tail order every recorder consumes", () => {
   const ring = createBoundedRing<string>(4);

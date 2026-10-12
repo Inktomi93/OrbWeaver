@@ -1,8 +1,8 @@
 import type { VisualArchetype } from "@orb/contracts/discovery";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
 import { FamilyMapFixture } from "./corpus-family-map.fixtures.tsx";
 
 const MEMBERS = ["Birdie Mae Holloway", "Calamity of the Northern Frontier", "Hana of the Distant Mountain"];

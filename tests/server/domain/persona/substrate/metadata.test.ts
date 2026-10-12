@@ -2,9 +2,9 @@
 // record is narrowed to the typed shape (known fields typed, unknown tail preserved); an invalid known
 // field throws at the write seam (the strict parse) rather than silently storing garbage.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { normalizeWriteMetadata } from "#server/domain/persona/substrate/metadata.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("normalizeWriteMetadata", () => {
   test("null passes straight through", () => {

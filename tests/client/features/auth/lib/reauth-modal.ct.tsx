@@ -7,9 +7,9 @@
 // `ct-resumes` counter is the proof of the new behavior: the session came back and this mount was NEVER
 // navigated away from (a rung-2 redirect would tear the whole component tree out from under the assertion).
 
+import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "../../../../support/node/stub-auth-me.ts";
 import { ReauthDismissalStory, ReauthLadderStory } from "../_ct-stories.tsx";
 
 /** `/api/auth/me` answers DEAD until the login POST lands, then ALIVE — the real sequence the ladder walks. */

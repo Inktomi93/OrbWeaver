@@ -12,6 +12,8 @@ import { bindNotify, toNotice } from "@orb/client/lib";
 import { __resetConfigNav, selectChat, usePersonaEditorId } from "@orb/client/state";
 import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { realConfigGroups } from "@orb/testkit/browser/ct-config-groups.ts";
+import { CtDataProviders, CtRealConfigSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
@@ -21,8 +23,6 @@ import { FirstRunPersonaDialog } from "#client/features/persona/anchors/first-ru
 import { PersonaEditor } from "#client/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "#client/features/persona/components/persona-list.tsx";
 import { PersonaNotificationsSection } from "#client/features/persona/components/persona-notifications-section.tsx";
-import { realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 const LIST_MOUNT_DELAY_MS = 800;
 

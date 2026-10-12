@@ -11,9 +11,9 @@
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
 import { importChats } from "#client/data/import-chats.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();

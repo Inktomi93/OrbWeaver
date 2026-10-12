@@ -5,8 +5,8 @@
 // callable actions, and the `createGatedStore` duplicate-name guard propagating through the mint.
 
 import { createKindedSelectionStore } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

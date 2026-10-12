@@ -11,6 +11,9 @@ import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { PluginCrashedError } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach } from "vitest";
 import { createActivate } from "#server/domain/plugin/activation/activate.ts";
 import { createCrashPolicy } from "#server/domain/plugin/activation/crash-policy.ts";
@@ -18,9 +21,6 @@ import type { PluginRegistry } from "#server/domain/plugin/contract/service.ts";
 import { getById } from "#server/domain/plugin/persistence/plugins.ts";
 import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
 import { __terminateManagedPluginBrokerForTest } from "#server/infra/plugin-host/process-runtime.ts";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 afterEach(async () => {

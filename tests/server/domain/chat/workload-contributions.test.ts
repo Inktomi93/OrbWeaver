@@ -10,10 +10,10 @@ import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY } from "@orb/contracts/workloads";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { ChatWorkloadDeps } from "#server/domain/chat/contract/workloads.ts";
 import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const GENERATION_ID = castId<EmbedGenerationId>("embed_generation_workload");

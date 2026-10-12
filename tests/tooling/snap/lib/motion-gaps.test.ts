@@ -15,10 +15,11 @@
 //
 // Every fixture comes out of the REAL argv parser rather than a hand-shaped `Args`, so the queue positions
 // under test are the ones snap actually builds.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Args } from "../../../../tooling/src/snap/contract/types.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { motionPrecedingInputHint, motionQueueHint, orderMotionGaps } from "../../../../tooling/src/snap/lib/motion-gaps.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // A REAL rendered selector, and deliberately not a `data-testid` one: these fixtures only exercise the
 // argv parser, and a testid nothing mints would be a dead selector promise (`testid-liveness` A1).

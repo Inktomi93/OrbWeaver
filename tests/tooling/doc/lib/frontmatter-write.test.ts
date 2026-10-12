@@ -1,7 +1,8 @@
 // The frontmatter writer: a whole-block rewrite in canonical key order that never touches the body, a
 // file with no block gaining one, and the heading readers the rules use.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { renderFrontmatter, sectionsOf, splitDocument, titleOf, withFields } from "../../../../tooling/src/doc/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SOURCE =
   "---\nupdated: 2026-09-01\nkind: adr\nstatus: active\n---\n\n# Title\n\nProse with `code`.\n\n## Context\n\n```md\n## not a heading\n```\n\n## Decision\n";

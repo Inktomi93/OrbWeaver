@@ -24,6 +24,12 @@ import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createStoreInlineReplyImage } from "@orb/server/entry/compose";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { makeCapability, makeGenerationCapability, makeResolved, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
@@ -35,12 +41,6 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonContentSignatures, loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
-import { createStoreInlineReplyImage } from "#server/entry/compose/inline-reply-image.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { makeCapability, makeGenerationCapability, makeResolved, TEST_PROVIDER_ID } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { createSeededIds } from "../../../../support/ids.ts";
-import { testModelId } from "../../../../support/inference-identities.ts";
 import { pngBytesWithDims } from "../../assets/_support.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 

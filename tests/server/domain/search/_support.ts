@@ -8,7 +8,6 @@
 // gate scopes only `packages/server/src/domain`).
 
 import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
-import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
@@ -53,20 +52,20 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { consolidationHash, createResolveViewerVisibility, resolveTier0Range } from "@orb/server/domain/chat";
+import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
+import { createEmbeddingsService, SpaceMismatchError } from "@orb/server/domain/embeddings";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
+import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
-import { SpaceMismatchError } from "#server/domain/embeddings/contract/errors.ts";
-import type { ResolveEmbeddingConnection } from "#server/domain/embeddings/contract/service.ts";
-import { completeGenerationScope, resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
-import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
-import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCharacter } from "../../../support/factories/character.ts";
-import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
-import { makeEmbeddingRuntime } from "../../../support/inference-runtime.ts";
+import { makeStoreHarness } from "../embeddings/_support.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
@@ -110,19 +109,14 @@ async function seedGeneration(
     .insert(userConnections)
     .values({ id: ownConnection(ownerId, task), ownerId, label: `Test ${task}`, providerId: bound.providerId, model: bound.model })
     .onConflictDoNothing();
-  const ctx = {
-    db,
-    now: (): number => FROZEN_AT,
-    resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
-    onTargetGenerationMoved: (): void => undefined,
-    withStableEmbeddingBinding: <T>(_ownerId: UserId, read: () => Promise<T>): Promise<T> => read(),
-  };
+  // The embeddings service over this owner's search encoder: its verbs mint the target and record each scope.
+  const embeddings = createEmbeddingsService({ ...makeStoreHarness(db).ctx, resolveEmbeddingConnection: searchEmbeddingConnection(roleClients) });
   if (refuses) {
     const existing = await generationOf(db, ownerId, task, model);
     if (existing !== undefined) {
       return existing;
     }
-    const refused = await resolveTargetGeneration(ctx, ownerId, task).then(
+    const refused = await embeddings.resolveGeneration(ownerId, task).then(
       () => false,
       (error: unknown) => {
         if (error instanceof SpaceMismatchError) {
@@ -140,12 +134,18 @@ async function seedGeneration(
     }
     return minted;
   }
-  const generation = await resolveTargetGeneration(ctx, ownerId, task);
+  const generation = await embeddings.resolveGeneration(ownerId, task);
   if (generation === null) {
     throw new Error(`the ${model} target must resolve`);
   }
-  for (const scope of VECTOR_SCOPES_BY_TASK[task]) {
-    await completeGenerationScope({ db, now: ctx.now, onTargetPromoted: (): void => undefined }, { ownerId, scope, generation });
+  // Each scope completes through the sweep that records it in production.
+  const signal = new AbortController().signal;
+  if (task === "embed") {
+    await embeddings.embedCorpus({ ownerId, force: false, signal });
+    await embeddings.purgeMemoryVectors({ ownerId, generation });
+    await embeddings.purgeDocumentVectors({ ownerId, generation });
+  } else {
+    await embeddings.embedAssets({ ownerId, force: false, signal });
   }
   return generation.id;
 }

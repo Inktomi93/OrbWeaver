@@ -10,10 +10,10 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { ChatLiveEvent } from "#server/transport/trpc/chat-events-bus.ts";
 import { publishChatEvent, subscribeAllChatEvents, subscribeChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT_A = castId<ChatId>("chat_a");
 const CHAT_B = castId<ChatId>("chat_b");

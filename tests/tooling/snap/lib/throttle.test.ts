@@ -9,6 +9,8 @@
 // budgets now follow the arm, so a network receipt is reachable at all — and the dev-build limit that
 // remains (447 requests, `page.goto` past 90s) is a real finding about the unbundled dev graph rather
 // than a 10s stopwatch.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   NAV_TIMEOUT_MS,
   STAGE_NAV_TIMEOUT_MS,
@@ -18,7 +20,6 @@ import {
   WAIT_SELECTOR_TIMEOUT_MS,
 } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { driveBudgets, NETWORK_PROFILES, parseNetworkProfile, throttleResultValue } from "../../../../tooling/src/snap/lib/throttle.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // #1283: these four ceilings are `budget(<X>_BASE_MS)` (#1266) — a LOAD-SCALED reading of the box, not
 // the fixed literal this file used to assert. Comparing against the SAME live constants `driveBudgets`

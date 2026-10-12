@@ -13,7 +13,7 @@ import {
   SUMMARIZE_CONCURRENCY_MAX,
   WIRE_DEFAULT_FEATURES,
 } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the sampler spellings fold key by key: overriding one keeps the row's others, and no layer means no map", () => {
   const folded = foldFeatures({ samplerKeys: { typicalP: "typical", topNSigma: "nsigma" } }, { samplerKeys: { topA: "top_a_custom" } });

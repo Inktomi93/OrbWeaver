@@ -1,10 +1,10 @@
 // Unit: all-pairs near-duplicate detection — the raw-cosine threshold gate + the CSLS rank key
 // (`2·sim − hub_i − hub_j`).
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { MAX_DUPLICATE_VECTORS_PER_SPACE } from "#server/domain/discovery/duplicates/generate.ts";
 import { pairsAboveThreshold } from "#server/domain/discovery/substrate/pair-cosine.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const v = (...xs: number[]): Float32Array => new Float32Array(xs);
 const ZERO_HUBS = [0, 0, 0];

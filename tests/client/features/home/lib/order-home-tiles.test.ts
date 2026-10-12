@@ -3,9 +3,9 @@
 // inheriting the door's array order (which would make the grid depend on import order at main.tsx).
 
 import type { HomeTileContribution } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Clock } from "@orb/ui/icons";
 import { orderHomeTiles } from "#client/features/home/lib/order-home-tiles.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function tile(id: string, order?: number): HomeTileContribution {
   return { id, title: id, icon: Clock, body: () => null, ...(order === undefined ? {} : { order }) };

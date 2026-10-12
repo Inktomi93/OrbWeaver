@@ -3,7 +3,7 @@
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS, workloadRowAnyKindSchema, workloadRunnableRowSchema, workloadScheduleViewSchema } from "@orb/contracts/workloads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const row = {
   id: mintTypeId(ID_PREFIX.workload),

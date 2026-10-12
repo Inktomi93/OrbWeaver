@@ -13,9 +13,9 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import {
   analyzeReply,
   makeRefineryHarness,

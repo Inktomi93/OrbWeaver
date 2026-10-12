@@ -1,9 +1,9 @@
 import { matchesGlob } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import ctConfig from "../../playwright-ct.config.ts";
 import { readPolicyRepositoryInventory } from "../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { MODE_PROJECTS } from "../e2e/support/modes.ts";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 function configuredCtVite(): Exclude<NonNullable<NonNullable<typeof ctConfig.use>["ctViteConfig"]>, () => Promise<unknown>> {
   const vite = ctConfig.use?.ctViteConfig;

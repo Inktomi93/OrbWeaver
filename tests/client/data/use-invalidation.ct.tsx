@@ -8,9 +8,9 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { InvalidationStory, StartChatBurstStory } from "./_ct-stories.tsx";
 
 const CHAT_ID = castId<ChatId>("chat_ctinvalidationtest");

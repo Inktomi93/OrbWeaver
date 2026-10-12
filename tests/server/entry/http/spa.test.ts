@@ -9,9 +9,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { brotliCompressSync, brotliDecompressSync, gunzipSync, gzipSync, zstdCompressSync, zstdDecompressSync } from "node:zlib";
 import { registerSpa, resolveSpaDistDir, securityHeaders } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OK = 200;
 const NOT_FOUND = 404;

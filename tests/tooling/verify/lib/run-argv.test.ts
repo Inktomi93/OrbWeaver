@@ -1,7 +1,8 @@
 // The verify argv grammar where `--changed` is both a selector and a tier, read through `parseRequest`, which
 // resolves no selection and so spawns nothing. The wider parse matrix lives in run.int.test.ts.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DOC = "docs/law/Constitution.md";
 

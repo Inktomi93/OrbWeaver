@@ -16,9 +16,9 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import { assertHeapFloor, CODEMOD_RUN_SPELLING, WORKSPACE_HEAP_FLOOR_MB } from "../../../../tooling/src/codemod/lib/heap-floor.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BYTES_PER_MIB = 1_048_576;

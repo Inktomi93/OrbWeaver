@@ -12,10 +12,11 @@
 //
 // Owner posture (the buried-raster precedent, one family over): a clean run is a SUCCESS condition. The
 // epsilon is float-noise slack, never a threshold to loosen until something fires.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
 import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset, GRID_EXEMPTIONS } from "../../../../tooling/src/ui-audit/lib/checks-grid.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The founding measurement: the config list panel's label voice, 0.125 CSS px off the grid under the
  *  panel's `backdrop-filter` — 22 of 25 text elements on that surface at mint, 7 horizontal residuals

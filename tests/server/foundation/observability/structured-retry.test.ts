@@ -4,8 +4,8 @@
 // lane of both domains that retry (discovery, refinery) names itself through the one helper.
 
 import { getTraceByRequestId, initTracing, traceStructuredRetry, withRequestSpan } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 function traceEvents(requestId: string): { readonly name: string; readonly attributes: Record<string, string | number | boolean> }[] {
   const trace = getTraceByRequestId(requestId);

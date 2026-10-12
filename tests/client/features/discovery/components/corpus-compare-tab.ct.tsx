@@ -4,9 +4,9 @@
 // diff surfaces the shared/only tags and that Deep compare renders the grounded summary.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusCompareCatalogRefreshStory, CorpusCompareTabStory } from "../_ct-stories.tsx";
 
 const CATALOG = [

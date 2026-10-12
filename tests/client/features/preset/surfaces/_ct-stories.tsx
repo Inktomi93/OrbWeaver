@@ -15,9 +15,9 @@ import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from 
 import { __resetPresetSelection, selectPreset, setNarrowViewport, setPresetSearchQuery, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 
 // The three fixed ids (kept module-local — biome forbids non-component exports beside components; the CT

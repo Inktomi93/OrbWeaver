@@ -6,6 +6,7 @@
 // value loudly at run time — so this suite is what stops a typo in the committed JSON from reaching a live
 // run as a nav error nobody expected.
 
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PanelPresetAction } from "@orb/tooling/floor/instrument/panel-flags";
 import {
   applyPanelPresetFlag,
@@ -14,7 +15,6 @@ import {
   panelPresetHelpBlock,
   panelPresetNames,
 } from "@orb/tooling/floor/instrument/panel-flags";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The app's own panel vocabulary, restated as the ORACLE this suite judges the committed rows against. */
 const PANEL_NAMES = ["list", "context"];

@@ -2,8 +2,8 @@
 // `openCharacterGallery`; the host shows that one dialog. From inside a chat the "This chat" scope is there;
 // from outside any chat it is absent and the read names no room. Closing clears the store, so it can reopen.
 
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryAnchorStory } from "../_ct-stories.tsx";
 import { GALLERY_CELL, ITEM } from "../_gallery-fixtures.ts";
 

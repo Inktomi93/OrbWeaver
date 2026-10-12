@@ -3,9 +3,9 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { normalizeMembers } from "#server/domain/roster-preset/substrate/members.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const A = castId<CharacterId>("character_a");
 const B = castId<CharacterId>("character_b");

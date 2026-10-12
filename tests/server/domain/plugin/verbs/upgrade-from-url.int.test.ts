@@ -13,9 +13,9 @@ import { plugins } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginBundlePreviewStaleError, PluginNotFoundError } from "@orb/server/domain/plugin";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { hashBundle, makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const URL = "https://plugins.example.com/my-plugin.zip";

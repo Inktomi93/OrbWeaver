@@ -17,10 +17,10 @@ import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { migrateSeededCardBackgrounds } from "#server/domain/character/persistence/migrate-seeded-backgrounds.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedRawCharacter, seedUser } from "../_support.ts";
 
 const AT = 1_750_000_000_000;

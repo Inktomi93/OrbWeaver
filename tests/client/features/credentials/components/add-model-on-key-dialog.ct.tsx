@@ -14,10 +14,10 @@
 //     the picked row is marked once.
 
 import { providerDefSchema } from "@orb/contracts/inference";
+import type { TrpcRecorder, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
+import { trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
-import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import type { ConnectionRow } from "../_connection-fixtures.ts";
 import {
   ALL_AVAILABLE,

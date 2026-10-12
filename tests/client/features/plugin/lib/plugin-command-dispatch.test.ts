@@ -3,13 +3,13 @@
 // and the arg-name-hint / enum-value-completion offers the composer's arg strip renders.
 
 import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {
   parseCommandArgInputs,
   parsePluginArgContext,
   parsePluginCommand,
   pluginCommandArgOffers,
 } from "#client/features/plugin/lib/plugin-command-dispatch.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const SPECS: readonly PluginCommandArgSpec[] = [
   { name: "suit", type: "enum", required: true, enumValues: ["cups", "wands", "swords"] },

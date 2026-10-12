@@ -4,10 +4,10 @@
 // newline inside a run, code spans) as hard as the positive ones. Deep-imports src (browser package;
 // @orb/ui is not node-resolvable), like policy.test.ts.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { DialoguePart } from "#ui/markdown/dialogue.ts";
 import { splitDialogue } from "#ui/markdown/dialogue.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const text = (value: string): DialoguePart => ({ text: value, atomic: false });
 /** An element child that carries text (Streamdown's per-word streaming span) — tinted whole or not at all. */

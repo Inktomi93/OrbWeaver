@@ -1,6 +1,7 @@
 // The rule-frontmatter reader: only the YAML list form counts as `paths:`.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parseRulePaths } from "../../../../tooling/src/agent-sync/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the list form yields its globs, quoted or bare", () => {
   expect(parseRulePaths('---\npaths:\n  - "docs/**"\n  - packages/db/**\n---\n\n# Rule\n')).toEqual({ kind: "list", globs: ["docs/**", "packages/db/**"] });

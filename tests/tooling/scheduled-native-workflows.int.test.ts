@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { parse } from "yaml";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const stepSchema = z.object({
   id: z.string().optional(),

@@ -4,10 +4,10 @@
 // the multi-profile read.
 
 import { createHash } from "node:crypto";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { UploadedFile } from "#server/domain/import/contract/views.ts";
 import { incomingPersonasOf } from "#server/domain/import/substrate/persona-review.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 // Raw JSON: the ST wire keys are snake_case and stay verbatim.

@@ -13,9 +13,10 @@
 // is floor-guarded and carries a PLANTED CONTROL, because a regex that stops matching returns `[]` and
 // every set comparison then passes vacuously.
 // The LEAF, not the `@orb/ui/lib` barrel (it value-exports DOM-coupled hooks — type-worlds #1351).
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { STAMPED_VARIANT_AXES } from "#ui/lib/variant-attrs.ts";
 import { WALKER_TARGET_IDENTITY } from "../../../../../tooling/src/ui-audit/ops/walker/target-identity.ts";
-import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 /** Base UI's RUNTIME state attribute — deliberately in the walker's list and deliberately NOT stamped by
  *  the ui primitives (they never author it; Base UI writes it live). Any OTHER extra member is an

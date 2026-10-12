@@ -2,8 +2,8 @@
 // the ONE contracts map) selects an extraction mode + the rest is a refinement; anything else is a verbatim
 // free-mode prompt. Pins the case-fold, the whitespace trim, and the free-mode fallthrough.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { parseImagineArgs } from "#client/features/imagery/lib/imagine-command.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("parseImagineArgs: a bare invocation is free mode with an empty prompt", () => {
   expect(parseImagineArgs("")).toEqual({ mode: "free", prompt: "" });

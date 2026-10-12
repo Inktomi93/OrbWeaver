@@ -21,11 +21,11 @@ import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { createImportService } from "@orb/server/domain/import";
 import { createBulkImportLorebook, createHasPrimaryBook } from "@orb/server/domain/world-info";
+import { seedCharacter, seedUser } from "@orb/testkit/node/factories/index.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ImportContext } from "#server/domain/import/context.ts";
-import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const CARD_ENTRY_CONTENT = "A realm of eternal dusk.";

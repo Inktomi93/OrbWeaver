@@ -4,9 +4,9 @@
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
 import { DomainOperationError } from "@orb/kit/errors";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { ZodError } from "zod";
-import { freshDb, freshHeldDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 const PATTERN_REFUSAL = /pattern/u;

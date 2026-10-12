@@ -6,13 +6,13 @@ import type { Db } from "@orb/db";
 import { chatImportClaims, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, inArray } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "#server/domain/chat/contract/memory.ts";
 import { backfillMemory, loadAllChatIds } from "#server/domain/chat/substrate/backfill.ts";
 import { estimateMemoryBackfillCalls } from "#server/domain/chat/substrate/backfill-estimate.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 import { fakeSummarize, realMemoryWiring, seedTurns } from "../memory/_support.ts";
 

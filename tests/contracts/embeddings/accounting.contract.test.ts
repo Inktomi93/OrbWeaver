@@ -1,5 +1,5 @@
 import { embeddingBatchObservationSchema } from "@orb/contracts/embeddings";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const OBSERVED = {
   inputCount: 2,

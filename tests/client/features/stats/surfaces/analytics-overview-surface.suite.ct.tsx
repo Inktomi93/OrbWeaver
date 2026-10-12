@@ -1,5 +1,5 @@
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 test("an empty rollup explains imported transcript coverage and offers recompute", async ({ mount, page }) => {

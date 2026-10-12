@@ -6,9 +6,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { createImportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
 import { buildUserSettingsBackup } from "@orb/server/primitives/serde/user-settings";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("importUserSettings", () => {

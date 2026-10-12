@@ -11,11 +11,11 @@
 // A unit test, not a CT: the notice is a pure function of (code, message) and the CT beside it
 // (`use-orb-socket.ct.tsx`) already drives the socket's real fault routing end to end.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // Deep import the module, NOT the `@orb/client/data` barrel: a barrel import drags browser TSX into the
 // dom-less `typecheck:graph` program (the 2026-06-28 dom-lib incident, the `import-bundle.test.ts` note).
 import { describe } from "vitest";
 import { socketNotice } from "#client/data/bus/use-orb-socket.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 /** The verbatim server sentence the cap arrives with — the string this notice exists to STOP showing. */
 const SERVER_MESSAGE = "Too many open streams (8). Close a tab and retry.";

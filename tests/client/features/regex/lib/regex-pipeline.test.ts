@@ -14,9 +14,9 @@
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { runRegexPipeline } from "#client/features/regex/lib/regex-pipeline.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A fixed edit stamp — the pipeline projection never reads it, and an ambient wall-clock read here would
  *  make the fixture non-deterministic for no gain (`test-determinism`). */

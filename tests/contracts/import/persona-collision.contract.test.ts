@@ -1,5 +1,5 @@
 import { decodePersonaCollisionChoices, encodePersonaCollisionChoices, personaCollisionChoiceFor } from "@orb/contracts/import";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("choices round-trip through the multipart values, including a name that contains a colon", () => {
   const choices = { nate: "keep-both", "re: eve": "merge" } as const;

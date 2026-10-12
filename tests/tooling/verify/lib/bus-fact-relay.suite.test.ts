@@ -5,6 +5,8 @@
 // `Record<Union["type"], Union>` with an unnarrowed key types as EVERY member). These are fact-level
 // controls: they read the shared fact's own census through a probe policy rather than any bus policy's
 // verdict, so a change in either direction is visible here before it reaches a coverage id.
+
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { BusFact } from "../../../../tooling/src/verify/contract/bus-fact.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -12,7 +14,6 @@ import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { busDefinitionFact } from "../../../../tooling/src/verify/lib/bus-definition-fact.ts";
 import { busProducerFact } from "../../../../tooling/src/verify/lib/bus-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/bus-fact-relay";
 

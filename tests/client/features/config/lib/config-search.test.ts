@@ -7,10 +7,10 @@
 
 // @orb-waive-file no-test-fabrication(ConfigGroupDefinition): baselined when the gate widened to value casts; burn-down item 906.
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Settings } from "@orb/ui/icons";
 import type { ConfigSearchEntry } from "#client/features/config/lib/config-search.ts";
 import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified, shelfCompletions } from "#client/features/config/lib/config-search.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {
   return { id, shelf, label, icon: Settings, description: `${label} — the description.`, body: { kind: "sections" } };

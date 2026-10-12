@@ -18,10 +18,10 @@ import { createAssetsService } from "@orb/server/domain/assets";
 import type { DatabankContext } from "@orb/server/domain/databank";
 import { createDatabankService, ScrapeFailedError } from "@orb/server/domain/databank";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 

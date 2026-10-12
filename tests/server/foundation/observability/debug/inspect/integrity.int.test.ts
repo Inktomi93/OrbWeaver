@@ -8,9 +8,9 @@ import { sessionEntries } from "@orb/db";
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { integrityProbe } from "@orb/server/foundation/observability/debug";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
-import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-integrity";

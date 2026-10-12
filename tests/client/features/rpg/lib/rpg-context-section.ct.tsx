@@ -14,18 +14,18 @@ import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedT
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ariaTreeFindings } from "@orb/testkit/browser/accessible-names.ts";
+import { expectCircle } from "@orb/testkit/browser/expect-circle.ts";
+import { hitBoxes, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "@orb/testkit/node/chat-settings-sections-reads-empty.ts";
+import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
+import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { EXTRACTION_CONTEXT_LABEL } from "#client/features/rpg/lib/host-console-labels.ts";
 import { revealActionName } from "#ui/lib/action-names.ts";
-import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
-import { expectCircle } from "../../../../support/browser/expect-circle.ts";
-import { hitBoxes, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "../../../../support/node/chat-settings-sections-reads-empty.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
-import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import {
   RpgTakeoverDockedStory,
   RpgTakeoverFloorStory,

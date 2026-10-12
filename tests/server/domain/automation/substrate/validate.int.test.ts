@@ -23,9 +23,9 @@ import { worldBooks } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { AutomationService } from "#server/domain/automation/contract/service.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import type { RuleFixture } from "../_support.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 

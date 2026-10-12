@@ -1,5 +1,5 @@
 import { brokerWatchdogFailure, PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS, PLUGIN_BROKER_STARTUP_TIMEOUT_MS } from "@orb/server/infra/plugin-host";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the broker watchdog refuses RSS overflow, startup silence, and a wedged heartbeat", () => {
   expect(brokerWatchdogFailure(5, 100, { startedAt: 0, lastHeartbeatAt: 5, rssBytes: 100 })).toBeNull();

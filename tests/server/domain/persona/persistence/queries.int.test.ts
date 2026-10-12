@@ -9,6 +9,9 @@
 import { chats, personas } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedChat } from "@orb/testkit/node/factories/chat.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "#server/domain/persona/contract/errors.ts";
@@ -20,9 +23,6 @@ import {
   loadPersonasForOwners,
   loadPinnedPersonaView,
 } from "#server/domain/persona/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { seedChat } from "../../../../support/factories/chat.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

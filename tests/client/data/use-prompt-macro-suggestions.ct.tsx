@@ -11,9 +11,9 @@
 //   3. NO EMPTY WINDOW — while the reads are in flight the catalog is the builtin one, never `[]`; a popover
 //      that opened empty on the first keystroke would read as "this field has no macros".
 
+import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
-import { userSettingsView } from "../../support/node/user-settings-view.ts";
 import { PromptMacroSuggestionsStory } from "./_ct-stories.tsx";
 
 const ACTIVE_PRESET_ID = "preset_ct_active";

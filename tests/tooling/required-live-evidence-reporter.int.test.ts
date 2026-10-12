@@ -6,8 +6,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { afterEach } from "vitest";
-import { expect, test } from "../support/tool-fixtures.ts";
 
 const scratches: string[] = [];
 

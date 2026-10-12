@@ -10,11 +10,11 @@ import { assets, pluginAssets, pluginKv } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import { eq } from "drizzle-orm";
 import { upsertKvUnderCap } from "#server/domain/plugin/persistence/plugin-kv.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
-import { magicBytes } from "../../../../support/magic-bytes.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 /** A cover the way `net.fetchAsset` lands one: an owned `generated` asset in the installer's CAS index, with

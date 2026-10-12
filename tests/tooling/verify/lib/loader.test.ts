@@ -21,10 +21,10 @@ import fs, { mkdirSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const GATES = "tooling/src/verify/gates";
 

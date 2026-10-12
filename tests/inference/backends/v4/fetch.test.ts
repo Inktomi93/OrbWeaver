@@ -11,13 +11,14 @@
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ choices: { delta: Record<string, unknown> }[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
-import type { Wire } from "@orb/contracts/inference";
+import type { ProviderId, Wire } from "@orb/contracts/inference";
+import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import type { WrapFetchArgs } from "#inference/backends/v4/fetch.ts";
 import { wrapFetch } from "#inference/backends/v4/fetch.ts";
 import type { WireCaptureSink } from "#inference/contract/backend.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const SECRET = "sk-live-super-secret";
 const secrets = resolvedScrubSet({ credential: { secret: SECRET }, transport: { includeBody: { api_key: SECRET } } });
@@ -61,7 +62,15 @@ test("the wire capture is secret-scrubbed by value, including a key-in-body cred
     captured.push(entry);
   };
   const fetchImpl = wrap(respond("{}", { status: 200 }), {
-    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "custom-openai", model: "m", reply: false },
+    capture: {
+      sink,
+      chatId: undefined,
+      api: "chat-completions",
+      wire: "openai-compat" satisfies Wire,
+      providerId: castId<ProviderId>("custom-openai"),
+      model: "m",
+      reply: false,
+    },
   });
   await fetchImpl("https://box.local/v1/chat/completions", {
     method: "POST",
@@ -84,7 +93,7 @@ test("the capture carries the RESPONSE headers beside the request body (D1 — w
       chatId: undefined,
       api: "anthropic-messages",
       wire: "anthropic-messages" satisfies Wire,
-      providerId: "anthropic",
+      providerId: castId<ProviderId>("anthropic"),
       model: "m",
       reply: false,
     },
@@ -103,7 +112,15 @@ test("a transport failure still records the request, with no response headers to
   };
   const boom: typeof fetch = () => Promise.reject(new Error("socket hang up"));
   const fetchImpl = wrap(boom, {
-    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "vllm", model: "m", reply: false },
+    capture: {
+      sink,
+      chatId: undefined,
+      api: "chat-completions",
+      wire: "openai-compat" satisfies Wire,
+      providerId: castId<ProviderId>("vllm"),
+      model: "m",
+      reply: false,
+    },
   });
   await fetchImpl("https://box.local/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) }).catch(() => undefined);
   expect(captured).toHaveLength(1);
@@ -191,7 +208,15 @@ function sseRespond(body: string, headers: Record<string, string> = {}): typeof 
 }
 
 function replyCapture(sink: WireCaptureSink, reply: boolean): WrapFetchArgs["capture"] {
-  return { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "openrouter", model: "m", reply };
+  return {
+    sink,
+    chatId: undefined,
+    api: "chat-completions",
+    wire: "openai-compat" satisfies Wire,
+    providerId: castId<ProviderId>("openrouter"),
+    model: "m",
+    reply,
+  };
 }
 
 /** The tap emits from a floating read of its OWN tee branch, so the entry lands a turn or two after the

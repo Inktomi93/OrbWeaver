@@ -4,9 +4,9 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fakeRelaySeams } from "@orb/testkit/node/fake-relay.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeAll, vi } from "vitest";
-import { fakeRelaySeams } from "../../support/fake-relay.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-share-container-"));
 const OWNER_PASSWORD = "correct-horse-battery";

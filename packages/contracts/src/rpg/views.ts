@@ -17,7 +17,7 @@ import { RPG_DELIVERY_PATHS, RPG_FOLD_FALLBACK_REASONS, rpgGameConfigSchema, rpg
 import type { RpgGameMode, RpgGameStatus } from "./enums.ts";
 import { rpgCheckpointTriggerSchema, rpgGameModeSchema, rpgGameStatusSchema } from "./enums.ts";
 import type { RpgToolCallVerdict } from "./extraction.ts";
-import { RPG_TOOL_CALL_VERDICTS } from "./extraction.ts";
+import { rpgRecordedToolCallSchema } from "./extraction.ts";
 import { RPG_PROFILE_MAX_ATTRIBUTES, rpgStatProfileSchema } from "./profile.ts";
 import { rpgSheetSchema } from "./sheet.ts";
 import type { RpgPlot } from "./snapshot.ts";
@@ -475,11 +475,7 @@ export const rpgJournalEntryViewSchema = z.strictObject({
   content: z.string(),
   createdAt: z.number(),
 }) satisfies z.ZodType<RpgJournalEntryView>;
-const rpgToolCallDisclosureSchema = z.strictObject({
-  name: z.string(),
-  args: z.string(),
-  verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
-  issues: z.array(z.string()).readonly(),
+const rpgToolCallDisclosureSchema = rpgRecordedToolCallSchema.extend({
   withheld: z.enum(RPG_TOOL_CALL_WITHHOLD_REASONS).nullable(),
 }) satisfies z.ZodType<RpgToolCallDisclosure>;
 export const rpgTurnToolCallsViewSchema = z.strictObject({

@@ -9,8 +9,8 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { BlobAssetsPort, BlobCasPort, BlobDeps } from "@orb/server/entry/http";
 import { registerBlob } from "@orb/server/entry/http";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

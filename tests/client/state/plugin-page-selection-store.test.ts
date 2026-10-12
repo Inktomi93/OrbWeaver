@@ -4,8 +4,8 @@
 import type { PluginPageKey } from "@orb/client/state";
 import { pluginPageKey } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, expectTypeOf } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
 const PLUGIN_ID = mintTypeId(ID_PREFIX.plugin);

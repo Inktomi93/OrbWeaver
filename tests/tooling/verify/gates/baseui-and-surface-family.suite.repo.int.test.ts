@@ -26,6 +26,7 @@
 //   §4.6  the CONVERSION DIFFERENTIAL, stated as what it FOUND rather than merely run.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -44,7 +45,6 @@ import { getProject } from "../../../../tooling/src/verify/lib/harness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const POLICIES = [
   anatomyCompleteness,

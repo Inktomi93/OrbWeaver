@@ -1,8 +1,8 @@
 import { join } from "node:path";
 import { closeDb, createDb, optimizeDb } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { sql } from "drizzle-orm";
-import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CONCURRENT_OPERATIONS = 24;
 

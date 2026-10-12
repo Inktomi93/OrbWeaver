@@ -5,12 +5,12 @@ import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { detectModelFamily } from "#inference/capability/families.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { buildHistoryBudget, fitHistoryToWindow, HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "#server/domain/chat/assembly/history-budget.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const turn = (content: string): { role: "user"; content: string } => ({ role: "user", content });
 

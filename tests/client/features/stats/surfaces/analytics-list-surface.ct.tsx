@@ -3,9 +3,9 @@
 // the default (assistantTurns) sort renders its ranked rows; switching the sort re-dispatches and the
 // first row changes; a row exposes its replies + tokens summary.
 
+import type { TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsListSurfaceStory } from "../_ct-stories.tsx";
 
 const ARIA: TrpcWireOutput<"stats.leaderboard">["rows"][number] = {

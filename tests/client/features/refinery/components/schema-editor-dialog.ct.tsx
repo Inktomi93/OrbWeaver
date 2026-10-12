@@ -14,9 +14,9 @@
 
 import type { RefinerySchemaId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { SchemaEditorCloseGuardStory, SchemaEditorStory } from "../_ct-stories.tsx";
 
 /** The JSON pane's landed draft always carries the well-known core — the cheapest "the draft arrived"

@@ -4,8 +4,8 @@
 // steers" recall renders FROM: unshift (most-recent-first) · de-dupe on re-fire · cap · blank never stored.
 
 import { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("steer-recovery ring", () => {
   beforeEach(() => {

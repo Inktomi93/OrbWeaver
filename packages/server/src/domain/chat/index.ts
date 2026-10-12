@@ -49,6 +49,7 @@ export type {
   RpgParticipantActor,
   RpgTurnContext,
   RpgTurnTranscriptMessage,
+  RunChatTurnOp,
   SetRpgPointer,
   TeachingCollection,
   TeachingContext,
@@ -85,6 +86,7 @@ export type {
   ReactAsCharacterResult,
   RequestTurnOp,
   ResolvedMediaRef,
+  TurnEconomics,
   TurnMessage,
   TurnRequest,
   TurnStreamChunk,
@@ -124,6 +126,10 @@ export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/participants-read.ts";
 export { loadTurnOrigin } from "./persistence/queries.ts";
+// B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
+// the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
+// The room's PRESENT host read: the one home every chat-host resolution (compose, memory, reactions) calls.
+export { loadPresentHostUserId } from "./persistence/reactions.ts";
 export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,
@@ -168,8 +174,6 @@ export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
-// B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
-// the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
 export { createReactAsCharacter } from "./verbs/reactions.ts";
 export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.ts";
 // THE cross-domain viewer-visibility op (the read-visibility D-entry) — membership AND the D16 canon floor as

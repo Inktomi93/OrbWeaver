@@ -8,9 +8,9 @@
 // the catalogue is what its picker offers, so with either unknown every affordance in it states something
 // false. The retry re-reads both, and the pin proves it by scripting a fail-then-succeed on each in turn.
 
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterRelationsTabStory } from "../_ct-stories.tsx";
 
 const BOOK: TrpcWireOutput<"worldInfo.listForCharacter">[number] = {

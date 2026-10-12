@@ -16,8 +16,8 @@ import {
   replaceComposerDraft,
   setComposerDraft,
 } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 describe("composer-draft store", () => {
   beforeEach(() => {

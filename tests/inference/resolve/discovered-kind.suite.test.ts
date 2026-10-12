@@ -4,8 +4,8 @@
 // @orb-waive-file no-test-fabrication({ readonly model?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
 
 const OLLAMA_URL = "http://ollama.test:11434";

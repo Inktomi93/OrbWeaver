@@ -5,7 +5,7 @@
 // shipped guess — and nothing else on the tree would go red.
 
 import { EVIDENCE_TIERS, evidenceTierSchema } from "@orb/contracts/inference";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the ladder is exactly this order, strongest first", () => {
   expect([...EVIDENCE_TIERS]).toEqual(["declared", "measured", "advertised", "curated", "family-floor", "kind-floor"]);

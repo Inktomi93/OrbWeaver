@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 
 // INJECTED, never mocked: `definedClassTokens` takes its per-selector tokenizer as a parameter, so the
 // throwing arm below is supplied through the real seam instead of faking `@orb/kit/dead-css` (§3).

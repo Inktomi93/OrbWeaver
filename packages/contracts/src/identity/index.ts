@@ -314,6 +314,14 @@ export const viewerViewSchema = z.strictObject({
 });
 export type ViewerView = z.infer<typeof viewerViewSchema>;
 
+/** The `GET /api/auth/me` response: who the seam resolved this request as, or unauthenticated. */
+export const authMeSchema = z.strictObject({
+  authenticated: z.boolean(),
+  handle: brandedId<Handle>().nullable(),
+  role: userRoleSchema.nullable(),
+});
+export type AuthMe = z.infer<typeof authMeSchema>;
+
 // The `can()` privilege-decision seam. Cross-boundary: admin's `can()` impl ARBITRATES, chat CALLS IN with
 // a roster it loaded; the union homes at the DAG root so both sides import it down. `can()` + the
 // `requireAdmin`/`requireOwner` wrappers live in `domain/admin/guard.ts`; chat reaches it by injection.

@@ -11,12 +11,12 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { assemblePrompt, assemblePromptWithSlices, previewSection } from "#server/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
 import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "#server/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 let sectionSeq = 0;
 function marker(over: Partial<Extract<PromptSection, { type: "marker" }>>): PromptSection {

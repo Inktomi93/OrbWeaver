@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { parseDigest } from "#server/domain/chat/memory/generate/substrate/parse.ts";
-import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("memory/generate/substrate/parse", () => {
   test("parses the three-part digest (anchor · facts · keywords)", () => {

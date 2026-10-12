@@ -2,9 +2,9 @@
 // position→placement normalization (in_prompt default drops metadata; NONE / AT_DEPTH map through), the
 // default-persona flag, the name-keyed identity, and the never-throws empty contract.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { parseStPersonas } from "#server/domain/import/substrate/persona.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseStPersonas", () => {
   test("empty / non-object / no personas → empty list, never throws", () => {

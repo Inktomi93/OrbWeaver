@@ -14,11 +14,11 @@
 //     feature), and every coarse arm PROVES the emulation landed before trusting anything it measures —
 //     a narrow viewport alone renders a fine-pointer layout no phone produces.
 
+import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
+import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "#client/features/chat/lib/message-action-names.ts";
-import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsDoorsStory, MessageReactionsStory } from "../_reaction-stories.tsx";
 
 // The fixture's ids must MATCH `fixtures.ts::makeMessageView` — the pill row selects the room's window by

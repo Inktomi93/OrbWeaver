@@ -11,9 +11,9 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { BackgroundSourceFieldStory } from "./background-source-field.fixtures.tsx";
 
 const ENTRY = { entryId: "e1", assetId: castId<AssetId>("asset_00000000000000000000000001"), assetHash: "hashaaa", mime: "image/png", name: "My dock" };

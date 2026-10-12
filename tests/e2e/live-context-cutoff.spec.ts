@@ -7,7 +7,7 @@
 //        a turn driven with a tiny per-send `intent.maxContextTokens` stamps a real mid-transcript
 //        boundary onto canon, but the NEXT send carries no such override — the preview (current preset,
 //        full window) says "everything fits", so the API boundary is null and NO divider renders.
-//   P2 — moving the PRESET knob moves the line WITHOUT any model turn (the whole point of previewFit):
+//   P2 — moving the PRESET knob moves the line WITHOUT any model turn (the whole point of previewContextFit):
 //        a throwaway preset with params.maxContextTokens=200 becomes the user's default → the preview
 //        recomputes (settingsChanged/presetsChanged invalidation) → the API reports a mid-transcript
 //        boundary and the DOM divider renders on exactly that row.
@@ -18,7 +18,7 @@
 //
 // @live: seeds via three real API turns (~10-18s warm). Skipped unless E2E_LIVE=1. Fully self-seeding.
 
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
@@ -28,21 +28,13 @@ import {
   getUserSettings,
   listCanon,
   listCharacters,
+  previewContextFit,
   removePreset,
   sendTurn,
   setPresetMaxContextTokens,
   startChat,
-  trpcQuery,
   updateSettingsSection,
 } from "./support/trpc.ts";
-
-interface ContextFitPreview {
-  readonly boundaryMessageId: string | null;
-  readonly usedTokens: number;
-  readonly ceilingTokens: number;
-  readonly reserveOutputTokens: number;
-  readonly droppedCount: number;
-}
 
 const TINY_CEILING = 200; // maxContextTokens small enough that only the newest turn survives the fit
 // This spec exercises the FIT divider (a stale canon stamp must not resurrect it). Under the #9 owner ruling the
@@ -51,8 +43,6 @@ const TINY_CEILING = 200; // maxContextTokens small enough that only the newest 
 // memory-fact), isolating the fit-divider behavior this spec is about. (The managed-marker divider is #9's own
 // live-managed-compaction spec.)
 const AUTO = { mode: "auto" as const };
-
-const previewFit = (chatId: ChatId): Promise<ContextFitPreview> => trpcQuery<ContextFitPreview>("chat.previewContextFit", { chatId });
 
 test("the context-boundary divider is present-tense: preview-driven, knob-responsive, stale-stamp-proof", {
   tag: "@live",
@@ -77,7 +67,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
 
     // ── P1: …but the PRESENT-TENSE preview (current preset, full window) says everything fits — null
     // boundary, and the UI renders NO divider despite the stale stamp sitting in canon. ──
-    const restingPreview = await previewFit(chatId);
+    const restingPreview = await previewContextFit(chatId);
     expect(restingPreview.boundaryMessageId).toBeNull();
 
     await gotoChatsList(page);
@@ -94,8 +84,8 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
       await updateSettingsSection("seeds", { defaultPresetId: tinyPreset.id });
 
       // The API preview now reports a REAL mid-transcript boundary under the preset ceiling…
-      await expect.poll(async () => (await previewFit(chatId)).boundaryMessageId, { timeout: 15_000, intervals: [200, 500, 1000] }).not.toBeNull();
-      const knobbed = await previewFit(chatId);
+      await expect.poll(async () => (await previewContextFit(chatId)).boundaryMessageId, { timeout: 15_000, intervals: [200, 500, 1000] }).not.toBeNull();
+      const knobbed = await previewContextFit(chatId);
       const apiBoundary = knobbed.boundaryMessageId;
       expect(canon.findIndex((c) => c.id === apiBoundary)).toBeGreaterThan(0);
       // The reported ceiling is the fit's system + history room: the soft cap less the reserve, floored at one token.

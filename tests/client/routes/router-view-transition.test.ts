@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
 import { observeRouterViewTransitions } from "#client/routes/router-view-transition.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();

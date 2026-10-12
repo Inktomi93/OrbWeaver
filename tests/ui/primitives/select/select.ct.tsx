@@ -1,10 +1,11 @@
 // CT: the select seal — explicit Positioner/Popup anatomy portals a real popup (popover token,
 // overlay z), pointer + keyboard select, controlled value surfaces in the trigger.
+import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
+import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { LinkedLabelStory, RenderValueStory } from "./select.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
@@ -435,7 +436,7 @@ test("a disabled option dims its label only; its reason stays readable in dark a
     await expect.poll(() => reason.evaluate(painted), { message: `[${theme}] the reason paints at full opacity` }).toBe(1);
     await expect.poll(() => smart.locator('[data-slot="select-item-label"]').evaluate(painted), { message: `[${theme}] the label dims` }).toBe(0.5);
     const contrast = await pixelContrast(page, reason);
-    expect(contrast.ratio, `[${theme}] disabled reason vs popup — ${contrast.describe}`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast.ratio, `[${theme}] disabled reason vs popup — ${contrast.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     backdrops.add(contrast.describe);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("listbox")).toBeHidden();

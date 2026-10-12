@@ -16,12 +16,12 @@ import { characterDocuments, documents, globalDocuments } from "@orb/db";
 import type { DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseDocumentFile } from "@orb/server/primitives/serde/databank";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { DatabankPortabilityContext } from "#server/domain/databank/contract/portability.ts";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#server/domain/databank/persistence/portability-write.ts";
-import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_700_000_000_000;

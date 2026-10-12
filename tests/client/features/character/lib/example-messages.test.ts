@@ -2,10 +2,10 @@
 // §7): the `<START>`-block split for the read-only formatted mini-transcript. DISPLAY only — the write path
 // keeps the raw string byte-identical, so this is never asked to reconstruct the original.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view.test.ts precedent).
 import { parseExampleBlocks } from "#client/features/character/lib/example-messages.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 const USER = "{{user}}";
 const CHAR = "{{char}}";

@@ -2,8 +2,8 @@
 // by the row's kind (D292). An embedding row states its width and nothing a chat model would; a generation row
 // states its window, modalities, tools and schema-constrained output only when the row carries them.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "#inference/capability/sources/advertised/openai-compat.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A row that spells every sampler the default way. */
 const ROW = {};

@@ -6,10 +6,10 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { UserConnection } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { detectServer } from "#inference/catalog/detect.ts";
-import { principal } from "../../support/factories/principal.ts";
-import { expect, test } from "../../support/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../backends/openai-compat/_ollama-native-recordings.ts";
 import type { LocalServerArm } from "../catalog/_local-servers-fetch.ts";

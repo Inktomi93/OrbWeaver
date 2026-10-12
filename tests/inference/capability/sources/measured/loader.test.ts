@@ -8,13 +8,13 @@
 import type { GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
 import { builtinProvider, coEmitsProseWithTools } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { applyEndpointPosture } from "#inference/capability/floor.ts";
 import { advertisedFromOpenRouter } from "#inference/capability/sources/advertised/openrouter.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { measuredRows } from "#inference/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { resolveChat } from "#inference/funnel/resolve-chat.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The OR catalog row as advertised on 2026-09-20 (`supported_parameters` verbatim). */
 function orEntry(id: string, supportedParameters: readonly string[]): ModelCatalogEntry {

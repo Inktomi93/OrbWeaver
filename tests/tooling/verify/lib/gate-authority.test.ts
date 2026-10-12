@@ -1,3 +1,4 @@
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type {
   GateAuthorityBatchInput,
@@ -9,7 +10,6 @@ import type {
 } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { OrdinaryWaiverSource } from "../../../../tooling/src/verify/contract/ordinary-waiver-source.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const POLICIES: readonly SelectedGatePolicy[] = [
   { id: "hard-policy", authority: "hard", severity: "error" },

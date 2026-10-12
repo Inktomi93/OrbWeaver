@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { continuedSignatureMetadata, signaturesForContent } from "#server/domain/chat/substrate/content-signatures.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 test("continuation tool offsets include the UTF-16 prefix and configured delimiter without changing provider call ids", () => {
   const first = { toolCallId: "call-1", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 3 };

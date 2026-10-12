@@ -4,11 +4,9 @@ import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { characterEmbeddings, embedGenerationTargets } from "@orb/db";
 import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
-import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
-import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
-import { freshDb } from "../../../support/db.ts";
-import { expect } from "../../../support/fixtures.ts";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { expect } from "@orb/testkit/node/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import { makeStoreHarness, seedCharacter } from "./_support.ts";
 
@@ -51,7 +49,7 @@ export async function assertRefusedBindingRace(reader: "store" | "sweep" | "empt
   const ctx: EmbeddingsContext = {
     ...fixture.ctx,
     withStableEmbeddingBinding: (ownerId, read) => h.svc.withStableEmbeddingBinding(ownerId, read),
-    resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, createHostPrincipalResolver(createLoadUserById({ db }))),
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, () => Promise.resolve(owner.principal)),
     onTargetGenerationMoved: () => {
       throw new Error("a refused binding must never purge or enqueue a rebuild");
     },

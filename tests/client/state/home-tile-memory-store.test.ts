@@ -2,6 +2,7 @@
 // drops the tile's remembered box and that settling visible clears the mark, since both decide a first paint.
 
 import { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox } from "@orb/client/state";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import {
   __readHomeTileMemoryForTest,
@@ -10,7 +11,6 @@ import {
   rememberHomeRegion,
   rememberHomeTileSettledHidden,
 } from "#client/state/home-tile-memory-store.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 const ROSTERS = "rosterPreset.rosters";
 const STARTER = "chat.quickPicks";

@@ -5,13 +5,13 @@
 import type { EndpointFeatures, WireSchemaLimits, WireSchemaMode } from "@orb/contracts/inference";
 import { effectiveStructuredLimits } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { ResponseFormat } from "#inference/contract/chat.ts";
 import type { Resolved } from "#inference/contract/resolved.ts";
 import { planStructuredFor } from "#inference/structured/plan.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../support/fixtures.ts";
-import { wireSchema } from "../../support/wire-ready.ts";
 
 const ANTHROPIC = effectiveStructuredLimits("anthropic-format", undefined);
 

@@ -2,10 +2,10 @@ import type { CorpusDestination } from "@orb/client/lib";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createTimeLib } from "@orb/kit/time";
+import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource } from "@orb/testkit/node/corpus-source.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource } from "../../../../support/node/corpus-source.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusArtifactReaderStory, CorpusEmbeddedResultsStory } from "../_ct-stories.tsx";
 
 const MEMBERS = Array.from({ length: 14 }, (_unused, index) => ({

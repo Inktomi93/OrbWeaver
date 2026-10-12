@@ -1,5 +1,5 @@
 import { isPlainObject } from "@orb/kit/guards";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("isPlainObject is true for non-null, non-array objects", () => {
   expect(isPlainObject({})).toBe(true);

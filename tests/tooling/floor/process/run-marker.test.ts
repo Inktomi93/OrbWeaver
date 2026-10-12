@@ -14,6 +14,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -34,7 +35,6 @@ import {
   sweepRunMarker,
   sweepRunMarkerNow,
 } from "@orb/tooling/floor/process/run-marker";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The planted child's ceiling. A DELIBERATE short kill: the timeout path IS the subject, so this is the
  *  smallest wall clock that still lets the child spawn its grandchild first. Derived, never a literal. */

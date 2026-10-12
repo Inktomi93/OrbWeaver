@@ -6,19 +6,20 @@
 // (compose wires that fn as the backend sink only when capture is enabled) — so this test drives the ring
 // directly, and `reset` in `beforeEach` keeps the singleton clean between cases.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env } from "@orb/server/foundation/env";
 import { isWireCaptureEnabled, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 function capture(chatId: ChatId, wire: "openai-compat" | "agent-sdk", body: Record<string, unknown> = {}): void {
   recordWireCapture({
     chatId,
     api: wire === "openai-compat" ? "chat-completions" : "agent-sdk",
     wire,
-    providerId: wire === "openai-compat" ? "openai-compat" : "claude-sub",
+    providerId: castId<ProviderId>(wire === "openai-compat" ? "openai-compat" : "claude-sub"),
     model: "m",
     at: 0,
     body,

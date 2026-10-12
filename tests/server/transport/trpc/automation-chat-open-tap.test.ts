@@ -8,9 +8,9 @@
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
 import { notifyChatOpened, setChatOpenTap } from "#server/transport/trpc/automation-chat-open-tap.ts";
-import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_open");
 const VIEWER = castId<UserId>("user_viewer");

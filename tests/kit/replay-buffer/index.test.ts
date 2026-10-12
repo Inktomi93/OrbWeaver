@@ -1,5 +1,5 @@
 import { createReplayBuffer } from "@orb/kit/replay-buffer";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // A controllable clock — the injected `now` seam keeps these tests deterministic without faking
 // any global (no Date.now / new Date).

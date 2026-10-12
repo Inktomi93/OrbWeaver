@@ -5,9 +5,9 @@
 import { batchMany } from "@orb/db/query";
 import type { ChatTurnId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
 import { findSnapshotByVariant } from "#server/domain/rpg/persistence/snapshots.ts";
-import { freshDb } from "../../../../support/db.ts";
 import { emptyState, expect, makeRpgService, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_c1");

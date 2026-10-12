@@ -2,9 +2,9 @@
 // labels the result list but never hides rows or changes server ranking. Constants and the rendering
 // decision are tested here without exporting private calibration measurements.
 
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { CORPUS_NEAREST_ONLY_BELOW, isNearestOnly } from "#client/features/discovery/lib/corpus-search-targets.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("isNearestOnly", () => {
   test("flags a set whose best hit is under the target's measured band", () => {

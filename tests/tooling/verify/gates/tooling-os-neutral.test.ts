@@ -1,6 +1,7 @@
 // Family test for `tooling-os-neutral`: both policies' declared rows through the production dispatcher,
 // every canonical case has a catch row, and the resource sibling refuses a broken tracked-files input.
 import { join } from "node:path";
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { OS_NEUTRAL_CASES } from "../../../../tooling/src/verify/contract/os-neutral.ts";
 import { gate as testExecutableMode } from "../../../../tooling/src/verify/gates/test-executable-mode.ts";
@@ -8,7 +9,6 @@ import { gate as toolingOsNeutral } from "../../../../tooling/src/verify/gates/t
 import { OS_NEUTRAL_CASE_MESSAGES } from "../../../../tooling/src/verify/lib/os-neutral.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const POLICIES = [toolingOsNeutral, testExecutableMode] as const;
 

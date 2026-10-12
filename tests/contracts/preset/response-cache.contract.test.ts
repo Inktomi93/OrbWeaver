@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { responseCacheControlSchema, responseCacheSettingsSchema } from "#contracts/preset/response-cache.ts";
-import { expect, test } from "../../support/fixtures.ts";
 
 test("response replay controls reject invalid retention without accepting a partial setting", () => {
   expect(responseCacheSettingsSchema.parse({ enabled: false })).toEqual({ enabled: false });
