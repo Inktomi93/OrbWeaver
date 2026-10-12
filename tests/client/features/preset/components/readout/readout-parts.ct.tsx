@@ -476,6 +476,8 @@ test("WIRING — Retry fires a REAL re-read: the click issues a second resolve t
 
 /** The switcher's own Select, by the name the component gives it. */
 const SWITCHER_NAME = "Connection to describe";
+/** The kicker only the Data view's readout renders. */
+const DATA_VIEW_KICKER = "References — this preset";
 
 test("the panel defaults to the chat role and names the role, provider and model in view", async ({ mount, page }) => {
   await routeTrpc(page, readoutRoutes(settledResolve));
@@ -510,6 +512,8 @@ test("the connection in view survives leaving the Params view and coming back", 
   await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target: { kind: "role", task: "summarize" } });
 
   await probe.getByRole("button", { name: "Switch view" }).click();
+  // The Data view really rendered (the preset stayed open), so the missing combobox means "left Params".
+  await expect(probe.getByText(DATA_VIEW_KICKER, { exact: true })).toBeVisible();
   await expect(probe.getByRole("combobox", { name: SWITCHER_NAME })).toHaveCount(0);
   await probe.getByRole("button", { name: "Switch view" }).click();
 

@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Add a test composition root to `@orb/testkit/node` that builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes each seam at its composition root. Port one domain suite onto it as the proof.
+Add a test composition root to `@orb/testkit/node` that builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes each seam at its composition root. The first step makes every rule private to an `entry/compose` closure an exported factory in its owning layer: participant publics, seat decorations, the present-host read, ownership checks, promote-to-character and the rest the item 890 lanes listed. Port one domain suite onto it as the proof.
 
 ## Why
 
@@ -18,7 +18,7 @@ Fake-heavy domain harnesses copy product logic, so they drift and every fix need
 
 ## Done when
 
-The root exists with every edge injectable; one domain suite runs on it with the same case list and a production mutant turning it red; its old harness is deleted.
+The root exists with every edge injectable; one domain suite runs on it with the same case list and a production mutant turning it red; its old harness is deleted; no compose closure holds a rule a test would need.
 
 ## Evidence
 

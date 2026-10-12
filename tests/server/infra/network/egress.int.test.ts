@@ -506,7 +506,7 @@ describe("the firewall connect function refuses a zone-scoped host before any so
 // it is taken through the real floor resolver rather than against a copied literal — `layer({})` is what
 // `entry/compose/services.ts` publishes from. The env floor is frozen at module load, so each arm drives a
 // FRESH module registry with a crafted process.env (the reimport pattern from
-// tests/server/foundation/env/index.test.ts).
+// tests/server/foundation/env/_support.ts).
 /** The one key `AUTH_MODE=local` cannot boot without (`AUTH_MODE_REQUIRED_ENV`) — the scrypt pepper, not a
  *  subject of this file. Stated once so a mode arm reads as its own allowlist story. */
 const SESSION_SECRET: readonly [string, string] = ["SESSION_SECRET", "test-session-secret-at-least-32-chars"];
@@ -515,7 +515,7 @@ describe("the BORN private-endpoint allowlist — single-user admits its own box
   let snapshot: Record<string, string | undefined>;
   let original: Dispatcher;
 
-  // biome-ignore-start lint/style/noProcessEnv: this describe DRIVES the sole env reader (foundation/env) by crafting process.env — the reimport pattern from tests/server/foundation/env/index.test.ts.
+  // biome-ignore-start lint/style/noProcessEnv: this describe DRIVES the sole env reader (foundation/env) by crafting process.env — the reimport pattern from tests/server/foundation/env/_support.ts.
   beforeEach(() => {
     snapshot = { ...process.env };
     original = getGlobalDispatcher();
