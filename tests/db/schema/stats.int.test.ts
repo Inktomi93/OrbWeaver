@@ -18,26 +18,15 @@ import {
   runMigrations,
 } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
-import type { CharacterHandle, CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { and, eq, sql } from "drizzle-orm";
 import { freshDb, SHIPPED_MIGRATIONS } from "../../support/db.ts";
+import { seedCharacter } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
-
-async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
-  const characterId = castId<CharacterId>(id);
-  await db.insert(characters).values({
-    id: characterId,
-    handle: castId<CharacterHandle>(`card-${id}`),
-    ownerId,
-    contentHash: "hash-of-semantic-fields",
-    name: "Stat Subject",
-  });
-  return characterId;
-}
 
 // ── owner_stats: natural PK round-trip + zero defaults + numeric timestamp ─────────────────────────────
 test("owner_stats round-trips on its natural ownerId PK (zero defaults, real cost, numeric computedAt)", async () => {
@@ -119,7 +108,7 @@ test("owner_stats.ownerId FK is enforced (a missing user is rejected)", async ()
 test("character_stats round-trips (TypeID id PK, characterId FK) and carries NO ownerId column (D23 derive)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_stats", handle: castId<Handle>("char-stats") });
-  const characterId = await seedCharacter(db, ownerId, "character_with_stats");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_with_stats"), ownerId });
   const id = castId<CharacterStatId>("character_stat_one");
 
   await db.insert(characterStats).values({
@@ -149,7 +138,7 @@ test("character_stats round-trips (TypeID id PK, characterId FK) and carries NO 
 test("character_stats is one row per character (the characterId unique rejects a duplicate)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_dup", handle: castId<Handle>("char-dup") });
-  const characterId = await seedCharacter(db, ownerId, "character_dup_stats");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_dup_stats"), ownerId });
   await db.insert(characterStats).values({ id: castId<CharacterStatId>("character_stat_dup_a"), characterId });
 
   let caught: unknown;
@@ -178,7 +167,7 @@ test("character_stats.characterId FK is enforced (a missing character is rejecte
 test("deleting a character CASCADEs its character_stats row (the rollup dies with its character)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_cascade", handle: castId<Handle>("char-cascade") });
-  const characterId = await seedCharacter(db, ownerId, "character_cascade_stats");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_cascade_stats"), ownerId });
   await db.insert(characterStats).values({ id: castId<CharacterStatId>("character_stat_cascade"), characterId });
 
   await db.delete(characters).where(eq(characters.id, characterId));
@@ -374,7 +363,7 @@ test("the shipped baseline counts content in chars and stores signed rollup delt
     expect(columns).not.toContain("content_bytes");
   }
   const ownerId = await seedUser(db, { id: "user_content_baseline", handle: castId<Handle>("content-baseline") });
-  const characterId = await seedCharacter(db, ownerId, "character_content_baseline");
+  const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_content_baseline"), ownerId });
   await db.run(sql`INSERT INTO owner_stats (owner_id, content_chars, user_turns, system_turns, cost_usd, computed_at)
     VALUES (${ownerId}, 17, 5, 2, 1.75, 1700000000000)`);
   await db.run(sql`INSERT INTO character_stats (id, character_id, content_chars, assistant_turns, system_turns, computed_at)

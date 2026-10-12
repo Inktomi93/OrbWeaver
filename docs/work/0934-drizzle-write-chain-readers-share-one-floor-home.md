@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-12
 priority: P2
 area: tooling
+lane: wt/agent-a718808369cb361a5
 plan: test-mirror
 ---
 

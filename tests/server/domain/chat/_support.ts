@@ -71,6 +71,7 @@ import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "#server/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -121,15 +122,16 @@ export async function seedCharacter(
   // minted TypeID for the rare test that also puts the id through a contract-schema belt (e.g. an rpg volatile
   // `actorRef.characterId` re-validated at snapshot-write — a fabricated id would be dropped there).
   const id = overrides.id ?? castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({
-    id,
-    handle: castId<CharacterHandle>(key),
-    ownerId,
-    name: key,
-    contentHash: `hash_${key}`,
-    avatarAssetId: overrides.avatarAssetId ?? null,
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: castId<CharacterHandle>(key),
+      ownerId,
+      name: key,
+      avatarAssetId: overrides.avatarAssetId ?? null,
+      createdAt: FROZEN_AT,
+    }),
+  );
   return id;
 }
 

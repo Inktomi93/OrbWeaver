@@ -36,7 +36,6 @@ import { labelsCorpusMode } from "@orb/client/features/tag";
 import type {
   CharacterDetailContribution,
   ChatContextState,
-  ChatSettingsSectionContribution,
   ChatSurfaceContribution,
   ContextRegionDef,
   ContextTabDef,
@@ -72,7 +71,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment } from "react";
 import { placeholderConfigGroups, realConfigGroups } from "./ct-config-groups.ts";
-import { chatSurfaceContributors, chromeWidgets, configSections, corpusContextTabs, homeTiles, toolRenderers } from "./ct-door.ts";
+import { chatSettingsSections, chatSurfaceContributors, chromeWidgets, configSections, corpusContextTabs, homeTiles, toolRenderers } from "./ct-door.ts";
 
 // The door binds the ⌘K Settings palette source to its group registry once; the CT door does the same, so the
 // door's palette sources render the rows production renders.
@@ -150,9 +149,6 @@ export function CtAppDataProviders({ children }: { readonly children: ReactNode 
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", []);
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
-// The "This chat" SECTION seam (#616), empty here: a shell CT proves the tab's OWN sections, and the
-// automation graft is proved by its own CT, which wires this registry itself.
-const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", []);
 /** The REAL config-section registry alone — for a story that mounts the config host's LIST/CONTENT panes
  *  directly (they read the section registry from context; the group registry rides in by prop). */
 export function CtRealConfigSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {

@@ -15,6 +15,7 @@ import type { AssetId, CharacterHandle, CharacterId, Handle, PersonaId, UserId }
 import { castId } from "@orb/kit/ids";
 import type { PersonaContext } from "#server/domain/persona/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -149,16 +150,17 @@ interface SeedCharacterOverrides {
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
 export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_c");
-  await db.insert(characters).values({
-    id,
-    handle: overrides.handle ?? castId<CharacterHandle>(id),
-    ownerId: overrides.ownerId,
-    name: overrides.name ?? "Char",
-    description: overrides.description ?? null,
-    avatarAssetId: overrides.avatarAssetId ?? null,
-    contentHash: "content_hash_c",
-    createdAt: FROZEN_AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      handle: overrides.handle ?? castId<CharacterHandle>(id),
+      ownerId: overrides.ownerId,
+      name: overrides.name ?? "Char",
+      description: overrides.description ?? null,
+      avatarAssetId: overrides.avatarAssetId ?? null,
+      createdAt: FROZEN_AT,
+    }),
+  );
   return id;
 }
 

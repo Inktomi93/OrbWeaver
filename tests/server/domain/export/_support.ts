@@ -18,6 +18,7 @@ import type { AssetId, CharacterHandle, CharacterId, Handle, TagId, UserId, Worl
 import { castId } from "@orb/kit/ids";
 import type { ExportContext } from "#server/domain/export/context.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCharacter } from "../../../support/factories/character.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -162,29 +163,30 @@ interface SeedCharacterOverrides {
 export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const { id: idOverride, handle, ...columns } = overrides;
   const id = castId<CharacterId>(idOverride ?? "character_c");
-  await db.insert(characters).values({
-    name: "Char",
-    description: null,
-    personality: null,
-    scenario: null,
-    greetings: [],
-    exampleMessages: null,
-    systemPrompt: null,
-    postHistoryInstructions: null,
-    creatorNotes: null,
-    creator: null,
-    cardVersion: null,
-    regexScripts: [],
-    extensions: null,
-    depthPrompt: null,
-    avatarAssetId: null,
-    contentHash: "content_hash_c",
-    createdAt: FROZEN_AT,
-    // overrides win over the defaults above; identity columns are set last.
-    ...columns,
-    id,
-    handle: handle ?? castId<CharacterHandle>(id),
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      name: "Char",
+      description: null,
+      personality: null,
+      scenario: null,
+      greetings: [],
+      exampleMessages: null,
+      systemPrompt: null,
+      postHistoryInstructions: null,
+      creatorNotes: null,
+      creator: null,
+      cardVersion: null,
+      regexScripts: [],
+      extensions: null,
+      depthPrompt: null,
+      avatarAssetId: null,
+      createdAt: FROZEN_AT,
+      // overrides win over the defaults above; identity columns are set last.
+      ...columns,
+      id,
+      handle: handle ?? castId<CharacterHandle>(id),
+    }),
+  );
   return id;
 }
 

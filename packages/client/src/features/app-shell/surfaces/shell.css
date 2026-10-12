@@ -792,9 +792,15 @@
 .shell-main [data-slot="chat-room-flank-row"] {
   --flank-flip-dir: 0;
   --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--spacing-control-lg));
-  /* @orb-waive css-length-tokens(--flank-centre-flip-from): the zero floor of a centring delta is structural arithmetic, the same expression as --shell-centre-flip-from. */
+  /* `max(0, x - W)` is `x - min(x, W)`, so the delta needs no zero floor: with A the thread after the toggle
+   * and B before it, ((A - min(A, W)) - (B - min(B, W))) / 2 and A - B = dir * delta. */
   --flank-centre-flip-from: calc(
-    (max(0px, 100cqi + var(--flank-flip-dir) * var(--flank-track-delta) - var(--width-shell-content)) - max(0px, 100cqi - var(--width-shell-content))) /
+    (
+      var(--flank-flip-dir) *
+      var(--flank-track-delta) +
+      min(100cqi, var(--width-shell-content)) -
+      min(100cqi + var(--flank-flip-dir) * var(--flank-track-delta), var(--width-shell-content))
+    ) /
     2
   );
 }
@@ -1378,12 +1384,9 @@
 }
 
 /* Progressive-disclosure shed on a narrow content column (@container, matched off .shell-main). At the
- * mobile column width the identity + trail can't share the row without starving the title, so three
- * low-value items step aside to give the title real room (not just its 6ch floor):
- *  · the chat identity's avatar and title group (the screen title names the room; the members and memory
- *    chips stay, glyph-only), and the screen title drops to the title step so it keeps more of the row;
- *  · the ⌘K chip's "jump" TEXT label (~87px) — redundant on a phone with no ⌘K key. The chip itself
- *    stays (icon-only) so the command menu is still reachable; only its word label sheds. */
+ * mobile column width the identity + trail can't share the row without starving the title, so the chat
+ * identity's avatar and title group step aside (the screen title names the room; the members and memory
+ * chips stay, glyph-only), and the screen title drops to the title step so it keeps more of the row. */
 @container shell-main (max-width: 30rem) {
   /* Wrap the registry trail rather than spending the screen title's minimum on overlapping controls. */
   .shell-topbar {
@@ -1395,9 +1398,6 @@
   .shell-topbar-lead,
   .shell-topbar-trail {
     min-height: var(--dimension-chrome-row);
-  }
-  .shell-topbar-jump-label {
-    display: none;
   }
 
   /* THE NARROW TOPBAR BUDGET (side-eye P1). At this width the row seats exactly: one lead control + one

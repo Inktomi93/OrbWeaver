@@ -473,6 +473,24 @@ export function updatePresetConfig(id: string, config: Record<string, unknown>):
   return trpcMutation("preset.update", { id, config });
 }
 
+/** Create a throwaway chat preset (`preset.create`). The caller removes it in a finally via `removePreset`. */
+export function createPreset(name: string): Promise<PresetRow> {
+  return trpcMutation<PresetRow>("preset.create", { name, kind: "chat" });
+}
+
+/** Remove a spec-owned preset (`preset.remove`). */
+export function removePreset(id: string): Promise<unknown> {
+  return trpcMutation("preset.remove", { id });
+}
+
+/** Set a preset's `params.maxContextTokens`. `preset.update` takes the FULL config (a `patch` key is silently
+ *  stripped), so this reads the config, merges the one knob and writes the whole thing back. */
+export async function setPresetMaxContextTokens(id: string, maxContextTokens: number): Promise<void> {
+  const preset = await trpcQuery<PresetRow>("preset.get", { id });
+  const params = preset.config["params"];
+  await updatePresetConfig(id, { ...preset.config, params: { ...(typeof params === "object" ? params : {}), maxContextTokens } });
+}
+
 // ── GROUP-CHAT support (group-chat.spec.ts · live-group-modes.spec.ts · multi-tab-room-sync.spec.ts).
 // The group surface is roster + `chats.metadata.group` + arbitration, and EVERY assertion in those specs
 // reads server truth through these — the DOM is only ever the second witness. Shapes are declared locally

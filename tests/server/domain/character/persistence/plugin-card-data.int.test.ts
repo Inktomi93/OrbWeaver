@@ -12,22 +12,25 @@ import { insertCharacter } from "#server/domain/character/persistence/card.ts";
 import { readPluginCardData, writePluginCardData } from "#server/domain/character/persistence/plugin-card-data.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
+import type { CharacterRow } from "../../../../support/factories/character.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const SLUG_A = "scraper-alpha";
 const SLUG_B = "scraper-beta";
 
-function makeRow(ownerId: UserId, id: CharacterId, handle: CharacterHandle, extensions?: Record<string, unknown>): typeof characters.$inferInsert {
-  return {
+function makeRow(ownerId: UserId, id: CharacterId, handle: CharacterHandle, extensions?: Record<string, unknown>): CharacterRow {
+  return makeCharacter({
     id,
     handle,
     ownerId,
     name: "X",
+    // Pinned: the METADATA-NOT-CONTENT test asserts this exact hash survives a plugin-state write.
     contentHash: "content-hash-original",
     createdAt: 1,
     ...(extensions !== undefined ? { extensions } : {}),
-  };
+  });
 }
 
 async function extensionsOf(db: Awaited<ReturnType<typeof freshDb>>, id: CharacterId): Promise<Record<string, unknown> | null> {

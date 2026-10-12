@@ -14,6 +14,7 @@ import type { CopyAssetToOwner } from "#server/domain/character/index.ts";
 import { createCopyHandoffCards, handoffProvenance } from "#server/domain/character/index.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -37,20 +38,21 @@ async function seedCard(
   } = {},
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({
-    id,
-    ownerId,
-    handle: over.handle ?? castId<CharacterHandle>(key),
-    name: key,
-    description: `${key} body`,
-    contentHash: key,
-    tokenSize: 0,
-    trustHtml: over.trustHtml ?? false,
-    interactiveHtml: over.interactiveHtml ?? false,
-    avatarAssetId: over.avatarAssetId ?? null,
-    ...(over.backgroundOverride === undefined ? {} : { backgroundOverride: over.backgroundOverride }),
-    createdAt: AT,
-  });
+  await db.insert(characters).values(
+    makeCharacter({
+      id,
+      ownerId,
+      handle: over.handle ?? castId<CharacterHandle>(key),
+      name: key,
+      description: `${key} body`,
+      tokenSize: 0,
+      trustHtml: over.trustHtml ?? false,
+      interactiveHtml: over.interactiveHtml ?? false,
+      avatarAssetId: over.avatarAssetId ?? null,
+      ...(over.backgroundOverride === undefined ? {} : { backgroundOverride: over.backgroundOverride }),
+      createdAt: AT,
+    }),
+  );
   return id;
 }
 

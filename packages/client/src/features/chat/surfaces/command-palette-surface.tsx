@@ -15,10 +15,10 @@
 //     typeable and discoverable. "New chat"/"New character" used to be hardcoded rows here; they are now
 //     ordinary contributions owned by their features, which is what makes this list extensible at all.
 // Lives in features/chat because the palette is chat-led (recent threads are its primary group). cmdk owns
-// search/filtering/keyboard nav — do not reimplement.
+// search, sorting and keyboard nav; the palette supplies only its ranking (`declaredTermFirstFilter`).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
+import { Command, CommandAuxiliaryButton, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, declaredTermFirstFilter } from "@orb/ui/command";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -104,7 +104,14 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
       {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
       {slash.mounts}
-      <Command className="rounded-card border shadow-overlay h-full flex flex-col" label="Command palette" onEscape={closeModal}>
+      {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
+          any fuzzy hit, whichever source declared it. */}
+      <Command
+        className="rounded-card border shadow-overlay h-full flex flex-col"
+        filter={declaredTermFirstFilter}
+        label="Command palette"
+        onEscape={closeModal}
+      >
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" />
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>
@@ -126,7 +133,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
             <ThreadsGroup onJump={jumpToChat} />
           </QueryBoundary>
 
-          {/* A contributed destination precedes broad section and action matches; cmdk owns filtering within each group. */}
+          {/* At rest a contributed destination precedes broad section and action matches; a query ranks the groups by their best row. */}
           {paletteSources.map((source) => (
             <PaletteSourceGroup context={context} key={source.id} onRun={runRow} source={source} />
           ))}
