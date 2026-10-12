@@ -10,7 +10,9 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as emptyStateHasAction } from "../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as noInlineDomainInterface } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
+import { gate as noInlinePackageInterface } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
+import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noMutatingRegisterApi } from "../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noRawInteractiveIntrinsics } from "../../../../tooling/src/verify/gates/no-raw-interactive-intrinsics.ts";
@@ -34,7 +36,9 @@ import { scaledBudget } from "../../_load-budget.ts";
 const FAMILY: readonly GatePolicy[] = [
   emptyStateHasAction,
   noInlineDomainInterface,
+  noInlinePackageInterface,
   noInlineTypes,
+  noInlineWireInterface,
   noMutatingRegisterApi,
   noRawEgress,
   noRawInteractiveIntrinsics,

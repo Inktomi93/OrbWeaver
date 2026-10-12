@@ -13,6 +13,7 @@ import { createOpenAiCompatBackend } from "../backends/openai-compat/index.ts";
 import type { BackendRegistry, ProviderBackend } from "../contract/backend.ts";
 import type { InferenceDeps } from "../deps.ts";
 
+// @orb-waive no-inline-package-interface(BackendDef): baselined when the gate landed; burn-down item 952.
 /** @public knip type-face false positive — the shape of `BACKEND_DEFS` below, in the module that owns it. */
 export interface BackendDef {
   readonly serves: readonly Task[];

@@ -22,6 +22,7 @@ import { gate as cssVarDefinedHealth } from "../../../../../tooling/src/verify/g
 import { gate as noCallerUserId } from "../../../../../tooling/src/verify/gates/no-caller-user-id.ts";
 import { gate as noDefaultProps } from "../../../../../tooling/src/verify/gates/no-default-props.ts";
 import { gate as noHandwrittenWireJsonSchema } from "../../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
+import { gate as noInlinePackageInterface } from "../../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noManualMemo } from "../../../../../tooling/src/verify/gates/no-manual-memo.ts";
 import { gate as noManualTokenEstimate } from "../../../../../tooling/src/verify/gates/no-manual-token-estimate.ts";
@@ -108,6 +109,11 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noHandwrittenWireJsonSchema,
     overlays: [add(`${DOMAIN}/verbs/liveness-rf.ts`, 'export const livenessFormat = { name: "x", schema: { type: "object", properties: {} } };\n')],
     messageIncludes: "hand-authored JSON-Schema literal",
+  },
+  {
+    policy: noInlinePackageInterface,
+    overlays: [add("packages/server/src/infra/liveness-shape.ts", "export interface LivenessShape {\n  readonly x: string;\n}\n")],
+    messageIncludes: "exported interface in server entry, transport, infra, foundation or inference",
   },
   {
     policy: noInlineTypes,

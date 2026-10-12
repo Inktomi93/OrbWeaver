@@ -52,6 +52,7 @@ const EVENT_STREAM = "text/event-stream";
 const CONTENT_TYPE = "content-type";
 const REASONING_CONTENT_KEY = "reasoning_content";
 
+// @orb-waive no-inline-package-interface(WrapFetchArgs): baselined when the gate landed; burn-down item 952.
 /** The per-call context the wrapper closes over. Built PER CALL (a transport instance is cheap), so the
  *  capture and the shaping see this turn's connection, model and chat id. */
 export interface WrapFetchArgs {

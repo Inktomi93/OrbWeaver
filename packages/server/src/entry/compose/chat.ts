@@ -269,7 +269,7 @@ export function createSignupMinterCheck(
   };
 }
 
-// @orb-waive no-inline-wire-interface(ChatComposeInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ChatComposeInput): baselined when the gate landed; burn-down item 952.
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
@@ -363,7 +363,7 @@ export interface ChatComposeInput {
   readonly pluginMacros?: ChatContext["pluginMacros"] | undefined;
 }
 
-// @orb-waive no-inline-wire-interface(ChatComposeResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ChatComposeResult): baselined when the gate landed; burn-down item 952.
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
  *  publish onto the chat bus (e.g. world-info). */
 export interface ChatComposeResult {

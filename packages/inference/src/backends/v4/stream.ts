@@ -32,6 +32,7 @@ const SIGNATURE_KEY = "signature";
 const REDACTED_DATA_KEY = "redactedData";
 const REASONING_DETAILS_KEY = "reasoning_details";
 
+// @orb-waive no-inline-package-interface(StreamDrain): baselined when the gate landed; burn-down item 952.
 export interface StreamDrain {
   readonly reply: string;
   readonly textSignatures: readonly TextSignature[];
@@ -49,6 +50,7 @@ export interface StreamDrain {
   readonly warnings: readonly SharedV4Warning[];
 }
 
+// @orb-waive no-inline-package-interface(DrainCallbacks): baselined when the gate landed; burn-down item 952.
 export interface DrainCallbacks {
   readonly onPart?: (() => void) | undefined;
   readonly onRaw?: ((value: unknown) => void) | undefined;

@@ -71,6 +71,7 @@ function woken<R extends WakeRequest, T>(awake: (req: WakeRequest) => Promise<vo
   };
 }
 
+// @orb-waive no-inline-package-interface(OpenAiCompatBackendDeps): baselined when the gate landed; burn-down item 952.
 /** The slice of the runtime deps this backend closes over. */
 export interface OpenAiCompatBackendDeps {
   readonly now: () => number;
@@ -86,6 +87,7 @@ export interface OpenAiCompatBackendDeps {
   readonly snapshotStore: InferenceDeps["snapshotStore"];
 }
 
+// @orb-waive no-inline-package-interface(OpenAiCompatBackend): baselined when the gate landed; burn-down item 952.
 export interface OpenAiCompatBackend {
   readonly backend: ProviderBackend;
   /** The reachability probe the availability read consults for `auth: endpoint` rows (§4). */

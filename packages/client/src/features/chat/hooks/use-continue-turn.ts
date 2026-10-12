@@ -43,7 +43,6 @@ const useGenerateMutation = createEntityMutation<GenerateVars, unknown>({
   errorToast: (error) => turnMutationToast(error, "Couldn't generate a reply."),
 });
 
-// @orb-waive no-inline-wire-interface(UseContinueTurnResult): baselined when the gate widened; burn-down item 904.
 export interface UseContinueTurnResult {
   readonly continueTurn: (chatId: ChatId, messageId: MessageId) => void;
   /** W-E — empty-Enter generate on a committed non-assistant tail (a plain reply, no steer). The tail is

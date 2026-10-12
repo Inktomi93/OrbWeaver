@@ -433,6 +433,7 @@ function oidcRedirectAllowlist(): readonly string[] {
     .filter((u) => u.length > 0);
 }
 
+// @orb-waive no-inline-package-interface(Lifecycle): baselined when the gate landed; burn-down item 952.
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
   readonly boot: () => Promise<void>;

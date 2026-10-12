@@ -30,7 +30,7 @@ import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 
-// @orb-waive no-inline-wire-interface(PutResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(PutResult): baselined when the gate landed; burn-down item 952.
 export interface PutResult {
   hash: string;
   size: number;
@@ -38,6 +38,7 @@ export interface PutResult {
   created: boolean;
 }
 
+// @orb-waive no-inline-package-interface(Cas): baselined when the gate landed; burn-down item 952.
 export interface Cas {
   putBytes: (ownerId: UserId, bytes: Uint8Array, now: number) => Promise<PutResult>;
   blobPath: (ownerId: UserId, hash: string) => string;

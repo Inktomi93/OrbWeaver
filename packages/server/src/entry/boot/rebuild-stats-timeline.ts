@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { reconcileOwnersMissingTimeline } from "#domain/stats";
 import { getLog } from "#foundation/observability";
 
+// @orb-waive no-inline-package-interface(RebuildStatsTimelineDeps): baselined when the gate landed; burn-down item 952.
 export interface RebuildStatsTimelineDeps {
   readonly db: Db;
   readonly now: () => number;

@@ -19,6 +19,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ExtractOptions, StagedArchive } from "#infra/storage";
 import { extractZip } from "#infra/storage";
 
+// @orb-waive no-inline-package-interface(BundleImportFileOutcome): baselined when the gate landed; burn-down item 952.
 /** One file's bundle-import outcome, aggregated into the operator-auditable report. `kind: null` marks a
  *  file whose directory matched no registered entity (skipped, not failed); `notes` carries what a file that
  *  DID import still left behind (#1688). */
@@ -43,6 +44,7 @@ export interface BundleImportFileOutcome {
   readonly notAttempted?: true;
 }
 
+// @orb-waive no-inline-package-interface(BundleImportReport): baselined when the gate landed; burn-down item 952.
 /** The per-bundle report the route returns (or the workload records). */
 export interface BundleImportReport {
   readonly outcomes: readonly BundleImportFileOutcome[];
@@ -54,6 +56,7 @@ export interface BundleImportReport {
   readonly aborted: boolean;
 }
 
+// @orb-waive no-inline-package-interface(BundleImportDeps): baselined when the gate landed; burn-down item 952.
 export interface BundleImportDeps {
   readonly registry: PortabilityRegistry;
   readonly ownerId: UserId;
@@ -245,6 +248,7 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
   return { imported, skipped, failed };
 }
 
+// @orb-waive no-inline-package-interface(StagedBundleImportDeps): baselined when the gate landed; burn-down item 952.
 /** What {@link importStagedArchive} needs: an already-staged tree (from `extractZip` OR `stageDirectory`)
  *  plus the routing registry + target owner. `staged.dispose()` runs in the finally regardless of outcome. */
 export interface StagedBundleImportDeps {

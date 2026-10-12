@@ -9,6 +9,7 @@ import type { Hono } from "hono";
 const FOUND = 302;
 const NOT_FOUND = 404;
 
+// @orb-waive no-inline-package-interface(JoinDeps): baselined when the gate landed; burn-down item 952.
 export interface JoinDeps {
   readonly multiHumanCapable: () => boolean;
 }

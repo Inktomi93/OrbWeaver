@@ -215,10 +215,11 @@ in its own module header, never restated here.
 | `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
 | `no-inline-invalidate-outside-seam` | tanstack-query-origin | reviewed-grant/error | @client | an inline invalidateQueries call… |
 | `no-inline-optimistic-in-surface` | tanstack-query-origin | ordinary/error | @authored\* | Optimistic-mutation plumbing… |
+| `no-inline-package-interface` | no-inline-types | ordinary/error | @server,@inference\* | exported interface in server entry,… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests\* | exported type/zod-schema outside a… |
 | `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
-| `no-inline-wire-interface` | no-inline-types | ordinary/error | @server,@inference,@client\* | exported wire-named interface outside… |
+| `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data interface outside… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
 | `no-legacy-react-api` | react-origin | ordinary/error | @authored | a legacy React API: cloneElement,… |

@@ -9,6 +9,7 @@ import { superviseDetached } from "#foundation/observability";
 
 type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
 
+// @orb-waive no-inline-package-interface(DomainEventBus): baselined when the gate landed; burn-down item 952.
 /** The in-process bus: the injected `emit` op (handed to emitting domains) + the `subscribe` seam (handed
  *  the indexer at the root). Constructed once per process at `entry/`. */
 export interface DomainEventBus {

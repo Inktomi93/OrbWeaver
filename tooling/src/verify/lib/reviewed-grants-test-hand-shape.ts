@@ -4,48 +4,30 @@
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 const POLICY = "test-hand-shape";
+const BURN_DOWN_ITEM = "906";
 
-/** One grant per `[subject, operation]`; the operation is the gate's `copies:` or `overlaps:` identity. */
-function handShapeGrants(item: string, rows: readonly (readonly [string, string])[]): readonly ReviewedGateGrant[] {
+/** One grant per `[subject, operation]`; the operation is the gate's `<relation>:<shape>=<production file>#<production type>` identity. */
+function handShapeGrants(rows: readonly (readonly [string, string])[]): readonly ReviewedGateGrant[] {
   return rows.map(([subject, operation]) => ({
     id: `${POLICY}:${subject}#${operation}`,
     policyId: POLICY,
     subject,
     operation,
-    why: `${subject} declared this shape by hand when the gate landed; its fields copy, or drifted from, the production shape its operation names.`,
-    endsWhen: `the shape is imported or derived from its production home (burn-down: docs/work item ${item}); this row then consumes nothing and reds stale.`,
+    why: `${subject} declared this shape by hand when the gate landed; a value in the test tree is bound to the production type its operation names.`,
+    endsWhen: `the shape is imported or derived from its production home (burn-down: docs/work item ${BURN_DOWN_ITEM}); this row then consumes nothing and reds stale.`,
   }));
 }
 
-export const REVIEWED_GRANTS_TEST_HAND_SHAPE: readonly ReviewedGateGrant[] = [
-  ...handShapeGrants("906", [
-    [
-      "tests/client/features/app-shell/_cascade-fixtures.tsx",
-      "copies:ReadingTypographyFixtureProps=packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts#ReadingTypographyVars",
-    ],
-    [
-      "tests/client/features/chat/_ct-stories.tsx",
-      "copies:ReasoningBlockStoryProps=packages/client/src/features/chat/components/reasoning-block.tsx#ReasoningBlockProps",
-    ],
-    ["tests/client/features/chat/_ct-stories.tsx", "overlaps:PersonaNameStoryEntry=packages/contracts/src/chat/producers.ts#ChatPersonaIdentity"],
-    ["tests/client/features/chat/fixtures.ts", "copies:ChatSummaryFixture=packages/contracts/src/chat/views.ts#ChatSummary"],
-    ["tests/server/domain/admin/_support.ts", "overlaps:SeedUserOverrides=packages/server/src/domain/admin/contract/views.ts#AdminUserView"],
-    ["tests/server/domain/automation/_support.ts", "overlaps:HarnessOverrides=packages/server/src/domain/automation/contract/service.ts#AutomationContext"],
-    ["tests/server/domain/export/_support.ts", "copies:SeedEntryOverrides=packages/contracts/src/world-info/index.ts#EntryView"],
-    ["tests/server/domain/import/_support.ts", "copies:ArtAttachCall=packages/server/src/domain/character/contract/params.ts#AttachImportedArtParams"],
-    ["tests/server/domain/preset/_support.ts", "overlaps:SeedPresetOverrides=packages/server/src/domain/preset/contract/views.ts#PresetDetail"],
-    ["tests/server/domain/search/_support.ts", "copies:SeedCharacterSummaryOverrides=packages/contracts/src/discovery/index.ts#BrowseCharacter"],
-    ["tests/support/node/chat/tape.ts", "copies:ErrorOptions=packages/inference/src/contract/errors.ts#ProviderErrorInit"],
-    ["tests/support/iso/app-blocking-receipt.ts", "copies:AppBlockingFrameTiming=packages/client/src/lib/motion-stats.ts#LongAnimationFrameEvidence"],
-  ]),
-  // The overlap lands on the debug inspector's row, which only shares the columns; the seeder writes `characters`.
-  {
-    id: `${POLICY}:tests/server/domain/world-info/_support.ts#overlaps:SeedCharacterOverrides`,
-    policyId: POLICY,
-    subject: "tests/server/domain/world-info/_support.ts",
-    operation: "overlaps:SeedCharacterOverrides=packages/server/src/foundation/observability/debug/inspect/config.ts#CharacterDetailRow",
-    why: "tests/server/domain/world-info/_support.ts declared its seed overrides by hand; the fields are columns of the `characters` insert row, which the gate matched through the debug inspector's row of the same columns.",
-    endsWhen:
-      "the overrides derive from the `characters` insert type in packages/db/src/schema/character.ts, or the seeder moves to the shared character factory (burn-down: docs/work item 906); this row then consumes nothing and reds stale.",
-  },
-];
+export const REVIEWED_GRANTS_TEST_HAND_SHAPE: readonly ReviewedGateGrant[] = handShapeGrants([
+  ["tests/server/domain/import/_support.ts", "copies:ArtAttachCall=packages/server/src/domain/import/contract/service.ts#AttachImportedArt.args"],
+  ["tests/server/domain/import/_support.ts", "copies:BulkChatsCall=packages/server/src/domain/import/contract/service.ts#BulkImportChatsOp.args"],
+  ["tests/server/domain/import/_support.ts", "copies:BulkPersonasCall=packages/server/src/domain/import/contract/service.ts#BulkImportPersonasOp.args"],
+  ["tests/server/domain/import/_support.ts", "copies:CreateCall=packages/server/src/domain/import/contract/service.ts#CreateImportedCharacter.args"],
+  ["tests/server/domain/import/_support.ts", "copies:LinkBooksCall=packages/server/src/domain/import/contract/service.ts#LinkCarriedBooksOp.args"],
+  ["tests/server/domain/import/_support.ts", "copies:LorebookCall=packages/server/src/domain/import/contract/service.ts#BulkImportLorebookOp.args"],
+  ["tests/server/domain/import/_support.ts", "copies:StoreCall=packages/server/src/domain/import/contract/service.ts#StoreImportAsset.args"],
+  ["tests/server/domain/import/_support.ts", "copies:TagAttachCall=packages/server/src/domain/import/contract/service.ts#AttachImportedCardTag.args"],
+  ["tests/support/browser/weave-drive.ts", "copies:WeavePoint=packages/ui/src/art/web-weave/web-weave-geometry.ts#WeavePoint"],
+  ["tests/support/iso/app-blocking-receipt.ts", "narrows:AppBlockingFrameTiming=packages/client/src/lib/motion-stats.ts#LongAnimationFrameEvidence"],
+  ["tests/support/node/fake-relay.ts", "widens:FakeRelaySeams=packages/server/src/entry/lifecycle.ts#LifecycleOptions.relaySeams"],
+]);

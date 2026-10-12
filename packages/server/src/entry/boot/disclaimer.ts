@@ -9,13 +9,14 @@ import type { BindPosture, OwnerFallbackPeerPosture } from "#foundation/env";
 /** The disclaimer's closed topic set; `exposure` is the only one that can carry a security line. */
 export const BOOT_DISCLAIMER_TOPICS = ["mode", "listen", "owner", "cookie", "secrets", "caveat", "exposure"] as const;
 
+// @orb-waive no-inline-package-interface(BootSecretProvenance): baselined when the gate landed; burn-down item 952.
 /** Where one boot secret came from: the explicit env value, else the keyfile path (`null` for a remote db). */
 export interface BootSecretProvenance {
   readonly explicit: boolean;
   readonly keyfile: string | null;
 }
 
-// @orb-waive no-inline-wire-interface(BootDisclaimerInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(BootDisclaimerInput): baselined when the gate landed; burn-down item 952.
 /** The facts the block states. The warning lists are the posture modules' own, so the block restates no rule. */
 export interface BootDisclaimerInput {
   readonly authMode: AuthMode;
@@ -31,6 +32,7 @@ export interface BootDisclaimerInput {
   readonly secrets: { readonly sessionSecret: BootSecretProvenance; readonly credentialsKey: BootSecretProvenance };
 }
 
+// @orb-waive no-inline-package-interface(BootDisclaimerLine): baselined when the gate landed; burn-down item 952.
 export interface BootDisclaimerLine {
   readonly topic: (typeof BOOT_DISCLAIMER_TOPICS)[number];
   readonly level: "info" | "warn";

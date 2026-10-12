@@ -16,6 +16,7 @@ const TRAILING_SLASH_RE = /\/$/u;
 /** The `providerOptions` key the anthropic converter reads. */
 export const ANTHROPIC_KEY = "anthropic";
 
+// @orb-waive no-inline-package-interface(AnthropicTransportDeps): baselined when the gate landed; burn-down item 952.
 export interface AnthropicTransportDeps {
   readonly fetch: typeof fetch;
   readonly captureWire?: WireCaptureSink | undefined;
@@ -23,6 +24,7 @@ export interface AnthropicTransportDeps {
   readonly captureWireReply?: boolean | undefined;
 }
 
+// @orb-waive no-inline-package-interface(AnthropicCall): baselined when the gate landed; burn-down item 952.
 export interface AnthropicCall {
   readonly connection: Resolved;
   readonly deps: AnthropicTransportDeps;

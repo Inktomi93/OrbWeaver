@@ -19,6 +19,7 @@ import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "./budgets.ts
 import type { MembraneRuntime } from "./membrane.ts";
 import { attachMembrane } from "./membrane.ts";
 
+// @orb-waive no-inline-package-interface(HostSeams): baselined when the gate landed; burn-down item 952.
 /** The deterministic seams the host injects — the guest's ONLY time/entropy/id sources (README law,
  *  `test-determinism` gate). Bound at compose to the SAME injected seams production uses; a frozen test
  *  clock here makes two runs byte-identical without touching the DoS deadline (which reads real time). */
@@ -38,6 +39,7 @@ const LOG_LEVELS = PLUGIN_LOG_LEVELS;
 // @orb-waive no-vanity-alias(LogLevel): baselined when the gate widened; burn-down item 906.
 type LogLevel = PluginLogLevel;
 
+// @orb-waive no-inline-package-interface(LogMirror): baselined when the gate landed; burn-down item 952.
 /** A per-line mirror the host may attach to a ring (a structural-injection port, the `AssetInspector` shape):
  *  `mirror` is called for every ACCEPTED (post-cap, post-clamp) line at PUSH time — the moment the guest writes
  *  it, not the moment something drains it. This is how a guest line reaches the process-wide pino stream (file

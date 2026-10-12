@@ -44,6 +44,7 @@ import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolu
 import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { publishUserEvent } from "#transport/trpc";
 
+// @orb-waive no-inline-package-interface(AuthSeamDeps): baselined when the gate landed; burn-down item 952.
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
  *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
  *  need; absent ⇒ that layer is inert (fail-closed). */
@@ -69,6 +70,7 @@ export interface AuthSeamDeps {
   readonly relayHosts?: AllowedHostsReader;
 }
 
+// @orb-waive no-inline-package-interface(PerRequestSeamDeps): baselined when the gate landed; burn-down item 952.
 /** Per-request knobs. `peerIp` is the raw TCP peer socket address that TWO gates match against — the
  *  forward-header trusted-proxy gate AND, since #298 f2, the loopback gate on the un-credentialed owner
  *  fallback (`ownerFallbackAllowed`). Absent ⇒ BOTH fail closed (anti-spoof: never a forwarded header). */
@@ -81,7 +83,7 @@ export interface PerRequestSeamDeps {
   readonly transport: RequestTransport;
 }
 
-// @orb-waive no-inline-wire-interface(SeamResult): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(SeamResult): baselined when the gate landed; burn-down item 952.
 /** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
  *  CSRF-header signal the transport ladder keys on. */
 export interface SeamResult {
@@ -99,6 +101,7 @@ export interface SeamResult {
   readonly csrfHeaderPresent: boolean;
 }
 
+// @orb-waive no-inline-package-interface(AuthSeam): baselined when the gate landed; burn-down item 952.
 /** The constructed seam — bound at boot, called per request. `debugGateAdmits` is the DEBUG-GATE verdict
  *  only — never a general "is this caller privileged" test (that is `can()`/`requireAdmin`, D17), and it is
  *  strictly NARROWER than the app's admin gate: OWNER only. It judges the principal `resolvePrincipal`
