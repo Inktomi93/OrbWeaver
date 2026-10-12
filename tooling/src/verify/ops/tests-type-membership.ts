@@ -27,10 +27,14 @@ refuseDirectInvocation(import.meta.url, "pnpm check:type-ownership");
 // non-TS (json/css/snap/sh) is excluded — those are in no TS program by design.
 const TEST_ROOT_RE = /^(?:tests|playwright)\//u;
 
-function nativeRootSets(root: string, programs: readonly PolicyProgramMembership[]): ReadonlyMap<string, ReadonlySet<string>> | undefined {
+function nativeRootSets(
+  root: string,
+  programs: readonly PolicyProgramMembership[],
+  launcher: string | undefined,
+): ReadonlyMap<string, ReadonlySet<string>> | undefined {
   const roots = new Map<string, ReadonlySet<string>>();
   for (const program of programs) {
-    const native = nativeProgramRoots(root, program);
+    const native = nativeProgramRoots(root, program, launcher);
     if (native === undefined) {
       return;
     }
@@ -271,8 +275,9 @@ function writeHumanReport(input: HumanReportInput): void {
   writeReferenceLibLeaks(leaks);
 }
 
-/** Enforces all authored compiler membership and native declaration-closure boundaries. */
-export function runTestsTypeMembership(root: string, args: readonly string[] = []): number {
+/** Enforces all authored compiler membership and native declaration-closure boundaries.
+ *  `nativeLauncher` replaces the native root reader's wrapper; the checkout's own wrapper by default. */
+export function runTestsTypeMembership(root: string, args: readonly string[] = [], nativeLauncher?: string): number {
   const json = jsonRequested(args);
   const inventory = readPolicyRepositoryInventory(root);
   // NO SENTINEL FILTER (#2176 Phase F, 2026-09-14). A `__g_` branch used to sit here beside the tsconfig
@@ -288,7 +293,7 @@ export function runTestsTypeMembership(root: string, args: readonly string[] = [
   if (closures === undefined) {
     return EXIT.toolError; // a tsgo listing broke — the checker is broken, not the tree
   }
-  const nativeRoots = nativeRootSets(root, memberships);
+  const nativeRoots = nativeRootSets(root, memberships, nativeLauncher);
   if (nativeRoots === undefined) {
     return EXIT.toolError;
   }

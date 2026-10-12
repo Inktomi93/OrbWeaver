@@ -89,3 +89,16 @@ test("a batch with only SOME matching statements holds the WHOLE call, never a p
   await write;
   expect(await db.select().from(users)).toHaveLength(1);
 });
+
+test("disarm lets later matching statements through while the parked one stays parked until release", async () => {
+  const { db, hold } = await freshHeldDb();
+  const gate = hold(INSERT_SQL);
+  const parked = Promise.resolve(db.insert(users).values(makeUser()));
+  expect(await raceTimeout(gate.reached, 300)).not.toBe(TIMEOUT_TOKEN);
+  gate.disarm();
+  await db.insert(users).values(makeUser());
+  expect(await db.select().from(users)).toHaveLength(1); // the later insert passed; the parked one has not entered the driver
+  gate.release();
+  await parked;
+  expect(await db.select().from(users)).toHaveLength(2);
+});

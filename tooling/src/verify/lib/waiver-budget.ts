@@ -91,7 +91,6 @@ const APPLICATION = Object.freeze({
   "test-determinism": 80,
   "test-file-size": 73,
   "test-hand-shape": 13,
-  "test-mock-doctrine": 33,
   "test-production-clone": 17,
   "test-reach": 112,
   "testid-typed-only-stories": 336,
