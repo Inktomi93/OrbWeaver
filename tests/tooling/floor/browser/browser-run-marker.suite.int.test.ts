@@ -20,6 +20,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { leakChromiumArgs } from "@orb/testkit/node/chromium-processes.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { listProcesses, processInfo } from "@orb/tooling/floor/host/platform";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -106,27 +107,6 @@ test("a browser this process launches carries BOTH identities, so either sweep c
   expect(ownBrowserPids().length, "a closed session leaves no marked browser behind").toBeLessThanOrEqual(before.length);
 });
 
-// ── #1926: the reparented-leak FIXTURE's own hole, and the fix's must-not-widen control ────────────
-// 11 four-day-old orphans (a full reparented chromium tree — root, two crashpad handlers, two zygotes, a
-// gpu process, two utility processes, three renderers) were found alive on the box on 2026-09-11, all
-// rooted at `browser.int.test.ts`'s "captured Chromium identities survive reparenting" fixture's
-// `--user-data-dir=.../reparented-leak-profile`. That fixture deliberately launches a raw, UNMARKED,
-// detached chromium (bypassing `floor/browser/browser.ts`'s launch doors entirely) and relies solely on its own
-// `terminateChromiumIdentities` cleanup in a `finally` block — so if the test process that owns that
-// `finally` is ever SIGKILLed, OOM-killed, or torn down with its worktree before reaching it, the browser
-// is permanently unreapable: it carries the marker in NEITHER `run-marker.ts` channel, and no sweep, ever,
-// asks "what is this process" — only "which dead run started it" (browser-sweep.ts's header). These two
-// tests are the fixture-level pin: RED against the pre-fix (unmarked) shape, GREEN against the fixed one,
-// and a control proving the fix never widens into reaping a LIVE owner's browser.
-function aliveNow(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Launch a real, detached-but-not-reparented chromium (this test process stays its OS parent — reparenting
  *  itself is proven separately in browser.int.test.ts; what this pin needs is a real chromium root whose
  *  `/proc/<pid>/cmdline` the marker reader can be asked about) with the given leak args, and return its
@@ -166,7 +146,7 @@ async function retireOwner(owner: ReturnType<typeof spawn>): Promise<void> {
   owner.kill("SIGKILL");
   await once(owner, "exit");
   // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
-  expect(aliveNow(owner.pid as number), "the planted owner must really be gone before a sweep is asked").toBe(false);
+  expect(pidAlive(owner.pid as number), "the planted owner must really be gone before a sweep is asked").toBe(false);
 }
 
 /** A sweep scoped to exactly the pids this test planted — never the whole box (`listPids`/`identitiesOf` are
@@ -177,7 +157,7 @@ function scopedDeps(pids: readonly number[]): RunMarkerDeps {
     identitiesOf: identitiesOfPid,
     parentOf: () => null,
     selfPid: -1,
-    alive: aliveNow,
+    alive: pidAlive,
   };
 }
 
@@ -189,9 +169,9 @@ test("an UNMARKED reparented-leak chromium is invisible to the abandoned sweep �
     // finds nothing to reap here — proving this shape has no path back to life. This is the defect: the
     // fixture leaves such a process behind with NO recovery mechanism if its own cleanup fails.
     sweepAbandonedRunMarkersNow(scopedDeps([pid]));
-    expect(aliveNow(pid), "the unmarked leak survives the abandoned sweep — nothing can ever reap it").toBe(true);
+    expect(pidAlive(pid), "the unmarked leak survives the abandoned sweep — nothing can ever reap it").toBe(true);
   } finally {
-    if (aliveNow(pid)) {
+    if (pidAlive(pid)) {
       process.kill(pid, "SIGKILL");
     }
   }
@@ -220,15 +200,15 @@ test("a MARKED reparented-leak chromium is reaped once its owner is gone, and le
     // SIGKILL delivery is not synchronous with the syscall — poll rather than sample once, the same
     // shape browser.int.test.ts's own reparenting pin uses for exactly this race.
     await expect
-      .poll(() => aliveNow(abandonedPid), { timeout: scaledBudget(5000) })
+      .poll(() => pidAlive(abandonedPid), { timeout: scaledBudget(5000) })
       .toBe(false /* a marked leak whose owner is gone must be reaped — this is the fix */);
-    expect(aliveNow(liveOwnedPid), "a marked leak whose owner is ALIVE must never be touched — the fix must not widen the sweep").toBe(true);
+    expect(pidAlive(liveOwnedPid), "a marked leak whose owner is ALIVE must never be touched — the fix must not widen the sweep").toBe(true);
   } finally {
-    if (owner.pid !== undefined && aliveNow(owner.pid)) {
+    if (owner.pid !== undefined && pidAlive(owner.pid)) {
       process.kill(owner.pid, "SIGKILL");
     }
     for (const pid of [abandonedPid, liveOwnedPid]) {
-      if (aliveNow(pid)) {
+      if (pidAlive(pid)) {
         process.kill(pid, "SIGKILL");
       }
     }
@@ -277,15 +257,15 @@ test("a chromium whose LEASE owner is gone is reaped even while its outer run li
     sweepAbandonedRunMarkersNow(deps);
 
     await expect
-      .poll(() => aliveNow(abandoned), { timeout: scaledBudget(5000) })
+      .poll(() => pidAlive(abandoned), { timeout: scaledBudget(5000) })
       .toBe(false /* the lease's owner is gone, so nothing is waiting on this browser — the ruling, earlier */);
-    expect(aliveNow(held), "a browser whose lease owner is ALIVE must never be touched — the narrowing must not widen").toBe(true);
+    expect(pidAlive(held), "a browser whose lease owner is ALIVE must never be touched — the narrowing must not widen").toBe(true);
   } finally {
-    if (owner.pid !== undefined && aliveNow(owner.pid)) {
+    if (owner.pid !== undefined && pidAlive(owner.pid)) {
       process.kill(owner.pid, "SIGKILL");
     }
     for (const pid of [abandoned, held]) {
-      if (aliveNow(pid)) {
+      if (pidAlive(pid)) {
         process.kill(pid, "SIGKILL");
       }
     }

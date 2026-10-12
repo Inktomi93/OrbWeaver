@@ -1,3 +1,6 @@
+import type { PluginToast, PluginToastLevel } from "@orb/contracts/plugin";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createPluginUiOutbox } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { bootShowcase, settle } from "@orb/testkit/node/showcase-guest.ts";
 
@@ -14,6 +17,8 @@ interface Drive {
   readonly published: { id: string; state: Record<string, unknown> }[];
   readonly logs: { level: string; message: string }[];
   readonly act: (actionId: string, values: Record<string, string>) => Promise<void>;
+  /** What the production outbox admitted so far; the floor refuses every toast after the first inside its cooldown. */
+  readonly admittedToasts: () => readonly PluginToast[];
 }
 
 /** What the membrane rejects with when a host call outlives its bound. */
@@ -29,14 +34,16 @@ interface ClockTool {
 }
 const GRANTS = ["chat.read", "chat.variables.write", "turn.trigger", "events.subscribe", "tools.register", "ui.surface"];
 
-/** The real outbox's toast floor, reduced to its behaviour: the first toast lands, every later one throws. */
+// The production outbox owns the toast floor; a frozen clock keeps every later toast inside its cooldown.
+const IDENTITY = { id: mintTypeId(ID_PREFIX.plugin), name: "Story Clocks", slug: "story-clocks" };
+
 async function bootClocks(options: { vars?: Record<string, string>; requestTurn?: () => Promise<void> } = {}): Promise<Drive> {
   const vars: Record<string, string> = { ...options.vars };
   const published: Drive["published"] = [];
   const logs: Drive["logs"] = [];
   let panelAction: ((a: ActionArgs) => Promise<void>) | null = null;
   let tool: ClockTool | null = null;
-  let toasts = 0;
+  const outbox = createPluginUiOutbox(() => 0);
   const log =
     (level: string) =>
     (message: string): void => {
@@ -77,10 +84,12 @@ async function bootClocks(options: { vars?: Record<string, string>; requestTurn?
         published.push({ id, state });
         return Promise.resolve();
       },
-      toast: (): Promise<void> => {
-        toasts += 1;
-        return toasts > 1 ? Promise.reject(new Error("plugin host: ui.toast is limited to one notice")) : Promise.resolve();
-      },
+      // The outbox throws over its floor; inside a Promise executor that throw is the rejected guest promise.
+      toast: (level: PluginToastLevel, message: string): Promise<void> =>
+        new Promise((resolve) => {
+          outbox.pushToast(IDENTITY, level, message);
+          resolve();
+        }),
     },
   };
   await bootShowcase("story-clocks", host);
@@ -96,7 +105,7 @@ async function bootClocks(options: { vars?: Record<string, string>; requestTurn?
   if (registered === null) {
     throw new Error("story clocks registered no tool");
   }
-  return { vars, published, logs, act, registration: registered, advance: registered.handler };
+  return { vars, published, logs, act, registration: registered, advance: registered.handler, admittedToasts: () => outbox.drain(IDENTITY.id).toasts };
 }
 
 test("the model tool advertises replay and returns a readable clock result", async () => {
@@ -123,6 +132,7 @@ test("a second panel action inside the toast floor still writes and refreshes th
   expect(drive.vars["clock:the_ritual"]).toBe("1/6");
   const flank = drive.published.filter(({ id }) => id === "clock_flank").at(-1);
   expect(flank?.state["line0"]).toContain("1/6");
+  expect(drive.admittedToasts()).toHaveLength(1);
 });
 
 test("a filled clock whose requestTurn outlives the host bound is not logged as refused", async () => {

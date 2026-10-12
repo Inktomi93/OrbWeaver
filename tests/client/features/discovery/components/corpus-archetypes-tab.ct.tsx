@@ -1,4 +1,6 @@
 import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
+import { makeCatalogStats } from "@orb/testkit/node/factories/discovery-view.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 // CT: the Corpus CONTEXT "Archetypes" tab draws its cluster MEMBERS AS FACES (issue #139). Both
 // clustering verbs carry `ArchetypeMember.avatarHash` on the wire (issue #134) and the CONTENT family
 // plates already draw it; this tab printed names only, because its local card type re-declared `members`
@@ -18,8 +20,7 @@ import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
 // the verb is still stubbed with real clusters in that arm on purpose — the gate has to hold against DATA
 // BEING THERE, or it is only testing an empty response.
 
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -85,8 +86,8 @@ const PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAD
 
 /** A catalog whose `totalDistilled` is the tab's gate signal — the domain's own `count(*)` over
  *  `character_summaries` (`verbs/catalog.ts`), not a client heuristic. */
-function catalog(totalDistilled: number): TrpcFixtureOutput<"discovery.catalog"> {
-  return { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled };
+function catalog(totalDistilled: number): TrpcWireOutput<"discovery.catalog"> {
+  return makeCatalogStats({ totalDistilled });
 }
 
 async function stub(page: Page): Promise<void> {
@@ -109,7 +110,7 @@ async function stub(page: Page): Promise<void> {
     // #649 — the viewer's settings row. Not this tab's subject, but unfed it resolved `routeTrpc`'s null and
     // every appearance/tier reader in this mount fell to its default branch, so the settings-driven
     // presentation path never ran here. Production defaults: no assertion below moves.
-    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "settings.getUserSettings": userSettingsView(),
     "discovery.archetypes": ARCHETYPES,
     "discovery.catalog": catalog(2),
     "discovery.visualArchetypes": [],
@@ -162,7 +163,7 @@ test("with the understanding pass un-run the tab points to Explore without dupli
     // #649 — the viewer's settings row. Not this tab's subject, but unfed it resolved `routeTrpc`'s null and
     // every appearance/tier reader in this mount fell to its default branch, so the settings-driven
     // presentation path never ran here. Production defaults: no assertion below moves.
-    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "settings.getUserSettings": userSettingsView(),
     "discovery.archetypes": ARCHETYPES,
     "discovery.catalog": catalog(0),
     "discovery.visualArchetypes": [],
@@ -191,7 +192,7 @@ test("with the understanding pass un-run the tab points to Explore without dupli
 // Jobs, never the Refinery (which rewrites a card's text and fills neither). One door per screen.
 test("with both archetype halves empty the tab offers ONE door, and it lands on Settings → Jobs", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "settings.getUserSettings": userSettingsView(),
     "discovery.archetypes": [],
     "discovery.catalog": catalog(2),
     "discovery.visualArchetypes": [],
@@ -208,7 +209,7 @@ test("with both archetype halves empty the tab offers ONE door, and it lands on 
 
 test("an empty writing half beside populated art families keeps its own door", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "settings.getUserSettings": userSettingsView(),
     "discovery.archetypes": [],
     "discovery.catalog": catalog(2),
     "discovery.visualArchetypes": [VISUAL_FAMILY],

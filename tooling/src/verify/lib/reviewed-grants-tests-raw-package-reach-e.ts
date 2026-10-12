@@ -297,7 +297,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_E: readonly ReviewedGateGra
     "#server/domain/search/persistence/nearest.ts",
     "#server/domain/search/substrate/space.ts",
     "#server/domain/sessions/verbs/load-user-by-id.ts",
-    "#server/entry/compose/embedding-connection.ts",
     "#server/entry/compose/vector-sweep-ops.ts",
     "#server/primitives/embedding-generation/index.ts",
   ],

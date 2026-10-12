@@ -32,6 +32,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "#client/lib/embedder-rebuild.ts";
+import { appSettingsView, effectiveAppSettings } from "../../user-admin/app-settings-fixtures.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
 import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorScrollPaneStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
@@ -139,7 +140,7 @@ async function stubEditor(
     readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
     readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
     /** The update write's answer in place of saving, e.g. the server's width refusal, or a hold the test releases. */
-    readonly updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold>;
+    readonly updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold<"connection.update">>;
   } = {},
 ): Promise<TrpcRecorder> {
   // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
@@ -173,11 +174,8 @@ async function stubEditor(
     },
     "connection.remove": opts.removeConnection ?? ((): undefined => undefined),
     "connection.probe": () => ({ status: "unreachable", checkedAt: 0, reason: "connect ECONNREFUSED" }),
-    "settings.getAppSettingsWithOverrides": () => ({
-      resolved: { privateEndpointAllowlist: opts.allowlist ?? [] },
-      overrides: { privateEndpointAllowlist: null },
-    }),
-    "settings.updateAppSettings": () => ({ privateEndpointAllowlist: [] }),
+    "settings.getAppSettingsWithOverrides": () => appSettingsView({ privateEndpointAllowlist: opts.allowlist ?? [] }, { privateEndpointAllowlist: null }),
+    "settings.updateAppSettings": () => effectiveAppSettings({ privateEndpointAllowlist: [] }),
   });
 }
 
@@ -1509,7 +1507,10 @@ test("confirming a vector-width rebuild returns focus to the vector-width row", 
 });
 
 /** A row backing an MRL embedder that is 1024 wide by default, with a stored index a width change would rebuild. */
-async function stubEmbedderEditor(page: Page, updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold>): Promise<TrpcRecorder> {
+async function stubEmbedderEditor(
+  page: Page,
+  updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold<"connection.update">>,
+): Promise<TrpcRecorder> {
   const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
     kind: "embedding",
     embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
@@ -1569,7 +1570,7 @@ test("a vector width the embedder cannot make is refused in the editor with both
 // The server checks the embedder before the write lands, which can take a while: the row the change came from says so
 // meanwhile, where the refusal will appear, and the editor is marked busy.
 test("a vector width the server is still checking says so on its row until the answer", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"connection.update">();
   await stubEmbedderEditor(page, () => hold);
   const component = await mount(<ConnectionEditorStory />);
 
@@ -1606,7 +1607,7 @@ test("a Server URL the server refuses goes back to the saved URL", async ({ moun
 // Done stays live while the server checks; closing the editor then must not lose the refusal, so a toast says it, with
 // the reason as its description so it stays up long enough to read.
 test("a refusal that arrives after the editor closed is still said", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"connection.update">();
   await stubEditor(page, {
     updateAnswer: () => hold,
     reindexPreview: { reindex: true, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },

@@ -21,17 +21,19 @@
 // +260 px between the transcript column and the composer. Mobile was clean at every state, so this stage is
 // desktop-only by design.
 
-import type { ChatIdentity, GroupConfig, ParticipantView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { makeCharacterDetail } from "../character/fixtures.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
 
@@ -122,19 +124,12 @@ async function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LON
   return await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
-    "settings.getUserSettings": () => ({
-      userId: castId<UserId>("user_ct"),
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
-      configUnreadable: null,
-      updatedAt: 0,
-    }),
-    "chat.getChat": (): { participants: readonly ParticipantView[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
-      participants: [seat()],
-      anchorPersonaId: null,
-      identities: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "settings.getUserSettings": () => userSettingsView({ appearance: { chatStyle } }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [seat()],
+        identities: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
+      }),
     "chat.listMessages": () =>
       makeMessagesPage([
         makeMessageView({
@@ -156,7 +151,7 @@ async function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LON
       { variantId: "msgvar_track_1", idx: 1 },
       { variantId: "msgvar_track_2", idx: 2 },
     ],
-    "character.get": () => ({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
+    "character.get": () => makeCharacterDetail({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
     ...extra,
   });
 }

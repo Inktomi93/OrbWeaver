@@ -25,6 +25,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { DEV_PORTS } from "@orb/tooling/floor/host/ports";
 import type { NicedChild } from "@orb/tooling/floor/process/proc";
@@ -185,15 +186,6 @@ function startKeeper(home: string): { readonly child: NicedChild; readonly log: 
 
 function rowOf(home: string): StageRow | undefined {
   return readBands(home).find((row) => row.band === BAND);
-}
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /** How many `--stage-keeper` processes tracing THIS SUITE's own `home` exist on the box right now.

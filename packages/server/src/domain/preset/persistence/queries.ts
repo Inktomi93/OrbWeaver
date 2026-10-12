@@ -93,6 +93,7 @@ export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPr
  *  the sentinel id (NOT `ownerId IS NULL`) so any other ownerless row, such as a retired packaged template an
  *  older install seeded, stays unreadable here. */
 export async function readablePreset(db: Db, userId: UserId, id: PresetId): Promise<PresetRow | undefined> {
+  // @orb-waive owner-scoped-reads(presets): readable = the caller's own preset or the one shared system default, and the `or` arm admits only the `SYSTEM_DEFAULT_PRESET_ID` sentinel row. Ends if a second shared preset id joins that arm.
   const rows = await db
     .select()
     .from(presets)
@@ -105,6 +106,7 @@ export async function readablePreset(db: Db, userId: UserId, id: PresetId): Prom
  *  shared arm keys on the sentinel id (NOT `ownerId IS NULL`) so no other ownerless row leaks into a
  *  user's picker. */
 export async function listReadable(db: Db, userId: UserId): Promise<PresetRow[]> {
+  // @orb-waive owner-scoped-reads(presets): the caller's library plus the one shared system default; the `or` arm admits only the `SYSTEM_DEFAULT_PRESET_ID` sentinel row. Ends if a second shared preset id joins that arm.
   return await db
     .select()
     .from(presets)
@@ -211,6 +213,7 @@ export async function deletePreset(db: Db, id: PresetId, userId: UserId): Promis
 
 /** Read the single system-default row (`id = sentinel AND ownerId IS NULL`) — the seed/reseed read. */
 export async function selectSystemDefault(db: Db): Promise<PresetRow | undefined> {
+  // @orb-waive owner-scoped-reads(presets): the boot seed and reseed read of the one ownerless shared row, keyed by the `SYSTEM_DEFAULT_PRESET_ID` sentinel AND `isNull(presets.ownerId)` — a system consumer (D20), no Principal. Ends if a caller id reaches it.
   const rows = await db
     .select()
     .from(presets)

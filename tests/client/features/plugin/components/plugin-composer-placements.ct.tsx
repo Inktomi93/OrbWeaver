@@ -5,6 +5,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail, makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -40,7 +41,7 @@ const POLISH_COMMAND: TrpcWireOutput<"plugin.listCommands">[number] = {
 const DRAFT_ROUTES = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
-  "chat.listChats": { items: [], nextCursor: null },
+  "chat.listChats": makeChatListPage(),
   "plugin.listCommands": [POLISH_COMMAND],
   "chat.previewContextFit": {
     boundaryMessageId: null,
@@ -99,7 +100,7 @@ test("explicit Polish replaces the visible draft,Undo restores exact bytes, and 
 });
 
 test("a pending Polish cannot overwrite an edit-and-restore or another room, and Undo cannot overwrite a later edit", async ({ mount, page }) => {
-  const pending = [trpcHold(), trpcHold()] as const;
+  const pending = [trpcHold<"plugin.invokeUiCommand">(), trpcHold<"plugin.invokeUiCommand">()] as const;
   let runs = 0;
   await routeTrpc(page, {
     ...DRAFT_ROUTES,
@@ -137,7 +138,7 @@ test("a pending Polish cannot overwrite an edit-and-restore or another room, and
 
 test("a late plugin reply cannot replace the draft after its command registration is removed", async ({ mount, page }) => {
   let resident = true;
-  const pending = trpcHold();
+  const pending = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
     ...DRAFT_ROUTES,
     "plugin.list": () => [],
@@ -222,14 +223,14 @@ const COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
 ];
 
 const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
-  "chat.listChats": () => ({ items: [], nextCursor: null }),
+  "chat.listChats": () => makeChatListPage(),
   "plugin.listCommands": () => COMMANDS,
 };
 
 test("fitting attributed actions render directly, cap at three, and move into ordered overflow on resize", async ({ mount, page }) => {
   const invoked: unknown[] = [];
   await routeTrpc(page, {
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "plugin.listCommands": () => ORDER_COMMANDS,
     "plugin.invokeUiCommand": (input) => {
       invoked.push(input);
@@ -342,7 +343,7 @@ test("a placed typed command collects values before dispatch through the shared 
 });
 
 test("a running placed command locks the shared action affordance until the invocation settles", async ({ mount, page }) => {
-  const invocation = trpcHold();
+  const invocation = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
     ...ROUTES,
     "plugin.invokeUiCommand": () => invocation,
@@ -361,9 +362,9 @@ test("a running placed command locks the shared action affordance until the invo
 });
 
 test("a direct invocation marks all fitted actions busy and locks overflow and media until it settles", async ({ mount, page }) => {
-  const invocation = trpcHold();
+  const invocation = trpcHold<"plugin.invokeUiCommand">();
   await routeTrpc(page, {
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "plugin.listCommands": () => ORDER_COMMANDS,
     "plugin.invokeUiCommand": () => invocation,
   });
@@ -388,7 +389,7 @@ test("a direct invocation marks all fitted actions busy and locks overflow and m
 
 test("disabled or removed commands leave no plugin placement affordance", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "plugin.listCommands": () => [],
   });
   const component = await mount(<PluginComposerPlacementsStory />);
@@ -510,7 +511,7 @@ for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
       return null;
     };
     await routeTrpc(page, {
-      "chat.listChats": () => ({ items: [], nextCursor: null }),
+      "chat.listChats": () => makeChatListPage(),
       "plugin.list": () => [],
       "plugin.getLog": () => [],
       "plugin.listSurfaces": () => [],
@@ -537,7 +538,7 @@ for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
   test(`${transition} removes the plugin's entries from both mounted placement menus`, async ({ mount, page }) => {
     let resident = true;
     await routeTrpc(page, {
-      "chat.listChats": () => ({ items: [], nextCursor: null }),
+      "chat.listChats": () => makeChatListPage(),
       "plugin.list": () => [],
       "plugin.getLog": () => [],
       "plugin.listSurfaces": () => [],
@@ -674,7 +675,7 @@ const ORDERED_MENUS = [
 ] as const;
 
 test("the host orders placements by plugin, group and the target's own label, whatever the input order", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => ORDER_COMMANDS });
+  await routeTrpc(page, { "chat.listChats": () => makeChatListPage(), "plugin.listCommands": () => ORDER_COMMANDS });
   const component = await mount(<PluginComposerPlacementsStory />);
 
   for (const menu of ORDERED_MENUS) {
@@ -727,7 +728,7 @@ test("a placed command shows at its placement only; the launcher lists the unpla
     placements: [],
   };
   await routeTrpc(page, {
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "plugin.listCommands": () => [...COMMANDS, unplaced],
   });
   const component = await mount(<PluginComposerPlacementsStory />);
@@ -744,7 +745,7 @@ test("a placed command shows at its placement only; the launcher lists the unpla
 
 test("the Plugins menu follows the shown plugin attribution and command name, not the wire order", async ({ mount, page }) => {
   const unplacedCommands = UNSORTED_COMMANDS.map((command): TrpcWireOutput<"plugin.listCommands">[number] => ({ ...command, placements: [] }));
-  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => unplacedCommands });
+  await routeTrpc(page, { "chat.listChats": () => makeChatListPage(), "plugin.listCommands": () => unplacedCommands });
   const component = await mount(<PluginComposerPlacementsStory />);
 
   await component.getByRole("button", { name: "Plugin commands" }).click();
@@ -766,7 +767,7 @@ test("the room composer mounts the production placement contributions and runs p
     ...CHAT_AMBIENT_ROUTES,
     ...ROUTES,
     "chat.listMessages": () => makeMessagesPage([]),
-    "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+    "chat.getChat": () => makeChatDetail({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
     "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,

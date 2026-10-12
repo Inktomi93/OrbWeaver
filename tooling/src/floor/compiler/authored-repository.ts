@@ -1,5 +1,6 @@
 import { lstatSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { GIT_READ_PREFIX, runGit } from "../git/git.ts";
 import type { AuthoredRepositoryInventory } from "./compiler-programs-contract.ts";
 
@@ -39,10 +40,10 @@ export function assertRepoPath(value: unknown, label: string): asserts value is 
 }
 
 function containedRelative(root: string, canonical: string, label: string): string {
-  const rel = relative(root, canonical);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  if (!isWithinRoot(root, canonical, { sep })) {
     throw new Error(`${label} resolves outside repository`);
   }
+  const rel = relative(root, canonical);
   return rel.split(sep).join("/");
 }
 

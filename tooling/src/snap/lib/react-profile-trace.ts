@@ -3,6 +3,7 @@
 // trace into React track events. Split out of ops/arms/profile.ts when that file crossed the tooling size
 // cap (2026-09-04); the arm owns the browser lifecycle and calls start/stop, this file owns the trace.
 import { errorMessage } from "@orb/kit/error-message";
+import { finiteNumberOrNull } from "@orb/kit/guards";
 import type { CDPSession, Page } from "@playwright/test";
 import { budget } from "../../floor/host/load-budget.ts";
 import type { ReactTraceEvent, TraceCalibration } from "./react-profile-receipt.ts";
@@ -26,9 +27,6 @@ function stringOf(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-export function numberOf(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
 function traceEpochMs(
   timestampUs: number | null,
   calibration: TraceCalibration | null,
@@ -55,8 +53,8 @@ export function reactTraceEvents(events: readonly unknown[], calibration: TraceC
     .map(recordOf)
     .find((event) => event?.["name"] === "TracingStartedInBrowser" && recordOf(recordOf(event["args"])?.["data"])?.["wallTime"] !== undefined);
   const originData = recordOf(recordOf(origin?.["args"])?.["data"]);
-  const originTs = numberOf(origin?.["ts"]);
-  const originWallSeconds = numberOf(originData?.["wallTime"]);
+  const originTs = finiteNumberOrNull(origin?.["ts"]);
+  const originWallSeconds = finiteNumberOrNull(originData?.["wallTime"]);
   for (const raw of events) {
     const event = recordOf(raw);
     if (event === null) {
@@ -70,13 +68,13 @@ export function reactTraceEvents(events: readonly unknown[], calibration: TraceC
     if (!(detailText.includes("Components ⚛") || detailText.includes("Scheduler ⚛") || detailText.includes("react-component"))) {
       continue;
     }
-    const timestampUs = numberOf(event["ts"]);
+    const timestampUs = finiteNumberOrNull(event["ts"]);
     rows.push({
       name: name || message || "React track event",
       category: stringOf(event["cat"]),
       phase: stringOf(event["ph"]),
       timestampUs,
-      durationUs: numberOf(event["dur"]),
+      durationUs: finiteNumberOrNull(event["dur"]),
       epochMs: traceEpochMs(timestampUs, calibration, originTs, originWallSeconds),
       detail: args,
     });

@@ -32,6 +32,7 @@ import { can } from "@orb/server/domain/admin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
+import { viewerReadsHidden } from "#server/domain/chat/index.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "#server/domain/rpg/contract/params.ts";
 import type {
   RpgContext,
@@ -504,16 +505,16 @@ export function makeRpgService(
       const role = fakes.membership.get(userId);
       return Promise.resolve(role === undefined ? null : { role });
     },
-    // #1528 - chat resolveViewerVisibility, faithfully: `null` for a non-member (the leak-free sentinel),
-    // `readsHidden` DERIVED from the role exactly as chat viewerReadsHidden derives it (host reads hidden, every
-    // other present role does not), and the D16 floor off the programmable map (absent = unclamped).
+    // #1528 - chat resolveViewerVisibility over the programmable roster: `null` for a non-member (the leak-free
+    // sentinel), `readsHidden` from chat's own `viewerReadsHidden`, and the D16 floor off the programmable map
+    // (absent = unclamped).
     resolveViewerVisibility: (_chatId, userId) => {
       const role = fakes.membership.get(userId);
       if (role === undefined) {
         return Promise.resolve(null);
       }
       const floor = fakes.historyFloor.get(userId) ?? UNCLAMPED;
-      return Promise.resolve({ role, historyFloorSeq: historyFloor(floor), readsHidden: role === "host" });
+      return Promise.resolve({ role, historyFloorSeq: historyFloor(floor), readsHidden: viewerReadsHidden({ role }) });
     },
     setPointer: (chatId, pointer) => {
       // A `null` pointer is the §3.3 DETACH heal (the widened op drops the sub-blob); everything else is a write.

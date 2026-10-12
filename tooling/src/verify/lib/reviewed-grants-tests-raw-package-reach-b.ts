@@ -181,7 +181,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B: readonly ReviewedGateGra
   "tests/contracts/inference/model-schema.test-d.ts": ["#contracts/inference/model-schema.ts"],
   "tests/contracts/inference/provider-schema.test-d.ts": ["#contracts/inference/provider-schema.ts"],
   "tests/contracts/preset/response-cache.contract.test.ts": ["#contracts/preset/response-cache.ts"],
-  "tests/contracts/prose/index.contract.test.ts": ["#contracts/prose/prose-baseline.json"],
   "tests/e2e/event-sequence.spec.ts": ["#client/state/active-chat-store.ts"],
   "tests/e2e/live-parity-plus-capstone.spec.ts": ["#ui/lib/action-names.ts"],
   "tests/e2e/support/chat-room.ts": ["#client/lib/row-qualifiers.ts"],

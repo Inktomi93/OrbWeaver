@@ -1,6 +1,6 @@
 // @orb/contracts/rpg/extraction — the real projected schema against each wire's keyword subset.
 
-import { scrubWireSchema } from "@orb/contracts/inference";
+import { NAME_MAP_KEYWORDS, scrubWireSchema } from "@orb/contracts/inference";
 import type { ExtractionRefs } from "@orb/contracts/rpg";
 import { buildTrackerWriteGroups, constrainExtractionSchema, rpgExtractionSchema, rpgPopulateSchema } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
@@ -34,7 +34,7 @@ function wireKeywords(node: unknown, acc: Set<string> = new Set<string>()): Set<
   }
   for (const [key, value] of Object.entries(node)) {
     acc.add(key);
-    if (NAME_MAP_KEYS.has(key) && isPlainObject(value)) {
+    if (NAME_MAP_KEYWORDS.has(key) && isPlainObject(value)) {
       for (const child of Object.values(value)) {
         wireKeywords(child, acc);
       }
@@ -44,8 +44,6 @@ function wireKeywords(node: unknown, acc: Set<string> = new Set<string>()): Set<
   }
   return acc;
 }
-
-const NAME_MAP_KEYS = new Set<string>(["properties", "$defs", "definitions"]);
 
 // The keywords NO hosted request may carry — the union of what Anthropic documents as unsupported and what
 // `z.toJSONSchema` stamps outside either vendor's list. Spelled out here on purpose: this is the VENDOR

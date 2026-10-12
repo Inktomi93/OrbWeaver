@@ -94,18 +94,17 @@ export async function loadPresentCharacterNames(db: Db, chatId: ChatId): Promise
   return rows.map((r) => r.name);
 }
 
-/** The room's PRESENT HOST's userId, or `undefined` for a hostless/stale room. Served by the partial
- *  `chat_participants_chat_host_unique` index (one present host as physics — #390), so this is a point
- *  read. The B7 verb-time gates resolve the host's per-user reaction defaults under THIS identity — the
- *  host governs the room's posture (the `resolveOfferChoices` precedence), never the caller. */
-export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<UserId | undefined> {
+/** The room's PRESENT HOST's userId (role `host`, not departed), or `null` for a hostless/stale room — the one
+ *  home of that read. Served by the partial `chat_participants_chat_host_unique` index (one present host as
+ *  physics), so this is a point read. The room's settings, library, memory space and reaction defaults
+ *  all resolve under THIS identity — the host governs the room, never the caller. */
+export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
   const rows = await db
     .select({ userId: chatParticipants.userId })
     .from(chatParticipants)
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
     .limit(LIMIT_ONE);
-  const userId = rows.at(0)?.userId;
-  return userId ?? undefined;
+  return rows.at(0)?.userId ?? null;
 }
 
 /** A PRESENT character seat by its character's EXACT (trimmed) name — the `react` tool's actor resolution

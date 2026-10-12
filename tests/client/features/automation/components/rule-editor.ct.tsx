@@ -66,7 +66,7 @@ test("a host opens a custom draft without creating a placeholder rule", async ({
 });
 
 test("creation completion preserves a newer invalid draft through close and reopen", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"automation.createRule">();
   const rows: TrpcWireOutput<"automation.listRules">[number][] = [];
   const recorder = await routeTrpc(page, {
     "automation.listRules": () => rows,

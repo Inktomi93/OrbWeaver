@@ -2,6 +2,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { makeOwnerStats, makeWrappedSummary } from "@orb/testkit/node/factories/stats-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
 // CT: the Analytics OVERVIEW dashboard's RECOMPUTE affordance — the client half of the direct
@@ -25,10 +26,12 @@ const ABSOLUTE_STAMP = /\d{4}/;
 /** The exact failure mode #296 covers: a field-name drift leaves the rendered value literally "undefined". */
 const RENDERED_UNDEFINED = /undefined/i;
 
-const OVERVIEW = {
+const OVERVIEW = makeOwnerStats({
   variantMessages: 6,
   tokensIn: 1000,
   tokensOut: 2000,
+  tokensInProvenance: "measured",
+  tokensOutProvenance: "measured",
   swipeWords: 30_200_000,
   avgGenMs: 900,
   p50GenMs: 800,
@@ -41,9 +44,9 @@ const OVERVIEW = {
   // all (0 hits over 981 client files, two methods) — the read end of a metric whose write end was equally
   // half-wired. 45s renders as the same duration voice as "Time generating".
   reasoningMs: 45_000,
-};
+});
 
-const WRAPPED = {
+const WRAPPED = makeWrappedSummary({
   characters: 3,
   chats: 8,
   words: 4200,
@@ -56,7 +59,7 @@ const WRAPPED = {
   firstChatAt: FROZEN_AT_MS - 400 * 86_400_000,
   avgSwipeDepth: 1.44,
   swipeRate: 0.25,
-};
+});
 
 const NOON_MS = 12 * 3_600_000;
 const DAY_MS = 86_400_000;

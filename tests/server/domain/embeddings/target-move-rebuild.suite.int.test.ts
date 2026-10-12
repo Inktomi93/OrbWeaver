@@ -17,6 +17,7 @@ import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@o
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, createEmbeddingsWorkloadContributions } from "@orb/server/domain/embeddings";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -32,7 +33,6 @@ import { WIDTH_PROBE_TEXT } from "#server/domain/embeddings/substrate/generation
 import { nearestCharacters } from "#server/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
 import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
-import { createResolveEmbeddingConnection } from "#server/entry/compose/embedding-connection.ts";
 import { createVacuousMemoryReceipt, createVectorSweepOps } from "#server/entry/compose/vector-sweep-ops.ts";
 import { GenerationSupersededError } from "#server/primitives/embedding-generation/index.ts";
 import type { ConnectionHarness, HarnessOptions } from "../connection/_support.ts";
@@ -116,30 +116,8 @@ async function drive(intercept?: HarnessOptions["intercept"], admission?: Harnes
       promoted.push(ownerId);
     },
     roleClientsFor: roleClients,
-    // A named row resolves as if it were bound (the change preview asks that); embedding still runs through the bound role.
-    resolveEmbeddingConnection: async (_ownerId, task, connectionId, opts) => {
-      const rc = await roleClients();
-      const resolved =
-        connectionId === undefined
-          ? await rc.resolved(task)
-          : await h.runtime.resolve({ task, principal, connectionId, cachedFacts: opts?.cachedFacts }).then(
-              ({ resolved: row }) => ({ model: row.model, connectionId: row.connectionId, providerId: row.providerId, capability: row.capability }),
-              () => null,
-            );
-      return resolved === null
-        ? null
-        : {
-            ...resolved,
-            api: "test",
-            wire: "test",
-            baseUrl: null,
-            features: {},
-            extras: null,
-            transport: null,
-            embed: rc.embed,
-            imageEmbed: rc.imageEmbed,
-          };
-    },
+    // Compose's own resolve over the real runtime: a named row resolves and embeds through that row.
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, createHostPrincipalResolver(createLoadUserById({ db }))),
   };
   return { db, h, principal, userId, builtIn, svc: createEmbeddingsService(ctx), ctx, key, credentialId, moved, promoted };
 }

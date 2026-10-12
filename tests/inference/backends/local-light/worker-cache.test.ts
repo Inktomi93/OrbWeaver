@@ -11,6 +11,7 @@ import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
 import { LOCAL_LIGHT_SEED_ROWS, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { waitSync } from "@orb/tooling/floor/process/sync-sleep";
 import type { WorkerModelCache } from "#inference/backends/local-light/worker-cache.ts";
 import { createWorkerModelCache } from "#inference/backends/local-light/worker-cache.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
@@ -22,7 +23,6 @@ import {
   CRASH_EXIT_CODE,
   ENCODING,
   EVERY_PROVIDER_ERROR_FIELD,
-  holdThread,
   REFUSE,
   REFUSE_EVERY_FIELD,
 } from "./_stub-model-cache.ts";
@@ -73,7 +73,7 @@ async function longestTickGap(work: () => Promise<unknown>): Promise<number> {
 test("the tick gap detector sees a block on this thread", async () => {
   const gap = await longestTickGap(async () => {
     await sleep(TICK_MS * 2);
-    holdThread(HOLD_MS);
+    waitSync(HOLD_MS);
   });
   expect(gap).toBeGreaterThan(HOLD_MS - TICK_MS);
 });

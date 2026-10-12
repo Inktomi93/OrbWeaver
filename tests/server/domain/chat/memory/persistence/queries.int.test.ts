@@ -15,7 +15,7 @@ import {
   loadWitnessHorizons,
 } from "#server/domain/chat/memory/persistence/queries.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support.ts";
-import { GROUP_CHAR, seedDigest, seedSegment, testGenerationId } from "../_support.ts";
+import { GROUP_CHAR, memoryGeneration, seedDigest, seedSegment } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
 
@@ -86,11 +86,11 @@ describe("memory/persistence/queries", () => {
       blockIdx: 0,
       contentHash: "ego",
     });
-    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR, testGenerationId(owner));
+    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR, (await memoryGeneration(db, owner)).id);
     expect(shared.get("0:0")).toBe("h00");
     expect(shared.get("0:1")).toBe("h01");
     expect(shared.size).toBe(2); // the aria-scoped digest is NOT in the shared bucket
-    expect((await loadDigestHashes(db, chatId, aria, testGenerationId(owner))).get("0:0")).toBe("ego");
+    expect((await loadDigestHashes(db, chatId, aria, (await memoryGeneration(db, owner)).id)).get("0:0")).toBe("ego");
   });
 
   test("loadSegmentHashes maps `blockIdx:chunkIdx` → content hash (a block is a ROW SET, #172)", async () => {
@@ -98,7 +98,7 @@ describe("memory/persistence/queries", () => {
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 16, contentHash: "s0", ownerId: owner });
     await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 0, seqStart: 17, seqEnd: 17, contentHash: "s1c0", ownerId: owner });
     await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 1, seqStart: 17, seqEnd: 17, contentHash: "s1c1", ownerId: owner });
-    const map = await loadSegmentHashes(db, chatId, testGenerationId(owner));
+    const map = await loadSegmentHashes(db, chatId, (await memoryGeneration(db, owner)).id);
     expect(map.get("0:0")).toBe("s0");
     // The two chunks of block 1 are DISTINCT gate entries — the per-chunk key is what lets a half-written
     // block self-heal (a missing chunk has no row, so nothing skips it).

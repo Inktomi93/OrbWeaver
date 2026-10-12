@@ -13,7 +13,8 @@
 // policy's authored population, and putting one there would fail the population fence for a correct read.
 import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
+import { isStrictDescendant } from "@orb/kit/path-containment";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad } from "../contract/resource.ts";
 import type { InstalledPackageFacts, InstalledPackageId, InstalledPackageRequest, InstalledPackageTextOverlay } from "../contract/resource-installed.ts";
@@ -77,11 +78,12 @@ export function installedPackageDirectory(root: string, id: InstalledPackageId):
 }
 
 function repoDirectory(root: string, directory: string): string | null {
-  const rel = relative(realpathSync(root), realpathSync(directory));
-  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  const realRoot = realpathSync(root);
+  const realDirectory = realpathSync(directory);
+  if (!isStrictDescendant(realRoot, realDirectory, { sep })) {
     return null;
   }
-  return rel.split(sep).join("/");
+  return relative(realRoot, realDirectory).split(sep).join("/");
 }
 
 function readManifest(manifest: string): Record<string, unknown> {
@@ -111,8 +113,7 @@ function textFacts(id: InstalledPackageId, manifest: string, file: string, sourc
   assertRepoPathIdentity(file, `installed package ${id} file`);
   const directory = realpathSync(dirname(manifest));
   const target = realpathSync(join(directory, file));
-  const rel = relative(directory, target);
-  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  if (!isStrictDescendant(directory, target, { sep })) {
     throw new Error(`installed package ${id} file escapes its package directory: ${file}`);
   }
   if (!statSync(target).isFile()) {

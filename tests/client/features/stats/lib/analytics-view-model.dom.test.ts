@@ -23,7 +23,6 @@ import {
   formatMs,
   formatPeak,
   formatPercent,
-  formatSignedDelta,
   formatThroughput,
   formatTokens,
   momentumBarItems,
@@ -96,11 +95,6 @@ describe("scalar formatters", () => {
   test("formatPercent rounds a 0..1 rate", () => {
     expect(formatPercent(0.454)).toBe("45%");
     expect(formatPercent(1)).toBe("100%");
-  });
-  test("formatSignedDelta signs positives, leaves the rest", () => {
-    expect(formatSignedDelta(5)).toBe("+5");
-    expect(formatSignedDelta(-3)).toBe("-3");
-    expect(formatSignedDelta(0)).toBe("0");
   });
 });
 

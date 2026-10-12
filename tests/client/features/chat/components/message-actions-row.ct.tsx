@@ -7,12 +7,13 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REATTRIBUTE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { MessageActionsRowStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
 
 const HIDE_LABEL_RE = /Hide from AI|Unhide from AI/u;
 const COPY_RE = /Copy/u;
@@ -167,7 +168,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    "chat.forkChat": () => ({ chat: { id: "chat_forked_ct" } }),
+    "chat.forkChat": () => ({ chat: makeChatDetail({ id: "chat_forked_ct" }) }),
   });
   const message = makeMessageView({ seq: 7 });
   const component = await mount(<MessageActionsRowStory message={message} />);
@@ -275,7 +276,10 @@ const OWN_LINE: MessageView = makeMessageView({ role: "user", authorUserId: VIEW
 
 /** The room read as the viewer sees it: their user id and their current chat persona (null = none picked). */
 function roomAs(personaId: PersonaId | null): typeof CHAT_ROOM_ROUTES {
-  return { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerUserId: VIEWER, viewerActivePersonaId: personaId } };
+  return {
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": makeChatDetail({ ...CHAT_ROOM_DETAIL, viewerUserId: VIEWER, viewerActivePersonaId: personaId }),
+  };
 }
 
 test("Reattribute from here confirms, then restamps the viewer's own lines from this message's seq to their persona", async ({ mount, page }) => {

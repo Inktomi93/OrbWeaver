@@ -17,6 +17,7 @@
 import { measureContentColumn } from "@orb/testkit/browser/measure-content-column.ts";
 import { proseRow, readProseMeasure } from "@orb/testkit/browser/prose-measure.ts";
 import { readSwitchRowOrientation } from "@orb/testkit/browser/settings-geometry.ts";
+import { makeTagView } from "@orb/testkit/node/factories/tag-view.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -55,7 +56,7 @@ const TAGS = [
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "tag.listTagsWithUsage": () => TAGS,
-    "tag.updateTag": () => ({ id: TAGS[0].id }),
+    "tag.updateTag": () => makeTagView({ id: TAGS[0].id, name: TAGS[0].name }),
     "tag.mergeTags": () => null,
   });
 }

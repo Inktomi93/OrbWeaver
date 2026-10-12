@@ -7,8 +7,7 @@ import { createDigestSources } from "@orb/server/domain/search";
 // the verbs read directly (users / characters / character_embeddings / chats / chat_participants /
 // chat_digests / chat_segments / assets / image_embeddings).
 
-import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
-import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
+import type { ImageLens } from "@orb/contracts/embeddings";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
@@ -20,14 +19,10 @@ import {
   chatParticipants,
   chatSegments,
   chats,
-  embedGenerations,
-  embedGenerationTargets,
-  embedSpaceState,
   imageAnalyses,
   imageEmbeddings,
   messages,
   messageVariants,
-  userConnections,
   users,
 } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
@@ -40,7 +35,6 @@ import type {
   ChatParticipantId,
   DuplicateCharacterPairId,
   DuplicateChatPairId,
-  EmbedGenerationId,
   Handle,
   ImageEmbeddingId,
   KeywordCooccurrenceId,
@@ -48,7 +42,6 @@ import type {
   MessageVariantId,
   ModelId,
   ThemeClusterId,
-  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -62,6 +55,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveTier0Range } from "#server/domain/chat/index.ts";
 import type { DiscoveryContext } from "#server/domain/discovery/index.ts";
 import { createStatsService } from "#server/domain/stats/service.ts";
+import { seedGeneration } from "../search/_support.ts";
 
 /** A fixed instant for the service's injected clock (only `reconcile` reads it). */
 const STATS_NOW = 1_700_000_000_000;
@@ -80,49 +74,6 @@ function variantModel(value: string | null | undefined): ModelId | null {
 
 function variantProvider(value: string | null | undefined): ProviderId | null {
   return value === null || value === undefined ? null : testProviderId(value);
-}
-
-async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask, model: string): Promise<EmbedGenerationId> {
-  const clients = makeFakeRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
-  const resolved = await clients.resolved(task);
-  if (resolved === null) {
-    throw new Error(`missing test ${task} connection`);
-  }
-  const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_${task}`);
-  await db
-    .insert(userConnections)
-    .values({ id: connectionId, ownerId, label: `Test ${task}`, providerId: resolved.providerId, model: testModelId(model) })
-    .onConflictDoNothing();
-  const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${model}`);
-  await db
-    .insert(embedGenerations)
-    .values({
-      id,
-      ownerId,
-      task,
-      via: task,
-      connectionId,
-      connectionRef: connectionId,
-      fingerprint: `test:${task}:${model}`,
-      space: model,
-      createdAt: FROZEN_AT_MS,
-    })
-    .onConflictDoNothing();
-  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
-  await db
-    .insert(embedSpaceState)
-    .values(
-      VECTOR_SCOPES_BY_TASK[task].map((scope) => ({
-        ownerId,
-        scope,
-        activeGenerationId: id,
-        candidateGenerationId: null,
-        candidateEpoch: null,
-        completedAt: FROZEN_AT_MS,
-      })),
-    )
-    .onConflictDoNothing();
-  return id;
 }
 
 function requiredOwner(rows: readonly { readonly ownerId: UserId | null }[], subject: string): UserId {
@@ -349,7 +300,7 @@ export async function seedCharacterEmbedding(
     await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, overrides.characterId)),
     overrides.characterId,
   );
-  const generationId = await seedGeneration(db, ownerId, "embed", model);
+  const generationId = await seedGeneration(db, ownerId, "embed", { model });
   await db.insert(characterEmbeddings).values({
     id: castId(`character_embedding_${overrides.characterId}`),
     characterId: overrides.characterId,
@@ -475,7 +426,7 @@ export async function seedChatDigest(
 ): Promise<void> {
   await ensureGroupChar(db);
   const model = overrides.model ?? EMBED_MODEL;
-  const generationId = await seedGeneration(db, await chatOwner(db, overrides.chatId), "embed", model);
+  const generationId = await seedGeneration(db, await chatOwner(db, overrides.chatId), "embed", { model });
   await db.insert(chatDigests).values({
     id: castId(overrides.id),
     chatId: overrides.chatId,
@@ -511,7 +462,7 @@ export async function seedChatSegment(
   },
 ): Promise<void> {
   const model = overrides.model ?? EMBED_MODEL;
-  const generationId = await seedGeneration(db, await chatOwner(db, overrides.chatId), "embed", model);
+  const generationId = await seedGeneration(db, await chatOwner(db, overrides.chatId), "embed", { model });
   await db.insert(chatSegments).values({
     id: castId(overrides.id),
     chatId: overrides.chatId,
@@ -637,7 +588,7 @@ export async function seedImageEmbedding(
 ): Promise<void> {
   const model = overrides.model ?? EMBED_MODEL;
   const ownerId = requiredOwner(await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, overrides.assetId)), overrides.assetId);
-  const generationId = await seedGeneration(db, ownerId, "imageEmbed", model);
+  const generationId = await seedGeneration(db, ownerId, "imageEmbed", { model });
   await db.insert(imageEmbeddings).values({
     id: castId<ImageEmbeddingId>(overrides.id),
     assetId: overrides.assetId,

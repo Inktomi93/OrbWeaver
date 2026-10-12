@@ -14,7 +14,8 @@
 // have let drift (a wrong `variantId` renders identically and reacts to the wrong swipe).
 
 import { touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { NarratorActionsDoorsStory, ReactionPickerStory, StandardLabeledDoorsStory } from "../_reaction-stories.tsx";
@@ -27,14 +28,14 @@ const VIEWER_ID = "user_ct_viewer";
 const VIEWER_SEAT = "chat_participant_ct_viewer";
 const OTHER_SEAT = "chat_participant_ct_other";
 
-const CHAT_DETAIL = {
+const CHAT_DETAIL = makeChatDetail({
   id: CHAT_ID,
   viewerUserId: VIEWER_ID,
   participants: [
-    { id: VIEWER_SEAT, userId: VIEWER_ID, leftSeq: null },
-    { id: OTHER_SEAT, userId: "user_ct_other", leftSeq: null },
+    makeParticipantView({ id: VIEWER_SEAT, userId: VIEWER_ID, leftSeq: null }),
+    makeParticipantView({ id: OTHER_SEAT, userId: "user_ct_other", leftSeq: null }),
   ],
-} satisfies TrpcFixtureOutput<"chat.getChat">;
+});
 
 /** The viewer already holds 👍 on this variant; 😂 is somebody else's. Whole-message groups (all-null
  *  trio — B7): the picker's pressed state is per TARGET, and these must read pressed for the DEFAULT

@@ -9,11 +9,11 @@
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
-import type { CharacterHandle, CharacterId, ChatId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createCharacterService } from "@orb/server/domain/character";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -21,6 +21,7 @@ import type { ChatContext } from "#server/domain/chat/contract/context.ts";
 import type { ResolveBackfillMemoryConfig } from "#server/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "#server/domain/chat/substrate/backfill.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
+import { makeHarness } from "../../character/_support.ts";
 import { EMBED_MODEL } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, realMemoryWiring, seedTurns } from "../memory/_support.ts";
@@ -303,30 +304,19 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     await seedParticipant(db, { chatId: group, key: "g_c2", characterId: g2, joinSeq: 1, leftSeq: null });
     await seedTurns(db, group, g2, 4); // blockSize 2 → blocks 0(1-2) 1(3-4)
 
-    // The mint fake MIRRORS PRODUCTION: it PERSISTS the synthetic `characters` row before returning its id
-    // (real `mintSyntheticGroupCharacter` → `insertCharacter`), so the shared-bucket digest's FK to
-    // `characters.id` resolves. No row was pre-seeded — the sweep's `resolveGroupBucketCharacterId` mints it.
-    const groupCharId = castId<CharacterId>("character_synthetic_group");
+    // The mint is the character domain's own verb (compose wires it), so the synthetic row it persists is the
+    // real one and the shared-bucket digest's FK resolves. No row was pre-seeded — the sweep mints it.
+    const characterService = createCharacterService(makeHarness(db).ctx);
+    const minted: CharacterId[] = [];
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().op,
       embeddingsStore: store.store,
       embeddingsStoreSegments: store.storeSegments,
-      mintSyntheticGroupCharacter: async ({ ownerId }) => {
-        await db
-          .insert(characters)
-          .values(
-            makeCharacter({
-              id: groupCharId,
-              handle: castId<CharacterHandle>(`__group__${group}`),
-              ownerId,
-              name: "group",
-              synthetic: true,
-              createdAt: 0,
-            }),
-          )
-          .onConflictDoNothing();
-        return { characterId: groupCharId };
+      mintSyntheticGroupCharacter: async (params) => {
+        const groupCharacter = await characterService.mintSyntheticGroupCharacter(params);
+        minted.push(groupCharacter.characterId);
+        return groupCharacter;
       },
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
@@ -337,8 +327,18 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.failed).toBe(0);
     // The shared group bucket (keyed by the minted synthetic-char id) built both blocks — the write the bug
     // report said silently vanished now lands.
-    const groupBlocks = store.digests.filter((d) => d.key.scopedCharacterId === groupCharId && d.key.tier === 0).map((d) => d.key.blockIdx);
+    const [groupId] = minted;
+    if (minted.length !== 1 || groupId === undefined) {
+      throw new Error("the sweep must mint exactly one group character");
+    }
+    const groupBlocks = store.digests.filter((d) => d.key.scopedCharacterId === groupId && d.key.tier === 0).map((d) => d.key.blockIdx);
     expect(groupBlocks).toEqual([0, 1]);
+    // The minted bucket is the host-owned hidden synthetic row, so it never surfaces as a card or embeds.
+    const [groupRow] = await db.select({ ownerId: characters.ownerId, synthetic: characters.synthetic }).from(characters).where(eq(characters.id, groupId));
+    expect(groupRow).toEqual({ ownerId: host, synthetic: true });
+    // A second sweep finds the same row rather than minting another.
+    await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS }, cfg);
+    expect(new Set(minted)).toEqual(new Set([groupId]));
   });
 
   test("PER-CHAT ISOLATION is NOT a silent skip: a poisoned chat is COUNTED in `failed`, the rest still process (#41)", async () => {

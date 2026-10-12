@@ -23,8 +23,9 @@
 import { existsSync, lstatSync, realpathSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
+import { delimiter, dirname, join, relative, resolve, sep, win32 } from "node:path";
 import process from "node:process";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { expect, test as houseTest } from "./fixtures.ts";
 
 /** The typed CLI outcome `toExitWith` asserts on (tests/support/node/matchers.ts). */
@@ -58,11 +59,6 @@ function windowsBatchLiteral(value: string): string {
   return value.replaceAll("%", "%%");
 }
 
-function isContained(root: string, candidate: string): boolean {
-  const rel = relative(root, candidate);
-  return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
-}
-
 /** Compose a runtime fixture path and refuse lexical or already-present symlink escape.
  *
  *  THE STATIC HALF CANNOT REACH HERE, which is why this exists: `policy-fixture-substrate` proves an
@@ -81,7 +77,7 @@ export function fixturePath(root: string, ...segments: readonly string[]): strin
     throw new Error(`fixturePath: ${JSON.stringify(segments)} contains an absolute path`);
   }
   const candidate = resolve(lexicalRoot, ...segments);
-  if (!isContained(lexicalRoot, candidate)) {
+  if (!isWithinRoot(lexicalRoot, candidate, { sep })) {
     throw new Error(`fixturePath: ${JSON.stringify(segments)} escapes the owned root`);
   }
   // The owned root does not have to EXIST yet — `plantedTree` composes its tree path before creating it —
@@ -106,7 +102,7 @@ export function fixturePath(root: string, ...segments: readonly string[]): strin
     } catch (error) {
       throw new Error(`fixturePath: existing path ${prefix} does not resolve inside the owned root`, { cause: error });
     }
-    if (!isContained(canonicalRoot, canonicalPrefix)) {
+    if (!isWithinRoot(canonicalRoot, canonicalPrefix, { sep })) {
       throw new Error(`fixturePath: existing path ${prefix} resolves outside the owned root`);
     }
   }

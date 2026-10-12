@@ -9,9 +9,11 @@
 // alphabet would fail at a `typeIdSchema` seam instead of at an assertion — and minting ONCE keeps the
 // fixture deterministic across calls within a run (`test-determinism`).
 
+import { DEFAULT_REFINERY_STAGE_CONFIG } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeCharacterDetail } from "../character/fixtures.ts";
 
 const DEFAULT_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const DEFAULT_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
@@ -29,6 +31,28 @@ export function makeRefinerySessionSummary(overrides: Partial<RefinerySessionSum
     status: "active",
     iterationCount: 0,
     latestVerdict: null,
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
+    ...overrides,
+  };
+}
+
+/** The `refinery.getSession` view (`RefinerySessionView`): an active, once-iterated session over the default
+ *  stage config, pinned to a default character card. */
+export type RefinerySessionViewFixture = TrpcWireOutput<"refinery.getSession">;
+
+export function makeRefinerySessionView(overrides: Partial<RefinerySessionViewFixture> = {}): RefinerySessionViewFixture {
+  return {
+    id: DEFAULT_SESSION_ID,
+    characterId: DEFAULT_CHARACTER_ID,
+    name: "Rev",
+    status: "active",
+    originalCard: makeCharacterDetail(),
+    selection: { fields: ["description", "personality"] },
+    stageConfig: DEFAULT_REFINERY_STAGE_CONFIG,
+    rewriteDecisions: {},
+    guidance: null,
+    iterationCount: 1,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
     ...overrides,

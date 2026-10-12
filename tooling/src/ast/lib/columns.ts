@@ -1,6 +1,7 @@
 // drizzle column defs + the STRUCTURAL write scan (schema tables ride floor/code-facts/schema-read).
 
 import { drizzleWriteOf, writeKeysOf } from "@orb/tooling/floor/code-facts/drizzle-columns";
+import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import type { SchemaTable } from "@orb/tooling/floor/code-facts/schema-read";
 import { schemaTables } from "@orb/tooling/floor/code-facts/schema-read";
 import type { Expression } from "ts-morph";
@@ -190,16 +191,12 @@ export function isColumnConsumer(fp: string): boolean {
   return isPackageSourcePath(fp) && !(fp.includes(SCHEMA_DIR) || isTestPath(fp));
 }
 
-/** Resolve a table EXPRESSION (`rpgGames`, `schema.rpgGames`) to its TableDef through the definition graph —
- *  never by bare identifier text, so a local alias or a renaming import hop still lands on one table. */
+/** Resolve a table EXPRESSION (`rpgGames`, `schema.rpgGames`, a local or drizzle alias) to its TableDef through
+ *  the ONE table resolver the tenancy gates share (`floor/code-facts/drizzle-table-ref.ts`) — never by bare
+ *  identifier text. Only a declaration this audit keys counts; a subquery or a typed parameter names no TableDef. */
 export function resolveTableDef(expr: Node, byKey: ReadonlyMap<string, TableDef>): TableDef | undefined {
-  const id = Node.isPropertyAccessExpression(expr) ? expr.getNameNode() : expr;
-  if (!Node.isIdentifier(id)) {
-    return;
-  }
-  return id
-    .getDefinitionNodes()
-    .map((d) => byKey.get(declKey(d)))
+  return resolveDrizzleTableRefs(expr, (declaration) => byKey.has(declKey(declaration)))
+    .map((ref) => (ref.kind === "table" ? byKey.get(declKey(ref.declaration)) : undefined))
     .find((hit) => hit !== undefined);
 }
 

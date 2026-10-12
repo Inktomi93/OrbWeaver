@@ -660,11 +660,11 @@ const ROOM_TILES: ReadonlySet<string> = new Set(["chat.recents", "chat.alsoOpen"
 
 test("#129 the shipped first boot reserves each tile the box a FULL page settles it into, at a two-column laptop", async ({ mount, page }) => {
   await page.setViewportSize({ width: LAPTOP_VIEWPORT_PX, height: 900 });
-  const chats = trpcHold();
-  const characters = trpcHold();
-  const settings = trpcHold();
-  const documents = trpcHold();
-  const health = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
+  const characters = trpcHold<"character.list">();
+  const settings = trpcHold<"settings.getUserSettings">();
+  const documents = trpcHold<"databank.list">();
+  const health = trpcHold<"databank.bankHealth">();
   await stubDatabank(page, {
     ...HOME_ROUTES,
     "chat.listChats": chats,
@@ -760,11 +760,11 @@ settled  ${settledTiles}
 const READ_LESS_TILE_EPSILON_PX = 1;
 
 test("#835 the read-less jump tile keeps its own box across every neighbour's resolve", async ({ mount, page }) => {
-  const chats = trpcHold();
-  const characters = trpcHold();
-  const settings = trpcHold();
-  const documents = trpcHold();
-  const health = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
+  const characters = trpcHold<"character.list">();
+  const settings = trpcHold<"settings.getUserSettings">();
+  const documents = trpcHold<"databank.list">();
+  const health = trpcHold<"databank.bankHealth">();
   await stubDatabank(page, {
     ...HOME_ROUTES,
     "chat.listChats": chats,
@@ -816,11 +816,11 @@ const EXACTLY_RESERVED_TILES = ["chat.masthead", "chat.quickPicks", "chat.tempCh
 const EXACT_RESERVATION_EPSILON_PX = 1;
 
 test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no residual first-boot shift", async ({ mount, page }) => {
-  const chats = trpcHold();
-  const characters = trpcHold();
-  const settings = trpcHold();
-  const documents = trpcHold();
-  const health = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
+  const characters = trpcHold<"character.list">();
+  const settings = trpcHold<"settings.getUserSettings">();
+  const documents = trpcHold<"databank.list">();
+  const health = trpcHold<"databank.bankHealth">();
   await stubDatabank(page, {
     ...HOME_ROUTES,
     "chat.listChats": chats,
@@ -873,7 +873,7 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
 });
 
 test("the empty recents block has zero drift from its declared first-boot reservation", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubStarterBoot(page, chats);
   const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region="hearth" />);
   await chats.requested;
@@ -894,7 +894,7 @@ test("the empty recents block has zero drift from its declared first-boot reserv
 const PHONE_CONTENT_PX = 360;
 
 test("the masthead reserves its settled box on a fresh account at a phone width", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubDatabank(page, {
     ...HOME_ROUTES,
     "chat.listChats": chats,
@@ -928,7 +928,7 @@ const ALSO_OPEN = '[data-home-tile="chat.alsoOpen"]';
 /** A remembered box far from the 7-row skeleton's natural height, so a dropped reservation shows. */
 const REMEMBERED_ALSO_OPEN_PX = 333;
 
-async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, userId: UserId): Promise<void> {
+async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold<"chat.listChats">>, userId: UserId): Promise<void> {
   await stubDatabank(page, {
     ...HOME_ROUTES,
     "chat.listChats": chats,
@@ -941,7 +941,7 @@ async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, use
 }
 
 test("Other rooms draws no box while the list loads on a device that never saw it", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubFirstBoot(page, chats, newId<UserId>());
 
   const home = await mount(<HomeShippedFirstBootStory />);
@@ -954,7 +954,7 @@ test("Other rooms draws no box while the list loads on a device that never saw i
 });
 
 test("Other rooms reserves the remembered box, and forgets it when the list settles hidden", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubFirstBoot(page, chats, newId<UserId>());
 
   const home = await mount(<HomeRememberedAlsoOpenStory alsoOpenBox={REMEMBERED_ALSO_OPEN_PX} />);
@@ -2042,7 +2042,7 @@ async function pageNow(page: Page): Promise<number> {
   return await page.evaluate(() => performance.now());
 }
 
-async function stubStarterBoot(page: Page, chats: ReturnType<typeof trpcHold>): Promise<void> {
+async function stubStarterBoot(page: Page, chats: ReturnType<typeof trpcHold<"chat.listChats">>): Promise<void> {
   await page.setViewportSize({ width: 2560, height: 1000 });
   await stubDatabank(page, {
     ...HOME_ROUTES,
@@ -2056,7 +2056,7 @@ async function stubStarterBoot(page: Page, chats: ReturnType<typeof trpcHold>): 
 }
 
 test("a device with no memory holds Start with out of both columns until the room list settles, then places it once", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubStarterBoot(page, chats);
   const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
   await chats.requested;
@@ -2081,7 +2081,7 @@ test("a device with no memory holds Start with out of both columns until the roo
 });
 
 test("a device with no memory whose room list fails shows the shelf, with Start with in the hearth", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubStarterBoot(page, chats);
   const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
   await chats.requested;
@@ -2095,7 +2095,7 @@ test("a device with no memory whose room list fails shows the shelf, with Start 
 });
 
 test("a failed room list keeps the fallback shelf visible while Recents Retry waits", async ({ mount, page }) => {
-  const retry = trpcHold();
+  const retry = trpcHold<"chat.listChats">();
   let reads = 0;
   await page.setViewportSize({ width: 2560, height: 1000 });
   await stubDatabank(page, {
@@ -2119,7 +2119,7 @@ test("a failed room list keeps the fallback shelf visible while Recents Retry wa
 });
 
 test("a device that last saw Start with on the shelf paints it there, and a house with rooms keeps it there", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await stubStarterBoot(page, chats);
   const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region="shelf" />);
   await chats.requested;
@@ -2148,8 +2148,8 @@ async function firstBootShift(
   rooms: Parameters<typeof chatListResponder>[0],
 ): Promise<{ readonly score: number; readonly movers: readonly string[] }> {
   await page.setViewportSize({ width, height: LAPTOP_VIEWPORT_HEIGHT });
-  const chats = trpcHold();
-  const characters = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
+  const characters = trpcHold<"character.list">();
   await stubDatabank(
     page,
     {
@@ -2191,8 +2191,8 @@ for (const width of LAPTOP_WIDTHS) {
 
 test("a new account's first boot decides the shelf foot once the shelf settles, and never flips it", async ({ mount, page }) => {
   await page.setViewportSize({ width: LAPTOP_WIDTHS[0], height: LAPTOP_VIEWPORT_HEIGHT });
-  const chats = trpcHold();
-  const characters = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
+  const characters = trpcHold<"character.list">();
   await stubDatabank(
     page,
     {
@@ -2300,7 +2300,7 @@ test.describe("Start with on a phone", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
 
   test("the narrow empty recents block has zero drift with its coarse pointer unchanged", async ({ mount, page }) => {
-    const chats = trpcHold();
+    const chats = trpcHold<"chat.listChats">();
     await stubDatabank(
       page,
       {

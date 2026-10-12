@@ -24,18 +24,17 @@
 // migration's whole job is to name a spelling the live type system has already forgotten"), and a pin that
 // could only be written in the OLD era would not compile in this one.
 
+// @orb-waive-file no-loose-id-cast(columns): baselined when the gate widened; burn-down item 906.
 import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { rpgSnapshots } from "@orb/db";
 import type { ChatId, ChatTurnId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { eq } from "drizzle-orm";
 import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
 import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
 import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
-import { findSnapshotByVariant, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
+import { findSnapshotByVariant, updateSnapshotState, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
 import { emptyState, expect, seedLiteGame, seedMessage, target, test } from "./_support.ts";
 
@@ -105,11 +104,7 @@ async function poison(
   variantId: MessageVariantId,
   columns: Partial<Record<"actorState" | "presentCharacters" | "fieldLocks", unknown>>,
 ): Promise<void> {
-  await db
-    .update(rpgSnapshots)
-    // @orb-waive no-loose-id-cast(columns): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    .set(columns as never)
-    .where(eq(rpgSnapshots.variantId, variantId));
+  await updateSnapshotState(db, variantId, columns as never);
 }
 
 /** Resolve the game row the tracker view projects against — NARROWED, so the `| undefined` this function

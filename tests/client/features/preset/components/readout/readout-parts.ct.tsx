@@ -26,6 +26,7 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import {
   makeCachePolicy,
   makeCapability,
@@ -355,7 +356,7 @@ function readoutRoutes(
     // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;
     // `usage-readout.ct.tsx` is the suite that varies it.
     "preset.listUsage": () => ({ isUserDefault: false, gmRooms: [] }),
-    "chat.getChat": () => ({ id: "chat_ct_readout" }),
+    "chat.getChat": () => makeChatDetail({ id: "chat_ct_readout" }),
   };
 }
 
@@ -539,7 +540,7 @@ test("a role whose binding is stale shows the failure band with the server's rea
 });
 
 test("a pending read after a switch holds the skeleton, and a failed one shows the causeless band", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"connection.resolveChatCapability">();
   await routeTrpc(
     page,
     readoutRoutes((input) => {

@@ -30,6 +30,7 @@
 // @orb-waive-file no-test-fabrication(typeof globalThis & { __commandListenerProbe: { active: Set<EventListenerOrEventListenerObject>; adds: number; removes: number } }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(typeof globalThis & { __ctPanelTasks: { tick: number; mode: boolean; body: boolean }[] }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ state?: { panelOverrides?: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, BLUR_SURFACES, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -40,7 +41,8 @@ import { pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
 import { SIGNED_IN_OWNER_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { touchDrag } from "@orb/testkit/browser/weave-drive.ts";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
@@ -50,7 +52,7 @@ import { commandShortcutLabel } from "#client/features/app-shell/lib/command-sho
 import { MODAL_SLOT_IDS } from "#client/state/modal-slot-ids.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/floor/appearance/appearance-presets.json" with { type: "json" };
-import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
+import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
@@ -164,7 +166,7 @@ const SHELL_AMBIENT_ROUTES = defineTrpcRoutes({
   // default is the full `CharacterListPageFixture` shape (`tests/client/features/character/fixtures.ts:239`
   // — `{items, nextCursor, totalCount}`), so the census hook's own zero-suppression runs for real: an empty
   // library prints the bare section name, which is what every mount in this file expects to see.
-  "character.list": { items: [], nextCursor: null, totalCount: 0 },
+  "character.list": characterListResponder([]),
   // ── THE SECTION CENSUS READS (#1676) — appended, not woven into the rows above ──────────────────────
   // Every list-bearing section's `useSelectionTitle` now composes its own census, because on a phone the
   // ONE-NAME rule sheds the LIST band's title and the count travels inside it. `CtFakeSectionRegistry`
@@ -1296,7 +1298,7 @@ for (const density of ["comfortable", "compact"] as const) {
   test(`#937 ${density}: a real portalled dialog inherits the shell's resolved density`, async ({ mount, page }) => {
     await routeTrpc(page, {
       ...SHELL_AMBIENT_ROUTES,
-      "character.list": { items: [], nextCursor: null, totalCount: 0 },
+      "character.list": characterListResponder([]),
       "settings.getUserSettings": () => ({
         userId: `user_ct_shell_density_${density}`,
         schemaVersion: 1,
@@ -1360,7 +1362,7 @@ for (const densityCase of DENSITY_THEME_CASES) {
     } satisfies TrpcWireOutput<"settings.getUserSettings">;
     await routeTrpc(page, {
       ...SHELL_AMBIENT_ROUTES,
-      "character.list": { items: [], nextCursor: null, totalCount: 0 },
+      "character.list": characterListResponder([]),
       "settings.getUserSettings": () => settings,
       "settings.getTheme": {
         id: DENSITY_THEME_ID,
@@ -2077,13 +2079,23 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
 
 /** The room this pin seats: a name long enough to have been crushed, and a four-seat roster so the member
  *  chip renders at its real width. */
-const TOPBAR_IDENTITY_ROOM = {
-  title: "Example — The Ashen Spire",
+const TOPBAR_IDENTITY_TITLE = "Example — The Ashen Spire";
+const TOPBAR_IDENTITY_ROOM = makeChatDetail({
+  title: TOPBAR_IDENTITY_TITLE,
   temporary: false,
   viewerIsHost: true,
   participants: [
-    { id: "participant_host", kind: "human", role: "host", userId: "user_host", characterId: null, displayName: "Alex", avatarHash: null, leftSeq: null },
-    {
+    makeParticipantView({
+      id: "participant_host",
+      kind: "human",
+      role: "host",
+      userId: "user_host",
+      characterId: null,
+      displayName: "Alex",
+      avatarHash: null,
+      leftSeq: null,
+    }),
+    makeParticipantView({
       id: "participant_aria",
       kind: "character",
       role: "member",
@@ -2092,8 +2104,8 @@ const TOPBAR_IDENTITY_ROOM = {
       displayName: "Aria",
       avatarHash: null,
       leftSeq: null,
-    },
-    {
+    }),
+    makeParticipantView({
       id: "participant_bolt",
       kind: "character",
       role: "member",
@@ -2102,8 +2114,8 @@ const TOPBAR_IDENTITY_ROOM = {
       displayName: "Bolt",
       avatarHash: null,
       leftSeq: null,
-    },
-    {
+    }),
+    makeParticipantView({
       id: "participant_cass",
       kind: "character",
       role: "member",
@@ -2112,9 +2124,9 @@ const TOPBAR_IDENTITY_ROOM = {
       displayName: "Cass",
       avatarHash: null,
       leftSeq: null,
-    },
+    }),
   ],
-} satisfies TrpcFixtureOutput<"chat.getChat">;
+});
 
 interface TopbarIdentityReadout {
   readonly title: boolean;
@@ -2265,7 +2277,7 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
 
   // THE ROOM NAME THE USER SET keeps a real width beside the participants — the floor, never 0px.
   const subtitle = page.locator(".shell-topbar-subtitle");
-  await expect(subtitle).toHaveText(TOPBAR_IDENTITY_ROOM.title);
+  await expect(subtitle).toHaveText(TOPBAR_IDENTITY_TITLE);
   await expect
     .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
     .toBe(true);
@@ -2301,13 +2313,14 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
 
 // 0873: with a long cast AND a long room name the title group is squeezed to its floor at 1280 with both panes
 // docked. The participants used to be left ~57px against a 120px name; neither half may collapse to a stub.
-const TOPBAR_LONG_ROOM = {
+const TOPBAR_LONG_TITLE = "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers";
+const TOPBAR_LONG_ROOM = makeChatDetail({
   ...TOPBAR_IDENTITY_ROOM,
-  title: "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers",
+  title: TOPBAR_LONG_TITLE,
   participants: TOPBAR_IDENTITY_ROOM.participants.map((participant) =>
     participant.kind === "character" ? { ...participant, displayName: `${participant.displayName} the Magnificent of Vael` } : participant,
   ),
-} satisfies TrpcFixtureOutput<"chat.getChat">;
+});
 
 test("0873: at 1280 with BOTH panes docked a long cast and a long room name each keep a floor and a half", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_LONG_ROOM });
@@ -2318,7 +2331,7 @@ test("0873: at 1280 with BOTH panes docked a long cast and a long room name each
 
   const title = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
   const subtitle = page.locator(".shell-topbar-subtitle");
-  await expect(subtitle).toHaveText(TOPBAR_LONG_ROOM.title);
+  await expect(subtitle).toHaveText(TOPBAR_LONG_TITLE);
   // The floor is the title floor in the title group's own font.
   const floorPx = await title.evaluate((element) => {
     // `ch` resolves in the font of the box that declares the floor: the title group.
@@ -2867,7 +2880,7 @@ test("at 900px (48-64rem) the recents FINDER is still reachable — it moved to 
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([makeChatSummary({ id: "chat_recent_900", title: "A grand adventure" })]),
-    "character.list": { items: [makeCharacterSummary()], nextCursor: null },
+    "character.list": characterListResponder([makeCharacterSummary()]),
   });
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellOnSectionStory section="home" />);
@@ -4789,7 +4802,7 @@ test("#170 a chat's carried background paints in the chats section and is GONE t
   await page.setViewportSize(WIDE);
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
-    "chat.getChat": { participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND } satisfies TrpcFixtureOutput<"chat.getChat">,
+    "chat.getChat": makeChatDetail({ participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND }),
   });
   // The room pointer as a real boot has it: in localStorage BEFORE any module runs, so the shell's first
   // render reads it (the store rehydrates synchronously — see the boot test below). An effect-seeded
@@ -6123,7 +6136,7 @@ test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while
     content: `try { localStorage.setItem("orb:appearance-boot", ${JSON.stringify(REDUCED_MOTION_HINT_BLOB)}); } catch { /* storage disabled */ }`,
   });
   await page.reload();
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   // The barrier is the HELD request, not a timer: past this the shell has mounted and its root effect has
@@ -6135,7 +6148,7 @@ test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while
 });
 
 test("#188 CONTROL: a device with NO hint is not stamped ON by the pending read — the pref is remembered, never guessed", async ({ mount, page }) => {
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -6255,7 +6268,7 @@ test("a non-file drag is left entirely alone — the guard is files-only", async
 // ── PANE-LESS SECTIONS (side-eye F1/F2/F6) — no doors onto panes that do not exist ──────────────────
 
 test("a section with NO panes ships NO panel chrome: no list toggle, no detail-panel toggle", async ({ mount, page }) => {
-  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]), "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]), "character.list": characterListResponder([]) });
   const shell = await mount(<AppShellOnSectionStory section="home" />);
 
   await expect(shell.locator('[data-home-tile="home.jump"]')).toBeVisible();
@@ -6288,7 +6301,7 @@ test("a section with a LIST but NO context pane ships the list toggle and NO det
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
-    "character.list": { items: [], nextCursor: null },
+    "character.list": characterListResponder([]),
     "plugin.list": () => [],
     "plugin.listSurfaces": () => [],
   });
@@ -7222,7 +7235,7 @@ async function bootWithAppearanceHint(page: Page): Promise<void> {
 
 test("#231 a remembered fontScale survives the shell's first commit while getUserSettings is in flight", async ({ mount, page }) => {
   await bootWithAppearanceHint(page);
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -7236,7 +7249,7 @@ test("#231 a remembered fontScale survives the shell's first commit while getUse
 
 test("#231 a remembered theme survives it too — a Light user never cold-boots the dark palette", async ({ mount, page }) => {
   await bootWithAppearanceHint(page);
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -7246,7 +7259,7 @@ test("#231 a remembered theme survives it too — a Light user never cold-boots 
 });
 
 test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending read — remembered, never guessed", async ({ mount, page }) => {
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "settings.getUserSettings": settings });
   await mount(<AppShellStory />);
   await settings.requested;
@@ -7804,10 +7817,9 @@ test.describe("Home section inset in the real phone shell", () => {
     await routeTrpc(page, {
       ...SHELL_AMBIENT_ROUTES,
       "chat.listChats": chatListResponder([]),
-      "character.list": {
-        items: Array.from({ length: 8 }, (_, i) => makeCharacterSummary({ id: `character_home_${i}`, name: `Home face ${i}` })),
-        nextCursor: null,
-      },
+      "character.list": characterListResponder(
+        Array.from({ length: 8 }, (_, i) => makeCharacterSummary({ id: `character_home_${i}`, name: `Home face ${i}` })),
+      ),
     });
     const shell = await mount(<AppShellOnSectionStory section="home" />);
     const faces = shell.getByRole("list", { name: "Character quick-picks" }).getByRole("button");

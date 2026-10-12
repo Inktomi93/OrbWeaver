@@ -2,7 +2,7 @@ import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";
 import { expectTypeOf, test } from "vitest";
-import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
+import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
 import { defineTrpcRoutes, malformedOrForwardTrpcWire, routeTrpc, trpcError, trpcHold } from "./route-trpc.ts";
 
 declare const page: Page;
@@ -15,12 +15,6 @@ type NeverWireOutputPaths<TPath extends TrpcProcedurePath = TrpcProcedurePath> =
     : never
   : never;
 
-type NeverFixtureOutputPaths<TPath extends TrpcProcedurePath = TrpcProcedurePath> = TPath extends TrpcProcedurePath
-  ? [TrpcFixtureOutput<TPath>] extends [never]
-    ? TPath
-    : never
-  : never;
-
 const completeSettingsOutput = {
   userId: "user_complete_wire",
   schemaVersion: 1,
@@ -28,10 +22,6 @@ const completeSettingsOutput = {
   updatedAt: 0,
   configUnreadable: null,
 } satisfies TrpcWireOutput<"settings.getUserSettings">;
-
-const focusedSettingsWithExactNestedValue = {
-  config: DEFAULT_USER_SETTINGS,
-} satisfies TrpcFixtureOutput<"settings.getUserSettings">;
 
 const recursivePluginSurfaceOutput = [
   {
@@ -43,6 +33,16 @@ const recursivePluginSurfaceOutput = [
     spec: { kind: "stack", children: [{ kind: "text", value: "healthy child" }] },
   },
 ] satisfies TrpcWireOutput<"plugin.listSurfaces">;
+
+const completeAssetRow = {
+  assetId: "asset_wire_id",
+  hash: "hash_wire",
+  kind: "gallery",
+  mime: "image/png",
+  size: 1,
+  uploadedAt: 0,
+  animated: false,
+} satisfies TrpcWireOutput<"assets.listOwned">[number];
 
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 const pageSurfaceRow = (): PluginSurfaceRow => ({
@@ -56,13 +56,11 @@ const pageSurfaceRow = (): PluginSurfaceRow => ({
 
 test("ordinary direct fixtures derive keys, input, and output from AppRouter", async () => {
   expectTypeOf<NeverWireOutputPaths>().toEqualTypeOf<never>();
-  expectTypeOf<NeverFixtureOutputPaths>().toEqualTypeOf<never>();
   expectTypeOf(routeTrpc(page, { health: { ok: true } })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { health: () => ({ ok: true }) })).toEqualTypeOf<Promise<TrpcRecorder>>();
-  expectTypeOf(routeTrpc(page, { "assets.listOwned": [{ assetId: "asset_wire_id" }] })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  expectTypeOf(routeTrpc(page, { "assets.listOwned": [completeAssetRow] })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { "settings.getUserSettings": completeSettingsOutput })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { "settings.getUserSettings": () => completeSettingsOutput })).toEqualTypeOf<Promise<TrpcRecorder>>();
-  expectTypeOf(routeTrpc(page, { "settings.getUserSettings": focusedSettingsWithExactNestedValue })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { "chat.setRoomOverrides": DEFAULT_ROOM_OVERRIDES })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { "chat.setRoomOverrides": {} })).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { "plugin.listSurfaces": recursivePluginSurfaceOutput })).toEqualTypeOf<Promise<TrpcRecorder>>();
@@ -73,7 +71,15 @@ test("ordinary direct fixtures derive keys, input, and output from AppRouter", a
     }),
   ).toEqualTypeOf<Promise<TrpcRecorder>>();
   expectTypeOf(routeTrpc(page, { health: trpcError() })).toEqualTypeOf<Promise<TrpcRecorder>>();
-  expectTypeOf(routeTrpc(page, { health: trpcHold() })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  expectTypeOf(routeTrpc(page, { health: trpcHold<"health">() })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  const settingsHold = trpcHold<"settings.getUserSettings">();
+  settingsHold.release(completeSettingsOutput);
+  settingsHold.release(trpcError());
+  // @ts-expect-error — a held response is the full wire output too: a subset cannot be released.
+  settingsHold.release({ config: DEFAULT_USER_SETTINGS });
+  const listHold = trpcHold<"assets.listOwned">();
+  // @ts-expect-error — released array rows must be full canonical rows.
+  listHold.release([{ assetId: "asset_wire_id" }]);
 
   // @ts-expect-error — a deleted field cannot survive on a static output.
   await routeTrpc(page, { health: { ok: true, deletedField: "stale" } });
@@ -81,12 +87,16 @@ test("ordinary direct fixtures derive keys, input, and output from AppRouter", a
   await routeTrpc(page, { health: () => ({ ok: true, deletedField: "stale" }) });
   // @ts-expect-error — canonical property value types are enforced.
   await routeTrpc(page, { health: { ok: "not boolean" } });
-  // @ts-expect-error — a wholly nonoverlapping object is not a partial canonical output.
+  // @ts-expect-error — a wholly nonoverlapping object is not the canonical output.
   await routeTrpc(page, { health: { onlyPlaceholder: true } });
-  // @ts-expect-error — an object fixture must contain at least one canonical field.
+  // @ts-expect-error — an empty object is not the full canonical output.
   await routeTrpc(page, { "databank.bankHealth": {} });
-  // @ts-expect-error — object array elements must contain at least one canonical field.
+  // @ts-expect-error — array elements must be full canonical rows.
   await routeTrpc(page, { "worldInfo.listBooks": [{}] });
+  // @ts-expect-error — a subset of a canonical output is rejected; every field the contract requires is present.
+  await routeTrpc(page, { "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS } });
+  // @ts-expect-error — a function responder returning a subset is rejected too.
+  await routeTrpc(page, { "assets.listOwned": () => [{ assetId: "asset_wire_id" }] });
   // @ts-expect-error — array element shapes are recursively checked.
   await routeTrpc(page, { "assets.listOwned": [{ deletedField: "stale" }] });
   await routeTrpc(page, {

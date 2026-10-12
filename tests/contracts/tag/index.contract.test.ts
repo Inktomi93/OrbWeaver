@@ -9,14 +9,15 @@ import {
   tagSourceSchema,
   tagStatusSchema,
   tagTargetTypeSchema,
+  tagViewSchema,
+  tagWithUsageSchema,
   updateTagSchema,
 } from "@orb/contracts/tag";
-import type { TagId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
-// Sample branded values built at the sanctioned `castId` seam — no pasted high-entropy literals (noSecrets).
-const SAMPLE_TAG_ID = castId<TagId>("tag-romance");
+// The strict view schemas validate the TypeID prefix and shape, so the fixture id is minted.
+const SAMPLE_TAG_ID = mintTypeId(ID_PREFIX.tag);
 
 // ── D24 PIN: the target axis is EXACTLY the five per-type-FK junctions, one home ──────────────────────
 test("tagTargetTypeSchema round-trips the 5 D24 members and rejects others", () => {
@@ -103,7 +104,7 @@ test("updateTagSchema is a partial patch; null color clears, undefined leaves un
   expect(updateTagSchema.safeParse({ folderType: "open" }).success).toBe(false);
 });
 
-test("TagView pins the row shape (theme-default + unordered nulls)", () => {
+test("tagViewSchema carries the row shape (theme-default + unordered nulls) through a parse and refuses an undeclared field", () => {
   const view: TagView = {
     id: SAMPLE_TAG_ID,
     name: "Romance",
@@ -114,22 +115,13 @@ test("TagView pins the row shape (theme-default + unordered nulls)", () => {
     sortOrder: null,
     isHiddenOnCard: false,
   };
-  // The `TagView` annotation enforces the exact shape at compile time (excess-property check on the
-  // literal); the key count is the runtime belt against drift. (Field names are accessed, not pasted as
-  // string literals, to avoid the noSecrets high-entropy heuristic.)
-  const ViewFieldCount = 8;
-  expect(Object.keys(view)).toHaveLength(ViewFieldCount);
-  expect(view.id).toBe(SAMPLE_TAG_ID);
-  expect(view.color).toBeNull();
-  expect(view.color2).toBeNull();
-  expect(view.sortOrder).toBeNull();
-  expect(view.isHiddenOnCard).toBe(false);
+  expect(tagViewSchema.parse(view)).toEqual(view);
   // source may be null (no provenance recorded).
-  const noSource: TagView["source"] = null;
-  expect(noSource).toBeNull();
+  expect(tagViewSchema.parse({ ...view, source: null })).toEqual({ ...view, source: null });
+  expect(tagViewSchema.safeParse({ ...view, usage: 3 }).success).toBe(false);
 });
 
-test("TagWithUsage extends TagView with the five-junction rollup", () => {
+test("tagWithUsageSchema extends the view with the five-junction rollup", () => {
   const usage = { characters: 3, chats: 1, worldBooks: 0, personas: 2, presets: 0, total: 6 };
   const row: TagWithUsage = {
     id: SAMPLE_TAG_ID,
@@ -143,8 +135,8 @@ test("TagWithUsage extends TagView with the five-junction rollup", () => {
     usage,
     pendingSuggestions: 0,
   };
-  expect(Object.keys(row.usage).sort()).toEqual(["characters", "chats", "personas", "presets", "total", "worldBooks"].sort());
-  expect(row.usage.total).toBe(6);
+  expect(tagWithUsageSchema.parse(row)).toEqual(row);
+  expect(tagWithUsageSchema.safeParse({ ...row, usage: { ...usage, folders: 1 } }).success).toBe(false);
 });
 
 // TagAttachmentView test DELETED (#1033 viewgap decision 1): the wire shape was test-only and is removed.

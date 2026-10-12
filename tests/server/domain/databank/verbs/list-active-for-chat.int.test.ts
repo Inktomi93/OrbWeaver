@@ -4,7 +4,7 @@
 // them, while a MEMBER's payload is filtered to the visible set (a member never learns a hidden document's name).
 // @subject packages/server/src/domain/databank/verbs/list-active-for-chat.ts
 
-import { chats } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
 import type { ChatId, DocumentId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -99,6 +99,28 @@ test("D-2: each row carries the junction(s) crediting it — global · chat · c
   expect(sourcesOf(chatDoc.document.id)).toEqual(["chat"]);
   expect(sourcesOf(charDoc.document.id)).toEqual(["character"]);
   expect(sourcesOf(bothDoc.document.id)).toEqual(["global", "chat"]);
+});
+
+// The host view belongs to the room's PRESENT host: a departed former host reads like any member (the member gate
+// is the guard's job, so the harness lets them through to isolate the host read).
+test("a departed former host gets the member view; the present host governs the hidden set", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const former = await seedUser(db, { handle: castId<Handle>("former") });
+  const current = await seedUser(db, { handle: castId<Handle>("current") });
+  const chatId = await seedChat(db, "chat_room");
+  await seedChatHost(db, chatId, former, "host");
+  await db.update(chatParticipants).set({ leftSeq: 1 }).where(eq(chatParticipants.chatId, chatId));
+  await seedChatHost(db, chatId, current, "host");
+
+  const hiddenDoc = await h.service.createFromText({ principal: principalFor(current), name: "h.md", text: "hidden canon" });
+  await h.service.attachToChat({ principal: principalFor(current), documentId: hiddenDoc.document.id, chatId });
+  await hideDocuments(db, chatId, [hiddenDoc.document.id]);
+
+  expect((await h.service.listActiveForChat({ principal: principalFor(current), chatId })).map((d) => [d.id, d.hidden])).toEqual([
+    [hiddenDoc.document.id, true],
+  ]);
+  expect(await h.service.listActiveForChat({ principal: principalFor(former), chatId })).toEqual([]);
 });
 
 test("a non-member is rejected by the injected member guard", async () => {

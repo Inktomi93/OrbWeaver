@@ -3,13 +3,13 @@
 // (lint useComponentExportOnlyModules). Imported by the stories + the .ct.tsx assertions.
 
 import type { ChatIdentity, MessageView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 
@@ -229,22 +229,14 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
  * separation keeps "I am feeding a pipeline that is not my subject" legible against "I am supplying my
  * subject's data". Same override rule — list the key after the spread and it wins.
  *
- * The `chat.getChat` literal is a PARTIAL `ChatDetail`, the posture every roster stub in this feature already
- * takes (message-list-surface.ct's ROSTER_STUB, chats-section.ct's `chatDetail`): only the fields a reader
- * actually reaches for, every one of them at the honest empty/default value — a solo-less roster, no anchor
- * persona, no room overrides, the default group config, no RPG pointer, and a viewer who IS the host (the
+ * The `chat.getChat` answer is the full `ChatDetail` at its honest empty/default value: a solo-less roster, no
+ * anchor persona, no room overrides, the default group config, no RPG pointer, and a viewer who IS the host (the
  * un-gated arm every non-permission CT assumes).
  */
+/** The empty default room every composer-family CT mounts over. */
+export const CHAT_ROOM_DETAIL = makeChatDetail();
 export const CHAT_ROOM_ROUTES: TrpcRoutes<"chat.getChat" | "chat.listMessages"> = {
-  "chat.getChat": {
-    title: null,
-    participants: [],
-    identities: [],
-    anchorPersonaId: null,
-    group: DEFAULT_GROUP_CONFIG,
-    rpg: null,
-    viewerIsHost: true,
-  },
+  "chat.getChat": CHAT_ROOM_DETAIL,
   "chat.listMessages": { messages: [], identities: [] },
 };
 

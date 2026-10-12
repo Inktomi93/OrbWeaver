@@ -16,12 +16,12 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -68,12 +68,13 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<Tr
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): { participants: never[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
-      participants: [],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [],
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+      }),
     "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_chip_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     "chat.send": () => ({ messages: [], aborted: false }),

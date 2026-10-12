@@ -11,14 +11,10 @@ import type { LatencyStats, ModelStatRow } from "@orb/server/domain/stats";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories.tsx";
 
-const DRILLED_CHARACTER = {
-  id: "character_ct_analytics",
-  handle: "aria",
-  name: "Aria Nightshade",
-  avatarHash: null,
-};
+const DRILLED_CHARACTER = makeCharacterDetail({ id: "character_ct_analytics", handle: "aria", name: "Aria Nightshade" });
 
 // A minimal leaderboard census — the LIST-band count reads its length; the rows' other fields are inert
 // for the band (the surface below, not the band, renders them).

@@ -20,13 +20,13 @@
 // Assertions go through accessible names, rendered text and geometry — @orb/ui primitives drop
 // `data-testid` (the slot-only seal), so the band's own `data-slot` marks are used for structure only.
 
-import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -75,12 +75,7 @@ function routeRoom(page: Page, extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): {
-      participants: never[];
-      anchorPersonaId: null;
-      identities: readonly ChatIdentity[];
-      group: GroupConfig;
-    } => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+    "chat.getChat": () => makeChatDetail({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
     "chat.listMessages": () =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_controls_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     "chat.send": () => ({ messages: [], aborted: false }),

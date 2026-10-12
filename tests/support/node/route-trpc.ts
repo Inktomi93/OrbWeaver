@@ -88,40 +88,20 @@ type TrpcWire<T> =
 type AppProcedureOutput<TPath extends TrpcProcedurePath> = AppProcedure<TPath>["_def"]["$types"]["output"];
 type TrpcFullSuccess<TPath extends TrpcProcedurePath> = TrpcWire<AppProcedureOutput<TPath>> | (undefined extends AppProcedureOutput<TPath> ? null : never);
 
-type NonEmptyFixtureObject<T extends object, TSeen> = {
-  [K in keyof T]-?: { readonly [P in K]-?: TrpcFixture<T[P], TSeen> } & {
-    readonly [P in Exclude<keyof T, K>]?: TrpcFixture<T[P], TSeen>;
-  };
-}[keyof T];
-
-type TrpcFixture<T, TSeen = never> = T extends TSeen
-  ? TrpcWire<T>
-  : T extends readonly (infer Item)[]
-    ? readonly TrpcFixture<Item, TSeen | T>[]
-    : T extends object
-      ? string extends keyof T
-        ? Readonly<Record<string, TrpcFixture<T[string & keyof T], TSeen | T>>>
-        : TrpcWire<T> | NonEmptyFixtureObject<T, TSeen | T>
-      : T;
-
 /** The JSON-facing success shape for one procedure, with compile-time-only ID brands erased. */
 export type TrpcWireOutput<TPath extends TrpcProcedurePath> = TrpcFullSuccess<TPath>;
-
-/** A nonempty canonical subset suitable for focused fixtures that do not need every output field. */
-export type TrpcFixtureOutput<TPath extends TrpcProcedurePath> = TrpcFixture<TrpcFullSuccess<TPath>>;
 
 type TrpcRawInput<TPath extends TrpcProcedurePath> = AppProcedure<TPath>["_def"]["$types"]["input"];
 /** The canonical decoded input accepted by one AppRouter procedure. */
 export type TrpcInput<TPath extends TrpcProcedurePath> = undefined extends TrpcRawInput<TPath> ? undefined | TrpcRawInput<TPath> : TrpcRawInput<TPath>;
 
-/** A response for one AppRouter procedure. The direct call performs the exact partial-wire validation. */
+/** A response for one AppRouter procedure: the full wire output, or a marker. */
 type CanonicalTrpcResponder<TPath extends TrpcProcedurePath> =
   | TrpcFullSuccess<TPath>
-  | TrpcFixture<TrpcFullSuccess<TPath>>
   | TrpcErrorMarker
   | TrpcHoldMarker
   | TrpcWireEscapeMarker
-  | ((input: TrpcInput<TPath>) => TrpcFullSuccess<TPath> | TrpcFixture<TrpcFullSuccess<TPath>> | TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker);
+  | ((input: TrpcInput<TPath>) => TrpcFullSuccess<TPath> | TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker);
 
 export type TrpcResponder<TPath extends TrpcProcedurePath | undefined = undefined> = [TPath] extends [TrpcProcedurePath]
   ? CanonicalTrpcResponder<Extract<TPath, TrpcProcedurePath>>
@@ -190,7 +170,7 @@ type ExactObject<TActual extends object, TExpected extends object> = keyof TActu
         : never;
 
 type TrpcMarker = TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker;
-type MatchingProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends TrpcMarker ? TProduced : ExactWire<TProduced, TrpcFixtureOutput<TPath>>;
+type MatchingProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends TrpcMarker ? TProduced : ExactWire<TProduced, TrpcWireOutput<TPath>>;
 type ExactArrayProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends readonly (infer TActualItem)[]
   ? Extract<TrpcWireOutput<TPath>, readonly unknown[]> extends readonly (infer TExpectedItem)[]
     ? [TActualItem] extends [TExpectedItem]
@@ -200,23 +180,18 @@ type ExactArrayProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced 
       : never
     : never
   : never;
+type FullProduced<TPath extends TrpcProcedurePath, TProduced> = [TProduced] extends [TrpcWireOutput<TPath> | TrpcMarker]
+  ? [TProduced] extends [MatchingProduced<TPath, TProduced>]
+    ? TProduced
+    : never
+  : never;
 type ExactProduced<TPath extends TrpcProcedurePath, TProduced> =
   ExactArrayProduced<TPath, TProduced> extends never
-    ? TrpcFixtureOutput<TPath> extends TProduced
-      ? TProduced extends TrpcFixtureOutput<TPath>
+    ? TrpcWireOutput<TPath> extends TProduced
+      ? TProduced extends TrpcWireOutput<TPath>
         ? TProduced
-        : [TProduced] extends [MatchingProduced<TPath, TProduced>]
-          ? TProduced
-          : never
-      : TrpcWireOutput<TPath> extends TProduced
-        ? TProduced extends TrpcWireOutput<TPath>
-          ? TProduced
-          : [TProduced] extends [MatchingProduced<TPath, TProduced>]
-            ? TProduced
-            : never
-        : [TProduced] extends [MatchingProduced<TPath, TProduced>]
-          ? TProduced
-          : never
+        : FullProduced<TPath, TProduced>
+      : FullProduced<TPath, TProduced>
     : TProduced;
 
 type ResponderInputAccepts<TPath extends TrpcProcedurePath, Args extends readonly unknown[]> = Args["length"] extends 0
@@ -378,7 +353,11 @@ function isTrpcError(value: unknown): value is TrpcErrorMarker {
 
 const HOLD_MARK = Symbol("routeTrpc.hold");
 
-interface TrpcHoldMarker {
+/** What `release` accepts for one procedure: its full wire output, or a failure marker. A hold that names no
+ *  procedure (`trpcHold()`, `TPath` = `never`) releases nothing, so a held response can never be a subset. */
+type TrpcHoldRelease<TPath extends TrpcProcedurePath | undefined> = TPath extends TrpcProcedurePath ? TrpcWireOutput<TPath> | TrpcErrorMarker : never;
+
+interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined> {
   readonly [HOLD_MARK]: {
     /** Called the moment the stub intercepts a request carrying this procedure. */
     readonly onRequest: () => void;
@@ -391,7 +370,7 @@ interface TrpcHoldMarker {
   readonly requested: Promise<void>;
   /** Release the held request with this data — or a `trpcError(…)` marker to release it as a failure.
    *  Calls after the first are ignored (a re-fetch of the same procedure re-uses the settled value). */
-  readonly release: (data: unknown) => void;
+  readonly release: (data: TrpcHoldRelease<TPath>) => void;
 }
 
 /**
@@ -399,7 +378,7 @@ interface TrpcHoldMarker {
  * render as a settled, indefinitely-stable state instead of trying to catch a flash:
  *
  * ```ts
- *     const hold = trpcHold();
+ *     const hold = trpcHold<"echo">();
  *     await routeTrpc(page, { echo: hold, "tag.listTags": [] });
  *     await mount(<Story />);
  *     await hold.requested;                       // the query is in flight, held
@@ -421,7 +400,9 @@ interface TrpcHoldMarker {
  *
  * A hold that is never released simply never answers, and the test fails on its own timeout.
  */
-export function trpcHold(): TrpcHoldMarker {
+export function trpcHold<TPath extends TrpcProcedurePath = never>(): TrpcHoldMarker<TPath> {
+  // `new Promise`'s executor runs SYNCHRONOUSLY, so both handles are assigned before the return below
+  // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
   const { promise: requested, resolve: onRequest } = Promise.withResolvers<void>();
   const { promise: released, resolve: release } = Promise.withResolvers<unknown>();
   return { [HOLD_MARK]: { onRequest, released }, requested, release };
@@ -477,7 +458,7 @@ export interface TrpcRecorder {
    *  landed (a settled count poll, a web-first barrier): inside a poll it fails the test on the first attempt if the
    *  call is still in flight. */
   readonly requireLastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>;
-  /** How many times a procedure was called; the path is checked against the AppRouter, so a misspelled procedure fails typecheck. */
+  /** How many times a procedure was called. */
   readonly count: (proc: TrpcProcedurePath) => number;
   /**
    * Procedures the mounted tree REQUESTED that this call did not stub, first-seen order (header, #629).
@@ -581,7 +562,7 @@ export async function routeTrpc<const TRoutes extends object>(
       }
       return recorded.at(-1) as TrpcInput<P>;
     },
-    count: (proc: TrpcProcedurePath): number => (calls.get(proc) ?? []).length,
+    count: (proc): number => (calls.get(proc) ?? []).length,
     unstubbed: (): string[] => [...unstubbed],
   };
 }

@@ -16,6 +16,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -72,7 +73,7 @@ const BOUND_SPEC: NonNullable<PluginSurfaceRow["spec"]> = { kind: "badge", text:
 
 const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.getChat" | "chat.previewContextFit" | "plugin.getSurfaceState"> = {
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
-  "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+  "chat.getChat": () => makeChatDetail({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({
     boundaryMessageId: null,
     usedTokens: 120,

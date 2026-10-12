@@ -10,6 +10,7 @@ import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { RuleEditorRulesStory } from "../_editor-stories.tsx";
 
 const ids = createSeededIds();
@@ -64,7 +65,7 @@ for (const type of AUTOMATION_ACTION_TYPES) {
       "worldInfo.listForChat": [],
       "connection.list": [],
       "connection.listBindings": [],
-      "character.get": { name: "Selected character" },
+      "character.get": makeCharacterDetail({ name: "Selected character" }),
       "settings.getUserSettings": { userId: firstOwner, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
       "automation.updateRule": (input) => {
         const { ruleId: _id, ...body } = automationRuleUpdateSchema.parse(input);

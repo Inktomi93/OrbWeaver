@@ -74,7 +74,7 @@ import { structureConsole } from "../lib/structure-console.ts";
 import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
 import { parseStructureTombstone, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
 import { policyTimingAlarms } from "../lib/timing.ts";
-import { WAIVER_BUDGET } from "../lib/waiver-budget.ts";
+import { waiverBudgetForRun } from "../lib/waiver-budget-for-run.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -291,6 +291,7 @@ async function runStructurePopulation(
     return tombstoneSlot(root, tombstone);
   }
   const command = parseStructurePolicyCommand(argv);
+  const waiverBudget = waiverBudgetForRun(root);
   let cachedContext: ProjectContext | undefined;
   const context = (): ProjectContext => {
     cachedContext ??= projectCtx(root);
@@ -326,7 +327,7 @@ async function runStructurePopulation(
     corpus,
     plan,
     reviewedGrants: reviewedGrantsFor(corpus.gates),
-    waiverBudget: WAIVER_BUDGET,
+    waiverBudget,
   });
   if (!executed.ok) {
     process.stderr.write(`check:structure: TOOL ERROR — ${executed.message}\n`);

@@ -10,11 +10,13 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { makeRefinerySessionView } from "../../refinery/fixtures.ts";
 import { CharacterActionsMenuStory } from "../_ct-stories.tsx";
+import { makeCharacterDetail } from "../fixtures.ts";
 
 // MINTED, never hand-written (`typeIdSchema` validates the 26-char suffix at runtime).
 const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
@@ -40,8 +42,8 @@ function rosterRow(id: string, status: TrpcWireOutput<"refinery.listSessions">[n
 /** The card detail the kebab reads (#838) — the archive verb needs the CURRENT state to wear the right
  *  face, and the delete confirm names the card. Fed in every test in this file, never left to
  *  routeTrpc's `null`. */
-function characterDetail(archived: boolean): TrpcFixtureOutput<"character.get"> {
-  return { id: CHARACTER_ID, name: "Zephyrine Vale", archived };
+function characterDetail(archived: boolean): TrpcWireOutput<"character.get"> {
+  return makeCharacterDetail({ id: CHARACTER_ID, name: "Zephyrine Vale", archived });
 }
 
 function routes(roster: TrpcWireOutput<"refinery.listSessions">): TrpcRoutes<"character.get" | "refinery.listSessions" | "refinery.startSession"> {
@@ -50,7 +52,7 @@ function routes(roster: TrpcWireOutput<"refinery.listSessions">): TrpcRoutes<"ch
     "refinery.listSessions": () => roster,
     // A mint that WOULD SUCCEED, scripted on purpose: with it working, the only thing separating resume
     // from mint is WHICH session the jump opens, which is the claim.
-    "refinery.startSession": () => ({ id: MINTED_SESSION_ID }),
+    "refinery.startSession": () => makeRefinerySessionView({ id: MINTED_SESSION_ID }),
   };
 }
 
@@ -146,7 +148,7 @@ test("Export card is reachable from the OPEN character, and links BOTH container
 test("Archive is reachable from the OPEN character and fires the identity patch", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...detailRoutes(false),
-    "character.update": () => ({ id: CHARACTER_ID, name: "Zephyrine Vale", archived: true }),
+    "character.update": () => makeCharacterDetail({ id: CHARACTER_ID, name: "Zephyrine Vale", archived: true }),
   });
   await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
 

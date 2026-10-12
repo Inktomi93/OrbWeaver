@@ -24,6 +24,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { __resetStageRunBinding, markStageBootDead, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
@@ -34,15 +35,6 @@ import { scaledBudget } from "../../_load-budget.ts";
 const CASE_BUDGET_MS = scaledBudget(120_000);
 const POLL_MS = 100;
 const POLL_ATTEMPTS = 100;
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function until(predicate: () => boolean): Promise<boolean> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {

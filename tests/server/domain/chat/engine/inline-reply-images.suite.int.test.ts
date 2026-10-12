@@ -24,6 +24,7 @@ import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createStoreInlineReplyImage } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
@@ -41,6 +42,7 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonContentSignatures, loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
+import { pngBytesWithDims } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
@@ -55,7 +57,11 @@ const IMAGE_CONNECTION = makeResolved({
   ),
 });
 
-const PNG: GeneratedImage = { url: undefined, base64: "aGVsbG8=", mediaType: "image/png" };
+const PNG: GeneratedImage = { url: undefined, base64: Buffer.from(pngBytesWithDims(4, 4)).toString("base64"), mediaType: "image/png" };
+/** A provider that CLAIMS a png over bytes that are not one: the store's sniff belt refuses it. */
+const NOT_A_PNG: GeneratedImage = { url: undefined, base64: Buffer.from("hello").toString("base64"), mediaType: "image/png" };
+/** The per-image byte cap the store enforces. */
+const MAX_IMAGE_BYTES = 1_000_000;
 
 /** A turn that writes prose and emits ONE picture after the first sentence, captured into `sink`. */
 function pictureTurn(
@@ -93,13 +99,10 @@ interface Harness {
 }
 
 /** The engine wired the way a real room is, with TWO seams faked and both of them honestly:
- *   • `storeInlineReplyImage` mints a REAL `assets` row (the `message_assets` FK is the whole point), or
- *     returns null when the arm is testing a refusal;
+ *   • `storeInlineReplyImage` is compose's own store (the sniff and mime belt), over a generated-asset write that
+ *     mints a REAL `assets` row (the `message_assets` FK is the whole point);
  *   • `resolveImageUrl` answers with a CAS-shaped URL so a riding part is recognizable on the wire. */
-function harness(
-  database: Db,
-  over: { readonly runChatTurn: ChatContext["runChatTurn"]; readonly storeFails?: boolean; readonly tools?: ChatContext["tools"] },
-): Harness {
+function harness(database: Db, over: { readonly runChatTurn: ChatContext["runChatTurn"]; readonly tools?: ChatContext["tools"] }): Harness {
   const events: ChatBusEvent[] = [];
   const requests: TurnRequest[] = [];
   const stored: AssetId[] = [];
@@ -116,18 +119,18 @@ function harness(
     // The narrator writer mints the room's hidden group-narrator identity; the CONTROL arm drives that real
     // writer, so the op must answer with the seeded character rather than throwing.
     mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: castId<CharacterId>("character_aria") }),
-    storeInlineReplyImage: async (ownerId, _image) => {
-      if (over.storeFails === true) {
-        return null;
-      }
-      counter += 1;
-      const assetId = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
-      await database
-        .insert(assets)
-        .values({ id: assetId, ownerId, kind: "generated", mime: "image/png", size: 5, hash: `hash_inline_${counter}`, uploadedAt: FROZEN_AT_MS });
-      stored.push(assetId);
-      return { assetId };
-    },
+    storeInlineReplyImage: createStoreInlineReplyImage({
+      maxBytes: () => MAX_IMAGE_BYTES,
+      storeGenerated: async (ownerId, _bytes, mime) => {
+        counter += 1;
+        const assetId = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
+        await database
+          .insert(assets)
+          .values({ id: assetId, ownerId, kind: "generated", mime, size: 5, hash: `hash_inline_${counter}`, uploadedAt: FROZEN_AT_MS });
+        stored.push(assetId);
+        return { assetId };
+      },
+    }),
   });
   const engine = createTurnEngine(ctx, {
     emit: (event: DurableChatBusEvent): Promise<void> => {
@@ -297,7 +300,7 @@ describe("§6.7 inline reply images — the round trip", () => {
     // not exist, and the author is told once — §6.7's "couldn't save this picture".
     const chatId = await seedRoom(db, "inline-refused");
     const sink: TurnRequest[] = [];
-    const h = harness(db, { runChatTurn: pictureTurn(sink, "She unrolls the map.", [PNG]), storeFails: true });
+    const h = harness(db, { runChatTurn: pictureTurn(sink, "She unrolls the map.", [NOT_A_PNG]) });
 
     await h.engine.runTurn(prepOf(chatId));
 
@@ -410,7 +413,7 @@ test.each([
   const image: StreamPart = {
     type: "file",
     mediaType: "image/png",
-    data: { type: "data", data: "aGVsbG8=" },
+    data: { type: "data", data: PNG.base64 ?? "" },
     providerMetadata: { google: { thoughtSignature: "private-image" } },
   };
   const nativeParts: readonly StreamPart[] = [

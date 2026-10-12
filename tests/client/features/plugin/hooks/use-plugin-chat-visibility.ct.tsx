@@ -4,10 +4,10 @@
 // so a hide made after the notice it came from is not swept away with it. And two hides made before the first
 // write lands both hold: the cache takes each write at once and the second is built from the first.
 
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -53,7 +53,7 @@ async function routeTwoPluginRoom(page: Page, settings: SettingsRoutes): Promise
     ...CHAT_AMBIENT_ROUTES,
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
     "chat.listReactions": () => ({ reactionsEnabled: true, groups: [] }),
-    "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+    "chat.getChat": () => makeChatDetail(),
     "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
@@ -108,7 +108,7 @@ test("two hides made before the first write lands both stay hidden, and the seco
   await page.setViewportSize({ width: 1280, height: 800 });
   let hidden: readonly PluginId[] = [];
   const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
-  const firstWrite = trpcHold();
+  const firstWrite = trpcHold<"settings.updateUserSettingsSection">();
   let writes = 0;
   const recorder = await routeTwoPluginRoom(page, {
     "settings.getUserSettings": () => view(),

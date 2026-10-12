@@ -2,8 +2,6 @@
 // started with the shipped flags, from its private directory as the watchdog starts it, must be denied the
 // credentials key directly and through every workspace-package link, from its main thread and from a Worker.
 
-// @orb-waive-file no-test-fabrication([ProbeReport]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -13,15 +11,26 @@ import { tmpdir } from "node:os";
 import { join, parse, relative, sep } from "node:path";
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
+import type { formatPluginBrokerArguments, pluginBrokerExecArgv } from "@orb/server/infra/plugin-host";
 
 const DENIED = "ERR_ACCESS_DENIED";
 const PROBE = join(import.meta.dirname, "_broker-permission-probe.ts");
 const DROP_PRELOAD = join(import.meta.dirname, "_worker-drop-preload.ts");
 const root = process.argv.find((value) => value.startsWith("--root="))?.slice("--root=".length) ?? process.cwd();
 const credentialsKey = join(root, "data", "secrets", "credentials_key");
-const { pluginBrokerExecArgv } = (await import(join(root, "packages/server/src/infra/plugin-host/process-permission.ts"))) as {
-  readonly pluginBrokerExecArgv: () => string[];
-};
+// The image's own server modules, loaded from the checkout under test, so the broker starts with exactly the flags and
+// the argv the watchdog gives it.
+function exportsExecArgv(module: unknown): module is { readonly pluginBrokerExecArgv: typeof pluginBrokerExecArgv } {
+  return typeof module === "object" && module !== null && "pluginBrokerExecArgv" in module && typeof module.pluginBrokerExecArgv === "function";
+}
+function exportsBrokerArguments(module: unknown): module is { readonly formatPluginBrokerArguments: typeof formatPluginBrokerArguments } {
+  return typeof module === "object" && module !== null && "formatPluginBrokerArguments" in module && typeof module.formatPluginBrokerArguments === "function";
+}
+const permissionModule: unknown = await import(join(root, "packages/server/src/infra/plugin-host/process-permission.ts"));
+const argvModule: unknown = await import(join(root, "packages/server/src/infra/plugin-host/process-argv.ts"));
+if (!(exportsExecArgv(permissionModule) && exportsBrokerArguments(argvModule))) {
+  throw new Error("the image's plugin-host modules no longer export the broker launch flags and argv");
+}
 
 // Each link, then enough `..` to climb from its target back to the workspace root, then the key. The kernel applies
 // the `..` to the target; Node's check applies it to the link path. `join` would normalize it, so it is built by hand.
@@ -63,14 +72,11 @@ const probePaths = [...new Set([...denied, ...allowed, ...sqliteTargets])];
 const broker: ChildProcess = spawn(
   process.execPath,
   [
-    ...pluginBrokerExecArgv(),
+    ...permissionModule.pluginBrokerExecArgv(),
     `--allow-fs-read=${PROBE}`,
     `--import=${PROBE}`,
     join(root, "packages/server/src/infra/plugin-host/broker-entry.ts"),
-    brokerDirectory,
-    "1",
-    randomUUID(),
-    "production",
+    ...argvModule.formatPluginBrokerArguments({ directory: brokerDirectory, workerMaximum: 1, generation: randomUUID(), nodeEnvironment: "production" }),
   ],
   {
     cwd: brokerDirectory,
@@ -83,6 +89,7 @@ const broker: ChildProcess = spawn(
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   },
 );
+// @orb-waive no-test-fabrication([ProbeReport]): the probe child's IPC report is typed by the probe file this proof launches, not by a parse.
 const [report] = (await once(broker, "message")) as [ProbeReport];
 broker.kill("SIGKILL");
 rmSync(directory, { recursive: true, force: true });

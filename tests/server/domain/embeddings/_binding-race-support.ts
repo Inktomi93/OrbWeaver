@@ -4,6 +4,7 @@ import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { characterEmbeddings, embedGenerationTargets } from "@orb/db";
 import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect } from "@orb/testkit/node/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
@@ -48,15 +49,7 @@ export async function assertRefusedBindingRace(reader: "store" | "sweep" | "empt
   const ctx: EmbeddingsContext = {
     ...fixture.ctx,
     withStableEmbeddingBinding: (ownerId, read) => h.svc.withStableEmbeddingBinding(ownerId, read),
-    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
-      const { resolved } = await h.runtime.resolve({ principal: owner.principal, task, ...(connectionId === undefined ? {} : { connectionId }) });
-      return {
-        ...resolved,
-        api: resolved.api ?? "none",
-        embed: (input, opts) => h.runtime.executor.embed({ connection: { ...resolved, task: "embed" }, input, signal: opts?.signal }),
-        imageEmbed: (input, opts) => h.runtime.executor.imageEmbed({ connection: { ...resolved, task: "imageEmbed" }, input, signal: opts?.signal }),
-      };
-    },
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, () => Promise.resolve(owner.principal)),
     onTargetGenerationMoved: () => {
       throw new Error("a refused binding must never purge or enqueue a rebuild");
     },

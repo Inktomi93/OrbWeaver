@@ -18,7 +18,7 @@ import type { ListActiveForChatParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import type { ActiveChatDocumentView } from "../contract/views.ts";
 import { loadMetaByIds, toDocumentView } from "../persistence/queries.ts";
-import { resolveChatDocumentSources, resolveChatHiddenDocumentIds, resolveChatHost } from "../persistence/scope.ts";
+import { resolveChatDocumentSources, resolveChatHiddenDocumentIds } from "../persistence/scope.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createListActiveForChat(ctx: DatabankContext): DatabankService["listActiveForChat"] {
@@ -29,11 +29,11 @@ export function createListActiveForChat(ctx: DatabankContext): DatabankService["
     const [credits, hiddenIds, host] = await Promise.all([
       resolveChatDocumentSources(ctx.db, chatId),
       resolveChatHiddenDocumentIds(ctx.db, chatId),
-      resolveChatHost(ctx.db, chatId),
+      ctx.resolveChatHost(chatId),
     ]);
     const union = credits.map((credit) => credit.documentId);
     const hiddenSet = new Set(hiddenIds);
-    const isHost = host !== undefined && host === principal.userId;
+    const isHost = host !== null && host === principal.userId;
     // A member never receives a host-hidden document's metadata; the host sees the whole union to govern it.
     const visibleIds = isHost ? union : union.filter((id) => !hiddenSet.has(id));
     const [metas, counts] = await Promise.all([

@@ -43,6 +43,7 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import type { SearchContext } from "#server/domain/search/context.ts";
 import { createDigests } from "#server/domain/search/verbs/digests.ts";
+import { makeStoreHarness } from "../../embeddings/_support.ts";
 import {
   fakeRecallResult,
   makeChatContext,
@@ -54,7 +55,7 @@ import {
   stubRunCompaction,
   testConnection,
 } from "../_support.ts";
-import { GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
+import { completeMemorySpace, GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
 
 const HOST = castId<UserId>("user_host");
 /** The credential the seeded BYO connection authenticates with — the id every strike must name. */
@@ -336,17 +337,22 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     // horizon proves, is dropped before any search call — and the arm would prove nothing).
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
     await seedSegment(db, { ownerId: owner, chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    // The owner's index is at rest, so the scan reaches the embed call instead of refusing a moving space.
+    await completeMemorySpace(db, owner);
+    const encoder = makeStoreHarness(db);
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
-    // The verb binds its bundle through the funder-keyed `roleClientsFor` seam (@orb/inference §7.5-1b), so
-    // the double is the shared scripted bundle with ONE callable replaced: `withActiveQuerySpace` must still
-    // answer a space (it runs first) and the rejection must land on the `embed` call itself.
+    encoder.roleClients.embed.mockRejectedValue(rejected);
+    // The query embeds through the owner's bound connection (the one their memory space was minted under), so the
+    // rejection is planted on that connection's encoder above; the funder-keyed role bundle stays the plain
+    // scripted one and never sees the key.
     // @orb-waive no-test-fabrication(unknown): the SearchContext double carries only the fields this path
     // reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const searchCtx = {
       db,
-      roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients({ embed: (): Promise<never> => Promise.reject(rejected) })),
+      roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients()),
       now: () => FROZEN_AT_MS,
       resolveActiveDocumentIds: () => Promise.resolve([]),
+      resolveEmbeddingConnection: encoder.ctx.resolveEmbeddingConnection,
     } as unknown as SearchContext;
     const digests = createDigests(searchCtx);
     const engine = engineOver(

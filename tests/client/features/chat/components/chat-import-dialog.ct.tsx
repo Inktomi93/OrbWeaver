@@ -172,7 +172,7 @@ test("with Memory on, a batch that wrote real conversations stays open on a memo
 // The import is judged against the Memory switch as read when it lands, so a drop made before the switch's
 // first read answered is not treated as Memory off.
 test("a drop made before the Memory switch is read still offers the build once the switch reads on", async ({ mount, page }) => {
-  const settings = trpcHold();
+  const settings = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, { ...MEMORY_ON_ROUTES, "settings.getUserSettings": () => settings });
   const post = await routeImport(page, writtenBatch(FIRST_SPAN));
 

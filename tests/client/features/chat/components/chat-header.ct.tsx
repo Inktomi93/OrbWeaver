@@ -9,7 +9,8 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import type { TrpcFixtureOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
@@ -19,10 +20,10 @@ import { CHAT_AMBIENT_ROUTES, makeMessagesPage } from "../fixtures.ts";
 const ANY_MEMBERS_CHIP = /^Members — /u;
 
 /** A human seat — `role` seats a host/member (the roster shape); `displayName` names the seat. */
-type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+type ParticipantFixture = NonNullable<TrpcWireOutput<"chat.getChat">["participants"]>[number];
 
 function human(role: ParticipantRole): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `participant_${role}`,
     kind: "human",
     role,
@@ -31,12 +32,12 @@ function human(role: ParticipantRole): ParticipantFixture {
     displayName: role === "host" ? "Alex" : "Guest",
     avatarHash: null,
     leftSeq: null,
-  };
+  });
 }
 
 /** A present character seat (the Cast population). */
 function character(name: string): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `participant_${name.toLowerCase()}`,
     kind: "character",
     role: "member",
@@ -45,23 +46,24 @@ function character(name: string): ParticipantFixture {
     displayName: name,
     avatarHash: null,
     leftSeq: null,
-  };
+  });
 }
 
 test("a GROUP chat shows the chip counting the PRESENT seats the Members tab lists, never a departed one (Members \u2014 N)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": () => ({
-      title: "Council of Two",
-      participants: [
-        human("host"),
-        // A DEPARTED human (leftSeq stamped) — must NOT count toward the Members population.
-        { ...human("member"), id: "participant_gone", userId: "user_gone", leftSeq: 41 },
-        character("Aria"),
-        character("Bolt"),
-      ],
-      viewerIsHost: true,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        title: "Council of Two",
+        participants: [
+          human("host"),
+          // A DEPARTED human (leftSeq stamped) — must NOT count toward the Members population.
+          { ...human("member"), id: "participant_gone", userId: "user_gone", leftSeq: 41 },
+          character("Aria"),
+          character("Bolt"),
+        ],
+        viewerIsHost: true,
+      }),
     "chat.listMessages": () => makeMessagesPage([]),
   });
 
@@ -79,7 +81,7 @@ test("a GROUP chat shows the chip counting the PRESENT seats the Members tab lis
 // name and a cast. The pending state is pinned as a SETTLED render (the read is HELD, never raced), then
 // released so the same mount proves the real identity still lands.
 test("while chat.getChat is unresolved the header shows a skeleton — never 'Untitled chat · 0 members'", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"chat.getChat">();
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": hold,
@@ -96,11 +98,13 @@ test("while chat.getChat is unresolved the header shows a skeleton — never 'Un
   await expect(component.getByRole("button", { name: ANY_MEMBERS_CHIP })).toHaveCount(0);
   await expect(component.locator('[data-slot="chat-header-pending"]')).toBeVisible();
 
-  hold.release({
-    title: "Council of Two",
-    participants: [human("host"), character("Aria")],
-    viewerIsHost: true,
-  });
+  hold.release(
+    makeChatDetail({
+      title: "Council of Two",
+      participants: [human("host"), character("Aria")],
+      viewerIsHost: true,
+    }),
+  );
 
   await expect(component.getByRole("button", { name: "Members — 2" })).toBeVisible();
   await expect(component.locator('[data-slot="chat-header-pending"]')).toHaveCount(0);
@@ -118,11 +122,12 @@ test.describe("narrow/touch viewport", () => {
   test("tapping the Members chip reveals the CONTEXT overlay on the members tab (was dead <64rem)", async ({ mount, page }) => {
     await routeTrpc(page, {
       ...CHAT_AMBIENT_ROUTES,
-      "chat.getChat": () => ({
-        title: "Council of Two",
-        participants: [human("host"), character("Aria"), character("Bolt")],
-        viewerIsHost: true,
-      }),
+      "chat.getChat": () =>
+        makeChatDetail({
+          title: "Council of Two",
+          participants: [human("host"), character("Aria"), character("Bolt")],
+          viewerIsHost: true,
+        }),
       "chat.listMessages": () => makeMessagesPage([]),
     });
 
@@ -147,11 +152,12 @@ test.describe("narrow/touch viewport", () => {
 test("the members chip counts the PRESENT people and opens the Members tab — in a solo room too", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": () => ({
-      title: "",
-      participants: [human("host"), character("Aria")],
-      viewerIsHost: true,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        title: "",
+        participants: [human("host"), character("Aria")],
+        viewerIsHost: true,
+      }),
     "chat.listMessages": () => makeMessagesPage([]),
   });
 
@@ -168,11 +174,12 @@ test("the members chip counts the PRESENT people and opens the Members tab — i
 test("a NON-host gets the same chip and the same one door (no host-forked topbar roster)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": () => ({
-      title: "",
-      participants: [human("host"), character("Aria")],
-      viewerIsHost: false,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        title: "",
+        participants: [human("host"), character("Aria")],
+        viewerIsHost: false,
+      }),
     "chat.listMessages": () => makeMessagesPage([]),
   });
 
@@ -195,7 +202,7 @@ test("a NON-host gets the same chip and the same one door (no host-forked topbar
 test("the CONTEXT band renders neutral chrome, never a second identity cluster", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": { title: "Test chat", participants: [], identities: [] },
+    "chat.getChat": makeChatDetail({ title: "Test chat", participants: [], identities: [] }),
   });
 
   const component = await mount(<ChatContextHeaderStory />);
@@ -212,7 +219,7 @@ test("#239: the room title carries its full value as a title attribute", async (
   const longTitle = "Example — The Rust Lecture, and What Came After";
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": () => ({ title: longTitle, participants: [human("host"), character("Birdie")] }),
+    "chat.getChat": () => makeChatDetail({ title: longTitle, participants: [human("host"), character("Birdie")] }),
     "chat.listMessages": () => makeMessagesPage([]),
   });
   const cmp = await mount(<ChatHeaderStory />);
@@ -350,12 +357,13 @@ test("a solo room's header carries the character's face; a group room's faces li
 
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    "chat.getChat": () => ({
-      title: "Council",
-      participants: [human("host"), character("Aria"), character("Bolt")],
-      viewerIsHost: true,
-      createdAt: FROZEN_AT_MS,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        title: "Council",
+        participants: [human("host"), character("Aria"), character("Bolt")],
+        viewerIsHost: true,
+        createdAt: FROZEN_AT_MS,
+      }),
     "chat.listMessages": () => makeMessagesPage([]),
   });
   const group = await mount(<ChatHeaderStory />);

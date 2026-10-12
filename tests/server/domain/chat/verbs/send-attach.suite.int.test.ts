@@ -15,12 +15,13 @@ import type { Db } from "@orb/db";
 import { assets, messageAssets } from "@orb/db";
 import type { AssetId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createAssetsService } from "@orb/server/domain/assets";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { and, eq, inArray } from "drizzle-orm";
-import { beforeEach, describe } from "vitest";
+import { eq } from "drizzle-orm";
+import { beforeEach, describe, onTestFinished } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
@@ -30,6 +31,7 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createTurn } from "#server/domain/chat/verbs/turn.ts";
+import { makeHarness } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
 function principal(userId: UserId): Principal {
@@ -85,24 +87,18 @@ interface Harness {
   events: ChatBusEvent[];
 }
 
-/** A minimal real-engine harness whose `filterOwnedAssetIds` is the REAL owner-scoped `assets` query. */
-function harness(database: Db, names: Readonly<Record<string, string>>): Harness {
+/** A minimal real-engine harness whose `filterOwnedAssetIds` is the assets verb compose wires. */
+async function harness(database: Db, names: Readonly<Record<string, string>>): Promise<Harness> {
   const events: ChatBusEvent[] = [];
+  const assetsHarness = await makeHarness(database);
+  onTestFinished(assetsHarness.cleanup);
+  const assetsService = createAssetsService(assetsHarness.ctx);
   const ctx = makeChatContext(database, {
     runChatTurn: scripted("ok"),
     getCard: () => Promise.resolve(STUB_CARD),
-    // #67 — the REAL trust boundary: the owner-scoped subset among the claimed ids (a foreign owner's asset
-    // is absent, exactly as `assets.resolveOwnedAssetRefs` would return it).
-    filterOwnedAssetIds: async (userId, assetIds) => {
-      if (assetIds.length === 0) {
-        return [];
-      }
-      const rows = await database
-        .select({ id: assets.id })
-        .from(assets)
-        .where(and(eq(assets.ownerId, userId), inArray(assets.id, [...assetIds])));
-      return rows.map((r) => r.id);
-    },
+    // #67 — the trust boundary is the owner-scoped subset among the claimed ids (a foreign owner's asset is
+    // absent), answered by the same assets verb compose wires.
+    filterOwnedAssetIds: async (userId, assetIds) => (await assetsService.resolveOwnedAssetRefs(userId, assetIds)).map((ref) => ref.assetId),
   });
   void names;
   const emit = (event: ChatBusEvent): Promise<void> => {
@@ -161,7 +157,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
   test("an OWNED attachment lands a message_assets row + an asset:<id> body ref on the user turn", async () => {
     const { host, chatId } = await seedSolo(db);
     const assetId = await seedAsset(db, host, "owned");
-    const h = harness(db, {});
+    const h = await harness(db, {});
 
     const outcome = await h.turn.send({
       principal: principal(host),
@@ -186,7 +182,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
   test("a message with NO attachments writes NO message_assets rows (byte-identical to a plain send)", async () => {
     const { host, chatId } = await seedSolo(db);
-    const h = harness(db, {});
+    const h = await harness(db, {});
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "plain" });
 
@@ -199,7 +195,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
     const { host, chatId } = await seedSolo(db);
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreignAsset = await seedAsset(db, stranger, "foreign");
-    const h = harness(db, {});
+    const h = await harness(db, {});
 
     await expect(
       h.turn.send({
@@ -220,7 +216,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
     const { chatId } = await seedSolo(db);
     const outsider = await seedUser(db, castId<Handle>("outsider"));
     const outsiderAsset = await seedAsset(db, outsider, "outsider");
-    const h = harness(db, {});
+    const h = await harness(db, {});
 
     await expect(
       h.turn.send({

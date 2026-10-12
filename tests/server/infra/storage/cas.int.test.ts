@@ -2,13 +2,13 @@
 // integration lane: real I/O, serial). Pins the D21 per-user keying (owner isolation + same-hash-
 // different-owner coexistence), the round-trip, dedup, the path-traversal guards, verify, and the walks.
 
-import { createHash } from "node:crypto";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe } from "vitest";
@@ -19,10 +19,6 @@ const BYTES = new TextEncoder().encode("orbweaver-cas-fixture-bytes");
 const OTHER_BYTES = new TextEncoder().encode("a-different-blob-entirely");
 const SHARD_A_END = 2;
 const SHARD_B_END = 4;
-
-function sha256Hex(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
 
 async function collect(iter: AsyncIterable<string>): Promise<string[]> {
   const out: string[] = [];

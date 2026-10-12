@@ -11,7 +11,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -30,7 +30,7 @@ const DIGEST_FIELD = PROSE_SLOTS[DIGEST].title;
 
 type ProseOverrides = UserSettings["prose"];
 
-function settingsView(prose: ProseOverrides = {}): TrpcFixtureOutput<"settings.getUserSettings"> {
+function settingsView(prose: ProseOverrides = {}): TrpcWireOutput<"settings.getUserSettings"> {
   return { userId: "user_ct_prose", schemaVersion: 7, config: { ...DEFAULT_USER_SETTINGS, prose }, configUnreadable: null, updatedAt: 0 };
 }
 

@@ -30,16 +30,21 @@ import type {
   DocumentId,
   Handle,
   ImageEmbeddingId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
+import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
@@ -116,9 +121,12 @@ export function fakeVector(dim: number = EMBED_DIM, seed = 1): Float32Array<Arra
   return v;
 }
 
+// The scripted image encoder sits at the provider edge, so it also records the request's abort signal.
+type ScriptedImageEmbed = (req: ImageEmbedInput, opts?: { readonly signal?: AbortSignal | undefined }) => ReturnType<RoleClients["imageEmbed"]>;
+
 export interface FakeRoleClients extends RoleClients {
   readonly embed: Mock<RoleClients["embed"]>;
-  readonly imageEmbed: Mock<RoleClients["imageEmbed"]>;
+  readonly imageEmbed: Mock<ScriptedImageEmbed>;
   readonly rerank: Mock<RoleClients["rerank"]>;
   readonly summarize: Mock<RoleClients["summarize"]>;
   readonly structured: Mock<RoleClients["structured"]>;
@@ -141,7 +149,7 @@ export function makeRoleClients(vision = true, imageArm: FakeImageArm = "joint")
       usage: { promptTokens: null, totalTokens: null },
     }),
   );
-  const imageEmbed: Mock<RoleClients["imageEmbed"]> = vi.fn<RoleClients["imageEmbed"]>((req: ImageEmbedInput) =>
+  const imageEmbed: Mock<ScriptedImageEmbed> = vi.fn<ScriptedImageEmbed>((req: ImageEmbedInput) =>
     Promise.resolve({
       vectors: [fakeVector(EMBED_DIM, req.kind === "multimodal" ? 3 : 2)],
       model: IMAGE_EMBED_MODEL,
@@ -268,32 +276,29 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     roleClientsFor: () => Promise.resolve(roleClients),
     withStableEmbeddingBinding: (_ownerId, read) => read(),
     resolveUtilityPresetParams: () => Promise.resolve(undefined),
-    resolveEmbeddingConnection: async (_ownerId, task) => {
-      const resolved = await roleClients.resolved(task);
-      const dtype = embedDtype.current;
-      const capability =
-        task === "embed" && dtype !== undefined && resolved !== null && resolved.capability.kind === "embedding"
-          ? { ...resolved.capability, embedding: { ...resolved.capability.embedding, dtype } }
-          : resolved?.capability;
-      return resolved === null || capability === undefined
-        ? null
-        : {
-            ...resolved,
-            capability,
-            api: "test",
-            wire: "test",
-            baseUrl: null,
-            features: {},
-            extras: null,
-            transport: null,
-            embed: roleClients.embed,
-            imageEmbed: roleClients.imageEmbed,
-          };
-    },
+    // Compose's own resolve over the scripted encoders, with the owner's dtype (`embedDtypeAs`) on the bound view.
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(
+      makeEmbeddingRuntime(
+        {
+          embed: (input, opts) => roleClients.embed(input, opts),
+          imageEmbed: (input, opts) => roleClients.imageEmbed(input, opts),
+          resolved: async (task) => {
+            const resolved = await roleClients.resolved(task);
+            const dtype = embedDtype.current;
+            return task === "embed" && dtype !== undefined && resolved !== null && resolved.capability.kind === "embedding"
+              ? { ...resolved, capability: { ...resolved.capability, embedding: { ...resolved.capability.embedding, dtype } } }
+              : resolved;
+          },
+        },
+        vectorConnectionOf,
+      ),
+      (userId) => Promise.resolve(principal(userId)),
+    ),
     // The entity OWNER reads (the funder of every sweep) — the harness's seeded rows all belong to whoever the
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
+    loadChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
     // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
     onTargetGenerationMoved: () => undefined,
     onTargetPromoted: () => undefined,
@@ -366,38 +371,23 @@ interface SeedUserOverrides {
   readonly handle?: Handle;
 }
 
+/** Each owner's own bound encoder row, as two real users each bind their own. */
+export function vectorConnectionOf(ownerId: UserId): UserConnectionId {
+  return castId<UserConnectionId>(`user_connection_vector_${ownerId}`);
+}
+
 /**
- * Seed the `user_connections` row every REAL embeddings write resolves through — the FK parent of
- * `embed_generations.connection_id` (`substrate/generation.ts` `resolveTargetGeneration`, which runs on the
- * first `store()` of every sweep).
- *
- * THE ROW IS NOT DECORATION, AND IT IS NOT OPTIONAL. The shared fake `roleClients` resolve every owner to
- * {@link TEST_CONNECTION_ID} (`tests/support/node/factories/resolved-connection.ts`) — the id is minted there as a
- * pure const and NOTHING seeds the row it points at. With no row, the generation insert fails the FK and the
- * failure surfaces wherever the caller happens to swallow it: an embeddings verb throws outright, while
- * databank's ingest accumulator records it as DATA (`failed[]`) and every count reads zero, leaving the suite
- * quietly, plausibly green. Three lanes hit this on three different days; this helper is the one home.
- *
- * WHY THE SEEDER IS HERE AND NOT AT THE ID'S MINT. `tests/support/node/factories/resolved-connection.ts` is
- * imported by BROWSER-world CT stories (`tests/client/features/preset/components/_params-deck-stories.tsx`,
- * `readout/_readout-stories.tsx`, `_message-handling-stories.tsx` and their `.ct.tsx` specs) — giving it a
- * `@orb/db` import would drag the node-only db package into the CT bundle. So the id stays a pure const with
- * a pointer comment, and the FK parent is seeded here, in the node-world harness that owns the write path.
- *
- * ONE row per db, not one per owner: the fake resolves a single connection id for everybody, so a second
- * owner's generation necessarily points at the same row (`onConflictDoNothing` keeps the first seeder's).
- * The FK is the only thing that reads it — nothing projects the connection's owner.
- *
- * MODULE-PRIVATE, and `seedUser` below is the one door. Every consumer — including databank's
- * harness, which re-exports `seedUser` — reaches the FK parent by seeding an owner, never by calling
- * this directly, so exporting it left knip with an importer-less export. The four sibling comments
- * that name this function by name stay true: it is still the one home for the parent row.
+ * Seed the owner's bound encoder row: the FK parent of `embed_generations.connection_id`
+ * (`resolveTargetGeneration` runs on the first `store()` of every sweep). With no row the generation insert fails
+ * the FK, and databank's ingest accumulator records that as DATA (`failed[]`), so a suite reads quietly green.
+ * Kept out of `tests/support/node/factories/resolved-connection.ts` because browser-world CT stories import that file,
+ * and an `@orb/db` import there would drag the node-only db package into the CT bundle.
  */
-async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {
+export async function seedVectorConnection(db: Db, ownerId: UserId): Promise<void> {
   await db
     .insert(userConnections)
     .values({
-      id: TEST_CONNECTION_ID,
+      id: vectorConnectionOf(ownerId),
       ownerId,
       label: "test vector connection",
       providerId: testProviderId(TEST_PROVIDER_ID),

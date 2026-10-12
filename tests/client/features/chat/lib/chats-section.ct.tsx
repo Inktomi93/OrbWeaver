@@ -18,13 +18,15 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { CHAT_SETTINGS_SECTIONS_READS_EMPTY } from "@orb/testkit/node/chat-settings-sections-reads-empty.ts";
+import { makeChatDetail, makeCreateInviteResult, makeParticipantView, makeShapeTrace } from "@orb/testkit/node/factories/chat-view.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 
@@ -97,29 +99,17 @@ async function stubMultiHumanCapable(page: Page, capable: boolean): Promise<void
 // A human seat in the room — `role` seats a host/member (the roster shape); the surface's host gate is
 // the separate server-resolved `viewerIsHost` field, NOT this seat's role. The rest is filler the panel
 // ignores.
-type ChatParticipant = TrpcWireOutput<"chat.getChat">["participants"][number];
 type ChatIdentity = TrpcWireOutput<"chat.getChat">["identities"][number];
-type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
-  ? TKey extends keyof T
-    ? NonNullable<T[TKey]> extends readonly (infer Item)[]
-      ? Item
-      : never
-    : never
-  : never;
-type ParticipantFixture = FixtureArrayElement<TrpcFixtureOutput<"chat.getChat">, "participants">;
-type HumanSeat = Pick<
-  ChatParticipant,
-  "activePersonaId" | "avatarHash" | "characterId" | "displayName" | "handle" | "id" | "kind" | "leftSeq" | "role" | "userId"
->;
+type ParticipantFixture = TrpcWireOutput<"chat.getChat">["participants"][number];
 
 function human(role: ParticipantRole): ParticipantFixture {
-  return { kind: "human", role, userId: "user_ct", characterId: null };
+  return makeParticipantView({ kind: "human", role, userId: "user_ct", characterId: null });
 }
 
 // A character seat — the fields `resolveIsGroupChat` AND the Members Character rows read (the §7.1 merge
 // projects displayName/disabled/talkativeness/avatarHash into `MemberCharacterRow`s).
 function character(key: string): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `participant_${key}`,
     kind: "character",
     userId: null,
@@ -130,25 +120,21 @@ function character(key: string): ParticipantFixture {
     talkativeness: 0.5,
     avatarHash: null,
     leftSeq: null,
-  };
+  });
 }
 
 // `role` seats the viewer's OWN human row AND sets the server-resolved `viewerIsHost` to match — the
 // honest single-human case where the seat and the server field agree (the proxy-vs-server DISAGREEMENT
 // is exercised by its own dedicated test below).
-function chatDetail(
-  role: ParticipantRole,
-  roomOverrides: RoomOverrides = {},
-  characters: readonly ParticipantFixture[] = [],
-): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function chatDetail(role: ParticipantRole, roomOverrides: RoomOverrides = {}, characters: readonly ParticipantFixture[] = []): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     participants: [human(role), ...characters],
     // `ChatDetail.identities` is server-populated on every getChat; a tab that resolves a seat's persona through it
     // (the Members tab) reads an empty producer as "this seat plays nobody", never as a crash.
     identities: [],
     roomOverrides,
     viewerIsHost: role === "host",
-  };
+  });
 }
 
 // A minimal AssemblyPreview ({ prompt, trace }) — proves the Preview tab renders the assembled halves +
@@ -212,8 +198,8 @@ function emptyTrace(): AssemblyTrace {
 // load-bearing now: a human row renders the PERSONA it is playing, resolved against the room's characters producer
 // (#162). The `handle` stays on the WIRE stub, spelled as an EMAIL exactly as an OIDC install ships it,
 // because the point of the change is that no row can render it as a second identity beside the name.
-function humanSeat(id: string, displayName: string, role: ParticipantRole): HumanSeat {
-  return {
+function humanSeat(id: string, displayName: string, role: ParticipantRole): ParticipantFixture {
+  return makeParticipantView({
     id: `participant_${id}`,
     kind: "human",
     role,
@@ -224,7 +210,7 @@ function humanSeat(id: string, displayName: string, role: ParticipantRole): Huma
     handle: `${displayName.toLowerCase()}@example.test`,
     avatarHash: null,
     leftSeq: null,
-  };
+  });
 }
 
 /** The persona IDENTITY entry a {@link humanSeat} is playing — what turns its `activePersonaId` into a name. */
@@ -234,19 +220,16 @@ function personaEntry(id: string, name: string): ChatIdentity {
 
 // A `ChatDetail` stub for the People-tab cases — carries the server-resolved `viewerIsHost` (the
 // invite-controls gate; NOT the first-seat proxy the older tabs still use) and the room's characters producer.
-function multiHumanChat(viewerIsHost: boolean, humans: readonly HumanSeat[]): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function multiHumanChat(viewerIsHost: boolean, humans: readonly ParticipantFixture[]): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     participants: [...humans, character("aria")],
-    identities: humans.map((h) => personaEntry(String(h["userId"]).replace("user_", ""), String(h["displayName"]))),
+    identities: humans.map((h) => personaEntry(String(h.userId).replace("user_", ""), h.displayName)),
     roomOverrides: {},
     viewerIsHost,
-  };
+  });
 }
 
-const CREATED_INVITE = {
-  invite: { id: "chatinvite_ct_new", status: "pending" },
-  token: "tok_ct_minted",
-} satisfies TrpcFixtureOutput<"invites.createInvite">;
+const CREATED_INVITE = makeCreateInviteResult({ invite: { ...makeCreateInviteResult().invite, id: "chatinvite_ct_new" } });
 
 test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -317,7 +300,7 @@ test("a HOST with NO characters still gets the Members tab — the empty state I
     "chat.getChat": () => chatDetail("host", {}, []),
     "chat.listChatInjections": () => [],
     "chat.previewAssembly": () => PREVIEW,
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
   });
 
   const component = await mount(<ChatContextPanelStory />);
@@ -609,11 +592,12 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
     // The FIRST human seat is a host, so the old `resolveViewerIsHost` first-seat proxy would return
     // TRUE and mis-grant host UI. The server-resolved `viewerIsHost:false` says THIS viewer is a
     // member — the migrated Settings/Preview/Injections tabs must obey the server field, not the seat.
-    "chat.getChat": () => ({
-      participants: [human("host"), human("member")],
-      roomOverrides: { mainPrompt: "Be terse." },
-      viewerIsHost: false,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        participants: [human("host"), human("member")],
+        roomOverrides: { mainPrompt: "Be terse." },
+        viewerIsHost: false,
+      }),
     "chat.listChatInjections": () => [],
   });
 
@@ -641,11 +625,7 @@ test("the Preview tab renders the assembled prompt + trace", async ({ mount, pag
     "chat.previewAssembly": () => PREVIEW,
     // The restored ShapeTrace half fires a PARALLEL suspense read (#12) — a valid content-free trace
     // shape, else the unlisted-proc `data:null` default suspends the whole panel forever.
-    "chat.getShapeTrace": () => ({
-      multiCharacter: false,
-      stageCounts: { withTail: 3, injected: 3, squashed: 3, named: 3 },
-      squashMerges: 0,
-    }),
+    "chat.getShapeTrace": () => makeShapeTrace({ stageCounts: { withTail: 3, injected: 3, squashed: 3, named: 3 } }),
   });
 
   const component = await mount(<ChatContextPanelStory />);
@@ -830,7 +810,7 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
-    "chat.getChat": { title: "The Ashfall Road", participants: [], identities: [], group: DEFAULT_GROUP_CONFIG },
+    "chat.getChat": makeChatDetail({ title: "The Ashfall Road", participants: [], identities: [], group: DEFAULT_GROUP_CONFIG }),
     "chat.listMessages": { messages: [], identities: [] },
     "chat.previewContextFit": {
       boundaryMessageId: null,

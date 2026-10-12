@@ -5,18 +5,24 @@
 // override sends the leaf `null` (reset-to-default). Asserts the fired patch shape (assert-the-mutation-fired).
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
+
 import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { PresetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { ImageryTemplatesSectionStory } from "../_ct-stories.tsx";
 
 /** Build the getUserSettings view with an optional imagery override seed (default: virgin — no overrides). */
-function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): TrpcFixtureOutput<"settings.getUserSettings"> {
-  return { userId: "user_ct_imagery", schemaVersion: 6, config: { ...DEFAULT_USER_SETTINGS, imagery }, configUnreadable: null, updatedAt: 0 };
+function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): TrpcWireOutput<"settings.getUserSettings"> {
+  return userSettingsView({ imagery }, { schemaVersion: 6 });
 }
 
 function stub(page: Page, imagery?: (typeof DEFAULT_USER_SETTINGS)["imagery"]): Promise<TrpcRecorder> {
@@ -25,7 +31,7 @@ function stub(page: Page, imagery?: (typeof DEFAULT_USER_SETTINGS)["imagery"]): 
     [UPDATE_USER_SETTINGS_SECTION]: () => settingsView(imagery),
     // IMGMAC — the section now reads the active-preset plane (the built-in default declares none, so the
     // pre-IMGMAC tests below are unaffected: the hook doesn't even fetch when `defaultPresetId` is null).
-    "preset.get": () => ({ config: { userMacros: [] } }),
+    "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: [] } }),
   });
 }
 
@@ -81,9 +87,9 @@ const USER_MACROS = [{ name: "sceneTone", description: USER_MACRO_GLOSS, args: [
 /** The settings view with a real ACTIVE preset (the plane's source), plus the imagery seed. */
 function stubWithPlane(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "settings.getUserSettings": () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
-    "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
-    [UPDATE_USER_SETTINGS_SECTION]: () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>(ACTIVE_PRESET_ID) } }, { schemaVersion: 6 }),
+    "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: USER_MACROS } }),
+    [UPDATE_USER_SETTINGS_SECTION]: () => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>(ACTIVE_PRESET_ID) } }, { schemaVersion: 6 }),
   });
 }
 

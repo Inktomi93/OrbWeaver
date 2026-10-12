@@ -9,12 +9,13 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail, makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BACK_TO_PARENT_CHAT_LABEL } from "#client/features/chat/lib/chat-options-names.ts";
 import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory, ChatStartFailureMenuStory } from "../_ct-stories.tsx";
-import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
+import { CHAT_ID, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 /** One chats-list row — the fields the row's markers read; the census counts `isGame`. */
 const LIST_ROW = {
@@ -151,10 +152,10 @@ test("#862: the ⋯ item is ONE start action — a single click on 'Turn on game
 });
 
 test("#863: a user-initiated START announces itself and opens the panel on the game's Status tab", async ({ mount, page }) => {
-  const response = trpcHold();
+  const response = trpcHold<"rpg.createGame">();
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "rpg.createGame": response,
   });
   const component = await mount(<ChatGameModeMenuStory />);
@@ -175,7 +176,7 @@ test("#863: a user-initiated START announces itself and opens the panel on the g
 test("#863: the OFF item carries the kept-state line as visible text AND as its accessible description, with a clean name", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": () => ({ ...(CHAT_ROOM_ROUTES["chat.getChat"] as object), rpg: { gameId: "rpg_game_ct", engaged: true } }),
+    "chat.getChat": () => makeChatDetail({ rpg: { gameId: "rpg_game_ct", engaged: true } }),
   });
   const component = await mount(<ChatOptionsMenuStory />);
   await component.getByRole("button", { name: "Chat options" }).click();
@@ -196,10 +197,10 @@ test("#863: the OFF item carries the kept-state line as visible text AND as its 
 });
 
 test("a completed START from an unmounted room owner cannot reveal the replacement room", async ({ mount, page }) => {
-  const response = trpcHold();
+  const response = trpcHold<"rpg.createGame">();
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "rpg.createGame": response,
   });
   const component = await mount(<ChatGameModeMenuStory />);
@@ -220,13 +221,13 @@ test("a completed START from an unmounted room owner cannot reveal the replaceme
 
 test("#863: turning game mode OFF announces the kept state AND repaints the chats-list marker at t+0", async ({ mount, page }) => {
   let engaged = true;
-  const response = trpcHold();
+  const response = trpcHold<"rpg.createGame">();
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": () => ({ ...(CHAT_ROOM_ROUTES["chat.getChat"] as object), rpg: { gameId: "rpg_game_ct", engaged } }),
+    "chat.getChat": () => makeChatDetail({ rpg: { gameId: "rpg_game_ct", engaged } }),
     // The LIST read is a different query carrying its own server-derived marker — it flips the moment the
     // server does, so a stale census can only mean the mutation never invalidated this read.
-    "chat.listChats": () => ({ items: [{ ...LIST_ROW, isGame: engaged, gamePaused: !engaged }], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage([{ ...LIST_ROW, isGame: engaged, gamePaused: !engaged }]),
     "rpg.updateConfig": () => {
       engaged = false;
       return response;
@@ -239,7 +240,7 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
   await page.getByRole("menuitem", { name: "Turn off game mode", exact: true }).click();
   await expect.poll(() => trpc.count("rpg.updateConfig")).toBe(1);
   await expect(page.locator('[data-slot="menu-popup"]')).toHaveCount(0);
-  response.release(null);
+  response.release({ gameId: "rpg_game_ct", trackersReadOnly: false });
 
   await expect(component.getByRole("status")).toHaveText("Game mode off — your sheets, scene and quests are kept");
   // The census flips WITHOUT a reload: `chat.listChats` is in the mutation's invalidation set (#863 P2 —
@@ -251,7 +252,7 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
 const PARENT_CHAT_ID = "chat_ct_parent";
 
 /** The fork's room read: `parentChatId` set, everything else the room default. */
-const FORK_ROOM = { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], parentChatId: PARENT_CHAT_ID } };
+const FORK_ROOM = { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_DETAIL, parentChatId: PARENT_CHAT_ID } };
 
 /** One lineage row; only `id` is the subject, the rest is the summary wire at its empty defaults. */
 function lineageRow(id: string): TrpcWireOutput<"chat.getChatLineage">["chain"][number] {
@@ -282,7 +283,7 @@ test("a fork whose parent the lineage omits offers no Back to parent chat", asyn
 });
 
 test("a chat that is not a fork offers no Back to parent chat and never reads lineage", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], parentChatId: null } });
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.getChat": makeChatDetail({ parentChatId: null }) });
   const component = await mount(<ChatForkMenuStory />);
 
   await component.getByRole("button", { name: "Chat options", exact: true }).click();

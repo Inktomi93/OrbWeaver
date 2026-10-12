@@ -4,6 +4,8 @@
 // the `empty-extraction` warning as DATA (not a throw).
 // @subject packages/server/src/domain/databank/verbs/upload.ts
 
+// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
+import { ExtractionFailedError } from "@orb/contracts/extraction";
 import type { Db } from "@orb/db";
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
@@ -16,7 +18,7 @@ import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import type { DatabankContext, DatabankService } from "#server/domain/databank/contract/service.ts";
 import { createDatabankService } from "#server/domain/databank/index.ts";
-import { makeHarness } from "../../assets/_support.ts";
+import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
 const BYTES = new TextEncoder().encode("# Notes\n\nThe keeper mends the vellum each dawn.");
@@ -28,7 +30,7 @@ const MISMATCH_RE = /mismatch/iu;
 /** The databank service over the harness ctx but with the REAL `assets.store` (real CAS + the enforceMagic
  *  sniff belt) swapped in for the default fake — the ONE seam DBK-A fixes. */
 async function withRealAssetsStore(db: Db): Promise<DatabankService> {
-  const assetsH = await makeHarness(db);
+  const assetsH = await makeAssetsHarness(db);
   onTestFinished(assetsH.cleanup);
   const assets = createAssetsService(assetsH.ctx);
   const ctx: DatabankContext = { ...makeDatabankHarness(db).ctx, assetsStore: assets.store };
@@ -51,7 +53,7 @@ test("stores the bytes, extracts the canon synchronously, and enqueues ingest", 
   expect(rows[0]?.origin).toBe("upload");
   expect(rows[0]?.sourceAssetId).not.toBeNull();
   expect(rows[0]?.extractedText).toContain("keeper mends the vellum");
-  expect(rows[0]?.extractorVersion).toBe("textlike-1");
+  expect(rows[0]?.extractorVersion).toBe(EXTRACTOR_VERSION);
 });
 
 test("re-upload of identical bytes dedups without re-extracting", async () => {
@@ -110,6 +112,18 @@ test("round-trips through the REAL infra/extraction dispatcher — canon normali
   expect(rows[0]?.extractorVersion).toBe(EXTRACTOR_VERSION); // "1" — not the passthrough's "textlike-1"
   // the real normalize pipeline turned CRLF → \n; markdown syntax kept verbatim.
   expect(rows[0]?.extractedText).toBe("# Real\n\nExtracted through the actual loader.");
+});
+
+// The harness's default extractor is the real dispatcher, so the text loader's strict decode is the canon's own floor:
+// bytes that are not UTF-8 never become a document's text, even when the store admitted them.
+test("invalid UTF-8 past the store is refused at extraction, writing no document", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  await expect(h.service.upload({ principal: principalFor(owner), bytes: BINARY, mime: MIME, name: "x.md" })).rejects.toBeInstanceOf(ExtractionFailedError);
+
+  expect(await db.select().from(documents)).toHaveLength(0);
 });
 
 // DBK-A: at HEAD the enforceMagic belt was image-only, so `assets.store(..., { enforceMagic: true })` threw

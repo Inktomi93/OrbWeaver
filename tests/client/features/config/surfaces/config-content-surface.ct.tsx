@@ -12,12 +12,15 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { readEscapedAbsolutes } from "@orb/testkit/browser/settings-geometry.ts";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeDocumentListPage } from "@orb/testkit/node/factories/databank-view.ts";
 import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
-import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { signInModeView } from "../../user-admin/auth-config-fixtures.ts";
 import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory, ConfigShellDoorStory } from "../_ct-stories.tsx";
 
@@ -129,6 +132,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   // Multi-user's sign-in panel suspends on the boot-fixed mode; unfed, the whole section renders its error state.
   "share.signInMode": signInModeView("single-user"),
   "persona.list": [],
+  "plugin.listCommands": [],
   "credentials.list": [],
   "workloads.list": [],
   "workloads.listSchedules": [],
@@ -517,7 +521,7 @@ test("an ADMIN sees the Distribute section on the Plugins group, and publishing 
 test("server-wide withdrawal names its account-wide effect and holds the confirm through cancel, failure, retry, and success", async ({ mount, page }) => {
   let published: TrpcWireOutput<"plugin.listDistributed"> = [{ slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 }];
   let attempts = 0;
-  const firstWithdrawal = trpcHold();
+  const firstWithdrawal = trpcHold<"plugin.uninstallForAllUsers">();
   await stub(page, {
     "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" },
     "plugin.listDistributed": () => published,
@@ -638,10 +642,10 @@ test("a door from another section lands on a below-the-fold setting through the 
   await page.setViewportSize({ width: 1280, height: 800 });
   await stub(page, {
     "notifications.list": () => ({ items: [], nextCursor: null }),
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
-    "databank.list": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
+    "databank.list": () => makeDocumentListPage(),
     "databank.listGlobal": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
     "databank.bankHealth": () => ({
       total: 0,
       passages: 0,
@@ -676,7 +680,7 @@ test("an add-connection landing from a door focuses the add verb of the empty co
 // The landing's focus waits for the section to mount. A reader who moves on while it suspends keeps their
 // focus: the late landing must not pull it off the search box they are typing in.
 test("a setting-level landing that resolves after the reader moved focus leaves their focus alone", async ({ mount, page }) => {
-  const bindings = trpcHold();
+  const bindings = trpcHold<"connection.listBindings">();
   await stub(page, { "connection.listBindings": bindings });
   await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
 
@@ -703,7 +707,7 @@ test("a setting-level landing that resolves after the reader moved focus leaves 
 
 // Assistive technology and `element.focus()` move focus with no press or key event; the late landing still yields.
 test("a setting-level landing that resolves after a focus move made without input events leaves focus alone", async ({ mount, page }) => {
-  const bindings = trpcHold();
+  const bindings = trpcHold<"connection.listBindings">();
   await stub(page, { "connection.listBindings": bindings });
   await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
 
@@ -1367,7 +1371,7 @@ test("the empty landing shows the library's blurb AND its empty sentence AND its
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The unreadable-blob read: same defaults on the wire, plus the server's verdict. */
-function unreadableSettings(failure: "schema-rejected" | "version-from-future"): TrpcFixtureOutput<"settings.getUserSettings"> {
+function unreadableSettings(failure: "schema-rejected" | "version-from-future"): TrpcWireOutput<"settings.getUserSettings"> {
   return { ...USER_SETTINGS_VIEW, configUnreadable: failure };
 }
 

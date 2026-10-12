@@ -19,7 +19,6 @@ import type { PruneMemoryBlocksParams } from "../contract/params.ts";
 import type { PruneMemoryBlocksResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
-import { loadChatHostOwnerForPrune } from "../persistence/queries.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 function assertNever(value: never): never {
@@ -28,7 +27,7 @@ function assertNever(value: never): never {
 
 export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsService["pruneMemoryBlocks"] {
   return async (params: PruneMemoryBlocksParams): Promise<PruneMemoryBlocksResult> => {
-    const ownerId = await loadChatHostOwnerForPrune(ctx.db, params.chatId);
+    const ownerId = await ctx.loadChatHostUserId(params.chatId);
     const generation = ownerId === null ? null : await resolveTargetGeneration(ctx, ownerId, "embed");
     if (generation === null) {
       return { rowsDeleted: 0 };

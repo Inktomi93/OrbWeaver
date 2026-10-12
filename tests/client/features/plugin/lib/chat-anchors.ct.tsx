@@ -28,6 +28,7 @@ import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -36,6 +37,7 @@ import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_PANEL_UNDO_LABEL, PLUGIN_PANELS_SHEET_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import {
   PluginChatFlankRoomStory,
@@ -110,7 +112,7 @@ const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.listReactions" | "chat
   // the honest fixture for these arms: they are about the FLANK's geometry, and a room where nobody has reacted
   // is both the common case and the one whose layout the silent-arm pins compare.
   "chat.listReactions": () => ({ reactionsEnabled: true, groups: [] }),
-  "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+  "chat.getChat": () => makeChatDetail({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({
     boundaryMessageId: null,
     usedTokens: 120,
@@ -389,7 +391,7 @@ test.describe("a touch device", () => {
       ...CHAT_AMBIENT_ROUTES,
       ...ROOM_ROUTES,
       // A room MEMBER, not its host: the panels are the viewer's own plugins' and the door is not host-gated.
-      "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG, viewerIsHost: false }),
+      "chat.getChat": () => makeChatDetail({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG, viewerIsHost: false }),
       ...hiddenPluginRoutes(),
       "plugin.list": () => [pluginRow("enabled")],
       "plugin.listSurfaces": () => [surfaceRow("chat-flank", "affinity_flank", "Warmth", FLANK_SPEC), FRAME_SURFACE_ROW],
@@ -470,26 +472,21 @@ test("a fine pointer keeps the panels in the room's own column, so Message tools
 
 // ── The real shell: the column, its edge control, and the phone topbar ─────────────────────────────────────
 
-const HOST_SEAT = {
+const HOST_SEAT = makeParticipantView({
   id: "participant_host",
   kind: "human",
   role: "host",
   userId: "user_ct_plugin_shell",
   characterId: null,
   displayName: "Alex",
-  avatarHash: null,
-  leftSeq: null,
-} as const;
-const CHARACTER_SEAT = {
+});
+const CHARACTER_SEAT = makeParticipantView({
   id: "participant_hikari",
   kind: "character",
   role: "member",
-  userId: null,
   characterId: "character_hikari",
   displayName: "Hikari",
-  avatarHash: null,
-  leftSeq: null,
-} as const;
+});
 
 /** The phone shell's reads, the room's, and the plugin plane's, with a frame beside a static panel. The room is the
  *  owner's shape: the viewer hosts it with one character, so the topbar carries the Members and Memory chips. */
@@ -498,18 +495,19 @@ async function routeShell(page: Page, surfaces: readonly PluginSurfaceRow[] = [F
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...ROOM_ROUTES,
-    "chat.getChat": () => ({
-      title: "Hikari — Oct 3, 2026 (5)",
-      participants: [HOST_SEAT, CHARACTER_SEAT],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-      viewerIsHost: true,
-    }),
+    "chat.getChat": () =>
+      makeChatDetail({
+        title: "Hikari — Oct 3, 2026 (5)",
+        participants: [HOST_SEAT, CHARACTER_SEAT],
+        anchorPersonaId: null,
+        identities: [],
+        group: DEFAULT_GROUP_CONFIG,
+        viewerIsHost: true,
+      }),
     ...hiddenPluginRoutes(),
     // The shell's own ambient reads, at their empty-but-real defaults: none of them is this file's subject.
     ...CHAT_AND_INBOX_READS_EMPTY,
-    "character.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
+    "character.list": characterListResponder([]),
     "databank.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
     "databank.bankHealth": () => ({
       byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
@@ -900,7 +898,8 @@ const TAB_ROUTES: TrpcRoutes<
   "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
-  "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+  "chat.getChat": () =>
+    makeChatDetail({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
   // The #1742 Regex section's four reads (#1786). Its HEADING chip reads `chat.listEffectiveRegex`
   // eagerly — outside any disclosure — so an unfed tab took the section's error arm and the whole host
   // band failed to render, which is what made the two tests below red. The shared off-and-empty

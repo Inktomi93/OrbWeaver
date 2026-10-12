@@ -7,21 +7,17 @@
 //   • `dryRun` writes nothing AND forecasts the real link/mismatch split (the params contract's promise).
 // @subject packages/server/src/domain/assets/verbs/backfill-avatars.ts
 
-import { createHash } from "node:crypto";
 import { assets, characters } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished, vi } from "vitest";
 import type { BackfillCard } from "#server/domain/assets/contract/maintenance.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";
-
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
 
 async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: CharacterId): Promise<AssetId | null | undefined> {
   const rows = await db.select({ avatarAssetId: characters.avatarAssetId }).from(characters).where(eq(characters.id, characterId));
@@ -42,7 +38,7 @@ describe("backfillAvatars", () => {
     const put = vi.spyOn(h.ctx.cas, "putBytes");
     const cancellation = { signal: controller.signal };
     expect(
-      await svc.backfillAvatars({ ownerId: owner, cards: [{ characterId: character, bytes, importHash: sha256(bytes) }], dryRun, ...cancellation }),
+      await svc.backfillAvatars({ ownerId: owner, cards: [{ characterId: character, bytes, importHash: sha256Hex(bytes) }], dryRun, ...cancellation }),
     ).toEqual({ scanned: 0, linked: 0, mismatched: 0, dryRun });
     expect(put).not.toHaveBeenCalled();
     expect(await avatarOf(db, character)).toBeNull();
@@ -59,7 +55,7 @@ describe("backfillAvatars", () => {
     for (let i = 0; i < 9; i++) {
       const characterId = await seedCharacter(db, owner, { id: `character_${i}`, handle: castId<CharacterHandle>(`hero_${i}`) });
       const bytes = pngBytes(i);
-      cards.push({ characterId, bytes, importHash: sha256(bytes) });
+      cards.push({ characterId, bytes, importHash: sha256Hex(bytes) });
     }
     const controller = new AbortController();
     const putReal = h.ctx.cas.putBytes.bind(h.ctx.cas);
@@ -90,7 +86,7 @@ describe("backfillAvatars", () => {
 
     const result = await svc.backfillAvatars({
       ownerId: owner,
-      cards: [{ characterId: character, bytes, importHash: sha256(bytes) }],
+      cards: [{ characterId: character, bytes, importHash: sha256Hex(bytes) }],
     });
 
     expect(result).toEqual({ scanned: 1, linked: 1, mismatched: 0, dryRun: false });
@@ -137,7 +133,7 @@ describe("backfillAvatars", () => {
     // The integrity verdict is knowable from the bytes alone, so a rejected card must cost nothing: no row…
     expect(await db.select().from(assets)).toHaveLength(0);
     // …and no blob (an indexed-then-rejected card is an unreferenced asset GC has to clean up an hour later).
-    expect(await h.ctx.cas.exists(owner, sha256(bytes))).toBe(false);
+    expect(await h.ctx.cas.exists(owner, sha256Hex(bytes))).toBe(false);
   });
 
   test("dryRun forecasts the link/mismatch split without writing anything", async () => {
@@ -154,7 +150,7 @@ describe("backfillAvatars", () => {
     const result = await svc.backfillAvatars({
       ownerId: owner,
       cards: [
-        { characterId: hero, bytes: good, importHash: sha256(good) },
+        { characterId: hero, bytes: good, importHash: sha256Hex(good) },
         { characterId: villain, bytes: bad, importHash: "deadbeef" },
       ],
       dryRun: true,

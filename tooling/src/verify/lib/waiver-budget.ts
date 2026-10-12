@@ -51,7 +51,7 @@ const APPLICATION = Object.freeze({
   "no-inline-types": 5,
   "no-inline-wire-interface": 31,
   "no-legacy-react-api": 2,
-  "no-loose-id-cast": 34,
+  "no-loose-id-cast": 35,
   "no-manual-memo": 3,
   "no-raw-clock": 2,
   "no-raw-egress": 2,
@@ -61,15 +61,15 @@ const APPLICATION = Object.freeze({
   "no-raw-matchmedia": 6,
   "no-raw-random": 1,
   "no-raw-zustand-persist": 4,
-  "no-test-fabrication": 1641,
+  "no-test-fabrication": 1636,
   "no-unruled-flip-inversion": 1,
   "no-untyped-soft-ref": 13,
-  "no-vanity-alias": 91,
+  "no-vanity-alias": 92,
   "nullable-column-inequality": 1,
   "one-principal-mint-population": 4,
   "over-art-plate-arm": 1,
   "owner-role-split": 5,
-  "owner-scoped-reads": 31,
+  "owner-scoped-reads": 48,
   "owner-scoped-writes": 29,
   "package-subpath-crossing": 17,
   "persistence-boundary": 4,
@@ -92,9 +92,8 @@ const APPLICATION = Object.freeze({
   "test-determinism": 80,
   "test-file-size": 52,
   "test-hand-shape": 13,
-  "test-production-clone": 17,
   "test-reach": 112,
-  "tests-raw-package-reach": 2487,
+  "tests-raw-package-reach": 2475,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,
   "tooling-browser-door": 2,
@@ -119,12 +118,11 @@ const IMPLEMENTATION = Object.freeze({
   "caught-failure-ownership": 23,
   "no-inline-types": 2,
   "no-loose-id-cast": 15,
-  "no-test-fabrication": 582,
+  "no-test-fabrication": 581,
+  "no-vanity-alias": 1,
   suppressions: 7,
   "test-determinism": 32,
   "test-file-size": 11,
-  "test-mock-doctrine": 7,
-  "test-production-clone": 8,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,
@@ -133,3 +131,7 @@ const IMPLEMENTATION = Object.freeze({
 });
 
 export const WAIVER_BUDGET: WaiverBudget = Object.freeze({ application: APPLICATION, implementation: IMPLEMENTATION });
+
+/** Names the budget a spawned structure run judges against, as JSON in this environment variable. Unset means
+ *  `WAIVER_BUDGET`; the corpus suite sets it so a planted tree is judged against what it plants. */
+export const WAIVER_BUDGET_ENV = "ORB_WAIVER_BUDGET";

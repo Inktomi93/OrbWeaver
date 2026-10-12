@@ -1,6 +1,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { corpusGroupingProvenance } from "@orb/testkit/node/corpus-source.ts";
+import { makeCatalogStats, makeHomeView, makeThemeRow } from "@orb/testkit/node/factories/discovery-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
@@ -50,6 +51,19 @@ export const CORPUS_VIEWER_ROUTE: TrpcRoutes<"sessions.me" | "connection.list" |
   ...UTILITY_RUNNING_ROUTES,
 };
 
+export const UNANALYSED_HOME = makeHomeView({
+  coverage: { characters: 10, digests: 0, segments: 0 },
+  sceneThemes: [],
+  arcThemes: [],
+  duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+});
+export const ANALYSED_HOME = makeHomeView({
+  coverage: { characters: 10, digests: 40, segments: 12 },
+  sceneThemes: [makeThemeRow({ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 })],
+  arcThemes: [],
+  duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+});
+
 /** A library with characters and a finished VISUAL pass only — the invitation holds the focal. */
 export const UNANALYSED: TrpcRoutes<
   | "discovery.home"
@@ -63,13 +77,8 @@ export const UNANALYSED: TrpcRoutes<
   | "settings.getUserSettings"
   | "workloads.list"
 > = {
-  "discovery.home": {
-    coverage: { characters: 10, digests: 0, segments: 0 },
-    sceneThemes: [],
-    arcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  },
-  "discovery.catalog": { totalDistilled: 0, genres: [], tones: [], topTags: [] },
+  "discovery.home": UNANALYSED_HOME,
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 0, genres: [], tones: [], topTags: [] }),
   "discovery.visualArchetypes": FAMILIES,
   "discovery.forgottenGems": [],
   "discovery.unusedCharacters": [],
@@ -84,13 +93,8 @@ export const UNANALYSED: TrpcRoutes<
  *  surface's one remaining door. */
 export const ANALYSED: TrpcRoutes<"discovery.home" | "discovery.catalog"> = {
   ...UNANALYSED,
-  "discovery.home": {
-    coverage: { characters: 10, digests: 40, segments: 12 },
-    sceneThemes: [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
-    arcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  },
-  "discovery.catalog": { totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] },
+  "discovery.home": ANALYSED_HOME,
+  "discovery.catalog": makeCatalogStats({ totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] }),
 };
 
 /** The settled above-fold barrier — the focal island, which only a resolved `discovery.*` batch produces. */

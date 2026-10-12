@@ -9,7 +9,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe } from "vitest";
+import { describe, expectTypeOf } from "vitest";
 import {
   distinctCharacterHubOwners,
   distinctDigestHubOwners,
@@ -83,6 +83,8 @@ async function seedThemeAssignment(db: Db, ownerId: UserId, digestId: string): P
 
 describe("readOwnedCharacterVectors", () => {
   test("returns card vectors tagged with owner, EXCLUDING synthetic characters (esoteric #12)", async () => {
+    // A compile-time pin: root typecheck reds this file if the owner becomes optional again.
+    expectTypeOf<Parameters<typeof readOwnedCharacterVectors>>().toEqualTypeOf<[Db, UserId | null]>();
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
     const real = await seedCharacter(db, { id: "character_real", ownerId: owner });
@@ -94,7 +96,7 @@ describe("readOwnedCharacterVectors", () => {
     await seedCharacterEmbedding(db, { characterId: real, embedding: vec(1, 0) });
     await seedCharacterEmbedding(db, { characterId: synth, embedding: vec(1, 0) });
 
-    const rows = await readOwnedCharacterVectors(db);
+    const rows = await readOwnedCharacterVectors(db, null);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ characterId: real, ownerId: owner, model: EMBED_MODEL });
   });
