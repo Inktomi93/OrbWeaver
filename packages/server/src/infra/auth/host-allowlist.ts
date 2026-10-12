@@ -25,6 +25,7 @@ const VALUE_SEPARATOR = ",";
 const MAX_ECHO_CHARS = 253;
 const RELAY_HOST_INVALID = "relay_host_invalid";
 
+// @orb-waive no-inline-package-interface(HostFacts): baselined when the gate landed; burn-down item 952.
 /** The request facts the decision reads. `forwardedHost` counts only when `peer` is a trusted hop. */
 export interface HostFacts {
   /** The `Host` header, absent on HTTP/2 and on an in-process request. */

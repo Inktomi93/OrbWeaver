@@ -26,6 +26,7 @@
 import type { LanguageModelMiddleware } from "ai";
 import { extractReasoningMiddleware } from "ai";
 
+// @orb-waive no-inline-package-interface(ReasoningTags): baselined when the gate landed; burn-down item 952.
 /** The preset's literal open/close tags (`reasoningParse.prefix`/`suffix`), as the turn request carries them. */
 export interface ReasoningTags {
   readonly prefix: string;

@@ -56,6 +56,7 @@ const CARD_FORMATS: ReadonlySet<string> = new Set<ExportCardFormat>(["png", "jso
 // @orb-waive no-vanity-alias(PORTABLE_KIND_VALUES): baselined when the gate widened; burn-down item 906.
 const PORTABLE_KIND_VALUES: readonly string[] = PORTABLE_KINDS;
 
+// @orb-waive no-inline-package-interface(ExportDeps): baselined when the gate landed; burn-down item 952.
 export interface ExportDeps {
   readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle">;
   readonly registry: PortabilityRegistry;

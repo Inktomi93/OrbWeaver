@@ -17,6 +17,7 @@ const MS_PER_WEEK = 604_800_000;
  *  turns, then share one wait on a dead server instead of each dialing it again; past it the next warm asks again. */
 const FAILED_WARM_HOLD_MS = 10_000;
 
+// @orb-waive no-inline-package-interface(MirrorDeps): baselined when the gate landed; burn-down item 952.
 export interface MirrorDeps {
   readonly now: () => number;
   readonly snapshotStore: SnapshotStore;
@@ -24,6 +25,7 @@ export interface MirrorDeps {
   readonly warn: (fields: Readonly<Record<string, unknown>>, message: string) => void;
 }
 
+// @orb-waive no-inline-package-interface(Mirror): baselined when the gate landed; burn-down item 952.
 export interface Mirror<T> {
   readonly get: () => T | null;
   /** Warm when cold: the snapshot first, then `fetch`; persists a fresh fetch. Returns the mirror's value

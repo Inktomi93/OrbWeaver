@@ -5,6 +5,7 @@ import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { getLog } from "#src/foundation/observability/logger.ts";
 
+// @orb-waive no-inline-package-interface(IntegrityReport): baselined when the gate landed; burn-down item 952.
 /** The integrity probe result (foundation-internal; returned as JSON by /api/_debug/db/integrity). */
 export interface IntegrityReport {
   ok: boolean;

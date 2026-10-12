@@ -31,6 +31,7 @@ import { createRefineryService } from "#domain/refinery";
 import { publishUserEvent } from "#transport/trpc";
 import { minter } from "./minter.ts";
 
+// @orb-waive no-inline-package-interface(RefineryComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface RefineryComposeDeps {
   readonly db: Db;
   readonly now: () => number;
@@ -45,6 +46,7 @@ export interface RefineryComposeDeps {
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 }
 
+// @orb-waive no-inline-package-interface(RefineryCompose): baselined when the gate landed; burn-down item 952.
 /** The refinery seam's two halves: the principal-taking SERVICE (tRPC) and the principal-less WORKLOAD
  *  deps (the queue's own actor). */
 export interface RefineryCompose {

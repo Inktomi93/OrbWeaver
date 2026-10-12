@@ -17,6 +17,7 @@ const GCM_ALGORITHM = "aes-256-gcm";
 // GCM's standard/recommended IV length is 12 bytes (96 bits).
 const IV_BYTES = 12;
 
+// @orb-waive no-inline-package-interface(Sealed): baselined when the gate landed; burn-down item 952.
 /** Encrypted-blob shape (AES-256-GCM); stored on `user_credentials`. */
 export interface Sealed {
   /** base64 ciphertext. */
@@ -27,6 +28,7 @@ export interface Sealed {
   tag: string;
 }
 
+// @orb-waive no-inline-package-interface(SecretBox): baselined when the gate landed; burn-down item 952.
 /** The encryption seam for per-user credentials; constructed once at entry/ and injected into
  *  `credentials.context`. The box receives the `aad` VALUE from the credentials domain on each call. */
 export interface SecretBox {

@@ -103,6 +103,7 @@ function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapa
   };
 }
 
+// @orb-waive no-inline-package-interface(OpenAiCompatChatDeps): baselined when the gate landed; burn-down item 952.
 export interface OpenAiCompatChatDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;

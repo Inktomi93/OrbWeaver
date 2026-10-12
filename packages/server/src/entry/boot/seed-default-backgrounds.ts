@@ -13,6 +13,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { DefaultBackgroundSeeder } from "#domain/settings";
 
+// @orb-waive no-inline-package-interface(SeedDefaultBackgroundsDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedDefaultBackgroundsDeps {
   /** Shared with the app first-request hook. */
   readonly seeder: DefaultBackgroundSeeder;

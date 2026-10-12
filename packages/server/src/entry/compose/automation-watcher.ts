@@ -60,6 +60,7 @@ async function readChatColumn(db: Db, chatId: ChatId, column: "runtime" | "choic
   return rows[0]?.[column] ?? {};
 }
 
+// @orb-waive no-inline-package-interface(AutomationActionOpsDeps): baselined when the gate landed; burn-down item 952.
 /** The action WRITE ops, pre-bound at `entry/compose` (the automation domain declares only the TYPE —
  *  one-directional flow). Each closes over its owning sibling service; `authorUserId` resolves to a Principal
  *  where the sibling gates on ownership (world-info book owner, imagery caller). */

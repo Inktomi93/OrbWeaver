@@ -16,6 +16,7 @@ import type { Db } from "@orb/db";
 import { migrateProseSlotVocab } from "#domain/preset";
 import { getLog } from "#foundation/observability";
 
+// @orb-waive no-inline-package-interface(MigrateProseSlotVocabDeps): baselined when the gate landed; burn-down item 952.
 export interface MigrateProseSlotVocabDeps {
   readonly db: Db;
 }

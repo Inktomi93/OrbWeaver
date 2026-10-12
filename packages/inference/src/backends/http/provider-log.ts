@@ -8,6 +8,7 @@ import type { InferenceLog } from "#src/deps.ts";
 const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];
 
+// @orb-waive no-inline-package-interface(ProviderTurnUsage): baselined when the gate landed; burn-down item 952.
 /** Per-turn usage sub-object on a `provider.turn` line. All optional so a turn that never reached a result
  *  frame still logs a coherent line. */
 export interface ProviderTurnUsage {
@@ -48,6 +49,7 @@ interface ProviderCapabilityDrop {
   readonly message: string;
 }
 
+// @orb-waive no-inline-package-interface(ProviderCapabilityLog): baselined when the gate landed; burn-down item 952.
 /** The (model × wire-shape) cell the funnel resolved, plus every dropped/ignored knob. Report-only. */
 export interface ProviderCapabilityLog {
   readonly turnId: string;
@@ -75,6 +77,7 @@ interface ProviderSummarizeItemLog {
   readonly errorKind?: string;
 }
 
+// @orb-waive no-inline-package-interface(ProviderLogger): baselined when the gate landed; burn-down item 952.
 export interface ProviderLogger {
   readonly emit: (level: ProviderLogLevel, event: string, fields?: Readonly<Record<string, unknown>>) => void;
   readonly cache: (entry: ProviderCacheLog) => void;

@@ -76,6 +76,7 @@ const releasePayload = z.object({
 /** A release tag as release-please spells it: `v` then the plain three-part version. */
 const RELEASE_TAG_PREFIX = "v";
 
+// @orb-waive no-inline-package-interface(UpstreamProbeDeps): baselined when the gate landed; burn-down item 952.
 export interface UpstreamProbeDeps {
   /** The identity this box reports — its `version` rides the User-Agent so GitHub's logs (and ours) can tell
    *  which build asked. Never a user id, never a deployment identifier. */

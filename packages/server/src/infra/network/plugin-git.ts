@@ -99,11 +99,13 @@ async function requestGitHttp(request: GitHttpRequest): Promise<GitHttpResponse>
 
 export const guardedGitHttp: HttpClient = { request: requestGitHttp };
 
+// @orb-waive no-inline-package-interface(PluginGitSource): baselined when the gate landed; burn-down item 952.
 export interface PluginGitSource {
   readonly clone: (url: string) => Promise<{ readonly bundle: Uint8Array; readonly commit: string }>;
   readonly head: (url: string) => Promise<string>;
 }
 
+// @orb-waive no-inline-package-interface(PluginGitSourceDeps): baselined when the gate landed; burn-down item 952.
 export interface PluginGitSourceDeps {
   readonly makeScratch: () => Promise<string>;
   readonly removeScratch: (directory: string) => Promise<void>;

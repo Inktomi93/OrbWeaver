@@ -35,6 +35,7 @@ interface ProviderMcpServerHealth {
   readonly error?: string | undefined;
 }
 
+// @orb-waive no-inline-package-interface(AgentSdkLog): baselined when the gate landed; burn-down item 952.
 export interface AgentSdkLog {
   readonly base: ProviderLogger;
   readonly turn: (entry: ProviderTurnLog) => void;

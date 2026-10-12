@@ -40,7 +40,6 @@ export interface UseSendMessageOptions {
   readonly onDraftCommitted?: (() => void) | undefined;
 }
 
-// @orb-waive no-inline-wire-interface(UseSendMessageResult): baselined when the gate widened; burn-down item 904.
 export interface UseSendMessageResult {
   readonly send: (content: string, attachments?: readonly File[]) => void;
   readonly isPending: boolean;

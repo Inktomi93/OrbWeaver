@@ -21,12 +21,14 @@ let lastFailureAt: number | null = null;
 // Re-raise the suppressed failure as a structural warn every Nth occurrence.
 const ALERT_EVERY = 25;
 
+// @orb-waive no-inline-package-interface(AuditFailureSnapshot): baselined when the gate landed; burn-down item 952.
 export interface AuditFailureSnapshot {
   count: number;
   firstFailureAt: number | null;
   lastFailureAt: number | null;
 }
 
+// @orb-waive no-inline-package-interface(AuditEntry): baselined when the gate landed; burn-down item 952.
 /** One audit event. `actorUserId` is null for system-initiated events (GC, cron, no real user).
  *  `entityId`/`entityType` are a soft-ref (no FK), both nullable for a global action. */
 export interface AuditEntry {
