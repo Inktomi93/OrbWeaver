@@ -10,7 +10,7 @@
 // Deterministic by construction: buildWeb at a fixed seed, sampled on a fixed 1ms grid, no rAF.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
+import { buildWeb, WEAVE_TIMELINE, wrapToPi } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { SpiderPose } from "#ui/art/web-weave/web-weave-character.ts";
 import { burstEase, WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
@@ -31,13 +31,10 @@ const MAX_STEP_PX = 30;
 /** The heading turn rate is a fraction of the shortest angle to the target, so the per-frame change is
  *  bounded by π × that rate; 0.7 is π × 0.22 rounded up. */
 const MAX_TURN_RAD = 0.7;
-const TAU = Math.PI * 2;
 
 /** She walks the silk itself, so her distance to the strand under her is sub-pixel — a whole pixel of
  *  tolerance covers the sagged polyline's chord error and nothing else. */
 const ON_SILK_PX = 1;
-
-const wrapToPi = (a: number): number => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 
 /** Distance from a point to a polyline (min over its segments). */
 function distanceToPolyline(p: { x: number; y: number }, pts: readonly { x: number; y: number }[]): number {

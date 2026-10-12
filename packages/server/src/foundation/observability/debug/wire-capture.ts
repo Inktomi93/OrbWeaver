@@ -72,6 +72,7 @@ import { env } from "#foundation/env";
 /** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
 const WIRE_CAPTURE_RING_CAPACITY = 256;
 
+// @orb-waive no-inline-package-interface(WireCaptureFilter): baselined when the gate landed; burn-down item 952.
 /** Filter for a host read: by `chatId` and/or `providerId`, newest-first, capped by `limit`. */
 export interface WireCaptureFilter {
   readonly chatId?: ChatId | undefined;
@@ -138,6 +139,7 @@ export function resetWireCaptures(): void {
 
 // ── OUTCOMES ────────────────────────────────────────────────────────────────────────────────────────────
 
+// @orb-waive no-inline-package-interface(WireToolCall): baselined when the gate landed; burn-down item 952.
 /** One tool call as it came back, for the debug read. `args` is the RAW argument string the model emitted —
  *  not the parsed form — because the malformed cases are exactly the ones worth seeing, and those do not
  *  parse. Truncated: a log surface, not a payload store. */
@@ -146,6 +148,7 @@ export interface WireToolCall {
   readonly args: string;
 }
 
+// @orb-waive no-inline-package-interface(WireWarning): baselined when the gate landed; burn-down item 952.
 /** One RAW provider degradation the turn's runner raised, exactly as it was raised (#1440). The user gets a
  *  re-voiced `settings_adjusted` chat warning; the OPERATOR gets this — the runner's own code + prose, which
  *  names the knob and the value it clamped to. Foundation cannot import infra's `WARNING_CODES`, so `code` is
@@ -156,6 +159,7 @@ export interface WireWarning {
   readonly message: string;
 }
 
+// @orb-waive no-inline-package-interface(WireOutcome): baselined when the gate landed; burn-down item 952.
 /** What the model actually returned for one turn. Lengths, not bodies (see the header). */
 export interface WireOutcome {
   readonly chatId: ChatId;

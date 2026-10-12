@@ -126,6 +126,9 @@ export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/participants-read.ts";
 export { loadTurnOrigin } from "./persistence/queries.ts";
+// The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
+// host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
+export { loadPresentHostUserId } from "./persistence/reactions.ts";
 export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,

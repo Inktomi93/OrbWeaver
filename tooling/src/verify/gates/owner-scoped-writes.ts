@@ -16,7 +16,7 @@
 // `onConflictDoUpdate` as out of scope entirely.
 //
 // FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
-// `schemaTableIdents`, `reportBlindWhenEmpty`), plus `lib/tenancy-read.ts` for the write-statement fence
+// `schemaTableIndex`, `reportBlindWhenEmpty`), plus `lib/tenancy-read.ts` for the write-statement fence
 // and the predicate readers. Reading the (a)-class set from the same registry as `owner-scoped-reads` is
 // what makes the read/write split a DECLARED LIMIT rather than a coverage gap: the two halves cannot
 // disagree about which tables are in scope, only about which statement shape each judges.
@@ -37,9 +37,10 @@ import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { isDrizzleWriteStatement, predicatesOwnId, predicatesTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
+import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
 
 const OWNER_COL = "ownerId";
 /** The drizzle write verbs. A `Set`, not a `switch`: the two arms are judged identically — what differs is
@@ -111,7 +112,7 @@ interface WriteVerdict {
 }
 
 /** Judge one write candidate now that the (a)-class/denominator sets are ready. Reports at most once. */
-function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: ReadonlySet<string>): WriteVerdict | undefined {
+function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: SchemaTableIndex): WriteVerdict | undefined {
   const arg = node.getArguments()[0];
   const target = tableTargetOf(arg, ownerTableIdents, allTableIdents);
   if (target === undefined || target.kind === "other-table" || arg === undefined) {
@@ -168,7 +169,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const ownerTableIdents = ownerScopedTableIdents(schemaFact.value);
-        const allTableIdents = schemaTableIdents(schemaFact.value);
+        const allTableIdents = schemaTableIndex(schemaFact.value);
         for (const candidate of candidates) {
           const verdict = judgeWrite(candidate.node, ownerTableIdents, allTableIdents);
           if (verdict !== undefined) {

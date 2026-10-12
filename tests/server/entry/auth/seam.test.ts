@@ -25,7 +25,7 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import type { PerRequestSeamDeps } from "@orb/server/entry/auth";
-import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
+import { createAuthSeam, createHostPrincipalResolver, createResolveUserEnabled } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
@@ -566,6 +566,19 @@ test("createHostPrincipalResolver degrades an unknown id to role=user (fail-clos
   expect(principal.role).toBe("user");
   expect(principal.userId).toBe(COOKIE_UID);
   expect(principal.handle).toBe(COOKIE_UID); // the userId-as-handle degrade, never a throw
+});
+
+test("createResolveUserEnabled answers the live row's enabled bit, and FALSE for a missing row (fail-closed)", async () => {
+  const fields = (enabled: boolean): Awaited<ReturnType<SessionsService["loadUserById"]>> => ({
+    role: "user",
+    handle: castId<Handle>("member"),
+    externalId: null,
+    enabled,
+  });
+
+  expect(await createResolveUserEnabled(stubSessions({ loadUserById: () => Promise.resolve(fields(true)) }))(COOKIE_UID)).toBe(true);
+  expect(await createResolveUserEnabled(stubSessions({ loadUserById: () => Promise.resolve(fields(false)) }))(COOKIE_UID)).toBe(false);
+  expect(await createResolveUserEnabled(stubSessions({ loadUserById: () => Promise.resolve(null) }))(COOKIE_UID)).toBe(false);
 });
 
 // ── The `enabled` parity of the THREE request arms (D135 amendment) ──────────────────────────────────────

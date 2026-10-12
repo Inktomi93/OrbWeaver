@@ -10,18 +10,20 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { ChatCharacterBarStory, ChatRoomPhoneStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 /** A character seat — only the fields the character bar reads; the rest is filler the bar ignores. */
-type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
+type ParticipantFixture = NonNullable<TrpcWireOutput<"chat.getChat">["participants"]>[number];
 
 function character(key: string, name: string, over: Partial<ParticipantFixture> = {}): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `chat_participant_${key}`,
     kind: "character",
     userId: null,
@@ -31,11 +33,11 @@ function character(key: string, name: string, over: Partial<ParticipantFixture> 
     disabled: false,
     talkativeness: 0.5,
     ...over,
-  };
+  });
 }
 
-function roster(...members: ParticipantFixture[]): TrpcFixtureOutput<"chat.getChat"> {
-  return { participants: members };
+function roster(...members: ParticipantFixture[]): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({ participants: members });
 }
 
 /**
@@ -45,34 +47,35 @@ function roster(...members: ParticipantFixture[]): TrpcFixtureOutput<"chat.getCh
  * rather than a single hard-coded card that would be right for one test and a lie for the rest.
  */
 const CHARACTER_ROUTE = {
-  "character.get": (input: TrpcInput<"character.get">): TrpcFixtureOutput<"character.get"> => ({
-    id: input?.characterId ?? castId<CharacterId>("character_unknown"),
-    name: "Character seat",
-    avatarHash: null,
-    description: "",
-    greetings: [],
-  }),
+  "character.get": (input: TrpcInput<"character.get">): TrpcWireOutput<"character.get"> =>
+    makeCharacterDetail({
+      id: input?.characterId ?? castId<CharacterId>("character_unknown"),
+      name: "Character seat",
+      avatarHash: null,
+      description: "",
+      greetings: [],
+    }),
 } satisfies TrpcRoutes<"character.get">;
 
 /** A human seat — `role` seats a host/member; the bar's add-member gate is the separate server-resolved
  *  `viewerIsHost` field, NOT this seat's role (a member behind a host seat must not see the "+"). */
 function human(role: ParticipantRole): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `participant_${role}`,
     kind: "human",
     role,
     userId: `user_${role}`,
     characterId: null,
-  };
+  });
 }
 
 /** A committed `ChatDetail` stub carrying the server-resolved host gate + a 2-character roster (so the bar
  *  renders past the D16 size-gate). A host FIRST human seat trips the retired first-seat proxy. */
-function charactersWithHost(viewerIsHost: boolean): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function charactersWithHost(viewerIsHost: boolean): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     participants: [human("host"), human("member"), character("aria", "Aria"), character("bryn", "Bryn")],
     viewerIsHost,
-  };
+  });
 }
 
 test("a solo roster (1 character) renders NO character bar (the D16 size-gate)", async ({ mount, page }) => {
@@ -209,7 +212,7 @@ test("#229: over a wallpaper the strip takes the derived plate + blur; without o
 /** A human seat the strip actually PAINTS — `resolveHumanParticipants` filters on `leftSeq === null`, so
  *  a stub without it renders no human chips at all (which is why the older cases here show none). */
 function seatedHuman(role: ParticipantRole, displayName: string): ParticipantFixture {
-  return {
+  return makeParticipantView({
     id: `participant_${role}`,
     kind: "human",
     role,
@@ -219,7 +222,7 @@ function seatedHuman(role: ParticipantRole, displayName: string): ParticipantFix
     disabled: false,
     leftSeq: null,
     avatarHash: null,
-  };
+  });
 }
 
 /** The compound worst case the matrix above found: two humans named by their EMAIL (#162 — that is what a
@@ -247,12 +250,13 @@ const PHONE_ROOM_STUB: TrpcRoutes<"chat.previewContextFit" | "chat.listMessages"
     compactSummary: null,
   }),
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_phone"), role: "assistant", content: "North, past the spire." })]),
-  "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
-    participants: CROWDED_ROSTER,
-    anchorPersonaId: null,
-    identities: [],
-    group: DEFAULT_GROUP_CONFIG,
-  }),
+  "chat.getChat": () =>
+    makeChatDetail({
+      participants: CROWDED_ROSTER,
+      anchorPersonaId: null,
+      identities: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
 };
 
 /** One settled read of the strip's geometry AND of what each chip announces. `rows` is the count of
@@ -328,7 +332,7 @@ test.describe("the desktop strip keeps faces and announces names", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("at a fine pointer the names are announced, not painted twice", async ({ mount, page }) => {
-    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => makeChatDetail({ participants: CROWDED_ROSTER }) });
     const component = await mount(<ChatCharacterBarStory />);
     await expect(component.getByTestId("chat-character-bar")).toBeVisible();
     await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);

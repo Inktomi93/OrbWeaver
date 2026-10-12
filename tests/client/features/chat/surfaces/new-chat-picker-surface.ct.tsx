@@ -6,9 +6,11 @@
 // character past the hundredth card could not be found here at all while she sat in the library.
 
 // @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -22,7 +24,7 @@ const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
 const CASS = makeCharacterSummary({ id: "char_cass", name: "Cass" });
 
-const charPage = { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 };
+const charPage = characterListResponder([ARIA, BOLT]);
 
 /** Three pickable rows — the selection count the mobile clip got WORST at (the Start label grew
  *  212→231→238px across 0→1→3 picks; side-eye 2026-08-22 #439). */
@@ -57,6 +59,7 @@ test("a non-empty saved-roster library reveals the 'Start from a saved roster' d
         members: [{ characterId: "char_aria", position: 0, talkativeness: null, disabled: false, name: "Aria", avatarHash: null }],
         anchorPersonaId: null,
         hasGroupConfig: false,
+        game: null,
         rules: [],
         updatedAt: 1,
       },
@@ -300,7 +303,7 @@ test("typing reaches the WHOLE library — a character past the first page is fi
 
 const CREATED_CHAT_ID = castId<ChatId>("chat_ct_created_on_start");
 
-const CREATED_CHAT_DETAIL = {
+const CREATED_CHAT_DETAIL = makeChatDetail({
   id: CREATED_CHAT_ID,
   title: null,
   participants: [],
@@ -312,7 +315,7 @@ const CREATED_CHAT_DETAIL = {
   roomOverrides: {},
   background: null,
   rpg: null,
-};
+});
 
 // The divider's present-tense preview — an unlisted-proc `null` is out-of-contract there and crashes the
 // transcript (the chat-room-surface.ct.tsx note).
@@ -331,8 +334,8 @@ const PREVIEW_FIT_STUB = {
  *  its empty canon, and the fit preview. */
 const CREATED_ROOM_ROUTES: TrpcRoutes<"character.list" | "chat.startChat" | "chat.getChat" | "chat.listMessages" | "chat.previewContextFit"> = {
   ...CHAT_AMBIENT_ROUTES,
-  "character.list": { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 },
-  "chat.startChat": { chat: CREATED_CHAT_DETAIL, opening: null },
+  "character.list": charPage,
+  "chat.startChat": makeStartChatResult({ chat: CREATED_CHAT_DETAIL }),
   "chat.getChat": CREATED_CHAT_DETAIL,
   "chat.listMessages": () => makeMessagesPage([]),
   "chat.previewContextFit": () => PREVIEW_FIT_STUB,

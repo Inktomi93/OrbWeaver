@@ -23,11 +23,13 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { COMMAND_CHIP_NAME } from "@orb/testkit/browser/command-chip-name.ts";
-import type { TrpcFixtureOutput, TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatListPage } from "@orb/testkit/node/factories/chat-view.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { characterListResponder } from "../../character/fixtures.ts";
 import { ConfigDockedShellStory, ConfigFlashStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 const REGEX_BAND = /Regex scripts/;
@@ -47,7 +49,7 @@ const SCRIPT = {
   trimStrings: [],
   updatedAt: 1_760_000_000_000,
   substituteRegex: 0,
-} satisfies TrpcFixtureOutput<"regex.listScripts">[number];
+} satisfies TrpcWireOutput<"regex.listScripts">[number];
 
 /** A SECOND member, purely so the tab-continuity pin has a subject change to make inside the one arm that
  *  still resolves two cells (a settings state is now a single About cell — #926's applicability gate). */
@@ -71,8 +73,8 @@ const SETTINGS_VIEW = { userId: "user_ct_config", schemaVersion: 1, config: DEFA
 
 function stub(
   page: Page,
-  readSettings: () => TrpcFixtureOutput<"settings.getUserSettings"> = () => SETTINGS_VIEW,
-  resetQuality: () => TrpcFixtureOutput<"settings.updateUserSettingsSection"> = () => SETTINGS_VIEW,
+  readSettings: () => TrpcWireOutput<"settings.getUserSettings"> = () => SETTINGS_VIEW,
+  resetQuality: () => TrpcWireOutput<"settings.updateUserSettingsSection"> = () => SETTINGS_VIEW,
 ): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The Appearance skimmer's sections all read the settings blob — fed the real defaults so the knob
@@ -113,12 +115,12 @@ function stub(
     "worldInfo.listBooksWithUsage": () => [],
     "worldInfo.countBooks": 0,
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
     "notifications.list": () => ({ items: [], nextCursor: null }),
     "chat.reapTemporaryChats": () => ({ reaped: 0 }),
     "refinery.listSessions": () => [],
     "tag.listTagsWithUsage": () => [],
-    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => makeChatListPage(),
     "databank.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
     "databank.bankHealth": () => ({
       total: 0,
@@ -393,7 +395,7 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
     "worldInfo.listBooksWithUsage": () => [],
     "worldInfo.countBooks": 0,
     "persona.list": () => [],
-    "character.list": () => ({ items: [], nextCursor: null }),
+    "character.list": characterListResponder([]),
   });
 }
 

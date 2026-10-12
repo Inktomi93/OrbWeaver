@@ -23,6 +23,7 @@ import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 
+// @orb-waive no-inline-package-interface(ChatLiveEvent): baselined when the gate landed; burn-down item 952.
 /** One live-bus entry — the durable per-chat cursor + the room-public event.
  *
  *  TWO ARMS, and the pairing is PHYSICS rather than convention (the entity→room bridge's live-only

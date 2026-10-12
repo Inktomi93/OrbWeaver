@@ -21,6 +21,7 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -130,7 +131,8 @@ const TAB_ROUTES: TrpcRoutes<
   "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
-  "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+  "chat.getChat": () =>
+    makeChatDetail({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
   // The #1742 Regex section's reads (#1788). Its heading chip reads `chat.listEffectiveRegex` outside every
   // disclosure, so the read fires on any mount that reaches this tab and an unfed one takes the tab's error
   // arm — which is what hid the CHAT BAND arm of the one-primary law below. Off-and-empty: this suite counts

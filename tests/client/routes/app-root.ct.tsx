@@ -21,12 +21,18 @@
 // rail, modal host, tab bar — stays that file's floor and is not re-pinned here.
 
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+
 import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeBrowseCharactersPage, makeHomeView } from "@orb/testkit/node/factories/discovery-view.ts";
+import { makePersonaView } from "@orb/testkit/node/factories/persona-view.ts";
+import { makePluginRow } from "@orb/testkit/node/factories/plugin-view.ts";
+import { makeOwnerStats, makeWrappedSummary } from "@orb/testkit/node/factories/stats-view.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -46,8 +52,8 @@ const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$
 const CLOSE_AFFORDANCE_RE = /close/iu;
 
 /** The library page (`character.list` is keyset-paged: `{items, nextCursor}`). */
-const ONE_CHARACTER = { items: [ARIA], nextCursor: null, totalCount: 1 } satisfies TrpcFixtureOutput<"character.list">;
-const NO_CHARACTERS = { items: [], nextCursor: null, totalCount: 0 } satisfies TrpcFixtureOutput<"character.list">;
+const ONE_CHARACTER = { items: [ARIA], nextCursor: null, totalCount: 1 } satisfies TrpcWireOutput<"character.list">;
+const NO_CHARACTERS = { items: [], nextCursor: null, totalCount: 0 } satisfies TrpcWireOutput<"character.list">;
 
 // A non-empty `persona.list` — the route mounts `<FirstRunPersonaDialog>` as an AppShell sibling, which
 // forces a blocking, undismissable gate open over a viewer who cannot SPEAK yet. These tests are about the
@@ -57,8 +63,8 @@ const NO_CHARACTERS = { items: [], nextCursor: null, totalCount: 0 } satisfies T
 // from the row count — a persona that no `seeds.currentPersonaId`/`defaultPersonaId` names is the ORPHAN
 // the gate now offers to recover, so a row plus the DEFAULT (all-null) seeds is precisely the state that
 // opens it. {@link SEEDED_SETTINGS_ROUTE} points both pointers at this row; the two must always move together.
-const HOME_PERSONA = { id: "persona_home", name: "Alex", description: "", avatarHash: null, starred: true };
-const PERSONAS = [HOME_PERSONA] satisfies TrpcFixtureOutput<"persona.list">;
+const HOME_PERSONA = makePersonaView({ id: "persona_home", name: "Alex", starred: true });
+const PERSONAS = [HOME_PERSONA] satisfies TrpcWireOutput<"persona.list">;
 
 // The seeded draft's greeting row resolves `{{user}}` against the anchor the commit WILL write, so it
 // reads the same two identity sources the server's seed chain does: the viewer's persona connections for
@@ -74,11 +80,11 @@ const EMPTY_BANK_HEALTH = {
   total: 0,
 } satisfies TrpcWireOutput<"databank.bankHealth">;
 
-const ARIA_CARD = {
+const ARIA_CARD = makeCharacterDetail({
   id: "char_home_aria",
   name: "Aria Nightshade",
   greetings: [{ text: "The night market hums." }],
-} satisfies TrpcFixtureOutput<"character.get">;
+});
 
 /**
  * The viewer's settings with BOTH persona seed pointers naming {@link HOME_PERSONA} — the state of an
@@ -114,8 +120,10 @@ const HOME_AMBIENT_ROUTES: TrpcRoutes<
   | "worldInfo.countBooks"
   | "regex.countScripts"
   | "rosterPreset.count"
+  | "tag.listPendingSuggestions"
 > = {
   ...CHAT_AMBIENT_ROUTES,
+  "tag.listPendingSuggestions": [],
   "character.count": 0,
   "chat.countChats": 0,
   "worldInfo.countBooks": 0,
@@ -159,8 +167,8 @@ const IDENTITY_STUB: TrpcRoutes<"persona.listConnectedToCharacter"> = {
 // (an unlisted-proc `null` is out-of-contract there and crashes the transcript).
 const CREATED_CHAT_ID = "chat_home_created";
 
-function createdChat(temporary: boolean): TrpcFixtureOutput<"chat.getChat"> {
-  return {
+function createdChat(temporary: boolean): TrpcWireOutput<"chat.getChat"> {
+  return makeChatDetail({
     id: CREATED_CHAT_ID,
     title: null,
     participants: [],
@@ -171,7 +179,7 @@ function createdChat(temporary: boolean): TrpcFixtureOutput<"chat.getChat"> {
     viewerIsHost: true,
     background: null,
     rpg: null,
-  };
+  });
 }
 
 const PREVIEW_FIT_STUB = {
@@ -187,11 +195,11 @@ const PREVIEW_FIT_STUB = {
 
 function createdRoomRoutes(
   temporary: boolean,
-  canon: TrpcFixtureOutput<"chat.listMessages">["messages"] = [],
+  canon: TrpcWireOutput<"chat.listMessages">["messages"] = [],
 ): TrpcRoutes<"chat.startChat" | "chat.getChat" | "chat.listMessages" | "chat.previewContextFit"> {
   const chat = createdChat(temporary);
   return {
-    "chat.startChat": { chat, opening: null },
+    "chat.startChat": makeStartChatResult({ chat }),
     "chat.getChat": chat,
     "chat.listMessages": { messages: canon, identities: [] },
     "chat.previewContextFit": PREVIEW_FIT_STUB,
@@ -276,7 +284,7 @@ test("on a phone, Home drops the section chips the tab bar and the You sheet alr
 // The route mounts, its identity read is already cached, and the workspace bind runs off the query cache: the cache
 // sits idle until Home mounts and issues its own reads. The boot veil must not lift in that gap.
 test("the app is not ready until Home's first reads land", async ({ mount, page }) => {
-  const chats = trpcHold();
+  const chats = trpcHold<"chat.listChats">();
   await routeTrpc(page, {
     ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chats,
@@ -361,6 +369,10 @@ test("picking a character in the library CREATES the chat and lands in it (the l
         genStartedAt: null,
         genFinishedAt: null,
         generationId: null,
+        tokenProvenance: "unrecorded",
+        costProvenance: "unrecorded",
+        connectionAttributionProvenance: "unrecorded",
+        connectionId: null,
         contextBoundaryMessageId: null,
       },
     ]),
@@ -530,7 +542,7 @@ async function arriveWithInvite(page: Page): Promise<void> {
   await page.reload();
 }
 
-function settingsWithSeeds(personaId: PersonaId | null): TrpcFixtureOutput<"settings.getUserSettings"> {
+function settingsWithSeeds(personaId: PersonaId | null): TrpcWireOutput<"settings.getUserSettings"> {
   return {
     userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
@@ -542,7 +554,7 @@ function settingsWithSeeds(personaId: PersonaId | null): TrpcFixtureOutput<"sett
 
 test("a joiner with no persona names one in the first-run ask before the join dialog opens", async ({ mount, page }) => {
   await arriveWithInvite(page);
-  let personas: TrpcFixtureOutput<"persona.list"> = [];
+  let personas: TrpcWireOutput<"persona.list"> = [];
   let seeded: PersonaId | null = null;
   const trpc = await routeTrpc(page, {
     ...HOME_AMBIENT_ROUTES,
@@ -680,6 +692,7 @@ const ANALYTICS_ROW = {
   assistantTurns: 42,
   swipes: 3,
   tokensOut: 12_000,
+  tokensOutProvenance: "measured" as const,
   totalGenTimeMs: 90_000,
   reasoningRate: 0,
   firstChatAt: 1000,
@@ -728,7 +741,7 @@ const CENSUS_DOCS = [
 ] satisfies TrpcWireOutput<"databank.list">["items"];
 const CENSUS_BANK_HEALTH = { ...EMPTY_BANK_HEALTH, ready: 2, chunks: 51, passages: 51, total: CENSUS_DOCS.length };
 /** Two registered extension pages, joined to their plugin's display name by `usePluginPages`. */
-const CENSUS_PLUGIN = { id: "plugin_census", name: "Census Kit" };
+const CENSUS_PLUGIN = makePluginRow({ id: "plugin_census", slug: "census-kit", name: "Census Kit" });
 const CENSUS_SURFACES = [
   { pluginId: CENSUS_PLUGIN.id, id: "board_page", anchor: "page", title: "The Board", tier: "frame" },
   { pluginId: CENSUS_PLUGIN.id, id: "ledger_page", anchor: "page", title: "The Ledger", tier: "frame" },
@@ -784,6 +797,12 @@ const CENSUS_TAGS = [
  * The unfed-read ratchet is the reason this is exhaustive rather than per-test: each section's census read now
  * runs under the shell whenever that section is active.
  */
+const CENSUS_HOME = makeHomeView({
+  coverage: { characters: 0, digests: 0, segments: 0 },
+  sceneThemes: [],
+  arcThemes: [],
+  duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+});
 const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "character.count"
   | "chat.countChats"
@@ -833,7 +852,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   "databank.list": { items: CENSUS_DOCS, nextCursor: null, totalCount: CENSUS_DOCS.length },
   "databank.bankHealth": CENSUS_BANK_HEALTH,
   "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 12, totalCharacters: 19 },
-  "discovery.browseCharacters": { items: [], nextCursor: null },
+  "discovery.browseCharacters": makeBrowseCharactersPage(),
   "discovery.characterFacets": { genres: [], tones: [] },
   "stats.leaderboard": ANALYTICS_PAGE,
   "preset.list": PRESET_ROWS,
@@ -847,17 +866,12 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   // surface's own CT. An empty dashboard is the honest companion to the small fixtures above.
   "chat.getChat": createdChat(false),
   "databank.listGlobal": [],
-  "discovery.home": {
-    coverage: { characters: 0, digests: 0, segments: 0 },
-    sceneThemes: [],
-    arcThemes: [],
-    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
-  },
+  "discovery.home": CENSUS_HOME,
   "discovery.themeDrift": [],
   "discovery.visualArchetypes": [],
   "discovery.forgottenGems": [],
   "stats.freshness": { computedAt: 0, stale: false, hasData: false },
-  "stats.overview": {
+  "stats.overview": makeOwnerStats({
     tokensIn: 0,
     tokensOut: 0,
     swipeWords: 0,
@@ -869,8 +883,8 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
     cacheHitRate: 0,
     reasoningRate: 0,
     reasoningMs: 0,
-  },
-  "stats.wrapped": {
+  }),
+  "stats.wrapped": makeWrappedSummary({
     characters: 0,
     chats: 0,
     words: 0,
@@ -880,7 +894,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
     costUsd: 0,
     genTimeMs: 0,
     topCharacter: null,
-  },
+  }),
   "stats.timeseries": [],
   "stats.momentum": [],
   // The corpus dashboard's remaining rails (a CASCADE: they could not be requested until the reads above
@@ -1111,9 +1125,9 @@ test.describe("the Corpus workbench on a phone", () => {
   test("the empty Explore finder opens its understanding pass with focus in Content", async ({ mount, page }) => {
     await routeTrpc(page, {
       ...SECTION_CENSUS_ROUTES,
-      "discovery.home": { ...SECTION_CENSUS_ROUTES["discovery.home"], coverage: { characters: 19, digests: 0, segments: 0 } },
+      "discovery.home": makeHomeView({ ...CENSUS_HOME, coverage: { characters: 19, digests: 0, segments: 0 } }),
       "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalCharacters: 19, totalDistilled: 0 },
-      "discovery.browseCharacters": { items: [], nextCursor: null, totalCount: 0 },
+      "discovery.browseCharacters": makeBrowseCharactersPage(),
     });
     const component = await mount(<HomePageStory />);
     await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
@@ -1130,7 +1144,7 @@ test.describe("the Corpus workbench on a phone", () => {
   test("the empty Explore Context door reveals its overview and closes the sheet", async ({ mount, page }) => {
     await routeTrpc(page, {
       ...SECTION_CENSUS_ROUTES,
-      "discovery.home": { ...SECTION_CENSUS_ROUTES["discovery.home"], coverage: { characters: 19, digests: 0, segments: 0 } },
+      "discovery.home": makeHomeView({ ...CENSUS_HOME, coverage: { characters: 19, digests: 0, segments: 0 } }),
       "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalCharacters: 19, totalDistilled: 0 },
       "discovery.archetypes": [],
     });
@@ -1266,7 +1280,7 @@ test.describe("the phone's Characters screen with a member open", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
   test("an open member's screen keeps the section label while her name is in flight — never the census", async ({ mount, page }) => {
-    const characterGet = trpcHold();
+    const characterGet = trpcHold<"character.get">();
     await routeTrpc(page, { ...CENSUS_ROUTES, "character.get": characterGet });
     const component = await mount(<HomePageStory />);
     await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
@@ -1283,7 +1297,7 @@ test.describe("the phone's Characters screen with a member open", () => {
     await characterGet.requested;
     await expect(screenName).toHaveText("Characters");
 
-    characterGet.release({ id: ARIA.id, name: ARIA.name, greetings: [] });
+    characterGet.release(makeCharacterDetail({ id: ARIA.id, name: ARIA.name, greetings: [] }));
     await expect(screenName).toHaveText(ARIA.name);
   });
 });
@@ -1394,7 +1408,7 @@ test.describe("phone character CONTENT focus and warm retention", () => {
     const second = makeCharacterSummary({ id: "char_home_second", name: "Second character" });
     const firstCard = makeCharacterDetail({ id: ARIA.id, name: ARIA.name });
     const secondCard = makeCharacterDetail({ id: second.id, name: second.name });
-    const update = trpcHold();
+    const update = trpcHold<"character.update">();
     await routeTrpc(page, {
       ...CENSUS_ROUTES,
       ...CHARACTER_EDITOR_AMBIENT_ROUTES,
@@ -1469,7 +1483,7 @@ test("a slow Refinery list read keeps the shell mounted and only the list region
     );
   });
   await page.reload();
-  const sessions = trpcHold();
+  const sessions = trpcHold<"refinery.listSessions">();
   await routeTrpc(page, { ...SECTION_CENSUS_ROUTES, "refinery.listSessions": sessions });
   const component = await mount(<HomePagePendingStory />);
   const rail = component.locator(".shell-rail");

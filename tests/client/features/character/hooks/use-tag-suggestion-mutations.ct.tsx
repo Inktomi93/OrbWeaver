@@ -12,6 +12,7 @@
 import { CARD_NOT_DISTILLABLE_REASON } from "@orb/contracts/discovery";
 import type { CharacterHandle, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeDistillStats } from "@orb/testkit/node/factories/discovery-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -94,7 +95,7 @@ test("staging suggestions refreshes the warm Labels queue and census on return",
     "tag.listPendingSuggestions": () => (staged ? [{ ...tag, characterId: CARD.id, characterName: CARD.name }] : []),
     "discovery.suggestCharacterTags": () => {
       staged = true;
-      return { distilled: 1, failed: 0 };
+      return makeDistillStats({ scanned: 1, distilled: 1, tagsStaged: 1 });
     },
   });
   const component = await mount(<CharacterSuggestWarmLabelsStory />);

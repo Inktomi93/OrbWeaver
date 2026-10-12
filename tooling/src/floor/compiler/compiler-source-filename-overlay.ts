@@ -2,7 +2,8 @@
 // references remain physical; only the transaction's final source tree is projected in memory.
 import type { Dirent } from "node:fs";
 import { lstatSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { ts } from "ts-morph";
 import { assertRepoPath } from "./authored-repository.ts";
 import type { AuthoredRepositoryInventory, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
@@ -35,8 +36,7 @@ interface CompilerSourceFilenameReader {
 }
 
 function contained(root: string, candidate: string): boolean {
-  const rel = relative(root, candidate);
-  return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+  return isWithinRoot(root, candidate, { sep });
 }
 
 function missing(error: unknown): boolean {
@@ -172,10 +172,11 @@ export function createCompilerSourceFilenameReader(
   const matchFiles = matchFilesRuntime();
   const identity = (fileName: string): string => physicalIdentity(fileName);
   const repoRelative = (fileName: string): string => {
-    const rel = relative(inventory.root, resolve(fileName));
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    const member = resolve(fileName);
+    if (!isWithinRoot(inventory.root, member, { sep })) {
       throw new Error(`compiler member resolves outside repository: ${fileName}`);
     }
+    const rel = relative(inventory.root, member);
     const path = rel.split(sep).join("/");
     assertRepoPath(path, "compiler member");
     return path;

@@ -8,6 +8,7 @@ import type { GenerationCapability, ProviderId, WireSchemaMode } from "@orb/cont
 import { checkWireSchema, effectiveStructuredLimits, structuredSchemaComplexity } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgToolCall } from "@orb/contracts/rpg";
 import {
+  buildToolRoundWireTools,
   constrainExtractionSchema,
   patchChangesToToolCalls,
   rpgExtractionSchema,
@@ -24,7 +25,7 @@ import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { StateRoundPlans } from "#server/domain/rpg/index.ts";
 import { fallbackStateRound, primaryStateRound } from "#server/domain/rpg/substrate/readonly-axis.ts";
-import { buildToolRoundWireTools, structuredShapes } from "#server/entry/compose/rpg.ts";
+import { structuredShapes } from "#server/entry/compose/rpg.ts";
 import { ANTHROPIC_STATE_ROUND_400S } from "./_structured-state-round-recordings.ts";
 
 /** The probe's refs: an ongoing scene (no establish-forcing), three targets, no trackers. */

@@ -7,6 +7,7 @@ import {
   CARD_FRAME_MAX_HEIGHT_PX,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
+  cardFrameResponseHeaders,
 } from "@orb/kit/card-frame";
 import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -163,18 +164,16 @@ test("a hostile fontFamily is dropped at the boundary; the base body falls back 
 const ROUTED_URL = "/api/card-frame/0123456789abcdef0123456789abcdef";
 const PRE_MEASUREMENT_PX = 320;
 
-/** Serve the routed card the way `entry/http/card-frame.ts` does: kit's document under kit's policy. */
-async function serveRoutedCard(page: Page, html: string): Promise<void> {
+/** Serve one routed card document with the headers the server's card-frame route sends it with. */
+async function serveFrameDocument(page: Page, body: string, csp: string): Promise<void> {
   await page.route(ROUTED_URL, async (route) => {
-    await route.fulfill({
-      status: 200,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"),
-      },
-      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
-    });
+    await route.fulfill({ status: 200, headers: cardFrameResponseHeaders(csp), body });
   });
+}
+
+/** Serve the routed card the way `entry/http/card-frame.ts` does: kit's document under kit's policy and headers. */
+async function serveRoutedCard(page: Page, html: string): Promise<void> {
+  await serveRoutedCardUnder(page, html, buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"));
 }
 
 const frameHeight = async (cmp: { boundingBox: () => Promise<{ height: number } | null> }): Promise<number> => (await cmp.boundingBox())?.height ?? 0;
@@ -358,13 +357,7 @@ async function serveNavProbe(page: Page, spec: NavProbeSpec): Promise<NavProbe> 
       body: `<!doctype html><html><body><iframe id="card" sandbox="${CARD_FRAME_SANDBOX.document}" src="${ROUTED_URL}" style="width:300px;height:200px"></iframe></body></html>`,
     });
   });
-  await page.route(ROUTED_URL, async (route) => {
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": spec.cardCsp },
-      body: buildCardFrameDocument({ html: spec.cardHtml, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
-    });
-  });
+  await serveRoutedCardUnder(page, spec.cardHtml, spec.cardCsp);
   const land = async (route: Route): Promise<void> => {
     hits.push(route.request().url());
     await route.fulfill({ status: 200, contentType: "text/html", body: "<p>landed</p>" });
@@ -501,13 +494,7 @@ test("LEG 3 — a script-driven SELF navigation off-origin is refused exactly li
 /** Serve the routed card under an ARBITRARY policy, so a test can name the posture it is measuring. The
  *  document bytes are always the engine's (`buildCardFrameDocument`), so the height script is real. */
 async function serveRoutedCardUnder(page: Page, html: string, csp: string): Promise<void> {
-  await page.route(ROUTED_URL, async (route) => {
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": csp },
-      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }),
-    });
-  });
+  await serveFrameDocument(page, buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined }), csp);
 }
 
 /** A card script that stamps the body — the positive control every negative in this block leans on. */
@@ -657,19 +644,17 @@ test("LEG 3 — meta refresh is unchanged by the grant: still refused, and it ne
 // thin themed one, not the platform's wide light bar (it read as a stray native control inside the dark
 // flank). The bar's colour comes from the frame's own two theme tokens, so a re-themed app re-tints it.
 test("a frame's own scrollbar is the app's thin themed one", async ({ mount, page }) => {
-  await page.route(ROUTED_URL, async (route) => {
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static") },
-      body: buildCardFrameDocument({
-        html: '<div style="height:3000px">tall</div>',
-        css: undefined,
-        themeTokens: { "--sandbox-bg": "#101014", "--sandbox-fg": "#f5f5f5" },
-        styleTokens: undefined,
-        fontFamily: undefined,
-      }),
-    });
-  });
+  await serveFrameDocument(
+    page,
+    buildCardFrameDocument({
+      html: '<div style="height:3000px">tall</div>',
+      css: undefined,
+      themeTokens: { "--sandbox-bg": "#101014", "--sandbox-fg": "#f5f5f5" },
+      styleTokens: undefined,
+      fontFamily: undefined,
+    }),
+    buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"),
+  );
   const cmp = await mount(<SandboxFrame html="<p>x</p>" title="tall card" src={ROUTED_URL} />);
   const frame = await (await cmp.elementHandle())?.contentFrame();
   if (frame === null || frame === undefined) {

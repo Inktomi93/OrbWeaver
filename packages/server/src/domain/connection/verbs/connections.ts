@@ -11,17 +11,9 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import {
-  CONNECTION_LABEL_SEPARATOR,
-  CONNECTION_OP_CODES,
-  EMBED_SPACE_FIELDS,
-  isHubModelId,
-  modelIdSchema,
-  providerDisplayLabel,
-} from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, EMBED_SPACE_FIELDS, isHubModelId, mintConnectionLabel, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
-import { nextFreeLabel } from "@orb/kit/strings";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
@@ -80,13 +72,6 @@ function requireApi(provider: ProviderDef, api: ConnectionApi): void {
   }
 }
 
-/** `<provider label> · <model>`, suffixed ` (2)`, ` (3)`… until it does not collide with the owner's labels. */
-function mintLabel(provider: ProviderDef, model: string, taken: readonly string[], explicit: string | undefined): string {
-  const base =
-    explicit?.trim() !== undefined && explicit.trim() !== "" ? explicit.trim() : `${providerDisplayLabel(provider)}${CONNECTION_LABEL_SEPARATOR}${model}`;
-  return nextFreeLabel(base, taken);
-}
-
 // A list read: the kind comes from what the mirrors already hold, so a server that does not answer never holds the list.
 async function toView(ctx: ConnectionContext, row: UserConnection): Promise<ConnectionView> {
   const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
@@ -124,7 +109,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     await requireCredential(ctx, ownerId, params.credentialId);
     const model = requireModelId(params.model);
     requireCatalogModel(ctx, ownerId, provider, model);
-    const label = mintLabel(provider, model, await listOwnedLabels(ctx.db, ownerId), params.label);
+    const label = mintConnectionLabel(provider, model, await listOwnedLabels(ctx.db, ownerId), params.label);
     const now = ctx.now();
     const id = ctx.newConnectionId();
     await insertConnection(ctx.db, {

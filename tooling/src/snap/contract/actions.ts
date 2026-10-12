@@ -25,7 +25,9 @@ type StepAction =
   // shrinks `visualViewport.height` and fires its `resize` while the layout viewport stays full height,
   // which is what WebKit does and the branch `keyboard-inset.ts` exists for.
   | { kind: "soft-keyboard"; height: number }
-  | { kind: "motion-click"; selector: string | null }
+  // `goto` set: the measured input is that `--goto` target, run inside the trace (`--motion-goto`); `selector`
+  // is then null. Otherwise the input is a click on `selector`, or nothing for the entry window.
+  | { kind: "motion-click"; selector: string | null; goto?: string }
   | { kind: "jsclick"; selector: string }
   | { kind: "press"; selector: string }
   | { kind: "hover"; selector: string }

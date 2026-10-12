@@ -12,7 +12,7 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { makeRpgGameView } from "../../rpg/fixtures.ts";
 import { ChoiceProviderStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 
 // `rpg.getGame` for the room the provider reads; `behavior` is the knob under test and every other knob is
 // the born game's own default.
@@ -36,11 +36,11 @@ const FIRST_OPTION = "Draw your blade.";
 // story's room must present an ENGAGED rpg pointer here, or the provider falls back to `compose` and never
 // sends. (The prod fix that added this gate stopped `rpg.getGame` 404-looping on non-game chats.)
 //
-// Merged onto `CHAT_ROOM_ROUTES["chat.getChat"]` rather than replacing it: a bare `{ rpg }` literal starves
+// Merged onto `CHAT_ROOM_DETAIL` rather than replacing it: a bare `{ rpg }` literal starves
 // every OTHER `chat.getChat` reader the mounted room also runs — `useRoomGalleryDoor`'s
 // `viewerGalleryCharacter` reads `.participants`, which is absent (`undefined`, not `[]`) on the bare
 // literal and throws inside `Array.prototype.find` (the unfed-read ratchet this override missed).
-const engagedRpgPointer = { ...CHAT_ROOM_ROUTES["chat.getChat"], rpg: { gameId: "rpg_game_ct", engaged: true } };
+const engagedRpgPointer = { ...CHAT_ROOM_DETAIL, rpg: { gameId: "rpg_game_ct", engaged: true } };
 
 test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option text; the composer stays empty", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

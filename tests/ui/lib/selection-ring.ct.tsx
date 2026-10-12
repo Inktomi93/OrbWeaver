@@ -24,6 +24,7 @@
 // EVERY ARM CARRIES ITS PLANTED CONTROL. An idiom that "collapsed" because nothing paints at all is the
 // failure mode a positive-only sweep cannot see, so each selected reading is taken against its own
 // unselected twin in the same mount.
+import { SELECTION_RING_SELECTED } from "@orb/ui/lib";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -93,18 +94,20 @@ async function afterLayer(node: Locator): Promise<string> {
   return await node.evaluate((el: Element) => getComputedStyle(el, "::after").content);
 }
 
-/** The RULED ring, resolved in the page under test: a probe wearing exactly the utilities
- *  `packages/ui/src/lib/selection-ring.ts` spells. Derived, never a literal box-shadow string — a token
- *  retune must move the carriers and this anchor together or the arms below go red for the right reason. */
+/** The RULED ring, resolved in the page under test: a selected probe wearing the media-cell fragment itself.
+ *  Derived, never a literal box-shadow string — a token retune must move the carriers and this anchor together
+ *  or the arms below go red for the right reason; the picker cell wears its own `data-checked` twin, so
+ *  retuning either fragment alone breaks the one-idiom claim. */
 async function ruledRing(page: Page): Promise<string> {
-  const resolved = await page.evaluate(() => {
+  const resolved = await page.evaluate((fragment) => {
     const probe = document.createElement("div");
-    probe.className = "ring-2 ring-inset ring-primary";
+    probe.className = fragment;
+    probe.setAttribute("data-selected", "");
     document.body.append(probe);
     const shadow = getComputedStyle(probe).boxShadow;
     probe.remove();
     return shadow;
-  });
+  }, SELECTION_RING_SELECTED);
   return insetLayers(resolved);
 }
 

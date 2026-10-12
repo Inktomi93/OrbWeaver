@@ -29,6 +29,7 @@ export const ANTIPATTERN_CLASSES = [
       "contract-derives-not-respells",
       "no-inline-wire-interface",
       "no-inline-domain-interface",
+      "no-inline-package-interface",
       "no-inline-types",
       "test-hand-shape",
     ],

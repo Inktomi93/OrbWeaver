@@ -25,6 +25,7 @@ interface NormalizedImageBytes {
   readonly mediaType: string;
 }
 
+// @orb-waive no-inline-package-interface(NormalizeImageBytes): baselined when the gate landed; burn-down item 952.
 /** Normalize one outbound image-input buffer for a hosted wire (async: a GIF decode is I/O-bound). A
  *  call-signature interface (not a `type` alias): exported function shapes ride an interface in this
  *  infra-pure tier — the `no-inline-types` gate reserves exported `type` aliases for type-home dirs. */
@@ -33,6 +34,7 @@ export interface NormalizeImageBytes {
   (bytes: Uint8Array): Promise<NormalizedImageBytes>;
 }
 
+// @orb-waive no-inline-package-interface(ImageToPng): baselined when the gate landed; burn-down item 952.
 /** The sharp seam this normalizer needs: decode → re-encode PNG (metadata stripped). Injected as a bare
  *  function so `backends/wire` never imports `infra/image` (a sibling infra module) — the strategy-isolation
  *  seam. Compose binds `imageAdapter.transform(bytes, { format: 'png' })`. */

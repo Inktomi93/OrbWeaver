@@ -23,6 +23,7 @@ import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
 import type { SeededSessionDecision } from "./session/index.ts";
 
+// @orb-waive no-inline-package-interface(DisciplineOptions): baselined when the gate landed; burn-down item 952.
 /** Subset of SDK `Options` the firewall base (`disciplineOptions`) pins; spread into `query` options. */
 export interface DisciplineOptions {
   /** Removes the host "cowork" bundle that `tools:[]` alone doesn't — see translate.ts. */
@@ -34,6 +35,7 @@ export interface DisciplineOptions {
   readonly env: Record<string, string | undefined>;
 }
 
+// @orb-waive no-inline-package-interface(AgentSdkDeps): baselined when the gate landed; burn-down item 952.
 /** Deps the agent-sdk family closes over (`createAgentSdkBackend`); injected for hermetic tests. */
 /** What a spawn needs from the connection: WHOSE runtime dir and WHICH token — the catalog warm runs before a
  *  full `Resolved` exists, so this is the narrow shape both it and a turn hand in. */
@@ -54,6 +56,7 @@ export interface AgentSdkDeps {
   readonly childEnv: (connection: SpawnIdentity, overrides?: ClaudeRuntimeOverrides) => Record<string, string | undefined>;
 }
 
+// @orb-waive no-inline-package-interface(TurnStreamContext): baselined when the gate landed; burn-down item 952.
 /** `consumeTurnStream` parameter shape. */
 export interface TurnStreamContext {
   readonly onObservedResult?: ((result: ChatResult) => Promise<void>) | undefined;

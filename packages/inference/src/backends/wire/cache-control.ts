@@ -10,6 +10,7 @@ import { resolveCachePolicy } from "#funnel";
 import type { ProviderLogger } from "../http/provider-log.ts";
 import { cachePolicyContextOf } from "../http/response-cache.ts";
 
+// @orb-waive no-inline-package-interface(OpenRouterRouting): baselined when the gate landed; burn-down item 952.
 /** The openrouter routing-prefs slice this pin reads/writes. The full block is validated by the transport's
  *  own zod schema at the call site; this is the structural minimum the pin needs. */
 export interface OpenRouterRouting {
@@ -30,6 +31,7 @@ function anthropicCacheDirective(ttl: PromptCacheTtl | null): AnthropicCacheDire
   return { type: EPHEMERAL, ...(ttl === null ? {} : { ttl }) };
 }
 
+// @orb-waive no-inline-package-interface(ExplicitCachePlan): baselined when the gate landed; burn-down item 952.
 /** One turn's explicit-cache plan. ONE directive for every marker the turn places — tools, system block,
  *  history — which is how the TTL ORDER rule holds (a longer-TTL breakpoint must precede any shorter one, so a
  *  1h marker may never follow a 5m one): a turn carries a single ttl, so the order cannot be violated. */
@@ -236,7 +238,7 @@ export function computeCacheBreakpointPlacements(args: {
   return placed;
 }
 
-// @orb-waive no-inline-wire-interface(CacheMarkerRow): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(CacheMarkerRow): baselined when the gate landed; burn-down item 952.
 /** One delivered wire row as the marker placer reads it: the depth axis inputs plus the prose it estimates. */
 export interface CacheMarkerRow {
   readonly role: string;
@@ -244,6 +246,7 @@ export interface CacheMarkerRow {
   readonly text: string;
 }
 
+// @orb-waive no-inline-package-interface(CacheMarkerPlacement): baselined when the gate landed; burn-down item 952.
 /** What a turn's placement wrote: the wire-array patches (index → the message's `cacheControl` option) and the
  *  receipt counts the runners log. */
 export interface CacheMarkerPlacement {

@@ -260,7 +260,7 @@ test("an admission instance mismatch stays a visible refusal and is never automa
 });
 
 test("restart reconciles ACK-first without duplicate dispatch", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"admin.restart">();
   const trpc = await routeTrpc(page, {
     "sessions.me": () => OWNER,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, {}),
@@ -293,7 +293,7 @@ test("restart reconciles ACK-first without duplicate dispatch", async ({ mount, 
 });
 
 test("restart reconciles reconnect-first without duplicate dispatch", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"admin.restart">();
   const trpc = await routeTrpc(page, {
     "sessions.me": () => OWNER,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, {}),
@@ -327,7 +327,7 @@ test("restart reconciles reconnect-first without duplicate dispatch", async ({ m
 });
 
 test("an old-process reconnect during held admission cannot complete restart recovery", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"admin.restart">();
   const trpc = await routeTrpc(page, {
     "sessions.me": () => OWNER,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, {}),
@@ -363,7 +363,7 @@ test("an old-process reconnect during held admission cannot complete restart rec
 });
 
 test("a mounted control refuses confirmation after A goes down, then B must recover on C", async ({ mount, page }) => {
-  const hold = trpcHold();
+  const hold = trpcHold<"admin.restart">();
   const trpc = await routeTrpc(page, {
     "sessions.me": () => OWNER,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, {}),

@@ -3,8 +3,11 @@
 // applier (chat.setChatBackground) with the resolved hash/mime; Edit hands off to the edit body on the same
 // asset (the mini-host swaps bodies off openModal).
 
+import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { holdPortraitImage, layoutBox, naturalRatio, PORTRAIT_RATIO, PORTRAIT_W } from "@orb/testkit/browser/held-portrait-image.ts";
+import { makeAssetBlobRef } from "@orb/testkit/node/factories/asset-view.ts";
+import { makeGenerationProvenance } from "@orb/testkit/node/factories/imagery-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { seedActiveChat } from "@orb/testkit/node/seed-active-chat.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -91,7 +94,7 @@ test("image detail: the provenance strip shows readProvenance data", async ({ mo
   const assetId = mintTypeId(ID_PREFIX.asset);
   const generationId = mintTypeId(ID_PREFIX.imageryGeneration);
   await routeTrpc(page, {
-    "imagery.readProvenance": {
+    "imagery.readProvenance": makeGenerationProvenance({
       generationId,
       assetId,
       mode: "scenario",
@@ -103,7 +106,7 @@ test("image detail: the provenance strip shows readProvenance data", async ({ mo
       identityHash: null,
       edited: false,
       createdAt: 1_700_000_000_000,
-    },
+    }),
   });
   const cmp = await mount(<DetailFlowStory assetId={assetId} chatId={chatId} url={PNG} />);
 
@@ -117,8 +120,8 @@ test("image detail: Set as background resolves the asset and writes chat.setChat
   const assetId = mintTypeId(ID_PREFIX.asset);
   const rec = await routeTrpc(page, {
     "imagery.readProvenance": null,
-    "assets.resolveBlobRefs": [{ assetId, hash: "cafebabe", mime: "image/png" }],
-    "chat.setChatBackground": { kind: "asset" },
+    "assets.resolveBlobRefs": [makeAssetBlobRef({ assetId, hash: "cafebabe" })],
+    "chat.setChatBackground": themeBackgroundSchema.parse({ kind: "asset", assetId, assetHash: "cafebabe", mime: "image/png" }),
   });
   const cmp = await mount(<DetailFlowStory assetId={assetId} chatId={chatId} url={PNG} />);
 
@@ -170,7 +173,7 @@ test("#623: a REFUSED background write shows exactly ONE toast, and it is the fa
   const assetId = mintTypeId(ID_PREFIX.asset);
   await routeTrpc(page, {
     "imagery.readProvenance": null,
-    "assets.resolveBlobRefs": [{ assetId, hash: "cafebabe", mime: "image/png" }],
+    "assets.resolveBlobRefs": [makeAssetBlobRef({ assetId, hash: "cafebabe" })],
     "chat.setChatBackground": () => trpcError({ code: "FORBIDDEN", message: "host only" }),
   });
   const cmp = await mount(<DetailToastStory assetId={assetId} chatId={chatId} url={PNG} />);
@@ -188,8 +191,8 @@ test("#623: a SETTLED background write shows exactly ONE toast, and it names the
   const assetId = mintTypeId(ID_PREFIX.asset);
   await routeTrpc(page, {
     "imagery.readProvenance": null,
-    "assets.resolveBlobRefs": [{ assetId, hash: "cafebabe", mime: "image/png" }],
-    "chat.setChatBackground": { kind: "asset" },
+    "assets.resolveBlobRefs": [makeAssetBlobRef({ assetId, hash: "cafebabe" })],
+    "chat.setChatBackground": themeBackgroundSchema.parse({ kind: "asset", assetId, assetHash: "cafebabe", mime: "image/png" }),
   });
   const cmp = await mount(<DetailToastStory assetId={assetId} chatId={chatId} url={PNG} />);
   await cmp.getByRole("button", { name: "Set as background" }).click();

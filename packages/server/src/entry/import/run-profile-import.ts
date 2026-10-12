@@ -20,12 +20,14 @@ import type { ImportCardScripts } from "#domain/regex";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
 import { buildImportContext } from "./build-import-context.ts";
 
+// @orb-waive no-inline-package-interface(ImportFile): baselined when the gate landed; burn-down item 952.
 /** One card file to import: the raw bytes + an optional source filename (provenance + name fallback). */
 export interface ImportFile {
   readonly bytes: Uint8Array;
   readonly filename?: string;
 }
 
+// @orb-waive no-inline-package-interface(ProfileImportDeps): baselined when the gate landed; burn-down item 952.
 export interface ProfileImportDeps {
   readonly principal: Principal;
   readonly character: ImportCharacterPort;
@@ -58,6 +60,7 @@ function cardImportService(deps: Omit<ProfileImportDeps, "files">): ReturnType<t
   );
 }
 
+// @orb-waive no-inline-package-interface(CardLorebookRestoreDeps): baselined when the gate landed; burn-down item 952.
 /** What the #1598 RESTORE door needs: the same card-import wiring, plus the ONE card file whose embedded
  *  lorebook the owner is asking to re-assert. `worldInfo` is REQUIRED here (unlike the batch import, whose
  *  card-only arm legitimately skips embedded books) — a restore with no lorebook write op could only refuse. */

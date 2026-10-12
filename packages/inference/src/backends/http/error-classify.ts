@@ -34,12 +34,14 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAVAILABLE_LEGAL = 451;
 const HTTP_SERVER_ERROR_FLOOR = 500;
 
+// @orb-waive no-inline-package-interface(ErrorClassification): baselined when the gate landed; burn-down item 952.
 /** A classified failure — the typed kind + whether a retry could plausibly succeed. */
 export interface ErrorClassification {
   readonly kind: ProviderErrorKind;
   readonly retryable: boolean;
 }
 
+// @orb-waive no-inline-package-interface(HttpErrorDiagnostic): baselined when the gate landed; burn-down item 952.
 /** Structured diagnostic peeled off an HTTP-error chain — safe to put on a log record (sanitized). */
 export interface HttpErrorDiagnostic {
   /** Raw upstream response body, sanitized + length-capped. Absent when the chain carries no `body`. */
@@ -239,6 +241,7 @@ const SCHEMA_REJECTIONS: readonly SchemaRejectionRow[] = [
 /** A 400 that names a schema, a grammar or the response format but matches no row: logged, never guessed at. */
 const SCHEMA_SHAPED_BODY = /schema|grammar|response_format/iu;
 
+// @orb-waive no-inline-package-interface(SchemaRejectionContext): baselined when the gate landed; burn-down item 952.
 /** What a structured call's failure says about its schema, for {@link withSchemaRejection}. */
 export interface SchemaRejectionContext {
   readonly log: ProviderLogger;

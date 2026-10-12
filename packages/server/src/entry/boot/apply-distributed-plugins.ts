@@ -23,6 +23,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 
+// @orb-waive no-inline-package-interface(DistributedPluginApplierDeps): baselined when the gate landed; burn-down item 952.
 export interface DistributedPluginApplierDeps {
   /** The REAL self-scoped verb, under the receiving user's own Principal. Returns which slugs it installed. */
   readonly apply: (principal: Principal) => Promise<{ readonly installedSlugs: readonly string[] }>;
@@ -30,6 +31,7 @@ export interface DistributedPluginApplierDeps {
   readonly markApplied: (principal: Principal) => Promise<void>;
 }
 
+// @orb-waive no-inline-package-interface(DistributedPluginApplier): baselined when the gate landed; burn-down item 952.
 export interface DistributedPluginApplier {
   readonly ensureApplied: (principal: Principal) => Promise<void>;
 }

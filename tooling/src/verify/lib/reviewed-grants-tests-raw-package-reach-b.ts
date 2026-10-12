@@ -18,7 +18,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B: readonly ReviewedGateGra
   "tests/client/features/refinery/lib/manual-targets.test.ts": ["#client/features/refinery/lib/manual-targets.ts"],
   "tests/client/features/refinery/lib/preflight-warn.test.ts": ["#client/features/refinery/lib/preflight-warn.ts"],
   "tests/client/features/refinery/lib/render-plan.test.ts": ["#client/features/refinery/lib/builtin-hints.ts", "#client/features/refinery/lib/render-plan.ts"],
-  "tests/client/features/refinery/surfaces/refinery-content-surface.ct.tsx": ["#client/lib/test-ids.ts"],
+  "tests/client/features/refinery/surfaces/_refinery-content-support.ts": ["#client/lib/test-ids.ts"],
   "tests/client/features/regex/_ct-stories.tsx": [
     "#client/features/config/components/config-collection-landing.tsx",
     "#client/features/regex/components/regex-bulk-bar.tsx",
@@ -181,7 +181,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B: readonly ReviewedGateGra
   "tests/contracts/inference/model-schema.test-d.ts": ["#contracts/inference/model-schema.ts"],
   "tests/contracts/inference/provider-schema.test-d.ts": ["#contracts/inference/provider-schema.ts"],
   "tests/contracts/preset/response-cache.contract.test.ts": ["#contracts/preset/response-cache.ts"],
-  "tests/contracts/prose/index.contract.test.ts": ["#contracts/prose/prose-baseline.json"],
   "tests/e2e/event-sequence.spec.ts": ["#client/state/active-chat-store.ts"],
   "tests/e2e/live-parity-plus-capstone.spec.ts": ["#ui/lib/action-names.ts"],
   "tests/e2e/support/chat-room.ts": ["#client/lib/row-qualifiers.ts"],
@@ -211,15 +210,15 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B: readonly ReviewedGateGra
   ],
   "tests/inference/backends/agent-sdk/turn-input.test.ts": ["#inference/backends/agent-sdk/turn-input.ts"],
   "tests/inference/backends/agent-sdk/verify.test.ts": ["#inference/backends/agent-sdk/verify.ts"],
-  "tests/inference/backends/anthropic-messages/chat.test.ts": [
+  "tests/inference/backends/anthropic-messages/_chat-support.ts": [
     "#inference/backends/anthropic-messages/chat.ts",
-    "#inference/backends/anthropic-messages/extras.ts",
     "#inference/capability/sources/curated/loader.ts",
     "#inference/capability/synthesize.ts",
     "#inference/contract/chat.ts",
     "#inference/contract/errors.ts",
     "#inference/deps.ts",
   ],
+  "tests/inference/backends/anthropic-messages/chat.test.ts": ["#inference/backends/anthropic-messages/extras.ts"],
   "tests/inference/backends/anthropic-messages/extras.test.ts": ["#inference/backends/anthropic-messages/extras.ts", "#inference/contract/resolve.ts"],
   "tests/inference/backends/anthropic-messages/index.test.ts": [
     "#inference/backends/anthropic-messages/index.ts",
@@ -289,7 +288,7 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_B: readonly ReviewedGateGra
     "#inference/backends/v4/prompt.ts",
     "#inference/contract/resolve.ts",
   ],
-  "tests/inference/backends/openai-compat/chat.test.ts": [
+  "tests/inference/backends/openai-compat/_chat-support.ts": [
     "#inference/backends/openai-compat/chat.ts",
     "#inference/capability/sources/curated/loader.ts",
     "#inference/capability/synthesize.ts",

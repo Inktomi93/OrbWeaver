@@ -83,6 +83,7 @@ function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress 
   return { modelId: modelIdSchema.parse(info.name), loaded, total };
 }
 
+// @orb-waive no-inline-package-interface(LocalLightModelCache): baselined when the gate landed; burn-down item 952.
 /** The inference seam the task files depend on — raw un-normalized vectors; task files own L2 + MRL. */
 export interface LocalLightModelCache {
   readonly embedTexts: (
@@ -102,6 +103,7 @@ export interface LocalLightModelCache {
   readonly loadFailed: (modelId: ModelId) => boolean;
 }
 
+// @orb-waive no-inline-package-interface(ModelCacheConfig): baselined when the gate landed; burn-down item 952.
 export interface ModelCacheConfig {
   readonly cpuPercent?: LocalLightCpuPercent | undefined;
   readonly device?: string | undefined;
@@ -413,6 +415,7 @@ async function ensureCacheDir(dir: string, log: InferenceLog): Promise<void> {
   });
 }
 
+// @orb-waive no-inline-package-interface(PairTokenizer): baselined when the gate landed; burn-down item 952.
 /** The tokenizer surface the pair fit needs; the lib's tokenizer satisfies it. */
 export interface PairTokenizer {
   readonly encode: (text: string, options?: { text_pair?: string | null; add_special_tokens?: boolean }) => number[];

@@ -32,6 +32,7 @@ import { SEARCH_SPACE_REINDEXING } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
+import { makeCatalogStats } from "@orb/testkit/node/factories/discovery-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -80,7 +81,7 @@ const CORPUS_AMBIENT_ROUTES: TrpcRoutes<
   "search.suggest": [],
   // The LIST pane's lens vocabularies, at the pre-distill floor.
   "discovery.characterFacets": { genres: [], tones: [] },
-  "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 },
+  "discovery.catalog": makeCatalogStats({ genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 }),
   // The BROWSE view's keyset-paged infinite query (#1631) — `CorpusListSurfaceNavStory` mounts
   // `CorpusListSurface` → `CorpusBrowseView`, whose `discovery.browseCharacters` read was UNFED, so whether
   // this file tripped the CT unfed-read ratchet depended on the query landing before the test ended. Shape
@@ -524,6 +525,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 2,
             snippet: PASSAGE,
             score: 0.1,
+            relevance: 0.9,
             chatTitle: "Elora Jan 28",
           },
           {
@@ -532,6 +534,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 5,
             snippet: PASSAGE,
             score: 0.12,
+            relevance: 0.88,
             chatTitle: "Elora Jan 28 (2)",
           },
           {
@@ -540,6 +543,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 9,
             snippet: OTHER_PASSAGE,
             score: 0.2,
+            relevance: 0.8,
             chatTitle: "Elora Jan 26",
           },
         ],
@@ -636,6 +640,7 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 2,
             snippet: PASSAGE,
             score: 0.1,
+            relevance: 0.9,
             chatTitle: "Elora Jan 28",
           },
           {
@@ -644,6 +649,7 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 9,
             snippet: OTHER_PASSAGE,
             score: 0.2,
+            relevance: 0.8,
             chatTitle: "Elora Jan 28",
           },
         ],

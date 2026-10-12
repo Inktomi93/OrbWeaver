@@ -7,6 +7,7 @@
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import type { ResolvedEmbedKnobs, ResolvedWarning } from "../contract/resolve.ts";
 
+// @orb-waive no-inline-package-interface(EmbedOptions): baselined when the gate landed; burn-down item 952.
 export interface EmbedOptions {
   readonly inputType?: "query" | "document" | undefined;
   readonly instruction?: string | undefined;

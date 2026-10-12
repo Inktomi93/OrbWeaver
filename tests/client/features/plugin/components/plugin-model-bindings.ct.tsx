@@ -230,7 +230,7 @@ test("a refused write for a foreign plugin says the plugin is not yours", async 
 });
 
 test("the read shows a loading placeholder, then an error with a retry", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"connection.listBindings">();
   let calls = 0;
   await stub(page, {
     bindings: () => {

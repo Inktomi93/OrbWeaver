@@ -153,6 +153,7 @@
       "Bash(date *)",
       "Bash(ps *)",
       "Bash(ast-grep *)",
+      "Bash(codegraph *)",
       "Bash(pnpm ast *)",
       "Bash(npx ast-grep *)",
       "Bash(git status *)",

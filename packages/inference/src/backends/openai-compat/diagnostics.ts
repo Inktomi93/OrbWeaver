@@ -31,6 +31,7 @@ const INSPECT_API = "chat-completions";
 const CREDITS_PATH = "/credits";
 const GENERATION_PATH = "/generation";
 
+// @orb-waive no-inline-package-interface(DiagnosticsDeps): baselined when the gate landed; burn-down item 952.
 export interface DiagnosticsDeps {
   readonly fetch: typeof fetch;
   readonly now: () => number;
@@ -185,6 +186,7 @@ function inspectionRequest(url: string, headers: Record<string, string>, body: u
   };
 }
 
+// @orb-waive no-inline-package-interface(InspectDeps): baselined when the gate landed; burn-down item 952.
 /** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
 export interface InspectDeps {
   readonly fetch: typeof fetch;

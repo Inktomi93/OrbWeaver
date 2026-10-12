@@ -13,8 +13,8 @@
 // The ingest phase is DERIVED, never stamped: there is no `status` column — the
 // chunk/embed counts ARE the truth, so the surface can never show a phase the data does not support.
 
-import type { BankHealthView, DocOrigin, DocumentView, IngestPhase } from "@orb/contracts/databank";
-import { INGEST_PHASES, STALE_INGEST_MS } from "@orb/contracts/databank";
+import type { BankHealthView, CountedIngestPhase, DocOrigin, DocumentView, IngestPhase } from "@orb/contracts/databank";
+import { countedIngestPhase, INGEST_PHASES, ingestPhase } from "@orb/contracts/databank";
 import type { DocFormat } from "@orb/contracts/extraction";
 import { DOC_FORMAT_EXTENSIONS, DOC_UPLOAD_FORMATS, docFormatForMime } from "@orb/contracts/extraction";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
@@ -62,51 +62,19 @@ export function documentTypeLabel(mime: string): string {
 // chunks yet (queued/in-flight); `embedding` = chunks exist but not all embedded (partial ingest, a retry
 // resumes it); `ready` = every chunk is embedded; `empty` = a document that extracted to nothing (charCount
 // 0 — the `empty-extraction` warning's persistent state); `stalled` = an in-flight phase whose `updatedAt`
-// froze (see {@link STALE_INGEST_MS}).
+// froze (see `STALE_INGEST_MS`).
 //
-// THE VOCABULARY AND THE STALL THRESHOLD LIVE IN `@orb/contracts/databank`. They moved there (from `#state`
-// and from this file respectively, 2026-08-14) when the phase became a `databank.list` INPUT: the SERVER now
-// filters the bank by phase, so both tiers must speak one tuple and measure the stall against one number, or
-// the lens that selected a row and the chip that labels it can disagree about the same document. The RULES
-// below are still this file's — the server spells the same arithmetic as SQL predicates and cites them.
-
-// The COUNT-derived half — the four phases that read off chunk/embed arithmetic alone, with no clock. The
-// stall overlay is applied on top by `ingestPhase`; the hint needs THIS answer (it names the phase the job
-// wedged in), which is why the two live apart.
-type CountedPhase = Exclude<IngestPhase, "stalled">;
+// THE VOCABULARY, THE STALL THRESHOLD AND THE DERIVATION LIVE IN `@orb/contracts/databank`: the phase is a
+// `databank.list` INPUT the SERVER filters by, so both tiers speak one tuple and one rule, or the lens that
+// selected a row and the chip that labels it can disagree about the same document. The server spells the same
+// arithmetic as SQL predicates and cites it. The hint below needs the COUNTED phase (it names the phase the job
+// wedged in), which is why `countedIngestPhase` is exported beside `ingestPhase`.
 
 // The "still {word}" for each COUNT-derived phase — the in-flight phases echo their badge label lowercased;
 // terminal phases are null (a full Record so a new phase must decide, mirroring INGEST_BADGES's
 // exhaustiveness). It is keyed on the counted phase, not the rendered one, precisely because it is what
 // DEFINES `stalled`: a phase that reads null here can never wedge.
-const IN_FLIGHT_WORD: Record<CountedPhase, string | null> = { empty: null, indexing: "queued", embedding: "indexing", ready: null };
-
-function countedPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): CountedPhase {
-  if (doc.charCount === 0) {
-    return "empty";
-  }
-  if (doc.chunkCount === 0) {
-    return "indexing";
-  }
-  if (doc.embeddedCount < doc.chunkCount) {
-    return "embedding";
-  }
-  return "ready";
-}
-
-/**
- * The phase a surface RENDERS. `stalled` is not a fifth arithmetic outcome — it is an in-flight phase whose
- * `updatedAt` stopped moving, which is the only signal a schema with no status column can offer that a job
- * is never coming back (a document whose ingest was never enqueued at all looks exactly like one that is
- * about to start, for the first five minutes).
- *
- * `now` is INJECTED (client-determinism — the render edge passes the wall clock off the `time` seam, never
- * an ambient `Date.now`).
- */
-export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): IngestPhase {
-  const counted = countedPhase(doc);
-  return IN_FLIGHT_WORD[counted] !== null && now - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : counted;
-}
+const IN_FLIGHT_WORD: Record<CountedIngestPhase, string | null> = { empty: null, indexing: "queued", embedding: "indexing", ready: null };
 
 /** What a phase's chip renders: its label, its `@orb/ui/badge` intent, and an optional leading glyph. */
 interface IngestBadge {
@@ -189,7 +157,7 @@ export function ingestPollInterval(
  *  Names the phase the job wedged in (which is why it reads the COUNTED phase, not the rendered `stalled`).
  *  `now` is injected (client-determinism — the render edge passes the wall clock). */
 export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): string | null {
-  const word = IN_FLIGHT_WORD[countedPhase(doc)];
+  const word = IN_FLIGHT_WORD[countedIngestPhase(doc)];
   if (word === null || ingestPhase(doc, now) !== "stalled") {
     return null;
   }
@@ -207,7 +175,7 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
  * two hints are mutually exclusive by construction rather than by a caller remembering to pick one.
  */
 export function ingestEmptyHint(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): string | null {
-  return countedPhase(doc) === "empty" ? "No text could be extracted — re-upload a text PDF, or paste the text." : null;
+  return countedIngestPhase(doc) === "empty" ? "No text could be extracted — re-upload a text PDF, or paste the text." : null;
 }
 
 /**

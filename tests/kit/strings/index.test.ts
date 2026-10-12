@@ -4,6 +4,7 @@ import {
   decodeXmlText,
   fileStem,
   formatBytes,
+  formatSignedDelta,
   formatUsd,
   groupThousands,
   nextFreeLabel,
@@ -160,4 +161,10 @@ test("an astral character blanks to two spaces, so the text keeps its UTF-16 len
   const blanked = blankSpan(text, 0, 6);
   expect(blanked.length).toBe(text.length);
   expect(blanked.indexOf("c")).toBe(text.indexOf("c"));
+});
+
+test("formatSignedDelta signs positives and leaves zero and negatives bare", () => {
+  expect(formatSignedDelta(5)).toBe("+5");
+  expect(formatSignedDelta(-3)).toBe("-3");
+  expect(formatSignedDelta(0)).toBe("0");
 });

@@ -33,7 +33,7 @@ import { readPhantomScrollers } from "@orb/testkit/browser/scroll-containing-blo
 import { assertTokenRoundtrip } from "@orb/testkit/node/assert-token-roundtrip.ts";
 import { makeCachePolicy, makeCapability, makeGenerationCapability, makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -506,7 +506,7 @@ const BUILT_IN_DETAIL = { ...presetDetail(BUILT_IN, "Default", undefined), isSys
 const MAX_OUTPUT_LABEL = "Max output tokens value";
 
 test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the racing save and the active pick all retarget to it", async ({ mount, page }) => {
-  const mint = trpcHold();
+  const mint = trpcHold<"preset.update">();
   // The server's fork row, accumulating every patch — the CT's stand-in for the persisted copy.
   let forkConfig: PromptConfig = promptConfigSchema.parse(BUILT_IN_DETAIL.config);
   let activeId: string | null = null;
@@ -794,7 +794,7 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
 });
 
 test("FORK-CHOICE delayed completion cannot retarget selection after the user opens another preset", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"preset.update">();
   await routeForkChoice(page, () => held);
   const component = await mount(<PresetForkChoiceStory />);
 
@@ -1216,7 +1216,7 @@ test("GUIDED-PROMPT CAP — the steer field wears the shared injection-template 
 // actionable state must act — and it rides the SAME `settings.updateUserSettingsSection` seeds patch as the
 // LIST row toggle and its kebab mirror.
 
-function settingsWithActive(activeId: string | null): TrpcFixtureOutput<"settings.getUserSettings"> {
+function settingsWithActive(activeId: string | null): TrpcWireOutput<"settings.getUserSettings"> {
   return {
     ...SETTINGS_VIEW,
     config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },

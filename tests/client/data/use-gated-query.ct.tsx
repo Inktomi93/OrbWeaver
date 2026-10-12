@@ -7,8 +7,10 @@
 // invariant, verified here at the network-recorder level, not just by type).
 
 // @orb-waive-file no-loose-id-cast(CHAT_ID): baselined when the gate widened; burn-down item 906.
+
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { GatedQueryStory } from "./_ct-stories.tsx";
@@ -17,9 +19,10 @@ const CHAT_ID = castId<ChatId>("chat_gatedquerytest01");
 
 test("a real id flows the query end-to-end (queryOptions fires, resolves, renders)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.getChat": (input) => ({
-      title: `room for ${input.chatId}`,
-    }),
+    "chat.getChat": (input) =>
+      makeChatDetail({
+        title: `room for ${input.chatId}`,
+      }),
   });
 
   await mount(<GatedQueryStory chatId={CHAT_ID as never} />);

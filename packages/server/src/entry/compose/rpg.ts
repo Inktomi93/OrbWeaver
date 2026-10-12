@@ -56,7 +56,7 @@ import type {
 } from "@orb/contracts/rpg";
 import {
   actorRefKey,
-  buildRpgToolDescriptions,
+  buildToolRoundWireTools,
   buildTrackerWriteGroups,
   cacheStableExtractionRefs,
   composePlaneTeaching,
@@ -106,13 +106,14 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { can } from "#domain/admin";
 import type { CharacterImportProvenance, CharacterService } from "#domain/character";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "#domain/character";
-import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
+import type { ChatService, PostNarratorMessage, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type {
   ActorRefIndex,
   ImportRpgGame,
   RpgContext,
   RpgCopyPresetToUser,
+  RpgPostNarratorMessage,
   RpgResolvePresetOwned,
   RpgResolveViewerVisibility,
   RpgRunExtraction,
@@ -164,6 +165,7 @@ const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable";
 const STRUCTURED_REPLY_UNREADABLE = "the model's state reply was not a list of changes";
 const INVENTORY_NAME_WHITESPACE = /\s+/u;
 
+// @orb-waive no-inline-package-interface(RpgComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the rpg seam needs from the composition root: db + the sibling front doors rpg's injected ops route
  *  through (chat's rpg-facing ops, the connection resolve, the executor, the host-principal bridge, the tool
  *  registry). */
@@ -333,7 +335,13 @@ export function rpgPromotionProvenance(chatId: ChatId, sourceActorKey: string): 
   return { importedFrom, importHash: sha256Hex(importedFrom) };
 }
 
-// @orb-waive no-inline-wire-interface(RpgComposeResult): baselined when the gate widened; burn-down item 904.
+/** Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids, and
+ *  chat owns the narrator batch that commits and emits it. The two domains never construct each other's rows. */
+export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage {
+  return (chatId, content, buildSnapshotStatement) => post(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement });
+}
+
+// @orb-waive no-inline-package-interface(RpgComposeResult): baselined when the gate landed; burn-down item 952.
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
  *  injection (the `input.rpg ?? null` seam). */
 export interface RpgComposeResult {
@@ -1067,57 +1075,6 @@ function toolRoundSystem(inputs: PromptInputs): string {
   const refLines = refEnumerationLines(inputs);
   const parts = [base, teaching, refLines, ...(reconcile ? [resolveProseText("rpg.extract.reconcilePass", prose)] : [])];
   return parts.join("\n\n");
-}
-
-/** Build the per-game, per-actor wire tools for a state round / a folded turn (R6 + R2). The parameters come
- *  from ONE projection of the extraction schema constrained by this call's refs — so the tool a model is handed
- *  offers EXACTLY the trackers each target actually carries, minus the locked ones (prevent-at-schema; the
- *  apply-time lock strip stays a backstop). The descriptions are the R2 TEMPLATES rendered against THIS game,
- *  so a host's `Grit ("resolve you spend to push through danger")` reaches the write surface by name + gloss.
- *
- *  A plane the game doesn't have is OMITTED ENTIRELY, never offered as an empty husk: `set_tracker` disappears
- *  when the game defines no game-subject trackers (the constraint dropped the plane from the schema, and a
- *  tool whose parameters no longer exist would be an invitation to write nothing).
- *
- * @public Test-anchored module surface: the structured round's schema-weight pins build from this exact list. */
-export function buildToolRoundWireTools(
-  refs: ExtractionRefs,
-  config: RpgGameConfig,
-  prose: ProseOverrides,
-): { name: string; description: string; parameters: Record<string, unknown> }[] {
-  // The per-tool projected args, ref-constrained. We reuse the extraction constraint by projecting the whole
-  // extraction schema once and lifting each array field's item schema (which carries the injected enums).
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs) as {
-    properties?: Record<string, { items?: Record<string, unknown> } | Record<string, unknown>>;
-  };
-  const itemSchemaOf = (field: string): Record<string, unknown> | undefined => {
-    const node = constrained.properties?.[field] as { items?: Record<string, unknown> } | undefined;
-    return node === undefined ? undefined : (node.items ?? { type: "object" });
-  };
-  const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
-  const descriptions = buildRpgToolDescriptions({ config, refs, prose });
-  const describeTool = (name: string): string => descriptions.get(name) ?? "";
-  const tools: { name: string; description: string; parameters: Record<string, unknown> }[] = [
-    { name: "update_party", description: describeTool("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
-    { name: "update_inventory", description: describeTool("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
-    { name: "update_scene", description: describeTool("update_scene"), parameters: sceneSchema },
-  ];
-  // The game-subject tracker tool — present ONLY when this game defines one (R6 "a disabled feature's tool is
-  // omitted entirely"). `itemSchemaOf` returns undefined exactly when the constraint pruned the plane.
-  const trackerParams = itemSchemaOf("trackers");
-  if (trackerParams !== undefined) {
-    tools.push({ name: "set_tracker", description: describeTool("set_tracker"), parameters: trackerParams });
-  }
-  tools.push(
-    { name: "upsert_quest", description: describeTool("upsert_quest"), parameters: itemSchemaOf("quests") ?? { type: "object" } },
-    { name: "add_journal_entry", description: describeTool("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
-    {
-      name: RPG_NO_CHANGES_TOOL,
-      description: resolveProseText("rpg.extract.tool.noChanges", prose),
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  );
-  return tools;
 }
 
 /** A cheap round normally gets one shot. A measured hosted-model failure skipped Inventory twice even though
@@ -2196,10 +2153,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveParticipants: deps.rpgChatOps.resolveRpgParticipants,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
     promoteToCharacter: buildPromoteToCharacter(deps),
-    // Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids;
-    // chat owns the existing narrator batch and commits/emits. The two domains never construct each other's rows.
-    postNarratorMessage: (chatId, content, buildSnapshotStatement) =>
-      deps.rpgChatOps.postNarratorMessage(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement }),
+    postNarratorMessage: createRpgRestorePost(deps.rpgChatOps.postNarratorMessage),
     resolvePresetOwned: deps.resolvePresetOwned,
     copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.

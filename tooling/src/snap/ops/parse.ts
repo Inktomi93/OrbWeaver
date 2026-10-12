@@ -37,7 +37,6 @@ function sessionValidationPairs(args: Args, contextsMode: boolean, inheritedSess
       contextsMode && args.isolated && args.stageAuth !== "local",
       "--contexts/--as need signed-in humans: add --stage-auth local to stage them, or drop --isolated/--dirty/--ref to use the fixture stack",
     ],
-    [args.stageDb !== null && args.stageAuth === "local", "--stage-db and --stage-auth local are mutually exclusive: a local stage boots an empty data root"],
     [contextsMode && (args.watchMs > 0 || args.baseline || args.diff), "--contexts/--as do not support --watch, --baseline, or --diff"],
     [contextsMode && args.cascade.length > 0, "--cascade does not combine with --contexts/--as (one ephemeral debugging profile owns one context)"],
     // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
@@ -80,6 +79,27 @@ function stageKeeperValidationPairs(args: Args): ValidationPair[] {
     [
       band !== null && (args.stageDown || args.stageStatus || args.stageSweep || args.session !== null || args.sessionDaemon !== null),
       "--stage-keeper is the band idle timer's own entry and does not combine with another mode",
+    ],
+  ];
+}
+
+/** `--stage-wait` queues the stage ask of a drive, so it needs an isolated stage and a one-shot run (a session
+ *  daemon boots its own stage). `--stage-waiter` is the queue waiter's own process mode. */
+function stageWaitValidationPairs(args: Args): ValidationPair[] {
+  return [
+    [
+      args.stageWait !== null && (args.stageDown || args.stageStatus || args.stageSweep),
+      "--stage-wait queues a stage for a run; it does not combine with --stage-down/--stage-status/--stage-sweep",
+    ],
+    [
+      args.stageWait !== null && (args.session !== null || args.sessionExport !== null),
+      "--stage-wait is for one-shot runs; a --session boots its stage inside the daemon",
+    ],
+    [args.stageWaiter !== null && args.stageWaiter === "", "--stage-waiter takes a ticket id"],
+    [
+      args.stageWaiter !== null &&
+        (args.stageDown || args.stageStatus || args.stageSweep || args.session !== null || args.sessionDaemon !== null || args.stageKeeper !== null),
+      "--stage-waiter is the stage wait queue's own entry and does not combine with another mode",
     ],
   ];
 }
@@ -282,6 +302,7 @@ function validateParsedArgs(args: Args, context: ParsedValidationContext): strin
   const invalidModes = [
     ...sessionValidationPairs(args, contextsMode, context.inheritedSessionBinding),
     ...stageKeeperValidationPairs(args),
+    ...stageWaitValidationPairs(args),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
     ...contextualTapValidationPairs(args, context),
@@ -368,6 +389,8 @@ export function parseSnapArgs(
     stageSweep: false,
     stageOwner: null,
     stageKeeper: null,
+    stageWait: null,
+    stageWaiter: null,
     force: false,
     session: null,
     sessionDaemon: null,

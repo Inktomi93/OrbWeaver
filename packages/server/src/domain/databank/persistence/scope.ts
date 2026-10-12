@@ -215,17 +215,6 @@ async function resolveRosterCharacters(db: Db, chatId: ChatId): Promise<Characte
   return rows.flatMap((r) => (r.characterId === null ? [] : [r.characterId]));
 }
 
-/** The live host of a chat (role='host', still present), or undefined. Used only for the PANEL's host/member
- *  branch ({@link resolveActiveDocumentIds} no longer needs a host — the union is member-driven). */
-export async function resolveChatHost(db: Db, chatId: ChatId): Promise<UserId | undefined> {
-  const rows = await db
-    .select({ userId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-    .limit(LIMIT_ONE);
-  return rows[0]?.userId ?? undefined;
-}
-
 /** The host's per-document visibility override for a chat (D85). Reads `chats.metadata.databankVisibility` and
  *  fault-isolates it: an absent OR corrupt blob heals to the empty set (default-visible — widening is
  *  default-on, so a garbage blob can never SILENTLY hide documents, only fail-open to the widened union). */

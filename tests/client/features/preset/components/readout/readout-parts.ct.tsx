@@ -26,6 +26,7 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import {
   makeCachePolicy,
   makeCapability,
@@ -355,7 +356,7 @@ function readoutRoutes(
     // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;
     // `usage-readout.ct.tsx` is the suite that varies it.
     "preset.listUsage": () => ({ isUserDefault: false, gmRooms: [] }),
-    "chat.getChat": () => ({ id: "chat_ct_readout" }),
+    "chat.getChat": () => makeChatDetail({ id: "chat_ct_readout" }),
   };
 }
 
@@ -476,6 +477,8 @@ test("WIRING — Retry fires a REAL re-read: the click issues a second resolve t
 
 /** The switcher's own Select, by the name the component gives it. */
 const SWITCHER_NAME = "Connection to describe";
+/** The kicker only the Data view's readout renders. */
+const DATA_VIEW_KICKER = "References — this preset";
 
 test("the panel defaults to the chat role and names the role, provider and model in view", async ({ mount, page }) => {
   await routeTrpc(page, readoutRoutes(settledResolve));
@@ -510,6 +513,8 @@ test("the connection in view survives leaving the Params view and coming back", 
   await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target: { kind: "role", task: "summarize" } });
 
   await probe.getByRole("button", { name: "Switch view" }).click();
+  // The Data view really rendered (the preset stayed open), so the missing combobox means "left Params".
+  await expect(probe.getByText(DATA_VIEW_KICKER, { exact: true })).toBeVisible();
   await expect(probe.getByRole("combobox", { name: SWITCHER_NAME })).toHaveCount(0);
   await probe.getByRole("button", { name: "Switch view" }).click();
 
@@ -535,7 +540,7 @@ test("a role whose binding is stale shows the failure band with the server's rea
 });
 
 test("a pending read after a switch holds the skeleton, and a failed one shows the causeless band", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"connection.resolveChatCapability">();
   await routeTrpc(
     page,
     readoutRoutes((input) => {

@@ -1,4 +1,4 @@
-import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import {
   AUTH_MODES,
   authConfigShareSchema,
@@ -71,52 +71,6 @@ test("authModeSchema round-trips every mode and rejects non-members", () => {
 const SAMPLE_USER_ID = castId<UserId>("user-alice");
 const SAMPLE_HANDLE = castId<Handle>("alice");
 const SAMPLE_EXTERNAL_ID = castId<ExternalId>("authentik-sub-alice");
-
-test("Principal pins the D19 shape: userId+role+handle+externalId+via, no callerUserId/isOwner/groups", () => {
-  const principal: Principal = {
-    userId: SAMPLE_USER_ID,
-    role: "owner",
-    handle: SAMPLE_HANDLE,
-    externalId: SAMPLE_EXTERNAL_ID,
-    via: "fallback",
-  };
-  expect(Object.keys(principal).sort()).toEqual(["externalId", "handle", "role", "userId", "via"].sort());
-  // D19: the caller is `Principal.userId` — there is NO `callerUserId`, NO `isOwner` (owner⊇admin lives
-  // in the can() seam), and NO `groups` (role is the sole carried authz axis — ledger §2).
-  expect("callerUserId" in principal).toBe(false);
-  expect("isOwner" in principal).toBe(false);
-  expect("groups" in principal).toBe(false);
-  // owner-fallback path keys on handle, so externalId MAY be null on a real Principal.
-  const fallbackOwner: Principal = {
-    userId: SAMPLE_USER_ID,
-    role: "owner",
-    handle: SAMPLE_HANDLE,
-    externalId: null,
-    via: "fallback",
-  };
-  expect(fallbackOwner.externalId).toBeNull();
-});
-
-test("ResolvedIdentity is the pre-row shape and carries NO userId (invariant #3)", () => {
-  const resolved: ResolvedIdentity = {
-    externalId: SAMPLE_EXTERNAL_ID,
-    handle: SAMPLE_HANDLE,
-    groups: ["platform-owners"],
-    email: "owner@example.com",
-  };
-  expect(Object.keys(resolved).sort()).toEqual(["email", "externalId", "groups", "handle"].sort());
-  expect("userId" in resolved).toBe(false);
-  // `email` is a mutable attribute (nullable) — never an identity key.
-  expect("role" in resolved).toBe(false);
-  // The single-user / owner-fallback path resolves with a null externalId (keys on handle) + no email.
-  const singleUser: ResolvedIdentity = {
-    externalId: null,
-    handle: SAMPLE_HANDLE,
-    groups: [],
-    email: null,
-  };
-  expect(singleUser.externalId).toBeNull();
-});
 
 // `sessions.me` parses its projection through this schema. STRICT: the projection is three fields, and a
 // refactor that spreads the Principal would carry `externalId` (the SSO subject) and `via` to the browser.

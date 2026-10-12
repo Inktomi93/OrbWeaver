@@ -182,6 +182,36 @@ export const documentViewSchema = z.object({
 
 export type DocumentView = z.infer<typeof documentViewSchema>;
 
+/** The phases the chunk and embed counts alone decide, with no clock. */
+export type CountedIngestPhase = Exclude<IngestPhase, "stalled">;
+
+/** The phase a document's counts put it in: `empty` = extracted to nothing (checked first, so it is never
+ *  "queued"), `indexing` = canon but no chunks yet, `embedding` = chunks exist that are not all embedded, `ready`
+ *  = every chunk embedded. The server's `phase` lens spells this arithmetic as SQL predicates and cites it. */
+export function countedIngestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): CountedIngestPhase {
+  if (doc.charCount === 0) {
+    return "empty";
+  }
+  if (doc.chunkCount === 0) {
+    return "indexing";
+  }
+  if (doc.embeddedCount < doc.chunkCount) {
+    return "embedding";
+  }
+  return "ready";
+}
+
+/** Which counted phases are still working, so a frozen `updatedAt` can mean a stuck job rather than a finished one. */
+const IN_FLIGHT_PHASES: Readonly<Record<CountedIngestPhase, boolean>> = { empty: false, indexing: true, embedding: true, ready: false };
+
+/** The phase a surface renders. `stalled` is not a fifth arithmetic outcome: it is an in-flight phase whose
+ *  `updatedAt` stopped moving ({@link STALE_INGEST_MS}), the only signal a schema with no status column can give
+ *  that a job is never coming back. `now` is injected so no caller reads an ambient clock. */
+export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): IngestPhase {
+  const counted = countedIngestPhase(doc);
+  return IN_FLIGHT_PHASES[counted] && now - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : counted;
+}
+
 // ── host per-document visibility override (D85 — the membership-widened chat scope's governance knob) ─────
 // The chat-scope retrieval union widened from host-only to every present member's ATTACHED documents (D85).
 // Widening is default-ON; the HOST retains an optional per-DOCUMENT override to

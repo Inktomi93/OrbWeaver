@@ -130,6 +130,7 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
         and(
           inArray(
             chatParticipants.userId,
+            // @orb-waive owner-scoped-reads(worldBooks): satellite chain from `global_books`; the `bookId` is the book an owner-gated world-info mutation just changed (`captureRoomReachForDelete` and the room-entity fan run after that verb), and the read returns only that book's owner id to pick the host rooms to notify. Ends if a caller-supplied book id reaches the reach resolver.
             db
               .select({ ownerId: worldBooks.ownerId })
               .from(globalBooks)
@@ -257,6 +258,7 @@ function fanTo(emitRoomEvent: (event: LiveOnlyChatBusEvent) => void, entity: Roo
 // call it before the delete to snapshot, call the returned thunk after — a live-only, non-durable, non-rejecting
 // publish that cannot fault the write it follows.
 
+// @orb-waive no-inline-package-interface(DeleteReachCapture): baselined when the gate landed; burn-down item 952.
 /** A pre-write reach capture per deletable entity kind. Each arm resolves the entity's seated rooms NOW and
  *  returns a THUNK that fans `roomEntityChanged{entity}` to that captured set. The verb calls the thunk only
  *  after its own delete confirms rows were removed; discarding the thunk (a NotFound delete) fans nothing.

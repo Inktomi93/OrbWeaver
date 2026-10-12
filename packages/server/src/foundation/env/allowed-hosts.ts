@@ -14,7 +14,7 @@ import {
   withoutTrailingDot,
 } from "@orb/kit/allowed-hosts";
 
-// @orb-waive no-inline-wire-interface(AllowedHostsInput): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(AllowedHostsInput): baselined when the gate landed; burn-down item 952.
 /** The raw env values the resolver reads, passed in so this file never touches `process.env`. */
 export interface AllowedHostsInput {
   /** `ALLOWED_HOSTS`: a comma list of names; a leading dot admits the name and every subdomain. */

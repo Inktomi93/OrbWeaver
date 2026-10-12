@@ -8,100 +8,89 @@
 // node subtrees (`getDescendantsOfKind` on a function body / statement / expression, never a `SourceFile`) —
 // exactly the shape `verify/lib` exists for; the static `gate:contract` census globs only `gates/*.ts` and
 // cannot see past the receiver to tell a bounded node walk from a repository one.
-
+import type { DrizzleTableRef } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
+import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { CallExpression, Identifier, Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { TableTarget } from "../contract/tenancy.ts";
+import type { CallExpression, Identifier, VariableDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { ReadStatement, SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, referencesModuleExport } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
+const DRIZZLE_MODULE_PREFIX = "drizzle-orm";
+const SCHEMA_DIR = "/packages/db/src/schema/";
+const WHERE_VERB = "where";
+const INNER_JOIN_VERB = "innerJoin";
+const MAX_BUILDER_HOPS = 3;
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
-const MAX_ALIAS_DEPTH = 8;
 /** The chained calls only a drizzle statement can carry. The DISCRIMINATOR for the unresolvable arm: an
  *  identifier the resolver cannot trace is a finding only when the statement is provably a drizzle write —
  *  `cache.delete(key)` / `hash.update(bytes)` are the SAME AST shape, and 72 of them live in
  *  `packages/server/src` (measured 2026-08-27), every one of them chain-free. */
 const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
 
-/** Same-file variable aliases of this identifier (`const t = characters` / `let t = characters`).
- *  DECLARATION KIND IS IRRELEVANT — it says how the binding may be REASSIGNED, never what it names, and
- *  keying on `const` alone let `let table = characters` / `var table = characters` walk both write halves
- *  straight past the tenancy check (#769; measured through the real descriptors with a const control). */
-function localAliasInitializers(identifier: Node): readonly Node[] {
-  return (identifier.getSymbol()?.getDeclarations() ?? []).flatMap((declaration) => {
-    if (declaration.getSourceFile() !== identifier.getSourceFile() || !declaration.isKind(SyntaxKind.VariableDeclaration)) {
-      return [];
+/** Is this call's callee the drizzle-orm export `name`, by its import (named or namespace), never its spelling? */
+export function callsDrizzleOperator(call: CallExpression, name: string): boolean {
+  return referencesModuleExport(call.getExpression(), name, (specifier) => specifier.startsWith(DRIZZLE_MODULE_PREFIX));
+}
+
+/** Does raw SQL text name any schema table by its SQL name? Only a constant that names none reads none. */
+function namesSchemaTable(text: string, index: SchemaTableIndex): boolean {
+  return [...index.identBySqlName.keys()].some((sqlName) => new RegExp(String.raw`\b${sqlName}\b`, "u").test(text));
+}
+
+/** The declared schema identifier one floor answer names, or undefined when it names none. */
+function identOfRef(ref: DrizzleTableRef, index: SchemaTableIndex): string | undefined {
+  if (ref.kind === "table") {
+    return ref.declaration.getName();
+  }
+  if (ref.kind === "imported") {
+    return index.idents.has(ref.name) ? ref.name : undefined;
+  }
+  return ref.kind === "sql-name" ? index.identBySqlName.get(ref.sqlName) : undefined;
+}
+
+/** The schema tables a reference can name, through the ONE table resolver `pnpm ast columns` shares
+ *  (`floor/code-facts/drizzle-table-ref.ts`): declarations, renaming and namespace imports, drizzle `alias()`/
+ *  `aliasedTable()`, both arms of a conditional, a subquery's inner select, and the drizzle type's table name. */
+export function tableRefsOf(node: Node, index: SchemaTableIndex): readonly TableRef[] {
+  const isTable = (declaration: VariableDeclaration): boolean =>
+    index.idents.has(declaration.getName()) && declaration.getSourceFile().getFilePath().includes(SCHEMA_DIR);
+  return resolveDrizzleTableRefs(node, isTable).map((ref): TableRef => {
+    if (ref.kind === "subquery") {
+      return { kind: "subquery", select: ref.select };
     }
-    const initializer = declaration.getInitializer();
-    return initializer?.isKind(SyntaxKind.Identifier) === true ? [initializer] : [];
+    if (ref.kind === "raw-sql") {
+      return ref.interpolates || namesSchemaTable(ref.text, index) ? { kind: "unresolved" } : { kind: "no-table" };
+    }
+    const ident = identOfRef(ref, index);
+    return ident === undefined ? { kind: "unresolved" } : { kind: "table", ident };
   });
 }
 
-/** The DECLARED table name this identifier traces to, or undefined when the walk cannot reach one. ONE walk
- *  answers both questions the write halves ask ("is it (a)-class" and "is it readable at all") — resolving
- *  twice, once per set, doubles the language-service work on every write in the tree and cost ~12s of the
- *  whole-corpus conformance budget when it was written that way. */
-function tracedTable(identifier: Node, tableIdents: ReadonlySet<string>, seen: Set<number>, depth: number): string | undefined {
-  if (!identifier.isKind(SyntaxKind.Identifier) || depth > MAX_ALIAS_DEPTH || seen.has(identifier.getStart())) {
+/** Classify a drizzle table argument against `classTableIdents` — the CLASS THE CALLER IS ASKING ABOUT (the
+ *  three `owner-scoped-*` gates pass the `ownerId` set; `membership-write-fan` passes the `membership` set,
+ *  #1734). The full index is the denominator that separates "reads fine, simply not that class" from "I could
+ *  not read this at all": an argument any arm of which the resolver cannot name is `unresolvable`. */
+export function tableTargetOf(node: Node | undefined, classTableIdents: ReadonlySet<string>, index: SchemaTableIndex): TableTarget | undefined {
+  if (node === undefined || Node.isLiteralLike(node)) {
     return;
   }
-  seen.add(identifier.getStart());
-  const own = identifier.getText();
-  if (tableIdents.has(own)) {
-    return own;
+  const refs = tableRefsOf(node, index);
+  const ident = node.getText();
+  if (refs.some((ref) => ref.kind === "unresolved")) {
+    return { kind: "unresolvable", ident };
   }
-  const defined = identifier.getDefinitions().find((definition) => tableIdents.has(definition.getName()));
-  if (defined !== undefined) {
-    return defined.getName();
-  }
-  for (const declaration of identifier.getSymbol()?.getDeclarations() ?? []) {
-    if (declaration.isKind(SyntaxKind.ImportSpecifier) && tableIdents.has(declaration.getNameNode().getText())) {
-      return declaration.getNameNode().getText();
-    }
-  }
-  // A binding declares at most one initializer here, so mapping the (0-or-1-element) alias list and taking
-  // the first hit costs nothing and keeps every path an expression return.
-  return localAliasInitializers(identifier)
-    .map((initializer) => tracedTable(initializer, tableIdents, seen, depth + 1))
-    .find((traced) => traced !== undefined);
+  return refs.some((ref) => ref.kind === "table" && classTableIdents.has(ref.ident)) ? { kind: "in-class", ident } : { kind: "other-table" };
 }
 
-/** The EXPORTED TABLE NAME a namespace-spelled reference names — a member read off a binding introduced by
- *  `import * as schema`, whatever the module. A namespace import produces NO ImportSpecifier and its member
- *  read is not an Identifier, so the identifier-keyed trace below never saw one: a namespaced table
- *  classified as "not a table argument at all" and the write walked past the tenancy check entirely (#2199 —
- *  the `owner-scoped-writes` / `owner-scoped-upserts` namespace arms in the spelling-twins ledger). The member NAME
- *  is the declared export, which is the same string the schema-derived ident sets carry, so no alias trace is
- *  owed here — a namespace member cannot be re-bound the way a local const can. */
-function namespacedTableName(node: Node): string | undefined {
-  const read = staticMemberAccess(node);
-  return read !== undefined && namespaceImportSpecifier(read.receiver) !== undefined ? read.name : undefined;
-}
-
-/** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read whether it
- *  is in `classTableIdents` — the CLASS THE CALLER IS ASKING ABOUT (the three `owner-scoped-*` gates pass
- *  the `ownerId` set; `membership-write-fan` passes the `membership` set, #1734). The full set is the
- *  denominator that separates "reads fine, simply not that class" from "I could not read this at all" —
- *  without it every out-of-class write would look identical to a bypass. */
-export function tableTargetOf(node: Node | undefined, classTableIdents: ReadonlySet<string>, schemaTableIdents: ReadonlySet<string>): TableTarget | undefined {
-  if (node === undefined) {
-    return;
-  }
-  const namespaced = namespacedTableName(node);
-  if (namespaced !== undefined) {
-    return classTableIdents.has(namespaced) ? { kind: "in-class", ident: node.getText() } : { kind: "other-table" };
-  }
-  if (!node.isKind(SyntaxKind.Identifier)) {
-    return;
-  }
-  const traced = tracedTable(node, schemaTableIdents, new Set(), 0);
-  if (traced === undefined) {
-    return { kind: "unresolvable", ident: node.getText() };
-  }
-  return classTableIdents.has(traced) ? { kind: "in-class", ident: node.getText() } : { kind: "other-table" };
+/** The ONE declared table a reference names, or undefined when it names none or more than one. */
+export function declaredTableOf(node: Node, index: SchemaTableIndex): string | undefined {
+  const refs = tableRefsOf(node, index);
+  const [first] = refs;
+  return refs.length === 1 && first?.kind === "table" ? first.ident : undefined;
 }
 
 /** Is the statement this table anchor starts provably a DRIZZLE write? The fence the unresolvable arm needs:
@@ -157,6 +146,92 @@ function chainCalls(start: Node): CallExpression[] {
 export function whereArgOf(anchor: Node): Node | undefined {
   const whereCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "where");
   return whereCall?.getArguments()[0];
+}
+
+/** The outermost node of the chain a table anchor starts: where `chainCalls` stops climbing. */
+/** One step up a read's OWN builder chain: through a member access whose object is the current node, a call
+ *  whose callee is, or an `await`. A select passed as an ARGUMENT (an `inArray(col, db.select()…)` subselect)
+ *  is its own statement and never inherits the outer statement's predicates. */
+function builderParent(cur: Node): Node | undefined {
+  const parent = cur.getParent();
+  if (parent === undefined) {
+    return;
+  }
+  const continuesChain =
+    parent.isKind(SyntaxKind.AwaitExpression) ||
+    (parent.isKind(SyntaxKind.CallExpression) && parent.getExpression() === cur) ||
+    (MEMBER_ACCESS_KINDS.some((kind) => parent.isKind(kind)) && parent.getFirstChild() === cur);
+  return continuesChain ? parent : undefined;
+}
+
+/** The outermost node of a read's own builder chain, and the calls applied along the way. */
+function builderChain(start: Node): { readonly top: Node; readonly calls: readonly CallExpression[] } {
+  const calls: CallExpression[] = [];
+  let cur: Node = start;
+  for (let parent = builderParent(cur); parent !== undefined; parent = builderParent(cur)) {
+    if (parent.isKind(SyntaxKind.CallExpression)) {
+      calls.push(parent);
+    }
+    cur = parent;
+  }
+  return { top: cur, calls };
+}
+
+/** The binding an UNAWAITED builder chain is stored in (`const q = db.select().from(T)` or `q = q.where(…)`);
+ *  an awaited chain is a result set, not a builder, and is never followed. */
+function builderBinding(top: Node): Identifier | undefined {
+  const parent = top.isKind(SyntaxKind.AwaitExpression) ? undefined : top.getParent();
+  let target: Node | undefined;
+  if (parent?.isKind(SyntaxKind.VariableDeclaration) === true && parent.getInitializer() === top) {
+    target = parent.getNameNode();
+  } else if (
+    parent?.isKind(SyntaxKind.BinaryExpression) === true &&
+    parent.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
+    parent.getRight() === top
+  ) {
+    target = parent.getLeft();
+  }
+  return target?.isKind(SyntaxKind.Identifier) === true ? target : undefined;
+}
+
+/** The uses of a builder binding in its own function that continue the chain: a METHOD CALL on it (`q.where(…)`,
+ *  `q.innerJoin(…)`). A column read off it (`sq.id`, a subquery's field) is a value, never a builder step. */
+function builderUses(binding: Identifier): readonly Identifier[] {
+  const symbol = binding.getSymbol()?.compilerSymbol;
+  const scope = enclosingFn(binding) ?? binding.getSourceFile();
+  return scope.getDescendantsOfKind(SyntaxKind.Identifier).filter((use) => {
+    const access = use.getParent();
+    const call = access.getParent();
+    const isMethodCall =
+      MEMBER_ACCESS_KINDS.some((kind) => access.isKind(kind)) &&
+      access.getFirstChild() === use &&
+      call?.isKind(SyntaxKind.CallExpression) === true &&
+      call.getExpression() === access;
+    return use !== binding && isMethodCall && symbol !== undefined && use.getSymbol()?.compilerSymbol === symbol;
+  });
+}
+
+/** Every call a read statement applies after its anchor, following a split builder's binding in the same function. */
+function statementCalls(anchor: Node, hops: number, seen: Set<Node>): readonly CallExpression[] {
+  const chain = builderChain(anchor);
+  const binding = builderBinding(chain.top);
+  const followed = binding === undefined || hops >= MAX_BUILDER_HOPS ? [] : builderUses(binding).filter((use) => !seen.has(use));
+  for (const use of followed) {
+    seen.add(use);
+  }
+  return [...chain.calls, ...followed.flatMap((use) => statementCalls(use, hops + 1, seen))];
+}
+
+/** The predicates a read statement carries: every `.where` the chain (or its split builder) applies, and every
+ *  inner join's ON. Several `.where` calls are several candidates for the effective filter, never a conjunction. */
+export function readStatementOf(anchor: Node): ReadStatement {
+  const calls = statementCalls(anchor, 0, new Set());
+  const argumentsOf = (verb: string, position: number): readonly Node[] =>
+    calls.flatMap((call) => {
+      const argument = staticMemberAccess(call.getExpression())?.name === verb ? call.getArguments()[position] : undefined;
+      return argument === undefined ? [] : [argument];
+    });
+  return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1) };
 }
 
 /** The `onConflictDoUpdate({ … })` CONFIG of the statement this `insert(T)` anchor starts, or undefined —

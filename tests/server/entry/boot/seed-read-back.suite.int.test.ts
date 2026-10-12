@@ -62,6 +62,7 @@ import { userSettingsSchema } from "@orb/contracts/settings";
 import { tagFolderTypeSchema, tagSourceSchema } from "@orb/contracts/tag";
 import { themeBackgroundSchema, themeOverrideSchema, themeSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
+import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { seedDefaultBackgrounds, seedDefaultPreset, seedExamplePlugins, seedThemes, seedUserContent } from "@orb/server/entry/boot";
@@ -139,10 +140,6 @@ function orNull(inner: Plan): NullablePlan {
   return new NullablePlan(inner);
 }
 
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** How a parse that FILLS an absent key reads: drift on a read, a heal on a stored blob (the read seam's
  *  `.default` is the ruled posture for a sparse blob). */
 const FILL_POSTURES = ["drift", "heal"] as const;
@@ -156,8 +153,8 @@ function lossOf(sent: unknown, parsed: unknown, path: string, fills: Fills): str
     }
     return sent.flatMap((item, i) => lossOf(item, parsed[i], `${path}[${i}]`, fills));
   }
-  if (isRecord(sent)) {
-    if (!isRecord(parsed)) {
+  if (isPlainObject(sent)) {
+    if (!isPlainObject(parsed)) {
       return [`${path}: the wire schema reshaped the object`];
     }
     const dropped = Object.keys(sent)
@@ -192,7 +189,7 @@ function driftOf(value: unknown, plan: Plan, path: string, fills: Fills = "drift
   if (plan instanceof EachPlan) {
     return Array.isArray(value) ? value.flatMap((item, i) => driftOf(item, plan.item, `${path}[${i}]`, fills)) : [`${path}: expected an array`];
   }
-  if (!isRecord(value)) {
+  if (!isPlainObject(value)) {
     return [`${path}: expected an object`];
   }
   const undeclared = Object.keys(value)

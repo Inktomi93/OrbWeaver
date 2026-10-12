@@ -64,7 +64,7 @@ import {
   pluginFrameUrl,
 } from "@orb/contracts/plugin";
 import type { CardFrameMediaPolicy } from "@orb/kit/card-frame";
-import { buildCardFrameCsp, buildCardFrameDocument } from "@orb/kit/card-frame";
+import { buildCardFrameCsp, buildCardFrameDocument, cardFrameResponseHeaders } from "@orb/kit/card-frame";
 import type { PluginId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -79,8 +79,6 @@ const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 const NO_CONTENT = 204;
-
-const HTML_MIME = "text/html; charset=utf-8";
 
 /** This doorway serves only the four raster extensions `getFrameAsset`'s mime-sniff can ever answer
  *  with (PNG/JPEG/GIF/WebP — work item 0236's "done when"). Checked HERE, at the query-string boundary,
@@ -112,6 +110,7 @@ const MISS_DOC = buildCardFrameDocument({
   fontFamily: undefined,
 });
 
+// @orb-waive no-inline-package-interface(PluginFrameSurfacePort): baselined when the gate landed; burn-down item 952.
 /** The owner-scoped frame-body read — the ONE authority for whether these bytes may be served to this caller.
  *  Structural port so `entry/http` states exactly the slice it consumes (the `CardFrameParticipantsPort` precedent);
  *  wired at compose to `services.plugin.getFrameBody`, whose three gates (ownership, the live `ui.frame` grant,
@@ -125,22 +124,10 @@ export interface PluginFrameSurfacePort {
   }) => Promise<{ readonly bytes: Uint8Array; readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp" } | null>;
 }
 
+// @orb-waive no-inline-package-interface(PluginFrameDeps): baselined when the gate landed; burn-down item 952.
 export interface PluginFrameDeps {
   readonly surfaces: PluginFrameSurfacePort;
   readonly now: () => number;
-}
-
-/** The frame response's non-CSP siblings. `no-store` because the document holds one viewer's plugin bytes;
- *  `nosniff` because the body is plugin-authored markup and must never be re-typed by a sniffing browser;
- *  `no-referrer` so nothing the document loads can carry our URL anywhere. */
-function frameHeaders(): Record<string, string> {
-  return {
-    "Content-Type": HTML_MIME,
-    "Content-Security-Policy": PLUGIN_FRAME_CSP,
-    "Cache-Control": "private, no-store",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
-  };
 }
 
 function assetHeaders(mime: string, byteLength: number): Record<string, string> {
@@ -290,7 +277,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     // by grammar rather than by lookup.
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
-      return c.body(MISS_DOC, NOT_FOUND, frameHeaders());
+      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(PLUGIN_FRAME_CSP));
     }
     if (entry.plugin !== undefined) {
       // A handle is not a snapshot of consent. Recheck current residency/grant so disable and uninstall revoke
@@ -305,9 +292,9 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       }
       if (live === null) {
         store.drop(id, principal.userId);
-        return c.body(MISS_DOC, NOT_FOUND, frameHeaders());
+        return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(PLUGIN_FRAME_CSP));
       }
     }
-    return c.body(entry.doc, OK, frameHeaders());
+    return c.body(entry.doc, OK, cardFrameResponseHeaders(PLUGIN_FRAME_CSP));
   });
 }

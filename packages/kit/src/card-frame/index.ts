@@ -402,6 +402,19 @@ export function buildCardFrameCsp(policy: CardFrameMediaPolicy, delivery: CardFr
   return [...grant, ...directives, `frame-ancestors 'self'`].join("; ");
 }
 
+/** The response headers a routed frame document goes out with. `no-store` because the document holds one
+ *  viewer's bytes; `nosniff` because the body is attacker-influenced markup and must never be re-typed by a
+ *  sniffing browser; `no-referrer` so a permitted external fetch cannot carry our URL anywhere. */
+export function cardFrameResponseHeaders(csp: string): Record<string, string> {
+  return {
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Security-Policy": csp,
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+  };
+}
+
 function themeVarsBlock(themeTokens: Readonly<Record<string, string>>): string {
   const decls = Object.entries(themeTokens)
     .map(([key, value]) => `${key}: ${value};`)

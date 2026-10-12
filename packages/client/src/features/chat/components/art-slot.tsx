@@ -11,7 +11,6 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 
-// @orb-waive no-inline-wire-interface(ArtView): baselined when the gate widened; burn-down item 904.
 /** A speaker's art as the tap target that opens it full size: `open` receives the button so focus can return to it. */
 export interface ArtView {
   readonly label: string;

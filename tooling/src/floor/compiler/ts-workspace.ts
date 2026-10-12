@@ -1,7 +1,6 @@
 // The ONE ts-morph workspace bootstrap — the single home for "load the repo into a Project", shared by
 // the check harness (pure-AST gate run) and (later) the codemod kit. Extracting it here kills the two
-// divergent bootstrap paths (harness globbed packages+tests; the kit globs src/tests/scripts under a
-// tsconfig) so scope decisions live in one place (the retired TSMORPH-SINGLE-PASS-AUDIT audit §1.5, phase 0).
+// divergent bootstrap paths (harness globbed packages+tests; the kit globs src/tests/scripts under a tsconfig) so scope decisions live in one place.
 //
 //   • types:false → today's harness project: skipAddingFilesFromTsConfig + the packages/tests globs,
 //     pure AST, no type graph (the fast ~1s load — no Program/binder until a gate asks for the checker).
@@ -14,6 +13,7 @@
 // Both the gate runner (pass.ts) and any multi-helper codemod consume this instead of N kind sweeps.
 import { existsSync, globSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import type { FileSystemHost, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
 import { readCompilerPrograms } from "./compiler-programs.ts";
@@ -47,11 +47,11 @@ export function canonicalCompilerPath(root: string, path: string): string {
 }
 
 function repoRelative(root: string, path: string): string {
-  const rel = relative(root, canonicalCompilerPath(root, path));
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  const canonical = canonicalCompilerPath(root, path);
+  if (!isWithinRoot(root, canonical, { sep })) {
     throw new Error(`semantic workspace path resolves outside repository: ${path}`);
   }
-  return rel.split(sep).join("/");
+  return relative(root, canonical).split(sep).join("/");
 }
 
 export function selectCompilerProgram(programs: readonly CompilerProgram[], root: string, configPath: string): CompilerProgram {

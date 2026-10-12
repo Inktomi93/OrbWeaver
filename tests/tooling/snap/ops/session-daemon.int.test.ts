@@ -32,6 +32,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { abandonedRuns } from "@orb/tooling/floor/artifacts/artifacts";
+import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/floor/browser/browser";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -112,15 +113,6 @@ function evalValue(stdout: string): number {
   const raw = EVAL_RE.exec(stdout)?.[1];
   expect(raw, `the in-page eval must have printed a number — got:\n${stdout}`).toBeDefined();
   return Number(raw);
-}
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /** Poll (bounded) until the predicate holds; returns whether it did — a caller asserts on the boolean. */

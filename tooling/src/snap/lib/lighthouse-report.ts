@@ -7,6 +7,8 @@
 // under three different detail types. A cast would let a shape change land as fabricated selectors on a
 // real finding; the structural readers below simply see nothing, and the node COUNT they report is the
 // count they actually read.
+
+import { finiteNumberOrNull } from "@orb/kit/guards";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   LighthouseAuditNode,
@@ -48,10 +50,6 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function text(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
-}
-
-function scoreOf(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 /** How much of a node's outer HTML the row carries. Long enough to recognize the element, short enough
@@ -113,7 +111,7 @@ function auditRows(lhr: unknown): readonly Record<string, unknown>[] {
 }
 
 function isScored(audit: Record<string, unknown>): boolean {
-  return scoreOf(audit["score"]) !== null && !UNSCORED_DISPLAY_MODES.has(text(audit["scoreDisplayMode"], "error"));
+  return finiteNumberOrNull(audit["score"]) !== null && !UNSCORED_DISPLAY_MODES.has(text(audit["scoreDisplayMode"], "error"));
 }
 
 /** The DENOMINATOR: audits that produced a real pass/fail. A zero here is an instrument error at the call
@@ -124,13 +122,13 @@ export function auditedCount(lhr: unknown): number {
 
 export function failedAudits(lhr: unknown): readonly LighthouseFailedAudit[] {
   return auditRows(lhr)
-    .filter((audit) => isScored(audit) && (scoreOf(audit["score"]) ?? 1) < 1)
+    .filter((audit) => isScored(audit) && (finiteNumberOrNull(audit["score"]) ?? 1) < 1)
     .map((audit): LighthouseFailedAudit => {
       const nodes = auditNodes(audit["details"]);
       return {
         id: text(audit["id"], "(unnamed audit)"),
         title: text(audit["title"], ""),
-        score: scoreOf(audit["score"]) ?? 0,
+        score: finiteNumberOrNull(audit["score"]) ?? 0,
         scoreDisplayMode: text(audit["scoreDisplayMode"], "binary"),
         nodeCount: nodes.count,
         selectors: nodes.selectors,
@@ -148,7 +146,7 @@ export function categoryScores(lhr: unknown): readonly LighthouseCategoryScore[]
   return Object.entries(categories).map(([id, value]) => ({
     id,
     title: text(record(value)?.["title"], id),
-    score: scoreOf(record(value)?.["score"]),
+    score: finiteNumberOrNull(record(value)?.["score"]),
   }));
 }
 

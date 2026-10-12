@@ -35,6 +35,7 @@ const ANTHROPIC_OPTIONS_KEY = "anthropic";
 const OPENROUTER_OPTIONS_KEY = "openrouter";
 const REASONING_DETAILS_KEY = "reasoning_details";
 
+// @orb-waive no-inline-package-interface(OutboundMedia): baselined when the gate landed; burn-down item 952.
 /** One outbound media part the converter can carry on a USER row, or that `body.ts` must re-attach on an
  *  ASSISTANT row: the resolved URL/data-URI the chat domain produced, tagged by kind. */
 export interface OutboundMedia {
@@ -42,6 +43,7 @@ export interface OutboundMedia {
   readonly url: string;
 }
 
+// @orb-waive no-inline-package-interface(WirePlan): baselined when the gate landed; burn-down item 952.
 /** The prompt plus everything the SDK converters cannot carry, indexed by WIRE-ARRAY position. */
 export interface WirePlan {
   readonly prompt: LanguageModelV4Prompt;
@@ -64,6 +66,7 @@ interface PlanRow {
   readonly text: string;
 }
 
+// @orb-waive no-inline-package-interface(BuildPromptArgs): baselined when the gate landed; burn-down item 952.
 export interface BuildPromptArgs {
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
   readonly history: readonly ChatHistoryMessage[];

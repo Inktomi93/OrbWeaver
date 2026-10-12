@@ -117,6 +117,8 @@ export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
+// The funnel the runtime serves as `funnel.embed`, for a test runtime that scripts only the executor.
+export { resolveEmbed } from "./funnel/resolve-embed.ts";
 export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
 export type { ProviderRegistry } from "./registry/providers.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
@@ -134,6 +136,7 @@ export { planStructuredFor, structuredFitFor } from "./structured/plan.ts";
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
 
+// @orb-waive no-inline-package-interface(CapabilityRead): baselined when the gate landed; burn-down item 952.
 export interface CapabilityRead extends SynthesizedCapability {
   readonly cacheContext: CachePolicyContext;
   /** The same evidence fold with this row's declaration omitted. */
@@ -146,6 +149,7 @@ export interface CapabilityRead extends SynthesizedCapability {
   readonly detectedProviderId?: ProviderDef["id"] | undefined;
 }
 
+// @orb-waive no-inline-package-interface(InferenceRuntime): baselined when the gate landed; burn-down item 952.
 export interface InferenceRuntime {
   readonly resolve: (args: ResolveArgs) => Promise<ResolveOutcome>;
   readonly availability: (args: ResolveArgs) => Promise<SendAvailability>;

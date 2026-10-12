@@ -8,7 +8,8 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "@orb/testkit/node/corpus-source.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
+import { makeCatalogStats } from "@orb/testkit/node/factories/discovery-view.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
@@ -17,6 +18,7 @@ import { expectSearchTarget, pickSearchTarget } from "../search-target.ts";
 const CHARACTER_HIT = {
   characterId: "char_aria",
   score: 0.42,
+  relevance: 0.58,
   name: "Aria Nightshade",
   avatarHash: null,
   genre: "fantasy",
@@ -27,6 +29,7 @@ const CHARACTER_HIT = {
 const DISCOVER_HIT = {
   characterId: "char_aria",
   score: 0.31,
+  relevance: 0.69,
   name: "Aria Nightshade",
   avatarHash: null,
   genre: "fantasy",
@@ -40,6 +43,8 @@ const DISCOVER_HIT = {
       source: corpusSceneSource(castId<ChatId>("chat_market01"), 3),
       snippet: "The night market hums with secrets.",
       score: 0.3,
+      relevance: 0.7,
+      chatTitle: "Night market",
     },
     {
       source: corpusSceneSource(castId<ChatId>("chat_market01"), 7),
@@ -47,12 +52,14 @@ const DISCOVER_HIT = {
       blockIdx: 7,
       snippet: "She slips between the stalls.",
       score: 0.28,
+      relevance: 0.72,
+      chatTitle: "Night market",
     },
   ],
 };
 
 /** search.search — discriminate on the decoded `over` input so one responder serves every target. */
-function searchResponder(input: TrpcInput<"search.search">): TrpcFixtureOutput<"search.search"> {
+function searchResponder(input: TrpcInput<"search.search">): TrpcWireOutput<"search.search"> {
   const over = input?.over;
   if (over === "characters") {
     return { over: "characters", coverage: CORPUS_PREVIEW_COVERAGE, hits: [CHARACTER_HIT] };
@@ -86,12 +93,12 @@ function browsePage(
   rows: readonly (typeof ARIA_ROW)[],
   nextCursor: TrpcWireOutput<"discovery.browseCharacters">["nextCursor"],
   totalCount = rows.length,
-): TrpcFixtureOutput<"discovery.browseCharacters"> {
+): TrpcWireOutput<"discovery.browseCharacters"> {
   return { items: rows, nextCursor, totalCount };
 }
-const EMPTY_BROWSE: TrpcFixtureOutput<"discovery.browseCharacters"> = browsePage([], null, 0);
+const EMPTY_BROWSE: TrpcWireOutput<"discovery.browseCharacters"> = browsePage([], null, 0);
 
-const EMPTY_CATALOG = { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 };
+const EMPTY_CATALOG = makeCatalogStats();
 
 test("the Characters target renders a character card hit", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -369,7 +376,7 @@ const FIRST_CARD = /Card 01/u;
 
 /** Serves page two only when the request CARRIES the cursor the first page handed back — so a client that
  *  never follows the boundary reads exactly the truncated list A8 is about. */
-function browseResponder(input: TrpcInput<"discovery.browseCharacters">): TrpcFixtureOutput<"discovery.browseCharacters"> {
+function browseResponder(input: TrpcInput<"discovery.browseCharacters">): TrpcWireOutput<"discovery.browseCharacters"> {
   const cursor = input?.cursor;
   return cursor === undefined || cursor === null ? browsePage(PAGE_ONE, TAIL_CURSOR, CATALOG_TOTAL) : browsePage(PAGE_TWO, null, CATALOG_TOTAL);
 }
@@ -377,7 +384,7 @@ function browseResponder(input: TrpcInput<"discovery.browseCharacters">): TrpcFi
 test("the browse list reaches the LAST card in the catalog — the tail pages itself in (A8)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
-    "discovery.catalog": { ...EMPTY_CATALOG, totalDistilled: CATALOG_TOTAL },
+    "discovery.catalog": makeCatalogStats({ ...EMPTY_CATALOG, totalDistilled: CATALOG_TOTAL }),
     "discovery.browseCharacters": browseResponder,
     "search.suggest": [],
     "search.search": searchResponder,
@@ -407,7 +414,7 @@ test("the browse list reaches the LAST card in the catalog — the tail pages it
 test("…and the list is WINDOWED: sixty rows, a bounded DOM (C5)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
-    "discovery.catalog": { ...EMPTY_CATALOG, totalDistilled: CATALOG_TOTAL },
+    "discovery.catalog": makeCatalogStats({ ...EMPTY_CATALOG, totalDistilled: CATALOG_TOTAL }),
     "discovery.browseCharacters": browseResponder,
     "search.suggest": [],
     "search.search": searchResponder,
@@ -606,7 +613,7 @@ test("#537 the pane's skip link is first in DOM order and lands on the first res
 });
 
 test("independent catalog and page reads start while browse facets are held", async ({ mount, page }) => {
-  const held = trpcHold();
+  const held = trpcHold<"discovery.characterFacets">();
   const trpc = await routeTrpc(page, {
     "discovery.characterFacets": held,
     "discovery.catalog": EMPTY_CATALOG,

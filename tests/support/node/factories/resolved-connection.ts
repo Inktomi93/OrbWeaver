@@ -21,6 +21,7 @@ import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementM
 import type { Resolved } from "@orb/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { TrpcWireOutput } from "../route-trpc.ts";
 
 /** The default keyless endpoint provider a test connection resolves through. */
 export const TEST_PROVIDER_ID = "custom-openai";
@@ -152,6 +153,22 @@ export function makeCachePolicy(overrides: Partial<CachePolicy> = {}): CachePoli
     prefix: { action: "none", format: null, ttl: null, cacheSystem: false, historyDepth: null, preservesBlockEnds: false },
     implicit: { supported: null, disableApplied: false, minimumRetentionSeconds: null, refreshOnHit: null, retention: null },
     replay: { supported: false, enabled: false, ttlSeconds: null, refresh: false, provenance: "default" },
+    ...overrides,
+  };
+}
+
+/** The `connection.capabilities` wire view: a generation capability that is its own baseline, no warnings,
+ *  the neutral cache policy and the chat task. */
+export function makeConnectionCapabilityView(overrides: Partial<TrpcWireOutput<"connection.capabilities">> = {}): TrpcWireOutput<"connection.capabilities"> {
+  const capability = makeCapability();
+  return {
+    cache: makeCachePolicy(),
+    cacheWarnings: [],
+    cacheContext: makeResolvedCacheView().cacheContext,
+    capability,
+    baseline: capability,
+    warnings: [],
+    tasks: ["chat"],
     ...overrides,
   };
 }

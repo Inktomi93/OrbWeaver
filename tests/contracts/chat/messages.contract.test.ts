@@ -54,7 +54,7 @@ test("message asset origins keep generated posts outside the inline-reply admiss
 
 // ═══ D26 — content lives on the variant; the slot row's shape is pinned in tests/db/schema/chat.test-d.ts ════
 
-test("MessageView is the slot joined with its selected variant (content + economics present)", () => {
+test("messageViewSchema carries the slot joined with its selected variant (content + economics) through a parse unchanged", () => {
   const view: MessageView = {
     id: SAMPLE_MESSAGE_ID,
     chatId: SAMPLE_CHAT_ID,
@@ -96,8 +96,9 @@ test("MessageView is the slot joined with its selected variant (content + econom
     contextBoundaryMessageId: null,
     toolCalls: [],
   };
-  expect(view.content).toBe("hello there");
-  expect(view.selectedVariantId).toBe(SAMPLE_VARIANT_ID);
+  expect(messageViewSchema.parse(view)).toEqual(view);
+  // A strict wire view refuses a field the contract does not declare, so a spread of the raw row cannot ride out.
+  expect(messageViewSchema.safeParse({ ...view, tokenHash: "private" }).success).toBe(false);
 });
 
 // ── toolCallRecordSchema (D48 T1) — the db read-seam parse for `message_variants.toolCalls` ────

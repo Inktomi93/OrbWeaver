@@ -15,7 +15,6 @@
 // sections have no such mapper at all — each reads `getAppSettingsWithOverrides` (floor AND stored override)
 // and writes a sparse patch of its own keys, so there is no project→save→echo cycle left to oscillate.
 
-// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppearanceSettings, ChatSettings } from "@orb/contracts/settings";
 import {
   backgroundLibraryEntrySchema,
@@ -26,6 +25,8 @@ import {
 } from "@orb/contracts/settings";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
+import { isPlainObject } from "@orb/kit/guards";
+import { deepMergePlain } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { CharacterThemeFormValues } from "#client/features/character/lib/character-theme-form-model.ts";
@@ -43,10 +44,11 @@ type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]>
 function serverShapeSection<K extends keyof typeof DEFAULT_USER_SETTINGS>(
   section: K,
   patch: DeepPartial<(typeof DEFAULT_USER_SETTINGS)[K]>,
+  stored: (typeof DEFAULT_USER_SETTINGS)[K] = DEFAULT_USER_SETTINGS[section],
 ): (typeof DEFAULT_USER_SETTINGS)[K] {
-  // Shallow-merge the top-level patch into the default section; the schema `.catch`/`.default`/nested-prefault
-  // then run on the echo. A nested partial (e.g. `autoSwipe` without maxRetries) is re-parsed to its default.
-  const merged = { ...(DEFAULT_USER_SETTINGS[section] as object), ...(patch as object) };
+  // The server's own deep merge into the STORED section; the schema `.catch`/`.default`/nested-prefault
+  // then run on the echo. A nested partial (e.g. `autoSwipe` without maxRetries) keeps the stored leaf.
+  const merged = deepMergePlain(isPlainObject(stored) ? stored : {}, patch);
   return userSettingsSchema.parse({ ...DEFAULT_USER_SETTINGS, [section]: merged })[section];
 }
 
@@ -74,7 +76,7 @@ describe("convergence: chat-behavior message handling", () => {
       // Both NON-default (the section owns them now): a projection that dropped either would echo back the
       // schema default and fail the fixed point.
       autoContinueRounds: 3,
-      autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"], maxRetries: 1 },
+      autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"], maxRetries: 3 },
       customStoppingStrings: ["###", "END"],
       tempChatTtlHours: 72,
       smoothStream: true,
@@ -85,8 +87,10 @@ describe("convergence: chat-behavior message handling", () => {
   ];
   test.each(rows.map((r, i) => [i, r] as const))("row %i is a project/save/echo fixed point", (_i, row) => {
     const form = projectMessageHandlingForm(row);
-    const echoed = projectMessageHandlingForm(serverShapeSection("chat", toMessageHandlingPatch(form)));
-    expect(echoed).toEqual(form);
+    const echoedSection = serverShapeSection("chat", toMessageHandlingPatch(form), row);
+    expect(projectMessageHandlingForm(echoedSection)).toEqual(form);
+    // The form has no editor for `autoSwipe.maxRetries`, so only the server's deep merge into the stored row keeps it.
+    expect(echoedSection.autoSwipe.maxRetries).toBe(row.autoSwipe.maxRetries);
   });
 });
 

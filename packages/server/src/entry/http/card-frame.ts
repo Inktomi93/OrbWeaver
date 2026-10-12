@@ -62,7 +62,7 @@ import {
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
-import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -77,14 +77,14 @@ const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 
-const HTML_MIME = "text/html; charset=utf-8";
-
+// @orb-waive no-inline-package-interface(CardFrameParticipantsPort): baselined when the gate landed; burn-down item 952.
 /** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
  *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
   readonly listParticipants: (params: { readonly principal: Principal; readonly chatId: ChatId }) => Promise<readonly ParticipantView[]>;
 }
 
+// @orb-waive no-inline-package-interface(CardFrameDeps): baselined when the gate landed; burn-down item 952.
 export interface CardFrameDeps {
   readonly participants: CardFrameParticipantsPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */
@@ -101,19 +101,6 @@ export interface CardFrameDeps {
    *  minted before the switch, exactly as the deployment ceiling does. */
   readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
   readonly now: () => number;
-}
-
-/** The frame response's non-CSP siblings. `no-store` because the document holds one viewer's card bytes;
- *  `nosniff` because the body is attacker-influenced markup and must never be re-typed by a sniffing
- *  browser; `no-referrer` so a permitted external image fetch cannot carry our URL anywhere. */
-function frameHeaders(csp: string): Record<string, string> {
-  return {
-    "Content-Type": HTML_MIME,
-    "Content-Security-Policy": csp,
-    "Cache-Control": "private, no-store",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
-  };
 }
 
 /** The floor policy, used for every non-serving response so no card-frame reply is ever un-policied. Static
@@ -252,7 +239,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     const id = c.req.param("id");
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
-      return c.body(MISS_DOC, NOT_FOUND, frameHeaders(FLOOR_CSP));
+      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(FLOOR_CSP));
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
     // only at mint would outlive an admin switching interactive cards or external media off, a host moving
@@ -267,8 +254,8 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
         allowInlineData: entry.grant.media.allowInlineData && current.media.allowInlineData,
       };
       const posture: CardFramePosture = entry.grant.posture === "interactive" && current.posture === "interactive" ? "interactive" : "static";
-      return c.body(entry.doc, OK, frameHeaders(buildCardFrameCsp(media, "document", posture)));
+      return c.body(entry.doc, OK, cardFrameResponseHeaders(buildCardFrameCsp(media, "document", posture)));
     }
-    return c.body(entry.doc, OK, frameHeaders(entry.csp));
+    return c.body(entry.doc, OK, cardFrameResponseHeaders(entry.csp));
   });
 }

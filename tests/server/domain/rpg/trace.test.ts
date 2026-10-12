@@ -1,5 +1,5 @@
 // domain/rpg/trace — the R-OBS flight-recorder RING. Pure + injected-clock, so this pins the parts the
-// composed-real int test (`tests/server/entry/compose/rpg.int.test.ts`, "R-OBS composed-real") cannot reach
+// composed-real int test (`tests/server/entry/compose/rpg-folded-turn.int.test.ts`, "R-OBS composed-real") cannot reach
 // cheaply: the bounded drop, the stamping, and — the load-bearing half — that a filter on a key an event does
 // NOT carry EXCLUDES it rather than silently matching. `/api/_debug/rpg/traces?turnId=` is only trustworthy
 // because of that: a turn's trace must not quietly include another turn's mount.

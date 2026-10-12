@@ -6,12 +6,12 @@ import type { Db } from "@orb/db";
 import { chatDigests, chatSegments } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { loadPresentHostUserId } from "#server/domain/chat/persistence/reactions.ts";
-import { createMemoryEmbeddingOps } from "#server/entry/compose/memory-embedding-ops.ts";
 import { makeStoreHarness, seedCharacter, seedChat, seedUser } from "../../domain/embeddings/_support.ts";
 
 interface Room {
@@ -29,7 +29,7 @@ async function room(): Promise<Room> {
   const chatId = await seedChat(db, "chat_room", host);
   const ops = createMemoryEmbeddingOps({
     embeddings: createEmbeddingsService(makeStoreHarness(db).ctx),
-    resolveChatHostUserId: async (id) => (await loadPresentHostUserId(db, id)) ?? null,
+    resolveChatHostUserId: (id) => loadPresentHostUserId(db, id),
   });
   return { db, host, former, chatId, ops };
 }

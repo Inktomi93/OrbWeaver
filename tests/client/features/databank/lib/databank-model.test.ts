@@ -3,6 +3,7 @@
 // so they are the one place a wrong answer becomes a wrong badge on every surface at once.
 
 import type { BankHealthView, DocumentView } from "@orb/contracts/databank";
+import { ingestPhase } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, MIME_TO_FORMAT } from "@orb/contracts/extraction";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -17,7 +18,6 @@ import {
   INGEST_POLL_MS,
   ingestBadge,
   ingestEmptyHint,
-  ingestPhase,
   ingestPollInterval,
   ingestStallHint,
   isIngestInFlight,

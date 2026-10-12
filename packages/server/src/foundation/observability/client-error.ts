@@ -16,6 +16,7 @@ const FIELD_MAX = 4000;
 const REQUEST_ID_MAX = 200;
 const REQUEST_ID_UNSAFE = /[^A-Za-z0-9._:-]+/g;
 
+// @orb-waive no-inline-package-interface(ClientErrorReport): baselined when the gate landed; burn-down item 952.
 /** One client-reported error. Optional fields degrade the record, never reject it — wire validation
  *  lives in the `clientError` transport procedure, not here. */
 export interface ClientErrorReport {

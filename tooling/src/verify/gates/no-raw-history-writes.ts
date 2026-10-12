@@ -2,10 +2,10 @@
 // Singleton: one client API boundary; shared global and type-member readers own identity and spelling.
 // AST-safe. Local implementations pass; unreadable signatures fail closed. Dynamic reflection is not covered.
 
-import { staticString } from "@orb/tooling/floor/code-facts/reference-fact-static";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveGlobalMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { staticString } from "../../floor/code-facts/reference-fact-static.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyPackageMemberOrigin, readsAmbientGlobalPath, uncastPropertyDeclaredByPackage } from "../lib/project-home-origin.ts";
 import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";

@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
 import { runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -95,11 +96,10 @@ function repoRelative(root: string, file: string, config: string): string | unde
   } catch (error) {
     throw new Error(`compiler closure member from ${config} cannot be resolved: ${file}`, { cause: error });
   }
-  const rel = relative(root, canonical);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+  if (!isWithinRoot(root, canonical, { sep })) {
     return;
   }
-  return rel.split(sep).join("/");
+  return relative(root, canonical).split(sep).join("/");
 }
 
 /** One native program's authored import closure. Cold by construction: incremental state is never read. */

@@ -22,14 +22,16 @@
 // `use-prefetch-room.ts`); the map's `listMessages` row rides along because the two are one feed.
 
 import { expectInstrumentTierLive } from "@orb/testkit/browser/tier-liveness.ts";
+import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { TrpcInput, TrpcResponder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 // @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListReturnStory, ChatListSurfaceStory, ReturnedRowClaimStory } from "../_ct-stories.tsx";
-import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
+import { CHAT_ROOM_DETAIL, CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 const RAW_MONTH_COPY = /2020-06/u;
 const ARIA_SEAT = makeSeatPortrait("char_aria", "Aria Nightshade", "hash_aria");
@@ -100,14 +102,12 @@ const GROUP = makeChatSummary({
 
 // The character library the OVERFLOW PICKER lists (`FaceStrip`'s "filter by another character" tile). It no
 // longer feeds any portrait: since #192 a row's faces are on the row.
-const CHARACTERS = {
-  items: [
-    { id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" },
-    { id: "char_faceless", name: "Faceless", avatarHash: null },
-    { id: "char_sola", name: "Sola", avatarHash: null },
-    { id: "char_niko", name: "Niko", avatarHash: null },
-  ],
-};
+const CHARACTERS = characterListResponder([
+  makeCharacterSummary({ id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" }),
+  makeCharacterSummary({ id: "char_faceless", name: "Faceless" }),
+  makeCharacterSummary({ id: "char_sola", name: "Sola" }),
+  makeCharacterSummary({ id: "char_niko", name: "Niko" }),
+]);
 const AVATAR_IMAGE = '[data-slot="avatar-image"]';
 const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
@@ -220,7 +220,7 @@ test("the empty-state New button fires onNewChat (the J2 picker trigger)", async
 test("an empty list beside an open, listable room says that room joins after its first message", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], temporary: false, archived: false },
+    "chat.getChat": makeChatDetail({ ...CHAT_ROOM_DETAIL, temporary: false, archived: false }),
     "chat.listChats": chatListResponder([]),
   });
 
@@ -231,7 +231,7 @@ test("an empty list beside an open, listable room says that room joins after its
 test("an empty list beside a temporary room does not promise it a place", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], temporary: true, archived: false },
+    "chat.getChat": makeChatDetail({ ...CHAT_ROOM_DETAIL, temporary: true, archived: false }),
     "chat.listChats": chatListResponder([]),
   });
 
@@ -272,7 +272,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
   const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": datedChatListResponder([...recent, ...old]),
-    "character.list": { items: [], nextCursor: null },
+    "character.list": characterListResponder([]),
   });
   const component = await mount(<ChatListSurfaceStory />);
 
@@ -343,7 +343,7 @@ test.describe("date jump coarse pointer", () => {
         updatedAt: recencyAt,
       });
     });
-    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder(old), "character.list": { items: [], nextCursor: null } });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder(old), "character.list": characterListResponder([]) });
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<ChatListSurfaceStory width={430} />);
     await component.evaluate((root) => {
@@ -481,7 +481,7 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
 }
 
 test("month-scoped empty copy names the localized human month and year", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([]), "character.list": characterListResponder([]) });
   const component = await mount(<ChatListSurfaceStory />);
   await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-06");
@@ -504,7 +504,7 @@ test("#1348 the month bound's label states the direction its predicate runs — 
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": datedChatListResponder([ADVENTURE, UNTITLED]),
-    "character.list": { items: [], nextCursor: null },
+    "character.list": characterListResponder([]),
   });
   const component = await mount(<ChatListSurfaceStory />);
   await openMonthFilter(component);
@@ -533,7 +533,7 @@ test("#1350/#1718 @mobile: the secondary filters fold behind ONE trigger, and th
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": datedChatListResponder([ADVENTURE]),
-    "character.list": { items: [], nextCursor: null },
+    "character.list": characterListResponder([]),
   });
   const component = await mount(<ChatListSurfaceStory mobile={true} />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -1161,8 +1161,10 @@ function rosterName(index: number): string {
 }
 
 /** A library big enough to overflow any pane — the owner's 6 characters were already too many. */
-function rosterCharacters(): { readonly items: readonly { id: string; name: string; avatarHash: null }[] } {
-  return { items: Array.from({ length: ROSTER_SIZE }, (_unused, index) => ({ id: `char_f${index}`, name: rosterName(index), avatarHash: null })) };
+function rosterCharacters(): ReturnType<typeof characterListResponder> {
+  return characterListResponder(
+    Array.from({ length: ROSTER_SIZE }, (_unused, index) => makeCharacterSummary({ id: `char_f${index}`, name: rosterName(index) })),
+  );
 }
 
 /** One chat per roster member, newest-first — so the curation hands the strip all 30 faces. */
@@ -1471,7 +1473,7 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
       updatedAt: 100_000_000 - at,
     }),
   );
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(library), "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(library), "character.list": characterListResponder([]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText(HEAD_CHAT)).toBeVisible();

@@ -69,6 +69,7 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
   metadata: { seededDefault: true },
 };
 
+// @orb-waive no-inline-package-interface(DefaultPersonaSeederDeps): baselined when the gate landed; burn-down item 952.
 export interface DefaultPersonaSeederDeps {
   /** Is AUTO-CREATION on for this stack (see the file header)? `false` ⇒ `ensureSeeded` creates nothing and
    *  records nothing — not even the latch — so the zero-personas first-run trigger genuinely holds and the
@@ -94,6 +95,7 @@ export interface DefaultPersonaSeederDeps {
   readonly markSeeded: (principal: Principal, seededPersonaId: PersonaId) => Promise<void>;
 }
 
+// @orb-waive no-inline-package-interface(DefaultPersonaSeeder): baselined when the gate landed; burn-down item 952.
 export interface DefaultPersonaSeeder {
   readonly ensureSeeded: (principal: Principal) => Promise<void>;
 }

@@ -7,6 +7,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { runSessionDaemon } from "./session-daemon.ts";
 import { runStageKeeper } from "./stage-keeper.ts";
+import { runStageWaiter } from "./stage-wait.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session-daemon <name> | pnpm snap --stage-keeper <band>");
 
@@ -18,6 +19,9 @@ export async function runInternalEntry(opts: Args, argv: readonly string[]): Pro
   }
   if (opts.stageKeeper !== null) {
     return await runStageKeeper(opts.stageKeeper);
+  }
+  if (opts.stageWaiter !== null) {
+    return await runStageWaiter(opts.stageWaiter);
   }
   return null;
 }

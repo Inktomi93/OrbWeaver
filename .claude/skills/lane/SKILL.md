@@ -98,7 +98,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Floor
 
-Choose the floor from the changed behavior and the completion policy below. For code, cover affected behavior, compiler programs, lint and gates. For prose-only changes, use the instruction or documentation checker. Run affected CTs when rendered behavior changes; static checks never run a CT.
+Choose the floor from the changed behavior and the completion policy below. For code, run the tests named for the change and a typecheck of the affected programs. CI is the verdict for the rest of the static tier (D317). For prose-only changes, use the instruction or documentation checker. Run affected CTs when rendered behavior changes; static checks never run a CT.
 
 Review-only assignments follow the `review` skill's checks. Questions and investigations run the checks needed to support their answer.
 
@@ -110,7 +110,7 @@ List each command and its result in the report. The whole-tree check is the orch
 - Use automatic edit feedback for routine lint, imports and types. Run explicit checks for uncovered files or skipped checks.
 - Complete implementation before final verification. Count completed hook and lane checks toward the floor when their scope and files still match.
 - Reuse matching completed checks. Do not repeat static checks manually for unchanged files, dependencies and scope.
-- Report deferred whole-tree and integration checks. The orchestrator reconciles the frozen merged batch, not each lane commit.
+- Report deferred whole-tree and integration checks. The orchestrator runs the whole-tree check once on main before the owner pushes, not per lane commit.
 - Before another check, name the unresolved question and how its answer could change the result. Extra confidence alone is insufficient.
 - Repeat only checks affected by a relevant edit, failure or conflicting result. Read existing artifacts instead of rerunning for their output.
 - Report unrelated findings separately. If they block a required check, state the blocked verdict without expanding the assignment.
