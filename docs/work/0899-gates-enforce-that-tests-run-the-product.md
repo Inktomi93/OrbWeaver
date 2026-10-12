@@ -25,4 +25,4 @@ Core-0 section 5 and Spine-Testing sections 2 and 5 state the directory mirror a
 
 Filled at landing: what ran and where its output is.
 
-First half merged ad36014aa8 (lane wt/agent-afd7721dddc0bd175, swept 2026-10-11). Open: the second half, the Spine-Testing section 10 gates; the mock-through-barrel reach limit moved to 914.
+First half merged ad36014aa8 (lane wt/agent-afd7721dddc0bd175, since swept). Open: the second half, the gates for Spine-Testing section 10; the mock-through-barrel reach limit moved to 914.

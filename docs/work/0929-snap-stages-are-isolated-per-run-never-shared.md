@@ -10,7 +10,7 @@ area: tooling
 
 ## What
 
-Three side-eyes ran from the main checkout at once. Stages are keyed one directory per sha, so a --stage-db stage at 25bb7c3623 was rebuilt under one reviewer from the dev db (bands.json dbProvenance null) when a sibling bound the same sha; the reviewer had to move to --ref on a docs-only sibling commit to escape. --stage-db also does not link the copied assets (items 878 and 887 cover assets). Also: `pnpm snap --stage-down` stops every stage of the checkout, not the caller's band, so one reviewer tore down two siblings' stages at about 23:58Z on 2026-10-11; a boot race between two runs claiming one stage dir reported a false "leader died during boot".
+Three side-eyes ran from the main checkout at once. Stages are keyed one directory per sha, so a --stage-db stage at 25bb7c3623 was rebuilt under one reviewer from the dev db (bands.json dbProvenance null) when a sibling bound the same sha; the reviewer had to move to --ref on a docs-only sibling commit to escape. --stage-db also does not link the copied assets (items 878 and 887 cover assets). Also: `pnpm snap --stage-down` stops every stage of the checkout, not the caller's band, so one reviewer tore down two siblings' stages; a boot race between two runs claiming one stage dir reported a false "leader died during boot".
 
 ## Why
 
