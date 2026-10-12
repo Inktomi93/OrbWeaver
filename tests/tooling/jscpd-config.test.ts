@@ -140,6 +140,8 @@ test("the tests-only ratchet scans tests/ alone and fails a copy above its thres
     const fixtureConfig = join(root, "jscpd.tests.json");
     writeFileSync(fixtureConfig, readFileSync(TESTS_CONFIG));
     plant(root, "tests/client/unique.ct.tsx", TOOLING_CLONE);
+    plant(root, "tests/legacy/server/legacy-a.int.test.ts", PACKAGE_CLONE);
+    plant(root, "tests/legacy/server/legacy-b.int.test.ts", PACKAGE_CLONE);
     plant(root, "packages/example/src/package-a.ts", PACKAGE_CLONE);
     plant(root, "packages/example/src/package-b.ts", PACKAGE_CLONE);
 

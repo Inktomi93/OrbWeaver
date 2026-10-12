@@ -7,13 +7,14 @@
 // composition root that wires a verb reaches the root.
 import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, Symbol as MorphSymbol, SourceFile, TypeChecker } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { TestFamily, TestKindDefinition } from "../../floor/testing/test-kinds.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import {
   destructuredNames,
-  importedValueNames,
   isTypeDeclaration,
   moduleClosure,
+  moduleValueCandidateNames,
   namespaceMembers,
   specifierPath,
   subjectHeader,
@@ -74,11 +75,9 @@ class Walker {
   private readonly referenceCache = new Map<string, FileReach>();
   private readonly helperCache = new Map<string, readonly string[]>();
   private readonly input: WalkInput;
-  private readonly askedNames: ReadonlySet<string>;
 
   constructor(input: WalkInput) {
     this.input = input;
-    this.askedNames = new Set([...(input.calls?.values() ?? [])].flatMap((names) => [...names]));
     this.pathByAbsolute = new Map(input.files.map((file) => [file.getFilePath(), input.relativePath(file)]));
     this.fileByPath = new Map(input.files.map((file) => [input.relativePath(file), file]));
   }
@@ -107,6 +106,15 @@ class Walker {
       const target = this.pathOf(declaration.getModuleSpecifierSourceFile());
       return target?.startsWith(TEST_ROOT) === true ? [target] : [];
     });
+    for (const call of file?.getDescendantsOfKind(SyntaxKind.CallExpression) ?? []) {
+      const [argument] = call.getArguments();
+      if (argument !== undefined && Node.isStringLiteral(argument) && call.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+        const target = this.pathOf(this.moduleOfLiteral(call.getSourceFile(), argument.getLiteralText(), argument));
+        if (target?.startsWith(TEST_ROOT) === true) {
+          helpers.push(target);
+        }
+      }
+    }
     this.helperCache.set(path, helpers);
     return helpers;
   }
@@ -171,6 +179,11 @@ class Walker {
     }
   }
 
+  private isProductDoor(module: SourceFile | undefined): boolean {
+    const path = this.pathOf(module);
+    return path !== undefined && !path.startsWith(TEST_ROOT);
+  }
+
   /** The modules this file replaces with `vi.mock`/`vi.doMock`; what it imports from them is a fake. */
   private mockedModules(file: SourceFile): ReadonlySet<SourceFile> {
     const mocked = new Set<SourceFile>();
@@ -222,7 +235,8 @@ class Walker {
   private collectImports(scan: Scan): void {
     for (const declaration of scan.file.getImportDeclarations()) {
       const module = declaration.getModuleSpecifierSourceFile();
-      if (!(declaration.isTypeOnly() || (module !== undefined && scan.mocked.has(module)))) {
+      // Test helpers earn reach through their admitted edges, never the checker's flattened alias target.
+      if (this.isProductDoor(module) && !(declaration.isTypeOnly() || (module !== undefined && scan.mocked.has(module)))) {
         this.collectImport(scan, declaration, module);
       }
     }
@@ -247,7 +261,7 @@ class Walker {
   private collectReExports(scan: Scan): void {
     for (const declaration of scan.file.getExportDeclarations()) {
       const module = declaration.getModuleSpecifierSourceFile();
-      if (module === undefined || declaration.isTypeOnly()) {
+      if (module === undefined || !this.isProductDoor(module) || declaration.isTypeOnly()) {
         continue;
       }
       const named = declaration.getNamedExports();
@@ -272,7 +286,7 @@ class Walker {
         continue;
       }
       const module = this.moduleOfLiteral(scan.file, argument.getLiteralText(), argument);
-      if (module === undefined || scan.mocked.has(module)) {
+      if (module === undefined || !this.isProductDoor(module) || scan.mocked.has(module)) {
         continue;
       }
       this.addModule(module, scan);
@@ -280,19 +294,18 @@ class Walker {
     }
   }
 
-  /** A call whose callee is an imported binding, or a member of an imported namespace, resolves to the export it
-   *  names. Only a callee an import binds is resolved, which keeps the checker off every other call. */
+  // Alias spellings select candidates; the canonical binding determines which export was called.
   private collectCalls(scan: Scan): void {
     if (this.input.calls === undefined || this.input.calls.size === 0) {
       return;
     }
-    const values = importedValueNames(scan.file);
+    const values = moduleValueCandidateNames(scan.file);
     for (const call of scan.file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const callee = call.getExpression();
       if (Node.isIdentifier(callee) && values.has(callee.getText()) && !this.bindsFake(callee, scan)) {
         this.addCalled(callee, scan, false);
-      } else if (Node.isPropertyAccessExpression(callee) && this.askedNames.has(callee.getName()) && !this.bindsFake(callee.getExpression(), scan)) {
-        this.addCalled(callee.getNameNode(), scan, true);
+      } else if (Node.isPropertyAccessExpression(callee) && !this.bindsFake(callee.getExpression(), scan)) {
+        this.addCalled(callee, scan, true);
       }
     }
   }
@@ -326,28 +339,35 @@ class Walker {
     });
   }
 
-  /** A member call (`ns.f()`, `(await import("x")).f()`) resolves through the receiver's type, so the receiver can be
-   *  any value of a module's type that `bindsFake` did not reject. The resolved declaration must be a top-level
-   *  export of its module, which keeps a same-named method of an exported object or interface from counting. */
+  // A receiver's type alone cannot prove the implementation a call executes.
   private addCalled(callee: MorphNode, scan: Scan, member: boolean): void {
-    const target = this.resolved(callee.getSymbol());
-    const name = target?.getName();
-    for (const declaration of target?.getDeclarations() ?? []) {
-      const path = this.isFaked(declaration, scan) ? undefined : this.pathOf(declaration.getSourceFile());
-      if (path === undefined || name === undefined || this.input.calls?.get(path)?.has(name) !== true) {
-        continue;
-      }
-      if (
-        !member ||
-        declaration
-          .getSourceFile()
-          .getExportedDeclarations()
-          .get(name)
-          ?.some((exported) => exported === declaration) === true
-      ) {
-        scan.called.set(path, (scan.called.get(path) ?? new Set<string>()).add(name));
-      }
+    const origin = resolveModuleMemberOrigin(callee);
+    if (
+      origin.kind !== "resolved" ||
+      origin.value.canonical.kind !== "project" ||
+      origin.value.memberPath.length > 0 ||
+      origin.trace.declarations.some((edge) => this.pathOf(edge.getSourceFile()) === undefined)
+    ) {
+      return;
     }
+    const target = origin.value.canonical;
+    const name = target.declaration.getSymbol()?.getName() ?? target.exportedName;
+    const declaration = target.declaration;
+    const path = this.isFaked(declaration, scan) ? undefined : this.pathOf(declaration.getSourceFile());
+    if (path === undefined || this.input.calls?.get(path)?.has(name) !== true) {
+      return;
+    }
+    if (
+      member &&
+      declaration
+        .getSourceFile()
+        .getExportedDeclarations()
+        .get(target.exportedName)
+        ?.some((exported) => exported === declaration) !== true
+    ) {
+      return;
+    }
+    scan.called.set(path, (scan.called.get(path) ?? new Set<string>()).add(name));
   }
 
   private moduleOfLiteral(file: SourceFile, specifier: string, literal: MorphNode | undefined): SourceFile | undefined {

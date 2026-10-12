@@ -21,45 +21,10 @@ import {
   unresolved,
 } from "./reference-fact-state.ts";
 
-/** The named import that binds `exportName` locally, or `undefined` when none does OR the one that does
- *  RENAMES (`import { record as pick }`) — a renamed binding publishes a name the leaf does not own. */
-function namedBindingFor(importDeclaration: import("ts-morph").ImportDeclaration, exportName: string): ImportSpecifier | undefined {
-  let binding: ImportSpecifier | undefined;
-  for (const specifier of importDeclaration.getNamedImports()) {
-    if ((specifier.getAliasNode()?.getText() ?? specifier.getName()) === exportName) {
-      binding = specifier.getAliasNode() === undefined ? specifier : undefined;
-    }
-  }
-  return binding;
-}
-
-/** The import binding a barrel republishes UNDER ITS OWN NAME, or `undefined` when either hop renames.
- *
- *  `import { X } from "./x"; export { X };` and `import * as z from "./external"; export { z };` republish the
- *  door they imported rather than naming anything new, so the canonical home is whatever the inner door
- *  resolves to. Both shapes are live: `@trpc/server`'s `TRPCError` (7 server import specifiers) and zod 4.4.3
- *  `index.d.cts:1,3` — the latter is what closed the Zod door for `no-raw-id`.
- *
- *  NAME PRESERVATION IS THE WHOLE GUARD, and it is taken against the leaf's OWN exported name, not just the
- *  export hop: `import { record as pick } from "./leaf"; export { pick };` fails it even though the export
- *  hop is bare, because the barrel's `pick` is the leaf's `record` and the leaf may export its own `pick`.
- *  Once either hop renames, a same-named leaf export would validate a renaming re-export — the hazard the
- *  cross-file refusal was written for, pinned by three rows in `reference-fact-module.test.ts`. */
-function republishedImport(declaration: ExportSpecifier, exportName: string): ImportSpecifier | import("ts-morph").NamespaceImport | undefined {
-  let binding: ImportSpecifier | import("ts-morph").NamespaceImport | undefined;
-  if (declaration.getAliasNode() === undefined && declaration.getName() === exportName) {
-    for (const importDeclaration of declaration.getSourceFile().getImportDeclarations()) {
-      const namespaceImport = importDeclaration.getNamespaceImport()?.getParentIfKind(SyntaxKind.NamespaceImport);
-      binding = namespaceImport?.getName() === exportName ? namespaceImport : (namedBindingFor(importDeclaration, exportName) ?? binding);
-    }
-  }
-  return binding;
-}
-
 /** The canonical home of a republished import. A named binding re-enters the ordinary door resolver; a
  *  NAMESPACE object has no single leaf declaration, so the home it names is the MODULE itself. */
 function republishedTarget(
-  binding: ImportSpecifier | import("ts-morph").NamespaceImport,
+  binding: ImportSpecifier | ImportClause | import("ts-morph").NamespaceImport,
   exportName: string,
   target: ModuleState,
 ): ReferenceFact<CanonicalModuleTarget> {
@@ -76,7 +41,7 @@ function republishedTarget(
   if (refusal !== undefined) {
     return refusal;
   }
-  const inner = moduleOriginFromDoor(binding, binding.getName(), target);
+  const inner = moduleOriginFromDoor(binding, Node.isImportSpecifier(binding) ? binding.getName() : "default", target);
   return inner.kind === "unresolved" ? inner : resolved(inner.value.canonical, target, inner.value.declaration);
 }
 
@@ -101,7 +66,21 @@ function resolveExportSpecifier(
     }
     return resolved(externalTarget(declaration, externalSpecifier, declaration.getName()), target, declaration);
   }
-  const aliasedTargets = symbol.getAliasedSymbol()?.getDeclarations() ?? [];
+  return resolveLocalExportBinding(declaration, symbol, exportName, target);
+}
+
+function resolveLocalExportBinding(
+  declaration: ExportSpecifier,
+  symbol: MorphSymbol,
+  exportName: string,
+  target: ModuleState,
+): ReferenceFact<CanonicalModuleTarget> {
+  const aliasedTargets = declaration.getLocalTargetSymbol()?.getDeclarations() ?? [];
+  // Flattened declarations guard multiplicity only; the lexical target owns provenance.
+  const flattened = symbol.getAliasedSymbol()?.getDeclarations() ?? [];
+  if (flattened.length > 1 && overloadHome(flattened) === undefined) {
+    return unresolved("ambiguous", declaration, target, `local export ${exportName} resolves to ${flattened.length} declarations`);
+  }
   const overload = overloadHome(aliasedTargets);
   const aliased = overload ?? aliasedTargets[0];
   if (aliased === undefined) {
@@ -110,11 +89,12 @@ function resolveExportSpecifier(
   if (aliasedTargets.length !== 1 && overload === undefined) {
     return unresolved("ambiguous", declaration, target, `local export ${exportName} resolves to ${aliasedTargets.length} declarations`);
   }
-  if (aliased.getSourceFile() !== declaration.getSourceFile()) {
-    const republished = republishedImport(declaration, exportName);
-    return republished === undefined
-      ? unresolved("unsupported", declaration, target, `local export ${exportName} forwards an imported binding without a proven canonical export`)
-      : republishedTarget(republished, exportName, target);
+  if (Node.isImportSpecifier(aliased) || Node.isImportClause(aliased) || Node.isNamespaceImport(aliased)) {
+    return republishedTarget(aliased, exportName, target);
+  }
+  if (Node.isBindingElement(aliased)) {
+    const inner = moduleOriginFromBinding(aliased, target, target.services);
+    return inner.kind === "unresolved" ? inner : resolved(inner.value.canonical, target, inner.value.declaration);
   }
   if (!enterDeclaration(target, aliased)) {
     return unresolved("cycle", aliased, target, `module export cycle at ${aliased.getText()}`);
@@ -161,7 +141,12 @@ function isBindingAliasInitializer(node: MorphNode, services: ReferenceResolutio
 function validatedProjectTarget(declaration: MorphNode, exportedName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> {
   const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
   if (initializer !== undefined && isBindingAliasInitializer(initializer, target.services)) {
-    return unresolved("unsupported", initializer, target, `export ${exportedName} aliases another binding whose canonical origin is not proven`);
+    const stable = target.services.inspectStableBinding(declaration);
+    if (stable.kind === "unresolved") {
+      return mergeUnresolved(stable, target);
+    }
+    const inner = resolveInternal(initializer, target, target.services);
+    return inner.kind === "unresolved" ? inner : resolved(inner.value.canonical, target, inner.value.declaration);
   }
   return resolved(projectTarget(declaration, exportedName), target, declaration);
 }
@@ -179,6 +164,7 @@ function uniqueExportSymbol(sourceFile: SourceFile, exportName: string, target: 
 }
 
 function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> {
+  appendTrace(target, [sourceFile]);
   const symbolFact = uniqueExportSymbol(sourceFile, exportName, target);
   if (symbolFact.kind === "unresolved") {
     return symbolFact;
@@ -278,8 +264,33 @@ function namespaceImportBinding(declaration: import("ts-morph").NamespaceImport,
   return resolved({ kind: "project", moduleSpecifier, declaration, sourceFile }, target, declaration);
 }
 
+function dynamicNamespaceBinding(call: import("ts-morph").CallExpression, target: ModuleState): ReferenceFact<NamespaceBinding> {
+  const [argument] = call.getArguments();
+  if (argument === undefined || !Node.isStringLiteral(argument)) {
+    return unresolved("dynamic", call, target, "a dynamic namespace requires one literal module door");
+  }
+  if (!enterDeclaration(target, call)) {
+    return unresolved("cycle", call, target, `dynamic module cycle at ${call.getText()}`);
+  }
+  const moduleSpecifier = argument.getLiteralText();
+  const sourceFile = argument.getSymbol()?.getDeclarations().find(Node.isSourceFile);
+  if (sourceFile === undefined) {
+    return requiresResolvedSource(moduleSpecifier)
+      ? unresolved("missing", argument, target, `dynamic module door ${moduleSpecifier} has no resolvable source file`)
+      : resolved({ kind: "external", moduleSpecifier, declaration: call }, target, call);
+  }
+  appendTrace(target, [sourceFile]);
+  return resolved({ kind: "project", moduleSpecifier, declaration: call, sourceFile }, target, call);
+}
+
 function namespaceBindingInternal(node: MorphNode, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<NamespaceBinding> {
   const current = services.unwrapExpression(node);
+  if (Node.isAwaitExpression(current)) {
+    return namespaceBindingInternal(current.getExpression(), target, services);
+  }
+  if (Node.isCallExpression(current) && current.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+    return dynamicNamespaceBinding(current, target);
+  }
   if (!Node.isIdentifier(current)) {
     return unresolved("unsupported", current, target, `${current.getKindName()} is not a namespace binding`);
   }

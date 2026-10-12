@@ -42,6 +42,10 @@ function jobNames(id: string, job: z.infer<typeof JOB>): readonly string[] {
   return names;
 }
 
+function runtimeJobGroup(id: string, job: z.infer<typeof JOB>, names: readonly string[]): CiQualificationJobGroup {
+  return { name: names.length === 1 ? (names[0] ?? id) : (job.name ?? id), jobs: names };
+}
+
 function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): Pick<CiQualificationConfig, "requiredJobs" | "runtimeJobs" | "runtimeJobGroups"> {
   const requiredJobs = ["ci-ok"];
   const runtimeJobs: string[] = [];
@@ -61,7 +65,7 @@ function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): Pick<CiQualificati
     const names = jobNames(id, job);
     if (job.if === RUNTIME_CONDITION) {
       runtimeJobs.push(...names);
-      runtimeJobGroups.push({ name: job.name ?? id, jobs: names });
+      runtimeJobGroups.push(runtimeJobGroup(id, job, names));
     } else {
       requiredJobs.push(...names);
     }

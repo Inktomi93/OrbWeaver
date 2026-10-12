@@ -227,28 +227,40 @@ test("first-generation bootstrap positively excludes old workflow authority and 
   expect(result.stderr).not.toContain("unexpected metadata call");
 });
 
-test("the production release producer derives native collapsed names from its canonical workflow", async ({ scratch, repoRoot, fakeBin }) => {
-  await fakeBin("gh", API_FIXTURE);
-  execFixtureGit(scratch, ["init", "--initial-branch=main"]);
-  execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
-  execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
-  writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
-  mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
-  writeFileSync(join(scratch, ".github/workflows/ci.yml"), readFileSync(join(repoRoot, ".github/workflows/ci.yml")));
-  execFixtureGit(scratch, ["add", "."]);
-  execFixtureGit(scratch, ["commit", "-m", "native inherited qualification"]);
-  const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
-  const jobs = [goodJob(head), ...goodProductJobs(head, true)];
-  writeFileSync(
-    join(scratch, "ci-api.json"),
-    JSON.stringify({ ...metadata(head), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
-  );
-  const result = spawnSync(process.execPath, [join(repoRoot, "scripts/ci-qualification.ts"), "release", head], {
-    cwd: scratch,
-    encoding: "utf8",
-    env: inheritedProcessEnv(),
-  });
-  expect(result.status, result.stdout + result.stderr).toBe(0);
-  expect(result.stdout).toBe("");
-  expect(result.stderr).toBe("");
-});
+test.for(["current", "previous-generation", "missing-node-legacy", "missing-ct-legacy"] as const)(
+  "the production release producer validates split legacy population: %s",
+  async (scenario, { scratch, repoRoot, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    execFixtureGit(scratch, ["init", "--initial-branch=main"]);
+    execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
+    execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
+    writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
+    mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
+    writeFileSync(join(scratch, ".github/workflows/ci.yml"), readFileSync(join(repoRoot, ".github/workflows/ci.yml")));
+    execFixtureGit(scratch, ["add", "."]);
+    execFixtureGit(scratch, ["commit", "-m", "native inherited qualification"]);
+    const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+    const jobs = [goodJob(head), ...goodProductJobs(head, true)]
+      .filter(
+        ({ name }) =>
+          !((scenario === "missing-node-legacy" && name.startsWith("node legacy")) || (scenario === "missing-ct-legacy" && name.startsWith("ct legacy"))),
+      )
+      .map((job) =>
+        scenario === "previous-generation"
+          ? { ...job, steps: job.steps.map((step) => ({ ...step, name: step.name.replace(GENERATION, "Orbweaver qualification product-v3") })) }
+          : job,
+      );
+    writeFileSync(
+      join(scratch, "ci-api.json"),
+      JSON.stringify({ ...metadata(head), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
+    );
+    const result = spawnSync(process.execPath, [join(repoRoot, "scripts/ci-qualification.ts"), "release", head], {
+      cwd: scratch,
+      encoding: "utf8",
+      env: inheritedProcessEnv(),
+    });
+    expect(result.status, result.stdout + result.stderr).toBe(scenario === "current" ? 0 : 1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(scenario === "current" ? "" : `release: CI for ${head} is not green under the current qualification generation\n`);
+  },
+);
