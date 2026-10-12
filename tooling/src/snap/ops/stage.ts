@@ -74,7 +74,7 @@ import { listeningPids } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
-import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
+import type { EnsureStageOps, EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { liveHoldersOf, otherRunHolders, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildReason, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
@@ -292,17 +292,20 @@ function bootOntoBand(input: {
   return built;
 }
 
+const REAL_ENSURE_STAGE_OPS: EnsureStageOps = { repoRoot, resolveRef, markerRoot, acquireStageBand, armStageKeeper };
+
 /** Boot-or-reuse an isolated stage ON THIS LANE'S OWN BAND and return its row (its base URL is where snap
  *  navigates). `--dirty` stages the WORKING TREE (keyed by the fixed `DIRTY_STAGE_KEY`, never a real sha)
- *  instead of a git ref — see the module header. */
-export function ensureStage(opts: EnsureStageOpts): StageRow {
-  const root = repoRoot();
-  const home = markerRoot(root);
-  const resolved = resolveStageRow(root, opts);
+ *  instead of a git ref — see the module header. `ops` is the injected box-facing half (root, ref, table
+ *  home, band census, keeper); every caller but a test takes the real one. */
+export function ensureStage(opts: EnsureStageOpts, ops: EnsureStageOps = REAL_ENSURE_STAGE_OPS): StageRow {
+  const root = ops.repoRoot();
+  const home = ops.markerRoot(root);
+  const resolved = resolveStageRow(root, opts, ops);
   // ARM (b) (#1163): every path below yields a LIVE row, and every live row gets the band's own idle
   // timer — armed here, at the ONE exit, so no future arm can forget it. Idempotent: a warm reuse whose
   // keeper is still running spawns nothing (ops/stage-keeper.ts).
-  const row = armStageKeeper(home, resolved.row);
+  const row = ops.armStageKeeper(home, resolved.row);
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
   registerStageRunBinding({ row, home, booted: resolved.booted });
@@ -320,17 +323,17 @@ interface ResolvedStage {
   readonly booted: boolean;
 }
 
-function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
+function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOps): ResolvedStage {
   const dirty = opts.dirty ?? false;
-  const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
-  const home = markerRoot(root);
+  const targetSha = dirty ? DIRTY_STAGE_KEY : ops.resolveRef(root, opts.ref ?? "HEAD");
+  const home = ops.markerRoot(root);
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
   const auth = opts.auth ?? "single-user";
   const owner = stageCallerOwner(root);
   const dir = stagePaths(root, targetSha, auth, owner).dir;
 
-  const { allocation } = acquireStageBand({
+  const { allocation } = ops.acquireStageBand({
     home,
     root,
     checkout: owner,

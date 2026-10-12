@@ -36,11 +36,10 @@ import { RulesActivityFreshnessStory, RulesInThisChatTabStory, RulesSectionStory
 
 const CHAT = castId<ChatId>("chat_ct_rules_0001");
 
-// Every rule row is a CollapsiblePanel that folds its height open, with the Connections and Recent-activity
-// disclosures nested inside it. Under a loaded runner a press on a nested trigger while the outer fold is
-// still running is lost, which failed a different nested-disclosure test per run. The reduced-motion floor
-// snaps the fold, so a press lands on settled geometry; the folded-open geometry itself is polled where a test
-// measures it.
+// A nested disclosure is pressed while the outer row's CollapsiblePanel is still folding open. Under load Playwright's
+// scroll-into-view shifts that clipped panel and the press lands in the gap beside the trigger, which is a test artefact:
+// a real pointer cannot press a clipped control, and the trigger stays attached and uncovered. The reduced-motion floor
+// removes the fold, so the press lands on settled geometry.
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // A FIXED epoch, never `Date.now()` (test-determinism): the row and the log both render relative time.

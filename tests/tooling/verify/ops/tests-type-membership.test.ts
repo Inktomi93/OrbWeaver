@@ -11,7 +11,7 @@
 //   catch this: it only asks "is this file in SOME program's closure", and the leak makes that question
 //   answer YES for every affected file — for the wrong reason. Only a direct ban on the MECHANISM closes
 //   the class; that ban is `findTripleSlashLibLeaks`, pinned here in both directions.
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -395,11 +395,46 @@ test("broken, empty and malformed native closure observations are tool errors", 
   expect(runMembershipQuietly(scratch)).toBe(2);
   const source = join(scratch, "packages/kit/src/value.ts");
   const list = `if (process.argv.includes("--listFilesOnly")) process.stdout.write(${JSON.stringify(`${source}\n`)}); else `;
-  // The root reader runs the canonical launcher by default; hand it the planted process for its native observation only.
+  // The root reader takes its launcher by injection. Hand it the planted process for its native observation only.
   writeFileSync(script, `${list}process.stdout.write('{"files":["src/value.ts"]}');\n`);
   expect(runMembershipQuietly(scratch, script)).toBe(0);
   writeFileSync(script, `${list}process.stdout.write('not-json');\n`);
   expect(runMembershipQuietly(scratch, script)).toBe(2);
+});
+
+test("the root reader runs the launcher it is given, once per program, with the canonical launcher accepted", ({ repoRoot, scratch }) => {
+  const base =
+    '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
+  plantNativeMembershipRepo(repoRoot, scratch, {
+    "tsconfig.base.json": base,
+    "packages/kit/tsconfig.json": '{"extends":"../../tsconfig.base.json","include":["src"]}',
+    "packages/kit/src/value.ts": "export {};\n",
+  });
+  // A recording launcher that delegates to the checkout's canonical one: the verdict comes from the real compiler,
+  // and the log proves which launcher the root reader ran and with which arguments.
+  const canonical = join(repoRoot, "scripts", "ts7.ts");
+  // Under `deps/`, which the planted repo ignores, so the launcher is not itself an authored source.
+  mkdirSync(join(scratch, "deps"), { recursive: true });
+  const log = join(scratch, "deps", "launcher-calls.jsonl");
+  const recording = join(scratch, "deps", "recording-launcher.ts");
+  writeFileSync(
+    recording,
+    [
+      'const { appendFileSync } = require("node:fs");',
+      'const { spawnSync } = require("node:child_process");',
+      "const args = process.argv.slice(2);",
+      `appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");`,
+      `const run = spawnSync(process.execPath, [${JSON.stringify(canonical)}, ...args], { encoding: "utf8" });`,
+      "process.stdout.write(run.stdout);",
+      "process.exitCode = run.status ?? 1;",
+      "",
+    ].join("\n"),
+  );
+  expect(runMembershipQuietly(scratch, recording)).toBe(0);
+  const calls = readFileSync(log, "utf8")
+    .split("\n")
+    .filter((line) => line !== "");
+  expect(calls).toEqual([JSON.stringify(["--showConfig", "-p", "packages/kit/tsconfig.json"])]);
 });
 
 test("native/shared root parity remains an independent two-sided comparison", () => {
