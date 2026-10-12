@@ -440,6 +440,7 @@ async function scanRunnablePage(input: QueueScanInput, cursor: QueueCursor | nul
           and(eq(workloads.scheduledAt, cursor.scheduledAt), gt(workloads.createdAt, cursor.createdAt)),
           and(eq(workloads.scheduledAt, cursor.scheduledAt), eq(workloads.createdAt, cursor.createdAt), gt(workloads.id, cursor.id)),
         );
+  // @orb-waive owner-scoped-reads(workloads): the queue runner's lane scan over every owner's queued rows — a trusted system read with no Principal (D20), whose rows feed only the engine's dispatch. The `workloads.id` term is the keyset cursor's tie-break, not a selection by a caller's id. Ends if a Principal-bearing caller reaches this scan.
   const page = await input.db
     .select()
     .from(workloads)

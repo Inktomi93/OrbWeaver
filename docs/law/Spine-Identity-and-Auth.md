@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-25
+updated: 2026-10-12
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -153,6 +153,10 @@ verb gate. The cross-tenant IDOR sweep (`cross-tenant-sweep.suite.int.test.ts`) 
 transport boundary.
 
 A D23 satellite gives no scope to the owned row it points at; a read that joins that row from it needs an owner predicate.
+
+A derived table can have more than one scope parent. A chain through it scopes the joined parent only when the same statement also pins another of its scope parents to the caller. An owner term pins an ownerId-class parent; a plain value pins a membership-class parent.
+
+An owner term can take its value from a column or a subselect. That term scopes the row only when the value's own table carries a value pin in the same statement. A value pin is an `eq` or `inArray` against a non-column. The check is one hop deep, so a longer chain of pins needs a waiver that names the chain. The `owner-scoped-reads` gate enforces both rules.
 
 The `/blob/:hash` route is the sharpest instance: it resolves the caller from the session cookie and
 runs `fetchOwned` (or the roster-avatar membership exception) — it never serves on bare row existence —

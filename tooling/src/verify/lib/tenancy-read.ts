@@ -13,16 +13,17 @@ import { resolveDrizzleTableRefs } from "@orb/tooling/floor/code-facts/drizzle-t
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Identifier, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ReadStatement, SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
+import type { SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { MEMBER_ACCESS_KINDS, referencesModuleExport } from "./symbol-reference.ts";
+import { MEMBER_ACCESS_KINDS, readsMemberNamed, referencesModuleExport } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
 const DRIZZLE_MODULE_PREFIX = "drizzle-orm";
 const SCHEMA_DIR = "/packages/db/src/schema/";
-const WHERE_VERB = "where";
-const INNER_JOIN_VERB = "innerJoin";
-const MAX_BUILDER_HOPS = 3;
+/** The relational-API config key that carries the read's filter. */
+export const RELATIONAL_WHERE = "where";
+/** The drizzle relational-API verbs (`db.query.<t>.findFirst|findMany`). */
+export const RELATIONAL_VERBS: ReadonlySet<string> = new Set(["findFirst", "findMany"]);
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
 /** The chained calls only a drizzle statement can carry. The DISCRIMINATOR for the unresolvable arm: an
@@ -31,9 +32,45 @@ const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id
  *  `packages/server/src` (measured 2026-08-27), every one of them chain-free. */
 const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
 
-/** Is this call's callee the drizzle-orm export `name`, by its import (named or namespace), never its spelling? */
+/** Is this call's callee the drizzle-orm export `name`, by its import (named or namespace), never its spelling,
+ *  or the same operator a relational-API `where` callback destructures from drizzle's operator argument? */
 export function callsDrizzleOperator(call: CallExpression, name: string): boolean {
-  return referencesModuleExport(call.getExpression(), name, (specifier) => specifier.startsWith(DRIZZLE_MODULE_PREFIX));
+  const callee = call.getExpression();
+  return referencesModuleExport(callee, name, (specifier) => specifier.startsWith(DRIZZLE_MODULE_PREFIX)) || relationalOperatorName(callee) === name;
+}
+
+/** The relational-API config object a `where` callback is the value of: `db.query.<t>.findFirst({ where })`. */
+export function relationalWhereCallback(fn: Node): boolean {
+  const property = fn.getParent();
+  const config = property?.getParent();
+  const call = config?.getParent();
+  return (
+    property?.isKind(SyntaxKind.PropertyAssignment) === true &&
+    property.getName() === RELATIONAL_WHERE &&
+    call?.isKind(SyntaxKind.CallExpression) === true &&
+    call.getArguments()[0] === config &&
+    readsMemberNamed(call.getExpression(), RELATIONAL_VERBS) !== undefined
+  );
+}
+
+/** The drizzle operator `callee` names when a relational `where` callback destructures it from its second
+ *  parameter (`where: (t, { eq }) => eq(t.ownerId, ownerId)`), or undefined. drizzle passes those operators in,
+ *  so they carry no import. */
+export function relationalOperatorName(callee: Node): string | undefined {
+  if (!callee.isKind(SyntaxKind.Identifier)) {
+    return;
+  }
+  const element = callee.getDefinitionNodes().find((definition) => definition.isKind(SyntaxKind.BindingElement));
+  if (element === undefined || !element.isKind(SyntaxKind.BindingElement)) {
+    return;
+  }
+  const parameter = element.getParent().getParent();
+  if (!parameter.isKind(SyntaxKind.Parameter)) {
+    return;
+  }
+  const fn = parameter.getParent();
+  const isOperatorParameter = (fn.isKind(SyntaxKind.ArrowFunction) || fn.isKind(SyntaxKind.FunctionExpression)) && fn.getParameters()[1] === parameter;
+  return isOperatorParameter && relationalWhereCallback(fn) ? (element.getPropertyNameNode()?.getText() ?? element.getName()) : undefined;
 }
 
 /** Does raw SQL text name any schema table by its SQL name? Only a constant that names none reads none. */
@@ -146,92 +183,6 @@ function chainCalls(start: Node): CallExpression[] {
 export function whereArgOf(anchor: Node): Node | undefined {
   const whereCall = chainCalls(anchor).find((call) => staticMemberAccess(call.getExpression())?.name === "where");
   return whereCall?.getArguments()[0];
-}
-
-/** The outermost node of the chain a table anchor starts: where `chainCalls` stops climbing. */
-/** One step up a read's OWN builder chain: through a member access whose object is the current node, a call
- *  whose callee is, or an `await`. A select passed as an ARGUMENT (an `inArray(col, db.select()…)` subselect)
- *  is its own statement and never inherits the outer statement's predicates. */
-function builderParent(cur: Node): Node | undefined {
-  const parent = cur.getParent();
-  if (parent === undefined) {
-    return;
-  }
-  const continuesChain =
-    parent.isKind(SyntaxKind.AwaitExpression) ||
-    (parent.isKind(SyntaxKind.CallExpression) && parent.getExpression() === cur) ||
-    (MEMBER_ACCESS_KINDS.some((kind) => parent.isKind(kind)) && parent.getFirstChild() === cur);
-  return continuesChain ? parent : undefined;
-}
-
-/** The outermost node of a read's own builder chain, and the calls applied along the way. */
-function builderChain(start: Node): { readonly top: Node; readonly calls: readonly CallExpression[] } {
-  const calls: CallExpression[] = [];
-  let cur: Node = start;
-  for (let parent = builderParent(cur); parent !== undefined; parent = builderParent(cur)) {
-    if (parent.isKind(SyntaxKind.CallExpression)) {
-      calls.push(parent);
-    }
-    cur = parent;
-  }
-  return { top: cur, calls };
-}
-
-/** The binding an UNAWAITED builder chain is stored in (`const q = db.select().from(T)` or `q = q.where(…)`);
- *  an awaited chain is a result set, not a builder, and is never followed. */
-function builderBinding(top: Node): Identifier | undefined {
-  const parent = top.isKind(SyntaxKind.AwaitExpression) ? undefined : top.getParent();
-  let target: Node | undefined;
-  if (parent?.isKind(SyntaxKind.VariableDeclaration) === true && parent.getInitializer() === top) {
-    target = parent.getNameNode();
-  } else if (
-    parent?.isKind(SyntaxKind.BinaryExpression) === true &&
-    parent.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
-    parent.getRight() === top
-  ) {
-    target = parent.getLeft();
-  }
-  return target?.isKind(SyntaxKind.Identifier) === true ? target : undefined;
-}
-
-/** The uses of a builder binding in its own function that continue the chain: a METHOD CALL on it (`q.where(…)`,
- *  `q.innerJoin(…)`). A column read off it (`sq.id`, a subquery's field) is a value, never a builder step. */
-function builderUses(binding: Identifier): readonly Identifier[] {
-  const symbol = binding.getSymbol()?.compilerSymbol;
-  const scope = enclosingFn(binding) ?? binding.getSourceFile();
-  return scope.getDescendantsOfKind(SyntaxKind.Identifier).filter((use) => {
-    const access = use.getParent();
-    const call = access.getParent();
-    const isMethodCall =
-      MEMBER_ACCESS_KINDS.some((kind) => access.isKind(kind)) &&
-      access.getFirstChild() === use &&
-      call?.isKind(SyntaxKind.CallExpression) === true &&
-      call.getExpression() === access;
-    return use !== binding && isMethodCall && symbol !== undefined && use.getSymbol()?.compilerSymbol === symbol;
-  });
-}
-
-/** Every call a read statement applies after its anchor, following a split builder's binding in the same function. */
-function statementCalls(anchor: Node, hops: number, seen: Set<Node>): readonly CallExpression[] {
-  const chain = builderChain(anchor);
-  const binding = builderBinding(chain.top);
-  const followed = binding === undefined || hops >= MAX_BUILDER_HOPS ? [] : builderUses(binding).filter((use) => !seen.has(use));
-  for (const use of followed) {
-    seen.add(use);
-  }
-  return [...chain.calls, ...followed.flatMap((use) => statementCalls(use, hops + 1, seen))];
-}
-
-/** The predicates a read statement carries: every `.where` the chain (or its split builder) applies, and every
- *  inner join's ON. Several `.where` calls are several candidates for the effective filter, never a conjunction. */
-export function readStatementOf(anchor: Node): ReadStatement {
-  const calls = statementCalls(anchor, 0, new Set());
-  const argumentsOf = (verb: string, position: number): readonly Node[] =>
-    calls.flatMap((call) => {
-      const argument = staticMemberAccess(call.getExpression())?.name === verb ? call.getArguments()[position] : undefined;
-      return argument === undefined ? [] : [argument];
-    });
-  return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1) };
 }
 
 /** The `onConflictDoUpdate({ … })` CONFIG of the statement this `insert(T)` anchor starts, or undefined —

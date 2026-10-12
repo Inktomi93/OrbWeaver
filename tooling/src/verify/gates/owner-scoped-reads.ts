@@ -8,12 +8,15 @@
 // control-flow-dependent (the cross-tenant behavioral sweep stays that proof). A post-fetch arm is valid only
 // when a rejecting guard compares that exact result (or a one-hop alias) with the caller's owner binding; a
 // self-comparison, unrelated owner, or unused comparison is RED.
-// Every table a read binds is a candidate (`.from` and each join), resolved by the shared floor resolver
-// (`floor/code-facts/drizzle-table-ref.ts`); an anchor it cannot resolve is a finding, a subquery or CTE is judged
-// on its inner select, and only a provably foreign verb is skipped. Owner scope is a conjunct `eq`/`inArray` on
-// `T.ownerId` against a value that does not read `T`, on every arm of a ternary or helper. A joined table also
-// passes on a conjunct `eq(J.col, T.col)` along a declared FK pointing AT it (Spine-Identity-and-Auth §2b),
-// unless `T` is a D23 satellite of `J`; selecting the chain's bound FK column by a value is the by-id hole.
+// Every table a read binds is a candidate (`.from`, each join, and `db.query.<t>.findFirst|findMany`), resolved by
+// the shared floor resolver (`floor/code-facts/drizzle-table-ref.ts`); an anchor it cannot resolve is a finding, a
+// subquery or CTE is judged on its inner select, a relational `with:` is unproven, and only a provably foreign verb
+// is skipped. Owner scope is a conjunct `eq`/`inArray` on `T.ownerId` against a plain value, or against a column or
+// subselect whose own table is value-pinned in the statement, on every arm of a ternary or helper. A joined table
+// also passes on a conjunct `eq(J.col, T.col)` along a declared FK pointing AT it (Spine-Identity-and-Auth §2b),
+// unless `T` is derived from `J` and no other scope parent of `T` is pinned to the caller; selecting the chain's
+// bound FK column by a value is the by-id hole. A WHERE term no reader can see (a parameter, a `let`, an unresolved
+// helper, a `$dynamic()` builder that escapes) makes the read unproven, never a list read.
 //
 // MARKER TRANSLATION COMPLETE (#1944, 2026-09-11): this conversion dropped the legacy function-level
 // `@owner-scope-ok` comment marker and the translation lane rewrote every live site into the central
@@ -49,16 +52,27 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import type { ReadAnchor, ReadStatement, SchemaTableIndex } from "../contract/tenancy.ts";
+import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex } from "../contract/tenancy.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { anyConjunct, chainTermsOf, innerReadAnchorsOf, isOwnerTerm, predicateHolds, readAnchorOf, selectsByValue } from "../lib/tenancy-join.ts";
-import { enclosingFn, hasPostFetchFilter, predicatesOwnId, readStatementOf, tableRefsOf } from "../lib/tenancy-read.ts";
-import { foreignKeyEdges, ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex, scopeParentsOfDerivedTables } from "../lib/tenancy-scope.ts";
+import { chainTermsOf, conjunctLeaves, innerReadAnchorsOf, ownerTermValue, predicateHolds, readAnchorOf, selectsByValue } from "../lib/tenancy-join.ts";
+import { parentReceiverOf, valuePinTerm, valueSourcesOf } from "../lib/tenancy-pin.ts";
+import { enclosingFn, hasPostFetchFilter, predicatesOwnId, RELATIONAL_WHERE, relationalWhereCallback, tableRefsOf } from "../lib/tenancy-read.ts";
+import {
+  foreignKeyEdges,
+  foreignKeysBetween,
+  ownerScopedTableIdents,
+  reportBlindWhenEmpty,
+  schemaTableIndex,
+  scopeParentsOfDerivedTables,
+} from "../lib/tenancy-scope.ts";
+import { readStatementOf } from "../lib/tenancy-statement.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const ID_COL = "id";
 const MAX_SUBQUERY_DEPTH = 4;
+const RELATIONAL_WITH = "with";
 
 const MESSAGE =
   "a by-id READ of an ownerId-scoped table with NO owner predicate — this is the cross-tenant read hole: " +
@@ -87,10 +101,22 @@ const JOIN_MESSAGE =
   "§2b), or by an `eq(T.ownerId, …)` predicate on the joined table itself";
 
 const SATELLITE_MESSAGE =
-  "a join binds an ownerId-scoped table ONLY through a satellite of itself — a D23 derived table whose one scope " +
-  "is the very row this join selects, so the chain is circular and every owner's row comes back. A satellite " +
-  "gives no scope (Spine-Identity-and-Auth §2b): put an owner predicate on the joined table, or chain from a row " +
-  "the caller is already scoped to";
+  "a join binds an ownerId-scoped table ONLY through a satellite of itself — a D23 derived table that scopes " +
+  "through the very row this join selects, with none of its other scope parents pinned to the caller in this " +
+  "statement, so the chain is circular and every owner's row comes back. A satellite gives no scope " +
+  "(Spine-Identity-and-Auth §2b): put an owner predicate on the joined table, or bind and pin one of the derived " +
+  "table's other scope parents (its ownerId parent by an owner term, its membership parent by a value)";
+
+const UNPROVEN_MESSAGE =
+  "an unproven owner-scoped read — a WHERE or ON term no reader can see (a parameter, a `let`, a destructured " +
+  "binding, a spread of a non-literal array, an unresolved helper, or a `$dynamic()` builder handed to a call or " +
+  "returned), so whether it selects a row by id is unknown. An unreadable filter is an unproven read, never a list " +
+  "read: build the predicate from `const` terms in the reading function, or put the owner predicate in it";
+
+const RELATIONAL_WITH_MESSAGE =
+  "a relational-API read loads relations through `with:` — each relation binds a table the gate cannot trace to a " +
+  "join condition, so its rows are unproven. Read related rows with an explicit select and join, whose FK chain " +
+  "and owner predicates the gate judges";
 
 const UNRESOLVABLE_MESSAGE =
   "an unresolvable table anchor — the read binds a table expression no declaration, drizzle alias, subquery or " +
@@ -122,6 +148,23 @@ const SATELLITE_SCHEMA = {
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const worldBooks = sqliteTable("world_books", { id: text("id").primaryKey(), ownerId: text("owner_id") });\nexport const globalBooks = sqliteTable("global_books", { bookId: text("book_id").references(() => worldBooks.id) });\n',
 } as const;
 
+// The value-pin rows' schema: `chat_participants` is (b) membership-scoped; `characters` and `personas` are (a);
+// `character_personas` is a D23 junction with two ownerId parents; `message_assets` joins a membership parent
+// (`messages`) to an ownerId parent (`assets`).
+const PIN_SCHEMA = {
+  "packages/db/src/schema/chat.ts":
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const personas = sqliteTable("personas", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), ownerId: text("owner_id") });\nexport const chatParticipants = sqliteTable("chat_participants", { id: text("id").primaryKey(), chatId: text("chat_id"), userId: text("user_id") });\nexport const characterPersonas = sqliteTable("character_personas", { characterId: text("character_id").references(() => characters.id), personaId: text("persona_id").references(() => personas.id) });\nexport const messages = sqliteTable("messages", { id: text("id").primaryKey(), chatId: text("chat_id") });\nexport const assets = sqliteTable("assets", { id: text("id").primaryKey(), ownerId: text("owner_id") });\nexport const messageAssets = sqliteTable("message_assets", { messageId: text("message_id").references(() => messages.id), assetId: text("asset_id").references(() => assets.id) });\n',
+} as const;
+const PIN_READ_HEAD =
+  'import { aliasedTable, and, eq, inArray, isNotNull } from "drizzle-orm";\nimport type { SQL } from "drizzle-orm";\nimport { assets, characterPersonas, characters, chatParticipants, messageAssets, personas } from "@orb/db";\n';
+const PIN_READ_SIGNATURE =
+  "export async function loadPinned(db: Db, chatId: string, personaId: string, characterId: string, messageId: string, ownerId: string, flag: boolean) {\n";
+
+/** One read over the value-pin schema; `body` is the whole function body, `before` any module-level declaration. */
+function pinBody(body: string, before = ""): Readonly<Record<string, string>> {
+  return { ...PIN_SCHEMA, [PERSONA_READ_PATH]: `${PIN_READ_HEAD}${before}${PIN_READ_SIGNATURE}${body}}\n` };
+}
+
 /** One persona read over the shared schema; `body` is the whole function body. */
 function personaBody(body: string, extra: Readonly<Record<string, string>> = {}, imports = ""): Readonly<Record<string, string>> {
   return { ...CHAT_PERSONA_SCHEMA, ...extra, [PERSONA_READ_PATH]: `${PERSONA_READ_HEAD}${imports}${PERSONA_READ_SIGNATURE}${body}}\n` };
@@ -135,50 +178,108 @@ function personaRead(chain: string): Readonly<Record<string, string>> {
   };
 }
 
-/** Is the bound table a D23 satellite of the joined one: a derived table whose only scope-bearing parent it is? */
-function isSatelliteOf(bound: string, joined: string, scope: ReadScope): boolean {
-  const parents = scope.derivedParents.get(bound);
-  return parents !== undefined && parents.size === 1 && parents.has(joined);
+/** The predicates one anchor's verdict reads: its own ON, and its statement's inner ONs and WHERE alternatives. */
+interface Judged {
+  readonly on: Node | undefined;
+  readonly statement: ReadStatement;
 }
 
-/** Does every `.where` the statement may apply carry `holds`? Several are alternatives, never a conjunction. */
-function everyWhereHolds(statement: ReadStatement, holds: (conjunct: Node) => boolean): boolean {
-  return statement.wheres.length > 0 && statement.wheres.every((where) => predicateHolds([where], holds));
+function judgedOf(anchor: ReadAnchor): Judged {
+  return { on: anchor.kind === "join" ? anchor.on : undefined, statement: readStatementOf(anchor.call) };
+}
+
+/** Does `test` accept a conjunct that filters every row the statement returns: one in the anchor's own ON or an
+ *  inner join's ON, or one in every `.where` it may apply? Several WHEREs are alternatives, never a conjunction. */
+function bindsRows(judged: Judged, test: (conjunct: Node) => boolean): boolean {
+  const { on, statement } = judged;
+  return predicateHolds([on, ...statement.innerOns], test) || (statement.wheres.length > 0 && statement.wheres.every((where) => predicateHolds([where], test)));
+}
+
+/** Is the table written `receiver` pinned to a plain value in this statement (optionally on one column)? */
+function pinnedByValue(receiver: string, judged: Judged, scope: ReadScope, column?: string): boolean {
+  return bindsRows(judged, (conjunct) => valuePinTerm(conjunct, receiver, scope.index, column));
+}
+
+/** Does every table a subselect binds carry a value pin inside the subselect? */
+function subselectPinned(select: Node, scope: ReadScope): boolean {
+  return innerReadAnchorsOf(select).every((anchor) => anchor.kind !== "relational" && pinnedByValue(anchor.table.getText(), judgedOf(anchor), scope));
+}
+
+/** An owner term's value scopes the row only when it is a plain value, or when every table or subselect it reads is
+ *  itself value-pinned one hop away (Spine-Identity-and-Auth §2b). */
+function ownerValuePinned(value: Node, judged: Judged, scope: ReadScope): boolean {
+  const sources = valueSourcesOf(value, scope.index);
+  return sources.receivers.every((receiver) => pinnedByValue(receiver, judged, scope)) && sources.subselects.every((select) => subselectPinned(select, scope));
+}
+
+/** Arm 1: an `eq`/`inArray` owner term on the table written `ident` whose value is pinned. */
+function ownerScoped(ident: string, judged: Judged, scope: ReadScope): boolean {
+  return bindsRows(judged, (conjunct) => {
+    const value = ownerTermValue(conjunct, ident);
+    return value !== undefined && ownerValuePinned(value, judged, scope);
+  });
+}
+
+/** Is a scope parent of the chain's bound table pinned to the caller: an ownerId-class parent row bound along its
+ *  FK with a pinned owner term, or a membership-class parent selected by a plain value? */
+function parentPinned(term: ChainTerm, parent: string, judged: Judged, scope: ReadScope): boolean {
+  const ownerClass = scope.ownerTables.has(parent);
+  return foreignKeysBetween(scope.fkEdges, term.boundTable, parent).some(
+    (fk) =>
+      (!ownerClass && pinnedByValue(term.boundReceiver, judged, scope, fk.childColumn)) ||
+      bindsRows(judged, (conjunct) => {
+        const receiver = parentReceiverOf(conjunct, { receiver: term.boundReceiver, fk }, parent, scope.index);
+        return receiver !== undefined && (ownerClass ? ownerScoped(receiver, judged, scope) : pinnedByValue(receiver, judged, scope));
+      }),
+  );
+}
+
+/** Is the chain's bound table a D23 satellite of the joined one: a derived table with the joined table among its
+ *  scope parents, and none of its OTHER scope parents pinned to the caller in this statement? */
+function isSatelliteOf(term: ChainTerm, joined: string, judged: Judged, scope: ReadScope): boolean {
+  const parents = scope.derivedParents.get(term.boundTable);
+  return parents?.has(joined) === true && ![...parents].some((parent) => parent !== joined && parentPinned(term, parent, judged, scope));
 }
 
 /** The finding message for one owner-scoped table this read binds (written `ident`, declared `declared`), or
  *  undefined when a safe arm holds. */
 function unscopedReadMessage(anchor: ReadAnchor, ident: string, declared: string | undefined, scope: ReadScope): string | undefined {
-  const statement = readStatementOf(anchor.call);
-  const on = anchor.kind === "join" ? anchor.on : undefined;
-  const owner = (conjunct: Node): boolean => isOwnerTerm(conjunct, ident);
-  if (predicateHolds([on, ...statement.innerOns], owner) || everyWhereHolds(statement, owner)) {
-    return; // arm 1 — an `eq`/`inArray` owner term on this exact table
+  const judged = judgedOf(anchor);
+  const { on, statement } = judged;
+  if (!statement.escapes && ownerScoped(ident, judged, scope)) {
+    return; // arm 1 — a pinned `eq`/`inArray` owner term on this exact table
   }
   const predicates = [on, ...statement.innerOns, ...statement.wheres];
   const chain = anchor.kind === "join" ? chainTermsOf(predicates, ident, scope.index, scope.fkEdges) : [];
   if (anchor.kind === "join" && chain.length === 0) {
     return JOIN_MESSAGE;
   }
-  if (declared !== undefined && chain.length > 0 && chain.every((term) => isSatelliteOf(term.boundTable, declared, scope))) {
+  if (declared !== undefined && chain.length > 0 && chain.every((term) => isSatelliteOf(term, declared, judged, scope))) {
     return SATELLITE_MESSAGE;
   }
   // BY-ID: the table's own id in a WHERE or an inner join's ON, or the chain's bound FK column selected by a value
   // (`eq(chats.anchorPersonaId, personaId)` selects the persona by id). Anything else is a list read, or a row
-  // the FK chain already selected.
+  // the FK chain already selected, unless some term is unreadable.
+  const wheres = conjunctLeaves(statement.wheres);
+  const ons = conjunctLeaves(statement.innerOns);
+  const all = conjunctLeaves(predicates);
   const byId =
-    anyConjunct(statement.wheres, (conjunct) => predicatesOwnId(conjunct.getText(), ident)) ||
-    anyConjunct(statement.innerOns, (conjunct) => selectsByValue(conjunct, `${ident}.${ID_COL}`, scope.index)) ||
-    chain.some((term) => anyConjunct(predicates, (conjunct) => selectsByValue(conjunct, term.boundColumn, scope.index)));
-  if (!byId) {
-    return;
+    wheres.leaves.some((leaf) => predicatesOwnId(leaf.getText(), ident)) ||
+    ons.leaves.some((leaf) => selectsByValue(leaf, `${ident}.${ID_COL}`, scope.index)) ||
+    chain.some((term) => all.leaves.some((leaf) => selectsByValue(leaf, term.boundColumn, scope.index)));
+  const unproven = all.opaque || statement.escapes;
+  if (!(byId || unproven) || hasPostFetchFilter(anchor.call, enclosingFn(anchor.call))) {
+    return; // a list read, or arm 2 — the F3-AUTHZ post-fetch filter
   }
-  return hasPostFetchFilter(anchor.call, enclosingFn(anchor.call)) ? undefined : MESSAGE; // arm 2 — the F3-AUTHZ post-fetch filter
+  return byId ? MESSAGE : UNPROVEN_MESSAGE;
 }
 
-/** Does the subquery's inner select scope every owner-scoped table it reads with an owner term? */
+/** Does the subquery's inner select scope every owner-scoped table it reads with a pinned owner term? */
 function subqueryScoped(select: Node, scope: ReadScope, depth = 0): boolean {
   return innerReadAnchorsOf(select).every((anchor) => {
+    if (anchor.kind === "relational") {
+      return false;
+    }
     const ident = anchor.table.getText();
     // A nested CTE is owner-relevant only when its own inner select is unscoped; the depth cap fails closed.
     const owned = tableRefsOf(anchor.table, scope.index).some(
@@ -187,15 +288,68 @@ function subqueryScoped(select: Node, scope: ReadScope, depth = 0): boolean {
         (ref.kind === "subquery" && (depth >= MAX_SUBQUERY_DEPTH || !subqueryScoped(ref.select, scope, depth + 1))) ||
         (ref.kind === "table" && scope.ownerTables.has(ref.ident)),
     );
-    const statement = readStatementOf(anchor.call);
-    const owner = (conjunct: Node): boolean => isOwnerTerm(conjunct, ident);
-    const on = anchor.kind === "join" ? anchor.on : undefined;
-    return !owned || predicateHolds([on, ...statement.innerOns], owner) || everyWhereHolds(statement, owner);
+    const judged = judgedOf(anchor);
+    return !owned || (!judged.statement.escapes && ownerScoped(ident, judged, scope));
   });
+}
+
+/** The predicate a relational `where` carries and the receiver its columns are read through: the table name for
+ *  an SQL value, or the callback's first parameter for `where: (t, { eq }) => …`. Undefined when unreadable. */
+function relationalWhere(where: Node | undefined, table: string): { readonly receiver: string; readonly predicate: Node | undefined } | undefined {
+  const value = where === undefined ? undefined : unwrapExpression(where);
+  if (value === undefined || !(value.isKind(SyntaxKind.ArrowFunction) || value.isKind(SyntaxKind.FunctionExpression))) {
+    return { receiver: table, predicate: value };
+  }
+  const body = value.getBody();
+  const [row] = value.getParameters();
+  return row === undefined || !relationalWhereCallback(value) || body.isKind(SyntaxKind.Block) ? undefined : { receiver: row.getName(), predicate: body };
+}
+
+/** The finding a relational-API read owes. A `with:` relation, an unreadable config or an unknown table is unproven;
+ *  an owner-scoped table must carry a pinned owner term in `where`, or read no row by id. */
+function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, scope: ReadScope): string | undefined {
+  if (readDrizzleClientCall(anchor.call).kind === "foreign") {
+    return;
+  }
+  const table = anchor.table.getText();
+  const config = anchor.config === undefined ? undefined : unwrapExpression(anchor.config);
+  if ((config !== undefined && !config.isKind(SyntaxKind.ObjectLiteralExpression)) || !scope.index.idents.has(table)) {
+    return UNRESOLVABLE_MESSAGE;
+  }
+  const property = (name: string): Node | undefined => {
+    const assigned = config?.getProperty(name);
+    if (assigned?.isKind(SyntaxKind.ShorthandPropertyAssignment) === true) {
+      return assigned.getNameNode();
+    }
+    return assigned?.isKind(SyntaxKind.PropertyAssignment) === true ? assigned.getInitializer() : assigned;
+  };
+  if (property(RELATIONAL_WITH) !== undefined) {
+    return RELATIONAL_WITH_MESSAGE;
+  }
+  if (!scope.ownerTables.has(table)) {
+    return;
+  }
+  const where = relationalWhere(property(RELATIONAL_WHERE), table);
+  if (where === undefined) {
+    return UNPROVEN_MESSAGE;
+  }
+  const judged: Judged = { on: undefined, statement: { wheres: where.predicate === undefined ? [] : [where.predicate], innerOns: [], escapes: false } };
+  if (ownerScoped(where.receiver, judged, scope)) {
+    return;
+  }
+  const leaves = conjunctLeaves(judged.statement.wheres);
+  const byId = leaves.leaves.some((leaf) => predicatesOwnId(leaf.getText(), where.receiver));
+  if (!(byId || leaves.opaque) || hasPostFetchFilter(anchor.call, enclosingFn(anchor.call))) {
+    return;
+  }
+  return byId ? MESSAGE : UNPROVEN_MESSAGE;
 }
 
 /** The one finding this anchor owes, or undefined. Every table it can name is judged; a subquery on its inner select. */
 function anchorFinding(anchor: ReadAnchor, scope: ReadScope): string | undefined {
+  if (anchor.kind === "relational") {
+    return relationalFinding(anchor, scope);
+  }
   const refs = tableRefsOf(anchor.table, scope.index);
   const owned = refs.flatMap((ref) => (ref.kind === "table" && scope.ownerTables.has(ref.ident) ? [ref.ident] : []));
   const unscopedSubquery = refs.some((ref) => ref.kind === "subquery" && !subqueryScoped(ref.select, scope));
@@ -567,6 +721,100 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "a CTE over a CTE inherits the innermost select's scope: an unscoped persona read two CTEs down is still selected by id",
     },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(chatParticipants).innerJoin(personas, and(eq(personas.ownerId, chatParticipants.userId), eq(personas.id, personaId))).limit(1);\n",
+      ),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "an owner term valued by an UNPINNED column scopes nothing: every seat anywhere is a candidate, so any persona whose owner holds any seat comes back",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const p2 = aliasedTable(personas, "p2");\n  return db.select().from(personas).innerJoin(p2, and(eq(p2.ownerId, personas.ownerId), eq(p2.id, personaId))).limit(1);\n',
+      ),
+      expect: { count: 1, messageIncludes: "join" },
+      why: "a self-alias owner term relates the named persona to an unfiltered persona row of the same owner, never to the caller",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(personas).where(and(eq(personas.id, personaId), inArray(personas.ownerId, db.select({ u: chatParticipants.userId }).from(chatParticipants)))).limit(1);\n",
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "an `inArray` owner term over an unpinned subselect admits every owner who holds any seat",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(characterPersonas).innerJoin(personas, eq(personas.id, characterPersonas.personaId)).where(eq(characterPersonas.characterId, characterId));\n",
+      ),
+      expect: { count: 1, messageIncludes: "satellite" },
+      why: "a two-parent junction gives no scope to one parent while its other parent is selected only by a caller-supplied id, not pinned to the caller",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.select().from(messageAssets).innerJoin(assets, eq(assets.id, messageAssets.assetId));\n"),
+      expect: { count: 1, messageIncludes: "satellite" },
+      why: "a junction whose membership parent is not pinned by a value returns every owner's joined asset",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.query.personas.findFirst({ where: eq(personas.id, personaId) });\n"),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "the relational API is a read anchor: `db.query.personas.findFirst` by id with no owner term returns any owner's persona",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.query.personas.findFirst({ where: (p, { eq: equals }) => equals(p.id, personaId) });\n"),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "the callback `where` reads its columns through the row parameter and its operators through the destructured second parameter; a by-id callback is the same hole",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.query.personas.findMany({ where: eq(personas.ownerId, ownerId), with: { chats: true } });\n"),
+      expect: { count: 1, messageIncludes: "with:" },
+      why: "a `with:` relation loads rows of a table no join condition names, so even an owner-scoped root cannot prove them",
+    },
+    {
+      mode: "types",
+      files: pinBody("  let byId = eq(personas.id, personaId);\n  return db.select().from(personas).where(byId).limit(1);\n"),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "a `let` predicate can be reassigned, so its terms are unreadable: an unreadable WHERE is unproven, never a list read",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(personas).limit(1);\n",
+        "export function filtered(db: Db, cond: SQL) {\n  return db.select().from(personas).where(cond);\n}\n",
+      ),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "a parameter WHERE is whatever the caller passes, a by-id term included",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  const q = db.select().from(personas).$dynamic();\n  return byId(q, personaId);\n",
+        "function byId(q: Q, id: string) {\n  return q.where(eq(personas.id, id));\n}\n",
+      ),
+      expect: { count: 1, messageIncludes: "unproven" },
+      why: "a `$dynamic()` builder handed to a helper is filtered out of view: the helper can apply or replace any WHERE",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  const terms = [isNotNull(personas.name)];\n  terms.push(eq(personas.id, personaId));\n  return db.select().from(personas).where(and(...terms)).limit(1);\n",
+      ),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a term pushed onto a spread `const` array is a conjunct the statement carries: the pushed by-id term is the hole",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.select().from(personas).where(byId(personaId)).limit(1);\n", "const byId = (id: string) => eq(personas.id, id);\n"),
+      expect: { count: 1, messageIncludes: "cross-tenant read hole" },
+      why: "a predicate helper is read through its return one hop deep: a helper that returns a by-id term is the by-id read",
+    },
   ],
   mustPass: [
     {
@@ -712,6 +960,74 @@ export const gate = defineGate({
         '  const inner = db.$with("inner").as(db.select().from(personas).where(eq(personas.ownerId, ownerId)));\n  const outer = db.$with("outer").as(db.select().from(inner));\n  return db.with(inner, outer).select().from(outer).where(eq(outer.id, personaId)).limit(1);\n',
       ),
       why: "a CTE over an owner-scoped CTE is scoped: the nested check reaches the innermost select's owner term (the character activity shape)",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(chatParticipants).innerJoin(personas, and(eq(personas.ownerId, chatParticipants.userId), eq(personas.id, personaId))).where(eq(chatParticipants.chatId, chatId)).limit(1);\n",
+      ),
+      why: "an owner term valued by a column scopes when that column's table is pinned by a value one hop away: only seats of the named room count (the visible-rooms and corpus-source shape)",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        '  const p2 = aliasedTable(personas, "p2");\n  return db.select().from(personas).innerJoin(p2, and(eq(p2.ownerId, personas.ownerId), eq(p2.id, personaId))).where(eq(personas.ownerId, ownerId)).limit(1);\n',
+      ),
+      why: "a self-alias owner term scopes when the aliased row is itself pinned to the caller's owner (the image-embedding upsert shape)",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(personas).where(and(eq(personas.id, personaId), inArray(personas.ownerId, db.select({ u: chatParticipants.userId }).from(chatParticipants).where(eq(chatParticipants.chatId, chatId))))).limit(1);\n",
+      ),
+      why: "an `inArray` owner term over a subselect pinned by a value admits only that room's seat holders",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(characterPersonas).innerJoin(characters, and(eq(characters.id, characterPersonas.characterId), eq(characters.ownerId, ownerId))).innerJoin(personas, eq(personas.id, characterPersonas.personaId)).where(eq(characterPersonas.characterId, characterId));\n",
+      ),
+      why: "a two-parent junction scopes the joined parent when the statement binds its other ownerId parent along the FK and pins that parent's owner",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(messageAssets).innerJoin(assets, eq(assets.id, messageAssets.assetId)).where(eq(messageAssets.messageId, messageId));\n",
+      ),
+      why: "a junction's membership parent selected by a value is the membership rung, which the verb gates (the declared limit for membership tables)",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.query.personas.findFirst({ where: and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)) });\n"),
+      why: "a relational read whose `where` carries the owner term is scoped exactly as the select form is",
+    },
+    {
+      mode: "types",
+      files: pinBody("  return db.query.personas.findFirst({ where: (p, { and, eq }) => and(eq(p.id, personaId), eq(p.ownerId, ownerId)) });\n"),
+      why: "a callback `where` carrying the owner term through its row parameter and destructured operators is scoped",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return new Local().query.personas.findFirst({ where: eq(personas.id, personaId) });\n",
+        "class Local {\n  query = { personas: { findFirst: (config: object) => config } };\n}\n",
+      ),
+      why: "the relational verb is judged by its declaration: a `findFirst` a local class declares reads no table",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  return db.select().from(personas).limit(1);\n",
+        "export function filtered(db: Db, cond: SQL, ownerId: string) {\n  return db.select().from(personas).where(and(eq(personas.ownerId, ownerId), cond));\n}\n",
+      ),
+      why: "an unreadable conjunct beside a pinned owner term cannot widen the read: the owner term is in every row's filter",
+    },
+    {
+      mode: "types",
+      files: pinBody(
+        "  const q = db.select().from(personas).where(eq(personas.ownerId, ownerId)).$dynamic();\n  if (flag) {\n    q.limit(1);\n  }\n  return await q;\n",
+      ),
+      why: "a `$dynamic()` builder that only takes method calls and an `await` in its own function stays in view (the roster-preset list shape)",
     },
   ],
 });

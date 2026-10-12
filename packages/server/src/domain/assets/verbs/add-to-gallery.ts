@@ -38,7 +38,7 @@ export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGall
       subjectCharacterId,
       now: ctx.now(),
     });
-    const view = await galleryItemViewById(ctx.db, galleryItemId);
+    const view = await galleryItemViewById(ctx.db, principal.userId, galleryItemId);
     if (view === undefined) {
       // REACHABLE, not "Unreachable" (the #1478.5 shape in a second home): `insertGalleryItem` and this
       // re-read are two separate statements with no transaction between them, so a concurrent

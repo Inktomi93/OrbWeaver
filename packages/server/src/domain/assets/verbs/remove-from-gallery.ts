@@ -1,18 +1,17 @@
 // verb: removeFromGallery — gallery v2 (§1.3). Remove a gallery item the caller owns. There is no stamped
-// owner column: the owner is resolved THROUGH the asset join (`gallery_items → assets.ownerId`), compared
-// to the actor, and a non-owner/missing item rejects with `GalleryItemNotFoundError` (leak-free — "missing"
+// owner column: ownership resolves THROUGH the asset join (`gallery_items → assets.ownerId`) in the read
+// itself, and a non-owner/missing item rejects with `GalleryItemNotFoundError` (leak-free — "missing"
 // and "not yours" collapse). The asset itself is untouched (removing a curation row never deletes bytes).
 
 import type { AssetsContext } from "../context.ts";
 import { GalleryItemNotFoundError } from "../contract/errors.ts";
 import type { RemoveFromGalleryParams } from "../contract/params.ts";
 import type { AssetsService } from "../contract/service.ts";
-import { deleteGalleryItemRow, galleryItemOwner } from "../persistence/queries.ts";
+import { deleteGalleryItemRow, ownsGalleryItem } from "../persistence/queries.ts";
 
 export function createRemoveFromGallery(ctx: AssetsContext): AssetsService["removeFromGallery"] {
   return async ({ principal, galleryItemId }: RemoveFromGalleryParams): Promise<void> => {
-    const ownerId = await galleryItemOwner(ctx.db, galleryItemId);
-    if (ownerId === undefined || ownerId !== principal.userId) {
+    if (!(await ownsGalleryItem(ctx.db, principal.userId, galleryItemId))) {
       throw new GalleryItemNotFoundError(galleryItemId);
     }
     await deleteGalleryItemRow(ctx.db, galleryItemId);

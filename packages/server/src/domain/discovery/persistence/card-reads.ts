@@ -67,6 +67,7 @@ export async function readCardDistillTargets(db: Db, filter: DistillTargetNarrow
   if (filter.ownerId !== undefined) {
     conds.push(eq(characters.ownerId, filter.ownerId));
   }
+  // @orb-waive owner-scoped-reads(characters): the pushed by-id term rides the `DistillTargetNarrow` member whose `characterId` requires `ownerId` by type, and the owner term is pushed beside it whenever an owner is given; the owner-less arm is the batch distill workload over every owner (no Principal, D20). Ends if the narrow stops pairing `characterId` with `ownerId`.
   const rows = await db
     .select({
       characterId: characters.id,

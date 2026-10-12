@@ -26,6 +26,7 @@ export function createLoadChatAssetRefs(db: Db): NonNullable<AssetsContext["load
     }
     const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
     const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
+    // @orb-waive owner-scoped-reads(assetsTable): the scope is transitive, one hop past the gate's value-pin rule — the owner term's value is `ownerSeat.userId`, `ownerSeat` is bound to `messagesTable.chatId`, and the WHERE pins that chat to `forChatId`, so an asset returns only when a `message_assets` row links it to a message in `forChatId` and both its owner's seat and the caller's seat (`callerSeat.userId = callerId`) are present there. Ends if either seat join or the `forChatId` pin is dropped.
     const rows = await db
       .selectDistinct({
         assetId: assetsTable.id,

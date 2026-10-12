@@ -286,8 +286,8 @@ export async function insertGalleryItem(db: Db, input: InsertGalleryItemInput): 
   return existingId;
 }
 
-/** The full `GalleryItemView` for one item, or undefined when gone. */
-export async function galleryItemViewById(db: Db, galleryItemId: GalleryItemId): Promise<GalleryItemView | undefined> {
+/** The full `GalleryItemView` for one of the owner's items, or undefined when gone or foreign. */
+export async function galleryItemViewById(db: Db, ownerId: UserId, galleryItemId: GalleryItemId): Promise<GalleryItemView | undefined> {
   const rows = await db
     .select({
       galleryItemId: galleryItems.id,
@@ -299,24 +299,25 @@ export async function galleryItemViewById(db: Db, galleryItemId: GalleryItemId):
       createdAt: galleryItems.createdAt,
     })
     .from(galleryItems)
-    .innerJoin(assets, eq(galleryItems.assetId, assets.id))
+    .innerJoin(assets, and(eq(galleryItems.assetId, assets.id), eq(assets.ownerId, ownerId)))
     .where(eq(galleryItems.id, galleryItemId))
     .limit(LIMIT_ONE);
   return rows[0];
 }
 
-/** The owner of a gallery item, resolved through the asset join (no stamped owner column). Undefined if gone. */
-export async function galleryItemOwner(db: Db, galleryItemId: GalleryItemId): Promise<UserId | undefined> {
+/** Does the owner hold this gallery item? Ownership resolves through the asset join (no stamped owner column),
+ *  so a foreign item and a missing one both answer false. */
+export async function ownsGalleryItem(db: Db, ownerId: UserId, galleryItemId: GalleryItemId): Promise<boolean> {
   const rows = await db
-    .select({ ownerId: assets.ownerId })
+    .select({ id: galleryItems.id })
     .from(galleryItems)
-    .innerJoin(assets, eq(galleryItems.assetId, assets.id))
+    .innerJoin(assets, and(eq(galleryItems.assetId, assets.id), eq(assets.ownerId, ownerId)))
     .where(eq(galleryItems.id, galleryItemId))
     .limit(LIMIT_ONE);
-  return rows[0]?.ownerId;
+  return rows.length > 0;
 }
 
-/** Delete a gallery item by id. The caller has already gated ownership via {@link galleryItemOwner}. */
+/** Delete a gallery item by id. The caller has already gated ownership via {@link ownsGalleryItem}. */
 export async function deleteGalleryItemRow(db: Db, galleryItemId: GalleryItemId): Promise<void> {
   await db.delete(galleryItems).where(eq(galleryItems.id, galleryItemId));
 }
