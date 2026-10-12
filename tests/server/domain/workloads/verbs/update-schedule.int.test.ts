@@ -1,5 +1,6 @@
 // Verb test: updateSchedule — retune cadence/params/mode; a cadence change re-bases nextRunAt; F3
 // owner-scoping (a stranger updating owner A's schedule → leak-free NOT_FOUND, no mutation); admin sees all.
+// @subject packages/server/src/domain/workloads/verbs/update-schedule.ts
 
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";

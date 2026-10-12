@@ -3,6 +3,7 @@
 // to a row whose key is revoked switches nothing, and the first write after the key is fixed does.
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication({ readonly input?: unknown; readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
@@ -161,6 +162,7 @@ async function searchState(d: Drive): Promise<unknown> {
       return { hits: hits.map((hit) => hit.characterId).toSorted() };
     });
   } catch (error) {
+    // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
     return { refused: (error as { code?: string }).code ?? String(error) };
   }
 }
@@ -634,6 +636,7 @@ async function targetConnection(d: Drive): Promise<unknown> {
 async function outcomeOf(write: Promise<unknown>): Promise<string> {
   return await write.then(
     () => "accepted",
+    // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
     (error: unknown) => `refused ${(error as { code?: string }).code ?? String(error)}`,
   );
 }

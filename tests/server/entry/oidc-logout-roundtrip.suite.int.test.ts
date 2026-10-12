@@ -34,6 +34,7 @@
 // (`tests/e2e/support/modes.ts`) remains deferred — injecting the seam does not give the e2e stack a fake
 // IdP, because that stack boots the real server, which wires the real grant by design.
 
+// @orb-waive-file no-test-fabrication({ endSessionUrl: string | null }): baselined when the gate widened to value casts; burn-down item 906.
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { sessions as sessionsTable, users } from "@orb/db";

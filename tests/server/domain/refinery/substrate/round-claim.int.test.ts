@@ -105,6 +105,7 @@ test("release frees the session for the next round", async () => {
 
   const claim = await takeRoundClaim(db, sessionId, NOW);
   expect(claim).toBeDefined();
+  // @orb-waive no-test-fabrication({ leaseUntil: number }): baselined when the gate widened to value casts; burn-down item 906.
   await releaseRoundClaim(db, sessionId, claim as { leaseUntil: number });
   expect(await inflightUntilOf(db, sessionId)).toBeNull();
   // …and immediately re-claimable, without waiting out the lease.
@@ -124,11 +125,13 @@ test("a LAPSED round's release cannot clear its SUCCESSOR's claim (the release i
 
   // A finally finishes and releases. Ungated, this would hand the session to a THIRD round while B is still
   // running — the defect the deadline-as-identity guard exists to prevent.
+  // @orb-waive no-test-fabrication({ leaseUntil: number }): baselined when the gate widened to value casts; burn-down item 906.
   await releaseRoundClaim(db, sessionId, a as { leaseUntil: number });
   expect(await inflightUntilOf(db, sessionId)).toBe(after + REFINERY_ROUND_LEASE_MS);
   expect(await takeRoundClaim(db, sessionId, after + 1)).toBeUndefined();
 
   // B's own release still works — a planted positive control for the guard: it refuses A, not everybody.
+  // @orb-waive no-test-fabrication({ leaseUntil: number }): baselined when the gate widened to value casts; burn-down item 906.
   await releaseRoundClaim(db, sessionId, b as { leaseUntil: number });
   expect(await inflightUntilOf(db, sessionId)).toBeNull();
 });

@@ -127,6 +127,7 @@ describe("ensureUserSettings / writeUserConfig", () => {
     const err = await writeUserConfig(db, u, config, FROZEN_AT_MS + 5).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(DomainOperationError);
+    // @orb-waive no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as DomainOperationError).code).toBe("background_unavailable");
     expect((await readUserSettings(db, u)).config.appearance.backgroundAssetId).toBe(before.config.appearance.backgroundAssetId);
   });
@@ -201,6 +202,7 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     const err = await writeUserConfig(db, u, pinning(before.config, cardId), FROZEN_AT_MS + 5).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(DomainOperationError);
+    // @orb-waive no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as DomainOperationError).code).toBe("background_unavailable");
     expect((await readUserSettings(db, u)).config.appearance.backgroundAssetId).toBe("");
   });

@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(readonly SyntaxKind[]): baselined when the gate widened to value casts; burn-down item 906.
+
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

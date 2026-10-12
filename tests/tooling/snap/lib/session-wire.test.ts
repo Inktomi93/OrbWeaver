@@ -99,6 +99,23 @@ test("a row is trusted only when its ownership facts parse", () => {
 // every sibling is now a snap ARM running inside the daemon's own call, so there is no second CDP client
 // left to keep in step. What still has to hold — and what the false clean would be — is that the ROW the
 // daemon publishes carries the two media arms verbatim, which is the half asserted here.
+test("a session row keeps the stage identity it bound, clone flag included, and refuses a malformed one", () => {
+  const bound = {
+    sha: "a".repeat(40),
+    dir: "/stage/aaaaaaaaaaaa",
+    startedAt: "2026-10-11T10:00:00.000Z",
+    dbProvenance: { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" },
+  };
+  const withStage = (stageBound: unknown): string =>
+    JSON.stringify(row({ stage: { band: 2, status: "live", detectedAt: null, op: null, bound } }), (key, value: unknown) =>
+      key === "bound" ? stageBound : value,
+    );
+  expect(readSessionRow(withStage(bound))?.stage?.bound).toEqual(bound);
+  expect(readSessionRow(withStage({ ...bound, dbProvenance: null }))?.stage?.bound?.dbProvenance).toBeNull();
+  expect(readSessionRow(withStage({ ...bound, startedAt: 7 }))).toBeNull();
+  expect(readSessionRow(withStage({ ...bound, dbProvenance: { copiedFrom: "/box/prod.db" } }))).toBeNull();
+});
+
 test("the daemon row preserves contrast and reduced transparency exactly", () => {
   const args = parseSnapArgs([]);
   args.browserContrast = "more";

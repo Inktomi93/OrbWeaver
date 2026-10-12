@@ -1,9 +1,9 @@
-import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 // verb: editImage — explicit edit of an owned image. Proves against a real libSQL db:
 // the source bytes are resolved (owned asset via readAsset, or direct upload bytes), the CAPABILITY GATE
 // throws `ImageEditUnsupportedError` on a non-edit model (the asymmetric posture — doc 01 §3.4), and a
 // successful edit stores a `kind:"generated"` asset + an `imagery_generations` row (`edited:true`,
 // `mode:"free"`, `identityHash` null — never reuse-gated) with the instruction as the verbatim prompt.
+// @subject packages/server/src/domain/imagery/verbs/edit-image.ts
 
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner } from "../_support.ts";
 

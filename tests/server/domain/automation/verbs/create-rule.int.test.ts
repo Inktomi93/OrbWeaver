@@ -1,6 +1,8 @@
 // verb: createRule — host authority + the whole validation gauntlet (reserved trigger/arm · bad CEL · arm
 // cap · cooldown floor · unattached book), and the born-disabled/position-0 creation (04 §2).
+// @subject packages/server/src/domain/automation/verbs/create-rule.ts
 
+// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
 import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
 import { AUTOMATION_RULE_NAME_MAX_CHARS } from "@orb/contracts/automation";
 import { rpgGameConfigSchema } from "@orb/contracts/rpg";

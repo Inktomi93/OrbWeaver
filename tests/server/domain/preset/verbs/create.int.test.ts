@@ -1,3 +1,7 @@
+// @orb-waive-file no-test-fabrication({ name: string }): baselined when the gate widened to value casts; burn-down item 906.
+// verb: create — mints an owned preset, numbers a name already in the owner's library, and audits the minted name.
+// @subject packages/server/src/domain/preset/verbs/create.ts
+
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { createPresetService } from "@orb/server/domain/preset";
 import { describe } from "vitest";

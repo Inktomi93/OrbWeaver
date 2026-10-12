@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+
 // Concurrent dev origins must not replace each other's optimizer output; restarting one origin reuses its cache.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";

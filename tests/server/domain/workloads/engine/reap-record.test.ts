@@ -4,6 +4,7 @@
 // that each carries the observed lease age — collapsing them back into one line is the forensics regression
 // (#560/#543) the shared leaf exists to prevent.
 
+// @orb-waive-file no-test-fabrication(WorkloadReapReason): baselined when the gate widened to value casts; burn-down item 906.
 import type { WorkloadReapReason } from "#server/domain/workloads/contract/service.ts";
 import { MAX_BOOT_RESPAWNS, reapedMessage } from "#server/domain/workloads/engine/reap-record.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

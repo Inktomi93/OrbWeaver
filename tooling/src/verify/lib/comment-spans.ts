@@ -3,17 +3,12 @@
 // (tooling/src/verify/gates/GATE-AUTHORING.md §1) — comments are trivia a value scan must skip. Both helpers return text of the
 // SAME LENGTH with comment characters replaced by spaces and newlines preserved, so a caller's
 // `split("\n")` line numbers and column offsets stay exact.
+
+import { blankSpan } from "@orb/kit/strings";
 import type { SourceFile } from "ts-morph";
 import { Project, ScriptKind, SyntaxKind, ts } from "ts-morph";
 
-const SPACE = " ";
 const CSS_COMMENT_CLOSE = "*/";
-
-/** Replace `[start,end)` with spaces, keeping every newline (line count + offsets are invariant). */
-function blankRange(text: string, start: number, end: number): string {
-  const span = text.slice(start, end).replace(/[^\n]/gu, SPACE);
-  return text.slice(0, start) + span + text.slice(end);
-}
 
 /** Every comment span in a parsed TS/TSX file, blanked. Comments are TRIVIA: they attach as leading
  *  ranges of some TOKEN, so the walk behind this (`forEachCommentRange`) scans the token gaps and not just
@@ -137,7 +132,7 @@ function blankTsCommentsUncached(sf: SourceFile): string {
   // Descending so an earlier blank can never move a later span's offsets (lengths are preserved anyway;
   // the order makes that independent of the invariant).
   for (const span of spans.sort((a, b) => b.pos - a.pos)) {
-    text = blankRange(text, span.pos, span.end);
+    text = blankSpan(text, span.pos, span.end);
   }
   return text;
 }
@@ -145,7 +140,7 @@ function blankTsCommentsUncached(sf: SourceFile): string {
 let scratchProject: Project | undefined;
 
 /** Comment-only twin for fs-read TypeScript/config files whose string literals remain semantic input
- *  (imports, plugin names, paths). Uses the same parser-backed scratch door as the prose-blanking arm. */
+ *  (imports, plugin names, paths). */
 export function blankTsCommentsInText(text: string): string {
   scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
   const sf = scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
@@ -159,43 +154,6 @@ export function blankTsCommentsInText(text: string): string {
 export function parseScratch(text: string): SourceFile {
   scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
   return scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
-}
-
-/** The string-prose token kinds: every span whose text is DATA, never a code reference. Template
- *  interpolation EXPRESSIONS are separate AST nodes and are deliberately not here — a real call inside
- *  a `${…}` is code and must survive the blanking. */
-const STRING_PROSE_KINDS: readonly SyntaxKind[] = [
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateHead,
-  SyntaxKind.TemplateMiddle,
-  SyntaxKind.TemplateTail,
-  SyntaxKind.JsxText,
-  SyntaxKind.RegularExpressionLiteral,
-];
-
-/** Comment PLUS string-prose blanking for PRESENCE checks over fs-read corpora where a name inside a
- *  STRING must not satisfy the check (the same permissive-direction lie as a commented-out call, wearing
- *  quotes: a vitest description `it("calls doThing( …")` is prose, not coverage — test-presence-client
- *  clause C reported clean over exactly that shape until 2026-08-24). It parses into ONE lazily-created
- *  in-memory scratch project (reused, file overwritten per call), which is NOT the banned "a gate never
- *  does `new Project(`" shape from tooling/src/verify/gates/GATE-AUTHORING.md §1: nothing here walks the workspace or resolves a
- *  dependency. String literals, template CHUNKS (head/middle/tail — interpolated expressions stay), JSX
- *  text, and regex literals are blanked; length and newlines preserved, same as every other door here. */
-export function blankTsCommentsAndStringsInText(text: string): string {
-  scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
-  const sf = scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
-  let out = blankTsCommentsUncached(sf);
-  const spans: { readonly pos: number; readonly end: number }[] = [];
-  sf.forEachDescendant((node) => {
-    if (STRING_PROSE_KINDS.includes(node.getKind())) {
-      spans.push({ pos: node.getStart(), end: node.getEnd() });
-    }
-  });
-  for (const span of spans.sort((a, b) => b.pos - a.pos)) {
-    out = blankRange(out, span.pos, span.end);
-  }
-  return out;
 }
 
 /** The CANDIDATE FENCE, hoisted here because every caller needs it and it is a MEMORY decision, not a
@@ -294,7 +252,7 @@ function commentEndFrom(text: string, i: number, lineComments: boolean): number 
 export function blankCssComments(text: string): string {
   let out = text;
   for (const span of [...commentSpansInText(text, { lineComments: false })].sort((a, b) => b.pos - a.pos)) {
-    out = blankRange(out, span.pos, span.end);
+    out = blankSpan(out, span.pos, span.end);
   }
   return out;
 }

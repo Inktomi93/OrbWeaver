@@ -4,7 +4,11 @@
 // header branch/note omission, TXT = active-only + per-message speaker), and the build→parse→build ROUND-TRIP
 // identity (the structural drift guard against the two halves diverging).
 
+// @orb-waive-file no-test-fabrication(Record<): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ extra: Record<string, unknown> }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { VariantMetadata } from "@orb/contracts/chat";
+import { isPlainObject } from "@orb/kit/guards";
 import type { JsonValue } from "@orb/kit/json";
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/primitives/serde/chat";
 import { buildChatJsonl, buildChatTxt, chatContentHash, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/primitives/serde/chat";
@@ -14,6 +18,14 @@ import { expect, test } from "../../../../support/fixtures.ts";
 // ── parse ────────────────────────────────────────────────────────────────────────────────────────────────
 
 const MIGRATION_MS = Date.UTC(2025, 6, 18, 12, 0, 0); // 2025-07-18 — the re-save clobber date
+
+function withReversedKeys(json: string): string {
+  const parsed = JSON.parse(json);
+  if (!isPlainObject(parsed)) {
+    throw new Error("withReversedKeys: the fixture line is not a JSON object");
+  }
+  return JSON.stringify(Object.fromEntries(Object.entries(parsed).toReversed()));
+}
 
 function header(over: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -462,11 +474,13 @@ describe("buildChatJsonl", () => {
     const out = buildChatJsonl(pchat([pmsg()]));
     const [header0, line0, tail] = out.split("\n");
     expect(tail).toBe(""); // trailing newline
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const h = JSON.parse(header0 ?? "") as Record<string, unknown>;
     expect(h["user_name"]).toBe("Alex");
     expect(h["character_name"]).toBe("Aria");
     expect(h["create_date"]).toBe("August 27, 2025 6:36pm");
     expect(h["chat_metadata"]).toEqual({}); // no branch/note keys when absent
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const m = JSON.parse(line0 ?? "") as Record<string, unknown>;
     expect(m["name"]).toBe("Aria");
     expect(m["is_user"]).toBe(false);
@@ -523,9 +537,11 @@ describe("buildChatJsonl", () => {
       ),
     );
     const [header0, line0] = out.split("\n");
+    // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
     const h = JSON.parse(header0 ?? "") as Record<string, Record<string, unknown>>;
     expect(h["chat_metadata"]?.["main_chat"]).toBe("parent.jsonl");
     expect(h["chat_metadata"]?.["note_prompt"]).toBe("keep it noir");
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const m = JSON.parse(line0 ?? "") as Record<string, unknown>;
     expect(m["swipes"]).toEqual(["take one", "take two"]);
     expect(m["swipe_id"]).toBe(1);
@@ -543,6 +559,7 @@ describe("agent_author provenance (D60)", () => {
       unknown
     >;
     expect(withAgent["agent_author"]).toEqual({ name: "Pip", source_kind: "buddy" });
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const without = JSON.parse(buildChatJsonl(pchat([pmsg()])).split("\n")[1] ?? "") as Record<string, unknown>;
     expect(without["agent_author"]).toBeUndefined();
   });
@@ -552,6 +569,7 @@ describe("agent_author provenance (D60)", () => {
     const reparsed = parseChatJsonl(buildChatJsonl(source), { fileName: "x.jsonl", charDirName: "Aria" });
     expect(reparsed).not.toBeNull();
     expect(reparsed?.messages[0]?.agentAuthor).toEqual({ name: "Pip", sourceKind: "buddy" });
+    // @orb-waive no-test-fabrication(ParsedChat): baselined when the gate widened to value casts; burn-down item 906.
     expect(buildChatJsonl(reparsed as ParsedChat)).toBe(buildChatJsonl(source));
   });
 
@@ -567,8 +585,10 @@ describe("agent_author provenance (D60)", () => {
 // ships used to rely on a NAME match to avoid).
 describe("message KIND rides the interchange as ST's own `extra.type`", () => {
   test("a narrator row emits `extra.type: narrator`; a standard row's line is byte-identical to before the axis", () => {
+    // @orb-waive no-test-fabrication({ extra: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
     const narratorLine = JSON.parse(buildChatJsonl(pchat([pmsg({ kind: "narrator" })])).split("\n")[1] ?? "") as { extra: Record<string, unknown> };
     expect(narratorLine.extra["type"]).toBe("narrator");
+    // @orb-waive no-test-fabrication({ extra: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
     const standardLine = JSON.parse(buildChatJsonl(pchat([pmsg()])).split("\n")[1] ?? "") as { extra: Record<string, unknown> };
     expect(standardLine.extra["type"]).toBeUndefined();
   });
@@ -577,6 +597,7 @@ describe("message KIND rides the interchange as ST's own `extra.type`", () => {
     const source = pchat([pmsg({ kind: "narrator" })]);
     const reparsed = parseChatJsonl(buildChatJsonl(source), { fileName: "x.jsonl", charDirName: "Aria" });
     expect(reparsed?.messages[0]?.kind).toBe("narrator");
+    // @orb-waive no-test-fabrication(ParsedChat): baselined when the gate widened to value casts; burn-down item 906.
     expect(buildChatJsonl(reparsed as ParsedChat)).toBe(buildChatJsonl(source));
   });
 
@@ -615,8 +636,11 @@ describe("buildChatTxt", () => {
       pmsg({ role: "assistant", content: "Cara here", speakerName: "Cara" }),
     ];
     const jsonl = buildChatJsonl(pchat(rows)).split("\n");
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(jsonl[1] ?? "") as Record<string, unknown>)["name"]).toBe("Alex");
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(jsonl[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(jsonl[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
     expect(buildChatTxt(pchat(rows))).toBe("Alex: hello all\n\nBran: Bran here\n\nCara: Cara here\n");
   });
@@ -694,6 +718,7 @@ describe("build → parse → build identity", () => {
     expect(buildChatJsonl(reparsed)).toBe(jsonl1);
     // The absent arm emits NO new key, so every orb-authored fixture (the demo seeder, this drift guard)
     // stays exactly the bytes it was before the two fields existed.
+    // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
     const bareHeader = JSON.parse(bare.split("\n")[0] ?? "") as Record<string, Record<string, unknown>>;
     expect(Object.keys(bareHeader["chat_metadata"] ?? {})).toEqual([]);
   });
@@ -704,11 +729,7 @@ describe("chatContentHash — the transcript's content identity", () => {
     const opts = { fileName: "a.jsonl", charDirName: "Aria" };
     const saved = parseChatJsonl(`${header()}\n${line({ mes: "one" })}\n${line({ mes: "two", is_user: true })}`, opts);
     const resaved = parseChatJsonl(
-      [
-        JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(header()) as Record<string, unknown>).toReversed())),
-        JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(line({ mes: "one" })) as Record<string, unknown>).toReversed())),
-        `  ${line({ mes: "two", is_user: true })}  `,
-      ].join("\n"),
+      [withReversedKeys(header()), withReversedKeys(line({ mes: "one" })), `  ${line({ mes: "two", is_user: true })}  `].join("\n"),
       opts,
     );
     const edited = parseChatJsonl(`${header()}\n${line({ mes: "one" })}\n${line({ mes: "two!", is_user: true })}`, opts);

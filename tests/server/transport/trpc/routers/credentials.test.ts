@@ -93,10 +93,12 @@ describe("credentials — CredentialView output boundary", () => {
     // The thrown error is what the formatter reads; neither it nor its cause may carry the value.
     expect(String(failure)).not.toContain(SEALED_SECRET);
     expect(log).toHaveBeenCalledOnce();
+    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings).toMatchObject({ event: "trpc.unhandled", path: "credentials.list" });
     const cause = bindings["err"];
     expect(cause).toBeInstanceOf(Error);
+    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     const logged = `${(cause as Error).message} ${JSON.stringify(cause)}`;
     expect(logged).toContain("ciphertext");
     expect(logged).not.toContain(SEALED_SECRET);
@@ -110,7 +112,9 @@ describe("credentials — CredentialView output boundary", () => {
     const list = vi.fn<CredentialsService["list"]>(async () => [misMapped]);
 
     await expect(caller(ctxWith({ list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     const cause = bindings["err"] as Error;
     expect(`${cause.message} ${JSON.stringify(cause)}`).not.toContain("sealed_ciphertext");
   });

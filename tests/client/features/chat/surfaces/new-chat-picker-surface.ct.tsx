@@ -5,6 +5,7 @@
 // SERVER (owner ruling 2026-08-13) — this picker used to be ONE `limit: 100` page filtered by cmdk, so a
 // character past the hundredth card could not be found here at all while she sat in the library.
 
+// @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";

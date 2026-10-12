@@ -2,6 +2,7 @@
 // stored (sourceAssetId set), extraction runs synchronously and its text becomes the canon, origin 'upload';
 // re-upload of identical bytes dedups (duplicate/skipped, extraction NOT re-run); an empty extraction surfaces
 // the `empty-extraction` warning as DATA (not a throw).
+// @subject packages/server/src/domain/databank/verbs/upload.ts
 
 import type { Db } from "@orb/db";
 import { documents } from "@orb/db";

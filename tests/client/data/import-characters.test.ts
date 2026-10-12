@@ -4,6 +4,9 @@
 // — "fake at the edges"), never a hand-mock of `importCharacters` itself. Successful bodies are parsed
 // through the canonical import schema; malformed 200 responses must not reach the result summary.
 
+// @orb-waive-file no-test-fabrication(File[]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import { CSRF_HEADER } from "@orb/contracts/identity";
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).

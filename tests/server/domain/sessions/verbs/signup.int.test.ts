@@ -1,6 +1,7 @@
 // D259 — the sessions half of the signup batch: the account insert statement and the handle-key read. The
 // statement writes only where the admission it is handed holds and no row carries the handle's key (any case,
 // any confusable), and it never absorbs a conflict.
+// @subject packages/server/src/domain/sessions/verbs/signup.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

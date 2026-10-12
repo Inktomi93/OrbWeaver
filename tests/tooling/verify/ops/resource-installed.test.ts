@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication("base-ui"): baselined when the gate widened to value casts; burn-down item 906.
+
 // The installed-package door — ONE kind, three receipted modes (owner ruling 2026-09-11, guide §4).
 //
 // These arms read THE REAL INSTALLED TREE on purpose. Every one of the four ids is reached through a pnpm

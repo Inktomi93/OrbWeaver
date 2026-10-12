@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ full: string; niced: string; callerPriority: number }): baselined when the gate widened to value casts; burn-down item 906.
+
 // Leg 3's real-subprocess proof: `runTool` no longer lowers the CALLER's own priority (a full-priority
 // door's child must stay at the caller's real priority, never a niced door's leftover — the defect
 // `lowerToolingPriority()` in `runTool` caused, since an unprivileged process cannot raise its priority
@@ -111,6 +113,7 @@ test("the real child shares the LAUNCHER's own process group, never a group of i
   const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore", detached: true });
   try {
     expect(launcher.pid, "the launcher must have a real pid").not.toBeUndefined();
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     const launcherPid = launcher.pid as number;
     const childPid = await firstChildOf(launcherPid);
     expect(pgrpOf(childPid), "the child must share the launcher's OWN group, not lead one of its own").toBe(pgrpOf(launcherPid));
@@ -127,6 +130,7 @@ test("the real child shares the LAUNCHER's own process group, never a group of i
 
 test("a group SIGKILL of the launcher leaves no survivor — the verifier's repro", async () => {
   const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore", detached: true });
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   const launcherPid = launcher.pid as number;
   expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
   const childPid = await firstChildOf(launcherPid);
@@ -142,6 +146,7 @@ test("SIGTERM to the launcher's own pid (not a group signal) ends the child", as
   const home = mkdtempSync(path.join(tmpdir(), "orb-niced-exec-sigterm-"));
   try {
     const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore" });
+    // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
     const launcherPid = launcher.pid as number;
     expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
     const childPid = await firstChildOf(launcherPid);
@@ -157,6 +162,7 @@ test("SIGTERM to the launcher's own pid (not a group signal) ends the child", as
 
 test("SIGHUP to the launcher's GROUP ends its real child, so a closed terminal never orphans it", async () => {
   const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore", detached: true });
+  // @orb-waive no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
   const launcherPid = launcher.pid as number;
   expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
   const childPid = await firstChildOf(launcherPid);

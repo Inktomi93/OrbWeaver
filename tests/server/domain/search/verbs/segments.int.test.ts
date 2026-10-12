@@ -1,6 +1,7 @@
 // verb: segments — within-chat verbatim-lens retrieval. Asserts cosine ranking + the tier-0/egocentric
 // BlockKey stamping, the SPACE + scope.chat belts, the candidates `(chatId, blockIdx)` restriction, the
 // REQUIRED-scopedCharacterId throw (the verbatim lens cannot key without an egocentric POV), and mixC rerank.
+// @subject packages/server/src/domain/search/verbs/segments.ts
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";

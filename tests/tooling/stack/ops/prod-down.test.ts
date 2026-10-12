@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(ReturnType<DownDeps["classify"]>): baselined when the gate widened to value casts; burn-down item 906.
+
 import process from "node:process";
 import { vi } from "vitest";
 import type { DownDeps } from "../../../../tooling/src/stack/ops/prod-down.ts";

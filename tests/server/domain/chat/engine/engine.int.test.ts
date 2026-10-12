@@ -5,6 +5,9 @@
 // (locked — the budget/consent belts were retired by @orb/inference §14 F11/F13).
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication({ connection: { capability: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ terminalToolCalls: unknown }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ turnId?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -611,6 +614,7 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     const ctx = makeChatContext(db, {
       runChatTurn: OK_TURN,
       applyStatsDelta: (batch, opDb, delta) => {
+        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta(batch as BatchStmt[], opDb, delta);
       },
     });
@@ -1863,6 +1867,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
     try {
       await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({ code: "empty_generation" });
+      // @orb-waive no-test-fabrication({ event?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
       const call = warnSpy.mock.calls.find(([entry]) => (entry as { event?: string } | undefined)?.event === "chat.generation.empty");
       expect(call).toBeDefined();
       const [fields] = call ?? [];
@@ -1914,6 +1919,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
         prepOf(chatId, { connection, terminalTools: [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }] }),
       );
       expect(outcome.messages[0]?.content).toBe("The hall settles.");
+      // @orb-waive no-test-fabrication({ event?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
       const events = warnSpy.mock.calls.map(([entry]) => (entry as { event?: string } | undefined)?.event);
       expect(events).toContain("chat.generation.recovering");
       // The turn did NOT fail, so the refusal warn must be absent — a recovered turn logging `empty` would
@@ -2468,6 +2474,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
   const h = harness(db, {
     runChatTurn: bridge,
     applyStatsDelta: (batch, opDb, delta): void => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
@@ -2536,6 +2543,7 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
   const h = harness(db, {
     runChatTurn: bridge,
     applyStatsDelta: (batch, opDb, delta): void => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
@@ -2613,6 +2621,7 @@ test.for([
   const h = harness(db, {
     runChatTurn: bridge,
     applyStatsDelta: (batch, opDb, delta): void => {
+      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });

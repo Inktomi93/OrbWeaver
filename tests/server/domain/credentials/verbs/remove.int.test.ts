@@ -1,4 +1,5 @@
 // verb: remove — delete a credential (ownership-scoped).
+// @subject packages/server/src/domain/credentials/verbs/remove.ts
 
 import { createCredentialsService } from "@orb/server/domain/credentials";
 import { describe } from "vitest";

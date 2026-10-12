@@ -8,6 +8,7 @@
 //
 // The verb CANNOT use the normal game gate (the game is gone → `resolveMember` would 404 on the healable state
 // itself); it gates on `getMembership` DIRECTLY. The harness's `getMembership` fake is programmed per case.
+// @subject packages/server/src/domain/rpg/verbs/game/detach-dangling-pointer.ts
 
 import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";

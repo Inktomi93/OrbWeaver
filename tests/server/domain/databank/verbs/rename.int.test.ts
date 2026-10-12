@@ -1,5 +1,6 @@
 // verb: rename — mutable display metadata only, bumps updatedAt, touches nothing derived. A foreign/missing
 // id throws DocumentNotFoundError (the ownership check folds into the UPDATE … WHERE owner_id RETURNING).
+// @subject packages/server/src/domain/databank/verbs/rename.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

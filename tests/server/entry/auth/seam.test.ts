@@ -18,6 +18,7 @@
 // owning it. An un-credentialed fallback principal is not a debug-route curiosity: under `single-user` it is
 // what reaches every owner- and admin-gated tRPC surface, so "who does this arm admit" is the whole boundary.
 
+// @orb-waive-file no-test-fabrication(NonNullable<typeof signed>): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
@@ -482,7 +483,9 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
   // The ROLE half is still required on that arm, and since 2026-09-20 it is OWNER-only (D17 — this door is
   // box-operator scope, and behind it sit principal-blind whole-deployment reads including the provider
   // wire ring). A loopback caller whose row is a plain user is refused; so is a DELEGATED admin.
+  // @orb-waive no-test-fabrication(NonNullable<typeof owner>): baselined when the gate widened to value casts; burn-down item 906.
   expect(operatorSeam.debugGateAdmits({ ...(owner as NonNullable<typeof owner>), role: "user" }, new Headers())).toBe(false);
+  // @orb-waive no-test-fabrication(NonNullable<typeof owner>): baselined when the gate widened to value casts; burn-down item 906.
   expect(operatorSeam.debugGateAdmits({ ...(owner as NonNullable<typeof owner>), role: "admin" }, new Headers())).toBe(false);
 
   const cookiePrincipal = async (role: UserRole): Promise<Principal | null> => {

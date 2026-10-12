@@ -5,6 +5,11 @@
 // the RESIDENT-HANDLER runtime (a guest tool registered at activation round-trips through `invoke`). The
 // composed-real router test covers the domain wiring; this is the runtime mirror + the security-gate pins.
 
+// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ args: unknown }): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ sideEffect: number }): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { NotificationRecipient } from "@orb/contracts/notifications";

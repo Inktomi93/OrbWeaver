@@ -4,6 +4,7 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
+// @orb-waive-file no-test-fabrication(ChatNotFoundError): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
@@ -1940,10 +1941,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // The present member is refused (known-existence authority refusal — the client mounts these host-only).
     const peekErr = await peekPrompt({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(peekErr).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((peekErr as ChatOperationError).code).toBe("not_host");
 
     const previewErr = await previewAssembly({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(previewErr).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((previewErr as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2723,6 +2726,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const err = await previewActionTemplates({ principal: principal(member), chatId, presetId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2802,6 +2806,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // peekPrompt/previewAssembly refuse them.
     const err = await previewSection({ principal: principal(member), chatId, sectionId: "main" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2914,6 +2919,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // A present but non-host member is refused (the host/admin inspector gate, matrix `getShapeTrace: "host"`).
     const err = await getShapeTrace({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
@@ -2979,8 +2985,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const err = await getVariantWire({ principal: principal(member), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(ChatOperationError);
+      // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
       expect((err as ChatOperationError).code).toBe("not_host");
       // The refusal carries no prompt bytes (an error message that echoed the blob would be the leak itself).
+      // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
       expect((err as Error).message).not.toContain("traitor");
     });
 
@@ -3011,7 +3019,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       expect(err).toBeInstanceOf(ChatNotFoundError);
       // The refusal is byte-identical to an UNKNOWN id — never "wrong chat", which would confirm it exists.
       const unknown = await getVariantWire({ principal: principal(hostA), chatId: mine.chatId, variantId: castId("variant_nope") }).catch((e: unknown) => e);
-      expect((unknown as Error).message).toBe((err as Error).message);
+      expect(unknown).toEqual(err);
     });
 
     test("a variant that captured nothing reads as an honest null prompt, never an error", async () => {

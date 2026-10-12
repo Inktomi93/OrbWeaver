@@ -1,5 +1,6 @@
 // verbs/game/update-config — updateConfig (docs/plans/rpg/design.md). The knob defaults + the profile
 // mutability matrix (add / referenced-remove refused). Mutations asserted at the ROW (assert-the-mutation-fired).
+// @subject packages/server/src/domain/rpg/verbs/game/update-config.ts
 
 import { userMacroSchema } from "@orb/contracts/preset";
 import { RPG_CONFIG_MAX_TRACKERS, RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema, rpgUpdateConfigInputSchema } from "@orb/contracts/rpg";
@@ -400,15 +401,13 @@ describe("updateConfig — knobs + profile mutability", () => {
   test("the tracker COUNT cap is refused past RPG_CONFIG_MAX_TRACKERS, and accepted at it", async () => {
     const { chatId, h } = await seedLiteGame(db);
     const host = principal(castId<Handle>("host"));
-    const many = (n: number): unknown[] =>
+    const many = (n: number): ReturnType<typeof rpgTrackerDefSchema.parse>[] =>
       Array.from({ length: n }, (_, i) =>
         rpgTrackerDefSchema.parse({ key: `t${i}`, label: `T${i}`, shape: "meter", write: "delta", subject: "actor", appliesTo: "party" }),
       );
-    // @orb-waive no-loose-id-cast(many): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    await h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS) as never } });
+    await h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS) } });
     expect((await findGameByChat(db, chatId))?.config.trackers.length).toBe(RPG_CONFIG_MAX_TRACKERS);
-    // @orb-waive no-loose-id-cast(many): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    await expect(h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) as never } })).rejects.toThrow(
+    await expect(h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) } })).rejects.toThrow(
       /exceeds the cap/i,
     );
   });

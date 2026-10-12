@@ -40,6 +40,7 @@
 // directory must still hold tracked TypeScript, and both configs must agree. A control OUTSIDE the fence
 // proves the drive can see a file at all, so a broken spawn cannot read as "everything is fenced".
 
+// @orb-waive-file no-test-fabrication(readonly string[]): baselined when the gate widened to value casts; burn-down item 906.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

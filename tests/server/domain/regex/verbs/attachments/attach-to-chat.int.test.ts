@@ -3,6 +3,7 @@
 // launder a foreign script into a room they run.
 //
 // The CASCADE this junction takes part in is pinned in `remove.int.test.ts`'s sibling, `scopes.int.test.ts`.
+// @subject packages/server/src/domain/regex/verbs/attachments/attach-to-chat.ts
 
 import { chatRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

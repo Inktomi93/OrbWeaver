@@ -15,6 +15,7 @@
 // principal, one socket, two chats, ONE deception-active.
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";

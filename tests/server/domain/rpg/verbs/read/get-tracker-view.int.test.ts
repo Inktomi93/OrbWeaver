@@ -2,6 +2,7 @@
 // synthesis (no born snapshot — the orchestrator ruling), the participants ∪ sheets projection (missing row = default
 // sheet; a non-participant sheet not projected), and the no-drift invariant (synthesized default == persisted-empty
 // clone-forward).
+// @subject packages/server/src/domain/rpg/verbs/read/get-tracker-view.ts
 
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";

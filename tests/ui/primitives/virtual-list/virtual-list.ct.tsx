@@ -253,6 +253,7 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
   });
   await expect
     .poll(
+      // @orb-waive no-test-fabrication(typeof globalThis & { __resetFrameHarness: { drain:): baselined when the gate widened to value casts; burn-down item 906.
       async () => await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain()),
     )
     .toBe(0);
@@ -268,6 +269,7 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
   await component.getByTestId("scope-b").click();
   await expect(component.getByTestId("active-scope")).toHaveText("2");
   const landing = await page.evaluate(() =>
+    // @orb-waive no-test-fabrication(typeof globalThis & { __resetFrameHarness: { pendingIds:): baselined when the gate widened to value casts; burn-down item 906.
     (globalThis as typeof globalThis & { __resetFrameHarness: { pendingIds: () => number[] } }).__resetFrameHarness.pendingIds(),
   );
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
@@ -277,6 +279,7 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
   });
   await page.evaluate(
     (ids: readonly number[]) =>
+      // @orb-waive no-test-fabrication(typeof globalThis & { __resetFrameHarness: { flushIds:): baselined when the gate widened to value casts; burn-down item 906.
       (globalThis as typeof globalThis & { __resetFrameHarness: { flushIds: (frames: readonly number[]) => void } }).__resetFrameHarness.flushIds(ids),
     landing,
   );
@@ -286,6 +289,7 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
     node.scrollTop = 500;
   });
   await page.evaluate(() => {
+    // @orb-waive no-test-fabrication(typeof globalThis & { __resetFrameHarness: { flushAll:): baselined when the gate widened to value casts; burn-down item 906.
     (globalThis as typeof globalThis & { __resetFrameHarness: { flushAll: () => void } }).__resetFrameHarness.flushAll();
   });
   await expect(scroll).toHaveJSProperty("scrollTop", 500);
@@ -345,6 +349,7 @@ test("unmount before the reset frame cancels the stale landing without errors or
   });
   await expect
     .poll(
+      // @orb-waive no-test-fabrication(typeof globalThis & { __resetFrameHarness: { drain:): baselined when the gate widened to value casts; burn-down item 906.
       async () => await page.evaluate(() => (globalThis as typeof globalThis & { __resetFrameHarness: { drain: () => number } }).__resetFrameHarness.drain()),
     )
     .toBe(0);
@@ -360,6 +365,7 @@ test("unmount before the reset frame cancels the stale landing without errors or
   await expect(scroll).not.toHaveAttribute("data-reset-writes");
   await component.unmount();
   await page.evaluate(() => {
+    // @orb-waive no-test-fabrication(typeof globalThis & { __resetFrameHarness: { flushAll:): baselined when the gate widened to value casts; burn-down item 906.
     (globalThis as typeof globalThis & { __resetFrameHarness: { flushAll: () => void } }).__resetFrameHarness.flushAll();
   });
   // @orb-waive ct-no-oneshot-live-read-assert(expect): flushAll is synchronous and the detached node cannot receive later browser work.

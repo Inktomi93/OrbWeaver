@@ -92,6 +92,7 @@ async function plantedRepository(plantedTree: PlantTree, files: Readonly<Record<
 const POINTER = ["reports", "check-structure.json"];
 
 function readPointer(root: string): StructureReport {
+  // @orb-waive no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(readFileSync(join(root, ...POINTER), "utf8")) as StructureReport;
 }
 
@@ -102,6 +103,7 @@ function readSlotArtifact(root: string, stdout: string): StructureReport {
   if (slot === null) {
     throw new Error(`no run-slot artifact path on stdout:\n${stdout}`);
   }
+  // @orb-waive no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(readFileSync(join(root, slot[0]), "utf8")) as StructureReport;
 }
 
@@ -193,6 +195,7 @@ test("--list/--explain expose the loaded policy roster as JSON without opening a
   const root = await plantedRepository(plantedTree, plantedTreeFiles(repoRoot));
   const list = await runCli("verify", ["structure", "--list", "--json"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(list).toExitWith(0);
+  // @orb-waive no-test-fabrication({ readonly mode: string; readonly policies: readonly { readonly id: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
   const listed = JSON.parse(list.stdout) as { readonly mode: string; readonly policies: readonly { readonly id: string }[] };
   expect(listed.mode).toBe("list");
   expect(listed.policies.map(({ id }) => id)).toEqual(EVERY_GATE);
@@ -203,6 +206,7 @@ test("--list/--explain expose the loaded policy roster as JSON without opening a
     timeoutMs: RUN_TIMEOUT_MS,
   });
   await expect(explain).toExitWith(0);
+  // @orb-waive no-test-fabrication({ readonly mode: string; readonly policies: readonly { readonly id: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
   const explained = JSON.parse(explain.stdout) as { readonly mode: string; readonly policies: readonly { readonly id: string }[] };
   expect(explained.mode).toBe("explain");
   expect(explained.policies.map(({ id }) => id)).toEqual([ALPHA, BETA].toSorted());

@@ -1,6 +1,7 @@
 // verb: duplicate — clone an owned persona (FINAL-Persona §A.6b gap #2). Load-bearing: the clone is a FRESH
 // id owned by the caller; name gets the " (copy)" suffix; `starred` resets to false; `avatarAssetId`/
 // `metadata` carry forward verbatim; a foreign/missing source throws (no row, no audit).
+// @subject packages/server/src/domain/persona/verbs/duplicate.ts
 
 import { personas } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

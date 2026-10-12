@@ -1,6 +1,7 @@
 // The filter-vocabulary database proof pins server rank (most-used, alphabetical ties) and the complete
 // owned row set including zero-usage/card-hidden tags. Those rows are authority for persisted filters;
 // omitting a live id would falsely delete the filter.
+// @subject packages/server/src/domain/tag/verbs/list-filter-vocabulary.ts
 
 import { createTagService } from "@orb/server/domain/tag";
 import { describe } from "vitest";

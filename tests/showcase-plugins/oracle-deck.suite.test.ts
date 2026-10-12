@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ cards: string[]; dealt: number; summary: string }): baselined when the gate widened to value casts; burn-down item 906.
+
 import { expect, test } from "../support/fixtures.ts";
 import { bootShowcase, settle } from "../support/showcase-guest.ts";
 

@@ -1,5 +1,6 @@
 // verbs/checkpoint/create-checkpoint — createCheckpoint (docs/plans/rpg/design.md). Labels the current
 // resolved snapshot; the row is asserted at persistence (assert-the-mutation-fired).
+// @subject packages/server/src/domain/rpg/verbs/checkpoint/create-checkpoint.ts
 
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

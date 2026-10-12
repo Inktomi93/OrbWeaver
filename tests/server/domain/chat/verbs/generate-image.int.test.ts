@@ -4,6 +4,7 @@
 // image (D51 — never stored blocks), and `messageCommitted` is emitted. The op is a stub (chat can't import
 // domain/imagery); the mapping imagery→chat lives at the composition root, not here.
 
+// @orb-waive-file no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";

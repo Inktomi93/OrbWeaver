@@ -758,11 +758,13 @@ test("backupBeforeMigrate ABORTS on a failed copy and leaves no partial file beh
           get(target, prop, receiver): unknown {
             if (prop === "execute") {
               return (stmt: unknown): Promise<unknown> => {
+                // @orb-waive no-test-fabrication({ sql?: string }): baselined when the gate widened to value casts; burn-down item 906.
                 const text = typeof stmt === "string" ? stmt : String((stmt as { sql?: string }).sql);
                 if (text.includes("VACUUM INTO")) {
                   // What a full disk / a read-only directory produces at exactly this call.
                   return Promise.reject(new Error("disk I/O error (test)"));
                 }
+                // @orb-waive no-test-fabrication(Parameters<typeof target.execute>[0]): baselined when the gate widened to value casts; burn-down item 906.
                 return target.execute(stmt as Parameters<typeof target.execute>[0]);
               };
             }
@@ -802,6 +804,7 @@ test("CONTROL: a partial copy the cleanup does not remove IS visible to the debr
           get(target, prop, receiver): unknown {
             if (prop === "execute") {
               return (stmt: unknown): Promise<unknown> => {
+                // @orb-waive no-test-fabrication({ sql?: string }): baselined when the gate widened to value casts; burn-down item 906.
                 const text = typeof stmt === "string" ? stmt : String((stmt as { sql?: string }).sql);
                 if (text.includes("VACUUM INTO")) {
                   // The destination the real code is about to clean up — written under a name the sweep's
@@ -809,6 +812,7 @@ test("CONTROL: a partial copy the cleanup does not remove IS visible to the debr
                   writeFileSync(join(dir, `${DB_FILE}.backup-uncleaned`), "half a database");
                   return Promise.reject(new Error("disk full mid-copy (test)"));
                 }
+                // @orb-waive no-test-fabrication(Parameters<typeof target.execute>[0]): baselined when the gate widened to value casts; burn-down item 906.
                 return target.execute(stmt as Parameters<typeof target.execute>[0]);
               };
             }
@@ -838,10 +842,12 @@ test("preCloseHousekeeping still CLOSES the client when a housekeeping PRAGMA th
         get(target, prop, receiver): unknown {
           if (prop === "execute") {
             return (stmt: unknown): Promise<unknown> => {
+              // @orb-waive no-test-fabrication({ sql?: string }): baselined when the gate widened to value casts; burn-down item 906.
               const text = typeof stmt === "string" ? stmt : String((stmt as { sql?: string }).sql);
               if (text.includes("wal_checkpoint")) {
                 return Promise.reject(new Error("checkpoint refused (test)"));
               }
+              // @orb-waive no-test-fabrication(Parameters<typeof target.execute>[0]): baselined when the gate widened to value casts; burn-down item 906.
               return target.execute(stmt as Parameters<typeof target.execute>[0]);
             };
           }

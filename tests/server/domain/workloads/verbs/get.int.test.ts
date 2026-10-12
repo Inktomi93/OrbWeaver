@@ -1,4 +1,5 @@
 // Verb test: get — one typed row by id; a missing/poison row is a DomainNotFoundError.
+// @subject packages/server/src/domain/workloads/verbs/get.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";

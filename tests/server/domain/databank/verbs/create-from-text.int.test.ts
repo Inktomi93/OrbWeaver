@@ -2,6 +2,7 @@
 // sourceAssetId NULL, extractorVersion 'none', importHash = sha256(text), byteSize = UTF-8 length); ingest is
 // ENQUEUED (not run inline); a re-paste of identical text dedups on (ownerId, importHash) → duplicate/skipped,
 // no second enqueue.
+// @subject packages/server/src/domain/databank/verbs/create-from-text.ts
 
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

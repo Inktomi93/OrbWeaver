@@ -1,4 +1,5 @@
 // verb: listUsers — gated read of the user table; the view must never carry a secret column.
+// @subject packages/server/src/domain/admin/verbs/list-users.ts
 
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";

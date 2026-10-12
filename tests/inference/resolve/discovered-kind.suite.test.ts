@@ -2,6 +2,7 @@
 // the capability reader choose a task from it, and each model on a shared server gets its own per-model probe.
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication({ readonly model?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";

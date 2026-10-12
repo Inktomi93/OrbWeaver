@@ -6,6 +6,7 @@
 // arbiter). No write escapes on a refusal, and a rejection durable state cannot explain is RETHROWN rather
 // than laundered into an identity outcome. The admin gate + the audited batch that commits the claim live in
 // the admin verb (tested separately).
+// @subject packages/server/src/domain/sessions/verbs/link-external-id.ts
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

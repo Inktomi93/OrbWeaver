@@ -7,6 +7,7 @@
 //   • opted IN ⇒ the host's scripts, narrowed to what would actually fire (enabled ∩ DISPLAY).
 //   • hostless room (archived orphan) ⇒ `[]`.
 //   • non-member ⇒ refused by the injected membership guard.
+// @subject packages/server/src/domain/regex/verbs/attachments/list-room-display-scripts.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

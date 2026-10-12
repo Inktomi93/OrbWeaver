@@ -9,6 +9,8 @@
 // as the request body, and emitted even when the SDK abandons the stream without cancelling it.
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ choices: { delta: Record<string, unknown> }[] }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Wire } from "@orb/contracts/inference";
 import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import type { WrapFetchArgs } from "#inference/backends/v4/fetch.ts";

@@ -45,6 +45,7 @@ function huntTarget(): { target: WeavePoint; hub: WeavePoint } {
 /** Count of non-transparent pixels on the weave canvas (0 = nothing painted). */
 function paintedPixels(canvas: Locator): Promise<number> {
   return canvas.evaluate((el) => {
+    // @orb-waive no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
     const c = el as HTMLCanvasElement;
     const ctx = c.getContext("2d");
     if (ctx === null) {
@@ -78,6 +79,7 @@ const HUNT_PROBE_HALF_PX = 22;
 function solidPixelsAround(canvas: Locator, at: { x: number; y: number }, half: number): Promise<number> {
   return canvas.evaluate(
     (el, probe) => {
+      // @orb-waive no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
       const c = el as HTMLCanvasElement;
       const ctx = c.getContext("2d");
       if (ctx === null) {

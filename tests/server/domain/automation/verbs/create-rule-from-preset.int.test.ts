@@ -11,6 +11,7 @@
 //
 // `chat.messageCount` is a REAL count over seeded rows (`persistence/canon-reads.ts` countChatMessages), so
 // the cadence predicates are driven by seeding messages — not by stubbing the env.
+// @subject packages/server/src/domain/automation/verbs/create-rule-from-preset.ts
 
 import type { AutomationAction, AutomationBusEvent, TriggerFact } from "@orb/contracts/automation";
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";

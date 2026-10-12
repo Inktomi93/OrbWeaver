@@ -78,15 +78,24 @@ export function indexByField(shapes: readonly ContractFieldShape[]): ReadonlyMap
   return index;
 }
 
-/** The best contract this candidate copies: every candidate field is a contract field and enough types agree.
- *  Exact field-set equality ranks above a proper subset, then the larger shared set. */
-export function bestCopyMatch(fields: ReadonlyMap<string, string>, index: ReadonlyMap<string, readonly ContractFieldShape[]>): StructuralCopyMatch | undefined {
+/** How many of the candidate's field names each indexed shape carries. */
+function sharedFieldCounts(
+  fields: ReadonlyMap<string, string>,
+  index: ReadonlyMap<string, readonly ContractFieldShape[]>,
+): ReadonlyMap<ContractFieldShape, number> {
   const tally = new Map<ContractFieldShape, number>();
   for (const field of fields.keys()) {
     for (const shape of index.get(field) ?? []) {
       tally.set(shape, (tally.get(shape) ?? 0) + 1);
     }
   }
+  return tally;
+}
+
+/** The best contract this candidate copies: every candidate field is a contract field and enough types agree.
+ *  Exact field-set equality ranks above a proper subset, then the larger shared set. */
+export function bestCopyMatch(fields: ReadonlyMap<string, string>, index: ReadonlyMap<string, readonly ContractFieldShape[]>): StructuralCopyMatch | undefined {
+  const tally = sharedFieldCounts(fields, index);
   let best: StructuralCopyMatch | undefined;
   for (const [contract, shared] of tally) {
     if (shared !== fields.size) {
@@ -97,6 +106,36 @@ export function bestCopyMatch(fields: ReadonlyMap<string, string>, index: Readon
       continue;
     }
     const match = { contract, shared, agreeing, exact: shared === contract.fields.size };
+    if (best === undefined || rank(match) > rank(best)) {
+      best = match;
+    }
+  }
+  return best;
+}
+
+/** The share of a candidate's own field names one shape must carry for the candidate to be a drifted copy of it. */
+const OVERLAP_FLOOR = 0.8;
+/** How many shared fields a drifted copy may have retyped; more and the shared names are a coincidence of vocabulary. */
+const DRIFTED_TYPE_ALLOWANCE = 1;
+
+/** The shape a candidate copied before it drifted: at least `MIN_COPY_FIELDS` of the candidate's field names, and
+ *  `OVERLAP_FLOOR` of them, are that shape's, and all but `DRIFTED_TYPE_ALLOWANCE` of those agree on type. The widest
+ *  overlap wins. A copy that renamed or retyped a field slips `bestCopyMatch` and is still the same copy. */
+export function bestOverlapMatch(
+  fields: ReadonlyMap<string, string>,
+  index: ReadonlyMap<string, readonly ContractFieldShape[]>,
+): StructuralCopyMatch | undefined {
+  const tally = sharedFieldCounts(fields, index);
+  let best: StructuralCopyMatch | undefined;
+  for (const [contract, shared] of tally) {
+    if (shared < MIN_COPY_FIELDS || shared < OVERLAP_FLOOR * fields.size) {
+      continue;
+    }
+    const agreeing = [...fields].filter(([field, type]) => contract.fields.get(field) === type).length;
+    if (agreeing < shared - DRIFTED_TYPE_ALLOWANCE) {
+      continue;
+    }
+    const match = { contract, shared, agreeing, exact: false };
     if (best === undefined || rank(match) > rank(best)) {
       best = match;
     }

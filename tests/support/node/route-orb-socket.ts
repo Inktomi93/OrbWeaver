@@ -22,6 +22,8 @@
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ ref?: StreamRoomRef; sinceSeq?: number | null } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request } from "@playwright/test";

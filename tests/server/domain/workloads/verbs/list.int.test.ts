@@ -1,4 +1,5 @@
 // Verb test: list — newest-first, filterable by kind/status/owner; owner-scoping is by the owner_id column.
+// @subject packages/server/src/domain/workloads/verbs/list.ts
 
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";

@@ -17,6 +17,7 @@
 // carries the shared `@orb-waive test-determinism(process.hrtime)` marker (#831), since the subject here IS elapsed
 // real time.
 
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginBridge } from "@orb/contracts/plugin";
@@ -38,7 +39,9 @@ import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX } from "#server/infra/plugin-host/budge
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const CHAT_A = "chat_aaaa000000000000000000000" as ChatId;
+// @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 const CHAT_B = "chat_bbbb000000000000000000000" as ChatId;
 const LONG = 30_000;
 /** §6's poll ceiling — inside `LONG` so a wedged pump reports its own assertion, not a bare test timeout. */
@@ -189,17 +192,20 @@ describe("escape — prototype pollution does not cross the membrane", () => {
   test("a guest __proto__ payload dumped host-side lands as an OWN key and never touches host Object.prototype", async () => {
     const ctx = await realmContext();
     try {
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const before = (Object.prototype as Record<string, unknown>)["__polluted__"];
       const result = ctx.evalCode('JSON.parse(\'{"__proto__":{"__polluted__":true},"real":1}\')');
       if (isFail(result)) {
         result.error.dispose();
         throw new Error("guest failed to build the payload");
       }
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const dumped = ctx.dump(result.value) as Record<string, unknown>;
       result.value.dispose();
       // The payload crosses as INERT DATA: `__proto__` is a plain own key (JSON.parse never walks the prototype),
       // so nothing is assigned to the host's Object.prototype — a fresh host object stays clean.
       expect(Object.keys(dumped).sort()).toEqual(["__proto__", "real"]);
+      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       expect((Object.prototype as Record<string, unknown>)["__polluted__"]).toBe(before);
       expect(Object.hasOwn({}, "__polluted__")).toBe(false);
     } finally {
@@ -278,6 +284,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
     if (!outcome.ok) {
       return;
     }
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const op = (captured.ops?.[0] ?? {}) as Record<string, unknown>;
     expect(op["op"]).toBe("set");
     expect(op["key"]).toBe("k");

@@ -281,9 +281,11 @@ describe("digests", () => {
 
     expect(err).toBeInstanceOf(ProviderError);
     // The ROLE is named to the human who has to go fix a key…
+    // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ProviderError).message).toContain("embed");
     // …and the provider's own classification survives the re-frame (never re-derived, never flattened).
     expect(err).toMatchObject({ kind: "auth_failed", retryable: false, apiErrorStatus: 401 });
+    // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ProviderError).cause).toBeInstanceOf(ProviderError);
   });
 

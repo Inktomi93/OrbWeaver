@@ -8,6 +8,7 @@
 //     on a stranger's behalf (the owner-scoped load refuses first — the ordering the cross-tenant sweep probes).
 //   - the update-check's exact identity binds the later re-fetch; changed bytes preserve the old enabled row,
 //     and a fresh check provides the recovery identity.
+// @subject packages/server/src/domain/plugin/verbs/upgrade-from-stored-url.ts
 
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

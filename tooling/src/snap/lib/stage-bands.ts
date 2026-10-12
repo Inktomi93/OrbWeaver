@@ -38,7 +38,7 @@ import type {
   StageSweepEvidence,
   StageSweepVerdict,
 } from "../contract/stage.ts";
-import { stageRowAuth } from "../contract/stage.ts";
+import { rowOwner, stageRowAuth } from "../contract/stage.ts";
 import { bandAccess, describeStageAgePhrase, shortSha, stageIdleMs } from "./stage-plan.ts";
 
 const MS_PER_SECOND = 1000;
@@ -171,8 +171,19 @@ function viewIsStranded(view: StageBandView, nowMs: number, ttlMs: number): bool
   );
 }
 
+/** Is this band worth a health probe as a shared-reuse of another owner's stage? A `--stage-db` clone never is:
+ *  it serves its owner's chosen data, and a sibling reusing it would review under the wrong provenance. */
+export function isSharedReuseCandidate(
+  row: StageRow | null,
+  ask: { readonly owner: string; readonly targetSha: string | null; readonly bandBound: boolean },
+): row is StageRow {
+  return row !== null && rowOwner(row) !== ask.owner && row.sha === ask.targetSha && ask.bandBound && row.dbProvenance?.cloned !== true;
+}
+
 // ── the allocator ─────────────────────────────────────────────────────────────────────────────────────
 
+/** `checkout` is the caller's owner key (`stageOwnerKey` in lib/stage-plan.ts): the checkout path, or
+ *  `<checkout>#<label>` for a named session. */
 export function allocateStageBand(input: {
   readonly views: readonly StageBandView[];
   readonly checkout: string;
@@ -187,7 +198,7 @@ export function allocateStageBand(input: {
   const occupied = ordered.filter((view): view is StageBandView & { readonly row: StageRow } => view.row !== null);
   const auth = input.auth ?? "single-user";
 
-  const own = occupied.find((view) => view.row.checkout === input.checkout && view.row.sha === input.targetSha && stageRowAuth(view.row) === auth);
+  const own = occupied.find((view) => rowOwner(view.row) === input.checkout && view.row.sha === input.targetSha && stageRowAuth(view.row) === auth);
   if (own !== undefined) {
     return { kind: "ours", band: own.band, row: own.row };
   }
@@ -219,7 +230,7 @@ export function allocateStageBand(input: {
     // past the threshold. Everything else keeps the refusal.
     const ownOther = occupied.find(
       (view) =>
-        view.row.checkout === input.checkout &&
+        rowOwner(view.row) === input.checkout &&
         view.row.holders !== undefined &&
         foreignHolders(view.liveHolders ?? [], input.checkout).length === 0 &&
         view.liveSessions.length === 0 &&
@@ -331,6 +342,9 @@ export function stageDecision(opts: {
   readonly checkout?: string;
   readonly nowMs?: number;
   readonly liveHolders?: readonly StageHolder[];
+  /** This process's pid. With it, a live holder that is another process refuses a rebuild even under the
+   *  same owner key, because two unlabelled runs of one checkout share that key. */
+  readonly selfPid?: number;
 }): StageDecision {
   const { row } = opts;
   if (row !== null && !opts.fresh && row.sha === opts.targetSha && stageRowAuth(row) === (opts.auth ?? "single-user") && opts.healthy) {
@@ -339,7 +353,7 @@ export function stageDecision(opts: {
   if (row === null || opts.checkout === undefined || opts.nowMs === undefined) {
     return "rebuild";
   }
-  if (foreignHolders(opts.liveHolders ?? [], opts.checkout).length > 0) {
+  if (otherRunHolders(opts.liveHolders ?? [], opts.checkout, opts.selfPid).length > 0) {
     return "refuse";
   }
   return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
@@ -359,6 +373,23 @@ export function liveHoldersOf(row: StageRow, nowMs: number, running: (holder: St
 
 export function foreignHolders(holders: readonly StageHolder[], checkout: string): readonly StageHolder[] {
   return holders.filter((holder) => holder.checkout !== checkout);
+}
+
+/** The holders that are not this run: another owner's, or (given `selfPid`) the same owner key held by a
+ *  different process. A rebuild tears the stage down, so any such live holder is reading it right now. */
+export function otherRunHolders(holders: readonly StageHolder[], owner: string, selfPid?: number): readonly StageHolder[] {
+  return holders.filter((holder) => holder.checkout !== owner || (selfPid !== undefined && holder.pid !== selfPid));
+}
+
+/** Why a stage on our own band is being rebuilt, for the line that announces it. */
+export function stageRebuildReason(row: StageRow, ask: { readonly targetSha: string; readonly auth: StageAuthMode; readonly fresh: boolean }): string {
+  if (ask.fresh) {
+    return "--fresh";
+  }
+  if (row.sha !== ask.targetSha || stageRowAuth(row) !== ask.auth) {
+    return `replaced by ${shortSha(ask.targetSha)} · auth ${ask.auth}`;
+  }
+  return "unhealthy";
 }
 
 /** The STAGE ERROR a refused rebuild prints: who used the stage, when, and when the rebuild may run. */

@@ -1,5 +1,6 @@
 // share.startAtBoot / resumeAfterOwnerClaim — the `SHARE_RELAY` start runs the same preconditions with no caller. A start
 // refused for an unclaimed owner waits for the first-run claim; every other refusal is final for this process.
+// @subject packages/server/src/domain/share/verbs/boot-share.ts
 
 import { DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";

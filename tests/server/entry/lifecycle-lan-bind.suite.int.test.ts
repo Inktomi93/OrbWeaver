@@ -3,6 +3,8 @@
 // can claim the owner over loopback. The loopback listener widens nothing: a relayed request arriving on it is still
 // refused every loopback-gated grant, and this machine's own LAN address is never loopback. Shutdown closes both.
 
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ localFirstRun: boolean }): baselined when the gate widened to value casts; burn-down item 906.
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import type { IncomingHttpHeaders } from "node:http";

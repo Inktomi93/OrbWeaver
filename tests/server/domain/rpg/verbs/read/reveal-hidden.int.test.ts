@@ -2,6 +2,7 @@
 // inventory, derived from the STORED assistant bodies (no new table). Pins THE TRUST BOUNDARY: a member gets a
 // leak-free NOT_FOUND (never the truth), the host reads the parsed hidden content, and M4 `hiddenContentReveal`
 // off withholds the eye even from the host (the wire/member-strip are unaffected — proven elsewhere).
+// @subject packages/server/src/domain/rpg/verbs/read/reveal-hidden.ts
 
 import type { Db } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";

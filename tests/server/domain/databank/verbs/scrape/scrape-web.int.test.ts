@@ -8,6 +8,7 @@
 //   · re-scrape of identical bytes dedups on (ownerId, importHash) — duplicate/skipped, no second enqueue
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; databank asserts only the
 // pass-through (the DB7 checkpoint, doc 08 §1).
+// @subject packages/server/src/domain/databank/verbs/scrape/scrape-web.ts
 
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
@@ -114,7 +115,9 @@ test("the leak-free ScrapeFailedError never surfaces the resolved private addres
 
   const error = await h.service.scrapeWeb({ principal: principalFor(owner), url: "https://internal.corp/" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ScrapeFailedError);
+  // @orb-waive no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ScrapeFailedError).message).toBe("The web page could not be scraped.");
+  // @orb-waive no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ScrapeFailedError).message).not.toContain("169.254.169.254"); // the address stays server-side
 });
 

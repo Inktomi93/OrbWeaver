@@ -1,3 +1,6 @@
+// verb: countBooks — the owner-scoped library census, answered without full-list enrichment.
+// @subject packages/server/src/domain/world-info/verbs/books/count.ts
+
 import { worldBooks } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";

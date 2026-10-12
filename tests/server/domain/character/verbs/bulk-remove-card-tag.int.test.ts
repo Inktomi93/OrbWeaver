@@ -1,6 +1,7 @@
 // verb: bulkRemoveCardTag — owner-scopes targets, then routes each to the injected tag DETACH port (the mirror
 // of bulkAddCardTag). Load-bearing: unowned characters are never touched; a blank name is a no-op (no port
 // calls); freshness fires charactersChanged only when a row was actually removed.
+// @subject packages/server/src/domain/character/verbs/bulk-remove-card-tag.ts
 
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

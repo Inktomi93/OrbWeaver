@@ -81,6 +81,7 @@ test("an Undo restores the list as it is now, not as it was: a later hide of ano
   await routeTwoPluginRoom(page, {
     "settings.getUserSettings": () => view(),
     "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof view> => {
+      // @orb-waive no-test-fabrication(readonly PluginId[]): baselined when the gate widened to value casts; burn-down item 906.
       hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
       return view();
     },
@@ -112,6 +113,7 @@ test("two hides made before the first write lands both stay hidden, and the seco
   const recorder = await routeTwoPluginRoom(page, {
     "settings.getUserSettings": () => view(),
     "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">) => {
+      // @orb-waive no-test-fabrication(readonly PluginId[]): baselined when the gate widened to value casts; burn-down item 906.
       hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
       writes += 1;
       return writes === 1 ? firstWrite : view();
@@ -139,6 +141,7 @@ test("after a hide, focus lands on the next panel's Hide, and on the room when n
   await routeTwoPluginRoom(page, {
     "settings.getUserSettings": () => view(),
     "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof view> => {
+      // @orb-waive no-test-fabrication(readonly PluginId[]): baselined when the gate widened to value casts; burn-down item 906.
       hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
       return view();
     },

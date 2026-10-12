@@ -8,6 +8,7 @@
 // from the resolver and is never written back) — the macro-gate's data-flow blind spot is exactly this
 // hazard, so the `<output>` mirrors the saved key set, not just one field.
 
+// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { builtinProvider } from "@orb/contracts/inference";

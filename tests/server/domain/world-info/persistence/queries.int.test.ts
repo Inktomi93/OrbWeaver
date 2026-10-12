@@ -41,10 +41,28 @@ async function seedBook(db: DbHandle, ownerId: UserId, id: string): Promise<Worl
   return bookId;
 }
 
-async function seedEntry(
+interface EntrySeed {
+  id: string;
+  keys?: string[] | null;
+  priority?: number;
+}
+
+/** An entry whose metadata is a valid column value. */
+function seedEntry(db: DbHandle, bookId: WorldBookId, overrides: EntrySeed & { metadata?: typeof worldEntries.$inferInsert.metadata }): Promise<WorldEntryId> {
+  return insertEntryRow(db, bookId, overrides, overrides.metadata);
+}
+
+/** An entry whose metadata is a corrupt blob written past drizzle's unchecked $type column. */
+function seedForgedEntry(db: DbHandle, bookId: WorldBookId, overrides: EntrySeed & { metadata: unknown }): Promise<WorldEntryId> {
+  // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+  return insertEntryRow(db, bookId, overrides, overrides.metadata as never);
+}
+
+async function insertEntryRow(
   db: DbHandle,
   bookId: WorldBookId,
-  overrides: { id: string; keys?: string[] | null; metadata?: unknown; priority?: number },
+  overrides: EntrySeed,
+  metadata: typeof worldEntries.$inferInsert.metadata,
 ): Promise<WorldEntryId> {
   const entryId = castId<WorldEntryId>(overrides.id);
   await db.insert(worldEntries).values({
@@ -54,8 +72,7 @@ async function seedEntry(
     content: "c",
     keys: overrides.keys ?? null,
     priority: overrides.priority ?? 0,
-    // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    metadata: overrides.metadata as never,
+    metadata,
     createdAt: FROZEN_AT_MS,
   });
   return entryId;
@@ -76,7 +93,7 @@ describe("toBookView / toEntryView projections", () => {
       keys: ["dragon"],
       metadata: { scopeMode: "keyword", inject: { depth: 2, role: "system" }, position: "after" },
     });
-    const corruptId = await seedEntry(db, bookId, {
+    const corruptId = await seedForgedEntry(db, bookId, {
       id: "world_entry_corrupt",
       metadata: "not-an-object",
     });

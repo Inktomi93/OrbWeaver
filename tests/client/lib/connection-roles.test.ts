@@ -147,12 +147,14 @@ test("the status dot has ONE axis — would a turn run — and a failed requirem
   // summarizes perfectly well.
   const utility = ROLE_ROWS_ORDERED.find((row) => row.task === "summarize");
   expect(utility).toBeDefined();
+  // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
   const verdicts = roleRequirementVerdicts(utility as (typeof ROLE_ROWS_ORDERED)[number], generation());
   expect(verdicts.filter((verdict) => verdict.met === false)).toHaveLength(2);
   expect(roleStatus(resolving)).toBe("running");
 });
 
 test("the Utility rail is THREE clauses, judged per clause, each with what SKIPS when it is unmet", () => {
+  // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
   const utility = ROLE_ROWS_ORDERED.find((row) => row.task === "summarize") as (typeof ROLE_ROWS_ORDERED)[number];
   expect(utility.heading).toBe("Utility model — summaries, structured extraction, captions");
   expect(utility.requirements.map((requirement) => requirement.label)).toEqual(["prose", "structured JSON", "image input"]);
@@ -172,6 +174,7 @@ test("the Utility rail is THREE clauses, judged per clause, each with what SKIPS
 });
 
 test("the vector rows judge image input through the same requirementMet the resolver uses, and admit any width", () => {
+  // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
   const imageEmbed = ROLE_ROWS_ORDERED.find((row) => row.task === "imageEmbed") as (typeof ROLE_ROWS_ORDERED)[number];
   expect(imageEmbed.requirements.map((requirement) => requirement.label)).toEqual(["image input"]);
   expect(roleRequirementVerdicts(imageEmbed, embedding()).map((verdict) => verdict.met)).toEqual([false]);
@@ -198,6 +201,7 @@ test("every TASK_DEFS requirement clause riding a slot is covered by that row's 
 });
 
 test("the background repair offers the switch only where the role has nothing running", () => {
+  // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
   const utility = ROLE_ROWS_ORDERED.find((row) => row.task === "summarize") as (typeof ROLE_ROWS_ORDERED)[number];
   const connections = [
     { id: OPENROUTER, allowBackground: false, tasks: ["chat", "summarize"] as const },
@@ -210,6 +214,7 @@ test("the background repair offers the switch only where the role has nothing ru
   // switch would be noise, not help.
   expect(backgroundRepairs({ row: utility, connections, status: "running" })).toEqual([]);
   // A FOREGROUND row is never refused for funding, so it never offers the switch.
+  // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
   const chat = ROLE_ROWS_ORDERED.find((row) => row.task === "chat") as (typeof ROLE_ROWS_ORDERED)[number];
   expect(backgroundRepairs({ row: chat, connections, status: "unset" })).toEqual([]);
 });

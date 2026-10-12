@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
+
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";

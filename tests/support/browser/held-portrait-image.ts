@@ -33,7 +33,23 @@ const PORTRAIT_SVG_BODY = `<svg xmlns="http://www.w3.org/2000/svg" width="${PORT
  * reservation defect. The reserved box is a LAYOUT fact, so measure it in layout terms.
  */
 export function layoutBox(locator: Locator): Promise<{ readonly w: number; readonly h: number }> {
-  return locator.evaluate((el) => ({ w: (el as HTMLElement).offsetWidth, h: (el as HTMLElement).offsetHeight }));
+  return locator.evaluate((el) => {
+    if (!(el instanceof HTMLElement)) {
+      throw new Error("layoutBox: the located element is not an HTMLElement");
+    }
+    return { w: el.offsetWidth, h: el.offsetHeight };
+  });
+}
+
+/** The decoded image's intrinsic aspect ratio — the barrier that the bytes landed (an `<img>` with no intrinsic
+ *  size yet reads NaN until it decodes). */
+export function naturalRatio(locator: Locator): Promise<number> {
+  return locator.evaluate((el) => {
+    if (!(el instanceof HTMLImageElement)) {
+      throw new Error("naturalRatio: the located element is not an HTMLImageElement");
+    }
+    return el.naturalWidth / el.naturalHeight;
+  });
 }
 
 export async function holdPortraitImage(page: Page, url: string): Promise<() => Promise<void>> {

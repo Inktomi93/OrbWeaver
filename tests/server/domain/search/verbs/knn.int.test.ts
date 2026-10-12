@@ -2,6 +2,7 @@
 // core behaviours against a real db + a scripted role-clients bundle: within-space retrieval ordered by
 // similarity, candidate pooling capped to topN, owner-scoping, rerank reordering (mocked rerank), the
 // hosted not-supported rerank path PROPAGATING (no silent fallback), and the empty-query SearchError.
+// @subject packages/server/src/domain/search/verbs/knn.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

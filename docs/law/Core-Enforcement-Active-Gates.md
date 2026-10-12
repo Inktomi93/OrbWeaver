@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(364 registered gates)
+(367 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -349,12 +349,15 @@ in its own module header, never restated here.
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
 | `test-executable-mode` | tooling-os-neutral | hard/error | @tests | an executable Git mode on a test… |
 | `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
+| `test-file-size` | component-size | reviewed-grant/error | @tests | a test-tree file exceeds 1000 lines —… |
 | `test-fixture-imports` | — | ordinary/error | @authored\* | a test/it/expect binding bypasses the… |
+| `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
 | `test-no-stubs` | — | hard/error | @tests | stub test contains no assertions… |
-| `test-presence-client` | mirror-index | hard/error | @client,@ui\* | client data/forms/state primitive has… |
-| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@tests | a presence-gated module is reached by… |
+| `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |
+| `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
+| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
@@ -436,6 +439,8 @@ is the separate dead-code/dead-export/dead-dependency lane, live in `pnpm check`
 
 Scans `packages/**` (TS + TSX + CSS) for structural duplication the per-file rules can't see.
 On-demand, not pre-commit: `pnpm cpd` / `pnpm cpd:report`. Gate: 2% duplication threshold.
+`pnpm cpd:tests` (`jscpd.tests.json`) scans `tests/` alone with the same settings and holds its duplicated share at
+the measured ratchet in that config (Spine-Testing.md §10).
 
 ## Layer 6 — Stryker (`stryker.config.js` + `stryker.gate.config.js`) — mutation testing
 

@@ -8,6 +8,7 @@ import type { ProbeAttachOptions } from "../../floor/browser/browser-contract.ts
 import type { OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { SnapRunFactBatch } from "./run-facts.ts";
+import type { StageBoundIdentity } from "./stage.ts";
 
 export const SESSION_PROTOCOL_VERSION = 1;
 
@@ -62,6 +63,9 @@ export interface SessionStageState {
   readonly ownerCheckout?: string;
   readonly ref?: string;
   readonly binding?: SessionBinding;
+  /** The stage identity the daemon bound at boot; every call compares it with the band row. Absent on rows
+   *  written before it was recorded. */
+  readonly bound?: StageBoundIdentity;
 }
 
 /** `<main>/.cache/snap-session/<name>.json` — everything a caller on ANY checkout needs to find, judge

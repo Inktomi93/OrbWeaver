@@ -4,6 +4,7 @@
 // structured output), a model with no carrier is refused before any request, and the side-generation posture's
 // reasoning and output room ride as the chat turn spells them.
 
+// @orb-waive-file no-test-fabrication({ readonly json_schema: { readonly schema: Record<string, unknown>; readonly strict: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId, WireSchemaMode } from "@orb/contracts/inference";
 import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -138,6 +139,7 @@ test("vLLM: the structured call carries the guided-decoding subset with strict t
   const { schema, strict } = responseSchemaOf(body);
   expect(strict).toBe(true);
   expect(schema).not.toHaveProperty("title");
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((schema["properties"] as Record<string, unknown>)["score"]).toEqual({ type: "integer", minimum: 1, maximum: 10 });
 });
 
@@ -145,6 +147,7 @@ test("Custom: the structured call carries the hosted-common subset with strict f
   const { body } = await structuredBody(endpointConnection("custom-openai"), BOUNDED);
   const { schema, strict } = responseSchemaOf(body);
   expect(strict).toBe(false);
+  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((schema["properties"] as Record<string, unknown>)["score"]).toEqual({ type: "integer", description: "[Constraints: minimum: 1, maximum: 10]" });
   expect(schema["required"]).toEqual(["score"]);
 });
@@ -271,6 +274,7 @@ test("OpenRouter: an endpoint that refuses the off as mandatory gets one replay 
     (recorded: RecordedRequest[]): typeof fetch =>
     (input, init): Promise<Response> => {
       if (recorded.length === 0) {
+        // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
         recorded.push({ url: "", body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
         return Promise.resolve(new Response(refusal, { status: 400, headers: { "content-type": "application/json" } }));
       }

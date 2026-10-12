@@ -25,9 +25,9 @@ Do the steps in order. A later step may run in parallel only where its row says 
 
 ### Live state
 
-- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel. Item 899 first half (law rewrite, reach gate, waiver budget), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
+- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel. Item 899 (law rewrite, reach gate, waiver budget, and the gates for Spine-Testing section 10), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
 - In flight: item 900 core (gate extensions, baselines, catalog, `pnpm ast antipatterns`), reworked after a refuted review.
-- Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), item 899 second half (the gates for Spine-Testing section 10), items 914, 915, 920 and 921.
+- Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), items 914, 915, 920 and 921.
 - Next: item 890 (move copied logic to its owning layer, starting with the four widest server harnesses), item 888, item 892, item 894, item 901, item 902, then item 898 after item 887.
 
 ### Rules that hold during the work
@@ -127,7 +127,7 @@ Each row names the test site, the production counterpart, and the fix. The four 
 
 **894, seeders.** Local seeders in `tests/db/schema` with a fake content hash; raw settings and preset mutations in two live specs where `trpc.ts` helpers exist.
 
-**899 second half, gates for Spine-Testing §10.** The design and false-positive classes are in the inference-tooling-gates report: the reach gate, the @subject header, an advisory clone census, a hand-shape detector, extending no-test-fabrication to non-literal casts and test-mock-doctrine to spies on internal modules.
+**899 second half, gates for Spine-Testing §10.** The gates are `test-hand-shape`, `test-production-clone`, `test-file-size`, the value-cast check in `no-test-fabrication`, the spy check in `test-mock-doctrine` and the `cpd:tests` ratchet. Their baselined findings name items 888, 890 and 906; the spies and the oversized files still need a burn-down item.
 
 ## Rejected
 

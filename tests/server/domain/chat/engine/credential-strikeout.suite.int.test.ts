@@ -19,6 +19,7 @@
 // the strike is a PASSENGER — it can never alter, mask or delay the failure the caller is about to see.
 
 import { setTimeout as sleep } from "node:timers/promises";
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";

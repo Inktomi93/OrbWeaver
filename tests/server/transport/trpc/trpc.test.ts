@@ -8,6 +8,7 @@
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env; and its UNCLASSIFIED-MESSAGE belt keeps an
 // unmodelled throw's own text off the wire while a classified error keeps both its message and its reason.
 
+// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
 import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
@@ -166,6 +167,7 @@ describe("the unmapped-error 500 log (silent-500 belt)", () => {
     const { ctx, log } = faultingCaller(boom);
     await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
     expect(log).toHaveBeenCalledOnce();
+    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings["event"]).toBe("trpc.unhandled");
     expect(bindings["path"]).toBe("persona.list");
@@ -199,6 +201,7 @@ describe("the unmapped-error 500 log (silent-500 belt)", () => {
 
     expect(error).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledOnce();
+    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = warn.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings).toMatchObject({ event: "trpc.provider", path: "persona.list", kind: "auth_failed", apiErrorStatus: 401 });
     // The message the WIRE did not get is exactly what the log did.

@@ -1,6 +1,7 @@
 // verb: findCharacters — knn + distilled-facet enrichment (the primitive discovery W3 consumes). Asserts:
 // hits carry the summary facets + avatar hash; a card with no summary still returns (null facets); the
 // result respects topN; and the rerank order from the underlying knn passes through to the enriched hits.
+// @subject packages/server/src/domain/search/verbs/find-characters.ts
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

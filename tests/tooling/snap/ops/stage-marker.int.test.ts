@@ -1,3 +1,5 @@
+// @orb-waive-file no-test-fabrication(StageBandsFile): baselined when the gate widened to value casts; burn-down item 906.
+
 // THE BAND TABLE's I/O and its concurrency (tooling/src/snap/ops/stage-marker.ts, design §3.6 / #1276) —
 // real files over a tmpdir and real child PROCESSES over the real mutex. Nothing here boots a stack: the
 // table is JSON, the lock is a directory, and the parts that need genuine parallelism get genuine
@@ -131,6 +133,13 @@ test("a row written under one checkout's table home is read back under another's
   // The file is versioned, and the rows are sorted by band so a human diff of the table is stable.
   const file = JSON.parse(readFileSync(join(home, BANDS_REL), "utf8")) as StageBandsFile;
   expect(file.v).toBe(1);
+});
+
+test("a row's clone flag survives the table, so a --stage-db stage still reads as a clone", () => {
+  const home = scratchHome("clone-flag");
+  const dbProvenance = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: FROZEN_ISO, devDbMtimeAtCopy: AGED_ISO };
+  writeRow(home, row(1, { dbProvenance }));
+  expect(readBands(home)[0]?.dbProvenance).toEqual(dbProvenance);
 });
 
 test("writeRow REPLACES one band and leaves every sibling row standing — a blind overwrite would drop a lane's stage", () => {

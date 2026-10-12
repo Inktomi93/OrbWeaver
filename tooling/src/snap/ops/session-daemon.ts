@@ -31,6 +31,7 @@ import { currentSnapStageProvenance } from "../lib/run-provenance.ts";
 import { SESSION_INSTRUMENT, sessionSocketPath } from "../lib/session-plan.ts";
 import { sessionCapRefusal } from "../lib/session-refusals.ts";
 import { urlStageBand } from "../lib/stage-plan.ts";
+import { boundStageRow } from "../lib/stage-run-binding.ts";
 import { sweepOwnBrowsers, sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { configureStage, snapDestination } from "./guards.ts";
 import { debuggingEndpointFor, finishSession, launchSnapSession } from "./session.ts";
@@ -70,6 +71,7 @@ function initialRow(
 ): SessionRow {
   const { bootArgs } = state;
   const stageProvenance = currentSnapStageProvenance();
+  const bound = boundStageRow();
   const now = new Date().toISOString();
   return {
     v: SESSION_PROTOCOL_VERSION,
@@ -95,6 +97,9 @@ function initialRow(
                   ref: stageProvenance.ref ?? "unavailable",
                   binding: stageProvenance.binding ?? bindingOf(bootArgs),
                 }
+              : {}),
+            ...(bound?.band === args.stageBand
+              ? { bound: { sha: bound.sha, dir: bound.dir, startedAt: bound.startedAt, dbProvenance: bound.dbProvenance } }
               : {}),
           },
     environment: sessionEnvironmentOf(bootArgs),

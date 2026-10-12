@@ -4,6 +4,8 @@
 // becomes host while other humans are NOT auto-joined (D16 chokepoint — FLAG[fork-humans]), and `chatCreated`
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
+// @orb-waive-file no-test-fabrication(keyof typeof messageVariants.$inferSelect): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication({ seq: number }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ChatReasoningPart } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
@@ -270,6 +272,7 @@ describe("forkChat — D27 deep copy", () => {
     const err = await fork.forkChat({ principal: principal(host), chatId }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("background_unavailable");
     expect(await db.select().from(chats)).toHaveLength(1);
     expect(emitted).toEqual([]);
@@ -1471,6 +1474,7 @@ describe("forkChat — the host-or-sole-human fork gate", () => {
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
     const err = await fork.forkChat({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
+    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     // No fork chat row was created (the refusal is before any write).
     expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);

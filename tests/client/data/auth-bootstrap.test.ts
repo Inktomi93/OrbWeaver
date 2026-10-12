@@ -5,6 +5,7 @@
 // carries the CSRF header (a cookie mutation without it is a 403 — the belt every logout regression hits).
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
+// @orb-waive-file no-test-fabrication(URLSearchParams): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, beforeEach, vi } from "vitest";
@@ -75,7 +76,9 @@ test("a login refusal throws the SERVER's message (LoginFailedError, never an in
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ error: "invalid credentials" }), { status: 401 })));
   const err = await login(castId<Handle>("alice"), "wrong").catch((e: unknown) => e);
   expect(err).toBeInstanceOf(Error);
+  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect((err as Error).name).toBe("LoginFailedError");
+  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect((err as Error).message).toBe("invalid credentials");
 });
 
