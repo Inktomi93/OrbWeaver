@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-12
 priority: P2
 area: contracts
-lane: wt/agent-a90022c3a8927247c
 plan: test-mirror
 ---
 
@@ -24,4 +23,8 @@ No @orb-waive marker naming this item remains for either gate in product code; e
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Security review of branch wt/agent-a90022c3a8927247c at 0ed29a23d2 against main at 4d7b00a6d4 rejects a whole-branch merge. Preserve coherent production schema and derivation changes on the current tree. Do not port legacy harness, fixture, or waiver-budget retrofits as deliverables.
+
+The branch still carries structural-copy and inline-wire-interface markers naming this item. Their reasons are not completion evidence. Derive discovery, embedding, and diagnostic read projections from database rows rather than unrelated wire payloads. Give the copied RPG handoff input and plugin worker input one shared legal home, then derive each consumer's subset.
+
+The retained branch remains recovery material, not a verified implementation. Its completed reports cover selected files and suites only. Reconcile producer, schema, router, and consumer changes with current package exports before proposing a salvage commit.
