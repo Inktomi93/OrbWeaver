@@ -20,7 +20,7 @@ The aim is three things at once. Honest: a test proves what production does, nev
 2. **The server test harness.** A test composition root in `@orb/testkit/node` builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes those seams at the composition root. Domain harnesses are deleted as their suites move onto the root. Runs in parallel with step 1.
 3. **Builders and corpus.** One builder per contract output and database row, built from contract defaults or by running production. One synthetic corpus from the seed tool, shared by e2e, CT, server tests and side-eye.
 4. **The client CT door.** CTs mount through the real client compose. A story isolates only through the named exception.
-5. **The legacy folder.** Every test not yet rebuilt moves to `tests/legacy/` at its same mirror path; the folder is the ledger. It runs in CI as its own project, never in commit hooks, lane floors or the strict gates, and reaches package internals through the root raw-reach map without grants. A domain's legacy folder is deleted when its rebuilt suite carries every case.
+5. **The legacy folder.** Every test not yet rebuilt moves to a legacy folder under `tests/` at its same mirror path; the folder is the ledger. It runs in CI as its own project, never in commit hooks, lane floors or the strict gates, and reaches package internals through the root raw-reach map without grants. A domain's legacy folder is deleted when its rebuilt suite carries every case.
 6. **Rebuild.** The e2e smoke matrix on the corpus first, then server suites by domain on the composition root, then CTs on the door, then the rest.
 
 ### Why this order
