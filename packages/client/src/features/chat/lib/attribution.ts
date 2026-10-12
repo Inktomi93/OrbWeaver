@@ -71,7 +71,6 @@ const DEFAULT_USER_ATTRIBUTION: RowAttribution = {
   tokens: null,
 };
 
-// @orb-waive no-inline-wire-interface(ResolveRowAttributionInput): baselined when the gate widened; burn-down item 904.
 export interface ResolveRowAttributionInput {
   readonly role: MessageRole;
   readonly characterId: CharacterId | null;

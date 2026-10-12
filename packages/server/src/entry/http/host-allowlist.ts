@@ -14,6 +14,7 @@ import { isApiPath } from "./spa.ts";
 // RFC 9110 §15.5.20: this server is not authoritative for the requested host. Distinct from every auth 403.
 const MISDIRECTED_REQUEST = 421;
 
+// @orb-waive no-inline-package-interface(HostAllowlistDeps): baselined when the gate landed; burn-down item 952.
 export interface HostAllowlistDeps {
   /** The configured names (`resolveAllowedHosts`) and the relay registry's (`allowedHostsReader`), read on every
    *  request because a relay host arrives after boot; localhost and IP literals pass without an entry. */

@@ -50,6 +50,7 @@ function scrypt(password: Buffer, salt: Buffer, keylen: number, options: ScryptO
   });
 }
 
+// @orb-waive no-inline-package-interface(PasswordHasher): baselined when the gate landed; burn-down item 952.
 /** The local-password hashing seam; constructed at entry/ with the SESSION_SECRET pepper and injected
  *  into the login route + admin user verbs. */
 export interface PasswordHasher {

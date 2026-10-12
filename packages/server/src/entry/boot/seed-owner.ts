@@ -29,6 +29,7 @@ import { getLog } from "#foundation/observability";
 
 const OWNER_ROLE = "owner" as const;
 
+// @orb-waive no-inline-package-interface(SeedOwnerDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedOwnerDeps {
   readonly db: Db;
   readonly sessions: Pick<SessionsService, "ensureUser" | "renameUserHandle">;

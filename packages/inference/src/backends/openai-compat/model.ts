@@ -33,6 +33,7 @@ import { thinkTagMiddleware } from "./think-tags.ts";
 const OR_REFERER_HEADER = "HTTP-Referer";
 const OR_TITLE_HEADER = "X-OpenRouter-Title";
 
+// @orb-waive no-inline-package-interface(TransportDeps): baselined when the gate landed; burn-down item 952.
 /** The transport-level deps a backend hands the factory: the egress-guarded fetch, the capture sink, the app
  *  identity OpenRouter attributes traffic to. */
 export interface TransportDeps {
@@ -43,6 +44,7 @@ export interface TransportDeps {
   readonly app: { readonly name: string; readonly url: string };
 }
 
+// @orb-waive no-inline-package-interface(ModelCall): baselined when the gate landed; burn-down item 952.
 /** Everything one call needs the hooks to know. `plan` is null on the non-chat surfaces (no re-attach). */
 export interface ModelCall {
   readonly cachePolicy?: CachePolicy | undefined;

@@ -20,6 +20,7 @@ import type { ScheduleCadence, WorkloadKind } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadService } from "#domain/workloads";
 
+// @orb-waive no-inline-package-interface(SeedCasSchedulesDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedCasSchedulesDeps {
   /** The workloads service — only the two schedule verbs this step needs. */
   readonly workloads: Pick<WorkloadService, "createSchedule" | "listSchedules">;

@@ -144,6 +144,7 @@ function formatOf(responseFormat: unknown): unknown {
   return responseFormat["type"] === "json_schema" && isRecord(responseFormat["json_schema"]) ? responseFormat["json_schema"]["schema"] : undefined;
 }
 
+// @orb-waive no-inline-package-interface(NativeThink): baselined when the gate landed; burn-down item 952.
 /** What `think` is spelled from: the effort the turn resolved, the levels the model's descriptor names (absent ⇒
  *  unstated; empty ⇒ on or off only), and whether body rule 5b switched the template's thinking on. */
 export interface NativeThink {

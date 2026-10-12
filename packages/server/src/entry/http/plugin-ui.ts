@@ -44,6 +44,7 @@ const CACHE_CONTROL = "private, no-store";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 
+// @orb-waive no-inline-package-interface(PluginUiPort): baselined when the gate landed; burn-down item 952.
 /** The `domain/plugin` front-door slice this route consumes — one verb, the whole gate. */
 export interface PluginUiPort {
   /** The owned plugin's `ui.js` source, or `null` when it ships no client guest. Throws the domain's leak-free

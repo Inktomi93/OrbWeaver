@@ -33,6 +33,7 @@ function composite(key: SessionKey): string {
   return `${key.sessionId}${KEY_SEP}${key.subpath ?? MAIN_TRANSCRIPT_SUBPATH}`;
 }
 
+// @orb-waive no-inline-package-interface(ReplaceableSessionStore): baselined when the gate landed; burn-down item 952.
 /**
  * Orb-internal store extension: atomically REPLACE a session's frames (the SDK {@link SessionStore} is
  * append-only). Replacing in place keeps the sessionId and its prompt-cache lineage — an in-place replace
@@ -46,6 +47,7 @@ function canReplace(store: SessionStore): store is ReplaceableSessionStore {
   return typeof (store as Partial<ReplaceableSessionStore>).replace === "function";
 }
 
+// @orb-waive no-inline-package-interface(SeededSessionDecision): baselined when the gate landed; burn-down item 952.
 /**
  * `ensureSeededSession` outcome: the session to resume (`null` = SDK-fresh) + which branch decided it.
  *   • `resumed`   — the recorded session's stored transcript still matched the seed.

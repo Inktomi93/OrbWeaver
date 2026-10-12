@@ -24,6 +24,7 @@ export function resolveMigrationsFolder(): string {
   return join(dirname(req.resolve("@orb/db")), "migrations");
 }
 
+// @orb-waive no-inline-package-interface(MigrateDeps): baselined when the gate landed; burn-down item 952.
 export interface MigrateDeps {
   readonly db: Db;
   /** libSQL URL — backed up aside (file: URLs only; `:memory:`/not-yet-created is a no-op) before migrating. */

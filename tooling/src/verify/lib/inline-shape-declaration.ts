@@ -7,9 +7,38 @@
 // The zod arm is identity, never spelling: the callee must resolve through the `zod` door
 // (`lib/zod-origin.ts#isZodCall`) to one of the three factories whose result IS a declared shape. It is NOT
 // fail-closed — an unreadable factory-named call passes (the declared limit `no-inline-types` records).
-import type { Node as MorphNode } from "ts-morph";
+import type { InterfaceDeclaration, Node as MorphNode, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import { isZodCall, zodCandidateCall } from "./zod-origin.ts";
+
+/** True when the interface and every type it nests are data: no call or construct signature anywhere. A hook
+ *  result, a service bundle or a deps record carries behaviour and cannot cross a wire; a wire shape cannot.
+ *  Scalars (anything that is neither an object nor a union or intersection of them) are data. */
+export function isPlainDataShape(node: InterfaceDeclaration): boolean {
+  const seen = new Set<unknown>();
+  const holdsBehaviour = (type: Type): boolean => {
+    if (seen.has(type.compilerType)) {
+      return false;
+    }
+    seen.add(type.compilerType);
+    const parts = [...type.getUnionTypes(), ...type.getIntersectionTypes()];
+    if (parts.length > 0) {
+      return parts.some(holdsBehaviour);
+    }
+    if (!type.isObject()) {
+      return false;
+    }
+    if (type.isArray() || type.isReadonlyArray() || type.isTuple()) {
+      return [...type.getTypeArguments(), ...type.getTupleElements()].some(holdsBehaviour);
+    }
+    if (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0) {
+      return true;
+    }
+    const indexed = [type.getStringIndexType(), type.getNumberIndexType()].filter((member) => member !== undefined);
+    return type.getProperties().some((property) => holdsBehaviour(property.getTypeAtLocation(node))) || indexed.some(holdsBehaviour);
+  };
+  return !holdsBehaviour(node.getType());
+}
 
 const ZOD_SHAPE_FACTORIES: ReadonlySet<string> = new Set(["object", "enum", "discriminatedUnion"]);
 

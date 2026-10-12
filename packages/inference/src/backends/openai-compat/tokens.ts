@@ -71,6 +71,7 @@ const heldTokensSchema = z.object({ ids: z.array(TOKEN_ID), pieces: z.array(z.st
 const persistedSchema = z.array(z.tuple([z.string(), heldTokensSchema]));
 type Cached = ReadonlyMap<string, z.infer<typeof heldTokensSchema>>;
 
+// @orb-waive no-inline-package-interface(TokenTarget): baselined when the gate landed; burn-down item 952.
 /** Where one connection's words are tokenized. */
 export interface TokenTarget {
   readonly baseUrl: string;
@@ -81,6 +82,7 @@ export interface TokenTarget {
   readonly secrets: ProviderScrubSet;
 }
 
+// @orb-waive no-inline-package-interface(TokenLexicon): baselined when the gate landed; burn-down item 952.
 export interface TokenLexicon {
   /** Each word's tokens, from the cache where held; every missing word is asked once, in parallel, and cached. */
   readonly lookup: (target: TokenTarget, words: readonly string[], signal?: AbortSignal) => Promise<readonly WordTokens[]>;

@@ -8,7 +8,7 @@ import { characters, chatParticipants, chats, messages } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { count, desc, eq } from "drizzle-orm";
 
-// @orb-waive no-inline-wire-interface(ChatListRow): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(ChatListRow): baselined when the gate landed; burn-down item 952.
 /** One chat-list row (the discovery shape — id + title + the two headline counts + recency). */
 export interface ChatListRow {
   id: ChatId;
@@ -18,7 +18,7 @@ export interface ChatListRow {
   updatedAt: number;
 }
 
-// @orb-waive no-inline-wire-interface(CharacterListRow): baselined when the gate widened; burn-down item 904.
+// @orb-waive no-inline-package-interface(CharacterListRow): baselined when the gate landed; burn-down item 952.
 // @orb-waive contract-structural-copy(CharacterListRow): baselined when the gate widened; burn-down item 904.
 /** One character-list row (id + name + handle + recency); synthetic buckets excluded. The `characters`
  *  table has no `updated_at` column (D28 flat row — only `created_at`), so recency is `createdAt`. */

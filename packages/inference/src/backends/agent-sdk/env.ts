@@ -74,6 +74,7 @@ function hostEnvForClaudeChild(source: Readonly<Record<string, string>>): Record
   return out;
 }
 
+// @orb-waive no-inline-package-interface(ClaudeRuntimeOverrides): baselined when the gate landed; burn-down item 952.
 /** Per-turn knobs written into the subprocess env. Boolean fields opt OUT with `=== false`, distinguishing
  *  "unset" from "explicitly off". Knob names verified against the bundled claude runtime binary. */
 export interface ClaudeRuntimeOverrides {
@@ -185,6 +186,7 @@ function claudeRuntimeLayer(overrides: ClaudeRuntimeOverrides): Record<string, s
   return merged;
 }
 
+// @orb-waive no-inline-package-interface(ClaudeSdkEnvArgs): baselined when the gate landed; burn-down item 952.
 export interface ClaudeSdkEnvArgs {
   /** The child-env allowlist source (`deps.env.hostEnvAllowlist()`), narrowed here to the supported keys. */
   readonly hostEnv: Readonly<Record<string, string>>;

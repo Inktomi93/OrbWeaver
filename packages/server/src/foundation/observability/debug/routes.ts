@@ -215,12 +215,14 @@ function collectErrors(limit: number): Record<string, unknown>[] {
   return errors;
 }
 
+// @orb-waive no-inline-package-interface(AssetInspector): baselined when the gate landed; burn-down item 952.
 /** Asset-store health port — structural-injection so foundation accepts assets' `fsck` without importing
  *  it. `object` return so no domain type crosses the boundary. */
 export interface AssetInspector {
   fsck: () => Promise<object>;
 }
 
+// @orb-waive no-inline-package-interface(AdminAuthChecker): baselined when the gate landed; burn-down item 952.
 /** Session-auth gate — structural-injection so foundation accepts the entry auth verdict without importing
  *  it. Consulted before the token check. `isAdmin` must never throw (the middleware catches anyway: a
  *  misbehaving seam falls through to the token check, it never opens the gate). The METHOD keeps its
@@ -244,6 +246,7 @@ export interface AdminAuthChecker {
   isAdmin: (c: Context) => boolean;
 }
 
+// @orb-waive no-inline-package-interface(RpgTraceInspector): baselined when the gate landed; burn-down item 952.
 /** The rpg flight-recorder read port (R-OBS) — structural-injection so foundation accepts `domain/rpg`'s ring
  *  recorder without importing it (the `AssetInspector` precedent). Returns `object[]` so no rpg type crosses the
  *  boundary; the records serialize straight to JSON. Host-only via the debug gate; read-only (D75). */
@@ -251,6 +254,7 @@ export interface RpgTraceInspector {
   recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }) => readonly RpgTraceRecord[];
 }
 
+// @orb-waive no-inline-package-interface(MemoryRecallInspector): baselined when the gate landed; burn-down item 952.
 /** The MEMORY-RECALL flight-recorder read port (#250) — the `RpgTraceInspector` shape, one domain over: the
  *  per-recall trace ring `domain/chat/memory/recall/recorder.ts` fills. Returns `object[]` so no chat/memory
  *  type crosses the boundary. This is the lens for "what memories did that turn fetch, and why" — the
@@ -259,6 +263,7 @@ export interface MemoryRecallInspector {
   recent: (filter: { chatId?: ChatId; limit?: number }) => readonly object[];
 }
 
+// @orb-waive no-inline-package-interface(SocketInspector): baselined when the gate landed; burn-down item 952.
 /** The multiplexed-socket read port (SSE-1 §12) — structural-injection so foundation accepts transport's
  *  socket registry without importing it (the `RpgTraceInspector` precedent; transport sits ABOVE foundation
  *  in the tier list, so the dependency has to arrive as data). This is the STARVATION REGRESSION PIN: the
@@ -268,6 +273,7 @@ export interface SocketInspector {
   liveSocketCount: (userId?: UserId) => number;
 }
 
+// @orb-waive no-inline-package-interface(DebugAuthOptions): baselined when the gate landed; burn-down item 952.
 /** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
 export interface DebugAuthOptions {
   expectedToken: string | undefined;
@@ -276,6 +282,7 @@ export interface DebugAuthOptions {
   adminAuth?: AdminAuthChecker;
 }
 
+// @orb-waive no-inline-package-interface(DebugRoutesOptions): baselined when the gate landed; burn-down item 952.
 /** The /api/_debug registrar options. The `db` handle (optional) adds the /db/* probe surface; `assets`
  *  adds the CAS health check; `auth` overrides the default DEBUG_TOKEN gate (tests pass a known shape). */
 export interface DebugRoutesOptions {

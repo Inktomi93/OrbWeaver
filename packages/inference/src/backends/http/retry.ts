@@ -30,6 +30,7 @@ const BACKOFF_FACTOR = 2; // exponential base
 const JITTER_SPREAD = 0.4; // ±20% jitter band
 const JITTER_CENTER = 0.5; // RNG midpoint (random() in [0,1) → jitter in [0.8, 1.2))
 
+// @orb-waive no-inline-package-interface(RetryOptions): baselined when the gate landed; burn-down item 952.
 /** Tuning + injected seams for the retry policy. */
 export interface RetryOptions {
   /** Total tries including the first. */

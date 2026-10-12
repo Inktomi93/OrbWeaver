@@ -19,6 +19,7 @@ interface LegacySeedLatches {
   readonly persona: boolean;
 }
 
+// @orb-waive no-inline-package-interface(UserContentSeederDeps): baselined when the gate landed; burn-down item 952.
 export interface UserContentSeederDeps {
   /** The operator switch (`SEED_CONTENT`); off ⇒ nothing is seeded and nothing is recorded. */
   readonly enabled: () => boolean;
@@ -44,6 +45,7 @@ export interface UserContentSeederDeps {
   ) => Promise<void>;
 }
 
+// @orb-waive no-inline-package-interface(UserContentSeeder): baselined when the gate landed; burn-down item 952.
 export interface UserContentSeeder {
   readonly ensureSeeded: (principal: Principal) => Promise<void>;
 }
@@ -148,6 +150,7 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
   };
 }
 
+// @orb-waive no-inline-package-interface(SeedUserContentDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedUserContentDeps {
   /** Shared with the app first-request hook. */
   readonly seeder: UserContentSeeder;
