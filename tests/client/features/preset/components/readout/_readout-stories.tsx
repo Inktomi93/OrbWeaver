@@ -54,7 +54,9 @@ const STORY_SECTION = "chat-history";
  *  dispatch (the Actions-tab IA §2.3), which is exactly a claim about which row is selected. */
 function useReadoutFixture(chatId: ChatId | null, view: string, templateId = "impersonate"): void {
   useEffect(() => {
-    selectPreset(STORY_PRESET);
+    // In place: a swapped select runs inside the view transition's update callback, after the section pick
+    // below, and would clear it (a select drops the sub-drill).
+    selectPreset(STORY_PRESET, { swap: false });
     setPresetEditorView(view);
     // The SELECTIONS the readout echoes (§6.1: the row body selects, the readout resolves that row) — the
     // Actions template and the Prompt rack row.

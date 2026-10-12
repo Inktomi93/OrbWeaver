@@ -171,6 +171,21 @@ test("§4.6 differential — the four legacy keys are BURNED DOWN on the real tr
   // control below fails loudly, where an optional chain would have let a refused read pass as a burn-down.
   const judged = judgeStylesheets(corpus.status === "ready" ? corpus.value : []);
 
-  expect([...judged.live.keys()].toSorted((a, b) => a.localeCompare(b))).toEqual([]);
+  // `judged.live` is the reader's raw verdict, before the central waiver engine runs. A waived subject is a
+  // ratified exemption (the NO-FILL footer on the popup's own fill), not owed debt, so the burn-down is that
+  // every live subject is waived and every waiver names a live subject, both read from the gate's own run.
+  const real = runPolicyPass({
+    knownPolicies: [overArtPlateArm],
+    policies: [overArtPlateArm],
+    root: repoRoot,
+    project: new Project({ skipAddingFilesFromTsConfig: true }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  const live = [...judged.live.values()].map((site) => `${site.rel}::${site.subject}`).toSorted((a, b) => a.localeCompare(b));
+  const waived = real.authority.waivedFindings.map(({ finding }) => `${finding.file}::${finding.token}`).toSorted((a, b) => a.localeCompare(b));
+
+  expect(real.authority.effectiveFindings).toEqual([]);
+  expect(live).toEqual(waived);
   expect(judged.glassRules).toBeGreaterThan(0);
 });
