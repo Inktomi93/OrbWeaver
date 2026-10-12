@@ -20,6 +20,12 @@ export const TESTID_REGISTRY_CONST = "TEST_IDS";
 export const TESTID_ATTR = "data-testid";
 /** The typed accessor: `testId("key")` is both a producer and a consumer spelling. */
 export const TESTID_FN = "testId";
+/** The story-side registry's home: ids a CT story stamps that no production component mints. */
+export const STORY_TESTID_REGISTRY_HOME = "tests/support/browser/story-test-ids.ts";
+/** The story registry's exported const, matched BY NAME like the production one. */
+export const STORY_TESTID_REGISTRY_CONST = "STORY_TEST_IDS";
+/** The story accessor: `storyTestId("key")` stamps a story registry row. */
+export const STORY_TESTID_FN = "storyTestId";
 
 /** One row of the typed registry: the key a component/test names, and the DOM value it promises. */
 export interface TestIdRegistryRow {
@@ -37,12 +43,21 @@ export interface TestIdRegistryRow {
  *  walk, so neither needs a descendant walk of its own. The owner is checked by ANCESTOR (a `TEST_IDS`
  *  variable declaration), never by a descendant scan of the file. */
 export function testIdRegistryRow(node: Node): TestIdRegistryRow | undefined {
+  return registryRowOf(node, TESTID_REGISTRY_CONST);
+}
+
+/** The same read over the story registry: rows of `STORY_TEST_IDS`, judged by `testid-liveness` as story producers. */
+export function storyTestIdRegistryRow(node: Node): TestIdRegistryRow | undefined {
+  return registryRowOf(node, STORY_TESTID_REGISTRY_CONST);
+}
+
+function registryRowOf(node: Node, constName: string): TestIdRegistryRow | undefined {
   const assignment = node.asKind(SyntaxKind.PropertyAssignment);
   if (assignment === undefined) {
     return;
   }
   const owner = assignment.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  if (owner?.getName() !== TESTID_REGISTRY_CONST) {
+  if (owner?.getName() !== constName) {
     return;
   }
   const initializer = assignment.getInitializer();
