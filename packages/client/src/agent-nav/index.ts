@@ -92,10 +92,12 @@ function validateConfigSubAddress(
 }
 
 const OK: NavResult = { ok: true };
+// @orb-waive no-vanity-alias(CHARACTER_NAV_PAGE_LIMIT): baselined when the gate widened; burn-down item 906.
 // One page at the server's CEILING covers a dev character library — enough to resolve any id/name without a
 // keyset walk. This is a dev-drivability bridge, not a paged UI surface. (It already asked for 500 and was
 // silently served 100 until 2026-08-09; the ask is the real bound now.)
 const CHARACTER_NAV_PAGE_LIMIT = CHARACTER_LIST_MAX_LIMIT;
+// @orb-waive no-vanity-alias(CHAT_NAV_PAGE_LIMIT): baselined when the gate widened; burn-down item 906.
 // How deep `openChat` resolves an id/title. `listChats` is keyset-paged (server ceiling 100), so this is one
 // page, not a walk: a dev bridge resolves what a dev is looking at, and the refusal below states its reach
 // rather than claiming the chat does not exist.

@@ -140,6 +140,7 @@ export function CommandList({ className, listSize, ...rest }: CommandListProps):
   return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
 }
 
+// @orb-waive no-vanity-alias(CommandAuxiliaryButtonProps): baselined when the gate widened; burn-down item 906.
 /** An ALIAS, not an `extends`: `ButtonProps` is the icon-only-name union (§13.10 N1, #1021), and an
  *  interface cannot extend a union — nor should this wrapper weaken the requirement it forwards. */
 export type CommandAuxiliaryButtonProps = ButtonProps;

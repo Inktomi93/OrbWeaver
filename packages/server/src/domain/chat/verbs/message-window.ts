@@ -1,5 +1,5 @@
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
-import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
+import { CHAT_MESSAGE_LIST_MAX_LIMIT, projectViewForMember } from "@orb/contracts/chat";
 import type { CorpusSource, CorpusSourceOutcome } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
@@ -10,7 +10,7 @@ import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
 import { loadMessagesPage } from "../persistence/queries.ts";
-import { projectViewForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 
 const DEFAULT_WINDOW_LIMIT = 40;
 

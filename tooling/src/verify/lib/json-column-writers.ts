@@ -3,11 +3,11 @@
 // bounded omission/spread/known-normalizer grammar (one set-helper hop and the accumulator spelling). Split out of
 // `json-column-write-fact.ts` at the size cap (2026-09-18); ARM B (guard dominance) and the fact stay there
 // and reuse `collectWriters`. One-way: this module imports nothing from it.
+import { readCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
 import type { CallExpression, FunctionDeclaration, ObjectLiteralExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
 import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
-import { readCallReturns } from "./authored-key-set.ts";
 import { proveJsonColumnMerge } from "./json-column-merge-proof.ts";
 import { jsonColumnCallContext } from "./json-column-value-origin.ts";
 import { tableFromReference } from "./schema-fact-resolve.ts";

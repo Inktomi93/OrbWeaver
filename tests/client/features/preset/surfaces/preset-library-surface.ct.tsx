@@ -55,6 +55,7 @@ const EDITED_ONE_NAME = "Default (edited)";
 const EDITED_TWO_NAME = "Default (edited) 2";
 const IMPORTED_NAME = "Imported RP";
 
+// @orb-waive no-vanity-alias(FROZEN_NOW): baselined when the gate widened; burn-down item 906.
 // The F5 subtitle is a RELATIVE stamp read off the PAGE's wall clock, so the stamp test pins that clock
 // (`page.clock.setFixedTime`) and derives the fixture dates from the SAME frozen instant — the shared
 // `FROZEN_AT_MS`, never an ambient clock read (test-determinism gate).

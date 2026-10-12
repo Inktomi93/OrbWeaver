@@ -26,6 +26,7 @@ import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
 import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
+// @orb-waive no-vanity-alias(SNAP_DIR): baselined when the gate widened; burn-down item 906.
 // The pointer-free story-shot family (#1201): `reports/snaps/` is the SNAP instrument's published
 // alias, and a screenshot written there follows the symlink into a finished run's slot.
 const SNAP_DIR = STORY_SHOT_DIR;

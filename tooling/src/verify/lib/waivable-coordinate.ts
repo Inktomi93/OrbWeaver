@@ -60,13 +60,11 @@ export function isWaivablePosition(position: string): boolean {
  *  both values to share a paren-free PREFIX, which means both contain a paren, which means NEITHER was
  *  waivable before. The split therefore never takes waivability away from a site that had it.
  *
- *  THE SCAN USES THE EXCLUDED SET, not a re-derivation through {@link isWaivablePosition} one character at a
- *  time: that alternative reads a leading SPACE as unwaivable (the predicate rejects a blank position) and
- *  would silently return `undefined` for a value the pre-move code accepted. */
+ *  THE COORDINATE NEVER CARRIES EDGE WHITESPACE: the marker parser trims its position, so a cut such as
+ *  `typeof globalThis & { __x: ` could never equal what a marker names. The trailing run is dropped, which stays
+ *  an exact prefix. A LEADING run cannot be dropped without moving the coordinate off the reported column, so a
+ *  value that starts with whitespace is a refusal. */
 export function waivableCoordinate(value: string): string | undefined {
-  if (isWaivablePosition(value)) {
-    return value;
-  }
   let head = "";
   for (const char of value) {
     if (POSITION_EXCLUDED_SET.has(char)) {
@@ -74,5 +72,6 @@ export function waivableCoordinate(value: string): string | undefined {
     }
     head += char;
   }
-  return isWaivablePosition(head) ? head : undefined;
+  const cut = head.trimEnd();
+  return cut !== "" && cut === cut.trimStart() ? cut : undefined;
 }

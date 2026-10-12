@@ -2,9 +2,11 @@
 // the size cap, docs/law/Core-Tooling-Law.md §4.3). Given a receiver expression, this answers which
 // schema-derived open column, if any, it addresses — narrowing through aliases, destructuring, array
 // element callbacks and union/intersection types until a live schema table can be proved or refused.
-import type { BindingElement, Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
+import type { BindingElement, Node as TsNode, Type } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { readStaticString, resolveGlobalMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import type { RowOrigin } from "./open-json-type-origins.ts";
+import { arrayTypeOrigins, origin, sameTable, tableDeclarations, typeOrigins } from "./open-json-type-origins.ts";
 import type { OpenJsonColumn } from "./open-json-vocabulary.ts";
 import { isOpenBag, unwrap } from "./open-json-vocabulary.ts";
 
@@ -75,126 +77,6 @@ function columnReceiver(receiver: TsNode, seen = new Set<TsNode>()): ColumnRecei
   return columnReceiver(initializer, seen);
 }
 
-/** Keep every contributing source type and origin until TypeScript narrows the actual read. */
-interface RowOrigin {
-  readonly sourceType: Type;
-  readonly kind: "schema" | "plain" | "unresolved";
-  readonly table?: TsNode | undefined;
-  readonly partitionType?: Type | undefined;
-}
-
-function origin(kind: RowOrigin["kind"], sourceType: Type, table?: TsNode): RowOrigin {
-  return { sourceType, kind, table };
-}
-
-function aliasBody(typeNode: TsNode): { readonly body: TsNode; readonly generic: boolean } | undefined {
-  if (!Node.isTypeReference(typeNode)) {
-    return;
-  }
-  const symbol = typeNode.getTypeName().getSymbol();
-  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations().filter(Node.isTypeAliasDeclaration) ?? [];
-  const declaration = declarations.length === 1 ? declarations[0] : undefined;
-  const body = declaration?.getTypeNode();
-  return declaration === undefined || body === undefined ? undefined : { body, generic: declaration.getTypeParameters().length > 0 };
-}
-
-function schemaTableIn(origins: readonly RowOrigin[]): TsNode | undefined {
-  return origins.find((item) => item.table !== undefined)?.table;
-}
-
-function referenceRowOrigins(typeNode: TypeReferenceNode, seen: ReadonlySet<TsNode>): readonly RowOrigin[] {
-  const alias = aliasBody(typeNode);
-  const argumentsOrigins = typeNode.getTypeArguments().flatMap((argument) => typeOrigins(argument, new Set(seen)));
-  if (alias !== undefined) {
-    const bodyOrigins = typeOrigins(alias.body, new Set(seen));
-    return alias.generic ? [origin("unresolved", typeNode.getType(), schemaTableIn([...bodyOrigins, ...argumentsOrigins]))] : bodyOrigins;
-  }
-  const schemaArgument = argumentsOrigins.some((item) => item.kind !== "plain");
-  return [origin(schemaArgument ? "unresolved" : "plain", typeNode.getType(), schemaTableIn(argumentsOrigins))];
-}
-
-function typeOrigins(typeNode: TsNode, seen = new Set<TsNode>()): readonly RowOrigin[] {
-  if (seen.has(typeNode)) {
-    return [origin("unresolved", typeNode.getType())];
-  }
-  const next = new Set(seen).add(typeNode);
-  if (Node.isParenthesizedTypeNode(typeNode)) {
-    return typeOrigins(typeNode.getTypeNode(), next);
-  }
-  if (Node.isTypeQuery(typeNode)) {
-    const member = typeNode.getExprName();
-    return [
-      Node.isQualifiedName(member) && member.getRight().getText() === "$inferSelect"
-        ? origin("schema", typeNode.getType(), member.getLeft())
-        : origin("plain", typeNode.getType()),
-    ];
-  }
-  if (Node.isUnionTypeNode(typeNode)) {
-    return typeNode.getTypeNodes().flatMap((arm) => typeOrigins(arm, next));
-  }
-  if (Node.isIntersectionTypeNode(typeNode)) {
-    return intersectionOrigins(typeNode, next);
-  }
-  if (Node.isTypeReference(typeNode)) {
-    return referenceRowOrigins(typeNode, next);
-  }
-  if (Node.isTypeLiteral(typeNode) || typeNode.getKindName().endsWith("Keyword")) {
-    return [origin("plain", typeNode.getType())];
-  }
-  const nestedOrigins = typeNode.getDescendantsOfKind(SyntaxKind.TypeQuery).flatMap((query) => typeOrigins(query, next));
-  return [origin("unresolved", typeNode.getType(), schemaTableIn(nestedOrigins))];
-}
-
-function intersectionOrigins(typeNode: TsNode, seen: ReadonlySet<TsNode>): readonly RowOrigin[] {
-  if (!Node.isIntersectionTypeNode(typeNode)) {
-    return [];
-  }
-  const parts = typeNode.getTypeNodes().flatMap((part) => typeOrigins(part, new Set(seen)));
-  const tables = parts.filter((part): part is RowOrigin & { table: TsNode } => part.kind === "schema" && part.table !== undefined);
-  if (parts.some((part) => part.kind === "unresolved") || tables.some((part) => !sameTable(part.table, tables[0]?.table ?? part.table))) {
-    return [origin("unresolved", typeNode.getType(), schemaTableIn(parts))];
-  }
-  return [tables[0] === undefined ? origin("plain", typeNode.getType()) : origin("schema", typeNode.getType(), tables[0].table)];
-}
-
-function arrayTypeOrigins(typeNode: TsNode, seen = new Set<TsNode>()): readonly RowOrigin[] {
-  if (seen.has(typeNode)) {
-    return [origin("unresolved", typeNode.getType())];
-  }
-  const next = new Set(seen).add(typeNode);
-  if (Node.isParenthesizedTypeNode(typeNode)) {
-    return arrayTypeOrigins(typeNode.getTypeNode(), next);
-  }
-  if (Node.isTypeOperatorTypeNode(typeNode) && typeNode.getOperator() === SyntaxKind.ReadonlyKeyword) {
-    return arrayTypeOrigins(typeNode.getTypeNode(), next);
-  }
-  if (Node.isArrayTypeNode(typeNode)) {
-    return typeOrigins(typeNode.getElementTypeNode());
-  }
-  if (Node.isUnionTypeNode(typeNode)) {
-    return typeNode.getTypeNodes().flatMap((arm) => arrayTypeOrigins(arm, next));
-  }
-  if (Node.isTypeReference(typeNode)) {
-    return referenceArrayOrigins(typeNode, next);
-  }
-  return [origin("unresolved", typeNode.getType())];
-}
-
-function referenceArrayOrigins(typeNode: TypeReferenceNode, seen: ReadonlySet<TsNode>): readonly RowOrigin[] {
-  const name = typeNode.getTypeName().getText();
-  if (name === "Array" || name === "ReadonlyArray") {
-    const element = typeNode.getTypeArguments()[0];
-    return element === undefined ? [origin("unresolved", typeNode.getType())] : typeOrigins(element);
-  }
-  const alias = aliasBody(typeNode);
-  const argumentsOrigins = typeNode.getTypeArguments().flatMap((argument) => typeOrigins(argument, new Set(seen)));
-  if (alias !== undefined) {
-    const bodyOrigins = arrayTypeOrigins(alias.body, new Set(seen));
-    return alias.generic ? [origin("unresolved", typeNode.getType(), schemaTableIn([...bodyOrigins, ...argumentsOrigins]))] : bodyOrigins;
-  }
-  return [origin(argumentsOrigins.some((item) => item.kind !== "plain") ? "unresolved" : "plain", typeNode.getType(), schemaTableIn(argumentsOrigins))];
-}
-
 const ELEMENT_CALLBACKS: ReadonlySet<string> = new Set([
   "every",
   "filter",
@@ -207,18 +89,6 @@ const ELEMENT_CALLBACKS: ReadonlySet<string> = new Set([
   "map",
   "some",
 ]);
-
-/** The declaration behind a schema table reference. A syntactic name alone is never provenance. */
-function tableDeclarations(reference: TsNode): readonly TsNode[] {
-  const symbol = reference.getSymbol();
-  return (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
-}
-
-function sameTable(left: TsNode, right: TsNode): boolean {
-  return tableDeclarations(left).some((a) =>
-    tableDeclarations(right).some((b) => a.getSourceFile().getFilePath() === b.getSourceFile().getFilePath() && a.getStart() === b.getStart()),
-  );
-}
 
 /** Immutable aliases and array sources preserve alternatives; narrowing happens only at the read. */
 function rowOrigins(receiver: TsNode, seen = new Set<TsNode>()): readonly RowOrigin[] {

@@ -88,6 +88,7 @@ export interface SummarizeInput {
   images?: ImageInput[] | undefined;
 }
 
+// @orb-waive no-vanity-alias(SummarizeOptions): baselined when the gate widened; burn-down item 906.
 /** Per-call sampling for `summarize` and `structured`, applied to every input: the generation params a
  *  non-chat role takes from its preset (D299), already folded over the task's posture. A runner drops a knob
  *  the resolved model does not state, with a warning. */

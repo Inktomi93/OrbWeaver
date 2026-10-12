@@ -11,6 +11,7 @@ import {
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
+// @orb-waive no-vanity-alias(ranges): baselined when the gate widened; burn-down item 906.
 const ranges = DEFAULT_TRUSTED_RANGES;
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);
 const ABORT_RE = /abort/i;

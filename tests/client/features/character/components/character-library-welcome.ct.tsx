@@ -52,6 +52,7 @@ const DAY_MS = 24 * HOUR_MS;
  *  ABSENT from these mounts and takes its rendered receipt from `snap --isolated` instead — stating the
  *  limit rather than reaching for an ambient clock that would make every other pin here time-dependent. */
 const FROZEN_AT = 1_750_000_000_000;
+// @orb-waive no-vanity-alias(NOW): baselined when the gate widened; burn-down item 906.
 const NOW = FROZEN_AT;
 
 function character(name: string, overrides: Partial<CharacterSummaryFixture> = {}): CharacterSummaryFixture {

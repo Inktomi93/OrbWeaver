@@ -111,6 +111,7 @@ function rowOf(report: StructureReport, name: string): FinalPolicyRow {
   return row;
 }
 
+// @orb-waive no-vanity-alias(finalRow): baselined when the gate widened; burn-down item 906.
 /** `rowOf` already returns the artifact's ONE row shape (#2176 Phase F collapsed the roster to policies), so
  *  this is a readability alias rather than a narrowing. It is kept because the arms below say `finalRow` to
  *  mean "read this row in the policy vocabulary", which is the distinction the file is about. */

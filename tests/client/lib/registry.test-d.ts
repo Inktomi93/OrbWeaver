@@ -7,6 +7,7 @@ import { expectTypeOf, test } from "vitest";
 
 const ID_TUPLE = ["a", "b", "c"] as const;
 type Id = (typeof ID_TUPLE)[number];
+// @orb-waive no-vanity-alias(IDS): baselined when the gate widened; burn-down item 906.
 const IDS: readonly Id[] = ID_TUPLE;
 
 test("a definitions map missing a vocabulary member fails to compile", () => {

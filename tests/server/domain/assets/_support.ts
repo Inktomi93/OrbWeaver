@@ -46,6 +46,7 @@ import { principal as makePrincipal } from "../../../support/factories/principal
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
+// @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 const FROZEN_AT = FROZEN_AT_MS;
 
 // The PNG magic bytes — every `pngBytes(...)` starts here so `sniffMime` returns image/png. The tail makes

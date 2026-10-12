@@ -67,6 +67,7 @@ function emptyState(): RpgSnapshotState {
 }
 
 const DELTA_CONTEXT: DeltaContext = { participantNames: {}, trackerDefs: [], relationshipHints: {} };
+// @orb-waive no-vanity-alias(STAT_PROFILE): baselined when the gate widened; burn-down item 906.
 const STAT_PROFILE: RpgStatProfile = RPG_PROFILE_FREEFORM;
 
 function feedFor(view: RpgTrackerView): ReturnType<typeof buildRpgMacroFeed> {

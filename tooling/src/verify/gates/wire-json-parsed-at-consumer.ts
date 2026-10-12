@@ -8,6 +8,7 @@ import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { inspectBindingReassignment, resolveLexicalValueDeclaration } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 const JSON_METHOD = "json";
 const TEXT_METHOD = "text";
@@ -23,7 +24,8 @@ const MESSAGE =
 const FIX =
   "mint or import the route's zod schema in @orb/contracts and parse the body with it. A baselined site is waived " +
   "with `@orb-waive wire-json-parsed-at-consumer(json): <reason naming its burn-down item>` on the line above; the " +
-  "position is the `json` method name, or `parse` for `JSON.parse(await res.text())`.";
+  "position is the `json` method name, or `parse` for `JSON.parse(await res.text())`; a bracket-spelled read " +
+  'keeps its quotes (`"json"`).';
 
 // Through what hands the body on unchanged: parentheses, `await`, and an `as unknown` / `satisfies unknown` step.
 function unwrapBody(node: Node): Node {
@@ -58,13 +60,13 @@ function bodyExpression(node: Node): Node {
   return initializer === undefined ? current : unwrapBody(initializer);
 }
 
-/** `<x>.<method>()` with no arguments: the method's name node. */
+/** `<x>.<method>()` or `<x>["<method>"]()` with no arguments: the method's name node. */
 function bodyRead(node: Node, method: string): Node | undefined {
   if (!N.isCallExpression(node)) {
     return;
   }
-  const callee = node.getExpression();
-  return N.isPropertyAccessExpression(callee) && callee.getName() === method && node.getArguments().length === 0 ? callee.getNameNode() : undefined;
+  const read = readMemberAccess(node.getExpression());
+  return read?.name === method && node.getArguments().length === 0 ? read.nameNode : undefined;
 }
 
 /** The value a `.then` callback resolves to: its expression body, or its body's final `return` expression. */
@@ -87,17 +89,17 @@ function bodyReadUnder(operand: Node): Node | undefined {
   if (json !== undefined || !N.isCallExpression(current)) {
     return json;
   }
-  const callee = current.getExpression();
-  if (!N.isPropertyAccessExpression(callee)) {
+  const callee = readMemberAccess(current.getExpression());
+  if (callee === undefined) {
     return;
   }
   const [first] = current.getArguments();
-  if (callee.getName() === THEN_METHOD) {
+  if (callee.name === THEN_METHOD) {
     const result = callbackResult(first);
     return result === undefined ? undefined : bodyRead(bodyExpression(result), JSON_METHOD);
   }
-  const parsesText = callee.getName() === PARSE_METHOD && callee.getExpression().getText() === JSON_GLOBAL && first !== undefined;
-  return parsesText && bodyRead(bodyExpression(first), TEXT_METHOD) !== undefined ? callee.getNameNode() : undefined;
+  const parsesText = callee.name === PARSE_METHOD && callee.receiver.getText() === JSON_GLOBAL && first !== undefined;
+  return parsesText && bodyRead(bodyExpression(first), TEXT_METHOD) !== undefined ? callee.nameNode : undefined;
 }
 
 /** `unknown`, `Promise<unknown>`, or a type literal whose every member is (recursively) `unknown`: the body stays unparsed data. */
@@ -196,6 +198,18 @@ export const gate = defineGate({
       expect: { count: 4, token: "json" },
       why: "an `as unknown` step does not launder the body, and a body held in an unreassigned local `const` or `let` (also inside a `.then` block) is the same read",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/data/bracketed.ts":
+          "interface Row { readonly id: string }\n" +
+          'export async function direct(res: Response): Promise<Row> {\n  return (await res["json"]()) as Row;\n}\n' +
+          'export const chained = (u: string): Promise<Row> => fetch(u)["then"]((r) => r["json"]()) as Promise<Row>;\n' +
+          'export const texted = async (res: Response): Promise<Row> => JSON["parse"](await res["text"]()) as Row;\n',
+      },
+      expect: { count: 3 },
+      why: "the bracket spelling of the body read, of the `.then` callback and of `JSON.parse` over `.text()`",
+    },
   ],
   mustPass: [
     {
@@ -223,6 +237,17 @@ export const gate = defineGate({
         "packages/server/src/entry/http/x.ts": "export const read = async (res: Response): Promise<{ id: string }> => (await res.json()) as { id: string };\n",
       },
       why: "the population: the server reads bodies through its route schemas and is outside this policy",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/data/bracketed-ok.ts":
+          "declare const schema: { parse(value: unknown): { id: string } };\n" +
+          'export const parsed = async (res: Response): Promise<{ id: string }> => schema.parse(await res["json"]());\n' +
+          'declare const doc: { json(key: string): unknown };\nexport const other = (): string => doc["json"]("k") as string;\n' +
+          'export const opaque = async (res: Response): Promise<unknown> => (await res["json"]()) as unknown;\n',
+      },
+      why: "the bracket spelling of the remedy, of a `json` method that takes an argument and of an `unknown` target stays silent",
     },
     {
       mode: "types",
