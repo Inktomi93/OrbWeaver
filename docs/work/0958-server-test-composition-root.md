@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: blocked
 updated: 2026-10-12
 priority: P1
+blocked: on 964
 plan: test-foundation
 ---
 
@@ -10,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Add a test composition root to `@orb/testkit/node` that builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes each seam at its composition root. The first step makes every rule private to an `entry/compose` closure an exported factory in its owning layer: participant publics, seat decorations, the present-host read, ownership checks, promote-to-character and the rest the item 890 lanes listed. Port one domain suite onto it as the proof.
+Add a test composition root to `@orb/testkit/node` that builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes each seam at its composition root. It starts from the compose that item 964 leaves: every rule already exported from its owning domain, so the root reaches each one. Port one domain suite onto it as the proof.
 
 ## Why
 
