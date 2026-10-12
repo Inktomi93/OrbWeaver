@@ -53,6 +53,8 @@ const TRIM_PUNCT_RE = /[:.,;)]+$/u;
 const TRIM_CROSSREF_RE = /::.*$/u;
 const CODE_EXT_RE = /\.(ts|tsx)$/u;
 const SYMBOL_CANDIDATE_RE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/u;
+const TESTKIT_PACKAGE = "testkit";
+const TESTKIT_ROOT = "tests/support";
 
 function trimPathToken(raw: string): string {
   const base = raw.trim().replace(TRIM_ANCHOR_RE, "").replace(TRIM_LINEREF_RE, "").replace(TRIM_PUNCT_RE, "");
@@ -60,7 +62,15 @@ function trimPathToken(raw: string): string {
 }
 
 function pkgRoot(pkg: string): string {
-  return pkg === "tooling" ? "tooling" : `packages/${pkg}`;
+  if (pkg === "tooling") {
+    return "tooling";
+  }
+  return pkg === TESTKIT_PACKAGE ? TESTKIT_ROOT : `packages/${pkg}`;
+}
+
+function pkgSourceRoot(pkg: string): string {
+  const root = pkgRoot(pkg);
+  return pkg === TESTKIT_PACKAGE ? root : `${root}/src`;
 }
 
 function shorthandTarget(ref: string): string | undefined {
@@ -87,7 +97,7 @@ function pathExists(index: PathStatusIndex, target: string): boolean {
 
 function basenameIndex(entries: readonly ResourceTreeEntry[], pkg: string): ReadonlySet<string> {
   const out = new Set<string>();
-  const root = `${pkgRoot(pkg)}/src/`;
+  const root = `${pkgSourceRoot(pkg)}/`;
   for (const entry of entries) {
     if (!entry.path.startsWith(root)) {
       continue;
@@ -115,7 +125,7 @@ function orbPkgModExists({ index, entries, target, pkg, mod }: OrbModuleResoluti
     return true;
   }
   const last = mod.split("/").pop();
-  return last !== undefined && basenameIndex(entries, pkg).has(last);
+  return pkg !== TESTKIT_PACKAGE && last !== undefined && basenameIndex(entries, pkg).has(last);
 }
 
 export function shorthandExists(index: PathStatusIndex, entries: readonly ResourceTreeEntry[], ref: string): boolean {
@@ -127,7 +137,7 @@ export function shorthandExists(index: PathStatusIndex, entries: readonly Resour
     }
     const pkg = rest.slice(0, slash);
     const mod = rest.slice(slash + 1);
-    return orbPkgModExists({ index, entries, target: `${pkgRoot(pkg)}/src/${mod}`, pkg, mod });
+    return orbPkgModExists({ index, entries, target: `${pkgSourceRoot(pkg)}/${mod}`, pkg, mod });
   }
   if (ref.startsWith("kit/") && pathExists(index, `packages/server/src/${ref}`)) {
     return true;
@@ -140,7 +150,7 @@ export function shorthandCandidates(ref: string): readonly string[] {
   if (ref.startsWith("@orb/")) {
     const rest = ref.slice("@orb/".length);
     const slash = rest.indexOf("/");
-    return slash === -1 ? pathCandidates(pkgRoot(rest)) : pathCandidates(`${pkgRoot(rest.slice(0, slash))}/src/${rest.slice(slash + 1)}`);
+    return slash === -1 ? pathCandidates(pkgRoot(rest)) : pathCandidates(`${pkgSourceRoot(rest.slice(0, slash))}/${rest.slice(slash + 1)}`);
   }
   const target = shorthandTarget(ref);
   if (target === undefined) {

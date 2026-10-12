@@ -15,7 +15,7 @@ UI exposes node-only token build modules through token-contract and tokens-build
 
 ## Population and migration checks
 
-Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents. Repair citation resolution: its package shorthand assumes `packages/<name>/src`, so valid testkit paths are reported missing. Keep release-please and corpus findings visible until completed checks establish a verdict.
+Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents. Keep release-please and corpus findings visible until completed checks establish a verdict.
 
 The typed-lint migration reports legacy-only condition, coercion, sort, and nullish findings. Preserve their regression cases for the rebuild rather than starting another legacy retrofit. The maintained lint population also reports `shell-modal-header` as an unknown class in `packages/client/src/components/content-dialog.tsx` and `packages/client/src/features/app-shell/components/modal-host.tsx`; adjudicate the class against its actual style home.
 
@@ -39,6 +39,8 @@ Structure evidence: `reports/runs/structure/main-9229-2026-10-12T20-28-58-495Z/c
 
 Knip baseline typing and CLI spawn types are corrected. Focused Knip controls and root compilation pass, not a fresh production liveness verdict.
 
+Testkit citation lookup resolves its world homes and rejects wrong-world basenames. Red-first proofs, scoped lint and native compilation pass. The grant-budget alarm remains unresolved; no whole-policy verdict is claimed.
+
 The caught-failure census relocates domain sites and retains unproven reindex/auth sites. Compose and Principal budgets shrink. Only the removed chat catch reduces its application budget; remaining census differences need population-specific adjudication.
 
-Native server import analysis finds circular domain dependencies and an illegal chat verb-to-assembly import after the composition moves. The compose item owns correction. Compiler success does not establish import-policy success; repeat only the focused import check after the affected source changes.
+Native server import analysis rejects domain cycles and a chat verb-to-assembly import. The compose item owns correction and focused import verification; compiler success does not establish import-policy success.

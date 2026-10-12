@@ -132,6 +132,17 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         ...PROOF_FILES,
+        "docs/law/__testkit_missing.md": "---\nkind: law\nstatus: active\n---\n\nSee `@orb/testkit/node/fixtures.ts`.\n",
+        "tests/support/package.json": '{"name":"@orb/testkit"}\n',
+        "tests/support/browser/fixtures.ts": "export const fixtures = true;\n",
+      },
+      expect: { count: 1, messageIncludes: "@orb/testkit/node/fixtures.ts" },
+      why: "A fixture in another testkit world does not establish the cited node-world path.",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...PROOF_FILES,
         "docs/law/__generated_typo.md": "---\nkind: law\nstatus: active\n---\n\nSee `packages/showcase-plugins/dist/bundlez/`.\n",
         "packages/showcase-plugins/dist/bundles/live.js": "export const live = 1;\n",
       },
@@ -190,6 +201,17 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    proof(
+      {
+        "docs/law/__testkit.md":
+          "---\nkind: law\nstatus: active\n---\n\nSee `@orb/testkit`, `@orb/testkit/node`, `@orb/testkit/node/fixtures.ts`, `@orb/testkit/iso/clock` and `@orb/testkit/browser/ct-door`.\n",
+        "tests/support/package.json": '{"name":"@orb/testkit"}\n',
+        "tests/support/node/fixtures.ts": "export const fixtures = true;\n",
+        "tests/support/iso/clock.ts": "export const clock = true;\n",
+        "tests/support/browser/ct-door.ts": "export const door = true;\n",
+      },
+      "Testkit citations resolve its package and exact world homes outside packages and without a src directory.",
+    ),
     proof(
       {
         "docs/law/__generated.md": "---\nkind: law\nstatus: active\n---\n\nSee `packages/showcase-plugins/dist/bundles/`.\n",
