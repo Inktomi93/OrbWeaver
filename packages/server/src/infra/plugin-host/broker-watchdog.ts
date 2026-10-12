@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
+import { formatPluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginBrokerExecArgv } from "./process-permission.ts";
 import { rpcError } from "./process-protocol.ts";
@@ -102,12 +102,16 @@ async function superviseOneBroker(): Promise<string> {
   let failure: string | undefined;
   let runtimeReported = false;
   let reportedPeakPhysicalWorkers = -1;
-  const broker = spawn(process.execPath, [...pluginBrokerExecArgv(), BROKER_ENTRY, directory, String(workerMaximum), generation, nodeEnvironment], {
-    env: { ["NODE_ENV"]: nodeEnvironment },
-    // A guest Worker can read the broker's working directory whatever the grants say; keep it the private one.
-    cwd: directory,
-    stdio: ["ignore", "inherit", "inherit", "ipc"],
-  });
+  const broker = spawn(
+    process.execPath,
+    [...pluginBrokerExecArgv(), BROKER_ENTRY, ...formatPluginBrokerArguments({ directory, workerMaximum, generation, nodeEnvironment })],
+    {
+      env: { ["NODE_ENV"]: nodeEnvironment },
+      // A guest Worker can read the broker's working directory whatever the grants say; keep it the private one.
+      cwd: directory,
+      stdio: ["ignore", "inherit", "inherit", "ipc"],
+    },
+  );
   activeBroker = broker;
   activeGeneration = generation;
   const sender = new PluginIpcSender(

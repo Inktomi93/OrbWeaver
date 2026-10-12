@@ -18,6 +18,7 @@ import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
+import { createResolveEmbeddingConnection } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -563,20 +564,7 @@ test.each([
       }
       return h.svc.withStableEmbeddingBinding(ownerId, read);
     },
-    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
-      const resolved =
-        connectionId === undefined
-          ? await h.runtime.roleClientsFor(owner.principal).resolved(task)
-          : (await h.runtime.resolve({ principal: owner.principal, task, connectionId })).resolved;
-      return resolved === null
-        ? null
-        : {
-            ...resolved,
-            api: resolved.api ?? "none",
-            embed: (input, opts) => h.runtime.executor.embed({ connection: { ...resolved, task: "embed" }, input, signal: opts?.signal }),
-            imageEmbed: (input, opts) => h.runtime.executor.imageEmbed({ connection: { ...resolved, task: "imageEmbed" }, input, signal: opts?.signal }),
-          };
-    },
+    resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, () => Promise.resolve(owner.principal)),
     onTargetGenerationMoved: (id) => rebuilds.push(id),
   };
   const embeddings = createEmbeddingsService(ctx);

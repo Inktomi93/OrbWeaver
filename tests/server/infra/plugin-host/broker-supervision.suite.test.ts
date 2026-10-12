@@ -10,6 +10,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { formatPluginBrokerArguments } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { afterEach } from "vitest";
@@ -17,8 +18,8 @@ import { afterEach } from "vitest";
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
 const STUB_SUPERVISOR = `
 const { spawn } = require("node:child_process");
-const [entry, directory] = process.argv.slice(1);
-const broker = spawn(process.execPath, [entry, directory, "1", "generation-supervised", "test"], { stdio: ["ignore", "inherit", "inherit", "ipc"], env: { NODE_ENV: "test" } });
+const [entry, launch] = process.argv.slice(1);
+const broker = spawn(process.execPath, [entry, ...JSON.parse(launch)], { stdio: ["ignore", "inherit", "inherit", "ipc"], env: { NODE_ENV: "test" } });
 broker.on("message", (message) => {
   if (message.kind === "ready") {
     broker.send({ kind: "frame", generation: message.generation, frame: JSON.stringify({ kind: "command", id: "control", operation: "create", runtimeId: "runtime-supervised", authorityId: "authority-supervised", value: { mainJs: "'control';", grants: [], chat: null } }) });
@@ -50,7 +51,9 @@ afterEach(() => {
 });
 test("a broker with a live Worker exits when its inherited watchdog channel disappears", { timeout: 30_000 }, async () => {
   directory = mkdtempSync(join(tmpdir(), "orb-broker-supervision-"));
-  supervisor = spawn(process.execPath, ["-e", STUB_SUPERVISOR, BROKER_ENTRY, directory], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
+  // The watchdog's own launch arguments, handed to the stub so it starts the broker the way production does.
+  const launch = formatPluginBrokerArguments({ directory, workerMaximum: 1, generation: "generation-supervised", nodeEnvironment: "test" });
+  supervisor = spawn(process.execPath, ["-e", STUB_SUPERVISOR, BROKER_ENTRY, JSON.stringify(launch)], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
   const [message] = (await once(supervisor, "message")) as [
     { readonly brokerPid: number; readonly response: { readonly ok: boolean; readonly value: { readonly ok: boolean } } },
   ];

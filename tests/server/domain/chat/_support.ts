@@ -41,7 +41,6 @@ import type {
   ChatStreamGenerationId,
   ChatTurnId,
   CompactionSpendId,
-  EmbedGenerationId,
   Handle,
   MessageAssetId,
   MessageId,
@@ -55,6 +54,8 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
+import { loadPresentHostUserId } from "@orb/server/domain/chat";
+import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { createPersonaOwned } from "@orb/server/domain/persona";
 import { createSourceState } from "@orb/server/domain/search";
 import {
@@ -63,6 +64,7 @@ import {
   createResolveRetainedChatRebase,
   settleRetainedChatRebase,
 } from "@orb/server/domain/stats";
+import { createMemoryEmbeddingOps } from "@orb/server/entry/compose";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
@@ -74,7 +76,7 @@ import type { ClaimChatOp, SummarizeOp } from "#server/domain/chat/contract/cont
 import type { MemoryRecallResult } from "#server/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
-import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "#server/domain/embeddings/persistence/clear.ts";
+import { makeStoreHarness, seedVectorConnection } from "../embeddings/_support.ts";
 
 // @orb-waive no-vanity-alias(FROZEN_AT): baselined when the gate widened; burn-down item 906.
 export const FROZEN_AT = FROZEN_AT_MS;
@@ -91,6 +93,8 @@ export const noClaim: ClaimChatOp = () => Promise.resolve();
 export async function seedUser(db: Db, handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   const row = await seedUserRow(db, { id, handle: castId<Handle>(handle) });
+  // Every chat user has the harness encoder bound, so the real memory space resolve can mint their target.
+  await seedVectorConnection(db, row.id);
   return row.id;
 }
 
@@ -471,6 +475,11 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     throw new Error("ChatContext op not stubbed in this test");
   };
   const personaOwned = createPersonaOwned(db);
+  const { resolveMemoryEmbedSpace, embeddingsPruneBlocks } = createMemoryEmbeddingOps({
+    embeddings: createEmbeddingsService(makeStoreHarness(db).ctx),
+    resolveChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
+  });
+  const memoryVectorOps = { resolveMemoryEmbedSpace, embeddingsPruneBlocks };
   const base: ChatContext = {
     resolveCorpusSourceState: createSourceState({ db }),
     db,
@@ -629,31 +638,12 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // Default = persona's own ownership read, the one compose wires, so the `reattributePersona` tests need no
     // per-test override; a test may override to force a verdict.
     verifyPersonaOwned: ({ ownerId, personaId }) => personaOwned(ownerId, personaId),
-    resolveMemoryEmbedSpace: (ownerId) =>
-      Promise.resolve({
-        ownerId,
-        model: "test-embed-1024",
-        generationId: castId<EmbedGenerationId>(`embed_generation_memory_${ownerId}`),
-        generationEpoch: 1,
-      }),
+    // The host's real space and the REAL prune compose wires, not stubs: the shrink reclaim is a CORRECTNESS step of
+    // every build pass, so a memory test that faked it would prove the build while exempting the half that deletes.
+    // Both scope to the host's TARGET generation, which the memory fixtures mint (`memory/_support.ts`).
+    ...memoryVectorOps,
     embeddingsStore: notStubbed,
     embeddingsStoreSegments: notStubbed,
-    // Default = the REAL prune against the seeded vector tables (the `verifyPersonaOwned` precedent), not a
-    // stub: the shrink reclaim is a CORRECTNESS step of every build pass, so a memory test that fakes it
-    // would prove the build while silently exempting the half that deletes. Unlike compose's prune it does not
-    // scope the DELETE to the host's target generation: these fixtures seed rows outside any target.
-    embeddingsPruneBlocks: async (params) => {
-      if (params.lens === "digest") {
-        await pruneChatDigests(db, params.chatId, params.scopedCharacterId, { keepPerTier: params.keepPerTier });
-        return;
-      }
-      // #1395 — the KNOWN-stale invalidation arm, real for the same reason the shrink is.
-      if (params.lens === "digest-stale") {
-        await dropChatDigestKeys(db, params.chatId, params.scopedCharacterId, { keys: params.keys });
-        return;
-      }
-      await pruneChatSegments(db, params.chatId, { keepBlockCount: params.keepBlockCount, chunkCounts: params.chunkCounts });
-    },
     searchDigests: notStubbed,
     searchCorpus: notStubbed,
     log: () => undefined,

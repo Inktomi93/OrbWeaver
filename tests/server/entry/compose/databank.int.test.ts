@@ -21,13 +21,15 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import "@orb/testkit/node/composed-real.ts";
 import type { Db } from "@orb/db";
+import { chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { bindGetDatabankSettings } from "#server/entry/compose/databank.ts";
-import { seedUser } from "../../domain/chat/_support.ts";
+import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { principal } from "../../domain/settings/_support.ts";
 
 function seedHost(db: Db): Promise<UserId> {
@@ -68,6 +70,27 @@ describe("databank settings wire — composed-real (createServices)", () => {
     const resolved = await bindGetDatabankSettings(services.settings.loadUserSettings)(host);
     expect(resolved.retrieval).toEqual({ k: 3, minScore: 0.4, rerank: true });
     expect(resolved.chunk.chunkSize).toBe(1200);
+  });
+});
+
+describe("databank room host — composed-real (createServices)", () => {
+  // The panel's host/member branch asks chat for the room's present host; the host governs the hidden set.
+  test("the room's present host sees a hidden document flagged; a member never receives it", async ({ services, db }) => {
+    const host = await seedUser(db, castId<Handle>("rackhost"));
+    const member = await seedUser(db, castId<Handle>("rackmember"));
+    const chatId = await seedChat(db, "rack");
+    await seedParticipant(db, { chatId, key: "rack_host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rack_member", userId: member, role: "member" });
+    const { document } = await services.databank.createFromText({ principal: principal(host, "user"), name: "lore.md", text: "hidden lore" });
+    await services.databank.attachToChat({ principal: principal(host, "user"), documentId: document.id, chatId });
+    await db
+      .update(chats)
+      .set({ metadata: { databankVisibility: { hidden: [document.id] } } })
+      .where(eq(chats.id, chatId));
+
+    const hostView = await services.databank.listActiveForChat({ principal: principal(host, "user"), chatId });
+    expect(hostView.map((row) => [row.id, row.hidden])).toEqual([[document.id, true]]);
+    expect(await services.databank.listActiveForChat({ principal: principal(member, "user"), chatId })).toEqual([]);
   });
 });
 

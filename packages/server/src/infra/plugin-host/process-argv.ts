@@ -41,6 +41,10 @@ export function parsePluginBrokerWatchdogArguments(arguments_: readonly string[]
     nodeEnvironment: nodeEnvironment(arguments_, NODE_ENVIRONMENT_INDEX),
   };
 }
+/** The watchdog's broker launch arguments, in the order {@link parsePluginBrokerArguments} reads them. */
+export function formatPluginBrokerArguments(args: PluginBrokerArguments): string[] {
+  return [args.directory, String(args.workerMaximum), args.generation, args.nodeEnvironment];
+}
 /** Parse the watchdog's broker launch, including its new transport generation. */
 export function parsePluginBrokerArguments(arguments_: readonly string[]): PluginBrokerArguments {
   requireArgumentCount(arguments_);

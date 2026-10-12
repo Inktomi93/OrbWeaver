@@ -15,7 +15,6 @@ import {
   characterEmbeddings,
   chatDigestSpeakers,
   chatDigests,
-  chatParticipants,
   chatSegments,
   documentChunks,
   documents,
@@ -41,7 +40,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 
 import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
@@ -86,17 +85,6 @@ const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
 // @orb-waive owner-scoped-reads(documents): same D20 un-principal seam as domain/databank/persistence/queries.ts::loadDocument — ingest/reindex runs after the enqueue authority check and this read derives the owner needed to pin the generation. Ends if ingest takes a documentId straight off a request.
 export async function loadDocumentOwnerForPrune(db: Db, documentId: DocumentId): Promise<UserId | null> {
   const rows = await db.select({ ownerId: documents.ownerId }).from(documents).where(eq(documents.id, documentId)).limit(LIMIT_ONE);
-  return rows[0]?.ownerId ?? null;
-}
-
-/** Resolve the present host who funds a post-build memory prune. The memory builder has already selected
- * the chat through its authorized workload path; this persistence read pins the corresponding generation. */
-export async function loadChatHostOwnerForPrune(db: Db, chatId: ChatId): Promise<UserId | null> {
-  const rows = await db
-    .select({ ownerId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-    .limit(LIMIT_ONE);
   return rows[0]?.ownerId ?? null;
 }
 

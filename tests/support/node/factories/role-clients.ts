@@ -42,6 +42,8 @@ export interface FakeRoleClientControls {
    *  to the captioned-text lens (the first is no binding at all, i.e. `unbound: ["imageEmbed"]`). Default true. */
   readonly imageEmbedVision?: boolean | undefined;
   readonly summarizerContextTokens?: number | undefined;
+  /** The text embedder conditions on a task instruction (the Qwen3 family). Default: the floor's answer, which drops it. */
+  readonly embedInstructionAware?: boolean | undefined;
   readonly embedDim?: number | undefined;
   /** The model id `resolved(task)` reports — and, for the default callables, the model id their own reply
    *  stamps. A caller overriding a callable with `embed`/`imageEmbed`/etc. but stamping a DIFFERENT model on
@@ -118,7 +120,7 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
     }),
   );
   const views: Record<RoleClientTask, ResolvedTaskView> = {
-    embed: view(embedModel, { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: dim, input: ["text"] } }),
+    embed: view(embedModel, textEmbedding(dim, controls.embedInstructionAware)),
     imageEmbed: view(imageEmbedModel, {
       kind: "embedding",
       embedding: { ...EMBEDDING_FLOOR, dims: dim, input: controls.imageEmbedVision === false ? ["text"] : ["text", "image"] },
@@ -135,6 +137,10 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
     structured: controls.structured ?? structured,
     resolved: (task): Promise<ResolvedTaskView | null> => Promise.resolve(unbound.has(task) ? null : views[task]),
   };
+}
+
+function textEmbedding(dims: number, instructionAware = EMBEDDING_FLOOR.instructionAware): ResolvedTaskView["capability"] {
+  return { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims, input: ["text"], instructionAware } };
 }
 
 function view(model: string, capability: ResolvedTaskView["capability"]): ResolvedTaskView {

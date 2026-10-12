@@ -231,14 +231,12 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/automation/persistence/rule-state.ts",
     "#server/domain/automation/substrate/suggestions.ts",
   ],
-  "tests/server/domain/automation/verbs/create-rule.int.test.ts": ["#server/domain/automation/persistence/rules.ts"],
   "tests/server/domain/automation/verbs/dismiss-suggestion.int.test.ts": [
     "#server/domain/automation/contract/ops.ts",
     "#server/domain/automation/substrate/suggestions.ts",
   ],
   "tests/server/domain/automation/verbs/list-chat-activity.int.test.ts": ["#server/domain/automation/persistence/fires.ts"],
   "tests/server/domain/automation/verbs/list-rule-presets.test.ts": ["#server/domain/automation/verbs/list-rule-presets.ts"],
-  "tests/server/domain/automation/verbs/reorder-rules.int.test.ts": ["#server/domain/automation/persistence/rules.ts"],
   "tests/server/domain/automation/verbs/run-rule-now.int.test.ts": [
     "#server/domain/automation/contract/service.ts",
     "#server/domain/automation/engine/arm-executors.ts",
@@ -314,7 +312,6 @@ export const REVIEWED_GRANTS_TESTS_RAW_PACKAGE_REACH_C: readonly ReviewedGateGra
     "#server/domain/chat/contract/memory.ts",
     "#server/domain/chat/contract/results.ts",
     "#server/domain/chat/teaching-contribution.ts",
-    "#server/domain/embeddings/persistence/clear.ts",
   ],
   "tests/server/domain/chat/active-turns.test.ts": ["#server/domain/chat/active-turns.ts"],
   "tests/server/domain/chat/assembly/assemble.test.ts": [

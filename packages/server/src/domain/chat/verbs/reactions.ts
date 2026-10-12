@@ -94,7 +94,7 @@ async function resolveReactionPosture(
   metadata: ChatMetadata,
 ): Promise<{ readonly reactionsEnabled: boolean; readonly charactersCanReact: boolean }> {
   const hostUserId = await loadPresentHostUserId(ctx.db, chatId);
-  const defaults = hostUserId === undefined ? DEFAULT_CHAT_BEHAVIOR : await ctx.readReactionDefaults(hostUserId);
+  const defaults = hostUserId === null ? DEFAULT_CHAT_BEHAVIOR : await ctx.readReactionDefaults(hostUserId);
   return {
     reactionsEnabled: resolveReactionsEnabled(metadata.reactionsEnabled, defaults.reactionsEnabled),
     charactersCanReact: resolveCharactersCanReact(metadata.charactersCanReact, defaults.charactersCanReact),
