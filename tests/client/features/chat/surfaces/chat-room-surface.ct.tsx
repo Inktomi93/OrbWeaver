@@ -27,7 +27,7 @@ import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory, ChatsSectionRoomStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, chatListResponder, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview. Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -353,26 +353,53 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
 });
 
 // The flank's FLIP counter (shell.css `--flank-centre-flip-from`): a centred transcript row owes half the change
-// of its containing block that the reading cap did not eat. The settle attribute holds the counter as a static
-// `translate`, so it is read here straight off the computed style. The cap is narrowed to sit between the thread
-// before and after the toggle, so both directions are non-zero and differ.
+// of its containing block that the reading cap did not eat. The room is mounted in the real shell, the cap is the
+// reader's own chat-width dial at its minimum (so it binds below the thread without the column), and the column is
+// toggled through its real edge control. Under reduced motion the toggle stamps the settle attribute for two
+// frames; a MutationObserver reads the computed translate in the same task as the stamp, because polling cannot
+// catch a two-frame window. The attribute is the product's; only the sampling is the test's.
 test("the flank's centring counter is half the capped width change, signed by the toggle direction", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 1024, height: 600 });
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
-  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
-  await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...PREVIEW_FIT_STUB,
+    ...ROSTER_STUB,
+    // The shell's own reads, all empty: this test's subject is the room's geometry, not the rail, list or bell.
+    "chat.listChats": chatListResponder([]),
+    "chat.countChats": 0,
+    "rosterPreset.count": 0,
+    "character.list": { items: [], nextCursor: null, totalCount: 0 },
+    "persona.list": [],
+    "notifications.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 },
+    // The reader's own chat-width dial at its minimum: the cap then falls below the thread without the column.
+    "settings.getUserSettings": () => ({
+      userId: castId<UserId>("user_ct"),
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatWidthPct: 30 } },
+      configUnreadable: null,
+      updatedAt: 0,
+    }),
+    "chat.listMessages": () =>
+      makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_flank"), role: "assistant", content: "A line in the room." })]),
+  });
+  await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} shell={true} />);
 
   const flankRow = page.locator('[data-slot="chat-room-flank-row"]');
-  // Differences are rounded to a tenth of a pixel; `+ 0` folds -0 into 0 for the structural compare.
-  const read = (): Promise<{ inDiff: number; outDiff: number; inSign: number; outSign: number }> =>
-    flankRow.evaluate((row) => {
+  await expect(flankRow).toBeVisible();
+  const samples = await flankRow.evaluateHandle((row) => {
+    const taken: { direction: string; actual: number; expected: number }[] = [];
+    new MutationObserver(() => {
+      const direction = row.getAttribute("data-flank-settle");
+      // The transcript rows are re-minted as the room settles, so the track is looked up at the moment of the stamp.
       const track = row.querySelector<HTMLElement>(".orb-chat-track");
-      if (track === null || track.parentElement === null) {
-        throw new Error("expected a centred transcript row inside the flank row");
+      const host = track?.parentElement;
+      if (direction === null || track === null || host === null || host === undefined) {
+        return;
       }
-      const host = track.parentElement;
-      // The story mounts the room without the shell's `.shell-main`, which the counter's rules are scoped under.
-      row.parentElement?.classList.add("shell-main");
+      // Widths are resolved by the browser from the product's own tokens, never re-spelled here.
       const lengthOf = (css: string): number => {
         const probe = document.createElement("div");
         probe.style.cssText = `position:absolute;visibility:hidden;width:${css}`;
@@ -383,26 +410,34 @@ test("the flank's centring counter is half the capped width change, signed by th
       };
       const delta = lengthOf("var(--width-sidebar-sm)") + lengthOf("var(--spacing-block)") - lengthOf("var(--spacing-control-lg)");
       const thread = lengthOf("100cqi");
-      // A cap between the thread without and with the column: it binds on exactly one side of every toggle.
-      (row as HTMLElement).style.setProperty("--width-shell-content", `${String(thread - delta / 2)}px`);
       const cap = lengthOf("var(--width-shell-content)");
-      const counterAfter = (direction: "in" | "out"): { actual: number; expected: number } => {
-        row.setAttribute("data-flank-settle", direction);
-        const sign = direction === "in" ? 1 : -1;
-        const grown = thread + sign * delta;
-        const expected = (Math.max(0, grown - cap) - Math.max(0, thread - cap)) / 2;
-        const actual = Number.parseFloat(getComputedStyle(track).translate);
-        row.removeAttribute("data-flank-settle");
-        return { actual, expected };
-      };
-      const counterIn = counterAfter("in");
-      const counterOut = counterAfter("out");
-      const off = (c: { actual: number; expected: number }): number => Math.round((c.actual - c.expected) * 10) / 10 + 0;
-      return { inDiff: off(counterIn), outDiff: off(counterOut), inSign: Math.sign(counterIn.expected), outSign: Math.sign(counterOut.expected) };
-    });
+      const before = thread + (direction === "in" ? delta : -delta);
+      taken.push({
+        direction,
+        actual: Number.parseFloat(getComputedStyle(track).translate),
+        expected: (Math.max(0, before - cap) - Math.max(0, thread - cap)) / 2,
+      });
+    }).observe(row, { attributes: true, attributeFilter: ["data-flank-settle"] });
+    return taken;
+  });
 
-  // Signs pin that the cap really binds on one side (expected non-zero) and that out mirrors in.
-  await expect.poll(read).toEqual({ inDiff: 0, outDiff: 0, inSign: 1, outSign: -1 });
+  await page.getByRole("button", { name: "Hide plugin panels" }).click();
+  await expect.poll(() => samples.evaluate((taken) => taken.length)).toBe(1);
+  await page.getByRole("button", { name: "Show plugin panels" }).click();
+  await expect.poll(() => samples.evaluate((taken) => taken.length)).toBe(2);
+
+  // Differences are rounded to a tenth of a pixel; `+ 0` folds -0 into 0. The signs pin that the cap really binds
+  // and that the column leaving mirrors it joining.
+  await expect
+    .poll(() =>
+      samples.evaluate((taken) =>
+        taken.map((s) => ({ direction: s.direction, diff: Math.round((s.actual - s.expected) * 10) / 10 + 0, sign: Math.sign(s.expected) })),
+      ),
+    )
+    .toEqual([
+      { direction: "out", diff: 0, sign: -1 },
+      { direction: "in", diff: 0, sign: 1 },
+    ]);
 });
 
 test("a fake thread-flank contribution with `when:false` paints NO flank column (today's layout, unchanged)", async ({ mount, page }) => {
