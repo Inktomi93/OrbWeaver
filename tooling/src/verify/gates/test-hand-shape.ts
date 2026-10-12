@@ -22,6 +22,9 @@ const TESTS = "tests/";
 const E2E = "tests/e2e/";
 /** The database package is the home of row types (AGENTS.md type homes): its tables carry `$inferSelect` and `$inferInsert`. */
 const DB_HOME = "packages/db/";
+/** A client test reaches the server package only through the type-only `AppRouter` bridge, whose wire shapes live in contracts. */
+const SERVER_HOME = "packages/server/";
+const CLIENT_TESTS = "tests/client/";
 const LAW = "(docs/law/Spine-Testing.md §10)";
 const MESSAGE = `a test support or e2e module hand-declares a shape that a production value is bound to, so a renamed or retyped field still compiles here and drifts silently ${LAW}.`;
 const FIX =
@@ -242,7 +245,7 @@ const MIRROR_RE = /^tests\/([^/]+)\/(?:(.+)\/)?[^/]+$/u;
 
 /** The production files a hand shape could have been copied from, by declaration: the direct imports of its own file
  *  and its mirrored subject (the source file the test name swaps to, else the files directly in the mirrored
- *  directory), each followed through production imports and re-exports transitively. A test file is a root only
+ *  directory), each followed through production imports and re-exports transitively; a client test's closure never enters `packages/server`. A test file is a root only
  *  through its own direct imports, and no `tests/` file is ever traversed, so a testkit barrel pulls nothing in. */
 function reachableFrom(files: readonly SourceFile[], homeOf: (file: SourceFile) => string): (hand: HandShape) => ReadonlySet<SourceFile> {
   const byHome = new Map(files.map((file) => [homeOf(file), file] as const));
@@ -252,21 +255,22 @@ function reachableFrom(files: readonly SourceFile[], homeOf: (file: SourceFile) 
       const target = declaration.getModuleSpecifierSourceFile();
       return target === undefined ? [] : [target];
     });
-  const closureCache = new Map<SourceFile, ReadonlySet<SourceFile>>();
-  const closureOf = (root: SourceFile): ReadonlySet<SourceFile> => {
-    const cached = closureCache.get(root);
+  const closureCache = new Map<string, ReadonlySet<SourceFile>>();
+  const closureOf = (root: SourceFile, blockServer: boolean): ReadonlySet<SourceFile> => {
+    const key = `${String(blockServer)}|${homeOf(root)}`;
+    const cached = closureCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
     const seen = new Set<SourceFile>([root]);
     for (const file of seen) {
       for (const target of linksOf(file)) {
-        if (isProductionFile(target)) {
+        if (isProductionFile(target) && !(blockServer && homeOf(target).startsWith(SERVER_HOME))) {
           seen.add(target);
         }
       }
     }
-    closureCache.set(root, seen);
+    closureCache.set(key, seen);
     return seen;
   };
   const subjectsOf = (home: string): readonly SourceFile[] => {
@@ -282,7 +286,8 @@ function reachableFrom(files: readonly SourceFile[], homeOf: (file: SourceFile) 
   return (hand) => {
     const file = hand.getSourceFile();
     const roots = [...linksOf(file).filter(isProductionFile), ...subjectsOf(homeOf(file)).filter(isProductionFile)];
-    return new Set(roots.flatMap((root) => [...closureOf(root)]));
+    const blockServer = homeOf(file).startsWith(CLIENT_TESTS);
+    return new Set(roots.filter((root) => !(blockServer && homeOf(root).startsWith(SERVER_HOME))).flatMap((root) => [...closureOf(root, blockServer)]));
   };
 }
 
@@ -542,6 +547,17 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/infra/image/index.ts":
+          "export interface ImageInfo {\n  readonly width: number;\n  readonly height: number;\n  readonly format: string;\n  readonly bytes: number;\n}\n",
+        "packages/client/src/features/x/router.ts": 'import "../../../../server/src/infra/image/index.ts";\nexport const router = 1;\n',
+        "tests/client/features/x/_ct-stories.tsx":
+          'import "../../../../packages/client/src/features/x/router.ts";\nexport interface StoryProps {\n  readonly width: number;\n  readonly height: number;\n  readonly format: string;\n  readonly bytes: number;\n}\nexport const props: StoryProps = { width: 1, height: 1, format: "png", bytes: 1 };\n',
+      },
+      why: "THE ROUTER BRIDGE IS NOT A ROUTE: a client test reaches the server package only for the AppRouter type, whose wire shapes live in contracts, so a client story shape that coincidentally fits a server-internal type passes",
+    },
     {
       mode: "types",
       files: {

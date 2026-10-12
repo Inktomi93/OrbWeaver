@@ -27,15 +27,15 @@ export const REVIEWED_GRANTS_TEST_HAND_SHAPE: readonly ReviewedGateGrant[] = han
     "tests/client/components/tag-picker-dialog.fixtures.tsx",
     "narrows:TagPickerDialogHarnessProps=packages/client/src/components/tag-picker-dialog.tsx#TagPickerDialogProps",
   ],
-  [
-    "tests/client/data/_ct-stories.tsx",
-    "copies:NotificationsParams=packages/server/src/foundation/observability/debug/inspect/automation-fires.ts#AutomationFireFilter",
-  ],
+  ["tests/client/data/_ct-stories.tsx", "copies:NotificationsParams=packages/contracts/src/assets/index.ts#anonymous"],
   [
     "tests/client/features/app-shell/_cascade-fixtures.tsx",
     "copies:ReadingTypographyFixtureProps=packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts#ReadingTypographyVars",
   ],
-  ["tests/client/features/character/_ct-stories.tsx", "narrows:CharacterEditorSurfaceStoryProps=packages/server/src/infra/image/index.ts#ImageInfo"],
+  [
+    "tests/client/features/character/_ct-stories.tsx",
+    "narrows:CharacterEditorSurfaceStoryProps=packages/ui/src/art/web-weave/web-weave-geometry.ts#BuildWebInput",
+  ],
   [
     "tests/client/features/chat/_ct-stories.tsx",
     "copies:ReasoningBlockStoryProps=packages/client/src/features/chat/components/reasoning-block.tsx#ReasoningBlockProps",
