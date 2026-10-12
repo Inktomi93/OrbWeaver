@@ -1,10 +1,8 @@
-// @orb-waive-file test-mock-doctrine(spyOn): baselined when the gate widened to spies; burn-down item to be boarded from the 899 lane report.
-
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { runGit } from "@orb/tooling/floor/git/git";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { vi } from "vitest";
 import { referenceProblems } from "../../../../tooling/src/floor/prose/prose-references.ts";
 
 test("absent ignored output passes; missing descendants of existing output fail", ({ scratch }) => {
@@ -19,27 +17,27 @@ test("absent ignored output passes; missing descendants of existing output fail"
   expect(cite("packages/showcase-plugins/dist/bundlez/")).toHaveLength(1);
 });
 
-test("shared generated prefixes query Git once per document and a fresh invocation observes edits", async ({ scratch }) => {
+test("shared generated prefixes query Git once per document and a fresh invocation observes edits", ({ scratch }) => {
   execFixtureGit(scratch, ["init", "-q"]);
   const ignore = join(scratch, ".gitignore");
   writeFileSync(ignore, "dist/\n");
   mkdirSync(join(scratch, "packages/showcase-plugins"), { recursive: true });
   const source = "See `packages/showcase-plugins/dist/a.js` and `packages/showcase-plugins/dist/b.js`.";
-  const spy = vi.spyOn(await import("../../../../tooling/src/floor/git/git.ts"), "runGit");
-  try {
-    expect(referenceProblems(scratch, "docs/law/example.md", source)).toEqual([]);
-    expect(spy).toHaveBeenCalledTimes(2);
-    writeFileSync(ignore, "out/\n");
-    expect(referenceProblems(scratch, "docs/law/example.md", source)).toHaveLength(2);
-    writeFileSync(ignore, "dist/\n");
-    mkdirSync(join(scratch, "packages/showcase-plugins/dist"));
-    writeFileSync(join(scratch, "packages/showcase-plugins/dist/a.js"), "export const a = 1;\n");
-    const problems = referenceProblems(scratch, "docs/law/example.md", source);
-    expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain("dist/b.js");
-  } finally {
-    spy.mockRestore();
-  }
+  let queries = 0;
+  const countedGit: typeof runGit = (root, args, options) => {
+    queries += 1;
+    return runGit(root, args, options);
+  };
+  expect(referenceProblems(scratch, "docs/law/example.md", source, countedGit)).toEqual([]);
+  expect(queries).toBe(2);
+  writeFileSync(ignore, "out/\n");
+  expect(referenceProblems(scratch, "docs/law/example.md", source)).toHaveLength(2);
+  writeFileSync(ignore, "dist/\n");
+  mkdirSync(join(scratch, "packages/showcase-plugins/dist"));
+  writeFileSync(join(scratch, "packages/showcase-plugins/dist/a.js"), "export const a = 1;\n");
+  const problems = referenceProblems(scratch, "docs/law/example.md", source);
+  expect(problems).toHaveLength(1);
+  expect(problems[0]).toContain("dist/b.js");
 });
 
 test("references in a not-yet-created tree report missing paths without writing the root", ({ scratch }) => {

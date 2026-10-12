@@ -1,4 +1,5 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { WAIVER_BUDGET_PARTS } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/tests-raw-package-reach.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
@@ -16,5 +17,6 @@ test("the baselined grants are one row per test file and raw specifier, and the 
     expect(row.subject.startsWith("tests/"), row.id).toBe(true);
     expect(row.operation, row.id).toMatch(/^raw-reach:#[a-z-]+\/.+/u);
   }
-  expect(WAIVER_BUDGET[gate.id]).toBe(rows.length);
+  // The grant table spans the whole declared population, so it equals both budget parts together.
+  expect(WAIVER_BUDGET_PARTS.reduce((sum, part) => sum + (WAIVER_BUDGET[part][gate.id] ?? 0), 0)).toBe(rows.length);
 });

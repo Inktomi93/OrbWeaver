@@ -1,9 +1,9 @@
-// The committed waiver budget per final policy: its waived plus granted finding count on a complete run
-// (`lib/waiver-ratchet.ts` judges it; docs/law/gate-runtime-standardization.md §5 owns the exception). A
-// policy absent here has a budget of zero. Lower a row when its count falls; never raise one to admit a finding.
+// The committed waiver budget per final policy and part: waived plus granted findings inside the application
+// subjects, and those in the rest of the declared population (docs/law/gate-runtime-standardization.md §5). An
+// absent row is zero. Lower a row when its count falls; never raise one to admit a finding.
 import type { WaiverBudget } from "../contract/gate-authority.ts";
 
-export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
+const APPLICATION = Object.freeze({
   "assets-single-writer": 6,
   "audit-client-tests": 1,
   "baseui-derives-not-respells": 7,
@@ -23,7 +23,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "css-length-tokens": 3,
   "css-length-tokens-grants": 26,
   "css-var-defined-grants": 19,
-  "ct-no-oneshot-live-read-assert": 359,
+  "ct-no-oneshot-live-read-assert": 353,
   "db-structure-producer-home": 4,
   "density-tier": 49,
   "detached-work-traced": 4,
@@ -47,7 +47,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "no-floorless-control-in-wrap": 2,
   "no-hardcoded-model-prose": 17,
   "no-inline-invalidate-outside-seam": 1,
-  "no-inline-types": 14,
+  "no-inline-types": 13,
   "no-inline-wire-interface": 86,
   "no-legacy-react-api": 2,
   "no-loose-id-cast": 133,
@@ -60,7 +60,7 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "no-raw-matchmedia": 6,
   "no-raw-random": 1,
   "no-raw-zustand-persist": 4,
-  "no-test-fabrication": 1672,
+  "no-test-fabrication": 1653,
   "no-unruled-flip-inversion": 1,
   "no-untyped-soft-ref": 13,
   "no-vanity-alias": 148,
@@ -86,15 +86,14 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "skin-fragment-tier-permission": 1,
   "sole-env-reader": 10,
   "sub-floor-disclosure": 2,
-  suppressions: 58,
+  suppressions: 57,
   "surface-a11y-focus": 5,
   "test-determinism": 80,
-  "test-file-size": 74,
+  "test-file-size": 73,
   "test-hand-shape": 13,
-  "test-mock-doctrine": 33,
   "test-production-clone": 17,
   "test-reach": 112,
-  "tests-raw-package-reach": 2491,
+  "tests-raw-package-reach": 2487,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,
   "tooling-browser-door": 2,
@@ -113,3 +112,26 @@ export const WAIVER_BUDGET: WaiverBudget = Object.freeze({
   "zod-error-issues-home": 9,
   "zod-export-membership": 4,
 });
+
+const IMPLEMENTATION = Object.freeze({
+  "brand-in-name-position": 2,
+  "caught-failure-ownership": 23,
+  "no-inline-types": 2,
+  "no-loose-id-cast": 20,
+  "no-test-fabrication": 583,
+  "no-vanity-alias": 23,
+  "platform-spellings": 29,
+  suppressions: 7,
+  "test-determinism": 32,
+  "test-file-size": 14,
+  "test-mock-doctrine": 7,
+  "test-production-clone": 8,
+  "testid-typed-only-stories": 100,
+  "tests-raw-package-reach": 4,
+  "tooling-argv-front-door": 2,
+  "tooling-child-process-door": 1,
+  "tooling-clock-budget": 5,
+  "tooling-project-home": 1,
+});
+
+export const WAIVER_BUDGET: WaiverBudget = Object.freeze({ application: APPLICATION, implementation: IMPLEMENTATION });

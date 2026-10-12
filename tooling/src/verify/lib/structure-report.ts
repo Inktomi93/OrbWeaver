@@ -154,6 +154,7 @@ export function policyReport(result: PolicyPassResult): StructurePolicyReport {
     authority: {
       alarms: result.authority.authorityAlarms,
       unjudgedReviewedGrants: result.authority.unjudgedReviewedGrants,
+      waiverBudget: result.authority.waiverBudget,
       toolErrors: result.authority.toolErrors,
       withheldPolicyIds: result.authority.withheldPolicyIds,
       ordinaryConsumption: result.authority.ordinaryConsumption,

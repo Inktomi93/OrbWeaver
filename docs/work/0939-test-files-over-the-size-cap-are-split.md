@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-12
 priority: P3
 area: tests
+lane: wt/agent-a17af7753ef5674e8
 plan: test-mirror
 ---
 

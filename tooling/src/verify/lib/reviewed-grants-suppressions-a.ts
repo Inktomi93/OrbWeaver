@@ -283,15 +283,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `lint/style/useNamingConvention` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-style-use-numeric-separators",
-    policyId: "suppressions",
-    subject: "lint/style/useNumericSeparators",
-    operation: "source",
-    why: "RULING — a standard constant quoted verbatim — separators would obscure the value the spec names (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/style/useNumericSeparators` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-lint-performance-no-barrel-file",
     policyId: "suppressions",
     subject: "lint/performance/noBarrelFile",

@@ -98,6 +98,12 @@ function renderPolicyBlock(report: StructurePolicyReport): readonly string[] {
       `  ⚠ grant liveness NOT judged ${policyId}: ${grants.length} reviewed grant(s) unconsumed by this subset run are neither live nor stale; the whole-tree run judges them`,
     );
   }
+  const budget = report.authority.waiverBudget;
+  if (budget !== null && budget.unjudged.length > 0) {
+    out.push(
+      `  ⚠ waiver budget NOT judged for ${budget.unjudged.length} of ${budget.judged.length + budget.unjudged.length} polic(ies) over the ${budget.population} population: their owners walked only part of it or did not complete, so this run neither passes nor fails their budget (ids: authority.waiverBudget.unjudged)`,
+    );
+  }
   for (const r of report.waiverCarrierRefusals) {
     out.push(`  ⚠ waiver carrier ${r.path} (${r.format}) ${r.status}: ${r.reason}`);
   }
